@@ -9,6 +9,29 @@ on:
 
 jobs:
 
+  vendor:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create vendor archive
+        run: |
+          .github/scripts/vendor.sh
+
+      - name: Stage vendor archive
+        run: |
+          tar caf vendor.tar.xz vendor
+
+      - name: Upload vendor archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendor
+          path: |
+            vendor.tar.xz
+            vendor.toml
+          if-no-files-found: error
+
   build:
     name: Build
     runs-on: ${{ matrix.os }}
@@ -109,6 +132,8 @@ jobs:
             core.exportVariable('RUSTFLAGS', '-Csymbol-mangling-version=v0');
 
       - run: mkdir -p upload
+
+      - run: npm --version
 
       - name: Build | Build
         shell: bash
