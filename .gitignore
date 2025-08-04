@@ -15,4 +15,4 @@
 /dump.sql
 .ai_history.txt
 /vendor/
-/.vendor.toml
+/vendor.toml
