@@ -535,52 +535,37 @@ Complete the following steps to configure Keycloak for RHTPA
 ----
 {
   "clientId": "frontend",
-  "surrogateAuthRequired": false,
-  "enabled": true,
-  "alwaysDisplayInConsole": false,
   "clientAuthenticatorType": "client-secret",
-  "webOrigins": [
-    "*"
-  ],
-  "notBefore": 0,
-  "bearerOnly": false,
-  "consentRequired": false,
-  "standardFlowEnabled": true,
+  "enabled": true,
+  "publicClient": true,
   "implicitFlowEnabled": true,
+  "standardFlowEnabled": true,
   "directAccessGrantsEnabled": false,
   "serviceAccountsEnabled": false,
-  "publicClient": true,
-  "frontchannelLogout": false,
-  "protocol": "openid-connect",
-  "attributes": {
-    "realm_client": "false",
-    "access.token.lifespan": "300",
-    "post.logout.redirect.uris": "+"
-  },
-  "authenticationFlowBindingOverrides": {},
   "fullScopeAllowed": true,
-  "nodeReRegistrationTimeout": -1,
+  "webOrigins": [
+	"*"
+  ],
   "defaultClientScopes": [
-    "web-origins",
-    "delete:document",
-    "profile",
-    "roles",
-    "update:document",
-    "read:document",
-    "basic",
-    "email",
-    "create:document"
+	"basic",
+	"email",
+	"profile",
+	"roles",
+	"web-origins",
+	"create:document",
+	"read:document",
+	"update:document",
+	"delete:document"
   ],
   "optionalClientScopes": [
-    "address",
-    "phone",
-    "offline_access",
-    "microprofile-jwt"
+	"address",
+	"microprofile-jwt",
+	"offline_access",
+	"phone"
   ],
-  "access": {
-    "view": true,
-    "configure": true,
-    "manage": true
+  "attributes": {
+	"access.token.lifespan": "300",
+	"post.logout.redirect.uris": "+"
   }
 }
 ----
@@ -590,54 +575,34 @@ Complete the following steps to configure Keycloak for RHTPA
 ----
 {
   "clientId": "cli",
-  "surrogateAuthRequired": false,
-  "enabled": true,
-  "alwaysDisplayInConsole": false,
   "clientAuthenticatorType": "client-secret",
-  "secret": "5460cc91-4e20-4edd-881c-b15b169f8a79",
-  "redirectUris": [],
-  "webOrigins": [],
-  "notBefore": 0,
-  "bearerOnly": false,
-  "consentRequired": false,
-  "standardFlowEnabled": false,
+  "enabled": true,
+  "publicClient": false,
   "implicitFlowEnabled": false,
+  "standardFlowEnabled": false,
   "directAccessGrantsEnabled": false,
   "serviceAccountsEnabled": true,
-  "publicClient": false,
-  "frontchannelLogout": false,
-  "protocol": "openid-connect",
-  "attributes": {
-    "realm_client": "false",
-    "access.token.lifespan": "300",
-    "client.secret.creation.time": "1754035725",
-    "post.logout.redirect.uris": "+"
-  },
-  "authenticationFlowBindingOverrides": {},
   "fullScopeAllowed": true,
-  "nodeReRegistrationTimeout": -1,
   "defaultClientScopes": [
-    "service_account",
-    "web-origins",
-    "delete:document",
-    "profile",
-    "roles",
-    "update:document",
-    "read:document",
-    "basic",
-    "email",
-    "create:document"
+	"basic",
+	"email",
+	"profile",
+	"roles",
+	"web-origins",
+	"create:document",
+	"read:document",
+	"update:document",
+	"delete:document"
   ],
   "optionalClientScopes": [
-    "address",
-    "phone",
-    "offline_access",
-    "microprofile-jwt"
+	"address",
+	"microprofile-jwt",
+	"offline_access",
+	"phone"
   ],
-  "access": {
-    "view": true,
-    "configure": true,
-    "manage": true
+  "attributes": {
+	"access.token.lifespan": "300",
+	"post.logout.redirect.uris": "+"
   }
 }
 ----
@@ -665,9 +630,6 @@ KEYCLOAK_ADMIN_PASSWORD="<Keycloak admin password>" # ---> 4
 
 # Realm settings
 REALM="trust"
-
-# Client secrets
-CLI_SECRET="5460cc91-4e20-4edd-881c-b15b169f8a79"
 
 # Role name
 TRUSTD_ROLE_NAME="trustd"
@@ -743,7 +705,6 @@ for client in "${CLIENTS[@]}"; do
 	ID=$("$KCADM_PATH" get clients -r "$REALM" --query exact=true --query "clientId=${client}" --fields id --format csv --noquotes)
 	if [ "${client}" == "cli" ]; then
 	  "$KCADM_PATH" add-roles -r "$REALM" --uusername service-account-${client} --rolename "$TRUSTD_ROLE_NAME"
-	  "$KCADM_PATH" update "clients/${ID}" -r "$REALM" -s "secret=${CLI_SECRET}"
 	fi
 done
 # Create user
@@ -791,8 +752,8 @@ echo Keycloak initialization complete
 
 For the RHTPA installation, the following OIDC values are retrieved from your Keycloak configuration:
 
-* **issuerURL**: `_keycloakURL_/realms/<<_realm_creation,Realm name>>`
-* **cli**: On the <<_keycloak_clients,clients-cli.json>> file this value is hardcoded to `5460cc91-4e20-4edd-881c-b15b169f8a79`. This value can be Regenerated and retrieved from the **Client Secret** from the Keycloak admin console by navigating to **Clients** -> **cli** -> **Credentials** tab.
+* **issuerURL**: `_keycloakURL_/realms/_<Realm name>_`
+* **cli**: Retrieve the **Client Secret** from the Keycloak admin console by navigating to **Clients** -> **cli** -> **Credentials** tab.
 * **frontend**: `empty object as {}`
 [NOTE]
 This means no secret or specific configuration is needed for the OIDC setup to install RHTPA.
