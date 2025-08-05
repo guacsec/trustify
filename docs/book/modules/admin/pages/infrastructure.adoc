@@ -527,7 +527,7 @@ spec:
  `hostname: https://sso-tpa.apps.ocp.cluster.net`
 
 [[_keycloak_usage_]]
-===== Usage
+==== Retrieve Admin Credentials
 * Retrieve the Admin console username and password using the below commands,
 +
 [source, bash]
@@ -536,8 +536,7 @@ oc get secret example-kc-initial-admin -n $NAMESPACE -o jsonpath='{.data.usernam
 oc get secret example-kc-initial-admin -n $NAMESPACE -o jsonpath='{.data.password}' | base64 --decode
 ----
 * On Openshift console, Go to Networking -> Routes
-* Retrieve the Route of keycloak, Open the keycloak admin console
-* Login to Keycloak admin console using the secrets retrieved above
+* Retrieve the Route of keycloak
 
 ==== Configuring Keycloak
 Complete the following steps to configure Keycloak for RHTPA
@@ -700,7 +699,8 @@ Complete the following steps to configure Keycloak for RHTPA
 
 [[_keycloak_config_script]]
 ===== Create Realm, Roles, clients, client scopes and users
-* Update the below shell script with the keycloak details to create Realm, role, clients, client scopes and Users
+* Update the shell script below with the appropriate Keycloak configurations to create the Realm, roles, clients, client scopes, and users
+* Execute the script to apply the changes
 +
 ++++
 <details>
