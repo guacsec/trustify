@@ -22,7 +22,7 @@ impl StorageBackend for DispatchBackend {
 
     async fn store<S>(&self, stream: S) -> Result<StorageResult, StoreError<Self::Error>>
     where
-        S: AsyncRead + Unpin,
+        S: AsyncRead + Unpin + Send,
     {
         match self {
             Self::Filesystem(backend) => backend.store(stream).await.map_err(Self::map_err),
@@ -30,10 +30,10 @@ impl StorageBackend for DispatchBackend {
         }
     }
 
-    async fn retrieve<'a>(
+    async fn retrieve(
         &self,
         key: StorageKey,
-    ) -> Result<Option<impl Stream<Item = Result<Bytes, Self::Error>> + 'a>, Self::Error>
+    ) -> Result<Option<impl Stream<Item = Result<Bytes, Self::Error>> + use<>>, Self::Error>
     where
         Self: Sized,
     {

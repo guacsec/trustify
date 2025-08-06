@@ -159,10 +159,10 @@ impl StorageBackend for FileSystemBackend {
         Ok(result)
     }
 
-    async fn retrieve<'a>(
+    async fn retrieve(
         &self,
         key: StorageKey,
-    ) -> Result<Option<impl Stream<Item = Result<Bytes, Self::Error>> + 'a>, Self::Error> {
+    ) -> Result<Option<impl Stream<Item = Result<Bytes, Self::Error>> + use<>>, Self::Error> {
         match self.locate(key).await? {
             Some((path, compression)) => File::open(&path)
                 .await

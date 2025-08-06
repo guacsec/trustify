@@ -85,23 +85,26 @@ impl StorageResult {
 }
 
 pub trait StorageBackend {
-    type Error: Debug;
+    type Error: Debug + Display;
 
     /// Store the content from a stream
     fn store<S>(
         &self,
         stream: S,
-    ) -> impl Future<Output = Result<StorageResult, StoreError<Self::Error>>>
+    ) -> impl Future<Output = Result<StorageResult, StoreError<Self::Error>>> + Send
     where
-        S: AsyncRead + Unpin;
+        S: AsyncRead + Unpin + Send;
 
     /// Retrieve the content as an async reader
-    fn retrieve<'a>(
+    fn retrieve(
         &self,
         key: StorageKey,
     ) -> impl Future<
-        Output = Result<Option<impl Stream<Item = Result<Bytes, Self::Error>> + 'a>, Self::Error>,
-    >;
+        Output = Result<
+            Option<impl Stream<Item = Result<Bytes, Self::Error>> + Send + use<Self>>,
+            Self::Error,
+        >,
+    > + Send;
 
     /// Delete the stored content.
     ///

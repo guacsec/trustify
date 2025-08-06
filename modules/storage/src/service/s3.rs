@@ -135,7 +135,7 @@ impl StorageBackend for S3Backend {
     #[instrument(skip(self, stream), err(Debug, level=tracing::Level::INFO))]
     async fn store<S>(&self, stream: S) -> Result<StorageResult, StoreError<Self::Error>>
     where
-        S: AsyncRead + Unpin,
+        S: AsyncRead + Unpin + Send,
     {
         let file = TempFile::with_compression(stream, self.compression).await?;
         let result = file.to_result();
@@ -163,10 +163,10 @@ impl StorageBackend for S3Backend {
         Ok(result)
     }
 
-    async fn retrieve<'a>(
+    async fn retrieve(
         &self,
         StorageKey(key): StorageKey,
-    ) -> Result<Option<impl Stream<Item = Result<Bytes, Self::Error>> + 'a>, Self::Error> {
+    ) -> Result<Option<impl Stream<Item = Result<Bytes, Self::Error>> + use<>>, Self::Error> {
         let req = self.client.get_object().bucket(&self.bucket).key(&key);
 
         match req.send().await {
