@@ -69,7 +69,7 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
 
       - uses: codecov/codecov-action@v5
-        if: github.repository_owner == 'trustification'
+        if: github.repository_owner == 'guacsec'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          slug: trustification/trustify
+          slug: guacsec/trustify
