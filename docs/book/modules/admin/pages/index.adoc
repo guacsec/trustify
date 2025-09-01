@@ -21,7 +21,7 @@ You have several deployment options to choose from for running Trustify.
 === Bare metal
 
 Running Trustify on bare-metal servers requires you to download the `trustd` binary from source found on the
-link:https://github.com/trustification/trustify/releases[Trustify releases] page.
+link:https://github.com/guacsec/trustify/releases[Trustify releases] page.
 
 There currently exist two variants of this binary, `trustd` and `trustd-pm`. The `-pm` version includes a few embedded
 services, such as PostgreSQL and an OIDC issuer, which make it easier to run Trustify locally for trying it out. However,
@@ -30,7 +30,7 @@ without too much trouble.
 
 === Container image
 
-Trustify services are available in an image, `ghcr.io/trustification/trustd`.
+Trustify services are available in an image, `ghcr.io/guacsec/trustd`.
 
 === Kubernetes
 

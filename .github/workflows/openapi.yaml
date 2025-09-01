@@ -11,7 +11,7 @@ on:
 jobs:
   trustify-ui:
     runs-on: ubuntu-24.04
-    if: ${{ github.repository_owner == 'trustification' }}
+    if: ${{ github.repository_owner == 'guacsec' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout trustify-ui
         uses: actions/checkout@v4
         with:
-          repository: trustification/trustify-ui
+          repository: guacsec/trustify-ui
           path: trustify-ui
           ref: ${{ github.ref_name }}
       - name: Update trustify-ui
@@ -29,7 +29,7 @@ jobs:
           cd ./trustify-ui
           git diff
       - name: Create Pull Request - trustify-ui
-        uses: trustification/release-tools/.github/actions/create-pr@main
+        uses: guacsec/trustify-release-tools/.github/actions/create-pr@main
         with:
           path: ./trustify-ui
           commit-message: "update client/openapi/trustd.yaml"

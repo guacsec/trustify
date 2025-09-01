@@ -34,7 +34,7 @@ FROM registry.access.redhat.com/ubi9/ubi-micro:latest
 
 LABEL \
     org.opencontainers.image.description="Trustify - Main server binary" \
-    org.opencontainers.image.source="https://github.com/trustification/trustify"
+    org.opencontainers.image.source="https://github.com/guacsec/trustify"
 
 # copy staging over to actual image
 

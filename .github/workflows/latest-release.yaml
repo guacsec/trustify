@@ -122,7 +122,7 @@ jobs:
       run_ui_tests: true
 
   deploy:
-    if: ${{ (github.repository == 'trustification/trustify') && (needs.init.outputs.version == 'main') }}
+    if: ${{ (github.repository == 'guacsec/trustify') && (needs.init.outputs.version == 'main') }}
     runs-on: ubuntu-24.04
     needs:
       - publish

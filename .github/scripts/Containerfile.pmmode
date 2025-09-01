@@ -34,7 +34,7 @@ FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 LABEL \
     org.opencontainers.image.description="Trustify - Main server binary" \
-    org.opencontainers.image.source="https://github.com/trustification/trustify"
+    org.opencontainers.image.source="https://github.com/guacsec/trustify"
 
 RUN microdnf reinstall tzdata -y
 ENV TZ=UTC

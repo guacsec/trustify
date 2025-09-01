@@ -32,4 +32,4 @@ jobs:
         startsWith(github.event.comment.body, '/backport')
       )
     secrets: inherit
-    uses: trustification/release-tools/.github/workflows/backport.yaml@main
+    uses: guacsec/trustify-release-tools/.github/workflows/backport.yaml@main

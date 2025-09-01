@@ -294,7 +294,7 @@ impl<'g> CveLoader<'g> {
                 // For the vulnerability score we are using the value of the highest CVSS version
                 // available.
                 //
-                // TODO: With https://github.com/trustification/trustify/issues/1656 we will start
+                // TODO: With https://github.com/guacsec/trustify/issues/1656 we will start
                 // saving the type of the score (CNA or ADP) to be able to distinguish between them.
 
                 if let Some(cvss) = metric.cvss_v4_0.as_ref() {

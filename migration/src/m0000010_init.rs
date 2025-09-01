@@ -5,7 +5,7 @@ pub struct Migration;
 
 // This migration squashes MANY previous migrations.  If you need to write a new one,
 // and you would like to see some examples of how they were written, you can browse those previous migrations at:
-// https://github.com/trustification/trustify/tree/3d6eaa3c44558201c735b755f26596d9778bc111/migration/src
+// https://github.com/guacsec/trustify/tree/3d6eaa3c44558201c735b755f26596d9778bc111/migration/src
 #[async_trait::async_trait]
 #[allow(deprecated)]
 impl MigrationTrait for Migration {

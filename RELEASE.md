@@ -51,7 +51,7 @@ The following instructions walk you through the process on the example of releas
 to replace with the actual release. Note that during release process we should avoid merging any other PRs to `main`
 branch.
 
-### 1. Prepare Branch 
+### 1. Prepare Branch
 
 Switch to main branch and make sure your local checkout is up-to-date.
 ```shell
@@ -101,9 +101,9 @@ Push commit.
 
 ### 3. Raise PR, pass CI, review and merge
 
-Goto [github](https://github.com/trustification/trustify/pulls) and raise PR.
+Goto [github](https://github.com/guacsec/trustify/pulls) and raise PR.
 
-PR should pass CI. 
+PR should pass CI.
 
 Get a friend to review.
 
@@ -124,16 +124,16 @@ Switch to release branch and make sure your local checkout is up-to-date.
 > git rebase upstream/<stream>
 ```
 
-Create (signed) tag. 
+Create (signed) tag.
 ```shell
 > git tag -S v0.0.0-alpha.1
 ```
 
-Push tag, which triggers GitHub release workflow. 
+Push tag, which triggers GitHub release workflow.
 ```shell
 > git push upstream v0.0.0-alpha.1
 ```
-Congratulations, the release is now building - [monitor](https://github.com/trustification/trustify/actions) the outcome! 🎂
+Congratulations, the release is now building - [monitor](https://github.com/guacsec/trustify/actions) the outcome! 🎂
 
 ## If things go wrong
 
@@ -160,11 +160,11 @@ When branching off a "release branch" change the `Cargo.toml` files as follows:
 Replace:
 
 ```cargo
-trustify-ui = { git = "https://github.com/trustification/trustify-ui.git", branch = "publish/main" }
+trustify-ui = { git = "https://github.com/guacsec/trustify-ui.git", branch = "publish/main" }
 ```
 
 by:
 
 ```cargo
-trustify-ui = { git = "https://github.com/trustification/trustify-ui.git", branch = "release/x.y.z" }
+trustify-ui = { git = "https://github.com/guacsec/trustify-ui.git", branch = "release/x.y.z" }
 ```

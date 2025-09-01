@@ -18,7 +18,7 @@ FROM registry.access.redhat.com/ubi9/ubi:latest
 
 LABEL \
     org.opencontainers.image.description="Trustify - xtask binary" \
-    org.opencontainers.image.source="https://github.com/trustification/trustify"
+    org.opencontainers.image.source="https://github.com/guacsec/trustify"
 
 RUN dnf install --nodocs -y zlib openssl krb5-libs libzstd lz4-libs libxml2 unzip
 

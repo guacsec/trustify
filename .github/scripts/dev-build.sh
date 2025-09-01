@@ -14,7 +14,7 @@ fi
 
 FILE_NAME="trustd-${VERSION}-x86_64-unknown-linux-gnu.tar.gz"
 
-URL="https://github.com/trustification/trustify/releases/download/v${VERSION}/${FILE_NAME}"
+URL="https://github.com/guacsec/trustify/releases/download/v${VERSION}/${FILE_NAME}"
 
 if [ ! -f "$FULL_PATH/$FILE_NAME" ]; then
     echo "Downloading $FILE_NAME ..."

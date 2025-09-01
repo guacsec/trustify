@@ -178,7 +178,7 @@ async fn spdx_ancestor_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test(actix_web::test)]
 async fn spdx_package_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // test case for the simple case of "relationshipType": "PACKAGE_OF" spdx relationships:
-    // https://github.com/trustification/trustify/issues/1140
+    // https://github.com/guacsec/trustify/issues/1140
 
     let app = caller(ctx).await?;
     ctx.ingest_document("spdx/SATELLITE-6.15-RHEL-8.json")
@@ -231,7 +231,7 @@ async fn spdx_package_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test(actix_web::test)]
 async fn spdx_only_contains_relationships(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // test case for the simple case of filtering descendants "relationshipType": "CONTAINS" spdx relationships:
-    // https://github.com/trustification/trustify/issues/1232
+    // https://github.com/guacsec/trustify/issues/1232
 
     let app = caller(ctx).await?;
     ctx.ingest_document("spdx/SATELLITE-6.15-RHEL-8.json")

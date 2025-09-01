@@ -222,7 +222,7 @@ impl SbomContext {
                 creator.relate(left.ref_.clone(), Relationship::Dependency, target.clone());
             }
 
-            // https://github.com/trustification/trustify/issues/1131
+            // https://github.com/guacsec/trustify/issues/1131
             // Do we need to qualify this so that only "arch=src" refs
             // get the GeneratedFrom relationship?
             for target in left.provides.iter().flatten() {

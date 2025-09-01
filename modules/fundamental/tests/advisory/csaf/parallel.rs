@@ -9,7 +9,7 @@ use trustify_test_context::TrustifyContext;
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 #[instrument]
-/// Issue <https://github.com/trustification/trustify/issues/1395>: Ensure that parallel uploads
+/// Issue <https://github.com/guacsec/trustify/issues/1395>: Ensure that parallel uploads
 /// of the same document don't create multiple instances.
 async fn ingest_10(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let _ = ctx

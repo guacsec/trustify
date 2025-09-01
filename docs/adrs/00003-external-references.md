@@ -954,7 +954,7 @@ if ref == CDX {
 The sbom entity (in sbom table) MAY need to contain serial_number and version.
 
 The implication is that CDX bom_link implies precise coordinates to target to reference though may still need to introspect
-latest version of an SBOM document (subject of [task #1231](https://github.com/trustification/trustify/issues/1231)).
+latest version of an SBOM document (subject of [task #1231](https://github.com/guacsec/trustify/issues/1231)).
 
 #### Red Hat product/component external reference:
 | Column             |                                              Value                                               | 

@@ -1,6 +1,6 @@
 # Trustify
 
-[![ci](https://github.com/trustification/trustify/actions/workflows/ci.yaml/badge.svg)](https://github.com/trustification/trustify/actions/workflows/ci.yaml)
+[![ci](https://github.com/guacsec/trustify/actions/workflows/ci.yaml/badge.svg)](https://github.com/guacsec/trustify/actions/workflows/ci.yaml)
 
 Trustify provides a single, searchable abstraction over all cyclonedx/spdx SBOMs - cross referencing against public security advisories to help identify and respond to software security threats & vulnerabilities.
 
@@ -39,7 +39,7 @@ AUTH_DISABLED=true cargo run --bin trustd
 
 If you haven't setup your Rust development environment yet, i.e. you
 don't have `cargo`, you can alternatively use the latest "trustd-pm"
-[release binary](https://github.com/trustification/trustify/releases).
+[release binary](https://github.com/guacsec/trustify/releases).
 
 That will create its own database in your current directory beneath
 `.trustify/`.
@@ -274,4 +274,4 @@ CPE (Product?) and/or pURLs described by the SBOM
 * [Trustify load tests runner](https://github.com/trustification/trustify-load-test-runs)
 * [Trustify load test suite](https://github.com/trustification/scale-testing)
 * [Trustify GitHub CI helpers](https://github.com/trustification/trustify-ci)
-* [Trustify release tools](https://github.com/trustification/release-tools)
+* [Trustify release tools](https://github.com/guacsec/trustify-release-tools)
