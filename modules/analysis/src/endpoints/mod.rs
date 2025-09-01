@@ -63,7 +63,7 @@ pub async fn analysis_status(
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     // TODO: Replace with a more "admin" style permission when revisiting the permission system
-    authorizer.require(&user, Permission::CreateSbom)?;
+    authorizer.require(&user, Permission::ReadMetadata)?;
     Ok(HttpResponse::Ok().json(service.status(db.as_ref(), details).await?))
 }
 
