@@ -266,7 +266,7 @@ CPE (Product?) and/or pURLs described by the SBOM
 
 ## Related Projects
 
-* [Trustify user interface](https://github.com/trustification/trustify-ui)
+* [Trustify user interface](https://github.com/guacsec/trustify-ui)
 * [Helm charts used for the Trustify deployment](https://github.com/trustification/trustify-helm-charts)
 * [OpenShift Operator used for the Trustify deployment](https://github.com/trustification/trustify-operator)
 * [Ansible playbooks used for the Trustify deployment](https://github.com/trustification/trustify-ansible)
