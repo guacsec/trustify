@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::test::caller;
 
 use actix_http::Request;
@@ -219,7 +221,16 @@ async fn resolve_rh_variant_latest_filter_middleware_cdx(
     );
     let request: Request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
-    assert_eq!(response["total"], 2);
+    assert_eq!(response["total"], 3);
+    let items = response["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|e| e["product_name"].as_str())
+        .collect::<HashSet<_>>();
+
+    assert!(items.contains("quarkus-camel-bom"));
+    assert!(items.contains("quarkus-cxf-bom"));
 
     // name exact search
     let uri: String = format!(
