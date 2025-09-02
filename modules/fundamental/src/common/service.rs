@@ -1,6 +1,5 @@
 use crate::{Error, source_document::model::SourceDocument};
 use sea_orm::{ConnectionTrait, DbBackend, FromQueryResult, PaginatorTrait, Statement};
-use trustify_common::id::IdError;
 use trustify_module_storage::service::{StorageBackend, StorageKey, dispatch::DispatchBackend};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -68,19 +67,11 @@ fn escape(text: String) -> String {
 pub async fn delete_doc(
     doc: Option<&SourceDocument>,
     storage: impl DocumentDelete,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     match doc {
         Some(doc) => {
-            let result: Result<StorageKey, IdError> = doc.try_into();
-            match result {
-                Ok(key) => storage
-                    .delete(key)
-                    .await
-                    .map_err(|e| format!("Ignored error deleting [{doc:?}] from storage: [{e}]")),
-                Err(e) => Err(format!(
-                    "Ignored error turning [{doc:?}] into a storage key: [{e}]"
-                )),
-            }
+            let key = doc.try_into()?;
+            storage.delete(key).await
         }
         None => Ok(()),
     }
@@ -119,7 +110,7 @@ mod test {
         let doc = SourceDocument::default();
         match delete_doc(Some(&doc), FailingDelete {}).await {
             Ok(_) => panic!("expected error"),
-            Err(e) => assert!(e.as_str().contains("[Missing prefix]")),
+            Err(e) => assert!(e.to_string().contains("Missing prefix")),
         };
 
         // Failing to delete a valid doc from storage should log a different error
@@ -131,7 +122,7 @@ mod test {
         };
         match delete_doc(Some(&doc), FailingDelete {}).await {
             Ok(_) => panic!("expected error"),
-            Err(e) => assert!(e.as_str().contains("[Delete failed]")),
+            Err(e) => assert!(e.to_string().contains("Delete failed")),
         };
 
         Ok(())

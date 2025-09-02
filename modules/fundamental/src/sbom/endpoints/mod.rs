@@ -334,8 +334,8 @@ pub async fn delete(
                 true => {
                     let _ = purl_service.gc_purls(&tx).await; // ignore gc failure..
                     tx.commit().await?;
-                    if let Err(msg) = delete_doc(v.source_document.as_ref(), i.storage()).await {
-                        log::warn!("{msg}");
+                    if let Err(e) = delete_doc(v.source_document.as_ref(), i.storage()).await {
+                        log::warn!("Ignoring {e}");
                     }
                     Ok(HttpResponse::Ok().json(v))
                 }
