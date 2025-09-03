@@ -205,7 +205,10 @@ async fn resolve_rh_external_sbom_descendants<C: ConnectionTrait>(
             {
                 Ok(matches) => matches
                     .into_iter()
-                    .next() // just return the first
+                    // The use of .find here ensures we never match on cdx top level metadata component
+                    // which has not defined a bom-ref - we can 'sniff' this because such nodes always
+                    // are ingested with a uuid node-id.
+                    .find(|model| Uuid::parse_str(&model.node_id).is_err())
                     .map(|matched_model| ResolvedSbom {
                         sbom_id: matched_model.sbom_id,
                         node_id: matched_model.node_id,
@@ -589,6 +592,8 @@ impl AnalysisService {
             .inner
             .load_latest_graphs_query(connection, query)
             .await?;
+
+        log::debug!("graph sbom count: {:?}", graphs.len());
 
         let components = self
             .run_graph_query(
