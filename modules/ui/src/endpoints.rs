@@ -3,6 +3,7 @@ use crate::{
     model::ExtractResult,
     service::{extract_cyclonedx_purls, extract_spdx_purls},
 };
+use actix_multipart::form::{MultipartForm, json::Json as MPJson};
 use actix_web::{
     HttpResponse, Responder,
     http::header,
@@ -10,11 +11,13 @@ use actix_web::{
     web::{self, Bytes, ServiceConfig},
 };
 use actix_web_static_files::{ResourceFiles, deps::static_files::Resource};
-use std::collections::HashMap;
+use flate2::{Compression, write::GzEncoder};
+use std::{collections::HashMap, sync::Arc, time::Duration};
+use tar::{Builder, Header};
 use trustify_common::{decompress::decompress_async, error::ErrorInformation, model::BinaryData};
 use trustify_module_ingestor::service::Format;
 use trustify_ui::{UI, trustify_ui};
-use utoipa::IntoParams;
+use utoipa::{IntoParams, ToSchema};
 
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Config {
@@ -22,13 +25,16 @@ pub struct Config {
     pub scan_limit: usize,
 }
 
-pub fn post_configure(svc: &mut ServiceConfig, ui: &UiResources) {
-    svc.service(ResourceFiles::new("/", ui.resources()).resolve_not_found_to(""));
+pub fn post_configure(svc: &mut ServiceConfig, ui: Arc<UiResources>) {
+    let resources = ui.resources();
+    svc.app_data(web::Data::new(ui))
+        .service(ResourceFiles::new("/", resources).resolve_not_found_to(""));
 }
 
 pub fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
     svc.app_data(web::Data::new(config))
-        .service(extract_sbom_purls);
+        .service(extract_sbom_purls)
+        .service(generate_sbom_static_report);
 }
 
 pub struct UiResources {
@@ -135,4 +141,87 @@ async fn extract_sbom_purls(
         packages,
         warnings,
     }))
+}
+
+#[derive(Debug, MultipartForm, ToSchema)]
+struct UploadForm {
+    #[schema(value_type = Object)]
+    analysis_response: MPJson<serde_json::Value>,
+}
+
+#[utoipa::path(
+    tag = "ui",
+    operation_id = "generateSbomStaticReport",
+    request_body(content = UploadForm, content_type = "multipart/form-data"),
+    responses(
+        (
+            status = 200,
+            description = "Static report",
+            body = Vec<u8>,
+            content_type = "application/gzip"
+        ),
+        (
+            status = 400,
+            description = "Bad request data, like an unsupported format or invalid data",
+            body = ErrorInformation,
+        )
+    )
+)]
+#[post("/v2/ui/generate-sbom-static-report")]
+/// Generates an static report
+async fn generate_sbom_static_report(
+    ui: web::Data<Arc<UiResources>>,
+    MultipartForm(form): MultipartForm<UploadForm>,
+) -> Result<impl Responder, Error> {
+    let mut data = Vec::new();
+    {
+        let encoder = GzEncoder::new(&mut data, Compression::default());
+        let mut gzip = Builder::new(encoder);
+
+        // Add static report template
+        let prefix = "static-report/";
+        for (path, resource) in ui.resources.iter() {
+            if let Some(relative_path) = path.strip_prefix(prefix) {
+                let mut header = Header::new_gnu();
+                header.set_size(resource.data.len() as u64);
+                header.set_mode(0o644);
+                header.set_cksum();
+                header.set_mtime(
+                    std::time::UNIX_EPOCH
+                        .elapsed()
+                        .unwrap_or(Duration::from_secs(0))
+                        .as_secs(),
+                );
+
+                gzip.append_data(&mut header, relative_path, resource.data)?;
+            }
+        }
+
+        // Add static report data
+        let json_data = serde_json::to_string(&form.analysis_response.0)?;
+        let js_data = format!("window.analysis_response={json_data}");
+
+        let mut header = Header::new_gnu();
+        header.set_size(js_data.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        header.set_mtime(
+            std::time::UNIX_EPOCH
+                .elapsed()
+                .unwrap_or(Duration::from_secs(0))
+                .as_secs(),
+        );
+        gzip.append_data(&mut header, "data.js", js_data.as_bytes())?;
+
+        // Close gzip
+        gzip.finish()?;
+    }
+
+    Ok(HttpResponse::Ok()
+        .content_type("application/gzip")
+        .append_header((
+            "Content-Disposition",
+            "attachment; filename=\"static-report.tar.gz\"",
+        ))
+        .body(data))
 }

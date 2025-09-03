@@ -12,16 +12,19 @@ trustify-module-ingestor = { workspace = true }
 
 actix-web = { workspace = true }
 actix-web-static-files = { workspace = true }
+actix-multipart = { workspace = true }
 anyhow = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde-cyclonedx = { workspace = true }
 serde_json = { workspace = true }
 spdx-rs = { workspace = true }
 thiserror = { workspace = true }
-tokio = {workspace = true }
+tokio = { workspace = true }
 trustify-ui = { workspace = true }
 utoipa = { workspace = true }
 utoipa-actix-web = { workspace = true }
+flate2 = { workspace = true }
+tar = { workspace = true }
 
 [dev-dependencies]
 test-log = { workspace = true }

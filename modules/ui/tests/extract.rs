@@ -1,5 +1,7 @@
 #![allow(clippy::expect_used)]
 
+use std::sync::Arc;
+
 use actix_web::{dev::ServiceResponse, test::TestRequest};
 use serde_json::{Value, json};
 use test_log::test;
@@ -17,7 +19,7 @@ async fn caller_with(config: Config) -> anyhow::Result<impl CallService> {
     call::caller(move |svc| {
         configure(svc, config);
         svc.map(|svc| {
-            post_configure(svc, &ui);
+            post_configure(svc, Arc::new(ui));
             svc
         });
     })

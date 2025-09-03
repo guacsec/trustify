@@ -15,6 +15,8 @@ pub enum Error {
     BadRequest(String, Option<String>),
     #[error(transparent)]
     Decompression(#[from] trustify_common::decompress::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }
 
 impl actix_web::error::ResponseError for Error {

@@ -2848,6 +2848,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorInformation'
+  /api/v2/ui/generate-sbom-static-report:
+    post:
+      tags:
+      - ui
+      summary: Generates an static report
+      operationId: generateSbomStaticReport
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadForm'
+        required: true
+      responses:
+        '200':
+          description: Static report
+          content:
+            application/gzip:
+              schema:
+                type: array
+                items:
+                  type: integer
+                  format: int32
+                  minimum: 0
+        '400':
+          description: Bad request data, like an unsupported format or invalid data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorInformation'
   /api/v2/userPreference/{key}:
     get:
       tags:
@@ -5138,6 +5167,13 @@ components:
         oneOf:
         - type: 'null'
         - type: string
+    UploadForm:
+      type: object
+      required:
+      - analysis_response
+      properties:
+        analysis_response:
+          type: object
     VersionedPurlHead:
       type: object
       required:

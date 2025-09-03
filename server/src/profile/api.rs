@@ -482,7 +482,7 @@ fn post_configure(svc: &mut web::ServiceConfig, config: PostConfig) {
     svc.configure(|svc| {
         // I think the UI must come last due to
         // its use of `resolve_not_found_to`
-        trustify_module_ui::endpoints::post_configure(svc, &ui);
+        trustify_module_ui::endpoints::post_configure(svc, ui);
     });
 }
 
