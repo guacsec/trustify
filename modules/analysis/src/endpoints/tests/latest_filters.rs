@@ -69,7 +69,7 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
     let response: Value = app.call_and_read_body_json(request).await;
     log::warn!("{:?}", response.get("total"));
     assert!(response.contains_subset(json!({
-      "total":16
+      "total":2
     })));
 
     // purl partial search latest
@@ -142,10 +142,19 @@ async fn resolve_rh_variant_latest_filter_rpms_cdx(
     let response: Value = app.call_and_read_body_json(request).await;
     assert_eq!(response["total"], 15);
 
+    // purl more specific latest q search
+    let uri: String = format!(
+        "/api/v2/analysis/latest/component?q={}",
+        urlencoding::encode("pkg:rpm/redhat/NetworkManager-libnm-devel@")
+    );
+    let request: Request = TestRequest::get().uri(&uri).to_request();
+    let response: Value = app.call_and_read_body_json(request).await;
+    assert_eq!(response["total"], 5);
+
     // name exact search
     let uri: String = format!(
         "/api/v2/analysis/component/{}",
-        urlencoding::encode("NetworkManager-libnm")
+        urlencoding::encode("NetworkManager-libnm-devel")
     );
     let request: Request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
@@ -154,7 +163,7 @@ async fn resolve_rh_variant_latest_filter_rpms_cdx(
     // latest name exact search
     let uri: String = format!(
         "/api/v2/analysis/latest/component/{}",
-        urlencoding::encode("NetworkManager-libnm")
+        urlencoding::encode("NetworkManager-libnm-devel")
     );
     let request: Request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
