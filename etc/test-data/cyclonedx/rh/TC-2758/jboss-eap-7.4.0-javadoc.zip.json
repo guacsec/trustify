@@ -1,0 +1,261 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:22a236f7-05a5-35ec-b8a2-730d275d5636",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-08-04T11:12:11Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "Red Hat",
+          "name": "SBOMer",
+          "version": "27d57faa"
+        }
+      ]
+    },
+    "component": {
+      "type": "file",
+      "name": "jboss-eap-7.4.0-javadoc.zip",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "9fadd390242788345609029fba5c6fc6"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "3dd5e803f91886aa26fea416baafcdc1fa0d8fa2"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "b39ecdf3ed0dd803e85e5113e66896148fac67a80c7e2be8e403cff84c7b0194"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-javadoc.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-javadoc.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    "supplier": {
+      "name": "Red Hat",
+      "url": [
+        "https://www.redhat.com"
+      ]
+    },
+    "licenses": [
+      {
+        "license": {
+          "id": "Apache-2.0"
+        }
+      }
+    ],
+    "properties": [
+      {
+        "name": "VCS",
+        "value": "git@github.com:project-ncl/sbomer.git"
+      },
+      {
+        "name": "WEBSITE",
+        "value": "https://github.com/project-ncl/sbomer"
+      },
+      {
+        "name": "redhat:advisory_id",
+        "value": "50035"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "file",
+      "bom-ref": "pkg:generic/jboss-eap-7.4.0-javadoc.zip",
+      "name": "jboss-eap-7.4.0-javadoc.zip",
+      "version": "7.4.0-GA",
+      "description": "SBOM representing the deliverable jboss-eap-7.4.0-javadoc.zip with version 7.4.0-GA",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "9fadd390242788345609029fba5c6fc6"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "3dd5e803f91886aa26fea416baafcdc1fa0d8fa2"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "b39ecdf3ed0dd803e85e5113e66896148fac67a80c7e2be8e403cff84c7b0194"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-javadoc.zip",
+      "externalReferences": [
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/operations/deliverable-analyzer/BJCYPYCCAEIAA",
+          "comment": "pnc-operation-id"
+        }
+      ],
+      "properties": [
+        {
+          "name": "redhat:deliverable-url",
+          "value": "http://download.eng.bos.redhat.com/released/middleware/eap7/7.4.0/jboss-eap-7.4.0-javadoc.zip"
+        },
+        {
+          "name": "redhat:deliverable-checksum",
+          "value": "7.4.0-GA"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-javadoc.zip"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.eap/wildfly-ee-aggregate-javadocs@7.4.0.GA-redhat-00005?classifier=javadocs&type=jar",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.eap",
+      "name": "wildfly-ee-aggregate-javadocs",
+      "version": "7.4.0.GA-redhat-00005",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "9fadd390242788345609029fba5c6fc6"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "3dd5e803f91886aa26fea416baafcdc1fa0d8fa2"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "b39ecdf3ed0dd803e85e5113e66896148fac67a80c7e2be8e403cff84c7b0194"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.eap/wildfly-ee-aggregate-javadocs@7.4.0.GA-redhat-00005?classifier=javadocs&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=jar",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "7ef95b493479f9db56efd50242c74f82d1769629",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly.git#7.4.0.GA-redhat-00005"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6218090",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/99146",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.6.3:1.0.3",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.eap/wildfly-ee-aggregate-javadocs@7.4.0.GA-redhat-00005?classifier=javadocs&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=jar"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/pom.xml?checksum=sha256%3A974823188145bdb517f9692341a237bdee75c8312d3c86ae0fc4d390225bb923",
+      "name": "pom.xml",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "6cfe54b25475650aad86819366651ea3"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "79351a6968cc544a95c59e1b9a1fce8afd4ea27f"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "974823188145bdb517f9692341a237bdee75c8312d3c86ae0fc4d390225bb923"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "LGPL-2.1-only",
+            "acknowledgement": "concluded"
+          }
+        }
+      ],
+      "purl": "pkg:generic/pom.xml?checksum=sha256%3A974823188145bdb517f9692341a237bdee75c8312d3c86ae0fc4d390225bb923&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "externalReferences": [
+        {
+          "type": "license",
+          "url": "http://repository.jboss.org/licenses/lgpl-2.1.txt",
+          "comment": "LGPL-2.1-only"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/14088206",
+          "comment": "pnc-artifact-id"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/pom.xml?checksum=sha256%3A974823188145bdb517f9692341a237bdee75c8312d3c86ae0fc4d390225bb923&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:generic/jboss-eap-7.4.0-javadoc.zip",
+      "dependsOn": [
+        "pkg:maven/org.jboss.eap/wildfly-ee-aggregate-javadocs@7.4.0.GA-redhat-00005?classifier=javadocs&type=jar"
+      ]
+    },
+    {
+      "ref": "pkg:maven/org.jboss.eap/wildfly-ee-aggregate-javadocs@7.4.0.GA-redhat-00005?classifier=javadocs&type=jar",
+      "dependsOn": [
+        "pkg:generic/pom.xml?checksum=sha256%3A974823188145bdb517f9692341a237bdee75c8312d3c86ae0fc4d390225bb923"
+      ]
+    },
+    {
+      "ref": "pkg:generic/pom.xml?checksum=sha256%3A974823188145bdb517f9692341a237bdee75c8312d3c86ae0fc4d390225bb923",
+      "dependsOn": []
+    }
+  ]
+}

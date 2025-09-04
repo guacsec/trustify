@@ -444,3 +444,71 @@ async fn test_tc2717(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn test_tc2578(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    ctx.ingest_documents([
+        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0.zip.json",
+        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-core-src.zip.json",
+        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-installer.jar.json",
+        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-javadoc.zip.json",
+        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-maven-repository.zip.json",
+        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-quickstarts.zip.json",
+        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-server-migration-src.zip.json",
+        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-src.zip.json",
+        "cyclonedx/rh/TC-2758/Red Hat JBoss Enterprise Application Platform.json",
+    ])
+    .await?;
+
+    let uri: String = "/api/v2/analysis/component".to_string();
+    let request: Request = TestRequest::get().uri(&uri).to_request();
+    let response = app.call_service(request).await;
+    assert_eq!(200, response.response().status());
+
+    let uri: String = format!(
+        "/api/v2/analysis/latest/component/{}?descendants=100",
+        urlencoding::encode("cpe:/a:redhat:jboss_enterprise_application_platform:7.4")
+    );
+    let request: Request = TestRequest::get().uri(&uri).to_request();
+    let response: Value = app.call_and_read_body_json(request).await;
+    assert_eq!(response["total"], 1);
+    assert!(response.contains_subset(json!(
+    {
+  "items": [
+    {
+      "node_id": "Red Hat JBoss Enterprise Application Platform 7.4",
+      "cpe": [
+        "cpe:/a:redhat:jboss_enterprise_application_platform:7.4:*:*:*"
+      ],
+      "name": "Red Hat JBoss Enterprise Application Platform",
+      "version": "Red Hat JBoss Enterprise Application Platform 7.4",
+      "published": "2021-07-21 18:46:07+00",
+      "document_id": "urn:uuid:aa02fa8f-6a0f-3e5f-a7b7-a29098f4b1db/1",
+      "product_name": "Red Hat JBoss Enterprise Application Platform",
+      "product_version": "Red Hat JBoss Enterprise Application Platform 7.4",
+      "descendants": [
+        {
+          "node_id": "pkg:generic/jboss-eap-7.4.0-javadoc.zip",
+          "name": "jboss-eap-7.4.0-javadoc.zip",
+          "relationship": "generates",
+          "descendants": [
+            {
+              "node_id": "Red Hat JBoss Enterprise Application Platform 7.4:pkg:generic/jboss-eap-7.4.0-javadoc.zip",
+              "name": "pkg:generic/jboss-eap-7.4.0-javadoc.zip",
+              "relationship": "package",
+              "descendants": [
+                {
+                  "node_id": "pkg:maven/org.jboss.eap/wildfly-ee-aggregate-javadocs@7.4.0.GA-redhat-00005?classifier=javadocs&type=jar",
+                  "name": "wildfly-ee-aggregate-javadocs",
+                  "relationship": "dependency",
+                }]
+            }]
+        }]
+    }],
+  "total": 1
+})));
+    Ok(())
+}

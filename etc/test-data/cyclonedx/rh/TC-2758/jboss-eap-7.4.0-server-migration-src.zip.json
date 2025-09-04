@@ -1,0 +1,2768 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:a5e1a6a1-d094-30ab-8ecd-5589efae5bca",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-08-04T11:12:11Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "Red Hat",
+          "name": "SBOMer",
+          "version": "27d57faa"
+        }
+      ]
+    },
+    "component": {
+      "type": "file",
+      "name": "jboss-eap-7.4.0-server-migration-src.zip",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "c9e87a7bee1f4093aa69d0e76d01dda3"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "68152cc0191be475c4808b866cc34a3e58b3fde5"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "66ecc0a02e32cfa205ed63476ded164a72ec1405367277e4222ffe0a3c728142"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-server-migration-src.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-server-migration-src.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    "supplier": {
+      "name": "Red Hat",
+      "url": [
+        "https://www.redhat.com"
+      ]
+    },
+    "licenses": [
+      {
+        "license": {
+          "id": "Apache-2.0"
+        }
+      }
+    ],
+    "properties": [
+      {
+        "name": "VCS",
+        "value": "git@github.com:project-ncl/sbomer.git"
+      },
+      {
+        "name": "WEBSITE",
+        "value": "https://github.com/project-ncl/sbomer"
+      },
+      {
+        "name": "redhat:advisory_id",
+        "value": "50035"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "file",
+      "bom-ref": "pkg:generic/jboss-eap-7.4.0-server-migration-src.zip",
+      "name": "jboss-eap-7.4.0-server-migration-src.zip",
+      "version": "7.4.0-GA",
+      "description": "SBOM representing the deliverable jboss-eap-7.4.0-server-migration-src.zip with version 7.4.0-GA",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "c9e87a7bee1f4093aa69d0e76d01dda3"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "68152cc0191be475c4808b866cc34a3e58b3fde5"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "66ecc0a02e32cfa205ed63476ded164a72ec1405367277e4222ffe0a3c728142"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-server-migration-src.zip",
+      "externalReferences": [
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/operations/deliverable-analyzer/BJCYPYCCAEIAA",
+          "comment": "pnc-operation-id"
+        }
+      ],
+      "properties": [
+        {
+          "name": "redhat:deliverable-url",
+          "value": "http://download.eng.bos.redhat.com/released/middleware/eap7/7.4.0/jboss-eap-7.4.0-server-migration-src.zip"
+        },
+        {
+          "name": "redhat:deliverable-checksum",
+          "value": "7.4.0-GA"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-server-migration-src.zip"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-cli@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-cli",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "87c51cffb7aca05189bd9077e3708f78"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "7262073407f59f9f8891dd3bfd14e82d6ad47556"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "40cced6a7f38d8e17732e649efb154cff3f6762495989aa0ac56f6f38e08d33d"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-cli@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126515",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-cli@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-core@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-core",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "53105d9331ab4b993df287d39aedb7c1"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "f9c645ffa32b2738383d87836ef2361e97729fd3"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "b7530a3403724b6e0cefd362563cf7b78bb0461ab64c9d5cfb5065930004f2dc"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-core@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126518",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-core@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap6.4-to-eap7.4@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-eap6.4-to-eap7.4",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "d42f91d4ba15767d51dc83f42f0e96ff"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "b0b08188214adeb2fc2407f5e8456c2157bc11b1"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "981e10215ac96b1b30d3337a6dd2986e2e1c9a2f3ee089d5fcb4f116f3fab282"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-eap6.4-to-eap7.4@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126521",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-eap6.4-to-eap7.4@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap6.4@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-eap6.4",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "2b3ccfb344e53e43927ad16f6718b36f"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "f6968cf596fbc36a825c6274b31d4d9ddfc78ed3"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "4c10143dff983a436b2f0a828c0f98a2adcd563dede5ce5a89076706e45f417b"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-eap6.4@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126524",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-eap6.4@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.0@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-eap7.0",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "05130d0287c45d48d7b4080145f6c147"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "6654b1c3c5de1d54d8af1b325f5dd6931d333d97"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "f6c7967ed9ea1a69b0ac63ac1e21bc926b492d4ccddc33d3510bf7bdecb4ceff"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.0@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126527",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.0@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.1@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-eap7.1",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "bb803d7743fd92a641d2a2f59e118822"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "d76bdec8c9a141fd07e22aea36202a9be4099753"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "5a00c47f262f0a4e6e3277ad0fadf82505858e8ec9580dd5462858b5a18f8587"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.1@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126530",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.1@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.2@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-eap7.2",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "68523ff57a8e01ac941bab3c91bb7b20"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "8daa1bb0da6cc5592f64a286bac6ed186b0dc5f2"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "0a2337fd2076c38c7f2297f513bd7547aa2a206867a9adfb77fbfff85f204fba"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.2@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126533",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.2@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.3-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-eap7.3-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "50d13f7c3f5125134df4fa4516a845f3"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "1cb9de9131e3a00b0028511305621c24c158fc24"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "c8188e8511a97e9e5472e3f98abd3b136275f529937fce5721d5eceac298ed73"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.3-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126536",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.3-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.3-to-eap7.4@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-eap7.3-to-eap7.4",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "f4f6b673c8e47d5481ab38b1cab889f6"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "7ac142926b89153d031fae271dc350c8f47c6dff"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "b497c8c6ba57b3e16452e2d5c601d7b99b6898a78fbfed75294e6f8e1404be3e"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.3-to-eap7.4@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126539",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.3-to-eap7.4@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-galleon-content@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-eap7.4-galleon-content",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "482312465aab6def41d84781a043452d"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "ca877ca41d10bac566526c67bdd2781793e1c731"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "93d492d0d9257effd3a319891ff13afa8cb8247a4b053c76ae500f55162c73dd"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-galleon-content@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126540",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-galleon-content@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-eap7.4-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "07cac144e55f06c55e164826f0056569"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "d33b18c48d1591523170d76a6f5325c5038b7948"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "9ed0cba0a10dc67d51f5f66ab96a047304c28ac532d862f3ca524ee67a9d2dee"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126544",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-to-eap7.4@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-eap7.4-to-eap7.4",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "eb76a7bc3a1e1f98233be2a85866a717"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "460f2313a2dbc7026f833d7f43e51f22ff4321bc"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "70d98f968b6e7e9fe16ec90f43a02b577a7d4545d552e3614179c17e7c33eeb1"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-to-eap7.4@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126547",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-to-eap7.4@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-parent@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-parent",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "81210d90365413dc292c4fb5e5b89c75"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "87b2140315911a25ac5029b6aed6cddb6ee3d5dc"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "f2e94b96ddd281d4ea93943d9335d82e8eb12299507117de7d67cda3b87bc400"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-parent@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126548",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-parent@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-parent@1.10.0.Final-redhat-00007?classifier=project-sources&type=zip",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-parent",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "c9e87a7bee1f4093aa69d0e76d01dda3"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "68152cc0191be475c4808b866cc34a3e58b3fde5"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "66ecc0a02e32cfa205ed63476ded164a72ec1405367277e4222ffe0a3c728142"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-parent@1.10.0.Final-redhat-00007?classifier=project-sources&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=zip",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126550",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-parent@1.10.0.Final-redhat-00007?classifier=project-sources&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=zip"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly10.0@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly10.0",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "a99a5da9b4b66e6186d0df9a80af4e0e"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "69f1de1b570894bb37223314b70d34649730c30d"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "568e29ede50da5a32ad53f63a8303dfccb59f3c6e29888064b377bf3d5a4cdc0"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly10.0@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126553",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly10.0@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly10.1@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly10.1",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "823bef9bb901c6a8b4c281222947701c"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "750338f08f0bc53fd48addd4257d799b2f8395b9"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "f72147a5d08766047969d5d5a52dd91084ee56531772b0e1f784922e2ee27a42"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly10.1@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126556",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly10.1@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly11.0@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly11.0",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "170fd6e840d2b7b8fe1e2e780e7a57ed"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "e484078141b880893030966b7814a4b33068fe26"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "4ca14a26eacc3a7ea2c57bce3fd4a87b0a8b5912be588d8bc84ab7e7510b33e2"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly11.0@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126559",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly11.0@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly12.0@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly12.0",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "9e0e4ef33d72074ec3106e9296879fde"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "08d8a17c6866089137f95ac6e07cb7647be47421"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "1368fc30f6a55623b5a29d066815ed02603af324bbd41ba57cdf48b36607a196"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly12.0@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126562",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly12.0@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly13.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly13.0-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "3908847660102c22f1761bea876ba029"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "bac000257475f5b22c82a47b7d5c8e7aba79e0b2"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "008cbbd43442a2e53c3d2df18d0db2bfd7ae38fbd6ff0424581b7ac5c91ec1b1"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly13.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126565",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly13.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly14.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly14.0-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "859ddbba5333eb95ecdc4c2bd865091f"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "cfda7048c11810ac4a6ecd66fbe1e2fda37d31bb"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "23de1ae753c6732470127967c63262f2bf9d79cca60826163a9a0928d4388972"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly14.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126568",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly14.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly15.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly15.0-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "4793b994d0e616e8a0b04d3680e4448e"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "d09f76039628a28b59f1228aa75ec2e7251064b5"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "3531a76bbc4b5012f0a475888db3dd49bf7404af4f86096460bd1477b9269b44"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly15.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126571",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly15.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly16.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly16.0-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "7f183ae452e5385423adeaaf15afdb38"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "98d8b272ee4a212fc1b9d922288ae606e765d300"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "44317a0332f8ab5a760722cc6f2389ee4a37b76bd3f495f7dc44c48556431f7a"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly16.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126574",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly16.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly17.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly17.0-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "e7d0322b80b0d877c017fdc441bd3998"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "0ad6b94da3b33629ff36bacee4f122563214f644"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "f3c369b20dffed136984c92dc1d665185df44c754dc079e5f52a155bf558aaf9"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly17.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126577",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly17.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly18.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly18.0-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "f8866342d3b9dee6d29b746c3651fec4"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "4afaf67cecf5c1d2a620319acadeaca983c39bb3"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "988eda22244701007d4c16ac2ed3fa77f2fecb83f42675af5d2ff23200292a03"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly18.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126580",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly18.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly19.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly19.0-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "f27446a10bc176ac50e6f34f522b3240"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "25722128bcc79202927cbfd56d5304c3cfd778ba"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "b492ddbf55379c9f0dbc8729caddf4c6881c15972b7bfc3b76343f121a763acb"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly19.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126583",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly19.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly20.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly20.0-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "4970b4feb782dc54b38a6fd05aa04875"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "7380ee5a1f11c179cb8bf88c8ba1610de604f1d5"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "29eed25ebdef9eb7e95a22007e6e0b49436590e332b0346319e16c55d50178cb"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly20.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126586",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly20.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly21.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly21.0-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "347bb6fcd8e9d8de2e5a7a5a775c7f7a"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "54ad8ce81f1c8e825068cdb319f5cb6be6ef9f79"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "96319c60d2e46ffb4fbfc40cedebe27b40462ec2763b3ed96bbf80b7c057a9b1"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly21.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126589",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly21.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly22.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly22.0-server",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "1186df187c4ca4e2f5da79557cd20cbb"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "30d00b0813ce966a75810c58a09dd25555b34fa4"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "c0b0bf4c5de768345d7fdc5b6f4aca8e4b26b711c4374234288d6527e276a0f1"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly22.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126592",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly22.0-server@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly8.2@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly8.2",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "32257bdbd621fd624c631fbccced3af1"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "b1846e452be25d5033cfc49fb9e17b32a92c1e40"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "253f654c98a7f6507c58986fcdc61ee770e59cb023a8f53d61ab1cc23e68d26c"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly8.2@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126595",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly8.2@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly9.0@1.10.0.Final-redhat-00007?type=pom",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "publisher": "Red Hat",
+      "group": "org.jboss.migration",
+      "name": "jboss-server-migration-wildfly9.0",
+      "version": "1.10.0.Final-redhat-00007",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "927e96fbdbdbe8d2534e438dff25715a"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "73fc99d0b9516f46086190daad1949825bdfd347"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "1f9c8566f351902d7973d8ff49ebdfe5a23caa8fa04ee3c9738a15eead9b520e"
+        }
+      ],
+      "purl": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly9.0@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom",
+      "pedigree": {
+        "commits": [
+          {
+            "uid": "498b3e443232892f2c305f20c75159647bec0766",
+            "url": "https://gitlab.cee.redhat.com/pnc-workspace/wildfly/wildfly-server-migration.git#1.10.0.Final-redhat-00007"
+          }
+        ]
+      },
+      "externalReferences": [
+        {
+          "type": "distribution",
+          "url": "https://maven.repository.redhat.com/ga/"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/6126598",
+          "comment": "pnc-artifact-id"
+        },
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/builds/96941",
+          "comment": "pnc-build-id"
+        },
+        {
+          "type": "build-meta",
+          "url": "quay.io/rh-newcastle/builder-rhel-7-j8-mvn3.3.9:1.0.0",
+          "comment": "pnc-environment-image"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/wildfly/wildfly-server-migration.git",
+          "comment": ""
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly9.0@1.10.0.Final-redhat-00007?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/cmtool-helloworld3.war?checksum=sha256%3Aac105398f7a499517bedc77e4d6a318ace9c4601a4543b96ca057b9a8de0344d",
+      "name": "cmtool-helloworld3.war",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "1c13434dccb75d6e5034399be1d42b9c"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "fc8ec517e0b169fb27b61ff90f04de5dd8ca8d52"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "ac105398f7a499517bedc77e4d6a318ace9c4601a4543b96ca057b9a8de0344d"
+        }
+      ],
+      "purl": "pkg:generic/cmtool-helloworld3.war?checksum=sha256%3Aac105398f7a499517bedc77e4d6a318ace9c4601a4543b96ca057b9a8de0344d&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "externalReferences": [
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/14055813",
+          "comment": "pnc-artifact-id"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/cmtool-helloworld3.war?checksum=sha256%3Aac105398f7a499517bedc77e4d6a318ace9c4601a4543b96ca057b9a8de0344d&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/cmtool-helloworld4.war?checksum=sha256%3A5b07732300148ce11c294cc2da769ef35671d7dd1bc48e72151d9af12b6d9b76",
+      "name": "cmtool-helloworld4.war",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "4bc704dc32a7c2cc2e35340b66b680ac"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "7065b60c158a08f9308fc227dcd6216a082c2c77"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "5b07732300148ce11c294cc2da769ef35671d7dd1bc48e72151d9af12b6d9b76"
+        }
+      ],
+      "purl": "pkg:generic/cmtool-helloworld4.war?checksum=sha256%3A5b07732300148ce11c294cc2da769ef35671d7dd1bc48e72151d9af12b6d9b76&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "externalReferences": [
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/14055814",
+          "comment": "pnc-artifact-id"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/cmtool-helloworld4.war?checksum=sha256%3A5b07732300148ce11c294cc2da769ef35671d7dd1bc48e72151d9af12b6d9b76&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/module.jar?checksum=sha256%3A84bd594d468f9cfccd49d07522af22a89628dc4b2c14a2a4d9c97605f5f5f824",
+      "name": "module.jar",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "e32f5366737fc3fee2c992bd1d6ee677"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "ce3698209c1095af9de730a14e3603cf00f9bb5b"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "84bd594d468f9cfccd49d07522af22a89628dc4b2c14a2a4d9c97605f5f5f824"
+        }
+      ],
+      "purl": "pkg:generic/module.jar?checksum=sha256%3A84bd594d468f9cfccd49d07522af22a89628dc4b2c14a2a4d9c97605f5f5f824&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "externalReferences": [
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/14055815",
+          "comment": "pnc-artifact-id"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/module.jar?checksum=sha256%3A84bd594d468f9cfccd49d07522af22a89628dc4b2c14a2a4d9c97605f5f5f824&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/cmtool-helloworld2.war?checksum=sha256%3A0b687234163ca36e58457b98cedfe2053b616938453c2baa25e6800d30b9ac1c",
+      "name": "cmtool-helloworld2.war",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "1738799d2f0b88eddf436248a9f2bcbd"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "6df734ec66fef5795e3f9a603e3a8b8150ece731"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "0b687234163ca36e58457b98cedfe2053b616938453c2baa25e6800d30b9ac1c"
+        }
+      ],
+      "purl": "pkg:generic/cmtool-helloworld2.war?checksum=sha256%3A0b687234163ca36e58457b98cedfe2053b616938453c2baa25e6800d30b9ac1c&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "externalReferences": [
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/14055816",
+          "comment": "pnc-artifact-id"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/cmtool-helloworld2.war?checksum=sha256%3A0b687234163ca36e58457b98cedfe2053b616938453c2baa25e6800d30b9ac1c&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/cmtool-helloworld6.war?checksum=sha256%3A297e18bf9df64076c54e3b2b17bd0c547579bef60317e2a6622e37caf233ba5a",
+      "name": "cmtool-helloworld6.war",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "bf67ab2b00e61b740464821c360d8f25"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "c10a1b320ca7372a35c3f5072150c2f779260d65"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "297e18bf9df64076c54e3b2b17bd0c547579bef60317e2a6622e37caf233ba5a"
+        }
+      ],
+      "purl": "pkg:generic/cmtool-helloworld6.war?checksum=sha256%3A297e18bf9df64076c54e3b2b17bd0c547579bef60317e2a6622e37caf233ba5a&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "externalReferences": [
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/14055817",
+          "comment": "pnc-artifact-id"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/cmtool-helloworld6.war?checksum=sha256%3A297e18bf9df64076c54e3b2b17bd0c547579bef60317e2a6622e37caf233ba5a&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/cmtool-helloworld1.war?checksum=sha256%3A08a53d72a20f0a55aeb221b3db5dd43a22aadcf6aafeba3465df275fb2c17612",
+      "name": "cmtool-helloworld1.war",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "4e9fa912b52581b76531f1b48bc5ff6c"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "ea69fbffdf08b320c09ad1acc7d31deba5a7787b"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "08a53d72a20f0a55aeb221b3db5dd43a22aadcf6aafeba3465df275fb2c17612"
+        }
+      ],
+      "purl": "pkg:generic/cmtool-helloworld1.war?checksum=sha256%3A08a53d72a20f0a55aeb221b3db5dd43a22aadcf6aafeba3465df275fb2c17612&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "externalReferences": [
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/14055818",
+          "comment": "pnc-artifact-id"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/cmtool-helloworld1.war?checksum=sha256%3A08a53d72a20f0a55aeb221b3db5dd43a22aadcf6aafeba3465df275fb2c17612&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/cmtool-helloworld5.war?checksum=sha256%3A6fb32d1841460592eab2397dcee2d051df99e24c3744ac5fc4e772901ad55b43",
+      "name": "cmtool-helloworld5.war",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "7f3198f1c1cc0412337656c5077d506b"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "3a47241865785f36b88e4ec4332e5ec9e0d20e70"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "6fb32d1841460592eab2397dcee2d051df99e24c3744ac5fc4e772901ad55b43"
+        }
+      ],
+      "purl": "pkg:generic/cmtool-helloworld5.war?checksum=sha256%3A6fb32d1841460592eab2397dcee2d051df99e24c3744ac5fc4e772901ad55b43&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "externalReferences": [
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/14055820",
+          "comment": "pnc-artifact-id"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/cmtool-helloworld5.war?checksum=sha256%3A6fb32d1841460592eab2397dcee2d051df99e24c3744ac5fc4e772901ad55b43&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:generic/pom.xml?checksum=sha256%3A9722659d156222fe145ea9dc90b7618b2b79dfad60a6010c37c9990307494534",
+      "name": "pom.xml",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "2258e8ac5dc3ea90f756af23c0dc7d72"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "06bc1e8ef4e31148aa01bc1a03412fc9ce534f60"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "9722659d156222fe145ea9dc90b7618b2b79dfad60a6010c37c9990307494534"
+        }
+      ],
+      "purl": "pkg:generic/pom.xml?checksum=sha256%3A9722659d156222fe145ea9dc90b7618b2b79dfad60a6010c37c9990307494534&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F",
+      "externalReferences": [
+        {
+          "type": "build-system",
+          "url": "https://orch.pnc.engineering.redhat.com/pnc-rest/v2/artifacts/14088030",
+          "comment": "pnc-artifact-id"
+        }
+      ],
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/pom.xml?checksum=sha256%3A9722659d156222fe145ea9dc90b7618b2b79dfad60a6010c37c9990307494534&repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:generic/jboss-eap-7.4.0-server-migration-src.zip",
+      "dependsOn": [
+        "pkg:maven/org.jboss.migration/jboss-server-migration-parent@1.10.0.Final-redhat-00007?classifier=project-sources&type=zip"
+      ]
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-cli@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-core@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap6.4-to-eap7.4@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap6.4@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.0@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.1@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.2@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.3-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.3-to-eap7.4@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-galleon-content@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-to-eap7.4@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-parent@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-parent@1.10.0.Final-redhat-00007?classifier=project-sources&type=zip",
+      "dependsOn": [
+        "pkg:maven/org.jboss.migration/jboss-server-migration-cli@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-core@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-galleon-content@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-eap6.4-to-eap7.4@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.3-to-eap7.4@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-to-eap7.4@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-parent@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-eap6.4@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.0@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.1@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.2@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.3-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-eap7.4-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly10.0@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly10.1@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly11.0@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly12.0@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly13.0-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly14.0-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly15.0-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly16.0-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly17.0-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly18.0-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly19.0-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly20.0-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly21.0-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly22.0-server@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly8.2@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly9.0@1.10.0.Final-redhat-00007?type=pom",
+        "pkg:generic/cmtool-helloworld4.war?checksum=sha256%3A5b07732300148ce11c294cc2da769ef35671d7dd1bc48e72151d9af12b6d9b76",
+        "pkg:generic/module.jar?checksum=sha256%3A84bd594d468f9cfccd49d07522af22a89628dc4b2c14a2a4d9c97605f5f5f824",
+        "pkg:generic/cmtool-helloworld1.war?checksum=sha256%3A08a53d72a20f0a55aeb221b3db5dd43a22aadcf6aafeba3465df275fb2c17612",
+        "pkg:generic/cmtool-helloworld2.war?checksum=sha256%3A0b687234163ca36e58457b98cedfe2053b616938453c2baa25e6800d30b9ac1c",
+        "pkg:generic/cmtool-helloworld3.war?checksum=sha256%3Aac105398f7a499517bedc77e4d6a318ace9c4601a4543b96ca057b9a8de0344d",
+        "pkg:generic/cmtool-helloworld5.war?checksum=sha256%3A6fb32d1841460592eab2397dcee2d051df99e24c3744ac5fc4e772901ad55b43",
+        "pkg:generic/cmtool-helloworld6.war?checksum=sha256%3A297e18bf9df64076c54e3b2b17bd0c547579bef60317e2a6622e37caf233ba5a",
+        "pkg:generic/pom.xml?checksum=sha256%3A9722659d156222fe145ea9dc90b7618b2b79dfad60a6010c37c9990307494534"
+      ]
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly10.0@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly10.1@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly11.0@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly12.0@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly13.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly14.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly15.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly16.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly17.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly18.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly19.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly20.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly21.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly22.0-server@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly8.2@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:maven/org.jboss.migration/jboss-server-migration-wildfly9.0@1.10.0.Final-redhat-00007?type=pom",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:generic/cmtool-helloworld3.war?checksum=sha256%3Aac105398f7a499517bedc77e4d6a318ace9c4601a4543b96ca057b9a8de0344d",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:generic/cmtool-helloworld4.war?checksum=sha256%3A5b07732300148ce11c294cc2da769ef35671d7dd1bc48e72151d9af12b6d9b76",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:generic/module.jar?checksum=sha256%3A84bd594d468f9cfccd49d07522af22a89628dc4b2c14a2a4d9c97605f5f5f824",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:generic/cmtool-helloworld2.war?checksum=sha256%3A0b687234163ca36e58457b98cedfe2053b616938453c2baa25e6800d30b9ac1c",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:generic/cmtool-helloworld6.war?checksum=sha256%3A297e18bf9df64076c54e3b2b17bd0c547579bef60317e2a6622e37caf233ba5a",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:generic/cmtool-helloworld1.war?checksum=sha256%3A08a53d72a20f0a55aeb221b3db5dd43a22aadcf6aafeba3465df275fb2c17612",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:generic/cmtool-helloworld5.war?checksum=sha256%3A6fb32d1841460592eab2397dcee2d051df99e24c3744ac5fc4e772901ad55b43",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:generic/pom.xml?checksum=sha256%3A9722659d156222fe145ea9dc90b7618b2b79dfad60a6010c37c9990307494534",
+      "dependsOn": []
+    }
+  ]
+}

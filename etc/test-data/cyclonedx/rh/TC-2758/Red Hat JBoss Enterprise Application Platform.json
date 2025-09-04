@@ -1,0 +1,309 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:aa02fa8f-6a0f-3e5f-a7b7-a29098f4b1db",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2021-07-21T18:46:07Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "Red Hat",
+          "name": "SBOMer",
+          "version": "27d57faa"
+        }
+      ]
+    },
+    "component": {
+      "type": "framework",
+      "bom-ref": "Red Hat JBoss Enterprise Application Platform 7.4",
+      "supplier": {
+        "name": "Red Hat",
+        "url": [
+          "https://www.redhat.com"
+        ]
+      },
+      "name": "Red Hat JBoss Enterprise Application Platform",
+      "version": "Red Hat JBoss Enterprise Application Platform 7.4",
+      "evidence": {
+        "identity": [
+          {
+            "field": "cpe",
+            "concludedValue": "cpe:/a:redhat:jboss_enterprise_application_platform:7.4"
+          }
+        ]
+      }
+    },
+    "supplier": {
+      "name": "Red Hat",
+      "url": [
+        "https://www.redhat.com"
+      ]
+    },
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "50035"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "file",
+      "bom-ref": "pkg:generic/jboss-eap-7.4.0-quickstarts.zip",
+      "name": "jboss-eap-7.4.0-quickstarts.zip",
+      "version": "7.4.0-GA",
+      "description": "SBOM representing the deliverable jboss-eap-7.4.0-quickstarts.zip with version 7.4.0-GA",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "d103358dc5d8767f6b2ba16ecc1eb099"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "79f3209f8dc2d155e1332e07f28d250ad938015f"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "7f84cd8449365eff8cf114f4bef17533ae2bd10ac3e73a8ee7db3be0e9aa20cb"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-quickstarts.zip",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-quickstarts.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "file",
+      "bom-ref": "pkg:generic/jboss-eap-7.4.0.zip",
+      "name": "jboss-eap-7.4.0.zip",
+      "version": "7.4.0-GA",
+      "description": "SBOM representing the deliverable jboss-eap-7.4.0.zip with version 7.4.0-GA",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "feddc39d58a29b1ed9791121a77e8b49"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "09f30755ca2157d798b5ee825cfcd9fc3b13c5e6"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "5f1f0b7a389dedcd6f91ea3c8c6c9b723e9e8609bdf5720d4088e5469d46ad3a"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0.zip",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "file",
+      "bom-ref": "pkg:generic/jboss-eap-7.4.0-javadoc.zip",
+      "name": "jboss-eap-7.4.0-javadoc.zip",
+      "version": "7.4.0-GA",
+      "description": "SBOM representing the deliverable jboss-eap-7.4.0-javadoc.zip with version 7.4.0-GA",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "9fadd390242788345609029fba5c6fc6"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "3dd5e803f91886aa26fea416baafcdc1fa0d8fa2"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "b39ecdf3ed0dd803e85e5113e66896148fac67a80c7e2be8e403cff84c7b0194"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-javadoc.zip",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-javadoc.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "file",
+      "bom-ref": "pkg:generic/jboss-eap-7.4.0-installer.jar",
+      "name": "jboss-eap-7.4.0-installer.jar",
+      "version": "7.4.0-GA",
+      "description": "SBOM representing the deliverable jboss-eap-7.4.0-installer.jar with version 7.4.0-GA",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "6819a103e69955cb3d0bed1659919598"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "f8407406c55549d5a24c9313ede387be0f2a5dd0"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "ff7a48b2633c4cff0ee70565114c64b18ec7ba1a124b41d762f27fb465cb39f8"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-installer.jar",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-installer.jar?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "file",
+      "bom-ref": "pkg:generic/jboss-eap-7.4.0-maven-repository.zip",
+      "name": "jboss-eap-7.4.0-maven-repository.zip",
+      "version": "7.4.0-GA",
+      "description": "SBOM representing the deliverable jboss-eap-7.4.0-maven-repository.zip with version 7.4.0-GA",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "db3ab61eed51ed367e7fe12df3531fb5"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "d1d25ca6ffb1804d47ec1b7eab4529d2ae7784a5"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "3b0658ecf3d4a671e99df8ed6dc4270e75496348f31d26256dfd48603031686b"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-maven-repository.zip",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-maven-repository.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "file",
+      "bom-ref": "pkg:generic/jboss-eap-7.4.0-server-migration-src.zip",
+      "name": "jboss-eap-7.4.0-server-migration-src.zip",
+      "version": "7.4.0-GA",
+      "description": "SBOM representing the deliverable jboss-eap-7.4.0-server-migration-src.zip with version 7.4.0-GA",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "c9e87a7bee1f4093aa69d0e76d01dda3"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "68152cc0191be475c4808b866cc34a3e58b3fde5"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "66ecc0a02e32cfa205ed63476ded164a72ec1405367277e4222ffe0a3c728142"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-server-migration-src.zip",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-server-migration-src.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "file",
+      "bom-ref": "pkg:generic/jboss-eap-7.4.0-core-src.zip",
+      "name": "jboss-eap-7.4.0-core-src.zip",
+      "version": "7.4.0-GA",
+      "description": "SBOM representing the deliverable jboss-eap-7.4.0-core-src.zip with version 7.4.0-GA",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "380bf3b3cd48d4ef45de9f3c646fc1d9"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "b0d1e472d0bfd58ec79d660e2f6c7a2228f48c0f"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "c00c3f9d66642979dc605cc710704fea086b223cafad45c99df079744d5fa39c"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-core-src.zip",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-core-src.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    },
+    {
+      "type": "file",
+      "bom-ref": "pkg:generic/jboss-eap-7.4.0-src.zip",
+      "name": "jboss-eap-7.4.0-src.zip",
+      "version": "7.4.0-GA",
+      "description": "SBOM representing the deliverable jboss-eap-7.4.0-src.zip with version 7.4.0-GA",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "c040c23e5afa627b2cbc9626127fd8ba"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "1a568ba4c1a93216fb1da85a166f998bf6c2f8f7"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "7c0500b2f68a9884aa3bd2d17f6fecc83505bffeb647a9c1843ce48eb2c6f766"
+        }
+      ],
+      "purl": "pkg:generic/jboss-eap-7.4.0-src.zip",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:generic/jboss-eap-7.4.0-src.zip?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F"
+          }
+        ]
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "Red Hat JBoss Enterprise Application Platform 7.4",
+      "dependsOn": [],
+      "provides": [
+        "pkg:generic/jboss-eap-7.4.0-quickstarts.zip",
+        "pkg:generic/jboss-eap-7.4.0.zip",
+        "pkg:generic/jboss-eap-7.4.0-javadoc.zip",
+        "pkg:generic/jboss-eap-7.4.0-installer.jar",
+        "pkg:generic/jboss-eap-7.4.0-maven-repository.zip",
+        "pkg:generic/jboss-eap-7.4.0-server-migration-src.zip",
+        "pkg:generic/jboss-eap-7.4.0-core-src.zip",
+        "pkg:generic/jboss-eap-7.4.0-src.zip"
+      ]
+    }
+  ]
+}
