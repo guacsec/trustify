@@ -390,6 +390,7 @@ async fn test_cache_size_used(ctx: &TrustifyContext) -> Result<(), anyhow::Error
     let service = AnalysisService::new(
         AnalysisConfig {
             max_cache_size: BinaryByteSize::from(small_sbom_size * 2),
+            ..Default::default()
         },
         ctx.db.clone(),
     );

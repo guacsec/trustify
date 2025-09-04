@@ -88,6 +88,7 @@ pub struct AnalysisService {
     inner: InnerService,
     _loader: Arc<JoinHandle<()>>,
     tx: mpsc::UnboundedSender<QueueEntry>,
+    concurrency: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -328,6 +329,7 @@ impl AnalysisService {
             inner,
             _loader: loader,
             tx,
+            concurrency: config.concurrency.get(),
         }
     }
 
@@ -417,14 +419,16 @@ impl AnalysisService {
 
     /// Collect nodes from the graph
     #[instrument(skip(self, create, graphs))]
-    async fn collect_graph<'a, C>(
+    async fn collect_graph<'a, 'g, F, Fut>(
         &self,
         query: impl Into<GraphQuery<'a>> + Debug,
-        graphs: &[(String, Arc<PackageGraph>)],
-        create: C,
+        graphs: &'g [(String, Arc<PackageGraph>)],
+        concurrency: usize,
+        create: F,
     ) -> Vec<Node>
     where
-        C: AsyncFn(&Graph<graph::Node, Relationship>, NodeIndex, &graph::Node) -> Node,
+        F: Fn(&'g Graph<graph::Node, Relationship>, NodeIndex, &'g graph::Node) -> Fut + Clone,
+        Fut: Future<Output = Node>,
     {
         let query = query.into();
 
@@ -434,14 +438,16 @@ impl AnalysisService {
                 .filter(|(sbom_id, graph)| acyclic(sbom_id, graph)),
         )
         .flat_map(|(_, graph)| {
+            let create = create.clone();
             stream::iter(
                 graph
                     .node_indices()
                     .filter(|&i| Self::filter(graph, &query, i))
                     .filter_map(|i| graph.node_weight(i).map(|w| (i, w))),
             )
-            .then(|(node_index, package_node)| create(graph, node_index, package_node))
+            .map(move |(node_index, package_node)| create(graph, node_index, package_node))
         })
+        .buffer_unordered(concurrency)
         .collect::<Vec<_>>()
         .await
     }
@@ -458,17 +464,21 @@ impl AnalysisService {
         let relationships = options.relationships;
         log::debug!("relations: {:?}", relationships);
 
-        self.collect_graph(query, graphs, async |graph, node_index, node| {
-            log::debug!(
-                "Discovered node - sbom: {}, node: {}",
-                node.sbom_id,
-                node.node_id
-            );
-            Node {
-                base: node.into(),
-                relationship: None,
-                ancestors: Box::pin(
-                    Collector::new(
+        self.collect_graph(
+            query,
+            graphs,
+            self.concurrency,
+            |graph, node_index, node| {
+                let graph_cache = graph_cache.clone();
+                let relationships = relationships.clone();
+                async move {
+                    log::debug!(
+                        "Discovered node - sbom: {}, node: {}",
+                        node.sbom_id,
+                        node.node_id
+                    );
+
+                    let ancestors = Collector::new(
                         &graph_cache,
                         graphs,
                         graph,
@@ -477,12 +487,11 @@ impl AnalysisService {
                         options.ancestors,
                         &relationships,
                         connection,
+                        self.concurrency,
                     )
-                    .collect(),
-                )
-                .await,
-                descendants: Box::pin(
-                    Collector::new(
+                    .collect();
+
+                    let descendants = Collector::new(
                         &graph_cache,
                         graphs,
                         graph,
@@ -491,12 +500,21 @@ impl AnalysisService {
                         options.descendants,
                         &relationships,
                         connection,
+                        self.concurrency,
                     )
-                    .collect(),
-                )
-                .await,
-            }
-        })
+                    .collect();
+
+                    let (ancestors, descendants) = futures::join!(ancestors, descendants);
+
+                    Node {
+                        base: node.into(),
+                        relationship: None,
+                        ancestors,
+                        descendants,
+                    }
+                }
+            },
+        )
         .await
     }
 

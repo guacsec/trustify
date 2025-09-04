@@ -1,4 +1,5 @@
 use super::*;
+use futures::stream::{self, StreamExt};
 use parking_lot::Mutex;
 use std::{collections::HashMap, sync::Arc};
 
@@ -33,6 +34,7 @@ pub struct Collector<'a, C: ConnectionTrait> {
     discovered: DiscoveredTracker,
     relationships: &'a HashSet<Relationship>,
     connection: &'a C,
+    concurrency: usize,
 }
 
 impl<'a, C: ConnectionTrait> Collector<'a, C> {
@@ -47,6 +49,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             discovered: self.discovered.clone(),
             relationships: self.relationships,
             connection: self.connection,
+            concurrency: self.concurrency,
         }
     }
 
@@ -61,6 +64,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         depth: u64,
         relationships: &'a HashSet<Relationship>,
         connection: &'a C,
+        concurrency: usize,
     ) -> Self {
         Self {
             graph_cache,
@@ -72,6 +76,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             discovered: Default::default(),
             relationships,
             connection,
+            concurrency,
         }
     }
 
@@ -100,6 +105,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             discovered: self.discovered.clone(),
             relationships: self.relationships,
             connection: self.connection,
+            concurrency: self.concurrency,
         }
     }
 
@@ -160,7 +166,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                 let current_sbom_id = &current_node.sbom_id;
                 let current_sbom_uuid = *current_sbom_id;
                 let current_node_id = &current_node.node_id;
-                let mut resolved_external_nodes: Vec<Node> = vec![];
+
                 let find_sbom_externals = resolve_rh_external_sbom_ancestors(
                     current_sbom_uuid,
                     current_node.node_id.clone().to_string(),
@@ -168,66 +174,75 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                 )
                 .await;
 
-                for sbom_external_node in find_sbom_externals {
-                    if &sbom_external_node.sbom_id == current_sbom_id {
-                        continue;
-                    }
-                    // check this is a valid external relationship
-                    match sbom_external_node::Entity::find()
-                        .filter(
-                            sbom_external_node::Column::SbomId
-                                .eq(sbom_external_node.clone().sbom_id),
-                        )
-                        .filter(
-                            sbom_external_node::Column::ExternalNodeRef
-                                .eq(sbom_external_node.clone().node_id),
-                        )
-                        .one(self.connection)
-                        .await
-                    {
-                        Ok(Some(matched)) => {
-                            // get the external sbom graph
-                            let Some(external_graph) =
-                                self.graph_cache.clone().get(&matched.sbom_id.to_string())
-                            else {
-                                log::warn!(
-                                    "external sbom graph {:?} not found in graph cache",
-                                    &matched.sbom_id.to_string()
-                                );
+                let resolved_external_nodes: Vec<Node> = stream::iter(find_sbom_externals)
+                    .map(|sbom_external_node| {
+                        let collector = self.clone();
+                        async move {
+                            if &sbom_external_node.sbom_id == current_sbom_id {
                                 return None;
-                            };
-                            // find the node in retrieved external graph
-                            let Some(external_node_index) = external_graph
-                                .node_indices()
-                                .find(|&node| external_graph[node].node_id.eq(&matched.node_id))
-                            else {
-                                log::warn!(
-                                    "Node with ID {current_node_id} not found in external sbom"
-                                );
-                                continue;
-                            };
-                            // recurse into those external sbom nodes and save
-                            resolved_external_nodes.extend(
-                                Box::pin(
-                                    self.clone()
-                                        .with(external_graph.as_ref(), external_node_index)
-                                        .collect_graph(),
+                            }
+                            // check this is a valid external relationship
+                            match sbom_external_node::Entity::find()
+                                .filter(
+                                    sbom_external_node::Column::SbomId
+                                        .eq(sbom_external_node.clone().sbom_id),
                                 )
-                                .await,
-                            );
+                                .filter(
+                                    sbom_external_node::Column::ExternalNodeRef
+                                        .eq(sbom_external_node.clone().node_id),
+                                )
+                                .one(collector.connection)
+                                .await
+                            {
+                                Ok(Some(matched)) => {
+                                    // get the external sbom graph
+                                    let Some(external_graph) =
+                                        collector.graph_cache.clone().get(&matched.sbom_id.to_string())
+                                    else {
+                                        log::warn!(
+                                            "external sbom graph {:?} not found in graph cache",
+                                            &matched.sbom_id.to_string()
+                                        );
+                                        return None;
+                                    };
+                                    // find the node in retrieved external graph
+                                    let Some(external_node_index) = external_graph
+                                        .node_indices()
+                                        .find(|&node| {
+                                            external_graph[node].node_id.eq(&matched.node_id)
+                                        })
+                                    else {
+                                        log::warn!(
+                                            "Node with ID {current_node_id} not found in external sbom"
+                                        );
+                                        return None;
+                                    };
+                                    // recurse into those external sbom nodes and save
+                                    Some(
+                                        collector
+                                            .with(external_graph.as_ref(), external_node_index)
+                                            .collect_graph()
+                                            .await,
+                                    )
+                                }
+                                Err(_) => {
+                                    log::warn!("Problem looking up sbom external node");
+                                    None
+                                }
+                                _ => {
+                                    log::debug!(
+                                        "not external sbom sbom_external_node {sbom_external_node:?}"
+                                    );
+                                    None
+                                }
+                            }
                         }
-                        Err(_) => {
-                            log::warn!("Problem looking up sbom external node");
-                            continue;
-                        }
-                        _ => {
-                            log::debug!(
-                                "not external sbom sbom_external_node {sbom_external_node:?}"
-                            );
-                            continue;
-                        }
-                    }
-                }
+                    })
+                    .buffer_unordered(self.concurrency)
+                    .filter_map(|nodes| async move { nodes })
+                    .flat_map(stream::iter)
+                    .collect::<Vec<_>>()
+                    .await;
 
                 let mut result = self.collect_graph().await;
                 if !resolved_external_nodes.is_empty() {
@@ -240,44 +255,49 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
     }
 
     pub async fn collect_graph(&self) -> Vec<Node> {
-        let mut result = vec![];
         log::debug!("Collecting graph for {:?}", self.node);
-        for edge in self.graph.edges_directed(self.node, self.direction) {
-            log::debug!("edge {edge:?}");
 
-            // we only recurse in one direction
-            let (ancestor, descendent, package_node) = match self.direction {
-                Direction::Incoming => (
-                    Box::pin(self.continue_node(edge.source()).collect()).await,
-                    None,
-                    self.graph.node_weight(edge.source()),
-                ),
-                Direction::Outgoing => (
-                    None,
-                    Box::pin(self.continue_node(edge.target()).collect()).await,
-                    self.graph.node_weight(edge.target()),
-                ),
-            };
+        stream::iter(self.graph.edges_directed(self.node, self.direction))
+            .map(|edge| async move {
+                log::debug!("edge {edge:?}");
 
-            let relationship = edge.weight();
+                // we only recurse in one direction
+                // Depending on the direction, we collect ancestors or descendants
+                let (ancestor, descendent, package_node) = match self.direction {
+                    // If the direction is incoming, we are collecting ancestors.
+                    // We recursively call `collect` for the source of the edge.
+                    Direction::Incoming => (
+                        self.continue_node(edge.source()).collect().await,
+                        None,
+                        self.graph.node_weight(edge.source()),
+                    ),
+                    // If the direction is outgoing, we are collecting descendants.
+                    // We recursively call `collect` for the target of the edge.
+                    Direction::Outgoing => (
+                        None,
+                        self.continue_node(edge.target()).collect().await,
+                        self.graph.node_weight(edge.target()),
+                    ),
+                };
 
-            if !self.relationships.is_empty() && !self.relationships.contains(relationship) {
-                // if we have entries, and no match, continue with the next
-                continue;
-            }
+                let relationship = edge.weight();
 
-            let Some(package_node) = package_node else {
-                continue;
-            };
+                if !self.relationships.is_empty() && !self.relationships.contains(relationship) {
+                    // if we have entries, and no match, continue with the next
+                    return None;
+                }
 
-            result.push(Node {
-                base: BaseSummary::from(package_node),
-                relationship: Some(*relationship),
-                ancestors: ancestor,
-                descendants: descendent,
-            });
-        }
-
-        result
+                // Create a new `Node` and add it to the result
+                Some(Node {
+                    base: BaseSummary::from(package_node?),
+                    relationship: Some(*relationship),
+                    ancestors: ancestor,
+                    descendants: descendent,
+                })
+            })
+            .buffer_unordered(self.concurrency)
+            .filter_map(|node| async move { node })
+            .collect::<Vec<_>>()
+            .await
     }
 }
