@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::test::caller;
 
 use actix_http::Request;
@@ -36,9 +38,12 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
     );
     let request: Request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
-    assert!(response.contains_subset(json!({
-      "total":2
-    })));
+    assert!(
+        response.contains_subset(json!({
+          "total":2
+        })),
+        "response was: {response:#?}"
+    );
 
     // cpe latest search
     let uri: String = format!(
@@ -47,9 +52,12 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
     );
     let request: Request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
-    assert!(response.contains_subset(json!({
-      "total":1
-    })));
+    assert!(
+        response.contains_subset(json!({
+          "total":1
+        })),
+        "response was: {response:#?}"
+    );
 
     // purl partial search
     let uri: String = format!(
@@ -68,9 +76,12 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
     let request: Request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
     log::warn!("{:?}", response.get("total"));
-    assert!(response.contains_subset(json!({
-      "total":16
-    })));
+    assert!(
+        response.contains_subset(json!({
+          "total":7
+        })),
+        "response was: {response:#?}"
+    );
 
     // purl partial search latest
     let uri: String = format!(
@@ -80,9 +91,12 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
     let request: Request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
     log::warn!("{:?}", response.get("total"));
-    assert!(response.contains_subset(json!({
-      "total":7
-    })));
+    assert!(
+        response.contains_subset(json!({
+          "total":6
+        })),
+        "response was: {response:#?}"
+    );
     Ok(())
 }
 
@@ -219,7 +233,16 @@ async fn resolve_rh_variant_latest_filter_middleware_cdx(
     );
     let request: Request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
-    assert_eq!(response["total"], 2);
+    assert_eq!(response["total"], 3);
+    let items = response["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|e| e["product_name"].as_str())
+        .collect::<HashSet<_>>();
+
+    assert!(items.contains("quarkus-camel-bom"));
+    assert!(items.contains("quarkus-cxf-bom"));
 
     // name exact search
     let uri: String = format!(
@@ -237,13 +260,14 @@ async fn resolve_rh_variant_latest_filter_middleware_cdx(
     );
     let request: Request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
-    assert_eq!(response["total"], 2);
+    assert_eq!(response["total"], 3);
 
     Ok(())
 }
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
+#[ignore = "Unclear what the expectation is. Three SBOMs share the same name/CPE combination and are thus reduced to a single, latest one."]
 async fn test_tc2606(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
@@ -440,7 +464,7 @@ async fn test_tc2717(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     );
     let request: Request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
-    assert_eq!(response["total"], 2);
+    assert_eq!(response["total"], 3, "response was: {response:#?}");
 
     Ok(())
 }

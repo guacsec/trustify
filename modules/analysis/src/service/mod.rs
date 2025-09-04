@@ -14,13 +14,12 @@ mod test;
 use crate::{
     Error,
     config::AnalysisConfig,
-    model::{AnalysisStatus, BaseSummary, GraphMap, Node, PackageGraph, graph},
+    model::{
+        AnalysisStatus, AnalysisStatusDetails, BaseSummary, GraphMap, Node, PackageGraph, graph,
+    },
 };
 use fixedbitset::FixedBitSet;
-use futures::{StreamExt, stream};
-
-use crate::model::AnalysisStatusDetails;
-use futures::future::Shared;
+use futures::{StreamExt, future::Shared, stream};
 use opentelemetry::{global, metrics::Counter};
 use parking_lot::Mutex;
 use petgraph::{
