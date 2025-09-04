@@ -165,7 +165,7 @@ async fn add_quay(
             source: DEFAULT_SOURCE_QUAY.into(),
             namespace: Some(namespace.into()),
             size_limit: Some(ByteSize::mib(1).into()),
-            ..Default::default()
+            api_token: None,
         }),
     )
     .await

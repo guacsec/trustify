@@ -33,10 +33,6 @@ pub struct QuayImporter {
     /// The max size of the ingested SBOM's (None is unlimited)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub size_limit: Option<BinaryByteSize>,
-
-    /// The maximum concurrent repository fetches
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub concurrency: Option<usize>,
 }
 
 pub const DEFAULT_SOURCE_QUAY: &str = "quay.io";

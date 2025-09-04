@@ -1,27 +1,23 @@
 use super::oci::Reference;
-use crate::{
-    model::QuayImporter,
-    runner::{
-        common::Error,
-        context::RunContext,
-        progress::{Progress, ProgressInstance},
-        quay::oci,
-        report::{Message, Phase, ReportBuilder},
-    },
-};
-use anyhow::anyhow;
+use crate::model::QuayImporter;
+use crate::runner::common::Error;
+use crate::runner::context::RunContext;
+use crate::runner::progress::{Progress, ProgressInstance};
+use crate::runner::quay::oci;
+use crate::runner::report::{Message, Phase, ReportBuilder};
 use futures::{Stream, TryStreamExt, stream};
 use reqwest::header;
 use serde::Deserialize;
-use std::{collections::HashMap, future, sync::Arc};
+use std::future;
+use std::{collections::HashMap, sync::Arc};
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use tracing::instrument;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::{Cache, Format, IngestorService};
 
-/// Max number of concurrent repository fetches
-const DEFAULT_CONCURRENCY: usize = 32;
+// Max number of concurrent repository queries
+const CONCURRENCY: usize = 32;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct LastModified(Option<i64>);
@@ -149,9 +145,9 @@ impl<C: RunContext> QuayWalker<C> {
 
     async fn sboms(&self) -> Result<Vec<Reference>, Error> {
         self.repositories(Some(String::new()))
-            .try_filter(|repo| future::ready(self.ingestible(repo)))
-            .map_ok(|repo| self.repository_details(repo))
-            .try_buffer_unordered(self.importer.concurrency.unwrap_or(DEFAULT_CONCURRENCY))
+            .try_filter(|v| future::ready(v.is_public && self.modified_since(v.last_modified)))
+            .map_ok(|v| self.repository(v.namespace, v.name))
+            .try_buffer_unordered(CONCURRENCY)
             .map_ok(|repo| {
                 stream::iter(
                     repo.sboms(&self.importer.source)
@@ -171,7 +167,6 @@ impl<C: RunContext> QuayWalker<C> {
                 if self.context.is_canceled().await {
                     return Err(Error::Canceled);
                 }
-                log::debug!("Fetching batch {page:?}");
                 let batch: Batch = self
                     .client
                     .get(self.importer.repositories_url(&page))
@@ -189,27 +184,15 @@ impl<C: RunContext> QuayWalker<C> {
         .try_flatten()
     }
 
-    async fn repository_details(&self, repo: Repository) -> Result<Repository, Error> {
-        if self.context.is_canceled().await {
-            return Err(Error::Canceled);
-        }
-        match (repo.namespace, repo.name) {
-            (Some(namespace), Some(name)) => {
-                let url = self.importer.repository_url(&namespace, &name);
-                log::debug!("Fetching {url}");
-                Ok(self.client.get(url).send().await?.json().await?)
-            }
-            _ => Err(Error::Processing(anyhow!(
-                "Repository name and namespace are required"
-            ))),
-        }
-    }
-
-    fn ingestible(&self, repo: &Repository) -> bool {
-        repo.namespace.is_some()
-            && repo.name.is_some()
-            && repo.is_public.is_some_and(|x| x)
-            && self.modified_since(repo.last_modified)
+    async fn repository(&self, namespace: String, name: String) -> Result<Repository, Error> {
+        log::debug!("Fetching {}/{namespace}/{name}", self.importer.source);
+        Ok(self
+            .client
+            .get(self.importer.repository_url(&namespace, &name))
+            .send()
+            .await?
+            .json()
+            .await?)
     }
 
     fn modified_since(&self, last_modified: Option<i64>) -> bool {
@@ -243,9 +226,9 @@ fn authorized_client(token: &str) -> Result<reqwest::Client, Error> {
 
 #[derive(Debug, Deserialize)]
 struct Repository {
-    namespace: Option<String>,
-    name: Option<String>,
-    is_public: Option<bool>,
+    namespace: String,
+    name: String,
+    is_public: bool,
     last_modified: Option<i64>,
     tags: Option<HashMap<String, Tag>>,
 }
@@ -259,11 +242,7 @@ impl Repository {
                 .map(|t| Sbom {
                     reference: Reference::with_tag(
                         registry.to_string(),
-                        format!(
-                            "{}/{}",
-                            self.namespace.clone().unwrap_or_default(),
-                            self.name.clone().unwrap_or_default()
-                        ),
+                        format!("{}/{}", self.namespace, self.name),
                         t.name.clone(),
                     ),
                     size: t.size.unwrap_or(u64::MAX),
