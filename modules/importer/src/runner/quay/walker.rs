@@ -5,7 +5,7 @@ use crate::runner::context::RunContext;
 use crate::runner::progress::{Progress, ProgressInstance};
 use crate::runner::quay::oci;
 use crate::runner::report::{Message, Phase, ReportBuilder};
-use futures::{Stream, StreamExt, TryStreamExt, stream};
+use futures::{Stream, StreamExt, TryStreamExt, future, stream};
 use reqwest::header;
 use serde::Deserialize;
 use std::{collections::HashMap, sync::Arc};
@@ -151,17 +151,7 @@ impl<C: RunContext> QuayWalker<C> {
             .await?;
         let tags: Vec<(Reference, u64)> = stream::iter(repositories)
             .buffer_unordered(32) // TODO: make configurable
-            .filter_map(|repo_result| async move {
-                match repo_result {
-                    Ok(repo) => repo.sboms(&self.importer.source),
-                    Err(e) => {
-                        log::warn!("Error retrieving repository: {e}");
-                        let mut report = self.report.lock().await;
-                        report.add_error(Phase::Retrieval, "repository", e.to_string());
-                        None
-                    }
-                }
-            })
+            .filter_map(|repo| future::ready(repo.unwrap_or_default().sboms(&self.importer.source)))
             .map(stream::iter)
             .flatten()
             .collect()
@@ -241,7 +231,7 @@ fn authorized_client(token: &str) -> Result<reqwest::Client, Error> {
         .build()?)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct Repository {
     namespace: String,
     name: String,
