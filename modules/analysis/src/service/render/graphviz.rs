@@ -1,17 +1,31 @@
-use crate::service::Visitor;
+use crate::{
+    model::graph::{self, Node},
+    service::Visitor,
+};
+use std::fmt::Write;
 use trustify_entity::relationship::Relationship;
 
+/// Escape a string to be used as dot string value. The result
+/// must be placed within double quotes.
+///
+/// Double quotes and backspace are prefixed with another backspace.
+///
+/// Newlines are replaced with `\n`. CR, form-feed, and backspace are
+/// just dropped.
 fn escape(id: &str) -> String {
     let mut escaped = String::with_capacity(id.len());
 
     for ch in id.chars() {
         match ch {
-            '"' => {
+            '"' | '\\' => {
                 escaped.push('\\');
                 escaped.push(ch);
             }
             '\n' => {
                 escaped.push_str("\\n");
+            }
+            '\r' | '\x08' | '\x0C' => {
+                // just drop
             }
             _ => escaped.push(ch),
         }
@@ -19,10 +33,6 @@ fn escape(id: &str) -> String {
 
     escaped
 }
-
-use crate::model::graph;
-use crate::model::graph::Node;
-use std::fmt::Write;
 
 pub struct Renderer {
     data: String,
@@ -104,9 +114,9 @@ impl Visitor for Renderer {
 
 #[cfg(test)]
 mod test {
-
     #[test]
     fn escape() {
         assert_eq!(super::escape("foo\"bar\nbaz"), r#"foo\"bar\nbaz"#);
+        assert_eq!(super::escape("foo\\\"bar\rbaz"), r#"foo\\\"barbaz"#);
     }
 }
