@@ -346,23 +346,82 @@ impl InnerService {
             sbom_id: Uuid,
         }
 
-        fn find(sbom_package_relation: sbom_node::Relation) -> Select<sbom_node::Entity> {
-            const RANK_SQL: &str =
-                "RANK() OVER (PARTITION BY sbom_node.name,cpe.id ORDER BY sbom.published DESC)";
+        /// Internal helper function to build ranked query, removing duplication.
+        /// boolean flag controls the PARTITION BY clause.
+        ///
+        /// Constructs reusable SeaORM query to find and rank related SBOM package information.
+        ///
+        /// This function is the core logic for finding the most recent SBOM data aka 'latest' for package groups.
+        /// It builds a query that joins SBOM nodes through their package relations to CPEs and their parent SBOMs.
+        ///
+        /// The query returns these columns:
+        /// - `sbom_id`: The ID of the parent SBOM.
+        /// - `published`: The publication timestamp of the SBOM (used for ranking).
+        /// - `cpe_id`: The ID of the related CPE.
+        /// - `rank`: A calculated rank column based on the partitioning strategy.
+        ///
+        /// When partition_by_name=true we generate a list of same named components by CPE and order by
+        /// published and take first result - which ensures it is the latest component.
+        ///
+        /// This works in /latest/ endpoints queries where we use CPE as input but for /latest/ filters based on exact
+        /// or partial name filters we need to drop name in partitioning to avoid incorrect ordering (and correct ranking).
+        /// Mostly the rationale for this is that for groupings of the same name - CPE is sufficient partition.
+        ///
+        /// It may seem intuitive to just reverse order of default partition for such name exact/partial cases as
+        ///
+        /// `PARTITION BY cpe.id, sbom_node.name ORDER BY sbom.published DESC`
+        ///
+        /// but then we run into join alignment problems where partitioning follows subquery results
+        /// - incorrectly leaking latest and non latest in results.
+        ///
+        /// That is why we just use cpe id partitioning:
+        ///
+        /// `PARTITION BY cpe.id ORDER BY sbom.published DESC`
+        ///
+        /// which returns correctly because name related filters are already performed.
+        ///
+        /// It is worth mentioning that aforementioned CPE queries cannot use CPE only partitioning because we
+        /// need to discriminate on component name (across CPEs) hence special casing both code paths.   
+        ///
+        ///
+        /// # Returns
+        ///
+        ///   An unexecuted `sea_orm::Select<sbom_node::Entity>` query builder struct.
+        ///       
+        fn build_ranked_query(
+            sbom_package_relation: sbom_node::Relation,
+            partition_by_name: bool,
+        ) -> Select<sbom_node::Entity> {
+            // Dynamically select the RANK SQL based on the flag
+            let rank_sql = if partition_by_name {
+                // for CPE queries
+                "RANK() OVER (PARTITION BY sbom_node.name, cpe.id ORDER BY sbom.published DESC)"
+            } else {
+                // for exact/partial name queries
+                "RANK() OVER (PARTITION BY cpe.id ORDER BY sbom.published DESC)"
+            };
 
             sbom_node::Entity::find()
                 .select_only()
                 .column(sbom::Column::SbomId)
                 .column(sbom::Column::Published)
                 .column(cpe::Column::Id)
-                .column_as(Expr::cust(RANK_SQL), "rank")
-                .left_join(sbom::Entity)
+                .column_as(Expr::cust(rank_sql), "rank") // Use the selected SQL string
                 .join(JoinType::LeftJoin, sbom_package_relation.def())
                 .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
                 .join(
                     JoinType::LeftJoin,
                     sbom_package_cpe_ref::Relation::Cpe.def(),
                 )
+                .left_join(sbom::Entity)
+        }
+
+        fn find(sbom_package_relation: sbom_node::Relation) -> Select<sbom_node::Entity> {
+            build_ranked_query(sbom_package_relation, true)
+        }
+
+        fn find_rank_name(sbom_package_relation: sbom_node::Relation) -> Select<sbom_node::Entity> {
+            build_ranked_query(sbom_package_relation, false)
         }
 
         async fn query_all<C>(
@@ -402,13 +461,13 @@ impl InnerService {
                 query_all(subquery.into_query(), connection).await?
             }
             GraphQuery::Component(ComponentReference::Name(name)) => {
-                let subquery =
-                    find(sbom_node::Relation::Package).filter(sbom_node::Column::Name.eq(name));
+                let subquery = find_rank_name(sbom_node::Relation::Package)
+                    .filter(sbom_node::Column::Name.eq(name));
 
                 query_all(subquery.into_query(), connection).await?
             }
             GraphQuery::Component(ComponentReference::Purl(purl)) => {
-                let subquery = find(sbom_node::Relation::Package)
+                let subquery = find_rank_name(sbom_node::Relation::Package)
                     .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
                     .join(
                         JoinType::LeftJoin,
@@ -440,7 +499,7 @@ impl InnerService {
                 query_all(subquery.into_query(), connection).await?
             }
             GraphQuery::Query(query) => {
-                let subquery = find(sbom_node::Relation::Package)
+                let subquery = find_rank_name(sbom_node::Relation::Package)
                     .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
                     .join(
                         JoinType::LeftJoin,
