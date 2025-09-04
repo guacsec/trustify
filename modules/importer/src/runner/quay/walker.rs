@@ -16,9 +16,6 @@ use tracing::instrument;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::{Cache, Format, IngestorService};
 
-// Max number of concurrent repository queries
-const CONCURRENCY: usize = 32;
-
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct LastModified(Option<i64>);
 
@@ -147,7 +144,7 @@ impl<C: RunContext> QuayWalker<C> {
         self.repositories(Some(String::new()))
             .try_filter(|v| future::ready(v.is_public && self.modified_since(v.last_modified)))
             .map_ok(|v| self.repository(v.namespace, v.name))
-            .try_buffer_unordered(CONCURRENCY)
+            .try_buffer_unordered(32)
             .map_ok(|repo| {
                 stream::iter(
                     repo.sboms(&self.importer.source)
@@ -205,7 +202,7 @@ impl<C: RunContext> QuayWalker<C> {
         }
     }
 
-    fn valid(&self, sbom: &Sbom) -> bool {
+    fn valid(&self, sbom: &SBOM) -> bool {
         match self.importer.size_limit {
             None => true,
             Some(max) => sbom.size <= max.as_u64(),
@@ -234,12 +231,12 @@ struct Repository {
 }
 
 impl Repository {
-    fn sboms(&self, registry: &str) -> Vec<Sbom> {
+    fn sboms(&self, registry: &str) -> Vec<SBOM> {
         match &self.tags {
             Some(tags) => tags
                 .values()
                 .filter(|t| t.name.ends_with(".sbom"))
-                .map(|t| Sbom {
+                .map(|t| SBOM {
                     reference: Reference::with_tag(
                         registry.to_string(),
                         format!("{}/{}", self.namespace, self.name),
@@ -266,7 +263,7 @@ struct Tag {
 }
 
 #[derive(Debug)]
-struct Sbom {
+struct SBOM {
     reference: Reference,
     size: u64,
 }
