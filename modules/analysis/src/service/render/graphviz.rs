@@ -13,6 +13,10 @@ fn escape(id: &str) -> String {
             '\n' => {
                 escaped.push_str("\\n");
             }
+            '\\' => {
+                escaped.push('\\');
+                escaped.push(ch);
+            }
             _ => escaped.push(ch),
         }
     }
