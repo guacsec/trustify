@@ -298,13 +298,18 @@ async fn test_quarkus_analysis_service(ctx: &TrustifyContext) -> Result<(), anyh
     log::debug!("After: {analysis_graph:#?}");
 
     assert_root_traces(&analysis_graph.items, |traces| {
-        assert!(traces.contains(&[
+        assert!(
+            matches!(
+                traces,
+                [
+                    [..],
+                    [
                         Node {
                             id: "SPDXRef-e24fec28-1001-499c-827f-2e2e5f2671b5",
                             name: "quarkus-bom",
                             version: "3.2.12.Final-redhat-00002",
-                            cpes: &["cpe:/a:redhat:quarkus:3.2:*:el8:*",],
-                            purls: &[
+                            cpes: ["cpe:/a:redhat:quarkus:3.2:*:el8:*",],
+                            purls: [
                                 "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.12.Final-redhat-00002?repository_url=https://maven.repository.redhat.com/ga/&type=pom"
                             ],
                         },
@@ -312,10 +317,10 @@ async fn test_quarkus_analysis_service(ctx: &TrustifyContext) -> Result<(), anyh
                             id: "SPDXRef-DOCUMENT",
                             name: "quarkus-bom-3.2.12.Final-redhat-00002",
                             version: "",
-                            cpes: &[],
-                            purls: &[],
+                            ..
                         },
-                    ].as_slice()
+                    ]
+                ]
             ),
             "doesn't match: {traces:#?}"
         );
