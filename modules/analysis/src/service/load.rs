@@ -348,7 +348,7 @@ impl InnerService {
 
         fn find(sbom_package_relation: sbom_node::Relation) -> Select<sbom_node::Entity> {
             const RANK_SQL: &str =
-                "RANK() OVER (PARTITION BY sbom_node.name,cpe.id ORDER BY sbom.published DESC)";
+                "RANK() OVER (PARTITION BY sbom_node.name, cpe.id ORDER BY sbom.published DESC)";
 
             sbom_node::Entity::find()
                 .select_only()
@@ -356,13 +356,32 @@ impl InnerService {
                 .column(sbom::Column::Published)
                 .column(cpe::Column::Id)
                 .column_as(Expr::cust(RANK_SQL), "rank")
-                .left_join(sbom::Entity)
                 .join(JoinType::LeftJoin, sbom_package_relation.def())
                 .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
                 .join(
                     JoinType::LeftJoin,
                     sbom_package_cpe_ref::Relation::Cpe.def(),
                 )
+                .left_join(sbom::Entity)
+        }
+
+        fn find_rank_name(sbom_package_relation: sbom_node::Relation) -> Select<sbom_node::Entity> {
+            // TODO: we should conflate find_rank_name() and find() at some point
+            const RANK_SQL: &str = "RANK() OVER (PARTITION BY cpe.id ORDER BY sbom.published DESC)";
+
+            sbom_node::Entity::find()
+                .select_only()
+                .column(sbom::Column::SbomId)
+                .column(sbom::Column::Published)
+                .column(cpe::Column::Id)
+                .column_as(Expr::cust(RANK_SQL), "rank")
+                .join(JoinType::LeftJoin, sbom_package_relation.def())
+                .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
+                .join(
+                    JoinType::LeftJoin,
+                    sbom_package_cpe_ref::Relation::Cpe.def(),
+                )
+                .left_join(sbom::Entity)
         }
 
         async fn query_all<C>(
@@ -402,13 +421,13 @@ impl InnerService {
                 query_all(subquery.into_query(), connection).await?
             }
             GraphQuery::Component(ComponentReference::Name(name)) => {
-                let subquery =
-                    find(sbom_node::Relation::Package).filter(sbom_node::Column::Name.eq(name));
+                let subquery = find_rank_name(sbom_node::Relation::Package)
+                    .filter(sbom_node::Column::Name.eq(name));
 
                 query_all(subquery.into_query(), connection).await?
             }
             GraphQuery::Component(ComponentReference::Purl(purl)) => {
-                let subquery = find(sbom_node::Relation::Package)
+                let subquery = find_rank_name(sbom_node::Relation::Package)
                     .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
                     .join(
                         JoinType::LeftJoin,
@@ -440,7 +459,7 @@ impl InnerService {
                 query_all(subquery.into_query(), connection).await?
             }
             GraphQuery::Query(query) => {
-                let subquery = find(sbom_node::Relation::Package)
+                let subquery = find_rank_name(sbom_node::Relation::Package)
                     .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
                     .join(
                         JoinType::LeftJoin,
