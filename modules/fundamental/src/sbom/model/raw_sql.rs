@@ -37,7 +37,17 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
         SELECT id FROM filtered_cpes
         UNION
         SELECT id FROM generalized_cpes
-    )
+    ) OR (
+        SELECT cpe_id
+        FROM sbom_package_cpe_ref
+        WHERE sbom_id = $1
+        AND node_id IN (
+            SELECT DISTINCT right_node_id
+            FROM package_relates_to_package
+            WHERE sbom_id = $1
+            AND relationship = 13
+        )
+    ) IS NULL
 )
 "#;
 
