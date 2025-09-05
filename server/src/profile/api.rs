@@ -1,55 +1,42 @@
 #[cfg(feature = "garage-door")]
 use crate::embedded_oidc;
 
+#[cfg(feature = "graphql")]
+use actix_web::middleware;
+
 use crate::{endpoints, profile::spawn_db_check, sample_data};
-use actix_web::{
-    HttpRequest, HttpResponse, Responder, Result,
-    body::MessageBody,
-    dev::{ConnectionInfo, Url},
-    error::UrlGenerationError,
-    get, middleware, web,
-    web::Json,
-};
-use anyhow::{Context, anyhow};
+use actix_web::web;
+use anyhow::Context;
 use bytesize::ByteSize;
-use futures::{FutureExt, StreamExt};
-use std::{
-    fmt::Display, fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc, time::Duration,
-};
+use futures::FutureExt;
+use std::{fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc};
 use tokio_schedule::{Job, every};
 use trustify_auth::{
     auth::AuthConfigArguments,
     authenticator::Authenticator,
     authorizer::Authorizer,
-    devmode::{FRONTEND_CLIENT_ID, ISSUER_URL, PUBLIC_CLIENT_IDS},
-    swagger_ui::{SwaggerUiOidc, SwaggerUiOidcConfig, swagger_ui_with_auth},
+    devmode::{FRONTEND_CLIENT_ID, ISSUER_URL},
+    swagger_ui::{SwaggerUiOidc, SwaggerUiOidcConfig},
 };
 use trustify_common::{config::Database, db, model::BinaryByteSize};
 use trustify_infrastructure::{
-    Infrastructure, InfrastructureConfig, InitContext, Metrics,
+    Infrastructure, InfrastructureConfig, InitContext,
     app::{
         http::{HttpServerBuilder, HttpServerConfig},
         new_auth,
     },
     endpoint::Trustify,
-    health::checks::{Local, Probe},
     otel::{Metrics as OtelMetrics, Tracing},
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
 use trustify_module_fundamental::purl::service::PurlService;
-use trustify_module_importer::server::importer;
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::{
     config::{StorageConfig, StorageStrategy},
     service::{dispatch::DispatchBackend, fs::FileSystemBackend, s3::S3Backend},
 };
 use trustify_module_ui::{UI, endpoints::UiResources};
-use utoipa::{
-    OpenApi,
-    openapi::{Info, License},
-};
-use utoipa_rapidoc::RapiDoc;
-use utoipa_redoc::{Redoc, Servable};
+use utoipa::openapi::{Info, License};
 
 /// Run the API server
 #[derive(clap::Args, Debug)]
@@ -202,7 +189,7 @@ impl Run {
         Infrastructure::from(self.infra.clone())
             .run(
                 SERVICE_ID,
-                { |context| async move { InitData::new(context, self).await } },
+                |context| async move { InitData::new(context, self).await },
                 |context| async move { context.init_data.run().await },
             )
             .await?;
@@ -325,8 +312,6 @@ impl InitData {
     async fn run(mut self) -> anyhow::Result<()> {
         let ui = Arc::new(UiResources::new(&self.ui)?);
         let db = self.db.clone();
-        let storage = self.storage.clone();
-        let ui_config = self.config.ui.clone();
 
         let http = {
             HttpServerBuilder::try_from(self.http)?
@@ -360,7 +345,7 @@ impl InitData {
         if let Some(embedded_oidc) = self.embedded_oidc.take() {
             tasks.push(
                 async move {
-                    embedded_oidc.0.await?;
+                    let _ = embedded_oidc.0.await?;
                     Ok::<_, anyhow::Error>(())
                 }
                 .boxed_local(),
@@ -508,24 +493,13 @@ fn post_configure(svc: &mut web::ServiceConfig, config: PostConfig) {
     });
 }
 
-fn build_url(ci: &ConnectionInfo, path: impl Display) -> Option<url::Url> {
-    url::Url::parse(&format!(
-        "{scheme}://{host}{path}",
-        scheme = ci.scheme(),
-        host = ci.host()
-    ))
-    .ok()
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
     use actix_web::{
         App,
-        body::{to_bytes, to_bytes_limited},
         http::{StatusCode, header},
         test::{TestRequest, call_and_read_body, call_service},
-        web::{self, Bytes},
     };
     use std::sync::Arc;
     use test_context::test_context;

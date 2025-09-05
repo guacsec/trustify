@@ -5,9 +5,7 @@ use actix_web::{
 };
 use build_info::BuildInfo;
 use std::sync::Arc;
-use trustify_auth::authenticator::{Authenticator, user::UserInformation};
-use trustify_infrastructure::app::new_auth;
-use utoipa::OpenApi;
+use trustify_auth::authenticator::Authenticator;
 use utoipa_actix_web::service_config::ServiceConfig;
 
 pub fn configure(svc: &mut ServiceConfig, auth: Option<Arc<Authenticator>>) {
@@ -19,10 +17,6 @@ pub fn configure(svc: &mut ServiceConfig, auth: Option<Arc<Authenticator>>) {
 
     svc.service(scope.service(info));
 }
-
-#[derive(OpenApi)]
-#[openapi(paths(info), tags())]
-pub struct ApiDoc;
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
 struct Info<'a> {

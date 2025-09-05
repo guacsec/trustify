@@ -1,6 +1,5 @@
 use bytesize::ByteSize;
 use std::{collections::HashSet, time::Duration};
-use trustify_common::config::Database;
 use trustify_module_importer::model::{
     ClearlyDefinedImporter, ClearlyDefinedPackageType, CveImporter, CweImporter,
     DEFAULT_SOURCE_CLEARLY_DEFINED_CURATION, DEFAULT_SOURCE_CVEPROJECT, DEFAULT_SOURCE_CWE_CATALOG,
