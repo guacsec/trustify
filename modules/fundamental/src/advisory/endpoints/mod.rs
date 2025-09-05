@@ -11,7 +11,6 @@ use crate::{
     },
     common::service::delete_doc,
     endpoints::Deprecation,
-    purl::service::PurlService,
 };
 use actix_web::{HttpResponse, Responder, delete, get, http::header, post, web};
 use config::Config;
@@ -40,12 +39,10 @@ pub fn configure(
     upload_limit: usize,
 ) {
     let advisory_service = AdvisoryService::new(db.clone());
-    let purl_service = PurlService::new();
 
     config
         .app_data(web::Data::new(db))
         .app_data(web::Data::new(advisory_service))
-        .app_data(web::Data::new(purl_service))
         .app_data(web::Data::new(Config { upload_limit }))
         .service(all)
         .service(get)
@@ -147,31 +144,26 @@ pub async fn get(
 /// Delete an advisory
 pub async fn delete(
     i: web::Data<IngestorService>,
-    state: web::Data<AdvisoryService>,
+    service: web::Data<AdvisoryService>,
     db: web::Data<Database>,
-    purl_service: web::Data<PurlService>,
     key: web::Path<String>,
     _: Require<DeleteAdvisory>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
 
-    let hash_key = Id::from_str(&key)?;
-    let fetched = state.fetch_advisory(hash_key, &tx).await?;
-
-    if let Some(fetched) = fetched {
-        match state.delete_advisory(fetched.head.uuid, &tx).await? {
+    let id = Id::from_str(&key)?;
+    match service.fetch_advisory(id, &tx).await? {
+        Some(v) => match service.delete_advisory(v.head.uuid, &tx).await? {
             false => Ok(HttpResponse::NotFound().finish()),
             true => {
-                let _ = purl_service.gc_purls(&tx).await; // ignore gc failure..
                 tx.commit().await?;
-                if let Err(e) = delete_doc(fetched.source_document.as_ref(), i.storage()).await {
+                if let Err(e) = delete_doc(v.source_document.as_ref(), i.storage()).await {
                     log::warn!("Ignoring {e}");
                 }
-                Ok(HttpResponse::Ok().json(fetched))
+                Ok(HttpResponse::Ok().json(v))
             }
-        }
-    } else {
-        Ok(HttpResponse::NotFound().finish())
+        },
+        None => Ok(HttpResponse::NotFound().finish()),
     }
 }
 

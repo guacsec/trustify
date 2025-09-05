@@ -13,7 +13,6 @@ use crate::{
         get_sanitize_filename,
         service::{LicenseService, license_export::LicenseExporter},
     },
-    purl::service::PurlService,
     sbom::{
         model::{
             LicenseRefMapping, SbomExternalPackageReference, SbomNodeReference, SbomPackage,
@@ -51,12 +50,10 @@ pub fn configure(
     upload_limit: usize,
 ) {
     let sbom_service = SbomService::new(db.clone());
-    let purl_service = PurlService::new();
 
     config
         .app_data(web::Data::new(db))
         .app_data(web::Data::new(sbom_service))
-        .app_data(web::Data::new(purl_service))
         .app_data(web::Data::new(Config { upload_limit }))
         .service(all)
         .service(all_related)
@@ -320,27 +317,23 @@ pub async fn delete(
     i: web::Data<IngestorService>,
     service: web::Data<SbomService>,
     db: web::Data<Database>,
-    purl_service: web::Data<PurlService>,
     id: web::Path<String>,
     _: Require<DeleteSbom>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
 
     let id = Id::from_str(&id)?;
-    match service.fetch_sbom_summary(id.clone(), &tx).await? {
-        Some(v) => {
-            match service.delete_sbom(v.head.id, &tx).await? {
-                false => Ok(HttpResponse::NotFound().finish()),
-                true => {
-                    let _ = purl_service.gc_purls(&tx).await; // ignore gc failure..
-                    tx.commit().await?;
-                    if let Err(e) = delete_doc(v.source_document.as_ref(), i.storage()).await {
-                        log::warn!("Ignoring {e}");
-                    }
-                    Ok(HttpResponse::Ok().json(v))
+    match service.fetch_sbom_summary(id, &tx).await? {
+        Some(v) => match service.delete_sbom(v.head.id, &tx).await? {
+            false => Ok(HttpResponse::NotFound().finish()),
+            true => {
+                tx.commit().await?;
+                if let Err(e) = delete_doc(v.source_document.as_ref(), i.storage()).await {
+                    log::warn!("Ignoring {e}");
                 }
+                Ok(HttpResponse::Ok().json(v))
             }
-        }
+        },
         None => Ok(HttpResponse::NotFound().finish()),
     }
 }

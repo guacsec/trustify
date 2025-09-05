@@ -10,13 +10,13 @@ use actix_web::{
     get, middleware, web,
     web::Json,
 };
-use anyhow::Context;
+use anyhow::{Context, anyhow};
 use bytesize::ByteSize;
 use futures::{FutureExt, StreamExt};
 use std::{
     fmt::Display, fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc, time::Duration,
 };
-use tokio::task::JoinHandle;
+use tokio_schedule::{Job, every};
 use trustify_auth::{
     auth::AuthConfigArguments,
     authenticator::Authenticator,
@@ -36,6 +36,7 @@ use trustify_infrastructure::{
     otel::{Metrics as OtelMetrics, Tracing},
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
+use trustify_module_fundamental::purl::service::PurlService;
 use trustify_module_importer::server::importer;
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::{
@@ -366,12 +367,33 @@ impl InitData {
             );
         }
 
+        // Schedule any DB garbage collection tasks
+        schedule_db_tasks(db);
+
         let (result, _, _) = futures::future::select_all(tasks).await;
 
         log::info!("one of the server tasks returned, exiting: {result:?}");
 
         result
     }
+}
+
+fn schedule_db_tasks(db: db::Database) {
+    let gc_purls = every(5).minutes().perform(move || {
+        let db = db.clone();
+        let service = PurlService::new();
+        async move {
+            match service.gc_purls(&db).await {
+                Ok(count) => {
+                    if count > 0 {
+                        log::info!("Garbage collected {count} purls");
+                    }
+                }
+                Err(e) => log::error!("Error collecting purl garbage: {e}"),
+            }
+        }
+    });
+    tokio::spawn(gc_purls);
 }
 
 pub fn default_openapi_info() -> Info {
