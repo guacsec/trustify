@@ -1,9 +1,6 @@
 use std::time::Duration;
 use trustify_common::db::Database;
-use trustify_infrastructure::health::{
-    Check,
-    checks::{Local, Shutdown},
-};
+use trustify_infrastructure::health::{Check, checks::Local};
 
 pub mod api;
 pub mod importer;
@@ -30,10 +27,7 @@ pub fn spawn_db_check(db: Database) -> anyhow::Result<impl Check> {
 mod test {
     use super::*;
     use crate::profile::spawn_db_check;
-    use test_context::test_context;
     use test_log::test;
-    use trustify_common::{config, db};
-    use trustify_test_context::TrustifyContext;
 
     #[test(tokio::test)]
     async fn timeout() {

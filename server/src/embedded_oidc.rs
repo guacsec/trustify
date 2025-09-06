@@ -1,16 +1,13 @@
 use anyhow::Context;
-use futures::FutureExt;
 use garage_door::{
     issuer::{Client, Issuer, RedirectUrl},
-    server::{Server, StartupError},
+    server::Server,
 };
 use rand::{Rng, distr::Alphanumeric};
-use std::time::Duration;
 use tokio::{sync::oneshot, task::JoinHandle};
 use trustify_auth::devmode::{
     CONFIDENTIAL_CLIENT_IDS, ISSUER_URL, PUBLIC_CLIENT_IDS, SSO_CLIENT_SECRET,
 };
-use trustify_infrastructure::health::Check;
 use url::Url;
 
 const SCOPE: &str = "openid read:document create:document delete:document update:document";
@@ -78,7 +75,7 @@ fn create(enabled: bool) -> anyhow::Result<Option<Server>> {
     server
         .base(base)
         .port(port)
-        .add_issuer(name.to_string(), issuer);
+        .add_issuer(name.to_string(), issuer)?;
 
     // return
 
@@ -99,7 +96,7 @@ pub async fn spawn(enabled: bool) -> anyhow::Result<Option<EmbeddedOidc>> {
         "Running embedded OIDC server. This is not secure and should only be used for demos!"
     );
 
-    let (mut tx, rx) = oneshot::channel::<Url>();
+    let (tx, rx) = oneshot::channel::<Url>();
 
     server.announce_url(|url| {
         log::debug!("Got endpoint announcement: {url}");
