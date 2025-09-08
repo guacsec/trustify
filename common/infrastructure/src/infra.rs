@@ -57,6 +57,7 @@ impl Default for InfrastructureConfig {
 
 pub type Task = Box<dyn Future<Output = anyhow::Result<()>>>;
 
+#[derive(Default)]
 pub struct InitContext {
     pub health: Arc<HealthChecks>,
 }

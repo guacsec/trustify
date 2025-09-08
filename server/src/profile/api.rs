@@ -246,6 +246,9 @@ impl InitData {
             .register("database", spawn_db_check(db.clone())?)
             .await;
 
+        // Schedule any DB garbage collection tasks
+        schedule_db_tasks(db.clone());
+
         let storage = match run.storage.storage_strategy {
             StorageStrategy::Fs => {
                 let storage = run
@@ -309,9 +312,9 @@ impl InitData {
         })
     }
 
+    #[allow(unused_mut)]
     async fn run(mut self) -> anyhow::Result<()> {
         let ui = Arc::new(UiResources::new(&self.ui)?);
-        let db = self.db.clone();
 
         let http = {
             HttpServerBuilder::try_from(self.http)?
@@ -338,6 +341,7 @@ impl InitData {
         };
         let http = async { http.run().await }.boxed_local();
 
+        #[allow(unused_mut)]
         let mut tasks = vec![http];
 
         // track the embedded OIDC server task
@@ -351,9 +355,6 @@ impl InitData {
                 .boxed_local(),
             );
         }
-
-        // Schedule any DB garbage collection tasks
-        schedule_db_tasks(db);
 
         let (result, _, _) = futures::future::select_all(tasks).await;
 
@@ -501,6 +502,7 @@ mod test {
         http::{StatusCode, header},
         test::{TestRequest, call_and_read_body, call_service},
     };
+    use clap::{Args, Command, FromArgMatches};
     use std::sync::Arc;
     use test_context::test_context;
     use test_log::test;
@@ -512,6 +514,22 @@ mod test {
     use trustify_test_context::TrustifyContext;
     use trustify_test_context::app::TestApp;
     use utoipa_actix_web::AppExt;
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn initialization(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let context = InitContext::default();
+        let run = Run::from_arg_matches(&Run::augment_args(Command::new("cmd")).get_matches_from(
+            vec![
+                    "cmd",
+                    "--db-name",
+                    "test",
+                    "--db-port",
+                    &ctx.postgresql.as_ref().expect("database").settings().port.to_string(),
+                ],
+        ))?;
+        InitData::new(context, run).await.map(|_| ())
+    }
 
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(actix_web::test)]

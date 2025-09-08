@@ -60,7 +60,7 @@ pub struct TrustifyContext {
     pub storage: FileSystemBackend,
     pub ingestor: IngestorService,
     pub mem_limit_mb: f32,
-    postgresql: Option<PostgreSQL>,
+    pub postgresql: Option<PostgreSQL>,
 }
 
 #[global_allocator]
