@@ -166,48 +166,48 @@ impl SbomContext {
 
         // extract "describes"
 
-        if let Some(metadata) = &mut sbom.metadata {
-            if let Some(component) = &mut metadata.component {
-                let bom_ref = component
-                    .bom_ref
-                    .get_or_insert_with(|| Uuid::new_v4().to_string())
-                    .to_string();
+        if let Some(metadata) = &mut sbom.metadata
+            && let Some(component) = &mut metadata.component
+        {
+            let bom_ref = component
+                .bom_ref
+                .get_or_insert_with(|| Uuid::new_v4().to_string())
+                .to_string();
 
-                let product_cpe = component
-                    .cpe
-                    .as_ref()
-                    .map(|cpe| Cpe::from_str(cpe.as_ref()))
-                    .transpose()
-                    .map_err(|err| Error::InvalidContent(err.into()))?;
-                let pr = self
-                    .graph
-                    .ingest_product(
-                        component.name.clone(),
-                        ProductInformation {
-                            vendor: component.publisher.clone().map(|p| p.to_string()),
-                            cpe: product_cpe,
-                        },
-                        connection,
-                    )
+            let product_cpe = component
+                .cpe
+                .as_ref()
+                .map(|cpe| Cpe::from_str(cpe.as_ref()))
+                .transpose()
+                .map_err(|err| Error::InvalidContent(err.into()))?;
+            let pr = self
+                .graph
+                .ingest_product(
+                    component.name.clone(),
+                    ProductInformation {
+                        vendor: component.publisher.clone().map(|p| p.to_string()),
+                        cpe: product_cpe,
+                    },
+                    connection,
+                )
+                .await?;
+
+            if let Some(ver) = component.version.clone() {
+                pr.ingest_product_version(ver.to_string(), Some(self.sbom.sbom_id), connection)
                     .await?;
-
-                if let Some(ver) = component.version.clone() {
-                    pr.ingest_product_version(ver.to_string(), Some(self.sbom.sbom_id), connection)
-                        .await?;
-                }
-
-                // create component
-
-                creator.add(component);
-
-                // create a relationship
-
-                creator.relate(
-                    CYCLONEDX_DOC_REF.to_string(),
-                    Relationship::Describes,
-                    bom_ref,
-                );
             }
+
+            // create component
+
+            creator.add(component);
+
+            // create a relationship
+
+            creator.relate(
+                CYCLONEDX_DOC_REF.to_string(),
+                Relationship::Describes,
+                bom_ref,
+            );
         }
 
         // record components
@@ -381,16 +381,16 @@ impl<'a> ComponentCreator<'a> {
 
         let licenses_uuid = self.add_license(comp);
 
-        if let Some(cpe) = &comp.cpe {
-            if let Ok(cpe) = Cpe::from_str(cpe.as_ref()) {
-                self.add_cpe(cpe);
-            }
+        if let Some(cpe) = &comp.cpe
+            && let Ok(cpe) = Cpe::from_str(cpe.as_ref())
+        {
+            self.add_cpe(cpe);
         }
 
-        if let Some(purl) = &comp.purl {
-            if let Ok(purl) = Purl::from_str(purl.as_ref()) {
-                self.add_purl(purl);
-            }
+        if let Some(purl) = &comp.purl
+            && let Ok(purl) = Purl::from_str(purl.as_ref())
+        {
+            self.add_purl(purl);
         }
 
         for identity in comp

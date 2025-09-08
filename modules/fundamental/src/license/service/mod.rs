@@ -188,8 +188,7 @@ impl LicenseService {
         if let Some((spdx_identifier, spdx_name, _)) = spdx::identifiers::LICENSES
             .iter()
             .find(|(identifier, _name, _flags)| identifier.eq_ignore_ascii_case(id))
-        {
-            if let Some(text) = spdx::text::LICENSE_TEXTS
+            && let Some(text) = spdx::text::LICENSE_TEXTS
                 .iter()
                 .find_map(|(identifier, text)| {
                     if identifier.eq_ignore_ascii_case(spdx_identifier) {
@@ -198,15 +197,14 @@ impl LicenseService {
                         None
                     }
                 })
-            {
-                return Ok(Some(SpdxLicenseDetails {
-                    summary: SpdxLicenseSummary {
-                        id: spdx_identifier.to_string(),
-                        name: spdx_name.to_string(),
-                    },
-                    text,
-                }));
-            }
+        {
+            return Ok(Some(SpdxLicenseDetails {
+                summary: SpdxLicenseSummary {
+                    id: spdx_identifier.to_string(),
+                    name: spdx_name.to_string(),
+                },
+                text,
+            }));
         }
         Ok(None)
     }

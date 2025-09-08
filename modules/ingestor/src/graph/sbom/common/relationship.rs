@@ -172,15 +172,15 @@ impl<ER: ExternalReferenceProcessor> RelationshipCreator<ER> {
         let sources = sources.add_source(&self.externals);
 
         for rel in &self.rels {
-            if let Set(left) = &rel.left_node_id {
-                if !sources.refs.contains(left.as_str()) {
-                    bail!("Invalid reference: {left}");
-                }
+            if let Set(left) = &rel.left_node_id
+                && !sources.refs.contains(left.as_str())
+            {
+                bail!("Invalid reference: {left}");
             }
-            if let Set(right) = &rel.right_node_id {
-                if !sources.refs.contains(right.as_str()) {
-                    bail!("Invalid reference: {right}");
-                }
+            if let Set(right) = &rel.right_node_id
+                && !sources.refs.contains(right.as_str())
+            {
+                bail!("Invalid reference: {right}");
             }
         }
 

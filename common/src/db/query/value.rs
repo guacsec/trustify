@@ -21,8 +21,8 @@ pub struct ValueContext<'a> {
 }
 
 pub trait Context {
-    fn get(&self, key: &str) -> Option<Value>;
-    fn values(&self) -> impl Iterator<Item = &Value>;
+    fn get(&self, key: &str) -> Option<Value<'_>>;
+    fn values(&self) -> impl Iterator<Item = &Value<'_>>;
 }
 
 pub trait Valuable: PartialOrd<String> + Debug {
@@ -121,7 +121,7 @@ impl<'a, T: Valuable> From<&'a Arc<[T]>> for Value<'a> {
 }
 
 impl Context for &ValueContext<'_> {
-    fn get(&self, key: &str) -> Option<Value> {
+    fn get(&self, key: &str) -> Option<Value<'_>> {
         fn nested<'a>(json: &'a serde_json::Value, ks: &str) -> Option<Value<'a>> {
             ks.split_terminator(':')
                 .try_fold(json, |obj, key| obj.get(key))
@@ -147,7 +147,7 @@ impl Context for &ValueContext<'_> {
             })
         })
     }
-    fn values(&self) -> impl Iterator<Item = &Value> {
+    fn values(&self) -> impl Iterator<Item = &Value<'_>> {
         self.values.values()
     }
 }

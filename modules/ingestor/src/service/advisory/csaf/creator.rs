@@ -212,33 +212,28 @@ impl<'a> StatusCreator<'a> {
                 // insert "affected" status up until this version.
                 // Let's keep this here for now as a special case. If more exceptions arise,
                 // we can refactor and provide support for vendor-specific parsing.
-                if let Ok(Status::Fixed) = Status::from_str(product.status) {
-                    if let Some(cpe_vendor) = product
+                if let Ok(Status::Fixed) = Status::from_str(product.status)
+                    && let Some(cpe_vendor) = product
                         .cpe
                         .as_ref()
                         .map(|cpe| cpe.vendor().as_ref().to_string())
-                    {
-                        if cpe_vendor == "redhat" {
-                            if let Some(version) = &purl.version {
-                                let spec = VersionSpec::Range(
-                                    Version::Unbounded,
-                                    Version::Exclusive(version.clone()),
-                                );
-                                self.create_purl_status(
-                                    &product,
-                                    purl,
-                                    scheme,
-                                    spec,
-                                    graph
-                                        .db_context
-                                        .lock()
-                                        .await
-                                        .get_status_id(&Status::Affected.to_string(), connection)
-                                        .await?,
-                                );
-                            }
-                        }
-                    }
+                    && cpe_vendor == "redhat"
+                    && let Some(version) = &purl.version
+                {
+                    let spec =
+                        VersionSpec::Range(Version::Unbounded, Version::Exclusive(version.clone()));
+                    self.create_purl_status(
+                        &product,
+                        purl,
+                        scheme,
+                        spec,
+                        graph
+                            .db_context
+                            .lock()
+                            .await
+                            .get_status_id(&Status::Affected.to_string(), connection)
+                            .await?,
+                    );
                 }
             }
         }

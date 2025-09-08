@@ -42,6 +42,7 @@ impl Iden for ToJson {
 pub struct Cvss3Score;
 
 impl Iden for Cvss3Score {
+    #[allow(clippy::unwrap_used)]
     fn unquoted(&self, s: &mut dyn Write) {
         write!(s, "cvss3_score").unwrap()
     }
@@ -50,6 +51,7 @@ impl Iden for Cvss3Score {
 pub struct VersionMatches;
 
 impl Iden for VersionMatches {
+    #[allow(clippy::unwrap_used)]
     fn unquoted(&self, s: &mut dyn Write) {
         write!(s, "version_matches").unwrap()
     }
@@ -59,6 +61,7 @@ impl Iden for VersionMatches {
 pub struct UpdateDeprecatedAdvisory;
 
 impl Iden for UpdateDeprecatedAdvisory {
+    #[allow(clippy::unwrap_used)]
     fn unquoted(&self, s: &mut dyn Write) {
         write!(s, "update_deprecated_advisory").unwrap()
     }

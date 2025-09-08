@@ -12,15 +12,14 @@ pub fn divine_purl(product: &Product) -> Option<Purl> {
 
 fn divine_maven(product: &Product) -> Option<Purl> {
     if matches!( &product.collection_url, Some(url) if url == "https://repo.maven.apache.org/maven2/" )
+        && let Some(package_name) = &product.package_name
     {
-        if let Some(package_name) = &product.package_name {
-            let parts = package_name.split(':').collect::<Vec<_>>();
+        let parts = package_name.split(':').collect::<Vec<_>>();
 
-            if parts.len() == 2 {
-                let group_id = parts[0];
-                let artifact_id = parts[1];
-                return Purl::from_str(&format!("pkg:maven/{group_id}/{artifact_id}")).ok();
-            }
+        if parts.len() == 2 {
+            let group_id = parts[0];
+            let artifact_id = parts[1];
+            return Purl::from_str(&format!("pkg:maven/{group_id}/{artifact_id}")).ok();
         }
     }
     None

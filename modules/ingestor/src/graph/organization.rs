@@ -45,7 +45,7 @@ impl Graph {
     pub async fn get_organizations<C: ConnectionTrait>(
         &self,
         connection: &C,
-    ) -> Result<Vec<OrganizationContext>, Error> {
+    ) -> Result<Vec<OrganizationContext<'_>>, Error> {
         Ok(organization::Entity::find()
             .all(connection)
             .await?
@@ -59,7 +59,7 @@ impl Graph {
         &self,
         name: impl Into<String> + Debug,
         connection: &C,
-    ) -> Result<Option<OrganizationContext>, Error> {
+    ) -> Result<Option<OrganizationContext<'_>>, Error> {
         Ok(organization::Entity::find()
             .filter(organization::Column::Name.eq(name.into()))
             .one(connection)
@@ -73,7 +73,7 @@ impl Graph {
         name: impl Into<String> + Debug,
         information: impl Into<OrganizationInformation> + Debug,
         connection: &C,
-    ) -> Result<OrganizationContext, Error> {
+    ) -> Result<OrganizationContext<'_>, Error> {
         let name = name.into();
         let information = information.into();
 

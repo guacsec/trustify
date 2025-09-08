@@ -57,12 +57,10 @@ impl<C: RunContext> ValidatedVisitor<HttpSource> for SbomReportVisitor<C> {
                         err: HttpSourceError::Fetcher(fetcher::Error::Request(err)),
                         discovered: _,
                     } = err
+                        && let Some(status) = err.status()
+                        && self.ignore_errors.contains(&status)
                     {
-                        if let Some(status) = err.status() {
-                            if self.ignore_errors.contains(&status) {
-                                return Ok(());
-                            }
-                        }
+                        return Ok(());
                     }
                 }
                 StorageError::Validation(ValidationError::DigestMismatch {

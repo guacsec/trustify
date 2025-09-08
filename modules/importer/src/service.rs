@@ -203,11 +203,11 @@ impl ImporterService {
             return Err(Error::NotFound(name.into()).into());
         };
 
-        if let Some(expected) = expected_revision {
-            if expected != current.revision {
-                // we expected something, but found something else -> abort
-                return Err(Error::MidAirCollision.into());
-            }
+        if let Some(expected) = expected_revision
+            && expected != current.revision
+        {
+            // we expected something, but found something else -> abort
+            return Err(Error::MidAirCollision.into());
         }
 
         // apply mutation

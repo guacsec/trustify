@@ -10,7 +10,7 @@ pub fn to_purl(
         name,
         purl: _,
     }: &Package,
-) -> Option<PackageUrl> {
+) -> Option<PackageUrl<'_>> {
     translate(ecosystem, name)
 }
 

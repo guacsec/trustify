@@ -631,7 +631,7 @@ impl SbomContext {
         relationships: &[Relationship],
         pkg: &Purl,
         connection: &C,
-    ) -> Result<Vec<QualifiedPackageContext>, Error> {
+    ) -> Result<Vec<QualifiedPackageContext<'_>>, Error> {
         let pkg = self.graph.get_qualified_package(pkg, connection).await?;
 
         if let Some(pkg) = pkg {
@@ -680,7 +680,7 @@ impl SbomContext {
     pub async fn get_product<C: ConnectionTrait>(
         &self,
         connection: &C,
-    ) -> Result<Option<ProductVersionContext>, Error> {
+    ) -> Result<Option<ProductVersionContext<'_>>, Error> {
         if let Some(vers) = product_version::Entity::find()
             .filter(product_version::Column::SbomId.eq(self.sbom.sbom_id))
             .one(connection)

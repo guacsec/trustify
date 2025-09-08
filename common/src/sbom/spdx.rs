@@ -15,16 +15,16 @@ pub fn fix_license(report: &dyn ReportSink, mut json: Value) -> (Value, bool) {
     let mut changed = false;
     if let Some(packages) = json["packages"].as_array_mut() {
         for package in packages {
-            if let Some(declared) = package["licenseDeclared"].as_str() {
-                if let Err(err) = spdx_expression::SpdxExpression::parse(declared) {
-                    package["licenseDeclared"] = "NOASSERTION".into();
-                    changed = true;
+            if let Some(declared) = package["licenseDeclared"].as_str()
+                && let Err(err) = spdx_expression::SpdxExpression::parse(declared)
+            {
+                package["licenseDeclared"] = "NOASSERTION".into();
+                changed = true;
 
-                    let message =
-                        format!("Replacing faulty SPDX license expression with NOASSERTION: {err}");
-                    log::debug!("{message}");
-                    report.error(message);
-                }
+                let message =
+                    format!("Replacing faulty SPDX license expression with NOASSERTION: {err}");
+                log::debug!("{message}");
+                report.error(message);
             }
         }
     }

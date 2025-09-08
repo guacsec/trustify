@@ -60,18 +60,6 @@ pub(crate) mod trustify_benches {
             .init();
     }
 
-    pub struct OtelGuard {
-        tracer_provider: SdkTracerProvider,
-    }
-
-    impl Drop for OtelGuard {
-        fn drop(&mut self) {
-            if let Err(err) = self.tracer_provider.shutdown() {
-                eprintln!("{err:?}");
-            }
-        }
-    }
-
     use std::sync::Once;
 
     static INIT: Once = Once::new();

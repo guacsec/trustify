@@ -32,7 +32,7 @@ impl Graph {
         &self,
         purl: &Purl,
         connection: &C,
-    ) -> Result<QualifiedPackageContext, Error> {
+    ) -> Result<QualifiedPackageContext<'_>, Error> {
         let package = self.ingest_package(purl, connection).await?;
         let package_version = package.ingest_package_version(purl, connection).await?;
         package_version
@@ -47,7 +47,7 @@ impl Graph {
         &self,
         pkg: &Purl,
         connection: &C,
-    ) -> Result<PackageVersionContext, Error> {
+    ) -> Result<PackageVersionContext<'_>, Error> {
         if let Some(found) = self.get_package_version(pkg, connection).await? {
             return Ok(found);
         }
@@ -63,7 +63,7 @@ impl Graph {
         &self,
         purl: &Purl,
         connection: &C,
-    ) -> Result<PackageContext, Error> {
+    ) -> Result<PackageContext<'_>, Error> {
         if let Some(found) = self.get_package(purl, connection).await? {
             Ok(found)
         } else {
@@ -85,7 +85,7 @@ impl Graph {
         &self,
         purl: &Purl,
         connection: &C,
-    ) -> Result<Option<QualifiedPackageContext>, Error> {
+    ) -> Result<Option<QualifiedPackageContext<'_>>, Error> {
         if let Some(package_version) = self.get_package_version(purl, connection).await? {
             package_version
                 .get_qualified_package(purl, connection)
@@ -99,7 +99,7 @@ impl Graph {
         &self,
         id: Uuid,
         connection: &C,
-    ) -> Result<Option<QualifiedPackageContext>, Error> {
+    ) -> Result<Option<QualifiedPackageContext<'_>>, Error> {
         let found = entity::qualified_purl::Entity::find_by_id(id)
             .one(connection)
             .await?;
@@ -126,7 +126,7 @@ impl Graph {
         &self,
         query: SelectStatement,
         connection: &C,
-    ) -> Result<Vec<QualifiedPackageContext>, Error> {
+    ) -> Result<Vec<QualifiedPackageContext<'_>>, Error> {
         let found = entity::qualified_purl::Entity::find()
             .filter(entity::qualified_purl::Column::Id.in_subquery(query))
             .all(connection)
@@ -168,7 +168,7 @@ impl Graph {
         &self,
         id: Uuid,
         connection: &C,
-    ) -> Result<Option<PackageVersionContext>, Error> {
+    ) -> Result<Option<PackageVersionContext<'_>>, Error> {
         if let Some(package_version) = entity::versioned_purl::Entity::find_by_id(id)
             .one(connection)
             .await?
@@ -193,7 +193,7 @@ impl Graph {
         &self,
         purl: &Purl,
         connection: &C,
-    ) -> Result<Option<PackageContext>, Error> {
+    ) -> Result<Option<PackageContext<'_>>, Error> {
         Ok(entity::base_purl::Entity::find()
             .filter(entity::base_purl::Column::Type.eq(&purl.ty))
             .filter(if let Some(ns) = &purl.namespace {
@@ -212,7 +212,7 @@ impl Graph {
         &self,
         id: Uuid,
         connection: &C,
-    ) -> Result<Option<PackageContext>, Error> {
+    ) -> Result<Option<PackageContext<'_>>, Error> {
         if let Some(found) = entity::base_purl::Entity::find_by_id(id)
             .one(connection)
             .await?
@@ -296,7 +296,7 @@ impl<'g> PackageContext<'g> {
     pub async fn get_versions<C: ConnectionTrait>(
         &self,
         connection: &C,
-    ) -> Result<Vec<PackageVersionContext>, Error> {
+    ) -> Result<Vec<PackageVersionContext<'_>>, Error> {
         Ok(entity::versioned_purl::Entity::find()
             .filter(entity::versioned_purl::Column::BasePurlId.eq(self.base_purl.id))
             .all(connection)
@@ -310,7 +310,7 @@ impl<'g> PackageContext<'g> {
         &self,
         paginated: Paginated,
         connection: &C,
-    ) -> Result<PaginatedResults<PackageVersionContext>, Error> {
+    ) -> Result<PaginatedResults<PackageVersionContext<'_>>, Error> {
         let limiter = entity::versioned_purl::Entity::find()
             .filter(entity::versioned_purl::Column::BasePurlId.eq(self.base_purl.id))
             .limiting(connection, paginated.limit, paginated.offset);

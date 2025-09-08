@@ -89,7 +89,7 @@ impl<'g> ProductContext<'g> {
     pub async fn get_vendor<C: ConnectionTrait>(
         &self,
         connection: &C,
-    ) -> Result<Option<OrganizationContext>, Error> {
+    ) -> Result<Option<OrganizationContext<'_>>, Error> {
         match self
             .product
             .find_related(organization::Entity)
@@ -105,7 +105,7 @@ impl<'g> ProductContext<'g> {
         &self,
         version: String,
         connection: &C,
-    ) -> Result<Option<ProductVersionContext>, Error> {
+    ) -> Result<Option<ProductVersionContext<'_>>, Error> {
         match self
             .product
             .find_related(entity::product_version::Entity)
@@ -156,7 +156,7 @@ impl Graph {
         name: impl Into<String> + Debug,
         information: impl Into<ProductInformation> + Debug,
         connection: &C,
-    ) -> Result<ProductContext, Error> {
+    ) -> Result<ProductContext<'_>, Error> {
         let name = name.into();
         let information = information.into();
         let cpe_key = information
@@ -214,7 +214,7 @@ impl Graph {
     pub async fn get_products(
         &self,
         connection: &impl ConnectionTrait,
-    ) -> Result<Vec<ProductContext>, Error> {
+    ) -> Result<Vec<ProductContext<'_>>, Error> {
         Ok(product::Entity::find()
             .all(connection)
             .await?
@@ -228,7 +228,7 @@ impl Graph {
         &self,
         name: impl Into<String> + Debug,
         connection: &C,
-    ) -> Result<Option<ProductContext>, Error> {
+    ) -> Result<Option<ProductContext<'_>>, Error> {
         Ok(product::Entity::find()
             .filter(product::Column::Name.eq(name.into()))
             .one(connection)
@@ -242,7 +242,7 @@ impl Graph {
         org: impl Into<String> + Debug,
         name: impl Into<String> + Debug,
         connection: &C,
-    ) -> Result<Option<ProductContext>, Error> {
+    ) -> Result<Option<ProductContext<'_>>, Error> {
         if let Some(found) = self.get_organization_by_name(org, connection).await? {
             Ok(found
                 .organization

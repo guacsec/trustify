@@ -85,23 +85,22 @@ impl<'d> CweCatalogLoader<'d> {
                                     .children()
                                     .filter(|e| e.has_tag_name("Related_Weakness"))
                                 {
-                                    if let Some(target) = related.attribute("CWE_ID") {
-                                        if let Some(nature) = related.attribute("Nature") {
-                                            if let Some(dest) = match nature {
-                                                "ChildOf" => Some(&mut child_of),
-                                                "ParentOf" => Some(&mut parent_of),
-                                                "StartsWith" => Some(&mut starts_with),
-                                                "CanFollow" => Some(&mut can_follow),
-                                                "CanPrecede" => Some(&mut can_precede),
-                                                "RequiredBy" => Some(&mut required_by),
-                                                "Requires" => Some(&mut requires),
-                                                "CanAlsoBe" => Some(&mut can_also_be),
-                                                "PeerOf" => Some(&mut peer_of),
-                                                _ => None,
-                                            } {
-                                                dest.push(target.to_string());
-                                            }
+                                    if let Some(target) = related.attribute("CWE_ID")
+                                        && let Some(nature) = related.attribute("Nature")
+                                        && let Some(dest) = match nature {
+                                            "ChildOf" => Some(&mut child_of),
+                                            "ParentOf" => Some(&mut parent_of),
+                                            "StartsWith" => Some(&mut starts_with),
+                                            "CanFollow" => Some(&mut can_follow),
+                                            "CanPrecede" => Some(&mut can_precede),
+                                            "RequiredBy" => Some(&mut required_by),
+                                            "Requires" => Some(&mut requires),
+                                            "CanAlsoBe" => Some(&mut can_also_be),
+                                            "PeerOf" => Some(&mut peer_of),
+                                            _ => None,
                                         }
+                                    {
+                                        dest.push(target.to_string());
                                     }
                                 }
                             }
@@ -178,10 +177,10 @@ fn gather_content_inner(node: &Node, dest: &mut String) {
             gather_content_inner(&child, dest);
         }
         dest.push_str(&format!("</{}>", node.tag_name().name()));
-    } else if node.is_text() {
-        if let Some(text) = node.text() {
-            dest.push_str(text);
-        }
+    } else if node.is_text()
+        && let Some(text) = node.text()
+    {
+        dest.push_str(text);
     }
 }
 

@@ -428,11 +428,11 @@ where
             // the path, relative to the base (plus repo) dir
             let path = path.strip_prefix(base).unwrap_or(path);
 
-            if let Some(changes) = changes {
-                if !changes.contains(path) {
-                    log::trace!("Skipping {}, as file did not change", path.display());
-                    continue;
-                }
+            if let Some(changes) = changes
+                && !changes.contains(path)
+            {
+                log::trace!("Skipping {}, as file did not change", path.display());
+                continue;
             }
 
             let path = path.to_path_buf();

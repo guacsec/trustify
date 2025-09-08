@@ -53,10 +53,10 @@ impl<C: RunContext> Context<C> {
             }
 
             // check starting year
-            if let Some(start_year) = self.start_year {
-                if year < start_year {
-                    return Ok(());
-                }
+            if let Some(start_year) = self.start_year
+                && year < start_year
+            {
+                return Ok(());
             }
         }
 

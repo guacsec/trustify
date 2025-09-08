@@ -28,25 +28,24 @@ where
         self.callbacks.is_canceled()
     }
     fn process(&self, path: &Path, relative_path: &Path) -> Result<(), HandlerError<Self::Error>> {
-        if let Some(head) = relative_path.components().next() {
-            if let Some(head) = head.as_os_str().to_str() {
-                if self.types.iter().any(|e| e.matches(head)) {
-                    // it's a kind we care about.
-                    return match self.process_file(path, relative_path) {
-                        Ok(()) => Ok(()),
-                        Err(ProcessingError::Critical(err)) => {
-                            Err(HandlerError::Processing(Error::Processing(err)))
-                        }
-                        Err(ProcessingError::Canceled) => Err(HandlerError::Canceled),
-                        Err(err) => {
-                            log::warn!("Failed to process file ({}): {err}", path.display());
-                            self.callbacks
-                                .loading_error(path.to_path_buf(), err.to_string());
-                            Ok(())
-                        }
-                    };
+        if let Some(head) = relative_path.components().next()
+            && let Some(head) = head.as_os_str().to_str()
+            && self.types.iter().any(|e| e.matches(head))
+        {
+            // it's a kind we care about.
+            return match self.process_file(path, relative_path) {
+                Ok(()) => Ok(()),
+                Err(ProcessingError::Critical(err)) => {
+                    Err(HandlerError::Processing(Error::Processing(err)))
                 }
-            }
+                Err(ProcessingError::Canceled) => Err(HandlerError::Canceled),
+                Err(err) => {
+                    log::warn!("Failed to process file ({}): {err}", path.display());
+                    self.callbacks
+                        .loading_error(path.to_path_buf(), err.to_string());
+                    Ok(())
+                }
+            };
         }
 
         Ok(())

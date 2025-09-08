@@ -204,7 +204,7 @@ impl<'g> CveLoader<'g> {
             .map(|desc| desc.value.as_str())
     }
 
-    fn extract_vuln_info(cve: &Cve) -> VulnerabilityDetails {
+    fn extract_vuln_info(cve: &Cve) -> VulnerabilityDetails<'_> {
         let reserved = cve
             .common_metadata()
             .date_reserved
@@ -302,10 +302,10 @@ impl<'g> CveLoader<'g> {
                 }
 
                 if let Some(cvss) = metric.cvss_v3_1.as_ref().or(metric.cvss_v3_0.as_ref()) {
-                    if let Some(vector) = cvss.get("vectorString").and_then(|v| v.as_str()) {
-                        if let Ok(cvss3) = Cvss3Base::from_str(vector) {
-                            scores.push(cvss3);
-                        }
+                    if let Some(vector) = cvss.get("vectorString").and_then(|v| v.as_str())
+                        && let Ok(cvss3) = Cvss3Base::from_str(vector)
+                    {
+                        scores.push(cvss3);
                     }
 
                     if base_score.is_none() {
@@ -313,10 +313,10 @@ impl<'g> CveLoader<'g> {
                     }
                 }
 
-                if let Some(cvss) = metric.cvss_v2_0.as_ref() {
-                    if base_score.is_none() {
-                        (base_score, base_severity) = get_score(cvss);
-                    }
+                if let Some(cvss) = metric.cvss_v2_0.as_ref()
+                    && base_score.is_none()
+                {
+                    (base_score, base_severity) = get_score(cvss);
                 }
             }
         }

@@ -68,7 +68,7 @@ impl Graph {
         &self,
         id: Uuid,
         connection: &C,
-    ) -> Result<Option<AdvisoryContext>, Error> {
+    ) -> Result<Option<AdvisoryContext<'_>>, Error> {
         Ok(advisory::Entity::find_by_id(id)
             .one(connection)
             .await?
@@ -80,7 +80,7 @@ impl Graph {
         &self,
         digest: &str,
         connection: &C,
-    ) -> Result<Option<AdvisoryContext>, Error> {
+    ) -> Result<Option<AdvisoryContext<'_>>, Error> {
         Ok(advisory::Entity::find()
             .join(JoinType::Join, advisory::Relation::SourceDocument.def())
             .filter(
@@ -98,7 +98,7 @@ impl Graph {
         &self,
         deprecation: Deprecation,
         connection: &C,
-    ) -> Result<Vec<AdvisoryContext>, Error> {
+    ) -> Result<Vec<AdvisoryContext<'_>>, Error> {
         Ok(advisory::Entity::find()
             .with_deprecation(deprecation)
             .all(connection)
@@ -116,7 +116,7 @@ impl Graph {
         digests: &Digests,
         information: impl Into<AdvisoryInformation>,
         connection: &C,
-    ) -> Result<Outcome<AdvisoryContext>, Error>
+    ) -> Result<Outcome<AdvisoryContext<'_>>, Error>
     where
         C: ConnectionTrait + TransactionTrait,
     {
@@ -268,7 +268,7 @@ impl<'g> AdvisoryContext<'g> {
         identifier: &str,
         information: Option<AdvisoryVulnerabilityInformation>,
         connection: &C,
-    ) -> Result<AdvisoryVulnerabilityContext, Error> {
+    ) -> Result<AdvisoryVulnerabilityContext<'_>, Error> {
         let entity = entity::advisory_vulnerability::ActiveModel {
             advisory_id: Set(self.advisory.id),
             vulnerability_id: Set(identifier.to_string()),
@@ -309,7 +309,7 @@ impl<'g> AdvisoryContext<'g> {
     pub async fn vulnerabilities<C: ConnectionTrait>(
         &self,
         connection: &C,
-    ) -> Result<Vec<AdvisoryVulnerabilityContext>, Error> {
+    ) -> Result<Vec<AdvisoryVulnerabilityContext<'_>>, Error> {
         Ok(self
             .advisory
             .find_related(entity::advisory_vulnerability::Entity)
