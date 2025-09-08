@@ -41,6 +41,7 @@
 | `TRUSTD_DB_PASSWORD`                     | Database password                                                                   | `trustify`                              |
 | `TRUSTD_DB_PORT`                         | Database port                                                                       | `5432`                                  |
 | `TRUSTD_DB_USER`                         | Database username                                                                   | `postgres`                              |
+| `TRUSTD_GC_FREQ`                         | How often database garbage collection runs (humantime)                              | `5m`                                    |
 | `TRUSTD_ISSUER_URL`                      | Issuer URL for `--devmode`                                                          | `http://localhost:8090/realms/trustify` |
 | `TRUSTD_MAX_CACHE_SIZE`                  | Maximum size of the graph cache.                                                    | `200 MiB`                               |
 | `TRUSTD_S3_ACCESS_KEY`                   | S3 access key                                                                       |                                         |

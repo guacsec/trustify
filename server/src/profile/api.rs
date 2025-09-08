@@ -9,7 +9,8 @@ use actix_web::web;
 use anyhow::Context;
 use bytesize::ByteSize;
 use futures::FutureExt;
-use std::{fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc};
+use humantime::parse_duration;
+use std::{env, fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc, time::Duration};
 use tokio_schedule::{Job, every};
 use trustify_auth::{
     auth::AuthConfigArguments,
@@ -37,6 +38,9 @@ use trustify_module_storage::{
 };
 use trustify_module_ui::{UI, endpoints::UiResources};
 use utoipa::openapi::{Info, License};
+
+const GC_FREQ: u64 = 300;
+const ENV_GC_FREQ: &str = "TRUSTD_GC_FREQ";
 
 /// Run the API server
 #[derive(clap::Args, Debug)]
@@ -365,14 +369,25 @@ impl InitData {
 }
 
 fn schedule_db_tasks(db: db::Database) {
-    let gc_purls = every(5).minutes().perform(move || {
+    let freq = match env::var(ENV_GC_FREQ) {
+        Ok(s) => parse_duration(&s)
+            .unwrap_or(Duration::from_secs(GC_FREQ))
+            .as_secs(),
+        _ => GC_FREQ,
+    } as u32;
+    if freq < 1 {
+        log::warn!("GC is disabled; to enable, set {ENV_GC_FREQ} to at least 1s");
+        return;
+    }
+    log::info!("Setting GC frequency to {freq}s");
+    let gc_purls = every(freq).seconds().perform(move || {
         let db = db.clone();
         let service = PurlService::new();
         async move {
             match service.gc_purls(&db).await {
                 Ok(count) => {
                     if count > 0 {
-                        log::info!("Garbage collected {count} purls");
+                        log::info!("Garbage collected {count} records");
                     }
                 }
                 Err(e) => log::error!("Error collecting purl garbage: {e}"),
