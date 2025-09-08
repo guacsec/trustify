@@ -1,0 +1,20 @@
+ARG SYFT_REGISTRY=ghcr.io/anchore
+ARG SYFT_IMAGE=syft
+ARG SYFT_TAG=latest
+
+FROM registry.access.redhat.com/ubi9/ubi:latest
+
+ARG SYFT_REGISTRY
+ARG SYFT_IMAGE
+ARG SYFT_TAG
+
+COPY --from=${SYFT_REGISTRY}/${SYFT_IMAGE}:${SYFT_TAG} /syft /usr/local/bin/syft
+COPY ./gensbom.sh /usr/local/bin/gensbom.sh
+
+RUN dnf -y install gawk zip && \
+    dnf clean all && \
+    mkdir -p /gensbom
+
+WORKDIR /gensbom
+
+ENTRYPOINT ["/usr/local/bin/gensbom.sh"]

@@ -1,0 +1,4 @@
+quay.io/keycloak/keycloak
+quay.io/keycloak/keycloak:26.4
+quay.io/keycloak/keycloak:26.3
+quay.io/keycloak/keycloak:nightly
