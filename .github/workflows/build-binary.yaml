@@ -20,8 +20,6 @@ jobs:
         target:
           - x86_64-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
-          #- x86_64-unknown-linux-musl
-          #- aarch64-unknown-linux-musl
           - x86_64-apple-darwin
           - aarch64-apple-darwin
           - x86_64-pc-windows-msvc
@@ -32,20 +30,9 @@ jobs:
             install: |
               sudo apt install -y libssl-dev
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-22.04
-            cross: "true"
-            # Cross' Ubuntu container is based on 20.04. Its OpenSSL version is too old for us.
-            args: --features vendored
-
-          #- target: x86_64-unknown-linux-musl
-          #  os: ubuntu-22.04
-          #  args: --features vendored
-          #  install: |
-          #    sudo apt install -y musl-tools
-          #- target: aarch64-unknown-linux-musl
-          #  os: ubuntu-22.04
-          #  cross: "true"
-          #  args: --features vendored
+            os: ubuntu-22.04-arm
+            install: |
+              sudo apt install -y libssl-dev
 
           - target: x86_64-apple-darwin
             os: macos-13
@@ -111,13 +98,6 @@ jobs:
         run: |
           Set-ExecutionPolicy Unrestricted -Scope Process; iex (iwr "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.ps1").Content
 
-      - name: Setup Cross
-        if: matrix.cross == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cargo binstall cross -y --force
-
       # Workaround for https://github.com/actions/runner-images/issues/12432
       # from https://github.com/rust-lang/rust/issues/141626#issuecomment-2919419236
       # Visual Studio bug tracker https://developercommunity.visualstudio.com/t/Regression-from-1943:-linkexe-crashes/10912960
@@ -144,10 +124,6 @@ jobs:
           fi
 
           CMD="cargo"
-
-          if [[ -n "${{ matrix.cross }}" ]]; then
-            CMD="cross"
-          fi
 
           # build options
 

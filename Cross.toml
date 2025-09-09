@@ -1,9 +1,0 @@
-[target.aarch64-unknown-linux-gnu]
-pre-build = [
-    "dpkg --add-architecture $CROSS_DEB_ARCH",
-    "apt-get update && apt-get install --assume-yes libssl-dev:$CROSS_DEB_ARCH libssl-dev"
-]
-# work around:
-# * https://github.com/cross-rs/cross/issues/1512
-# * https://github.com/rust-lang/git2-rs/issues/1057
-image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
