@@ -10,7 +10,7 @@ use anyhow::Context;
 use bytesize::ByteSize;
 use futures::FutureExt;
 use humantime::parse_duration;
-use std::{env, fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc, time::Duration};
+use std::{env, fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc};
 use tokio_schedule::{Job, every};
 use trustify_auth::{
     auth::AuthConfigArguments,
@@ -370,9 +370,13 @@ impl InitData {
 
 fn schedule_db_tasks(db: db::Database) {
     let freq = match env::var(ENV_GC_FREQ) {
-        Ok(s) => parse_duration(&s)
-            .unwrap_or(Duration::from_secs(GC_FREQ))
-            .as_secs(),
+        Ok(s) => match parse_duration(&s) {
+            Ok(t) => t.as_secs(),
+            Err(e) => {
+                log::warn!("Failed to parse {ENV_GC_FREQ}='{s}': {e}");
+                GC_FREQ
+            }
+        },
         _ => GC_FREQ,
     } as u32;
     if freq < 1 {
