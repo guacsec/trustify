@@ -6,10 +6,9 @@ use actix_web::middleware;
 
 use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
-use anyhow::Context;
 use bytesize::ByteSize;
 use futures::FutureExt;
-use std::{env, fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc};
+use std::{env, process::ExitCode, sync::Arc};
 use trustify_auth::{
     auth::AuthConfigArguments,
     authenticator::Authenticator,
@@ -29,10 +28,7 @@ use trustify_infrastructure::{
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
 use trustify_module_ingestor::graph::Graph;
-use trustify_module_storage::{
-    config::{StorageConfig, StorageStrategy},
-    service::{dispatch::DispatchBackend, fs::FileSystemBackend, s3::S3Backend},
-};
+use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 use trustify_module_ui::{UI, endpoints::UiResources};
 use utoipa::openapi::{Info, License};
 
@@ -144,10 +140,12 @@ mod default {
 #[group(id = "ui")]
 pub struct UiConfig {
     /// Issuer URL used by the UI
-    #[arg(id = "ui-issuer-url", long, env = "UI_ISSUER_URL", default_value_t = ISSUER_URL.to_string())]
+    #[arg(id = "ui-issuer-url", long, env = "UI_ISSUER_URL", default_value_t = ISSUER_URL.to_string()
+    )]
     pub issuer_url: String,
     /// Client ID used by the UI
-    #[arg(id = "ui-client-id", long, env = "UI_CLIENT_ID", default_value_t = FRONTEND_CLIENT_ID.to_string())]
+    #[arg(id = "ui-client-id", long, env = "UI_CLIENT_ID", default_value_t = FRONTEND_CLIENT_ID.to_string()
+    )]
     pub client_id: String,
     /// Scopes to request
     #[arg(id = "ui-scope", long, env = "UI_SCOPE", default_value = "openid")]
@@ -245,28 +243,7 @@ impl InitData {
             .register("database", spawn_db_check(db.clone())?)
             .await;
 
-        let storage = match run.storage.storage_strategy {
-            StorageStrategy::Fs => {
-                let storage = run
-                    .storage
-                    .fs_path
-                    .as_ref()
-                    .cloned()
-                    .unwrap_or_else(|| PathBuf::from("./.trustify/storage"));
-                if run.devmode {
-                    create_dir_all(&storage).context(format!(
-                        "Failed to create filesystem storage directory: {:?}",
-                        run.storage.fs_path
-                    ))?;
-                }
-                DispatchBackend::Filesystem(
-                    FileSystemBackend::new(storage, run.storage.compression).await?,
-                )
-            }
-            StorageStrategy::S3 => DispatchBackend::S3(
-                S3Backend::new(run.storage.s3_config, run.storage.compression).await?,
-            ),
-        };
+        let storage = run.storage.into_storage(run.devmode).await?;
 
         let ui = UI {
             version: env!("CARGO_PKG_VERSION").to_string(),
@@ -499,12 +476,12 @@ mod test {
         let context = InitContext::default();
         let run = Run::from_arg_matches(&Run::augment_args(Command::new("cmd")).get_matches_from(
             vec![
-                    "cmd",
-                    "--db-name",
-                    "test",
-                    "--db-port",
-                    &ctx.postgresql.as_ref().expect("database").settings().port.to_string(),
-                ],
+                "cmd",
+                "--db-name",
+                "test",
+                "--db-port",
+                &ctx.postgresql.as_ref().expect("database").settings().port.to_string(),
+            ],
         ))?;
         InitData::new(context, run).await.map(|_| ())
     }

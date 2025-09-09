@@ -1,6 +1,12 @@
-use crate::service::Compression;
-use std::fmt::{Display, Formatter};
-use std::path::PathBuf;
+use crate::service::{
+    Compression, dispatch::DispatchBackend, fs::FileSystemBackend, s3::S3Backend,
+};
+use anyhow::Context;
+use std::{
+    fmt::{Display, Formatter},
+    fs::create_dir_all,
+    path::PathBuf,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
 pub enum StorageStrategy {
@@ -17,7 +23,7 @@ impl Display for StorageStrategy {
     }
 }
 
-#[derive(clap::Args, Debug, Clone)]
+#[derive(clap::Parser, Debug, Clone)]
 #[command(next_help_heading = "Storage")]
 pub struct StorageConfig {
     #[arg(
@@ -49,6 +55,33 @@ pub struct StorageConfig {
 
     #[command(flatten)]
     pub s3_config: S3Config,
+}
+
+impl StorageConfig {
+    /// Create a storage backend from a storage config
+    pub async fn into_storage(self, devmode: bool) -> anyhow::Result<DispatchBackend> {
+        Ok(match self.storage_strategy {
+            StorageStrategy::Fs => {
+                let storage = self
+                    .fs_path
+                    .as_ref()
+                    .cloned()
+                    .unwrap_or_else(|| PathBuf::from("./.trustify/storage"));
+                if devmode {
+                    create_dir_all(&storage).context(format!(
+                        "Failed to create filesystem storage directory: {:?}",
+                        self.fs_path
+                    ))?;
+                }
+                DispatchBackend::Filesystem(
+                    FileSystemBackend::new(storage, self.compression).await?,
+                )
+            }
+            StorageStrategy::S3 => {
+                DispatchBackend::S3(S3Backend::new(self.s3_config, self.compression).await?)
+            }
+        })
+    }
 }
 
 #[derive(Clone, Debug, Default, clap::Args)]
