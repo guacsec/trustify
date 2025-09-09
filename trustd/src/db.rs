@@ -1,11 +1,6 @@
 use postgresql_embedded::{PostgreSQL, VersionReq};
-use std::collections::HashMap;
-use std::env;
-use std::fs::create_dir_all;
-use std::process::ExitCode;
-use std::time::Duration;
-use trustify_common::config::Database;
-use trustify_common::db;
+use std::{collections::HashMap, env, fs::create_dir_all, process::ExitCode, time::Duration};
+use trustify_common::{config::Database, db};
 use trustify_infrastructure::otel::{Tracing, init_tracing};
 
 #[derive(clap::Args, Debug)]
@@ -40,6 +35,7 @@ impl Run {
             Err(e) => Err(e),
         }
     }
+
     async fn refresh(self) -> anyhow::Result<ExitCode> {
         match db::Database::new(&self.database).await {
             Ok(db) => {
@@ -49,6 +45,7 @@ impl Run {
             Err(e) => Err(e),
         }
     }
+
     async fn migrate(self) -> anyhow::Result<ExitCode> {
         match db::Database::new(&self.database).await {
             Ok(db) => {

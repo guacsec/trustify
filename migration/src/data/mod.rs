@@ -1,7 +1,13 @@
+mod migration;
+
+pub use migration::*;
+
 use anyhow::{anyhow, bail};
 use bytes::BytesMut;
-use futures_util::stream::TryStreamExt;
-use futures_util::{StreamExt, stream};
+use futures_util::{
+    StreamExt,
+    stream::{self, TryStreamExt},
+};
 use sea_orm::{
     ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, ModelTrait, TransactionTrait,
 };
@@ -16,6 +22,7 @@ pub enum Sbom {
     Spdx(spdx_rs::models::SPDX),
 }
 
+#[allow(async_fn_in_trait)]
 pub trait Document: Sized + Send + Sync {
     type Model: Send;
 
@@ -70,6 +77,7 @@ impl Document for Sbom {
     }
 }
 
+#[allow(async_fn_in_trait)]
 pub trait Handler<D>: Send
 where
     D: Document,
@@ -93,11 +101,7 @@ pub trait DocumentProcessor {
 }
 
 impl<'c> DocumentProcessor for SchemaManager<'c> {
-    async fn process<D>(
-        &self,
-        storage: &DispatchBackend,
-        f: impl Handler<D>,
-    ) -> anyhow::Result<(), DbErr>
+    async fn process<D>(&self, storage: &DispatchBackend, f: impl Handler<D>) -> Result<(), DbErr>
     where
         D: Document,
     {
