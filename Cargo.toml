@@ -174,7 +174,7 @@ trustify-module-ui = { path = "modules/ui", default-features = false }
 trustify-module-user = { path = "modules/user" }
 trustify-server = { path = "server", default-features = false }
 trustify-test-context = { path = "test-context" }
-trustify-ui = { git = "https://github.com/trustification/trustify-ui.git", branch = "publish/release/0.3.z" }
+trustify-ui = { git = "https://github.com/guacsec/trustify-ui.git", branch = "publish/release/0.3.z" }
 
 # These dependencies are active during both the build time and the run time. So they are normal dependencies
 # as well as build-dependencies. However, we can't control feature flags for build dependencies the way we do
