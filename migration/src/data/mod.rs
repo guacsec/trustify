@@ -1,5 +1,4 @@
 mod migration;
-
 pub use migration::*;
 
 use anyhow::{anyhow, bail};
@@ -12,6 +11,7 @@ use sea_orm::{
     ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, ModelTrait, TransactionTrait,
 };
 use sea_orm_migration::SchemaManager;
+use std::num::NonZeroUsize;
 use trustify_common::id::Id;
 use trustify_entity::{sbom, source_document};
 use trustify_module_storage::service::{StorageBackend, StorageKey, dispatch::DispatchBackend};
@@ -90,10 +90,24 @@ where
     ) -> anyhow::Result<()>;
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Options {
+    pub concurrent: NonZeroUsize,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            concurrent: unsafe { NonZeroUsize::new_unchecked(5) },
+        }
+    }
+}
+
 pub trait DocumentProcessor {
     async fn process<D>(
         &self,
         storage: &DispatchBackend,
+        options: Options,
         f: impl Handler<D>,
     ) -> anyhow::Result<(), DbErr>
     where
@@ -101,16 +115,17 @@ pub trait DocumentProcessor {
 }
 
 impl<'c> DocumentProcessor for SchemaManager<'c> {
-    async fn process<D>(&self, storage: &DispatchBackend, f: impl Handler<D>) -> Result<(), DbErr>
+    async fn process<D>(
+        &self,
+        storage: &DispatchBackend,
+        options: Options,
+        f: impl Handler<D>,
+    ) -> Result<(), DbErr>
     where
         D: Document,
     {
         let db = self.get_connection();
         let tx = db.begin().await?;
-
-        // TODO: soft-lock database
-        // In order to prevent new documents with an old version to be created in the meantime, we
-        // should soft-lock the database.
 
         let all = D::all(&tx).await?;
 
@@ -125,11 +140,11 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
 
                 Ok::<_, DbErr>(())
             })
-            .buffer_unordered(10) // TODO: make this configurable
+            .buffer_unordered(options.concurrent.into())
             .try_collect::<Vec<_>>()
             .await?;
 
-        // TODO: soft-unlock database
+        tx.commit().await?;
 
         Ok(())
     }

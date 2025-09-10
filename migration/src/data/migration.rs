@@ -69,7 +69,9 @@ impl<'c> SchemaDataManager<'c> {
     where
         D: Document,
     {
-        self.manager.process(self.storage, f).await
+        self.manager
+            .process(self.storage, Default::default(), f)
+            .await
     }
 }
 
