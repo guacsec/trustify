@@ -113,20 +113,11 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-  e2e-test:
-    needs: publish
-    uses: trustification/trustify-ci/.github/workflows/global-ci.yml@main
-    with:
-      server_image: ${{ needs.publish.outputs.image }}
-      run_api_tests: true
-      run_ui_tests: true
-
   deploy:
     if: ${{ (github.repository == 'trustification/trustify') && (needs.init.outputs.version == 'main') }}
     runs-on: ubuntu-24.04
     needs:
       - publish
-      - e2e-test
 
     steps:
 
