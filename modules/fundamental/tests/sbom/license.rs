@@ -187,6 +187,64 @@ async fn test_license_export_spdx(ctx: &TrustifyContext) -> Result<(), anyhow::E
 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
+async fn test_get_all_license_info(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Ingest SPDX document
+    let result_spdx = ctx
+        .ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
+        .await?;
+
+    let license_service = LicenseService::new();
+    
+    // Call get_all_license_info method
+    let license_info = license_service
+        .get_all_license_info(result_spdx.id, &ctx.db)
+        .await?;
+
+    println!("=== get_all_license_info Results ===");
+    
+    match license_info {
+        Some(license_mappings) => {
+            println!("Found {} license mappings:", license_mappings.len());
+            for mapping in license_mappings {
+                println!("License ID: {} - License Name: {}", mapping.license_id, mapping.license_name);
+            }
+        }
+        None => {
+            println!("No license information found for this SBOM");
+        }
+    }
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_license_content(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use trustify_entity::license;
+    // Ingest SPDX document
+    let _result_spdx = ctx
+        .ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
+        .await?;
+
+    let all_licenses = license::Entity::find().all(&ctx.db).await?;
+
+    println!("=== All LicenseRef-* fields from license table ===");
+    for license in &all_licenses {
+        if license.text.contains("LicenseRef") {
+            let empty_vec = Vec::new();
+            let spdx_licenses = license.spdx_licenses.as_ref().unwrap_or(&empty_vec);
+            println!(
+                "License ID: {} - Text: {} - SPDX Licenses: {:?}",
+                license.id, license.text, spdx_licenses
+            );
+        }
+    }
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
 async fn test_license_export_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let result = ctx
         .ingest_document("cyclonedx/application.cdx.json")
