@@ -268,10 +268,12 @@ CPE (Product?) and/or pURLs described by the SBOM
 
 * [Trustify user interface](https://github.com/guacsec/trustify-ui)
 * [Helm charts used for the Trustify deployment](https://github.com/guacsec/trustify-helm-charts)
-* [OpenShift Operator used for the Trustify deployment](https://github.com/trustification/trustify-operator)
-* [Ansible playbooks used for the Trustify deployment](https://github.com/trustification/trustify-ansible)
-* [Trustify API & user interface test suite](https://github.com/trustification/trustify-tests)
-* [Trustify load tests runner](https://github.com/guacsec/trustify-scale-test-runs)
-* [Trustify load test suite](https://github.com/guacsec/scale-testing)
-* [Trustify GitHub CI helpers](https://github.com/trustification/trustify-ci)
+* [Trustify scale tests runner](https://github.com/guacsec/trustify-load-test-runs)
+* [Trustify scale test suite](https://github.com/guacsec/scale-testing)
 * [Trustify release tools](https://github.com/guacsec/trustify-release-tools)
+* [Trustify MCP server](https://github.com/guacsec/trustify-mcp)
+
+## Related links
+
+* [Trustify scale test results](https://guacsec.github.io/trustify-scale-test-runs/)
+* [Trustify benchmark results](https://guacsec.github.io/trustify/dev/bench/)
