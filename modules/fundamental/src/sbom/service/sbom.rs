@@ -1,7 +1,7 @@
 use super::SbomService;
-use crate::sbom::model::LicenseRefMapping;
 use crate::{
     Error,
+    common::LicenseRefMapping,
     sbom::model::{
         SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
         SbomSummary, Which, details::SbomDetails,
@@ -235,7 +235,8 @@ impl SbomService {
     }
 
     /// Get all the tuples License ID, License Name from the licensing_infos table for a single SBOM
-    async fn get_licensing_infos<C: ConnectionTrait>(
+    #[instrument(skip(connection), err(level=tracing::Level::INFO))]
+    pub async fn get_licensing_infos<C: ConnectionTrait>(
         connection: &C,
         sbom_id: Uuid,
     ) -> Result<BTreeMap<String, String>, Error> {
@@ -624,9 +625,9 @@ where
             JoinType::LeftJoin,
             sbom_package::Relation::PackageLicense.def(),
         ).join(
-            JoinType::LeftJoin,
-            sbom_package_license::Relation::License.def(),
-        )
+        JoinType::LeftJoin,
+        sbom_package_license::Relation::License.def(),
+    )
 }
 
 #[derive(FromQueryResult)]

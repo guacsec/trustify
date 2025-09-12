@@ -4665,6 +4665,7 @@ components:
         - base
         - advisories
         - licenses
+        - license_ref_mapping
         properties:
           advisories:
             type: array
@@ -4672,10 +4673,14 @@ components:
               $ref: '#/components/schemas/PurlAdvisory'
           base:
             $ref: '#/components/schemas/BasePurlHead'
+          license_ref_mapping:
+            type: array
+            items:
+              $ref: '#/components/schemas/LicenseRefMapping'
           licenses:
             type: array
             items:
-              $ref: '#/components/schemas/PurlLicenseSummary'
+              $ref: '#/components/schemas/PurlLicenseInfo'
           version:
             $ref: '#/components/schemas/VersionedPurlHead'
     PurlHead:
@@ -4691,18 +4696,16 @@ components:
           type: string
           format: uuid
           description: The ID of the qualified PURL
-    PurlLicenseSummary:
+    PurlLicenseInfo:
       type: object
       required:
-      - sbom
-      - licenses
+      - license_name
+      - license_type
       properties:
-        licenses:
-          type: array
-          items:
-            type: string
-        sbom:
-          $ref: '#/components/schemas/SbomHead'
+        license_name:
+          type: string
+        license_type:
+          type: string
     PurlStatus:
       type: object
       required:

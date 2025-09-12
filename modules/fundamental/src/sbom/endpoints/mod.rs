@@ -9,7 +9,7 @@ pub use query::*;
 use crate::sbom::model::LicenseRefMapping;
 use crate::{
     Error,
-    common::service::delete_doc,
+    common::{LicenseRefMapping, service::delete_doc},
     license::{
         get_sanitize_filename,
         service::{LicenseService, license_export::LicenseExporter},

@@ -1,14 +1,15 @@
 use crate::{
     Error,
     advisory::model::AdvisoryHead,
+    common::{LicenseRefMapping, service::extract_license_ref_mappings},
     purl::model::{BasePurlHead, PurlHead, VersionedPurlHead},
-    sbom::model::SbomHead,
+    sbom::{model::SbomHead, service::SbomService},
     vulnerability::model::VulnerabilityHead,
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, Iterable, LoaderTrait,
     ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
-    Select,
+    Select, Statement,
 };
 use sea_query::{Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,7 @@ use trustify_common::{
     purl::Purl,
 };
 use trustify_cvss::cvss3::{Cvss3Base, score::Score, severity::Severity};
+use trustify_entity::sbom_package_license::LicenseCategory;
 use trustify_entity::{
     advisory, base_purl, cpe, cvss3, license, organization, product, product_status,
     product_version, product_version_range, purl_status, qualified_purl, sbom, sbom_package,
@@ -36,7 +38,32 @@ pub struct PurlDetails {
     pub version: VersionedPurlHead,
     pub base: BasePurlHead,
     pub advisories: Vec<PurlAdvisory>,
-    pub licenses: Vec<PurlLicenseSummary>,
+    pub licenses: Vec<PurlLicenseInfo>,
+    pub license_ref_mapping: Vec<LicenseRefMapping>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, Default)]
+pub struct PurlLicenseInfo {
+    pub license_name: String,
+    pub license_type: String,
+}
+
+impl PurlLicenseInfo {
+    pub fn from_purl_license_result(plr: PurlLicenseResult) -> Self {
+        PurlLicenseInfo {
+            license_name: plr.license_name,
+            license_type: plr.license_type.show().to_string(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, FromQueryResult)]
+pub struct PurlLicenseResult {
+    pub sbom_id: Uuid,
+    pub license_id: Uuid,
+    pub qualified_package_id: Uuid,
+    pub license_name: String,
+    pub license_type: LicenseCategory,
 }
 
 impl PurlDetails {
@@ -95,12 +122,49 @@ impl PurlDetails {
         )
         .await?;
 
+        let purl_license_results: Vec<PurlLicenseResult> =
+            PurlLicenseResult::find_by_statement(Statement::from_sql_and_values(
+                tx.get_database_backend(),
+                r#"
+            SELECT DISTINCT
+                l.text as license_name,
+                qp.id as qualified_package_id,
+                spl.license_type,
+                sp.sbom_id,
+                l.id as license_id
+            FROM qualified_purl qp
+            JOIN sbom_package_purl_ref sppr ON qp.id = sppr.qualified_purl_id
+            JOIN sbom_package sp ON sppr.sbom_id = sp.sbom_id AND sppr.node_id = sp.node_id
+            JOIN sbom_package_license spl ON sp.sbom_id = spl.sbom_id AND sp.node_id = spl.node_id
+            JOIN license l ON spl.license_id = l.id
+            WHERE qp.purl = $1
+            ORDER BY spl.license_type, sp.sbom_id, l.text
+            "#,
+                [qualified_package.clone().purl.into()],
+            ))
+            .all(tx)
+            .await?;
+
+        let mut purl_license_info = Vec::new();
+        let mut license_ref_mapping = Vec::new();
+
+        for plr in purl_license_results {
+            let licensing_infos = SbomService::get_licensing_infos(tx, plr.sbom_id).await?;
+            extract_license_ref_mappings(
+                plr.license_name.as_str(),
+                &licensing_infos,
+                &mut license_ref_mapping,
+            );
+            purl_license_info.push(PurlLicenseInfo::from_purl_license_result(plr));
+        }
+
         Ok(PurlDetails {
             head: PurlHead::from_entity(&package, &package_version, qualified_package),
             version: VersionedPurlHead::from_entity(&package, &package_version),
             base: BasePurlHead::from_entity(&package),
             advisories: PurlAdvisory::from_entities(purl_statuses, product_statuses, tx).await?,
-            licenses: vec![], // Leave it empty for now and wait to add relevant content later.
+            licenses: purl_license_info,
+            license_ref_mapping,
         })
     }
 }

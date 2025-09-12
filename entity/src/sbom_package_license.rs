@@ -68,3 +68,21 @@ impl Related<super::license::Entity> for Entity {
 }
 
 impl ActiveModelBehavior for ActiveModel {}
+
+impl LicenseCategory {
+    /// Returns the string representation of the license category
+    ///
+    /// # Examples
+    /// ```
+    /// use trustify_entity::sbom_package_license::LicenseCategory;
+    ///
+    /// assert_eq!(LicenseCategory::Declared.show(), "Declared");
+    /// assert_eq!(LicenseCategory::Concluded.show(), "Concluded");
+    /// ```
+    pub fn show(&self) -> &'static str {
+        match self {
+            LicenseCategory::Declared => "Declared",
+            LicenseCategory::Concluded => "Concluded",
+        }
+    }
+}
