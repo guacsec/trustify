@@ -1,0 +1,2113 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "An update for libxml2 is now available for Red Hat Enterprise Linux 8.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "The libxml2 library is a development toolbox providing the implementation of various XML standards.\n\nSecurity Fix(es):\n\n* libxml: Heap use after free (UAF) leads to Denial of service (DoS) (CVE-2025-49794)\n\n* libxml: Type confusion leads to Denial of service (DoS) (CVE-2025-49796)\n\n* libxml2: Integer Overflow in xmlBuildQName() Leads to Stack Buffer Overflow in libxml2 (CVE-2025-6021)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2025:10698",
+        "url": "https://access.redhat.com/errata/RHSA-2025:10698"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "external",
+        "summary": "2372373",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2372373"
+      },
+      {
+        "category": "external",
+        "summary": "2372385",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2372385"
+      },
+      {
+        "category": "external",
+        "summary": "2372406",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2372406"
+      },
+      {
+        "category": "external",
+        "summary": "RHEL-74345",
+        "url": "https://issues.redhat.com/browse/RHEL-74345"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2025/rhsa-2025_10698.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: libxml2 security update",
+    "tracking": {
+      "current_release_date": "2025-09-11T17:59:13+00:00",
+      "generator": {
+        "date": "2025-09-11T17:59:13+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "4.6.7"
+        }
+      },
+      "id": "RHSA-2025:10698",
+      "initial_release_date": "2025-07-09T12:04:08+00:00",
+      "revision_history": [
+        {
+          "date": "2025-07-09T12:04:08+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2025-07-09T12:04:08+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2025-09-11T17:59:13+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux AppStream (v. 8)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux AppStream (v. 8)",
+                  "product_id": "AppStream-8.10.0.Z.MAIN.EUS",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:enterprise_linux:8::appstream"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux BaseOS (v. 8)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux BaseOS (v. 8)",
+                  "product_id": "BaseOS-8.10.0.Z.MAIN.EUS",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat Enterprise Linux"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+                "product": {
+                  "name": "libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_id": "libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-devel@2.9.7-21.el8_10.1?arch=aarch64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+                "product": {
+                  "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_id": "libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-debugsource@2.9.7-21.el8_10.1?arch=aarch64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+                "product": {
+                  "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_id": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-debuginfo@2.9.7-21.el8_10.1?arch=aarch64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+                "product": {
+                  "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_id": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/python3-libxml2-debuginfo@2.9.7-21.el8_10.1?arch=aarch64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-0:2.9.7-21.el8_10.1.aarch64",
+                "product": {
+                  "name": "libxml2-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_id": "libxml2-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2@2.9.7-21.el8_10.1?arch=aarch64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+                "product": {
+                  "name": "python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_id": "python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/python3-libxml2@2.9.7-21.el8_10.1?arch=aarch64"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "aarch64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+                "product": {
+                  "name": "libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_id": "libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-devel@2.9.7-21.el8_10.1?arch=ppc64le"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+                "product": {
+                  "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_id": "libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-debugsource@2.9.7-21.el8_10.1?arch=ppc64le"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+                "product": {
+                  "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_id": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-debuginfo@2.9.7-21.el8_10.1?arch=ppc64le"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+                "product": {
+                  "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_id": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/python3-libxml2-debuginfo@2.9.7-21.el8_10.1?arch=ppc64le"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+                "product": {
+                  "name": "libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_id": "libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2@2.9.7-21.el8_10.1?arch=ppc64le"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+                "product": {
+                  "name": "python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_id": "python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/python3-libxml2@2.9.7-21.el8_10.1?arch=ppc64le"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "ppc64le"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+                "product": {
+                  "name": "libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+                  "product_id": "libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-devel@2.9.7-21.el8_10.1?arch=i686"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+                "product": {
+                  "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+                  "product_id": "libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-debugsource@2.9.7-21.el8_10.1?arch=i686"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+                "product": {
+                  "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+                  "product_id": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-debuginfo@2.9.7-21.el8_10.1?arch=i686"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+                "product": {
+                  "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+                  "product_id": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/python3-libxml2-debuginfo@2.9.7-21.el8_10.1?arch=i686"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-0:2.9.7-21.el8_10.1.i686",
+                "product": {
+                  "name": "libxml2-0:2.9.7-21.el8_10.1.i686",
+                  "product_id": "libxml2-0:2.9.7-21.el8_10.1.i686",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2@2.9.7-21.el8_10.1?arch=i686"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "i686"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+                "product": {
+                  "name": "libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_id": "libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-devel@2.9.7-21.el8_10.1?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+                "product": {
+                  "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_id": "libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-debugsource@2.9.7-21.el8_10.1?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+                "product": {
+                  "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_id": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-debuginfo@2.9.7-21.el8_10.1?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+                "product": {
+                  "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_id": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/python3-libxml2-debuginfo@2.9.7-21.el8_10.1?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-0:2.9.7-21.el8_10.1.x86_64",
+                "product": {
+                  "name": "libxml2-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_id": "libxml2-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2@2.9.7-21.el8_10.1?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+                "product": {
+                  "name": "python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_id": "python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/python3-libxml2@2.9.7-21.el8_10.1?arch=x86_64"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "x86_64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+                "product": {
+                  "name": "libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+                  "product_id": "libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-devel@2.9.7-21.el8_10.1?arch=s390x"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+                "product": {
+                  "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+                  "product_id": "libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-debugsource@2.9.7-21.el8_10.1?arch=s390x"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+                "product": {
+                  "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+                  "product_id": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2-debuginfo@2.9.7-21.el8_10.1?arch=s390x"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+                "product": {
+                  "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+                  "product_id": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/python3-libxml2-debuginfo@2.9.7-21.el8_10.1?arch=s390x"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "libxml2-0:2.9.7-21.el8_10.1.s390x",
+                "product": {
+                  "name": "libxml2-0:2.9.7-21.el8_10.1.s390x",
+                  "product_id": "libxml2-0:2.9.7-21.el8_10.1.s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2@2.9.7-21.el8_10.1?arch=s390x"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+                "product": {
+                  "name": "python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+                  "product_id": "python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/python3-libxml2@2.9.7-21.el8_10.1?arch=s390x"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "s390x"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "libxml2-0:2.9.7-21.el8_10.1.src",
+                "product": {
+                  "name": "libxml2-0:2.9.7-21.el8_10.1.src",
+                  "product_id": "libxml2-0:2.9.7-21.el8_10.1.src",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/libxml2@2.9.7-21.el8_10.1?arch=src"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "src"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.i686 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.i686",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.src as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.src",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686"
+        },
+        "product_reference": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.i686 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686"
+        },
+        "product_reference": "libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-devel-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-devel-0:2.9.7-21.el8_10.1.i686 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686"
+        },
+        "product_reference": "libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-devel-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-devel-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686"
+        },
+        "product_reference": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux AppStream (v. 8)",
+          "product_id": "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "AppStream-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.i686 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.i686",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.src as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.src",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "libxml2-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686"
+        },
+        "product_reference": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.i686 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686"
+        },
+        "product_reference": "libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-devel-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-devel-0:2.9.7-21.el8_10.1.i686 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686"
+        },
+        "product_reference": "libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-devel-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libxml2-devel-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64"
+        },
+        "product_reference": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686"
+        },
+        "product_reference": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le"
+        },
+        "product_reference": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x"
+        },
+        "product_reference": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64 as a component of Red Hat Enterprise Linux BaseOS (v. 8)",
+          "product_id": "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+        },
+        "product_reference": "python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+        "relates_to_product_reference": "BaseOS-8.10.0.Z.MAIN.EUS"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Ahmed Lekssays"
+          ]
+        }
+      ],
+      "cve": "CVE-2025-6021",
+      "cwe": {
+        "id": "CWE-121",
+        "name": "Stack-based Buffer Overflow"
+      },
+      "discovery_date": "2025-06-12T07:55:45.428000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2372406"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in libxml2's xmlBuildQName function, where integer overflows in buffer size calculations can lead to a stack-based buffer overflow. This issue can result in memory corruption or a denial of service when processing crafted input.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "libxml2: Integer Overflow in xmlBuildQName() Leads to Stack Buffer Overflow in libxml2",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability is rated Moderate due to the lack of confidentiality impact and limited integrity concerns, with the main risk being potential denial-of-service  from a crash. Exploitation requires crafted XML input and specific application behavior using xmlBuildQName. While it’s a write overflow, modern mitigations make remote code execution unlikely.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-6021"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2372406",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2372406"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-6021",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-6021"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-6021",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-6021"
+        }
+      ],
+      "release_date": "2025-06-12T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-07-09T12:04:08+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:10698"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options don't meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability. Users are strongly advised to apply vendor-supplied patches as soon as they become available to address the underlying integer overflow flaw in the affected code.",
+          "product_ids": [
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "libxml2: Integer Overflow in xmlBuildQName() Leads to Stack Buffer Overflow in libxml2"
+    },
+    {
+      "cve": "CVE-2025-49794",
+      "cwe": {
+        "id": "CWE-825",
+        "name": "Expired Pointer Dereference"
+      },
+      "discovery_date": "2025-06-11T21:33:43.044000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2372373"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A use-after-free vulnerability was found in libxml2. This issue occurs when parsing XPath elements under certain circumstances when the XML schematron has the <sch:name path=\"...\"/> schema elements. This flaw allows a malicious actor to craft a malicious XML document used as input for libxml, resulting in the program's crash using libxml or other possible undefined behaviors.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "libxml: Heap use after free (UAF) leads to Denial of service (DoS)",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This issue was rated with a severity impact of Important by Red Hat Product Security, as libxml can be used to parse XML coming from the network depending on how the program consumes it and uses the library. Additionally, although the initial report shows a crash due to invalid memory access (A:H), other undefined issues that can present data integrity due to the application overwriting sensitive data are not discarded (I:H).",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-49794"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2372373",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2372373"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-49794",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-49794"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-49794",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49794"
+        }
+      ],
+      "release_date": "2025-06-10T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-07-09T12:04:08+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:10698"
+        },
+        {
+          "category": "workaround",
+          "details": "There's no available mitigation other than avoid processing untrusted XML documents before updating to the libxml version containing the fix.",
+          "product_ids": [
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.1,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "libxml: Heap use after free (UAF) leads to Denial of service (DoS)"
+    },
+    {
+      "cve": "CVE-2025-49796",
+      "cwe": {
+        "id": "CWE-125",
+        "name": "Out-of-bounds Read"
+      },
+      "discovery_date": "2025-06-12T00:35:26.470000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2372385"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A vulnerability was found in libxml2. Processing certain sch:name elements from the input XML file can trigger a memory corruption issue. This flaw allows an attacker to craft a malicious XML input file that can lead libxml to crash, resulting in a denial of service or other possible undefined behavior due to sensitive data being corrupted in memory.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "libxml: Type confusion leads to Denial of service (DoS)",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has evaluated this vulnerability as having an Important security impact, as libxml can be used to parse XML from the network depending on how the program consumes it using the library. Additionally, although the initial report shows a crash due to invalid memory access (A:H), other undefined issues that can present data integrity due to the application overwriting sensitive data are not discarded (I:H).",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+          "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-49796"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2372385",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2372385"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-49796",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-49796"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-49796",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-49796"
+        }
+      ],
+      "release_date": "2025-06-11T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-07-09T12:04:08+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:10698"
+        },
+        {
+          "category": "workaround",
+          "details": "There's no available mitigation other than to avoid processing untrusted XML documents if the user is unable/unwilling to update the library.",
+          "product_ids": [
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.1,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "AppStream-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.src",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-debugsource-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:libxml2-devel-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-0:2.9.7-21.el8_10.1.x86_64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.aarch64",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.i686",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.ppc64le",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.s390x",
+            "BaseOS-8.10.0.Z.MAIN.EUS:python3-libxml2-debuginfo-0:2.9.7-21.el8_10.1.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "libxml: Type confusion leads to Denial of service (DoS)"
+    }
+  ]
+}
