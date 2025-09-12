@@ -47,6 +47,7 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
             WHERE sbom_id = $1
             AND relationship = 13
         )
+        LIMIT 1
     ) IS NULL
 )
 "#;
