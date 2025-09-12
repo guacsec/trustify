@@ -3,10 +3,10 @@ pub mod raw_sql;
 
 use super::service::SbomService;
 use crate::{
-    Error, purl::model::summary::purl::PurlSummary, sbom::service::sbom::LicenseBasicInfo,
-    source_document::model::SourceDocument,
+    Error, common::LicenseRefMapping, purl::model::summary::purl::PurlSummary,
+    sbom::service::sbom::LicenseBasicInfo, source_document::model::SourceDocument,
 };
-use sea_orm::{ConnectionTrait, FromQueryResult, ModelTrait, PaginatorTrait, prelude::Uuid};
+use sea_orm::{ConnectionTrait, ModelTrait, PaginatorTrait, prelude::Uuid};
 use sea_query::FromValueTuple;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -148,12 +148,6 @@ impl From<LicenseBasicInfo> for LicenseInfo {
             license_type: LicenseCategory::from_value_tuple(license_basic_info.license_type),
         }
     }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, FromQueryResult)]
-pub struct LicenseRefMapping {
-    pub license_id: String,
-    pub license_name: String,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]

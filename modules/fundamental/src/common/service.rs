@@ -1,5 +1,7 @@
-use crate::{Error, source_document::model::SourceDocument};
+use crate::{Error, common::LicenseRefMapping, source_document::model::SourceDocument};
 use sea_orm::{ConnectionTrait, DbBackend, FromQueryResult, PaginatorTrait, Statement};
+use spdx_expression;
+use std::collections::BTreeMap;
 use trustify_module_storage::service::{StorageBackend, StorageKey, dispatch::DispatchBackend};
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -82,6 +84,39 @@ pub trait DocumentDelete {
 impl DocumentDelete for &DispatchBackend {
     async fn delete(&self, key: StorageKey) -> Result<(), Error> {
         (*self).delete(key).await.map_err(Error::Storage)
+    }
+}
+
+/// Extract LicenseRef mappings from SPDX license expressions
+///
+/// This function parses SPDX license expressions and extracts LicenseRef mappings,
+/// which are then added to the provided `licenses_ref_mapping` vector.
+///
+/// # Arguments
+/// * `license_name` - The SPDX license expression to parse
+/// * `licensing_infos` - A BTreeMap containing license ID to license name mappings
+/// * `licenses_ref_mapping` - A mutable vector where LicenseRef mappings will be added
+pub fn extract_license_ref_mappings(
+    license_name: &str,
+    licensing_infos: &BTreeMap<String, String>,
+    licenses_ref_mapping: &mut Vec<LicenseRefMapping>,
+) {
+    if let Ok(parsed) = spdx_expression::SpdxExpression::parse(license_name) {
+        parsed
+            .licenses()
+            .into_iter()
+            .filter(|license| license.license_ref)
+            .for_each(|license| {
+                let license_id = license.to_string();
+                let license_name = licensing_infos
+                    .get(&license_id)
+                    .cloned()
+                    .unwrap_or_default();
+                licenses_ref_mapping.push(LicenseRefMapping {
+                    license_id,
+                    license_name,
+                });
+            });
     }
 }
 

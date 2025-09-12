@@ -8,15 +8,15 @@ pub use query::*;
 
 use crate::{
     Error,
-    common::service::delete_doc,
+    common::{LicenseRefMapping, service::delete_doc},
     license::{
         get_sanitize_filename,
         service::{LicenseService, license_export::LicenseExporter},
     },
     sbom::{
         model::{
-            LicenseRefMapping, SbomExternalPackageReference, SbomNodeReference, SbomPackage,
-            SbomPackageRelation, SbomSummary, Which, details::SbomAdvisory,
+            SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
+            SbomSummary, Which, details::SbomAdvisory,
         },
         service::SbomService,
     },

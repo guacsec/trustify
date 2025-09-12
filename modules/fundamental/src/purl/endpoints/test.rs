@@ -3,7 +3,7 @@ use crate::purl::model::summary::base_purl::BasePurlSummary;
 use crate::purl::model::summary::purl::PurlSummary;
 use crate::test::caller;
 use actix_web::test::TestRequest;
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
@@ -11,7 +11,7 @@ use trustify_common::db::Database;
 use trustify_common::model::PaginatedResults;
 use trustify_common::purl::Purl;
 use trustify_module_ingestor::graph::Graph;
-use trustify_test_context::{TrustifyContext, call::CallService};
+use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
 use urlencoding::encode;
 use uuid::Uuid;
 
@@ -241,5 +241,72 @@ async fn purl_filter_queries(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
         query(each).await;
     }
 
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn test_purl_license_details(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    ctx.ingest_documents(["spdx/OCP-TOOLS-4.11-RHEL-8.json"])
+        .await?;
+
+    let uri = "/api/v2/purl?q=graphite2";
+    let request = TestRequest::get().uri(uri).to_request();
+    let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
+
+    assert_eq!(1, response.items.len());
+
+    let uuid = response.items[0].head.uuid;
+
+    let uri = format!("/api/v2/purl/{uuid}");
+
+    let request = TestRequest::get().uri(&uri).to_request();
+    let response: Value = app.call_and_read_body_json(request).await;
+
+    let expected_result = json!({
+      "uuid": "7ff60cd2-d779-586e-b829-cc6d51750450",
+      "purl": "pkg:rpm/redhat/graphite2@1.3.10-10.el8?arch=ppc64le",
+      "version": {
+        "uuid": "57664d22-7f7f-56a0-9c38-9b0dc203b322",
+        "purl": "pkg:rpm/redhat/graphite2@1.3.10-10.el8",
+        "version": "1.3.10-10.el8"
+      },
+      "base": {
+        "uuid": "ba5eb886-34f6-5830-8902-a6182a6a8d7d",
+        "purl": "pkg:rpm/redhat/graphite2"
+      },
+      "advisories": [],
+      "licenses": [
+        {
+          "license_name": "(LicenseRef-8 OR LicenseRef-0 OR LicenseRef-MPL) AND (LicenseRef-Netscape OR LicenseRef-0 OR LicenseRef-8)",
+          "license_type": "Declared"
+        },
+        {
+          "license_name": "NOASSERTION",
+          "license_type": "Concluded"
+        }
+      ],
+      "license_ref_mapping": [
+        {
+          "license_id": "LicenseRef-Netscape",
+          "license_name": "Netscape"
+        },
+        {
+          "license_id": "LicenseRef-MPL",
+          "license_name": "MPL"
+        },
+        {
+          "license_id": "LicenseRef-8",
+          "license_name": "LGPLv2+"
+        },
+        {
+          "license_id": "LicenseRef-0",
+          "license_name": "GPLv2+"
+        }
+      ]
+    });
+    assert!(expected_result.contains_subset(response.clone()));
     Ok(())
 }
