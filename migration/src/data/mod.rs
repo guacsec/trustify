@@ -90,8 +90,9 @@ where
     ) -> anyhow::Result<()>;
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, clap::Parser)]
 pub struct Options {
+    #[arg(long, env = "MIGRATION_DATA_CONCURRENT", default_value = "5")]
     pub concurrent: NonZeroUsize,
 }
 
@@ -107,7 +108,7 @@ pub trait DocumentProcessor {
     async fn process<D>(
         &self,
         storage: &DispatchBackend,
-        options: Options,
+        options: &Options,
         f: impl Handler<D>,
     ) -> anyhow::Result<(), DbErr>
     where
@@ -118,19 +119,22 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
     async fn process<D>(
         &self,
         storage: &DispatchBackend,
-        options: Options,
+        options: &Options,
         f: impl Handler<D>,
     ) -> Result<(), DbErr>
     where
         D: Document,
     {
         let db = self.get_connection();
-        let tx = db.begin().await?;
 
+        let tx = db.begin().await?;
         let all = D::all(&tx).await?;
+        drop(tx);
 
         stream::iter(all)
             .map(async |model| {
+                let tx = db.begin().await?;
+
                 let doc = D::source(&model, storage, &tx).await.map_err(|err| {
                     DbErr::Migration(format!("Failed to load source document: {err}"))
                 })?;
@@ -138,13 +142,13 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
                     DbErr::Migration(format!("Failed to process document: {err}"))
                 })?;
 
+                tx.commit().await?;
+
                 Ok::<_, DbErr>(())
             })
             .buffer_unordered(options.concurrent.into())
             .try_collect::<Vec<_>>()
             .await?;
-
-        tx.commit().await?;
 
         Ok(())
     }
