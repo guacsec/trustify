@@ -19,6 +19,80 @@ use urlencoding::encode;
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
+async fn get_sbom_list(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let _id = ctx
+        .ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
+        .await?
+        .id
+        .to_string();
+    let uri = "/api/v2/sbom".to_string();
+    let req = TestRequest::get().uri(&uri).to_request();
+    let sbom: Value = app.call_and_read_body_json(req).await;
+
+    let expected_result = json!([
+        "(FTL or GPLv2+) and BSD and MIT and Public Domain and zlib with acknowledgement",
+        "[{'license': {'id': 'Apache-2.0'}}]",
+        "[{'license': {'id': None}}]",
+        "AFL",
+        "Apache-2.0",
+        "Artistic",
+        "Artistic 2.0",
+        "ASL 2.0",
+        "Boost",
+        "BSD",
+        "BSD-2-Clause",
+        "BSD-2-Clause-Views",
+        "BSD-3-Clause",
+        "BSD-3-Clause-Clear",
+        "CC-BY",
+        "CC-BY-SA-4.0",
+        "CC0-1.0",
+        "CDDL-1.0",
+        "CDDL-1.1",
+        "Copyright only",
+        "EPL-1.0",
+        "EPL-2.0 OR GNU General Public License, version 2 with the GNU Classpath Exception",
+        "GFDL",
+        "GPL-2.0-only",
+        "GPL-2.0-with-classpath-exception",
+        "GPL+",
+        "GPLv2",
+        "GPLv2+",
+        "GPLv3",
+        "GPLv3+",
+        "GPLv3+ and GPLv3+ with exceptions and GPLv2+ and GPLv2+ with exceptions and GPL+ and LGPLv2+ and LGPLv3+ and BSD and Public Domain and GFDL",
+        "HSRL",
+        "ISC",
+        "JasPer",
+        "JSON",
+        "LGPL-3.0-or-later",
+        "LGPLv2",
+        "LGPLv2+",
+        "LGPLv3+",
+        "MIT",
+        "MIT/X License, GPL/CDDL, ASL2",
+        "MPL",
+        "MPL-1.0",
+        "MPL-2.0",
+        "MPLv1.1",
+        "Netscape",
+        "NOASSERTION",
+        "Public Domain",
+        "Python-2.0",
+        "Sendmail",
+        "UCD",
+        "Unlicense",
+        "WTFPL",
+        "Zlib"
+    ]);
+    assert!(expected_result.contains_subset(sbom["items"][0]["licenses"].clone()));
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
 async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
     let id = ctx

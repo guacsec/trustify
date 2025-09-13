@@ -4434,11 +4434,16 @@ components:
             - type: object
               required:
               - described_by
+              - licenses
               properties:
                 described_by:
                   type: array
                   items:
                     $ref: '#/components/schemas/SbomPackage'
+                licenses:
+                  type: array
+                  items:
+                    type: string
         total:
           type: integer
           format: int64
@@ -5016,11 +5021,16 @@ components:
       - type: object
         required:
         - described_by
+        - licenses
         properties:
           described_by:
             type: array
             items:
               $ref: '#/components/schemas/SbomPackage'
+          licenses:
+            type: array
+            items:
+              type: string
     Score:
       type: object
       required:

@@ -3,15 +3,15 @@ pub mod raw_sql;
 
 use super::service::SbomService;
 use crate::{
-    Error, purl::model::summary::purl::PurlSummary, sbom::service::sbom::LicenseBasicInfo,
-    source_document::model::SourceDocument,
+    Error, license::service::LicenseService, purl::model::summary::purl::PurlSummary,
+    sbom::service::sbom::LicenseBasicInfo, source_document::model::SourceDocument,
 };
 use sea_orm::{ConnectionTrait, FromQueryResult, ModelTrait, PaginatorTrait, prelude::Uuid};
 use sea_query::FromValueTuple;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tracing::instrument;
-use trustify_common::{cpe::Cpe, purl::Purl};
+use trustify_common::{cpe::Cpe, id::Id, purl::Purl};
 use trustify_entity::{
     labels::Labels, relationship::Relationship, sbom, sbom_node, sbom_package,
     sbom_package_license::LicenseCategory, source_document,
@@ -82,6 +82,8 @@ pub struct SbomSummary {
     pub source_document: Option<SourceDocument>,
 
     pub described_by: Vec<SbomPackage>,
+
+    pub licenses: Vec<String>,
 }
 
 impl SbomSummary {
@@ -96,11 +98,19 @@ impl SbomSummary {
 
         let source_document = sbom.find_related(source_document::Entity).one(db).await?;
 
+        let licenses = LicenseService::new()
+            .get_all_license_info(Id::Uuid(sbom.sbom_id), db)
+            .await?
+            .unwrap_or_default()
+            .into_iter()
+            .map(|l| l.license_name)
+            .collect();
         Ok(match node {
             Some(_) => Some(SbomSummary {
                 head: SbomHead::from_entity(&sbom, node, db).await?,
                 source_document: source_document.as_ref().map(SourceDocument::from_entity),
                 described_by,
+                licenses,
             }),
             None => None,
         })
