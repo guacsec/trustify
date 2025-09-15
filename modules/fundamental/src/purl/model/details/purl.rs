@@ -8,8 +8,8 @@ use crate::{
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, Iterable, LoaderTrait,
-    ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
-    Select, Statement,
+    ModelTrait, Order, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait,
+    RelationTrait, Select,
 };
 use sea_query::{Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,8 @@ use trustify_entity::sbom_package_license::LicenseCategory;
 use trustify_entity::{
     advisory, base_purl, cpe, cvss3, license, organization, product, product_status,
     product_version, product_version_range, purl_status, qualified_purl, sbom, sbom_package,
-    sbom_package_purl_ref, status, version_range, versioned_purl, vulnerability,
+    sbom_package_license, sbom_package_purl_ref, status, version_range, versioned_purl,
+    vulnerability,
 };
 use trustify_module_ingestor::common::{Deprecation, DeprecationForExt};
 use utoipa::ToSchema;
@@ -122,26 +123,29 @@ impl PurlDetails {
         )
         .await?;
 
-        let purl_license_results: Vec<PurlLicenseResult> =
-            PurlLicenseResult::find_by_statement(Statement::from_sql_and_values(
-                tx.get_database_backend(),
-                r#"
-            SELECT DISTINCT
-                l.text as license_name,
-                qp.id as qualified_package_id,
-                spl.license_type,
-                sp.sbom_id,
-                l.id as license_id
-            FROM qualified_purl qp
-            JOIN sbom_package_purl_ref sppr ON qp.id = sppr.qualified_purl_id
-            JOIN sbom_package sp ON sppr.sbom_id = sp.sbom_id AND sppr.node_id = sp.node_id
-            JOIN sbom_package_license spl ON sp.sbom_id = spl.sbom_id AND sp.node_id = spl.node_id
-            JOIN license l ON spl.license_id = l.id
-            WHERE qp.purl = $1
-            ORDER BY spl.license_type, sp.sbom_id, l.text
-            "#,
-                [qualified_package.clone().purl.into()],
-            ))
+        let purl_license_results: Vec<PurlLicenseResult> = qualified_purl::Entity::find()
+            .filter(qualified_purl::Column::Purl.eq(qualified_package.clone().purl))
+            .join(JoinType::Join, qualified_purl::Relation::SbomPackage.def())
+            .join(
+                JoinType::Join,
+                sbom_package_purl_ref::Relation::Package.def(),
+            )
+            .join(JoinType::Join, sbom_package::Relation::PackageLicense.def())
+            .join(
+                JoinType::Join,
+                sbom_package_license::Relation::License.def(),
+            )
+            .select_only()
+            .column_as(license::Column::Text, "license_name")
+            .column_as(qualified_purl::Column::Id, "qualified_package_id")
+            .column_as(sbom_package_license::Column::LicenseType, "license_type")
+            .column_as(sbom_package::Column::SbomId, "sbom_id")
+            .column_as(license::Column::Id, "license_id")
+            .distinct()
+            .order_by(sbom_package_license::Column::LicenseType, Order::Asc)
+            .order_by(sbom_package::Column::SbomId, Order::Asc)
+            .order_by(license::Column::Text, Order::Asc)
+            .into_model::<PurlLicenseResult>()
             .all(tx)
             .await?;
 
