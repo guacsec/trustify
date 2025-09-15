@@ -6,7 +6,6 @@ mod test;
 
 pub use query::*;
 
-use crate::sbom::model::LicenseRefMapping;
 use crate::{
     Error,
     common::{LicenseRefMapping, service::delete_doc},
