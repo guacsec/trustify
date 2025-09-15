@@ -4680,7 +4680,7 @@ components:
           licenses:
             type: array
             items:
-              $ref: '#/components/schemas/PurlLicenseInfo'
+              $ref: '#/components/schemas/LicenseInfo'
           version:
             $ref: '#/components/schemas/VersionedPurlHead'
     PurlHead:
@@ -4696,16 +4696,6 @@ components:
           type: string
           format: uuid
           description: The ID of the qualified PURL
-    PurlLicenseInfo:
-      type: object
-      required:
-      - license_name
-      - license_type
-      properties:
-        license_name:
-          type: string
-        license_type:
-          type: string
     PurlStatus:
       type: object
       required:

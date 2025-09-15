@@ -1,3 +1,5 @@
+use crate::common::LicenseInfo;
+use crate::sbom::service::sbom::LicenseBasicInfo;
 use crate::{
     Error,
     advisory::model::AdvisoryHead,
@@ -8,8 +10,8 @@ use crate::{
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, Iterable, LoaderTrait,
-    ModelTrait, Order, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait,
-    RelationTrait, Select,
+    ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
+    Select, SelectColumns,
 };
 use sea_query::{Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -21,7 +23,6 @@ use trustify_common::{
     purl::Purl,
 };
 use trustify_cvss::cvss3::{Cvss3Base, score::Score, severity::Severity};
-use trustify_entity::sbom_package_license::LicenseCategory;
 use trustify_entity::{
     advisory, base_purl, cpe, cvss3, license, organization, product, product_status,
     product_version, product_version_range, purl_status, qualified_purl, sbom, sbom_package,
@@ -39,32 +40,15 @@ pub struct PurlDetails {
     pub version: VersionedPurlHead,
     pub base: BasePurlHead,
     pub advisories: Vec<PurlAdvisory>,
-    pub licenses: Vec<PurlLicenseInfo>,
+    pub licenses: Vec<LicenseInfo>,
     pub license_ref_mapping: Vec<LicenseRefMapping>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, Default)]
-pub struct PurlLicenseInfo {
-    pub license_name: String,
-    pub license_type: String,
-}
-
-impl PurlLicenseInfo {
-    pub fn from_purl_license_result(plr: PurlLicenseResult) -> Self {
-        PurlLicenseInfo {
-            license_name: plr.license_name,
-            license_type: plr.license_type.show().to_string(),
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, FromQueryResult)]
 pub struct PurlLicenseResult {
     pub sbom_id: Uuid,
-    pub license_id: Uuid,
-    pub qualified_package_id: Uuid,
     pub license_name: String,
-    pub license_type: LicenseCategory,
+    pub license_type: i32,
 }
 
 impl PurlDetails {
@@ -123,9 +107,13 @@ impl PurlDetails {
         )
         .await?;
 
-        let purl_license_results: Vec<PurlLicenseResult> = qualified_purl::Entity::find()
-            .filter(qualified_purl::Column::Purl.eq(qualified_package.clone().purl))
-            .join(JoinType::Join, qualified_purl::Relation::SbomPackage.def())
+        let purl_license_results: Vec<PurlLicenseResult> = sbom_package_purl_ref::Entity::find()
+            .distinct()
+            .select_only()
+            .select_column(sbom_package::Column::SbomId)
+            .select_column_as(license::Column::Text, "license_name")
+            .select_column(sbom_package_license::Column::LicenseType)
+            .filter(sbom_package_purl_ref::Column::QualifiedPurlId.eq(qualified_package.id))
             .join(
                 JoinType::Join,
                 sbom_package_purl_ref::Relation::Package.def(),
@@ -135,17 +123,7 @@ impl PurlDetails {
                 JoinType::Join,
                 sbom_package_license::Relation::License.def(),
             )
-            .select_only()
-            .column_as(license::Column::Text, "license_name")
-            .column_as(qualified_purl::Column::Id, "qualified_package_id")
-            .column_as(sbom_package_license::Column::LicenseType, "license_type")
-            .column_as(sbom_package::Column::SbomId, "sbom_id")
-            .column_as(license::Column::Id, "license_id")
-            .distinct()
-            .order_by(sbom_package_license::Column::LicenseType, Order::Asc)
-            .order_by(sbom_package::Column::SbomId, Order::Asc)
-            .order_by(license::Column::Text, Order::Asc)
-            .into_model::<PurlLicenseResult>()
+            .into_model()
             .all(tx)
             .await?;
 
@@ -159,7 +137,10 @@ impl PurlDetails {
                 &licensing_infos,
                 &mut license_ref_mapping,
             );
-            purl_license_info.push(PurlLicenseInfo::from_purl_license_result(plr));
+            purl_license_info.push(LicenseInfo::from(LicenseBasicInfo {
+                license_name: plr.license_name,
+                license_type: plr.license_type,
+            }));
         }
 
         Ok(PurlDetails {
