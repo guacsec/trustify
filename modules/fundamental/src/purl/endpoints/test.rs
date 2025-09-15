@@ -288,7 +288,7 @@ async fn test_purl_license_details(ctx: &TrustifyContext) -> Result<(), anyhow::
           "license_type": "concluded"
         }
       ],
-      "license_ref_mapping": [
+      "licenses_ref_mapping": [
         {
           "license_id": "LicenseRef-Netscape",
           "license_name": "Netscape"
