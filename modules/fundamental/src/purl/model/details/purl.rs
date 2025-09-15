@@ -41,7 +41,7 @@ pub struct PurlDetails {
     pub base: BasePurlHead,
     pub advisories: Vec<PurlAdvisory>,
     pub licenses: Vec<LicenseInfo>,
-    pub license_ref_mapping: Vec<LicenseRefMapping>,
+    pub licenses_ref_mapping: Vec<LicenseRefMapping>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, FromQueryResult)]
@@ -149,7 +149,7 @@ impl PurlDetails {
             base: BasePurlHead::from_entity(&package),
             advisories: PurlAdvisory::from_entities(purl_statuses, product_statuses, tx).await?,
             licenses: purl_license_info,
-            license_ref_mapping,
+            licenses_ref_mapping: license_ref_mapping,
         })
     }
 }

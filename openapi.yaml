@@ -4665,7 +4665,7 @@ components:
         - base
         - advisories
         - licenses
-        - license_ref_mapping
+        - licenses_ref_mapping
         properties:
           advisories:
             type: array
@@ -4673,14 +4673,14 @@ components:
               $ref: '#/components/schemas/PurlAdvisory'
           base:
             $ref: '#/components/schemas/BasePurlHead'
-          license_ref_mapping:
-            type: array
-            items:
-              $ref: '#/components/schemas/LicenseRefMapping'
           licenses:
             type: array
             items:
               $ref: '#/components/schemas/LicenseInfo'
+          licenses_ref_mapping:
+            type: array
+            items:
+              $ref: '#/components/schemas/LicenseRefMapping'
           version:
             $ref: '#/components/schemas/VersionedPurlHead'
     PurlHead:
