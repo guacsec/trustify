@@ -2,19 +2,18 @@ pub mod details;
 pub mod raw_sql;
 
 use super::service::SbomService;
+use crate::common::LicenseInfo;
 use crate::{
     Error, common::LicenseRefMapping, purl::model::summary::purl::PurlSummary,
-    sbom::service::sbom::LicenseBasicInfo, source_document::model::SourceDocument,
+    source_document::model::SourceDocument,
 };
 use sea_orm::{ConnectionTrait, ModelTrait, PaginatorTrait, prelude::Uuid};
-use sea_query::FromValueTuple;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::{
-    labels::Labels, relationship::Relationship, sbom, sbom_node, sbom_package,
-    sbom_package_license::LicenseCategory, source_document,
+    labels::Labels, relationship::Relationship, sbom, sbom_node, sbom_package, source_document,
 };
 use utoipa::ToSchema;
 
@@ -133,21 +132,6 @@ pub struct SbomPackage {
     /// LicenseRef mappings
     #[cfg_attr(feature = "async-graphql", graphql(skip))]
     pub licenses_ref_mapping: Vec<LicenseRefMapping>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
-pub struct LicenseInfo {
-    pub license_name: String,
-    pub license_type: LicenseCategory,
-}
-
-impl From<LicenseBasicInfo> for LicenseInfo {
-    fn from(license_basic_info: LicenseBasicInfo) -> Self {
-        LicenseInfo {
-            license_name: license_basic_info.license_name,
-            license_type: LicenseCategory::from_value_tuple(license_basic_info.license_type),
-        }
-    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]

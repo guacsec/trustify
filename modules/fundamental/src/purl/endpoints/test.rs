@@ -281,11 +281,11 @@ async fn test_purl_license_details(ctx: &TrustifyContext) -> Result<(), anyhow::
       "licenses": [
         {
           "license_name": "(LicenseRef-8 OR LicenseRef-0 OR LicenseRef-MPL) AND (LicenseRef-Netscape OR LicenseRef-0 OR LicenseRef-8)",
-          "license_type": "Declared"
+          "license_type": "declared"
         },
         {
           "license_name": "NOASSERTION",
-          "license_type": "Concluded"
+          "license_type": "concluded"
         }
       ],
       "license_ref_mapping": [

@@ -4,7 +4,7 @@ use test_log::test;
 use tracing::instrument;
 use trustify_common::model::Paginated;
 use trustify_entity::sbom_package_license::LicenseCategory;
-use trustify_module_fundamental::sbom::model::{LicenseInfo, SbomPackage};
+use trustify_module_fundamental::{common::LicenseInfo, sbom::model::SbomPackage};
 use trustify_test_context::TrustifyContext;
 
 #[test_context(TrustifyContext)]
