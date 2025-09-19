@@ -8403,6 +8403,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "clap",
+ "futures",
  "futures-util",
  "sea-orm",
  "sea-orm-migration",
@@ -8876,6 +8877,8 @@ dependencies = [
  "trustify-common",
  "trustify-db",
  "trustify-infrastructure",
+ "trustify-migration",
+ "trustify-module-storage",
  "trustify-server",
 ]
 

@@ -1,9 +1,8 @@
-use anyhow::bail;
 use clap::Parser;
-use migration::{Migrator, Options, SchemaDataManager};
-use sea_orm::{ConnectOptions, Database};
-use sea_orm_migration::{IntoSchemaManagerConnection, SchemaManager};
-use std::collections::HashMap;
+use migration::{
+    Migrator,
+    data::{Direction, MigratorWithData, Options, Runner},
+};
 use trustify_module_storage::config::StorageConfig;
 
 #[derive(clap::Parser, Debug, Clone)]
@@ -14,6 +13,7 @@ struct Cli {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(clap::Subcommand, Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 enum Command {
     /// List all data migrations
     List,
@@ -68,13 +68,6 @@ struct Run {
     storage: StorageConfig,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
-pub enum Direction {
-    #[default]
-    Up,
-    Down,
-}
-
 impl Run {
     fn direction(&self) -> Direction {
         if self.down {
@@ -84,47 +77,23 @@ impl Run {
         }
     }
 
+    #[allow(clippy::expect_used)]
     pub async fn run(self) -> anyhow::Result<()> {
         let direction = self.direction();
-
-        let migrations = Migrator::data_migrations()
-            .into_iter()
-            .map(|migration| (migration.name().to_string(), migration))
-            .collect::<HashMap<_, _>>();
-
-        let mut running = vec![];
-
-        for migration in self.migrations {
-            let Some(migration) = migrations.get(&migration) else {
-                bail!("Migration {migration} not found");
-            };
-            running.push(migration);
-        }
-
         let storage = self.storage.into_storage(false).await?;
 
-        let url = self
-            .database_url
-            .expect("Environment variable 'DATABASE_URL' not set");
-        let schema = self.database_schema.unwrap_or_else(|| "public".to_owned());
-
-        let connect_options = ConnectOptions::new(url)
-            .set_schema_search_path(schema)
-            .to_owned();
-
-        let db = Database::connect(connect_options).await?;
-
-        let manager = SchemaManager::new(db.into_schema_manager_connection());
-        let manager = SchemaDataManager::new(&manager, &storage, &self.options);
-
-        for run in running {
-            tracing::info!("Running data migration: {}", run.name());
-
-            match direction {
-                Direction::Up => run.up(&manager).await?,
-                Direction::Down => run.down(&manager).await?,
-            }
+        Runner {
+            direction,
+            storage,
+            migrations: self.migrations,
+            database_url: self
+                .database_url
+                .expect("Environment variable 'DATABASE_URL' not set"),
+            database_schema: self.database_schema,
+            options: self.options,
         }
+        .run::<Migrator>()
+        .await?;
 
         Ok(())
     }
@@ -144,6 +113,7 @@ impl Command {
     }
 }
 
+#[allow(clippy::unwrap_used)]
 #[tokio::main]
 async fn main() {
     let cli = Cli::parse();

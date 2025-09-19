@@ -13,6 +13,8 @@ path = "src/main.rs"
 trustify-common = { workspace = true }
 trustify-db = { workspace = true }
 trustify-infrastructure = { workspace = true }
+trustify-migration = { workspace = true }
+trustify-module-storage = { workspace = true }
 trustify-server = { workspace = true }
 
 anyhow = { workspace = true }

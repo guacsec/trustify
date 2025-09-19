@@ -1,7 +1,9 @@
+use migration::data::{Direction, Options, Runner};
 use postgresql_embedded::{PostgreSQL, VersionReq};
 use std::{collections::HashMap, env, fs::create_dir_all, process::ExitCode, time::Duration};
 use trustify_common::{config::Database, db};
 use trustify_infrastructure::otel::{Tracing, init_tracing};
+use trustify_module_storage::config::StorageConfig;
 
 #[derive(clap::Args, Debug)]
 pub struct Run {
@@ -11,21 +13,39 @@ pub struct Run {
     pub(crate) database: Database,
 }
 
-#[derive(clap::Subcommand, Debug)]
+#[derive(clap::Subcommand, Debug, Clone)]
 pub enum Command {
+    /// Create database
     Create,
+    /// Run migrations (up)
     Migrate,
+    /// Remove all migrations and re-apply them (DANGER)
     Refresh,
+    /// Run specific data migrations
+    Data {
+        // Migrations to run
+        #[arg()]
+        name: Vec<String>,
+        #[command(flatten)]
+        storage: StorageConfig,
+        #[command(flatten)]
+        options: Options,
+    },
 }
 
 impl Run {
     pub async fn run(self) -> anyhow::Result<ExitCode> {
         init_tracing("db-run", Tracing::Disabled);
         use Command::*;
-        match self.command {
+        match self.command.clone() {
             Create => self.create().await,
             Migrate => self.migrate().await,
             Refresh => self.refresh().await,
+            Data {
+                name,
+                storage,
+                options,
+            } => self.data(Direction::Up, name, storage, options).await,
         }
     }
 
@@ -50,6 +70,31 @@ impl Run {
         match db::Database::new(&self.database).await {
             Ok(db) => {
                 trustify_db::Database(&db).migrate().await?;
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    async fn data(
+        self,
+        direction: Direction,
+        migrations: Vec<String>,
+        storage: StorageConfig,
+        options: Options,
+    ) -> anyhow::Result<ExitCode> {
+        match db::Database::new(&self.database).await {
+            Ok(db) => {
+                trustify_db::Database(&db)
+                    .data_migrate(Runner {
+                        database_url: self.database.to_url(),
+                        database_schema: None,
+                        storage: storage.into_storage(false).await?,
+                        direction,
+                        migrations,
+                        options,
+                    })
+                    .await?;
                 Ok(ExitCode::SUCCESS)
             }
             Err(e) => Err(e),

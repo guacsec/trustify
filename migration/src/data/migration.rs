@@ -3,6 +3,7 @@ use crate::{
     data::{Document, DocumentProcessor, Handler, Options},
 };
 use clap::Parser;
+use futures::executor::block_on;
 use sea_orm::DbErr;
 use sea_orm_migration::{MigrationName, MigrationTrait, SchemaManager};
 use std::{ffi::OsString, sync::LazyLock};
@@ -22,14 +23,7 @@ fn init_storage() -> DispatchBackend {
     // create from env-vars only
     let config = StorageConfig::parse_from::<_, OsString>(vec![]);
 
-    tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(async {
-            config
-                .into_storage(false)
-                .await
-                .expect("Failed to create storage")
-        })
-    })
+    block_on(config.into_storage(false)).expect("task panicked")
 }
 
 fn init_options() -> Options {

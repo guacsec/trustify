@@ -17,6 +17,7 @@ trustify-module-storage = { workspace = true }
 anyhow = { workspace = true }
 bytes = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
+futures = { workspace = true }
 futures-util = { workspace = true }
 sea-orm = { workspace = true }
 sea-orm-migration = { workspace = true, features = ["runtime-tokio-rustls", "sqlx-postgres", "with-uuid"] }

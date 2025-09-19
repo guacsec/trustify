@@ -1,5 +1,8 @@
 mod migration;
+mod run;
+
 pub use migration::*;
+pub use run::*;
 
 use anyhow::{anyhow, bail};
 use bytes::BytesMut;
@@ -10,7 +13,7 @@ use futures_util::{
 use sea_orm::{
     ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, ModelTrait, TransactionTrait,
 };
-use sea_orm_migration::SchemaManager;
+use sea_orm_migration::{MigrationTrait, SchemaManager};
 use std::num::NonZeroUsize;
 use trustify_common::id::Id;
 use trustify_entity::{sbom, source_document};
@@ -105,12 +108,12 @@ impl Default for Options {
 }
 
 pub trait DocumentProcessor {
-    async fn process<D>(
+    fn process<D>(
         &self,
         storage: &DispatchBackend,
         options: &Options,
         f: impl Handler<D>,
-    ) -> anyhow::Result<(), DbErr>
+    ) -> impl Future<Output = anyhow::Result<(), DbErr>>
     where
         D: Document;
 }
@@ -179,4 +182,43 @@ macro_rules! sbom {
     (async | $doc:ident, $model:ident, $tx:ident | $body:block) => {
         $crate::handler!(async |$doc: $crate::data::Sbom, $model, $tx| $body)
     };
+}
+
+pub trait MigratorWithData {
+    fn data_migrations() -> Vec<Box<dyn MigrationTraitWithData>>;
+}
+
+#[derive(Default)]
+pub struct Migrations {
+    all: Vec<Migration>,
+}
+
+impl IntoIterator for Migrations {
+    type Item = Migration;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.all.into_iter()
+    }
+}
+
+pub enum Migration {
+    Normal(Box<dyn MigrationTrait>),
+    Data(Box<dyn MigrationTraitWithData>),
+}
+
+impl Migrations {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn normal(mut self, migration: impl MigrationTrait + 'static) -> Self {
+        self.all.push(Migration::Normal(Box::new(migration)));
+        self
+    }
+
+    pub fn data(mut self, migration: impl MigrationTraitWithData + 'static) -> Self {
+        self.all.push(Migration::Data(Box::new(migration)));
+        self
+    }
 }

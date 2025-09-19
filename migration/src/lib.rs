@@ -1,7 +1,9 @@
+use crate::data::{
+    Migration, MigrationTraitWithData, MigrationWithData, Migrations, MigratorWithData,
+};
 pub use sea_orm_migration::prelude::*;
 
-mod data;
-pub use crate::data::{MigrationTraitWithData, MigrationWithData, Options, SchemaDataManager};
+pub mod data;
 
 mod m0000010_init;
 mod m0000020_add_sbom_group;
@@ -36,41 +38,6 @@ mod m0001180_expand_spdx_licenses_with_mappings_function;
 mod m0001190_optimize_product_advisory_query;
 mod m0001200_source_document_fk_indexes;
 mod m0002000_example_data_migration;
-
-#[derive(Default)]
-pub struct Migrations {
-    all: Vec<Migration>,
-}
-
-impl IntoIterator for Migrations {
-    type Item = Migration;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.all.into_iter()
-    }
-}
-
-pub enum Migration {
-    Normal(Box<dyn MigrationTrait>),
-    Data(Box<dyn MigrationTraitWithData>),
-}
-
-impl Migrations {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn normal(mut self, migration: impl MigrationTrait + 'static) -> Self {
-        self.all.push(Migration::Normal(Box::new(migration)));
-        self
-    }
-
-    pub fn data(mut self, migration: impl MigrationTraitWithData + 'static) -> Self {
-        self.all.push(Migration::Data(Box::new(migration)));
-        self
-    }
-}
 
 pub struct Migrator;
 
@@ -111,8 +78,10 @@ impl Migrator {
             .normal(m0001200_source_document_fk_indexes::Migration)
             .data(m0002000_example_data_migration::Migration)
     }
+}
 
-    pub fn data_migrations() -> Vec<Box<dyn MigrationTraitWithData>> {
+impl MigratorWithData for Migrator {
+    fn data_migrations() -> Vec<Box<dyn MigrationTraitWithData>> {
         Self::migrations()
             .into_iter()
             .filter_map(|migration| match migration {
@@ -126,6 +95,7 @@ impl Migrator {
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
+        // Get all migrations, wrap data migrations. This will initialize the storage config.
         Self::migrations()
             .into_iter()
             .map(|migration| match migration {

@@ -2,6 +2,7 @@ pub mod embedded;
 
 use anyhow::{Context, anyhow, ensure};
 use migration::Migrator;
+use migration::data::Runner;
 use postgresql_commands::{CommandBuilder, psql::PsqlBuilder};
 use sea_orm::{ConnectionTrait, Statement};
 use sea_orm_migration::prelude::MigratorTrait;
@@ -120,5 +121,9 @@ impl<'a> Database<'a> {
         // we do not migrate the database here automatically
 
         Ok(db)
+    }
+
+    pub async fn data_migrate(&self, runner: Runner) -> Result<(), anyhow::Error> {
+        runner.run::<Migrator>().await
     }
 }
