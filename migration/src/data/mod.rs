@@ -1,7 +1,9 @@
 mod migration;
+mod partition;
 mod run;
 
 pub use migration::*;
+pub use partition::*;
 pub use run::*;
 
 use anyhow::{anyhow, bail};
@@ -14,7 +16,7 @@ use sea_orm::{
     ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, ModelTrait, TransactionTrait,
 };
 use sea_orm_migration::{MigrationTrait, SchemaManager};
-use std::num::NonZeroUsize;
+use std::num::{NonZeroU64, NonZeroUsize};
 use trustify_common::id::Id;
 use trustify_entity::{sbom, source_document};
 use trustify_module_storage::service::{StorageBackend, StorageKey, dispatch::DispatchBackend};
@@ -27,7 +29,7 @@ pub enum Sbom {
 
 #[allow(async_fn_in_trait)]
 pub trait Document: Sized + Send + Sync {
-    type Model: Send;
+    type Model: Partitionable + Send;
 
     async fn all<C>(tx: &C) -> Result<Vec<Self::Model>, DbErr>
     where
@@ -95,14 +97,22 @@ where
 
 #[derive(Clone, Debug, PartialEq, Eq, clap::Parser)]
 pub struct Options {
+    /// Number of concurrent documents being processes
     #[arg(long, env = "MIGRATION_DATA_CONCURRENT", default_value = "5")]
     pub concurrent: NonZeroUsize,
+
+    #[arg(long, env = "MIGRATION_DATA_CURRENT_RUNNER", default_value = "0")]
+    pub current: u64,
+    #[arg(long, env = "MIGRATION_DATA_TOTAL_RUNNER", default_value = "1")]
+    pub total: NonZeroU64,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
             concurrent: unsafe { NonZeroUsize::new_unchecked(5) },
+            current: 0,
+            total: unsafe { NonZeroU64::new_unchecked(1) },
         }
     }
 }
@@ -128,30 +138,34 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
     where
         D: Document,
     {
+        let partition = Partition::default();
         let db = self.get_connection();
 
         let tx = db.begin().await?;
         let all = D::all(&tx).await?;
         drop(tx);
 
-        stream::iter(all)
-            .map(async |model| {
-                let tx = db.begin().await?;
+        stream::iter(
+            all.into_iter()
+                .filter(|model| partition.is_selected::<D>(&model)),
+        )
+        .map(async |model| {
+            let tx = db.begin().await?;
 
-                let doc = D::source(&model, storage, &tx).await.map_err(|err| {
-                    DbErr::Migration(format!("Failed to load source document: {err}"))
-                })?;
-                f.call(doc, model, &tx).await.map_err(|err| {
-                    DbErr::Migration(format!("Failed to process document: {err}"))
-                })?;
+            let doc = D::source(&model, storage, &tx).await.map_err(|err| {
+                DbErr::Migration(format!("Failed to load source document: {err}"))
+            })?;
+            f.call(doc, model, &tx)
+                .await
+                .map_err(|err| DbErr::Migration(format!("Failed to process document: {err}")))?;
 
-                tx.commit().await?;
+            tx.commit().await?;
 
-                Ok::<_, DbErr>(())
-            })
-            .buffer_unordered(options.concurrent.into())
-            .try_collect::<Vec<_>>()
-            .await?;
+            Ok::<_, DbErr>(())
+        })
+        .buffer_unordered(options.concurrent.into())
+        .try_collect::<Vec<_>>()
+        .await?;
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 use crate::{
     async_trait,
-    data::{Document, DocumentProcessor, Handler, Options},
+    data::{Document, DocumentProcessor, Handler, Options, Partition},
 };
 use clap::Parser;
 use futures::executor::block_on;
@@ -55,6 +55,7 @@ pub struct SchemaDataManager<'c> {
     pub manager: &'c SchemaManager<'c>,
     storage: &'c DispatchBackend,
     options: &'c Options,
+    partition: Partition,
 }
 
 impl<'c> SchemaDataManager<'c> {
@@ -63,10 +64,16 @@ impl<'c> SchemaDataManager<'c> {
         storage: &'c DispatchBackend,
         options: &'c Options,
     ) -> Self {
+        let partition = Partition {
+            current: options.current,
+            total: options.total,
+        };
+
         Self {
             manager,
             storage,
             options,
+            partition,
         }
     }
 

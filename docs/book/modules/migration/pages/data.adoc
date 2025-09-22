@@ -1,0 +1,54 @@
+= Data migration guide
+
+In some cases, it is necessary to also migrate data during an upgrade. This may require the re-ingestion of all stored
+documents.
+
+This is the case, for example, a new field is added, which requires the extraction of information from the original
+document.
+
+== Strategy
+
+The overall strategy for this is:
+
+* Prevent access to the in-migration database
+* Create new database features (columns, …) in a compatible way (e.g. "allow nulls")
+* Process re-ingestion of documents
+* Modify database features to the target definition (e.g. "remove nullable")
+* Switch to new software version
+* Grant access to the new database structures
+
+This can be achieved with a read-only replica:
+
+* Prevent access to the in-migration database
+    * Create a read-only replica of the database
+    * Reconfigure trustify to use the read-only replica
+    * All mutable operations will fail, reporting `503 Service Unavailable`
+* Create new database features
+* Process re-ingestion of documents
+* Modify database features to the target definition
+* Switch to new software version
+* Grant access to the new database structures
+    * Switch to new database version
+    * Drop old, read-only replica
+
+== Running the re-ingestion
+
+The re-ingestion can be run in two ways:
+
+* During the SeoORM migration
+* Before the SeoORM migration
+
+The main difference is that when running during the SeoORM migration, you have less control over the process. It will
+be driven by the SeoORM migration, and you have to wait until everything is finished.
+
+Running before the SeoORM migration, you can, for example, run multiple instances of the re-ingestion. You can also run
+re-ingestion on a database copy, and then switch over to replace the database with the migrated version.
+
+Afterwards, you can run SeoORM migrations, which will then skip those DB modifications (as they are already applied) and
+also skip the re-ingestion.
+
+== The lazy way
+
+The lazy way, which is the default, will simply perform those steps during the SeaORM migration. However, there are a
+bunch of downsides. That's why it is not recommended for production setups. However, it may just work fine for small
+test setup. Making the process a lot easier.
