@@ -246,6 +246,7 @@ pub struct SbomStatus {
     pub status: String,
     pub context: Option<StatusContext>,
     pub packages: Vec<SbomPackage>,
+    pub scores: Vec<crate::common::model::Score>,
 }
 
 impl SbomStatus {
@@ -268,6 +269,10 @@ impl SbomStatus {
     ) -> Result<Self, Error> {
         let cvss3 = vulnerability.find_related(cvss3::Entity).all(tx).await?;
         let average = Score::from_iter(cvss3.iter().map(Cvss3Base::from));
+        let scores = cvss3
+            .into_iter()
+            .filter_map(|cvss3| crate::common::model::Score::try_from(cvss3).ok())
+            .collect();
 
         Ok(Self {
             vulnerability: VulnerabilityHead::from_advisory_vulnerability_entity(
@@ -279,6 +284,7 @@ impl SbomStatus {
             average_score: average.value(),
             status,
             packages,
+            scores,
         })
     }
 
