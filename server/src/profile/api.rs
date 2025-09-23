@@ -9,8 +9,7 @@ use actix_web::web;
 use anyhow::Context;
 use bytesize::ByteSize;
 use futures::FutureExt;
-use humantime::parse_duration;
-use std::{env, fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc};
+use std::{env, fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc, time::Duration};
 use tokio_schedule::{Job, every};
 use trustify_auth::{
     auth::AuthConfigArguments,
@@ -39,7 +38,7 @@ use trustify_module_storage::{
 use trustify_module_ui::{UI, endpoints::UiResources};
 use utoipa::openapi::{Info, License};
 
-const GC_FREQ: u64 = 300;
+const GC_FREQ: Duration = Duration::from_secs(60 * 60);
 const ENV_GC_FREQ: &str = "TRUSTD_GC_FREQ";
 
 /// Run the API server
@@ -370,24 +369,25 @@ impl InitData {
 
 fn schedule_db_tasks(db: db::Database) {
     let freq = match env::var(ENV_GC_FREQ) {
-        Ok(s) => match parse_duration(&s) {
-            Ok(t) => t.as_secs(),
+        Ok(s) => match humantime::parse_duration(&s) {
+            Ok(t) => t,
             Err(e) => {
                 log::warn!("Failed to parse {ENV_GC_FREQ}='{s}': {e}");
                 GC_FREQ
             }
         },
         _ => GC_FREQ,
-    } as u32;
-    if freq < 1 {
+    };
+    if freq < Duration::from_secs(1) {
         log::warn!("GC is disabled; to enable, set {ENV_GC_FREQ} to at least 1s");
         return;
     }
-    log::info!("Setting GC frequency to {freq}s");
-    let gc_purls = every(freq).seconds().perform(move || {
+    log::info!("GC frequency set to {}", humantime::Duration::from(freq));
+    let gc_purls = every(freq.as_secs() as u32).seconds().perform(move || {
         let db = db.clone();
         let service = PurlService::new();
         async move {
+            let start = std::time::Instant::now();
             match service.gc_purls(&db).await {
                 Ok(count) => {
                     if count > 0 {
@@ -396,6 +396,8 @@ fn schedule_db_tasks(db: db::Database) {
                 }
                 Err(e) => log::error!("Error collecting purl garbage: {e}"),
             }
+            let duration = start.elapsed();
+            log::info!("GC completed in {}", humantime::Duration::from(duration));
         }
     });
     tokio::spawn(gc_purls);
