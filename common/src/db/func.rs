@@ -76,3 +76,14 @@ impl UpdateDeprecatedAdvisory {
         db.execute(stmt).await
     }
 }
+
+/// The function expanding the license replacing all 'LicenseRef-' instances
+/// with the actual license they refer to.
+pub struct ExpandLicenseExpression;
+
+impl Iden for ExpandLicenseExpression {
+    #[allow(clippy::unwrap_used)]
+    fn unquoted(&self, s: &mut dyn Write) {
+        write!(s, "expand_license_expression").unwrap()
+    }
+}

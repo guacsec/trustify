@@ -8,8 +8,8 @@ use crate::{
     },
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, IntoIdentity, QueryFilter,
-    QueryOrder, QuerySelect, QueryTrait, RelationTrait, Select, prelude::Uuid,
+    ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
+    QuerySelect, QueryTrait, RelationTrait, Select, prelude::Uuid,
 };
 use sea_query::{
     ColumnType, Condition, Expr, Func, JoinType, Order, SelectStatement, SimpleExpr, UnionType,
@@ -18,6 +18,7 @@ use sea_query::{
 use tracing::instrument;
 use trustify_common::{
     db::{
+        ExpandLicenseExpression,
         limiter::LimiterTrait,
         query::{Columns, Filtering, IntoColumns, Query, q},
     },
@@ -33,6 +34,8 @@ use trustify_module_ingestor::common::Deprecation;
 
 #[derive(Default)]
 pub struct PurlService {}
+
+const LICENSE: &str = "license";
 
 impl PurlService {
     pub fn new() -> Self {
@@ -297,7 +300,6 @@ impl PurlService {
         paginated: Paginated,
         connection: &C,
     ) -> Result<PaginatedResults<PurlSummary>, Error> {
-        const LICENSE: &str = "license";
         let mut select = qualified_purl::Entity::find().filtering_with(
             query.clone(),
             qualified_purl::Entity
@@ -360,7 +362,7 @@ impl PurlService {
                 license::Entity
                     .columns()
                     .translator(|field, operator, value| match field {
-                        "license" => Some(format!("text{operator}{value}")),
+                        LICENSE => Some(format!("text{operator}{value}")),
                         _ => None,
                     }),
             )?
@@ -368,14 +370,15 @@ impl PurlService {
     }
 
     fn build_spdx_license_query(license_query: Query) -> Result<SelectStatement, Error> {
+        const EXPANDED_LICENSE: &str = "expanded_license";
         Ok(Self::create_license_filtering_base_query()
             .filtering_with(
                 license_query,
                 Columns::default()
                     .add_expr(
-                        "expanded_license",
+                        EXPANDED_LICENSE,
                         SimpleExpr::FunctionCall(
-                            Func::cust("expand_license_expression".into_identity())
+                            Func::cust(ExpandLicenseExpression)
                                 .arg(Expr::col(license::Column::Text))
                                 .arg(Expr::col((
                                     sbom_package_license::Entity,
@@ -385,7 +388,7 @@ impl PurlService {
                         ColumnType::Text,
                     )
                     .translator(|field, operator, value| match field {
-                        "license" => Some(format!("expanded_license{operator}{value}")),
+                        LICENSE => Some(format!("{EXPANDED_LICENSE}{operator}{value}")),
                         _ => None,
                     }),
             )?
