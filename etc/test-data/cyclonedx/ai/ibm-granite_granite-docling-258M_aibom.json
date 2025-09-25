@@ -1,0 +1,213 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "authors": [
+        {
+          "name": "ibm-granite"
+        }
+      ],
+      "bom-ref": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+      "copyright": "NOASSERTION",
+      "description": "No description available",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://huggingface.co/ibm-granite/granite-docling-258M"
+        }
+      ],
+      "group": "ibm-granite",
+      "licenses": [
+        {
+          "license": {
+            "id": "unknown",
+            "url": "https://spdx.org/licenses/"
+          }
+        }
+      ],
+      "manufacturer": {
+        "name": "ibm-granite",
+        "url": [
+          "https://huggingface.co/ibm-granite"
+        ]
+      },
+      "modelCard": {
+        "modelParameters": {
+          "architectureFamily": "transformer",
+          "inputs": [
+            {
+              "format": "text"
+            }
+          ],
+          "modelArchitecture": "granite-docling-258MForCausalLM",
+          "outputs": [
+            {
+              "format": "generated-text"
+            }
+          ],
+          "task": "text-generation"
+        },
+        "properties": [
+          {
+            "name": "bomFormat",
+            "value": "CycloneDX"
+          },
+          {
+            "name": "specVersion",
+            "value": "1.6"
+          },
+          {
+            "name": "serialNumber",
+            "value": "urn:uuid:ibm-granite-granite-docling-258M"
+          },
+          {
+            "name": "version",
+            "value": "1.0.0"
+          },
+          {
+            "name": "primaryPurpose",
+            "value": "image-text-to-text"
+          },
+          {
+            "name": "suppliedBy",
+            "value": "ibm-granite"
+          },
+          {
+            "name": "licenses",
+            "value": "apache-2.0"
+          },
+          {
+            "name": "safetyRiskAssessment",
+            "value": "and fairness, misinformation, and autonomous decision-making, and ethical considerations, including but not limited to: bias and fairness, misinformation, and autonomous decision-making, considerations, the model may in some cases produce inaccurate, biased, offensive or unwanted responses to user prompts, in prompts and responses across key dimensions outlined in the IBM AI Risk Atlas, of triggering unwanted output"
+          },
+          {
+            "name": "typeOfModel",
+            "value": "idefics3"
+          },
+          {
+            "name": "downloadLocation",
+            "value": "https://huggingface.co/ibm-granite/granite-docling-258M/tree/main"
+          },
+          {
+            "name": "external_references",
+            "value": "[{\"type\": \"website\", \"url\": \"https://huggingface.co/ibm-granite/granite-docling-258M\", \"comment\": \"Model repository\"}, {\"type\": \"distribution\", \"url\": \"https://huggingface.co/ibm-granite/granite-docling-258M/tree/main\", \"comment\": \"Model files\"}]"
+          }
+        ],
+        "quantitativeAnalysis": {
+          "graphics": {}
+        }
+      },
+      "name": "granite-docling-258M",
+      "publisher": "ibm-granite",
+      "purl": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+      "supplier": {
+        "name": "ibm-granite",
+        "url": [
+          "https://huggingface.co/ibm-granite"
+        ]
+      },
+      "type": "machine-learning-model",
+      "version": "1.0"
+    }
+  ],
+  "dependencies": [
+    {
+      "dependsOn": [
+        "pkg:huggingface/ibm-granite/granite-docling-258M@1.0"
+      ],
+      "ref": "pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0"
+    }
+  ],
+  "externalReferences": [
+    {
+      "type": "distribution",
+      "url": "https://huggingface.co/ibm-granite/granite-docling-258M"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "bom-ref": "pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0",
+      "copyright": "NOASSERTION",
+      "description": "No description available",
+      "name": "granite-docling-258M",
+      "purl": "pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0",
+      "type": "application",
+      "version": "1.0"
+    },
+    "properties": [
+      {
+        "name": "primaryPurpose",
+        "value": "image-text-to-text"
+      },
+      {
+        "name": "suppliedBy",
+        "value": "ibm-granite"
+      },
+      {
+        "name": "typeOfModel",
+        "value": "idefics3"
+      },
+      {
+        "name": "bomFormat",
+        "value": "CycloneDX"
+      },
+      {
+        "name": "specVersion",
+        "value": "1.6"
+      },
+      {
+        "name": "serialNumber",
+        "value": "urn:uuid:ibm-granite-granite-docling-258M"
+      },
+      {
+        "name": "version",
+        "value": "1.0.0"
+      },
+      {
+        "name": "primaryPurpose",
+        "value": "image-text-to-text"
+      },
+      {
+        "name": "suppliedBy",
+        "value": "ibm-granite"
+      },
+      {
+        "name": "licenses",
+        "value": "apache-2.0"
+      },
+      {
+        "name": "safetyRiskAssessment",
+        "value": "and fairness, misinformation, and autonomous decision-making, and ethical considerations, including but not limited to: bias and fairness, misinformation, and autonomous decision-making, considerations, the model may in some cases produce inaccurate, biased, offensive or unwanted responses to user prompts, in prompts and responses across key dimensions outlined in the IBM AI Risk Atlas, of triggering unwanted output"
+      },
+      {
+        "name": "typeOfModel",
+        "value": "idefics3"
+      },
+      {
+        "name": "downloadLocation",
+        "value": "https://huggingface.co/ibm-granite/granite-docling-258M/tree/main"
+      },
+      {
+        "name": "external_references",
+        "value": "[{\"type\": \"website\", \"url\": \"https://huggingface.co/ibm-granite/granite-docling-258M\", \"comment\": \"Model repository\"}, {\"type\": \"distribution\", \"url\": \"https://huggingface.co/ibm-granite/granite-docling-258M/tree/main\", \"comment\": \"Model files\"}]"
+      }
+    ],
+    "timestamp": "2025-09-26T10:04:16.628402Z",
+    "tools": {
+      "components": [
+        {
+          "bom-ref": "pkg:generic/aetheris-ai/aetheris-aibom-generator@1.0.0",
+          "manufacturer": {
+            "name": "Aetheris AI"
+          },
+          "name": "aetheris-aibom-generator",
+          "type": "application",
+          "version": "1.0"
+        }
+      ]
+    }
+  },
+  "serialNumber": "urn:uuid:445dd258-a0b0-426c-aee0-e9d135fb3f56",
+  "specVersion": "1.6",
+  "version": 1
+}

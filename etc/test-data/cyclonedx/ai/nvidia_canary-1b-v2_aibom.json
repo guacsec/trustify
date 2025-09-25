@@ -1,0 +1,221 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "authors": [
+        {
+          "name": "nvidia"
+        }
+      ],
+      "bom-ref": "pkg:huggingface/nvidia/canary-1b-v2@1.0",
+      "copyright": "NOASSERTION",
+      "description": "No description available",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://huggingface.co/nvidia/canary-1b-v2"
+        }
+      ],
+      "group": "nvidia",
+      "licenses": [
+        {
+          "license": {
+            "id": "unknown",
+            "url": "https://spdx.org/licenses/"
+          }
+        }
+      ],
+      "manufacturer": {
+        "name": "nvidia",
+        "url": [
+          "https://huggingface.co/nvidia"
+        ]
+      },
+      "modelCard": {
+        "modelParameters": {
+          "architectureFamily": "transformer",
+          "inputs": [
+            {
+              "format": "text"
+            }
+          ],
+          "modelArchitecture": "canary-1b-v2ForCausalLM",
+          "outputs": [
+            {
+              "format": "generated-text"
+            }
+          ],
+          "task": "text-generation"
+        },
+        "properties": [
+          {
+            "name": "bomFormat",
+            "value": "CycloneDX"
+          },
+          {
+            "name": "specVersion",
+            "value": "1.6"
+          },
+          {
+            "name": "serialNumber",
+            "value": "urn:uuid:nvidia-canary-1b-v2"
+          },
+          {
+            "name": "version",
+            "value": "1.0.0"
+          },
+          {
+            "name": "primaryPurpose",
+            "value": "automatic-speech-recognition"
+          },
+          {
+            "name": "suppliedBy",
+            "value": "nvidia"
+          },
+          {
+            "name": "licenses",
+            "value": "cc-by-4.0"
+          },
+          {
+            "name": "limitation",
+            "value": "adhered to, & Mitigation                                                                    |  Transcripts and translations may be not 100% accurate"
+          },
+          {
+            "name": "safetyRiskAssessment",
+            "value": "</span>\n\nField                                               |  Response\n:---------------------------------------------------:|:----------------------------------\nModel Application(s)                               |  Speech to Text Transcription\nDescribe the life critical impact   |  None\nUse Case Restrictions                              | Abide by [CC-BY-4, </span>\n\nField                                                                                               |  Response\n:---------------------------------------------------------------------------------------------------|:---------------:\nParticipation considerations from adversely impacted groups [protected classes](https://www, |  If a word is not trained in the language model and not presented in vocabulary, the word is not likely to be recognized, & Security, and Privacy Subcards [here](https://developer, |  None\n\n## <span style=\"color:#b37800;\">Explainability:</span>\n\nField                                                                                                  |  Response\n:------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------:\nIntended Domain                                                                   |  Speech to Text Transcription and Translation\nModel Type                                                                                            |  Attention Encoder-Decoder\nIntended Users                                                                                        |  This model is intended for developers, researchers, academics, and industries building conversational based applications"
+          },
+          {
+            "name": "typeOfModel",
+            "value": "transformer"
+          },
+          {
+            "name": "downloadLocation",
+            "value": "https://huggingface.co/nvidia/canary-1b-v2/tree/main"
+          },
+          {
+            "name": "external_references",
+            "value": "[{\"type\": \"website\", \"url\": \"https://huggingface.co/nvidia/canary-1b-v2\", \"comment\": \"Model repository\"}, {\"type\": \"distribution\", \"url\": \"https://huggingface.co/nvidia/canary-1b-v2/tree/main\", \"comment\": \"Model files\"}]"
+          }
+        ],
+        "quantitativeAnalysis": {
+          "graphics": {}
+        }
+      },
+      "name": "canary-1b-v2",
+      "publisher": "nvidia",
+      "purl": "pkg:huggingface/nvidia/canary-1b-v2@1.0",
+      "supplier": {
+        "name": "nvidia",
+        "url": [
+          "https://huggingface.co/nvidia"
+        ]
+      },
+      "type": "machine-learning-model",
+      "version": "1.0"
+    }
+  ],
+  "dependencies": [
+    {
+      "dependsOn": [
+        "pkg:huggingface/nvidia/canary-1b-v2@1.0"
+      ],
+      "ref": "pkg:generic/nvidia%2Fcanary-1b-v2@1.0"
+    }
+  ],
+  "externalReferences": [
+    {
+      "type": "distribution",
+      "url": "https://huggingface.co/nvidia/canary-1b-v2"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "bom-ref": "pkg:generic/nvidia%2Fcanary-1b-v2@1.0",
+      "copyright": "NOASSERTION",
+      "description": "No description available",
+      "name": "canary-1b-v2",
+      "purl": "pkg:generic/nvidia%2Fcanary-1b-v2@1.0",
+      "type": "application",
+      "version": "1.0"
+    },
+    "properties": [
+      {
+        "name": "primaryPurpose",
+        "value": "automatic-speech-recognition"
+      },
+      {
+        "name": "suppliedBy",
+        "value": "nvidia"
+      },
+      {
+        "name": "typeOfModel",
+        "value": "transformer"
+      },
+      {
+        "name": "bomFormat",
+        "value": "CycloneDX"
+      },
+      {
+        "name": "specVersion",
+        "value": "1.6"
+      },
+      {
+        "name": "serialNumber",
+        "value": "urn:uuid:nvidia-canary-1b-v2"
+      },
+      {
+        "name": "version",
+        "value": "1.0.0"
+      },
+      {
+        "name": "primaryPurpose",
+        "value": "automatic-speech-recognition"
+      },
+      {
+        "name": "suppliedBy",
+        "value": "nvidia"
+      },
+      {
+        "name": "licenses",
+        "value": "cc-by-4.0"
+      },
+      {
+        "name": "limitation",
+        "value": "adhered to, & Mitigation                                                                    |  Transcripts and translations may be not 100% accurate"
+      },
+      {
+        "name": "safetyRiskAssessment",
+        "value": "</span>\n\nField                                               |  Response\n:---------------------------------------------------:|:----------------------------------\nModel Application(s)                               |  Speech to Text Transcription\nDescribe the life critical impact   |  None\nUse Case Restrictions                              | Abide by [CC-BY-4, </span>\n\nField                                                                                               |  Response\n:---------------------------------------------------------------------------------------------------|:---------------:\nParticipation considerations from adversely impacted groups [protected classes](https://www, |  If a word is not trained in the language model and not presented in vocabulary, the word is not likely to be recognized, & Security, and Privacy Subcards [here](https://developer, |  None\n\n## <span style=\"color:#b37800;\">Explainability:</span>\n\nField                                                                                                  |  Response\n:------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------:\nIntended Domain                                                                   |  Speech to Text Transcription and Translation\nModel Type                                                                                            |  Attention Encoder-Decoder\nIntended Users                                                                                        |  This model is intended for developers, researchers, academics, and industries building conversational based applications"
+      },
+      {
+        "name": "typeOfModel",
+        "value": "transformer"
+      },
+      {
+        "name": "downloadLocation",
+        "value": "https://huggingface.co/nvidia/canary-1b-v2/tree/main"
+      },
+      {
+        "name": "external_references",
+        "value": "[{\"type\": \"website\", \"url\": \"https://huggingface.co/nvidia/canary-1b-v2\", \"comment\": \"Model repository\"}, {\"type\": \"distribution\", \"url\": \"https://huggingface.co/nvidia/canary-1b-v2/tree/main\", \"comment\": \"Model files\"}]"
+      }
+    ],
+    "timestamp": "2025-09-26T10:07:22.695451Z",
+    "tools": {
+      "components": [
+        {
+          "bom-ref": "pkg:generic/aetheris-ai/aetheris-aibom-generator@1.0.0",
+          "manufacturer": {
+            "name": "Aetheris AI"
+          },
+          "name": "aetheris-aibom-generator",
+          "type": "application",
+          "version": "1.0"
+        }
+      ]
+    }
+  },
+  "serialNumber": "urn:uuid:ff4cd1d5-8396-4360-a7e1-e50e5127b6e4",
+  "specVersion": "1.6",
+  "version": 1
+}
