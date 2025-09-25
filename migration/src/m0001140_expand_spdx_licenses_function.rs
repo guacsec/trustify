@@ -17,6 +17,17 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        // Index supporting the query on licensing_infos table added with the SQL script below
+        manager
+            .create_index(
+                Index::create()
+                    .table(SbomPackageLicense::Table)
+                    .name(Indexes::LicenseIdIdx.to_string())
+                    .col(SbomPackageLicense::LicenseId)
+                    .to_owned(),
+            )
+            .await?;
+
         manager
             .get_connection()
             .execute_unprepared(include_str!(
@@ -39,6 +50,16 @@ impl MigrationTrait for Migration {
             .drop_index(
                 Index::drop()
                     .if_exists()
+                    .table(SbomPackageLicense::Table)
+                    .name(Indexes::LicenseIdIdx.to_string())
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .drop_index(
+                Index::drop()
+                    .if_exists()
                     .table(LicensingInfos::Table)
                     .name(Indexes::SbomIdIdx.to_string())
                     .to_owned(),
@@ -53,10 +74,17 @@ impl MigrationTrait for Migration {
 #[derive(DeriveIden)]
 pub enum Indexes {
     SbomIdIdx,
+    LicenseIdIdx,
 }
 
 #[derive(DeriveIden)]
 pub enum LicensingInfos {
     Table,
     SbomId,
+}
+
+#[derive(DeriveIden)]
+pub enum SbomPackageLicense {
+    Table,
+    LicenseId,
 }

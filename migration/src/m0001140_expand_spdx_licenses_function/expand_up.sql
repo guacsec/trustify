@@ -19,4 +19,4 @@ END LOOP;
 
 RETURN result_text;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql STABLE PARALLEL SAFE;
