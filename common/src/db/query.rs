@@ -86,7 +86,7 @@ impl Query {
         const RE: &str = r"^(?<field>[^\\]+?)(?<op>=|!=|~|!~|>=|>|<=|<)(?<value>.*)$";
         static LOCK: OnceLock<Regex> = OnceLock::new();
         #[allow(clippy::unwrap_used)]
-        let regex = LOCK.get_or_init(|| (Regex::new(RE).unwrap()));
+        let regex = LOCK.get_or_init(|| Regex::new(RE).unwrap());
 
         fn encode(s: &str) -> String {
             s.replace(r"\&", "\x07").replace(r"\|", "\x08")

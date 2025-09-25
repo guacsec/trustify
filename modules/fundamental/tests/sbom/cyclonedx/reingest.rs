@@ -36,7 +36,7 @@ async fn reingest(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             packages
                 .items
                 .iter()
-                .map(|p| (p.name.clone()))
+                .map(|p| p.name.clone())
                 .collect::<Vec<_>>(),
             vec!["simple".to_string()]
         );

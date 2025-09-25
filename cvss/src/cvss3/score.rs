@@ -27,7 +27,7 @@ impl Score {
     pub fn roundup(self) -> Score {
         let score_int = (self.0 * 100_000.0) as u64;
 
-        if score_int % 10000 == 0 {
+        if score_int.is_multiple_of(10000) {
             Score((score_int as f64) / 100_000.0)
         } else {
             let score_floor = ((score_int as f64) / 10_000.0).floor();
