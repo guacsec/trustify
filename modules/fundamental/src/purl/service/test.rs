@@ -636,7 +636,7 @@ async fn qualified_packages_filter_by_license(ctx: &TrustifyContext) -> Result<(
         )
         .await?;
 
-    log::debug!("{results:#?}");
+    // log::debug!("{results:#?}");
     // MTV SBOM contains 2 packages with the specified license
     assert_eq!(2, results.items.len());
 
@@ -661,6 +661,26 @@ async fn qualified_packages_filter_by_license(ctx: &TrustifyContext) -> Result<(
 
     log::debug!("{results:#?}");
     assert_eq!(4, results.items.len());
+
+    let results = service
+        .purls(
+            q("license~GPLv3+ with exceptions|Apache"),
+            Paginated::default(),
+            &ctx.db,
+        )
+        .await?;
+
+    log::debug!("{results:#?}");
+    // 'GPLv3+ with exceptions' is used in:
+    // "LicenseRef-12" => used in 2 packages
+    // "LicenseRef-16" => used in 1 package
+    //
+    // 'Apache' is used in:
+    // "LicenseRef-0" => used in 2 packages
+    // "LicenseRef-Apache" => never used in any package
+    // + directly declared in 52 packages
+    // Total = used in 57 packages
+    assert_eq!(57, results.items.len());
 
     let results = service
         .purls(
