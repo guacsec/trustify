@@ -50,6 +50,8 @@ pub struct SbomInformation {
     pub suppliers: Vec<String>,
     /// The licenses of the data itself, if known.
     pub data_licenses: Vec<String>,
+    /// The many versions of the described_by field
+    pub versions: Vec<String>,
 }
 
 impl From<()> for SbomInformation {
@@ -110,6 +112,7 @@ impl Graph {
             authors,
             suppliers,
             data_licenses,
+            versions,
         } = info.into();
 
         let new_id = match self
@@ -137,6 +140,7 @@ impl Graph {
             source_document_id: Set(Some(new_id)),
             labels: Set(labels.into().validate()?),
             data_licenses: Set(data_licenses),
+            versions: Set(versions),
         };
 
         let node_model = sbom_node::ActiveModel {

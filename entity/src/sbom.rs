@@ -21,6 +21,8 @@ pub struct Model {
 
     pub source_document_id: Option<Uuid>,
 
+    pub versions: Vec<String>,
+
     #[cfg_attr(
         feature = "async-graphql",
         graphql(derived(owned, into = "HashMap<String,String>", with = "Labels::from"))

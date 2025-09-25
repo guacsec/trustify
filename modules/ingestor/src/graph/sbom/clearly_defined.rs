@@ -88,6 +88,7 @@ impl Into<SbomInformation> for &Curation {
             authors: vec!["ClearlyDefined: Community-Curated".to_string()],
             suppliers: vec![],
             data_licenses: vec![],
+            versions: vec![],
         }
     }
 }

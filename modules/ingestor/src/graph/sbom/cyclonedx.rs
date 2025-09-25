@@ -121,6 +121,15 @@ impl<'a> From<Information<'a>> for SbomInformation {
             })
             .collect();
 
+        let versions = sbom
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.component.as_ref())
+            .and_then(|component| component.version.as_ref())
+            .into_iter()
+            .map(|v| v.to_string())
+            .collect();
+
         Self {
             node_id: CYCLONEDX_DOC_REF.to_string(),
             name,
@@ -128,6 +137,7 @@ impl<'a> From<Information<'a>> for SbomInformation {
             authors,
             suppliers,
             data_licenses,
+            versions,
         }
     }
 }

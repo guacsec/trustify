@@ -72,6 +72,23 @@ fn suppliers(sbom: &SPDX) -> Vec<String> {
     Vec::from_iter(result)
 }
 
+/// Extract versions for a SPDX SBOM by collecting versions of describing packages
+fn versions(sbom: &SPDX) -> Vec<String> {
+    // packages describing the SBOM
+    let describing = describing_packages(sbom);
+
+    // collect versions for matching packages
+    let mut result = HashSet::new();
+    for p in &sbom.package_information {
+        if !describing.contains(p.package_spdx_identifier.as_str()) {
+            continue;
+        }
+        result.extend(p.package_version.clone());
+    }
+
+    Vec::from_iter(result)
+}
+
 impl<'a> From<Information<'a>> for SbomInformation {
     fn from(value: Information<'a>) -> Self {
         let sbom = value.0;
@@ -96,6 +113,7 @@ impl<'a> From<Information<'a>> for SbomInformation {
                 .clone(),
             suppliers: suppliers(sbom),
             data_licenses: vec![value.0.document_creation_information.data_license.clone()],
+            versions: versions(sbom),
         }
     }
 }
