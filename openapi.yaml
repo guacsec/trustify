@@ -1322,6 +1322,87 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedResults_ImporterReport'
+  /api/v2/license:
+    get:
+      tags:
+      - license
+      summary: List all licenses from SBOMs
+      operationId: listLicenses
+      parameters:
+      - name: q
+        in: query
+        description: |-
+          Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
+          (* Query Grammar - EBNF Compliant *)
+          query = ( values | filter ) , { "&" , query } ;
+          values = value , { "|" , value } ;
+          filter = field , operator , values ;
+          operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<" ;
+          field = ("license")
+          value = { value_char } ;
+          value_char = escaped_char | normal_char ;
+          escaped_char = "\" , special_char ;
+          normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\' ? ;
+          special_char = "&" | "|" | "=" | "!" | "~" | ">" | "<" | "\" ;
+          (* Examples:
+              - Simple filter: title=example
+              - Multiple values filter: title=foo|bar|baz
+              - Complex filter: modified>2024-01-01
+              - Combined query: title=foo&average_severity=high
+              - Escaped characters: title=foo\&bar
+          *)
+        required: false
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: |-
+          EBNF grammar for the _sort_ parameter:
+          ```text
+              sort = field [ ':', order ] { ',' sort }
+              order = ( "asc" | "desc" )
+              field = ("license")
+          ```
+          The optional _order_ should be one of "asc" or "desc". If
+          omitted, the order defaults to "asc".
+
+          Each _field_ name must correspond to one of the columns of the
+          table holding the entities being queried. Those corresponding
+          to JSON objects in the database may use a ':' to delimit the
+          column name and the object key,
+          e.g. `purl:qualifiers:type:desc`
+        required: false
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: no limit
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      responses:
+        '200':
+          description: Matching licenses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResults_LicenseText'
   /api/v2/license/spdx/license:
     get:
       tags:
@@ -3991,6 +4072,13 @@ components:
           type: array
           items:
             type: string
+    LicenseText:
+      type: object
+      required:
+      - license
+      properties:
+        license:
+          type: string
     Message:
       type: object
       required:
@@ -4233,6 +4321,25 @@ components:
                 type: array
                 items:
                   type: string
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+    PaginatedResults_LicenseText:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+            - license
+            properties:
+              license:
+                type: string
         total:
           type: integer
           format: int64

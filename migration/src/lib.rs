@@ -26,6 +26,7 @@ mod m0001110_sbom_node_checksum_indexes;
 mod m0001120_sbom_external_node_indexes;
 mod m0001130_gover_cmp;
 mod m0001140_expand_spdx_licenses_function;
+mod m0001150_case_license_text_sbom_id_function;
 
 pub struct Migrator;
 
@@ -59,6 +60,7 @@ impl MigratorTrait for Migrator {
             Box::new(m0001120_sbom_external_node_indexes::Migration),
             Box::new(m0001130_gover_cmp::Migration),
             Box::new(m0001140_expand_spdx_licenses_function::Migration),
+            Box::new(m0001150_case_license_text_sbom_id_function::Migration),
         ]
     }
 }

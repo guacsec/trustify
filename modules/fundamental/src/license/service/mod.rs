@@ -12,9 +12,14 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
     RelationTrait, Statement,
 };
-use sea_query::{Condition, JoinType};
+use sea_query::{ColumnType, Condition, Expr, Func, JoinType, SimpleExpr};
+use serde::{Deserialize, Serialize};
+use trustify_common::db::CaseLicenseTextSbomId;
 use trustify_common::{
-    db::query::Query,
+    db::{
+        limiter::LimiterAsModelTrait,
+        query::{Columns, Filtering, Query},
+    },
     id::{Id, TrySelectForId},
     model::{Paginated, PaginatedResults},
 };
@@ -22,6 +27,7 @@ use trustify_entity::{
     license, licensing_infos, qualified_purl, sbom, sbom_node, sbom_package, sbom_package_cpe_ref,
     sbom_package_license, sbom_package_purl_ref,
 };
+use utoipa::ToSchema;
 
 pub mod license_export;
 
@@ -31,6 +37,11 @@ pub struct LicenseExportResult {
     pub sbom_package_license: Vec<SbomPackageLicense>,
     pub extracted_licensing_infos: Vec<ExtractedLicensingInfos>,
     pub sbom_name_group_version: Option<SbomNameId>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, FromQueryResult)]
+pub struct LicenseText {
+    pub license: String,
 }
 
 impl Default for LicenseService {
@@ -271,5 +282,36 @@ impl LicenseService {
             }
             None => Ok(None),
         }
+    }
+
+    pub async fn licenses<C: ConnectionTrait>(
+        &self,
+        search: Query,
+        paginated: Paginated,
+        connection: &C,
+    ) -> Result<PaginatedResults<LicenseText>, Error> {
+        let case_license_text_sbom_id = SimpleExpr::FunctionCall(
+            Func::cust(CaseLicenseTextSbomId)
+                .arg(Expr::col(license::Column::Text))
+                .arg(Expr::col((
+                    sbom_package_license::Entity,
+                    sbom_package_license::Column::SbomId,
+                ))),
+        );
+        const LICENSE: &str = "license";
+        let limiter = license::Entity::find()
+            .distinct()
+            .select_only()
+            .column_as(case_license_text_sbom_id.clone(), LICENSE)
+            .left_join(sbom_package_license::Entity)
+            .filtering_with(
+                search,
+                Columns::default().add_expr(LICENSE, case_license_text_sbom_id, ColumnType::Text),
+            )?
+            .limiting_as::<LicenseText>(connection, paginated.offset, paginated.limit);
+
+        let total = limiter.total().await?;
+        let items = limiter.fetch().await?;
+        Ok(PaginatedResults { total, items })
     }
 }
