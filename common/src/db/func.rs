@@ -87,3 +87,14 @@ impl Iden for ExpandLicenseExpression {
         write!(s, "expand_license_expression").unwrap()
     }
 }
+
+/// The function returns the final license, no matter if it's coming from a CycloneDx of SPDX
+/// license data stored in the DB.
+pub struct CaseLicenseTextSbomId;
+
+impl Iden for CaseLicenseTextSbomId {
+    #[allow(clippy::unwrap_used)]
+    fn unquoted(&self, s: &mut dyn Write) {
+        write!(s, "case_license_text_sbom_id").unwrap()
+    }
+}
