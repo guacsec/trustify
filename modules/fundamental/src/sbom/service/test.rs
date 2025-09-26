@@ -225,6 +225,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
     assert_eq!(results.total, 1);
     assert_eq!(results.items[0].head.name, "MTV-2.6");
 
+    // Test 3b: Filter by license found in single SBOMs
     let results = service
         .fetch_sboms(q("license=Apache 2.0"), Paginated::default(), (), &ctx.db)
         .await?;
@@ -299,7 +300,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
     // Test 8: Pagination with license filtering
     let results = service
         .fetch_sboms(
-            q("license~GPL"),
+            q("license~GPL").sort("name:desc"),
             Paginated {
                 offset: 0,
                 limit: 1,
@@ -313,7 +314,29 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
     // Should return at most 1 item but show total count
     // Both SBOMs contain GPL licenses, but limit to 1
     assert_eq!(results.items.len(), 1);
+    assert_eq!(
+        results.items[0].head.name,
+        "quay/quay-builder-qemu-rhcos-rhel8"
+    );
     assert_eq!(results.total, 2);
+
+    // Test 8b: Pagination with license filtering and offset > 0
+    let results_offset = service
+        .fetch_sboms(
+            q("license~GPL").sort("name:desc"),
+            Paginated {
+                offset: 1,
+                limit: 1,
+            },
+            (),
+            &ctx.db,
+        )
+        .await?;
+    log::debug!("Paginated license filter results with offset: {results_offset:#?}");
+    // Should return the second item and total should still be 2
+    assert_eq!(results_offset.items.len(), 1);
+    assert_eq!(results_offset.items[0].head.name, "MTV-2.6");
+    assert_eq!(results_offset.total, 2);
 
     // Test 9: Verify that SBOMs without license filters still work
     let all_results = service
