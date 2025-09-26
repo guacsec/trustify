@@ -1,10 +1,9 @@
 use crate::{sbom::model::SbomExternalPackageReference, sbom::service::SbomService};
-use std::collections::HashMap;
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 use test_context::test_context;
 use test_log::test;
-use trustify_common::cpe::Cpe;
 use trustify_common::{
+    cpe::Cpe,
     db::query::{Query, q},
     id::Id,
     model::Paginated,

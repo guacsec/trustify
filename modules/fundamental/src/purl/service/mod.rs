@@ -1,6 +1,8 @@
 use crate::{
     Error,
-    common::service::{LICENSE, apply_license_filtering, create_purl_license_filtering_base_query},
+    common::license_filtering::{
+        LICENSE, apply_license_filtering, create_purl_license_filtering_base_query,
+    },
     purl::model::{
         details::{
             base_purl::BasePurlDetails, purl::PurlDetails, versioned_purl::VersionedPurlDetails,

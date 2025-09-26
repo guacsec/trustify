@@ -3,7 +3,9 @@ use crate::{
     Error,
     common::{
         LicenseRefMapping,
-        service::{LICENSE, apply_license_filtering, create_sbom_license_filtering_base_query},
+        license_filtering::{
+            LICENSE, apply_license_filtering, create_sbom_license_filtering_base_query,
+        },
     },
     sbom::model::{
         SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
