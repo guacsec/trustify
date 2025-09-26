@@ -9,7 +9,7 @@ use crate::{
 use actix_web::{HttpResponse, Responder, get, web};
 use sea_orm::prelude::Uuid;
 use std::str::FromStr;
-use trustify_auth::{ReadSbom, authorizer::Require};
+use trustify_auth::{DeleteSbom, ReadSbom, authorizer::Require};
 use trustify_common::{
     db::Database, db::query::Query, id::IdError, model::Paginated, model::PaginatedResults,
     purl::Purl,
@@ -25,6 +25,7 @@ pub fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig, d
         .app_data(web::Data::new(purl_service))
         .service(base::get_base_purl)
         .service(base::all_base_purls)
+        .service(gc)
         .service(get)
         .service(all);
 }
@@ -79,6 +80,23 @@ pub async fn all(
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     Ok(HttpResponse::Ok().json(service.purls(search, paginated, db.as_ref()).await?))
+}
+
+#[utoipa::path(
+    operation_id = "garbageCollect",
+    tag = "purl",
+    responses(
+        (status = 200, description = "Performs garbage collection for orphaned packages", body = String),
+    ),
+)]
+#[get("/v2/purl/gc")]
+pub async fn gc(
+    service: web::Data<PurlService>,
+    db: web::Data<Database>,
+    _: Require<DeleteSbom>,
+) -> actix_web::Result<impl Responder> {
+    let result = service.gc_purls(db.as_ref()).await?;
+    Ok(HttpResponse::Ok().body(result.to_string()))
 }
 
 #[cfg(test)]
