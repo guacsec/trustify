@@ -1,7 +1,10 @@
 use super::SbomService;
 use crate::{
     Error,
-    common::LicenseRefMapping,
+    common::{
+        LicenseRefMapping,
+        service::{LICENSE, apply_license_filtering, create_sbom_license_filtering_base_query},
+    },
     sbom::model::{
         SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
         SbomSummary, Which, details::SbomDetails,
@@ -131,11 +134,20 @@ impl SbomService {
     ) -> Result<PaginatedResults<SbomSummary>, Error> {
         let labels = labels.into();
 
-        let query = if labels.is_empty() {
+        let mut query = if labels.is_empty() {
             sbom::Entity::find()
         } else {
             sbom::Entity::find().filter(Expr::col(sbom::Column::Labels).contains(labels))
         };
+
+        // Add license filtering if license query is present
+        query = apply_license_filtering(
+            query,
+            &search,
+            create_sbom_license_filtering_base_query,
+            sbom::Column::SbomId,
+        )?;
+
         let limiter = query
             .join(JoinType::Join, sbom::Relation::SourceDocument.def())
             .find_also_linked(SbomNodeLink)
@@ -147,7 +159,12 @@ impl SbomService {
                     .alias("sbom_node", "r0")
                     .translator(|f, op, v| match f.split_once(':') {
                         Some(("label", key)) => Some(format!("labels:{key}{op}{v}")),
-                        _ => None,
+                        _ => match f {
+                            // Add an empty condition (effectively TRUE) to the main SQL query
+                            // since the real filtering by license happens in the license subqueries above
+                            LICENSE => Some("".to_string()),
+                            _ => None,
+                        },
                     }),
             )?
             .limiting(connection, paginated.offset, paginated.limit);
