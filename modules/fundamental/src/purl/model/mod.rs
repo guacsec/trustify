@@ -1,4 +1,6 @@
-use crate::Error;
+use std::collections::HashMap;
+
+use crate::{Error, purl::model::details::versioned_purl::VersionedPurlStatus};
 use sea_orm::prelude::Uuid;
 use serde::{Deserialize, Serialize};
 use trustify_common::purl::Purl;
@@ -120,4 +122,63 @@ impl PurlHead {
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct TypeHead {
     pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct RecommendRequest {
+    pub purls: Vec<Purl>,
+}
+
+#[derive(Serialize, Deserialize, Default, ToSchema)]
+pub struct RecommendResponse {
+    pub recommendations: HashMap<String, Vec<RecommendEntry>>,
+}
+
+#[derive(Serialize, Deserialize, Default, ToSchema)]
+pub struct RecommendEntry {
+    pub package: String,
+    pub vulnerabilities: Vec<VulnerabilityStatus>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct VulnerabilityStatus {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<VexStatus>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub justification: Option<VexJustification>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+pub enum VexStatus {
+    Affected,
+    Fixed,
+    NotAffected,
+    UnderInvestigation,
+    Recommended,
+    Other(String),
+}
+
+impl From<&VersionedPurlStatus> for VexStatus {
+    fn from(value: &VersionedPurlStatus) -> Self {
+        match value.status.as_str() {
+            "fixed" => Self::Fixed,
+            "not_affected" => Self::NotAffected,
+            "affected" => Self::Affected,
+            "under_investigation" => Self::UnderInvestigation,
+            "recommended" => Self::Recommended,
+            _ => Self::Other(value.status.clone()),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+pub enum VexJustification {
+    ComponentNotPresent,
+    VulnerableCodeNotPresent,
+    VulnerableCodeNotInExecutePath,
+    VulnerableCodeCannotBeControlledByAdversary,
+    InlineMitigationsAlreadyExist,
+    NotProvided,
+    Other(String),
 }

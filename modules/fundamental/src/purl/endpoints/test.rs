@@ -293,3 +293,89 @@ async fn test_purl_license_details(ctx: &TrustifyContext) -> Result<(), anyhow::
     assert!(expected_result.contains_subset(response.clone()));
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_documents([
+        "cve/CVE-2022-45787.json",
+        "cve/CVE-2023-28867.json",
+        "cve/CVE-2024-29025.json",
+    ])
+    .await?;
+
+    let app = caller(ctx).await?;
+    let recommendations: Value = app
+        .call_and_read_body_json(
+            TestRequest::post()
+                .uri("/api/v2/purl/recommend")
+                .set_json(json!({"purls": ["pkg:maven/jakarta.el/jakarta.el-api@3.0.3", "pkg:maven/jakarta.el/jakarta.el-api@3.0.3"]}))
+                .to_request(),
+        )
+        .await;
+
+    log::info!("{recommendations:#?}");
+
+    assert_eq!(
+        recommendations["recommendations"]
+            .as_object()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        recommendations["recommendations"]
+            .as_object()
+            .unwrap()
+            ["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"]
+            .as_array()
+            .unwrap()
+            .len(),
+            1
+    );
+    assert_eq!(
+        recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"][0]["package"],
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002?repository_url=https://maven.repository.redhat.com/ga/&type=jar",
+    );
+
+    let mut cves = recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"]
+        [0]["vulnerabilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|val| val["id"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    cves.sort();
+    assert_eq!(cves, vec!["CVE-2022-45787", "CVE-2023-28867"]);
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_no_version(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_documents(["cve/CVE-2022-45787.json", "cve/CVE-2023-28867.json"])
+        .await?;
+
+    let app = caller(ctx).await?;
+    let recommendations: Value = app
+        .call_and_read_body_json(
+            TestRequest::post()
+                .uri("/api/v2/purl/recommend")
+                .set_json(json!({"purls": ["pkg:maven/jakarta.el/jakarta.el-api"]}))
+                .to_request(),
+        )
+        .await;
+
+    log::info!("{recommendations:#?}");
+
+    assert_eq!(
+        recommendations["recommendations"]
+            .as_object()
+            .unwrap()
+            .len(),
+        0
+    );
+
+    Ok(())
+}

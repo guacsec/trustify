@@ -2,16 +2,21 @@ use crate::{
     Error,
     endpoints::Deprecation,
     purl::{
-        model::{details::purl::PurlDetails, summary::purl::PurlSummary},
+        model::{
+            RecommendRequest, RecommendResponse, details::purl::PurlDetails,
+            summary::purl::PurlSummary,
+        },
         service::PurlService,
     },
 };
-use actix_web::{HttpResponse, Responder, get, web};
+use actix_web::{HttpResponse, Responder, get, post, web};
 use sea_orm::prelude::Uuid;
 use std::str::FromStr;
-use trustify_auth::{ReadSbom, authorizer::Require};
+use trustify_auth::{ReadAdvisory, ReadSbom, authorizer::Require};
 use trustify_common::{
-    db::Database, db::query::Query, id::IdError, model::Paginated, model::PaginatedResults,
+    db::{Database, query::Query},
+    id::IdError,
+    model::{Paginated, PaginatedResults},
     purl::Purl,
 };
 
@@ -26,7 +31,8 @@ pub fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig, d
         .service(base::get_base_purl)
         .service(base::all_base_purls)
         .service(get)
-        .service(all);
+        .service(all)
+        .service(recommend);
 }
 
 #[utoipa::path(
@@ -79,6 +85,30 @@ pub async fn all(
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     Ok(HttpResponse::Ok().json(service.purls(search, paginated, db.as_ref()).await?))
+}
+
+#[utoipa::path(
+    operation_id = "recommend",
+    tag = "purl",
+    request_body = RecommendRequest,
+    responses(
+        (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse)
+    )
+)]
+#[post("/v2/purl/recommend")]
+pub async fn recommend(
+    purl_service: web::Data<PurlService>,
+    db: web::Data<Database>,
+    request: web::Json<RecommendRequest>,
+    _: Require<ReadAdvisory>,
+) -> actix_web::Result<impl Responder> {
+    let recommendations = purl_service
+        .recommend_purls(&request.purls, db.as_ref())
+        .await?;
+
+    let response = RecommendResponse { recommendations };
+
+    Ok(HttpResponse::Ok().json(response))
 }
 
 #[cfg(test)]
