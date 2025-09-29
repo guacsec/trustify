@@ -1,15 +1,19 @@
+use std::collections::HashMap;
+
 use crate::{
     Error,
     common::license_filtering::{
         LICENSE, apply_license_filtering, create_purl_license_filtering_base_query,
     },
     purl::model::{
+        RecommendEntry, VulnerabilityStatus,
         details::{
             base_purl::BasePurlDetails, purl::PurlDetails, versioned_purl::VersionedPurlDetails,
         },
         summary::{base_purl::BasePurlSummary, purl::PurlSummary, r#type::TypeSummary},
     },
 };
+use regex::Regex;
 use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
     QuerySelect, prelude::Uuid,
@@ -19,7 +23,7 @@ use tracing::instrument;
 use trustify_common::{
     db::{
         limiter::LimiterTrait,
-        query::{Filtering, IntoColumns, Query},
+        query::{Filtering, IntoColumns, Query, q},
     },
     model::{Paginated, PaginatedResults},
     purl::{Purl, PurlErr},
@@ -338,6 +342,104 @@ impl PurlService {
             .await?;
 
         Ok(res.rows_affected())
+    }
+
+    #[instrument(skip(self, connection), err)]
+    pub async fn recommend_purls<C: ConnectionTrait>(
+        &self,
+        purls: &[Purl],
+        connection: &C,
+    ) -> Result<HashMap<String, Vec<RecommendEntry>>, Error> {
+        let mut recommendations = HashMap::new();
+
+        #[allow(clippy::unwrap_used)]
+        let pattern = Regex::new("redhat-[0-9]+$").unwrap();
+
+        for purl in purls {
+            let query = match purl.to_string().split_once('@') {
+                Some((p, _)) => format!("purl~{p}"),
+                None => format!("purl~{purl}"),
+            };
+            let summaries = self
+                .purls(q(&query), Default::default(), connection)
+                .await?;
+
+            let Some(ref input_version_str) = purl.version else {
+                continue;
+            };
+            let Ok(input_version) = lenient_semver::parse(input_version_str) else {
+                log::debug!(
+                    "input purl {} version {:?} failed to parse",
+                    purl,
+                    input_version_str
+                );
+                continue;
+            };
+
+            let highest_patch = summaries
+                .items
+                .into_iter()
+                .fold(
+                    None,
+                    |acc: Option<(PurlSummary, semver::Version)>, summary: PurlSummary| {
+                        summary
+                            .head
+                            .purl
+                            .version
+                            .as_ref()
+                            .filter(|version| pattern.is_match(version))
+                            .and_then(|version| {
+                                lenient_semver::parse(version)
+                                    .inspect_err(|_| {
+                                        log::debug!(
+                                            "purl {} version {:?} failed to parse",
+                                            summary.head.purl,
+                                            summary.head.purl.version
+                                        )
+                                    })
+                                    .ok()
+                            })
+                            .filter(|version| {
+                                version.major == input_version.major
+                                    && version.minor == input_version.minor
+                                    && version.patch == input_version.patch
+                            })
+                            .and_then(|version| match &acc {
+                                Some((_, v)) if version.pre > v.pre => Some((summary, version)),
+                                None => Some((summary, version)),
+                                _ => None,
+                            })
+                            .or(acc)
+                    },
+                )
+                .map(|(summary, _)| summary);
+
+            let mut recommended_purls = Vec::new();
+            if let Some(highest) = highest_patch
+                && let Some(purl_details) = self
+                    .versioned_purl_by_uuid(&highest.head.purl.version_uuid(), connection)
+                    .await?
+            {
+                recommended_purls.push(RecommendEntry {
+                    package: highest.head.purl.to_string(),
+                    vulnerabilities: purl_details
+                        .advisories
+                        .iter()
+                        .flat_map(|advisory| {
+                            advisory.status.iter().map(|status| VulnerabilityStatus {
+                                id: status.vulnerability.identifier.clone(),
+                                status: Some(status.into()),
+                                justification: None,
+                            })
+                        })
+                        .collect(),
+                });
+            }
+
+            recommendations.insert(purl.to_string(), recommended_purls);
+        }
+
+        Ok(recommendations)
     }
 }
 

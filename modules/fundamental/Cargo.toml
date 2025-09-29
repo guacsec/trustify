@@ -49,6 +49,10 @@ tracing-futures = { workspace = true, features = ["futures-03"] }
 utoipa = { workspace = true, features = ["actix_extras", "uuid", "time"] }
 utoipa-actix-web = { workspace = true }
 uuid = { workspace = true }
+packageurl = { workspace = true }
+semver = { workspace = true }
+regex = { workspace = true }
+lenient_semver = { workspace = true }
 
 async-graphql = { workspace = true, features = ["uuid", "time"], optional = true }
 

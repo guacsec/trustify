@@ -2057,6 +2057,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BasePurlDetails'
+  /api/v2/purl/recommend:
+    post:
+      tags:
+      - purl
+      operationId: recommend
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendRequest'
+        required: true
+      responses:
+        '200':
+          description: Get recommendations and remediations for provided purls
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendResponse'
   /api/v2/purl/{key}:
     get:
       tags:
@@ -4834,6 +4852,40 @@ components:
           source:
             type: string
             description: The name of the quay registry, e.g. quay.io
+    RecommendEntry:
+      type: object
+      required:
+      - package
+      - vulnerabilities
+      properties:
+        package:
+          type: string
+        vulnerabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/VulnerabilityStatus'
+    RecommendRequest:
+      type: object
+      required:
+      - purls
+      properties:
+        purls:
+          type: array
+          items:
+            $ref: '#/components/schemas/Purl'
+    RecommendResponse:
+      type: object
+      required:
+      - recommendations
+      properties:
+        recommendations:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/RecommendEntry'
+          propertyNames:
+            type: string
     Relationship:
       type: string
       enum:
@@ -5250,6 +5302,55 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/PurlHead'
+    VexJustification:
+      oneOf:
+      - type: string
+        enum:
+        - ComponentNotPresent
+      - type: string
+        enum:
+        - VulnerableCodeNotPresent
+      - type: string
+        enum:
+        - VulnerableCodeNotInExecutePath
+      - type: string
+        enum:
+        - VulnerableCodeCannotBeControlledByAdversary
+      - type: string
+        enum:
+        - InlineMitigationsAlreadyExist
+      - type: string
+        enum:
+        - NotProvided
+      - type: object
+        required:
+        - Other
+        properties:
+          Other:
+            type: string
+    VexStatus:
+      oneOf:
+      - type: string
+        enum:
+        - Affected
+      - type: string
+        enum:
+        - Fixed
+      - type: string
+        enum:
+        - NotAffected
+      - type: string
+        enum:
+        - UnderInvestigation
+      - type: string
+        enum:
+        - Recommended
+      - type: object
+        required:
+        - Other
+        properties:
+          Other:
+            type: string
     VulnerabilityAdvisoryHead:
       allOf:
       - $ref: '#/components/schemas/AdvisoryHead'
@@ -5435,6 +5536,21 @@ components:
             type:
             - string
             - 'null'
+    VulnerabilityStatus:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          type: string
+        justification:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/VexJustification'
+        status:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/VexStatus'
     VulnerabilitySummary:
       allOf:
       - $ref: '#/components/schemas/VulnerabilityHead'
