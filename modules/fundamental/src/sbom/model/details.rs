@@ -241,7 +241,9 @@ impl SbomAdvisory {
 pub struct SbomStatus {
     #[serde(flatten)]
     pub vulnerability: VulnerabilityHead,
+    #[deprecated(since = "0.4.0", note = "Please use `scores` instead")]
     pub average_severity: Severity,
+    #[deprecated(since = "0.4.0", note = "Please use `scores` instead")]
     pub average_score: f64,
     pub status: String,
     pub context: Option<StatusContext>,
@@ -280,7 +282,9 @@ impl SbomStatus {
                 vulnerability,
             ),
             context: cpe.as_ref().map(|e| StatusContext::Cpe(e.to_string())),
+            #[allow(deprecated)]
             average_severity: average.severity(),
+            #[allow(deprecated)]
             average_score: average.value(),
             status,
             packages,
