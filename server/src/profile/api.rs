@@ -38,7 +38,7 @@ use trustify_module_storage::{
 use trustify_module_ui::{UI, endpoints::UiResources};
 use utoipa::openapi::{Info, License};
 
-const GC_FREQ: Duration = Duration::from_secs(60 * 60);
+const GC_FREQ: Duration = Duration::from_secs(0);
 const ENV_GC_FREQ: &str = "TRUSTD_GC_FREQ";
 
 /// Run the API server
@@ -379,7 +379,7 @@ fn schedule_db_tasks(db: db::Database) {
         _ => GC_FREQ,
     };
     if freq < Duration::from_secs(1) {
-        log::warn!("GC is disabled; to enable, set {ENV_GC_FREQ} to at least 1s");
+        log::warn!("Garbage collection is disabled; to enable, set {ENV_GC_FREQ} to at least 1s");
         return;
     }
     log::info!("GC frequency set to {}", humantime::Duration::from(freq));
