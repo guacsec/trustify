@@ -152,6 +152,7 @@ async fn sbom_details_cyclonedx_osv(ctx: &TrustifyContext) -> Result<(), anyhow:
     Ok(())
 }
 
+#[allow(deprecated)]
 fn check_advisory(
     sbom: &SbomDetails,
     advisory_id: &str,

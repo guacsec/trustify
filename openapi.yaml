@@ -5092,6 +5092,7 @@ components:
           average_score:
             type: number
             format: double
+            deprecated: true
           average_severity:
             $ref: '#/components/schemas/Severity'
           context:
