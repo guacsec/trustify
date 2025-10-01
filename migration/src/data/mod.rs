@@ -117,6 +117,15 @@ impl Default for Options {
     }
 }
 
+impl From<&Options> for Partition {
+    fn from(value: &Options) -> Self {
+        Self {
+            current: value.current,
+            total: value.total,
+        }
+    }
+}
+
 pub trait DocumentProcessor {
     fn process<D>(
         &self,
@@ -138,7 +147,7 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
     where
         D: Document,
     {
-        let partition = Partition::default();
+        let partition: Partition = options.into();
         let db = self.get_connection();
 
         let tx = db.begin().await?;
@@ -147,7 +156,7 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
 
         stream::iter(
             all.into_iter()
-                .filter(|model| partition.is_selected::<D>(&model)),
+                .filter(|model| partition.is_selected::<D>(model)),
         )
         .map(async |model| {
             let tx = db.begin().await?;
@@ -205,6 +214,18 @@ pub trait MigratorWithData {
 #[derive(Default)]
 pub struct Migrations {
     all: Vec<Migration>,
+}
+
+impl Migrations {
+    /// Return only [`Migration::Data`] migrations.
+    pub fn only_data(self) -> Vec<Box<dyn MigrationTraitWithData>> {
+        self.into_iter()
+            .filter_map(|migration| match migration {
+                Migration::Normal(_) => None,
+                Migration::Data(migration) => Some(migration),
+            })
+            .collect()
+    }
 }
 
 impl IntoIterator for Migrations {

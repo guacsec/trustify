@@ -1,6 +1,8 @@
 use crate::data::Document;
-use std::hash::{DefaultHasher, Hash, Hasher};
-use std::num::{NonZeroU64, NonZeroUsize};
+use std::{
+    hash::{DefaultHasher, Hash, Hasher},
+    num::NonZeroU64,
+};
 use trustify_entity::sbom;
 
 #[derive(Debug, Copy, Clone)]

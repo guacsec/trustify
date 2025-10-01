@@ -82,13 +82,7 @@ impl Migrator {
 
 impl MigratorWithData for Migrator {
     fn data_migrations() -> Vec<Box<dyn MigrationTraitWithData>> {
-        Self::migrations()
-            .into_iter()
-            .filter_map(|migration| match migration {
-                Migration::Normal(_) => None,
-                Migration::Data(migration) => Some(migration),
-            })
-            .collect()
+        Self::migrations().only_data()
     }
 }
 

@@ -14,6 +14,7 @@ pub struct Run {
 }
 
 #[derive(clap::Subcommand, Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum Command {
     /// Create database
     Create,

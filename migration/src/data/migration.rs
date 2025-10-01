@@ -1,6 +1,6 @@
 use crate::{
     async_trait,
-    data::{Document, DocumentProcessor, Handler, Options, Partition},
+    data::{Document, DocumentProcessor, Handler, Options},
 };
 use clap::Parser;
 use futures::executor::block_on;
@@ -32,7 +32,9 @@ fn init_options() -> Options {
 }
 
 impl MigrationWithData {
-    #[allow(clippy::expect_used)]
+    /// Wrap a data migration, turning it into a combined schema/data migration.
+    ///
+    /// **NOTE:** This may panic if the storage configuration is missing.
     pub fn new(migration: Box<dyn MigrationTraitWithData>) -> Self {
         Self {
             storage: STORAGE.clone(),
@@ -55,7 +57,6 @@ pub struct SchemaDataManager<'c> {
     pub manager: &'c SchemaManager<'c>,
     storage: &'c DispatchBackend,
     options: &'c Options,
-    partition: Partition,
 }
 
 impl<'c> SchemaDataManager<'c> {
@@ -64,16 +65,10 @@ impl<'c> SchemaDataManager<'c> {
         storage: &'c DispatchBackend,
         options: &'c Options,
     ) -> Self {
-        let partition = Partition {
-            current: options.current,
-            total: options.total,
-        };
-
         Self {
             manager,
             storage,
             options,
-            partition,
         }
     }
 
