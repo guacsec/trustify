@@ -139,7 +139,9 @@ impl VersionedPurlStatus {
         package_status: &purl_status::Model,
         tx: &C,
     ) -> Result<Self, Error> {
-        let status = package_status.find_related(status::Entity).one(tx).await?;
+        let status = status::Entity::find_by_id(package_status.status_id)
+            .one(tx)
+            .await?;
 
         let status = status.map(|e| e.slug).unwrap_or("unknown".to_string());
 

@@ -840,12 +840,33 @@ async fn contextual_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     assert!( advisory.status.iter().any(|status| {
         matches!( &status.context , Some(StatusContext::Cpe(cpe)) if cpe == "cpe:/a:redhat:enterprise_linux:8:*:appstream:*")
-        && status.vulnerability.identifier == "CVE-2024-24549"
+        && status.vulnerability.identifier == "CVE-2024-24549" && status.status == "fixed"
     }));
 
     assert!( advisory.status.iter().any(|status| {
         matches!( &status.context , Some(StatusContext::Cpe(cpe)) if cpe == "cpe:/a:redhat:enterprise_linux:8:*:appstream:*")
-            && status.vulnerability.identifier == "CVE-2024-23672"
+            && status.vulnerability.identifier == "CVE-2024-23672" && status.status == "fixed"
+    }));
+
+    let versioned = service
+        .versioned_purl_by_uuid(&tomcat_jsp.version.uuid, &ctx.db)
+        .await?
+        .unwrap();
+
+    assert_eq!(1, versioned.advisories.len());
+
+    let advisory = &versioned.advisories[0];
+
+    log::debug!("{advisory:#?}");
+
+    assert_eq!(2, advisory.status.len());
+
+    assert!(advisory.status.iter().any(|status| {
+        status.vulnerability.identifier == "CVE-2024-24549" && status.status == "fixed"
+    }));
+
+    assert!(advisory.status.iter().any(|status| {
+        status.vulnerability.identifier == "CVE-2024-23672" && status.status == "fixed"
     }));
 
     Ok(())
