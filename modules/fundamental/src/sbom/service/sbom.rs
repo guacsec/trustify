@@ -5,6 +5,7 @@ use crate::{
         LicenseRefMapping,
         license_filtering::{
             LICENSE, apply_license_filtering, create_sbom_license_filtering_base_query,
+            create_sbom_package_license_filtering_base_query, get_case_license_text_sbom_id,
         },
     },
     sbom::model::{
@@ -210,6 +211,15 @@ impl SbomService {
             .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def());
 
         query = join_licenses(query);
+
+        // Add license filtering if license query is present
+        query = apply_license_filtering(
+            query,
+            &search,
+            || create_sbom_package_license_filtering_base_query(sbom_id),
+            sbom_package::Column::NodeId,
+        )?;
+
         query = join_purls_and_cpes(query)
             .filtering_with(
                 search,
@@ -221,11 +231,12 @@ impl SbomService {
                     .add_columns(sbom_package_license::Entity)
                     .add_columns(license::Entity)
                     .add_columns(sbom_package_purl_ref::Entity)
-                    .translator(|field, operator, value| {
-                        if field == "license" {
-                            Some(format!("text{operator}{value}"))
-                        } else {
-                            None
+                    .translator(|field, _operator, _value| {
+                        match field {
+                            // Add an empty condition (effectively TRUE) to the main SQL query
+                            // since the real filtering by license happens in the license subqueries above
+                            LICENSE => Some("".to_string()),
+                            _ => None,
                         }
                     }),
             )?
@@ -243,17 +254,12 @@ impl SbomService {
         );
 
         let total = limiter.total().await?;
-        let packages = limiter.fetch().await?;
-
-        // collect results
-
-        let mut items = Vec::new();
-
-        let licensing_infos = Self::get_licensing_infos(connection, sbom_id).await?;
-
-        for row in packages {
-            items.push(package_from_row(row, licensing_infos.clone()));
-        }
+        let items = limiter
+            .fetch()
+            .await?
+            .into_iter()
+            .map(|row| package_from_row(row, BTreeMap::new()))
+            .collect();
 
         Ok(PaginatedResults { items, total })
     }
@@ -627,7 +633,7 @@ where
             Expr::cust_with_exprs(
                 "coalesce(json_agg(distinct jsonb_build_object('license_name', $1, 'license_type', $2)) filter (where $3), '[]'::json)",
                 [
-                    license::Column::Text.into_simple_expr(),
+                    get_case_license_text_sbom_id(),
                     sbom_package_license::Column::LicenseType.into_simple_expr(),
                     license::Column::Text.is_not_null().into_simple_expr(),
                 ],

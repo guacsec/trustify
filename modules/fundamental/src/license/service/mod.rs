@@ -1,6 +1,6 @@
 use crate::{
     Error,
-    common::LicenseRefMapping,
+    common::{LicenseRefMapping, license_filtering, license_filtering::LICENSE},
     license::model::{
         SpdxLicenseDetails, SpdxLicenseSummary,
         sbom_license::{
@@ -10,11 +10,12 @@ use crate::{
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
-    RelationTrait, Statement,
+    QueryTrait, RelationTrait, Statement,
 };
-use sea_query::{ColumnType, Condition, Expr, Func, JoinType, SimpleExpr};
+use sea_query::{
+    Alias, ColumnType, Condition, Expr, JoinType, Order::Asc, PostgresQueryBuilder, query,
+};
 use serde::{Deserialize, Serialize};
-use trustify_common::db::CaseLicenseTextSbomId;
 use trustify_common::{
     db::{
         limiter::LimiterAsModelTrait,
@@ -232,52 +233,35 @@ impl LicenseService {
             .one(connection)
             .await?;
 
+        const EXPANDED_LICENSE: &str = "expanded_license";
+        const LICENSE_NAME: &str = "license_name";
         match sbom {
             Some(sbom) => {
-                let result: Vec<LicenseRefMapping> = LicenseRefMapping::find_by_statement(Statement::from_sql_and_values(
-                    connection.get_database_backend(),
-                    r#"
-                    (
-                        -- Successfully parsed (during SBOM ingestion) license ID values can be
-                        -- retrieved from the spdx_licenses column. The DISTINCT must be on lower values
-                        -- because the license identifiers have to be managed in case-insensitive way
-                        -- ref. https://spdx.github.io/spdx-spec/v3.0.1/annexes/spdx-license-expressions/#case-sensitivity
-                        SELECT DISTINCT on (lower(l.spdx_licenses)) l.spdx_licenses as license_name, l.spdx_licenses as license_id
-                        FROM sbom_package_license spl
-                        -- 'spdx_licenses' must be unnested and sorted before joining in order to ensure consistent results
-                        JOIN (
-                            SELECT id, unnest(spdx_licenses) as spdx_licenses
-                            FROM license
-                            ORDER BY id, spdx_licenses
-                        ) AS l ON spl.license_id = l.id
-                        WHERE spl.sbom_id = $1
-                        AND l.spdx_licenses IS NOT NULL
-                        UNION
-                        -- CycloneDX SBOMs has NO "LicenseRef" by specifications (hence
-                        -- the above condition 'licensing_infos.license_id IS NULL')  so
-                        -- all the values in the license.text whose spdx_licenses is null
-                        -- must be added to the result set. The need for the DISTINCT on lower is
-                        -- clearly explained above.
-                        SELECT DISTINCT ON (LOWER(l.text)) l.text as license_name, l.text as license_id
-                        FROM sbom_package_license spl
-                        JOIN license l ON spl.license_id = l.id
-                        LEFT JOIN licensing_infos ON licensing_infos.sbom_id = spl.sbom_id
-                        WHERE spl.sbom_id = $1
-                        AND l.spdx_licenses IS NULL
-                        AND licensing_infos.license_id IS NULL
-                        UNION
-                        -- SPDX SBOMs has "LicenseRef" by specifications and they're stored in
-                        -- licensing_infos and so their names have to be added as well
-                        SELECT DISTINCT name as license_name, license_id
-                        FROM licensing_infos
-                        WHERE sbom_id = $1
-                        ORDER BY license_name
+                let expand_license_expression = sbom_package_license::Entity::find()
+                    .select_only()
+                    .distinct()
+                    .column_as(
+                        license_filtering::get_case_license_text_sbom_id(),
+                        EXPANDED_LICENSE,
                     )
-                    "#,
-                    [sbom.sbom_id.into()],
-                ))
-                    .all(connection)
-                    .await?;
+                    .join(
+                        JoinType::Join,
+                        sbom_package_license::Relation::License.def(),
+                    )
+                    .filter(sbom_package_license::Column::SbomId.eq(sbom.sbom_id));
+                let (sql, values) = query::Query::select()
+                    // reported twice to keep compatibility with LicenseRefMapping currently
+                    // exposed in the involved endpoint.
+                    .expr_as(Expr::col(Alias::new(EXPANDED_LICENSE)), LICENSE_NAME)
+                    .expr_as(Expr::col(Alias::new(EXPANDED_LICENSE)), "license_id")
+                    .from_subquery(expand_license_expression.into_query(), "expanded_licenses")
+                    .order_by(LICENSE_NAME, Asc)
+                    .build(PostgresQueryBuilder);
+                let result: Vec<LicenseRefMapping> = LicenseRefMapping::find_by_statement(
+                    Statement::from_sql_and_values(connection.get_database_backend(), sql, values),
+                )
+                .all(connection)
+                .await?;
                 Ok(Some(result))
             }
             None => Ok(None),
@@ -290,15 +274,7 @@ impl LicenseService {
         paginated: Paginated,
         connection: &C,
     ) -> Result<PaginatedResults<LicenseText>, Error> {
-        let case_license_text_sbom_id = SimpleExpr::FunctionCall(
-            Func::cust(CaseLicenseTextSbomId)
-                .arg(Expr::col(license::Column::Text))
-                .arg(Expr::col((
-                    sbom_package_license::Entity,
-                    sbom_package_license::Column::SbomId,
-                ))),
-        );
-        const LICENSE: &str = "license";
+        let case_license_text_sbom_id = license_filtering::get_case_license_text_sbom_id();
         let limiter = license::Entity::find()
             .distinct()
             .select_only()

@@ -7,7 +7,7 @@ use sea_query::{
     extension::postgres::PgExpr,
 };
 use trustify_common::db::{
-    ExpandLicenseExpression,
+    CaseLicenseTextSbomId, ExpandLicenseExpression,
     query::{Columns, Filtering, IntoColumns, Query, q},
 };
 use trustify_entity::{license, sbom_package, sbom_package_license, sbom_package_purl_ref};
@@ -104,6 +104,21 @@ pub fn create_sbom_license_filtering_base_query() -> Select<sbom_package_license
         )
 }
 
+/// Creates a base query for SBOM package license filtering (targeting packages within a specific SBOM)
+pub fn create_sbom_package_license_filtering_base_query(
+    sbom_id: sea_orm::prelude::Uuid,
+) -> Select<sbom_package::Entity> {
+    sbom_package::Entity::find()
+        .filter(sbom_package::Column::SbomId.eq(sbom_id))
+        .select_only()
+        .column(sbom_package::Column::NodeId)
+        .join(JoinType::Join, sbom_package::Relation::PackageLicense.def())
+        .join(
+            JoinType::Join,
+            sbom_package_license::Relation::License.def(),
+        )
+}
+
 /// Applies license filtering to a query using a two-phase SPDX/CycloneDX approach
 ///
 /// This function encapsulates the complete license filtering pattern used by both
@@ -157,4 +172,22 @@ where
         // No license filtering needed, return the query unchanged
         Ok(main_query)
     }
+}
+
+/// Returns the case_license_text_sbom_id() PLSQL function that conditionally applies expand_license_expression() for SPDX LicenseRefs
+///
+/// This function generates a SQL CASE expression that:
+/// - Returns the expanded license expression when the license text contains 'LicenseRef-' (SPDX format)
+/// - Returns the original license text for all other cases (including CycloneDX)
+///
+/// This allows unified handling of both SPDX and CycloneDX licenses in a single query.
+pub fn get_case_license_text_sbom_id() -> SimpleExpr {
+    SimpleExpr::FunctionCall(
+        Func::cust(CaseLicenseTextSbomId)
+            .arg(Expr::col((license::Entity, license::Column::Text)))
+            .arg(Expr::col((
+                sbom_package_license::Entity,
+                sbom_package_license::Column::SbomId,
+            ))),
+    )
 }

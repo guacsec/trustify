@@ -1,11 +1,9 @@
-use crate::common::LicenseInfo;
-use crate::sbom::service::sbom::LicenseBasicInfo;
 use crate::{
     Error,
     advisory::model::AdvisoryHead,
-    common::{LicenseRefMapping, service::extract_license_ref_mappings},
+    common::{LicenseInfo, LicenseRefMapping, license_filtering},
     purl::model::{BasePurlHead, PurlHead, VersionedPurlHead},
-    sbom::{model::SbomHead, service::SbomService},
+    sbom::{model::SbomHead, service::sbom::LicenseBasicInfo},
     vulnerability::model::VulnerabilityHead,
 };
 use sea_orm::{
@@ -41,17 +39,18 @@ pub struct PurlDetails {
     pub base: BasePurlHead,
     pub advisories: Vec<PurlAdvisory>,
     pub licenses: Vec<LicenseInfo>,
+    #[deprecated]
     pub licenses_ref_mapping: Vec<LicenseRefMapping>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, FromQueryResult)]
 pub struct PurlLicenseResult {
-    pub sbom_id: Uuid,
     pub license_name: String,
     pub license_type: i32,
 }
 
 impl PurlDetails {
+    #[allow(deprecated)]
     pub async fn from_entity<C: ConnectionTrait>(
         package: Option<base_purl::Model>,
         package_version: Option<versioned_purl::Model>,
@@ -107,11 +106,13 @@ impl PurlDetails {
         )
         .await?;
 
-        let purl_license_results: Vec<PurlLicenseResult> = sbom_package_purl_ref::Entity::find()
+        let licenses: Vec<LicenseInfo> = sbom_package_purl_ref::Entity::find()
             .distinct()
             .select_only()
-            .select_column(sbom_package::Column::SbomId)
-            .select_column_as(license::Column::Text, "license_name")
+            .column_as(
+                license_filtering::get_case_license_text_sbom_id(),
+                "license_name",
+            )
             .select_column(sbom_package_license::Column::LicenseType)
             .filter(sbom_package_purl_ref::Column::QualifiedPurlId.eq(qualified_package.id))
             .join(
@@ -123,33 +124,25 @@ impl PurlDetails {
                 JoinType::Join,
                 sbom_package_license::Relation::License.def(),
             )
-            .into_model()
+            .into_model::<PurlLicenseResult>()
             .all(tx)
-            .await?;
-
-        let mut purl_license_info = Vec::new();
-        let mut license_ref_mapping = Vec::new();
-
-        for plr in purl_license_results {
-            let licensing_infos = SbomService::get_licensing_infos(tx, plr.sbom_id).await?;
-            extract_license_ref_mappings(
-                plr.license_name.as_str(),
-                &licensing_infos,
-                &mut license_ref_mapping,
-            );
-            purl_license_info.push(LicenseInfo::from(LicenseBasicInfo {
-                license_name: plr.license_name,
-                license_type: plr.license_type,
-            }));
-        }
+            .await?
+            .iter()
+            .map(|purl_license_result| {
+                LicenseInfo::from(LicenseBasicInfo {
+                    license_name: purl_license_result.license_name.clone(),
+                    license_type: purl_license_result.license_type,
+                })
+            })
+            .collect();
 
         Ok(PurlDetails {
             head: PurlHead::from_entity(&package, &package_version, qualified_package),
             version: VersionedPurlHead::from_entity(&package, &package_version),
             base: BasePurlHead::from_entity(&package),
             advisories: PurlAdvisory::from_entities(purl_statuses, product_statuses, tx).await?,
-            licenses: purl_license_info,
-            licenses_ref_mapping: license_ref_mapping,
+            licenses,
+            licenses_ref_mapping: vec![],
         })
     }
 }
