@@ -33,75 +33,155 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     let expected_result = json!([
       {
         "license_name": "(FTL or GPLv2+) and BSD and MIT and Public Domain and zlib with acknowledgement",
-        "license_id": "LicenseRef-13"
+        "license_id": "(FTL or GPLv2+) and BSD and MIT and Public Domain and zlib with acknowledgement"
       },
       {
-        "license_name": "AFL",
-        "license_id": "LicenseRef-AFL"
+        "license_name": "(GPL+ OR Artistic) AND Artistic 2.0 AND UCD",
+        "license_id": "(GPL+ OR Artistic) AND Artistic 2.0 AND UCD"
       },
       {
-        "license_name": "ASL 2.0",
-        "license_id": "LicenseRef-2"
+        "license_name": "(GPL+ OR Artistic) AND BSD",
+        "license_id": "(GPL+ OR Artistic) AND BSD"
+      },
+      {
+        "license_name": "(GPL+ OR Artistic) AND HSRL AND MIT AND UCD",
+        "license_id": "(GPL+ OR Artistic) AND HSRL AND MIT AND UCD"
+      },
+      {
+        "license_name": "(GPLv2+ OR AFL) AND GPLv2+",
+        "license_id": "(GPLv2+ OR AFL) AND GPLv2+"
+      },
+      {
+        "license_name": "(LGPLv2+ OR GPLv2+ OR MPL) AND (Netscape OR GPLv2+ OR LGPLv2+)",
+        "license_id": "(LGPLv2+ OR GPLv2+ OR MPL) AND (Netscape OR GPLv2+ OR LGPLv2+)"
+      },
+      {
+        "license_name": "(LGPLv3+ OR GPLv2+) AND GPLv3+",
+        "license_id": "(LGPLv3+ OR GPLv2+) AND GPLv3+"
+      },
+      {
+        "license_name": "[{'license': {'id': 'Apache-2.0'}}]",
+        "license_id": "[{'license': {'id': 'Apache-2.0'}}]"
+      },
+      {
+        "license_name": "[{'license': {'id': None}}]",
+        "license_id": "[{'license': {'id': None}}]"
+      },
+      {
+        "license_name": "AFL AND GPLv2+",
+        "license_id": "AFL AND GPLv2+"
       },
       {
         "license_name": "Apache-2.0",
         "license_id": "Apache-2.0"
       },
       {
-        "license_name": "Artistic",
-        "license_id": "LicenseRef-Artistic"
+        "license_name": "Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause",
+        "license_id": "Apache-2.0 AND BSD-2-Clause AND BSD-3-Clause"
       },
       {
-        "license_name": "Artistic 2.0",
-        "license_id": "LicenseRef-5"
+        "license_name": "Apache-2.0 AND BSD-3-Clause",
+        "license_id": "Apache-2.0 AND BSD-3-Clause"
+      },
+      {
+        "license_name": "Apache-2.0 AND JSON AND MIT",
+        "license_id": "Apache-2.0 AND JSON AND MIT"
+      },
+      {
+        "license_name": "Apache-2.0 AND MIT",
+        "license_id": "Apache-2.0 AND MIT"
+      },
+      {
+        "license_name": "Apache-2.0 AND Unlicense",
+        "license_id": "Apache-2.0 AND Unlicense"
+      },
+      {
+        "license_name": "ASL 2.0",
+        "license_id": "ASL 2.0"
+      },
+      {
+        "license_name": "ASL 2.0 AND BSD",
+        "license_id": "ASL 2.0 AND BSD"
       },
       {
         "license_name": "BSD",
-        "license_id": "LicenseRef-BSD"
+        "license_id": "BSD"
+      },
+      {
+        "license_name": "BSD AND GPLv2",
+        "license_id": "BSD AND GPLv2"
+      },
+      {
+        "license_name": "BSD AND LGPLv2+",
+        "license_id": "BSD AND LGPLv2+"
+      },
+      {
+        "license_name": "BSD OR GPL+",
+        "license_id": "BSD OR GPL+"
       },
       {
         "license_name": "BSD-2-Clause",
         "license_id": "BSD-2-Clause"
       },
       {
-        "license_name": "BSD-2-Clause-Views",
-        "license_id": "BSD-2-Clause-Views"
+        "license_name": "BSD-2-Clause AND BSD-2-Clause-Views",
+        "license_id": "BSD-2-Clause AND BSD-2-Clause-Views"
+      },
+      {
+        "license_name": "BSD-2-Clause AND BSD-3-Clause",
+        "license_id": "BSD-2-Clause AND BSD-3-Clause"
+      },
+      {
+        "license_name": "BSD-2-Clause AND BSD-3-Clause AND ISC",
+        "license_id": "BSD-2-Clause AND BSD-3-Clause AND ISC"
+      },
+      {
+        "license_name": "BSD-2-Clause AND MIT",
+        "license_id": "BSD-2-Clause AND MIT"
+      },
+      {
+        "license_name": "BSD-2-Clause-Views AND MIT",
+        "license_id": "BSD-2-Clause-Views AND MIT"
       },
       {
         "license_name": "BSD-3-Clause",
         "license_id": "BSD-3-Clause"
       },
       {
-        "license_name": "BSD-3-Clause-Clear",
-        "license_id": "BSD-3-Clause-Clear"
+        "license_name": "BSD-3-Clause AND BSD-3-Clause-Clear",
+        "license_id": "BSD-3-Clause AND BSD-3-Clause-Clear"
       },
       {
-        "license_name": "Boost",
-        "license_id": "LicenseRef-Boost"
+        "license_name": "BSD-3-Clause AND MIT",
+        "license_id": "BSD-3-Clause AND MIT"
       },
       {
-        "license_name": "CC-BY",
-        "license_id": "LicenseRef-CC-BY"
+        "license_name": "BSD-3-Clause OR BSD-3-Clause OR ISC",
+        "license_id": "BSD-3-Clause OR BSD-3-Clause OR ISC"
       },
       {
-        "license_name": "CC-BY-SA-4.0",
-        "license_id": "CC-BY-SA-4.0"
+        "license_name": "CC-BY-SA-4.0 AND ISC",
+        "license_id": "CC-BY-SA-4.0 AND ISC"
       },
       {
         "license_name": "CC0-1.0",
         "license_id": "CC0-1.0"
       },
       {
-        "license_name": "CDDL-1.0",
-        "license_id": "CDDL-1.0"
+        "license_name": "CC0-1.0 AND MIT",
+        "license_id": "CC0-1.0 AND MIT"
       },
       {
-        "license_name": "CDDL-1.1",
-        "license_id": "CDDL-1.1"
+        "license_name": "CDDL-1.0 OR GPL-2.0-with-classpath-exception",
+        "license_id": "CDDL-1.0 OR GPL-2.0-with-classpath-exception"
       },
       {
-        "license_name": "Copyright only",
-        "license_id": "LicenseRef-7"
+        "license_name": "CDDL-1.1 OR GPL-2.0-with-classpath-exception",
+        "license_id": "CDDL-1.1 OR GPL-2.0-with-classpath-exception"
+      },
+      {
+        "license_name": "Copyright only AND (Artistic OR GPL+)",
+        "license_id": "Copyright only AND (Artistic OR GPL+)"
       },
       {
         "license_name": "EPL-1.0",
@@ -109,147 +189,171 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
       },
       {
         "license_name": "EPL-2.0 OR GNU General Public License, version 2 with the GNU Classpath Exception",
-        "license_id": "LicenseRef-14"
+        "license_id": "EPL-2.0 OR GNU General Public License, version 2 with the GNU Classpath Exception"
       },
       {
-        "license_name": "GFDL",
-        "license_id": "LicenseRef-GFDL"
+        "license_name": "GPL+ OR Artistic",
+        "license_id": "GPL+ OR Artistic"
       },
       {
-        "license_name": "GPL+",
-        "license_id": "LicenseRef-4"
-      },
-      {
-        "license_name": "GPL-2.0-only",
-        "license_id": "GPL-2.0-only"
-      },
-      {
-        "license_name": "GPL-2.0-with-classpath-exception",
-        "license_id": "LicenseRef-GPL-2.0-with-classpath-exception"
+        "license_name": "GPL-2.0-only AND MIT",
+        "license_id": "GPL-2.0-only AND MIT"
       },
       {
         "license_name": "GPLv2",
-        "license_id": "LicenseRef-GPLv2"
+        "license_id": "GPLv2"
+      },
+      {
+        "license_name": "GPLv2 AND GPLv2+ AND LGPLv2 AND MIT",
+        "license_id": "GPLv2 AND GPLv2+ AND LGPLv2 AND MIT"
       },
       {
         "license_name": "GPLv2+",
-        "license_id": "LicenseRef-0"
+        "license_id": "GPLv2+"
+      },
+      {
+        "license_name": "GPLv2+ AND BSD",
+        "license_id": "GPLv2+ AND BSD"
+      },
+      {
+        "license_name": "GPLv2+ AND GPL+",
+        "license_id": "GPLv2+ AND GPL+"
+      },
+      {
+        "license_name": "GPLv2+ AND LGPLv2+",
+        "license_id": "GPLv2+ AND LGPLv2+"
+      },
+      {
+        "license_name": "GPLv2+ OR LGPLv3+",
+        "license_id": "GPLv2+ OR LGPLv3+"
       },
       {
         "license_name": "GPLv3",
-        "license_id": "LicenseRef-GPLv3"
+        "license_id": "GPLv3"
       },
       {
         "license_name": "GPLv3+",
-        "license_id": "LicenseRef-6"
+        "license_id": "GPLv3+"
+      },
+      {
+        "license_name": "GPLv3+ AND (GPLv2+ OR LGPLv3+)",
+        "license_id": "GPLv3+ AND (GPLv2+ OR LGPLv3+)"
+      },
+      {
+        "license_name": "GPLv3+ AND GFDL AND BSD AND MIT",
+        "license_id": "GPLv3+ AND GFDL AND BSD AND MIT"
       },
       {
         "license_name": "GPLv3+ and GPLv3+ with exceptions and GPLv2+ and GPLv2+ with exceptions and GPL+ and LGPLv2+ and LGPLv3+ and BSD and Public Domain and GFDL",
-        "license_id": "LicenseRef-11"
+        "license_id": "GPLv3+ and GPLv3+ with exceptions and GPLv2+ and GPLv2+ with exceptions and GPL+ and LGPLv2+ and LGPLv3+ and BSD and Public Domain and GFDL"
       },
       {
-        "license_name": "HSRL",
-        "license_id": "LicenseRef-HSRL"
+        "license_name": "GPLv3+ OR BSD",
+        "license_id": "GPLv3+ OR BSD"
       },
       {
         "license_name": "ISC",
         "license_id": "ISC"
       },
       {
-        "license_name": "JSON",
-        "license_id": "JSON"
+        "license_name": "ISC AND JSON",
+        "license_id": "ISC AND JSON"
+      },
+      {
+        "license_name": "ISC AND MIT",
+        "license_id": "ISC AND MIT"
       },
       {
         "license_name": "JasPer",
-        "license_id": "LicenseRef-JasPer"
+        "license_id": "JasPer"
       },
       {
-        "license_name": "LGPL-3.0-or-later",
-        "license_id": "LGPL-3.0-or-later"
+        "license_name": "JSON AND MIT",
+        "license_id": "JSON AND MIT"
+      },
+      {
+        "license_name": "LGPL-3.0-or-later OR Apache-2.0",
+        "license_id": "LGPL-3.0-or-later OR Apache-2.0"
       },
       {
         "license_name": "LGPLv2",
-        "license_id": "LicenseRef-LGPLv2"
+        "license_id": "LGPLv2"
+      },
+      {
+        "license_name": "LGPLv2 OR MPLv1.1",
+        "license_id": "LGPLv2 OR MPLv1.1"
       },
       {
         "license_name": "LGPLv2+",
-        "license_id": "LicenseRef-8"
+        "license_id": "LGPLv2+"
       },
       {
-        "license_name": "LGPLv3+",
-        "license_id": "LicenseRef-10"
+        "license_name": "LGPLv2+ AND GPLv2+ AND GPLv3+",
+        "license_id": "LGPLv2+ AND GPLv2+ AND GPLv3+"
+      },
+      {
+        "license_name": "LGPLv2+ AND GPLv3+",
+        "license_id": "LGPLv2+ AND GPLv3+"
+      },
+      {
+        "license_name": "LGPLv2+ AND MIT AND GPLv2+",
+        "license_id": "LGPLv2+ AND MIT AND GPLv2+"
+      },
+      {
+        "license_name": "LGPLv3+ AND GPLv3+ AND GFDL",
+        "license_id": "LGPLv3+ AND GPLv3+ AND GFDL"
       },
       {
         "license_name": "MIT",
         "license_id": "MIT"
       },
       {
+        "license_name": "MIT AND ASL 2.0 AND CC-BY AND GPLv3",
+        "license_id": "MIT AND ASL 2.0 AND CC-BY AND GPLv3"
+      },
+      {
+        "license_name": "MIT AND MPL-1.0",
+        "license_id": "MIT AND MPL-1.0"
+      },
+      {
+        "license_name": "MIT AND WTFPL",
+        "license_id": "MIT AND WTFPL"
+      },
+      {
         "license_name": "MIT/X License, GPL/CDDL, ASL2",
-        "license_id": "LicenseRef-1"
-      },
-      {
-        "license_name": "MPL",
-        "license_id": "LicenseRef-MPL"
-      },
-      {
-        "license_name": "MPL-1.0",
-        "license_id": "MPL-1.0"
+        "license_id": "MIT/X License, GPL/CDDL, ASL2"
       },
       {
         "license_name": "MPL-2.0",
         "license_id": "MPL-2.0"
       },
       {
-        "license_name": "MPLv1.1",
-        "license_id": "LicenseRef-MPLv1.1"
-      },
-      {
         "license_name": "NOASSERTION",
         "license_id": "NOASSERTION"
       },
       {
-        "license_name": "Netscape",
-        "license_id": "LicenseRef-Netscape"
-      },
-      {
         "license_name": "Public Domain",
-        "license_id": "LicenseRef-12"
+        "license_id": "Public Domain"
       },
       {
         "license_name": "Python-2.0",
         "license_id": "Python-2.0"
       },
       {
-        "license_name": "Sendmail",
-        "license_id": "Sendmail"
-      },
-      {
-        "license_name": "UCD",
-        "license_id": "LicenseRef-UCD"
-      },
-      {
-        "license_name": "Unlicense",
-        "license_id": "Unlicense"
-      },
-      {
-        "license_name": "WTFPL",
-        "license_id": "WTFPL"
-      },
-      {
         "license_name": "Zlib",
         "license_id": "Zlib"
       },
       {
-        "license_name": "[{'license': {'id': 'Apache-2.0'}}]",
-        "license_id": "LicenseRef-9"
+        "license_name": "Zlib AND Boost",
+        "license_id": "Zlib AND Boost"
       },
       {
-        "license_name": "[{'license': {'id': None}}]",
-        "license_id": "LicenseRef-3"
+        "license_name": "Zlib AND Sendmail AND LGPLv2+",
+        "license_id": "Zlib AND Sendmail AND LGPLv2+"
       }
     ]);
+    log::debug!("{:#}", json!(response));
     assert!(expected_result.contains_subset(response.clone()));
-    log::debug!("{response:#?}");
 
     let id = ctx
         .ingest_document("cyclonedx/application.cdx.json")
@@ -318,8 +422,8 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         "license_id": "The GNU General Public License, v2 with Universal FOSS Exception, v1.0"
       }
     ]);
+    log::debug!("{:#}", json!(response));
     assert!(expected_result.contains_subset(response.clone()));
-    log::debug!("{response:#?}");
 
     // properly formatted but not existent Id
     let req = TestRequest::get().uri("/api/v2/sbom/sha256:e5c850b67868563002801668950832278f8093308b3a3c57931f591442ed3160/all-license-ids").to_request();
@@ -346,6 +450,22 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     let response: Value = app.call_and_read_body_json(req).await;
     let expected_result = json!([
       {
+        "license_id": "(APACHE-2.0 OR EPL-2.0)",
+        "license_name": "(APACHE-2.0 OR EPL-2.0)"
+      },
+      {
+        "license_id": "(EPL-2.0 OR APACHE-2.0)",
+        "license_name": "(EPL-2.0 OR APACHE-2.0)"
+      },
+      {
+        "license_id": "APACHE-2.0 OR EPL-1.0",
+        "license_name": "APACHE-2.0 OR EPL-1.0"
+      },
+      {
+        "license_id": "APACHE-2.0 OR EPL-2.0",
+        "license_name": "APACHE-2.0 OR EPL-2.0"
+      },
+      {
         "license_id": "Apache-2.0",
         "license_name": "Apache-2.0"
       },
@@ -370,6 +490,10 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         "license_name": "CC0-1.0"
       },
       {
+        "license_id": "CC0-1.0 OR BSD-2-CLAUSE",
+        "license_name": "CC0-1.0 OR BSD-2-CLAUSE"
+      },
+      {
         "license_id": "EPL-1.0",
         "license_name": "EPL-1.0"
       },
@@ -378,12 +502,20 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         "license_name": "EPL-2.0"
       },
       {
-        "license_id": "GNU-LESSER-GENERAL-PUBLIC-LICENSE",
-        "license_name": "GNU-LESSER-GENERAL-PUBLIC-LICENSE"
+        "license_id": "EPL-2.0 OR BSD-3-CLAUSE",
+        "license_name": "EPL-2.0 OR BSD-3-CLAUSE"
       },
       {
-        "license_id": "GPL-2.0-WITH-CLASSPATH-EXCEPTION",
-        "license_name": "GPL-2.0-WITH-CLASSPATH-EXCEPTION"
+        "license_id": "EPL-2.0 OR GPL-2.0-WITH-CLASSPATH-EXCEPTION",
+        "license_name": "EPL-2.0 OR GPL-2.0-WITH-CLASSPATH-EXCEPTION"
+      },
+      {
+        "license_id": "EPL-2.0 OR GPL-2.0-WITH-CLASSPATH-EXCEPTION OR BSD-3-CLAUSE",
+        "license_name": "EPL-2.0 OR GPL-2.0-WITH-CLASSPATH-EXCEPTION OR BSD-3-CLAUSE"
+      },
+      {
+        "license_id": "GNU-LESSER-GENERAL-PUBLIC-LICENSE OR APACHE-2.0",
+        "license_name": "GNU-LESSER-GENERAL-PUBLIC-LICENSE OR APACHE-2.0"
       },
       {
         "license_id": "LGPL-2.1",
@@ -394,24 +526,28 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         "license_name": "LGPL-2.1+"
       },
       {
-        "license_id": "LGPL-2.1-ONLY",
-        "license_name": "LGPL-2.1-ONLY"
+        "license_id": "LGPL-2.1-ONLY OR EPL-1.0",
+        "license_name": "LGPL-2.1-ONLY OR EPL-1.0"
       },
       {
         "license_id": "LGPL-2.1-OR-LATER",
         "license_name": "LGPL-2.1-OR-LATER"
       },
       {
+        "license_id": "LGPL-2.1-only",
+        "license_name": "LGPL-2.1-only"
+      },
+      {
         "license_id": "MIT",
         "license_name": "MIT"
       },
       {
-        "license_id": "MPL-1.1",
-        "license_name": "MPL-1.1"
+        "license_id": "MPL-1.1 OR LGPL-2.1-ONLY OR APACHE-2.0",
+        "license_name": "MPL-1.1 OR LGPL-2.1-ONLY OR APACHE-2.0"
       },
       {
-        "license_id": "MPL-2.0",
-        "license_name": "MPL-2.0"
+        "license_id": "MPL-2.0 OR EPL-1.0",
+        "license_name": "MPL-2.0 OR EPL-1.0"
       },
       {
         "license_id": "NOASSERTION",
@@ -422,8 +558,8 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         "license_name": "PUBLIC-DOMAIN"
       },
       {
-        "license_id": "SIMILAR-TO-APACHE-LICENSE-BUT",
-        "license_name": "SIMILAR-TO-APACHE-LICENSE-BUT"
+        "license_id": "SIMILAR-TO-APACHE-LICENSE-BUT WITH THE-ACKNOWLEDGMENT-CLAUSE-REMOVED",
+        "license_name": "SIMILAR-TO-APACHE-LICENSE-BUT WITH THE-ACKNOWLEDGMENT-CLAUSE-REMOVED"
       },
       {
         "license_id": "UPL-1.0",
@@ -645,7 +781,7 @@ async fn get_packages_sbom_by_query(ctx: &TrustifyContext) -> Result<(), anyhow:
           ],
           "licenses": [
             {
-              "license_name": "LicenseRef-2 AND LicenseRef-11 AND LicenseRef-BSD",
+              "license_name": "GPLv2+ AND GPLv3+ AND BSD",
               "license_type": "declared"
             },
             {
@@ -653,20 +789,7 @@ async fn get_packages_sbom_by_query(ctx: &TrustifyContext) -> Result<(), anyhow:
               "license_type": "concluded"
             }
           ],
-          "licenses_ref_mapping": [
-            {
-              "license_id": "LicenseRef-2",
-              "license_name": "GPLv2+"
-            },
-            {
-              "license_id": "LicenseRef-11",
-              "license_name": "GPLv3+"
-            },
-            {
-              "license_id": "LicenseRef-BSD",
-              "license_name": "BSD"
-            }
-          ]
+          "licenses_ref_mapping": []
         },
         {
           "id": "SPDXRef-bad734a4-0235-478e-a95b-b20c48aa39a8",
@@ -694,7 +817,7 @@ async fn get_packages_sbom_by_query(ctx: &TrustifyContext) -> Result<(), anyhow:
           "cpe": [],
           "licenses": [
             {
-              "license_name": "LicenseRef-2 AND LicenseRef-11 AND LicenseRef-BSD",
+              "license_name": "GPLv2+ AND GPLv3+ AND BSD",
               "license_type": "declared"
             },
             {
@@ -702,20 +825,7 @@ async fn get_packages_sbom_by_query(ctx: &TrustifyContext) -> Result<(), anyhow:
               "license_type": "concluded"
             }
           ],
-          "licenses_ref_mapping": [
-            {
-              "license_id": "LicenseRef-BSD",
-              "license_name": "BSD"
-            },
-            {
-              "license_id": "LicenseRef-2",
-              "license_name": "GPLv2+"
-            },
-            {
-              "license_id": "LicenseRef-11",
-              "license_name": "GPLv3+"
-            }
-          ]
+          "licenses_ref_mapping": []
         }
       ],
       "total": 2
@@ -754,7 +864,7 @@ async fn get_packages_sbom_by_query(ctx: &TrustifyContext) -> Result<(), anyhow:
           ],
           "licenses": [
             {
-              "license_name": "MIT AND LicenseRef-0",
+              "license_name": "MIT AND ASL 2.0",
               "license_type": "declared"
             },
             {
@@ -762,12 +872,7 @@ async fn get_packages_sbom_by_query(ctx: &TrustifyContext) -> Result<(), anyhow:
               "license_type": "concluded"
             }
           ],
-          "licenses_ref_mapping": [
-            {
-              "license_id": "LicenseRef-0",
-              "license_name": "ASL 2.0"
-            }
-          ]
+          "licenses_ref_mapping": []
         },
         {
           "id": "SPDXRef-ddce7aa4-9b82-42a5-bbc7-355d963ca2d8",

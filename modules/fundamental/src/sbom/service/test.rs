@@ -348,3 +348,107 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = SbomService::new(ctx.db.clone());
+
+    // Ingest an SBOM with license information
+    let sbom_id = ctx
+        .ingest_document("spdx/mtv-2.6.json")
+        .await?
+        .id
+        .try_as_uid()
+        .unwrap();
+
+    // Test 1: No license filter - should return all packages
+    let all_packages = service
+        .fetch_sbom_packages(sbom_id, Query::default(), Paginated::default(), &ctx.db)
+        .await?;
+
+    log::debug!("All packages count: {}", all_packages.total);
+    assert_eq!(all_packages.total, 5388, "Should have packages in the SBOM");
+
+    // Test 2: Filter by specific license that exists
+    let license_filtered = service
+        .fetch_sbom_packages(
+            sbom_id,
+            q("license=GPLv2 AND GPLv2+ AND CC-BY"),
+            Paginated::default(),
+            &ctx.db,
+        )
+        .await?;
+
+    log::debug!("License filtered packages: {license_filtered:#?}");
+    // Should find packages with this specific license
+    // This validates that the license filtering is applied correctly
+    assert_eq!(license_filtered.total, 14);
+
+    // Test 3: Filter by partial license match
+    let partial_license_filtered = service
+        .fetch_sbom_packages(sbom_id, q("license~GPL"), Paginated::default(), &ctx.db)
+        .await?;
+
+    log::debug!("Partial license filtered packages: {partial_license_filtered:#?}");
+    // Should find packages with licenses containing "GPL"
+    assert_eq!(partial_license_filtered.total, 448);
+
+    // Test 4: Filter by non-existent license
+    let no_match = service
+        .fetch_sbom_packages(
+            sbom_id,
+            q("license=NONEXISTENT_LICENSE"),
+            Paginated::default(),
+            &ctx.db,
+        )
+        .await?;
+
+    log::debug!("No match packages: {no_match:#?}");
+    assert_eq!(
+        no_match.total, 0,
+        "Should return no packages for non-existent license"
+    );
+    assert!(
+        no_match.items.is_empty(),
+        "Items should be empty for non-existent license"
+    );
+
+    // Test 5: Combine license filter with other filters
+    let combined_filter = service
+        .fetch_sbom_packages(
+            sbom_id,
+            q("license~GPLv2 AND GPLv2+ AND CC-BY&name~qemu-kvm-"),
+            Paginated::default(),
+            &ctx.db,
+        )
+        .await?;
+
+    log::debug!("Combined filter packages: {combined_filter:#?}");
+    // Should apply both license and name filters
+    assert_eq!(combined_filter.total, 11);
+
+    // Test 6: Pagination with license filtering
+    if partial_license_filtered.total > 1 {
+        let paginated = service
+            .fetch_sbom_packages(
+                sbom_id,
+                q("license~GPL"),
+                Paginated {
+                    offset: 0,
+                    limit: 1,
+                },
+                &ctx.db,
+            )
+            .await?;
+
+        log::debug!("Paginated license filtered packages: {paginated:#?}");
+        assert_eq!(paginated.items.len(), 1, "Should respect pagination limit");
+        assert_eq!(
+            paginated.total, partial_license_filtered.total,
+            "Total should match full query"
+        );
+    }
+
+    Ok(())
+}

@@ -281,7 +281,7 @@ async fn test_purl_license_details(ctx: &TrustifyContext) -> Result<(), anyhow::
       "advisories": [],
       "licenses": [
         {
-          "license_name": "(LicenseRef-8 OR LicenseRef-0 OR LicenseRef-MPL) AND (LicenseRef-Netscape OR LicenseRef-0 OR LicenseRef-8)",
+          "license_name": "(LGPLv2+ OR GPLv2+ OR MPL) AND (Netscape OR GPLv2+ OR LGPLv2+)",
           "license_type": "declared"
         },
         {
@@ -289,24 +289,7 @@ async fn test_purl_license_details(ctx: &TrustifyContext) -> Result<(), anyhow::
           "license_type": "concluded"
         }
       ],
-      "licenses_ref_mapping": [
-        {
-          "license_id": "LicenseRef-Netscape",
-          "license_name": "Netscape"
-        },
-        {
-          "license_id": "LicenseRef-MPL",
-          "license_name": "MPL"
-        },
-        {
-          "license_id": "LicenseRef-8",
-          "license_name": "LGPLv2+"
-        },
-        {
-          "license_id": "LicenseRef-0",
-          "license_name": "GPLv2+"
-        }
-      ]
+      "licenses_ref_mapping": []
     });
     assert!(expected_result.contains_subset(response.clone()));
     Ok(())

@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 pub mod advisory;
 pub mod common;
 pub mod endpoints;

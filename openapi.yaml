@@ -4767,6 +4767,7 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/LicenseRefMapping'
+            deprecated: true
           version:
             $ref: '#/components/schemas/VersionedPurlHead'
     PurlHead:
