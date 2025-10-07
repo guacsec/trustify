@@ -244,6 +244,7 @@ impl PurlAdvisory {
                 cwes: None,
                 base_severity: None,
                 base_score: None,
+                id_sort_key: None, // Fallback only; normally loaded from database
             });
 
             if let Some(advisory) = advisory {
