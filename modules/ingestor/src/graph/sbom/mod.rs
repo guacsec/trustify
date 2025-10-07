@@ -6,7 +6,6 @@ pub mod processor;
 pub mod spdx;
 
 mod common;
-
 pub use common::*;
 
 use super::error::Error;
@@ -50,6 +49,8 @@ pub struct SbomInformation {
     pub suppliers: Vec<String>,
     /// The licenses of the data itself, if known.
     pub data_licenses: Vec<String>,
+    /// general purpose properties from the SBOM
+    pub properties: serde_json::Value,
 }
 
 impl From<()> for SbomInformation {
@@ -110,6 +111,7 @@ impl Graph {
             authors,
             suppliers,
             data_licenses,
+            properties,
         } = info.into();
 
         let new_id = match self
@@ -137,6 +139,8 @@ impl Graph {
             source_document_id: Set(new_id),
             labels: Set(labels.into().validate()?),
             data_licenses: Set(data_licenses),
+
+            properties: Set(properties),
         };
 
         let node_model = sbom_node::ActiveModel {

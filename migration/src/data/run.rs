@@ -3,6 +3,7 @@ use anyhow::bail;
 use sea_orm::{ConnectOptions, Database};
 use sea_orm_migration::{IntoSchemaManagerConnection, SchemaManager};
 use std::collections::HashMap;
+use std::time::SystemTime;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
@@ -51,9 +52,19 @@ impl Runner {
         for run in running {
             tracing::info!(name = run.name(), "Running data migration");
 
+            let start = SystemTime::now();
+
             match self.direction {
                 Direction::Up => run.up(&manager).await?,
                 Direction::Down => run.down(&manager).await?,
+            }
+
+            if let Ok(duration) = start.elapsed() {
+                tracing::info!(
+                    name = run.name(),
+                    "Took {}",
+                    humantime::Duration::from(duration)
+                )
             }
         }
 

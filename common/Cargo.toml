@@ -17,6 +17,7 @@ deepsize = { workspace = true }
 hex = { workspace = true }
 hide = { workspace = true }
 human-date-parser = { workspace = true }
+humantime = { workspace = true }
 itertools = { workspace = true }
 lenient_semver = { workspace = true }
 log = { workspace = true }
@@ -32,6 +33,7 @@ sea-orm = { workspace = true, features = ["sea-query-binder", "sqlx-postgres", "
 sea-orm-migration = { workspace = true }
 sea-query = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde-cyclonedx = { workspace = true }
 serde_json = { workspace = true }
 spdx-expression = { workspace = true }
 spdx-rs = { workspace = true }
@@ -45,7 +47,6 @@ urlencoding = { workspace = true }
 utoipa = { workspace = true, features = ["url"] }
 uuid = { workspace = true, features = ["v5", "serde"] }
 walker-common = { workspace = true, features = ["bzip2", "liblzma", "flate2"] }
-humantime = { workspace = true }
 
 [dev-dependencies]
 chrono = { workspace = true }

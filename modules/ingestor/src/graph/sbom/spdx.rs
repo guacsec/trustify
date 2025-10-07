@@ -96,6 +96,7 @@ impl<'a> From<Information<'a>> for SbomInformation {
                 .clone(),
             suppliers: suppliers(sbom),
             data_licenses: vec![value.0.document_creation_information.data_license.clone()],
+            properties: Default::default(),
         }
     }
 }

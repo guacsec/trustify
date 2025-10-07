@@ -1,86 +1,25 @@
+mod document;
 mod migration;
 mod partition;
 mod run;
 
+pub use document::*;
 pub use migration::*;
 pub use partition::*;
 pub use run::*;
 
-use anyhow::{anyhow, bail};
-use bytes::BytesMut;
 use futures_util::{
     StreamExt,
     stream::{self, TryStreamExt},
 };
-use sea_orm::{
-    ConnectionTrait, DatabaseTransaction, DbErr, EntityTrait, ModelTrait, TransactionTrait,
-};
+use indicatif::{ProgressBar, ProgressStyle};
+use sea_orm::{DatabaseTransaction, DbErr, TransactionTrait};
 use sea_orm_migration::{MigrationTrait, SchemaManager};
-use std::num::{NonZeroU64, NonZeroUsize};
-use trustify_common::id::Id;
-use trustify_entity::{sbom, source_document};
-use trustify_module_storage::service::{StorageBackend, StorageKey, dispatch::DispatchBackend};
-
-#[allow(clippy::large_enum_variant)]
-pub enum Sbom {
-    CycloneDx(serde_cyclonedx::cyclonedx::v_1_6::CycloneDx),
-    Spdx(spdx_rs::models::SPDX),
-}
-
-#[allow(async_fn_in_trait)]
-pub trait Document: Sized + Send + Sync {
-    type Model: Partitionable + Send;
-
-    async fn all<C>(tx: &C) -> Result<Vec<Self::Model>, DbErr>
-    where
-        C: ConnectionTrait;
-
-    async fn source<S, C>(model: &Self::Model, storage: &S, tx: &C) -> Result<Self, anyhow::Error>
-    where
-        S: StorageBackend + Send + Sync,
-        C: ConnectionTrait;
-}
-
-impl Document for Sbom {
-    type Model = sbom::Model;
-
-    async fn all<C: ConnectionTrait>(tx: &C) -> Result<Vec<Self::Model>, DbErr> {
-        sbom::Entity::find().all(tx).await
-    }
-
-    async fn source<S, C>(model: &Self::Model, storage: &S, tx: &C) -> Result<Self, anyhow::Error>
-    where
-        S: StorageBackend + Send + Sync,
-        C: ConnectionTrait,
-    {
-        let source = model.find_related(source_document::Entity).one(tx).await?;
-
-        let Some(source) = source else {
-            bail!("Missing source document ID for SBOM: {}", model.sbom_id);
-        };
-
-        let stream = storage
-            .retrieve(
-                StorageKey::try_from(Id::Sha256(source.sha256))
-                    .map_err(|err| anyhow!("Invalid ID: {err}"))?,
-            )
-            .await
-            .map_err(|err| anyhow!("Failed to retrieve document: {err}"))?
-            .ok_or_else(|| anyhow!("Missing source document for SBOM: {}", model.sbom_id))?;
-
-        stream
-            .try_collect::<BytesMut>()
-            .await
-            .map_err(|err| anyhow!("Failed to collect bytes: {err}"))
-            .map(|bytes| bytes.freeze())
-            .and_then(|bytes| {
-                serde_json::from_slice(&bytes)
-                    .map(Sbom::Spdx)
-                    .or_else(|_| serde_json::from_slice(&bytes).map(Sbom::CycloneDx))
-                    .map_err(|err| anyhow!("Failed to parse document: {err}"))
-            })
-    }
-}
+use std::{
+    num::{NonZeroU64, NonZeroUsize},
+    sync::Arc,
+};
+use trustify_module_storage::service::dispatch::DispatchBackend;
 
 #[allow(async_fn_in_trait)]
 pub trait Handler<D>: Send
@@ -101,10 +40,25 @@ pub struct Options {
     #[arg(long, env = "MIGRATION_DATA_CONCURRENT", default_value = "5")]
     pub concurrent: NonZeroUsize,
 
+    /// The instance number of the current runner (zero based)
     #[arg(long, env = "MIGRATION_DATA_CURRENT_RUNNER", default_value = "0")]
     pub current: u64,
+    /// The total number of runners
     #[arg(long, env = "MIGRATION_DATA_TOTAL_RUNNER", default_value = "1")]
     pub total: NonZeroU64,
+
+    /// Skip running all data migrations
+    #[arg(
+        long,
+        env = "MIGRATION_DATA_SKIP_ALL",
+        default_value_t,
+        conflicts_with = "skip"
+    )]
+    pub skip_all: bool,
+
+    /// Skip the provided list of data migrations
+    #[arg(long, env = "MIGRATION_DATA_SKIP", conflicts_with = "skip_all")]
+    pub skip: Vec<String>,
 }
 
 impl Default for Options {
@@ -113,6 +67,8 @@ impl Default for Options {
             concurrent: unsafe { NonZeroUsize::new_unchecked(5) },
             current: 0,
             total: unsafe { NonZeroU64::new_unchecked(1) },
+            skip_all: false,
+            skip: vec![],
         }
     }
 }
@@ -151,30 +107,50 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
         let db = self.get_connection();
 
         let tx = db.begin().await?;
-        let all = D::all(&tx).await?;
+        let all: Vec<_> = D::all(&tx)
+            .await?
+            .into_iter()
+            .filter(|model| partition.is_selected::<D>(model))
+            .collect();
         drop(tx);
 
-        stream::iter(
-            all.into_iter()
-                .filter(|model| partition.is_selected::<D>(model)),
-        )
-        .map(async |model| {
-            let tx = db.begin().await?;
+        let pb = Arc::new(ProgressBar::new(all.len() as u64));
+        pb.set_style(
+            ProgressStyle::with_template(
+                "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})",
+            )
+            .map_err(|err| DbErr::Migration(err.to_string()))?
+            .progress_chars("##-"),
+        );
 
-            let doc = D::source(&model, storage, &tx).await.map_err(|err| {
-                DbErr::Migration(format!("Failed to load source document: {err}"))
-            })?;
-            f.call(doc, model, &tx)
-                .await
-                .map_err(|err| DbErr::Migration(format!("Failed to process document: {err}")))?;
+        let pb = Some(pb);
 
-            tx.commit().await?;
+        stream::iter(all)
+            .map(async |model| {
+                let tx = db.begin().await?;
 
-            Ok::<_, DbErr>(())
-        })
-        .buffer_unordered(options.concurrent.into())
-        .try_collect::<Vec<_>>()
-        .await?;
+                let doc = D::source(&model, storage, &tx).await.map_err(|err| {
+                    DbErr::Migration(format!("Failed to load source document: {err}"))
+                })?;
+                f.call(doc, model, &tx).await.map_err(|err| {
+                    DbErr::Migration(format!("Failed to process document: {err}"))
+                })?;
+
+                tx.commit().await?;
+
+                if let Some(pb) = &pb {
+                    pb.inc(1);
+                }
+
+                Ok::<_, DbErr>(())
+            })
+            .buffer_unordered(options.concurrent.into())
+            .try_collect::<Vec<_>>()
+            .await?;
+
+        if let Some(pb) = &pb {
+            pb.finish_with_message("Done");
+        }
 
         Ok(())
     }

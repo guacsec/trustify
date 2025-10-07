@@ -27,7 +27,7 @@ use serde_cyclonedx::cyclonedx::v_1_6::{
 use std::{borrow::Cow, str::FromStr};
 use time::{OffsetDateTime, format_description::well_known::Iso8601};
 use tracing::instrument;
-use trustify_common::{cpe::Cpe, purl::Purl};
+use trustify_common::{advisory::cyclonedx::extract_properties_json, cpe::Cpe, purl::Purl};
 use trustify_entity::relationship::Relationship;
 use uuid::Uuid;
 
@@ -128,6 +128,7 @@ impl<'a> From<Information<'a>> for SbomInformation {
             authors,
             suppliers,
             data_licenses,
+            properties: extract_properties_json(sbom),
         }
     }
 }

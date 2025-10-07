@@ -1,0 +1,7 @@
+.idea
+.DS_Store
+/data
+.trustify
+/target
+/.dockerignore
+/Containerfile

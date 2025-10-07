@@ -6,7 +6,7 @@ use clap::Parser;
 use futures::executor::block_on;
 use sea_orm::DbErr;
 use sea_orm_migration::{MigrationName, MigrationTrait, SchemaManager};
-use std::{ffi::OsString, sync::LazyLock};
+use std::{ffi::OsString, ops::Deref, sync::LazyLock};
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 
 pub struct MigrationWithData {
@@ -59,6 +59,14 @@ pub struct SchemaDataManager<'c> {
     options: &'c Options,
 }
 
+impl<'a> Deref for SchemaDataManager<'a> {
+    type Target = SchemaManager<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        self.manager
+    }
+}
+
 impl<'c> SchemaDataManager<'c> {
     pub fn new(
         manager: &'c SchemaManager<'c>,
@@ -72,10 +80,21 @@ impl<'c> SchemaDataManager<'c> {
         }
     }
 
-    pub async fn process<D>(&self, f: impl Handler<D>) -> Result<(), DbErr>
+    pub async fn process<D, N>(&self, name: &N, f: impl Handler<D>) -> Result<(), DbErr>
     where
         D: Document,
+        N: MigrationName + Send + Sync,
     {
+        if self.options.skip_all {
+            // we skip all migration
+            return Ok(());
+        }
+
+        if self.options.skip.iter().any(|s| s == name.name()) {
+            // we skip a list of migrations, and it's on the list
+            return Ok(());
+        }
+
         self.manager.process(self.storage, self.options, f).await
     }
 }

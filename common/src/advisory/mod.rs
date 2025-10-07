@@ -1,3 +1,5 @@
+pub mod cyclonedx;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;

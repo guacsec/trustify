@@ -26,6 +26,7 @@ impl SbomQuery {
                 suppliers: sbom_context.sbom.suppliers,
                 source_document_id: sbom_context.sbom.source_document_id,
                 data_licenses: sbom_context.sbom.data_licenses,
+                properties: sbom_context.sbom.properties,
             }),
             Ok(None) => Err(FieldError::new("SBOM not found")),
             Err(err) => Err(FieldError::from(err)),
@@ -68,6 +69,7 @@ impl SbomQuery {
                     suppliers: sbom.sbom.suppliers,
                     source_document_id: sbom.sbom.source_document_id,
                     data_licenses: sbom.sbom.data_licenses,
+                    properties: sbom.sbom.properties,
                 })
             })
             .collect()

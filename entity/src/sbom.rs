@@ -26,6 +26,9 @@ pub struct Model {
         graphql(derived(owned, into = "HashMap<String,String>", with = "Labels::from"))
     )]
     pub labels: Labels,
+
+    /// properties from the SBOM document
+    pub properties: serde_json::Value,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

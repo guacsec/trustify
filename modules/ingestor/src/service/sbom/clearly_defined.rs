@@ -66,6 +66,7 @@ impl<'g> ClearlyDefinedLoader<'g> {
                         authors: vec!["ClearlyDefined Definitions".to_string()],
                         suppliers: vec![],
                         data_licenses: vec![],
+                        properties: Default::default(),
                     },
                     &tx,
                 )

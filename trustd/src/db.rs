@@ -23,30 +23,18 @@ pub enum Command {
     /// Remove all migrations and re-apply them (DANGER)
     Refresh,
     /// Run specific data migrations
-    Data {
-        // Migrations to run
-        #[arg()]
-        name: Vec<String>,
-        #[command(flatten)]
-        storage: StorageConfig,
-        #[command(flatten)]
-        options: Options,
-    },
+    Data(Data),
 }
 
 impl Run {
     pub async fn run(self) -> anyhow::Result<ExitCode> {
         init_tracing("db-run", Tracing::Disabled);
         use Command::*;
-        match self.command.clone() {
+        match self.command {
             Create => self.create().await,
             Migrate => self.migrate().await,
             Refresh => self.refresh().await,
-            Data {
-                name,
-                storage,
-                options,
-            } => self.data(Direction::Up, name, storage, options).await,
+            Data(data) => data.run(Direction::Up, self.database).await,
         }
     }
 
@@ -71,31 +59,6 @@ impl Run {
         match db::Database::new(&self.database).await {
             Ok(db) => {
                 trustify_db::Database(&db).migrate().await?;
-                Ok(ExitCode::SUCCESS)
-            }
-            Err(e) => Err(e),
-        }
-    }
-
-    async fn data(
-        self,
-        direction: Direction,
-        migrations: Vec<String>,
-        storage: StorageConfig,
-        options: Options,
-    ) -> anyhow::Result<ExitCode> {
-        match db::Database::new(&self.database).await {
-            Ok(db) => {
-                trustify_db::Database(&db)
-                    .data_migrate(Runner {
-                        database_url: self.database.to_url(),
-                        database_schema: None,
-                        storage: storage.into_storage(false).await?,
-                        direction,
-                        migrations,
-                        options,
-                    })
-                    .await?;
                 Ok(ExitCode::SUCCESS)
             }
             Err(e) => Err(e),
@@ -145,5 +108,43 @@ impl Run {
         log::info!("Running on port {port}");
 
         Ok(postgresql)
+    }
+}
+
+#[derive(clap::Args, Debug, Clone)]
+pub struct Data {
+    /// Migrations to run
+    #[arg()]
+    name: Vec<String>,
+    #[command(flatten)]
+    storage: StorageConfig,
+    #[command(flatten)]
+    options: Options,
+}
+
+impl Data {
+    pub async fn run(self, direction: Direction, database: Database) -> anyhow::Result<ExitCode> {
+        let Self {
+            name: migrations,
+            storage,
+            options,
+        } = self;
+
+        match db::Database::new(&database).await {
+            Ok(db) => {
+                trustify_db::Database(&db)
+                    .data_migrate(Runner {
+                        database_url: database.to_url(),
+                        database_schema: None,
+                        storage: storage.into_storage(false).await?,
+                        direction,
+                        migrations,
+                        options,
+                    })
+                    .await?;
+                Ok(ExitCode::SUCCESS)
+            }
+            Err(e) => Err(e),
+        }
     }
 }

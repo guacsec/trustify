@@ -1,0 +1,80 @@
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: data-migration-test
+spec:
+  completions: 4
+  completionMode: Indexed
+  parallelism: 4 # same as completions
+  template:
+    spec:
+      restartPolicy: OnFailure
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: "kubernetes.io/arch"
+                  operator: In
+                  values: ["amd64"]
+      containers:
+        - name: run
+          image: quay.io/ctrontesting/trustd:latest
+          imagePullPolicy: Always
+          command:
+            - /usr/local/bin/trustd
+            - db
+            - data
+            - m0002000_example_data_migration # name of the migration
+          env:
+            - name: MIGRATION_DATA_CONCURRENT
+              value: "5" # in-process parallelism
+            - name: MIGRATION_DATA_TOTAL_RUNNER
+              value: "4" # same as completions
+            - name: MIGRATION_DATA_CURRENT_RUNNER
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+
+            - name: TRUSTD_STORAGE_STRATEGY
+              value: s3
+            - name: TRUSTD_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: storage-credentials
+                  key: aws_access_key_id
+            - name: TRUSTD_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: storage-credentials
+                  key: aws_secret_access_key
+            - name: TRUSTD_S3_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: aws-storage
+                  key: region
+            - name: TRUSTD_S3_BUCKET
+              value: trustify-default
+
+            - name: TRUSTD_DB_NAME
+              value: trustify_default
+            - name: TRUSTD_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: username
+            - name: TRUSTD_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: password
+            - name: TRUSTD_DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql
+                  key: host
+            - name: TRUSTD_DB_PORT
+              value: "5432"
+
+            - name: RUST_LOG
+              value: info
