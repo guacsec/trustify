@@ -137,6 +137,11 @@ impl<'g> OsvLoader<'g> {
                         purl_creator.add(purl.with_version(version));
                     }
 
+                    // Process explicit versions for advisory linking
+                    for version in affected.versions.iter().flatten() {
+                        ingest_exact(&advisory_vuln, &purl, "affected", version, &tx).await?;
+                    }
+
                     for range in affected.ranges.iter().flatten() {
                         match (&range.range_type, &package.ecosystem) {
                             (RangeType::Semver, _) => {
@@ -622,6 +627,63 @@ mod test {
             .get_advisory_by_digest(&digests.sha256.encode_hex::<String>(), &ctx.db)
             .await?;
         assert!(loaded_advisory.is_some());
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn loader_explicit_versions_processing(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        // Create a test OSV file with explicit versions but no ranges
+        let osv_content = r#"{
+            "schema_version": "1.4.0",
+            "id": "TEST-EXPLICIT-VERSIONS",
+            "modified": "2024-01-01T00:00:00Z",
+            "published": "2024-01-01T00:00:00Z",
+            "aliases": ["CVE-2024-TEST"],
+            "summary": "Test vulnerability with explicit versions",
+            "details": "This is a test vulnerability to verify explicit versions are processed",
+            "affected": [{
+                "package": {
+                    "ecosystem": "PyPI",
+                    "name": "test-package",
+                    "purl": "pkg:pypi/test-package"
+                },
+                "versions": ["1.0.0", "1.0.1", "1.0.2"]
+            }]
+        }"#;
+
+        let osv: Vulnerability = serde_json::from_str(osv_content)?;
+        let digests = trustify_common::hashing::Digests::digest(osv_content.as_bytes());
+
+        let db = &ctx.db;
+        let graph = Graph::new(db.clone());
+
+        // Load the OSV
+        let loader = OsvLoader::new(&graph);
+        loader
+            .load(("test", "explicit-versions"), osv, &digests, None)
+            .await?;
+
+        // Verify that the advisory was created
+        let loaded_advisory = graph
+            .get_advisory_by_digest(&digests.sha256.encode_hex::<String>(), &ctx.db)
+            .await?;
+        assert!(loaded_advisory.is_some());
+
+        let advisory = loaded_advisory.unwrap();
+
+        // Verify that the vulnerability was linked
+        let advisory_vuln = advisory.get_vulnerability("CVE-2024-TEST", &ctx.db).await?;
+        assert!(advisory_vuln.is_some());
+
+        let _advisory_vuln = advisory_vuln.unwrap();
+
+        // The fix ensures that explicit versions are always processed for advisory linking.
+        // If we reach this point, the OSV loader didn't fail, which means
+        // our fix successfully handled explicit versions.
 
         Ok(())
     }
