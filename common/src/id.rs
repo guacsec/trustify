@@ -86,9 +86,7 @@ impl Id {
 
     pub fn value(&self) -> String {
         match self {
-            Id::Sha256(inner) => inner.clone(),
-            Id::Sha384(inner) => inner.clone(),
-            Id::Sha512(inner) => inner.clone(),
+            Id::Sha256(inner) | Id::Sha384(inner) | Id::Sha512(inner) => inner.clone(),
             Id::Uuid(inner) => inner.simple().to_string(),
         }
     }
