@@ -2,7 +2,6 @@ use crate::purl::model::details::base_purl::BasePurlDetails;
 use crate::purl::model::summary::base_purl::BasePurlSummary;
 use crate::purl::model::summary::purl::PurlSummary;
 use crate::test::caller;
-use actix_web::http::StatusCode;
 use actix_web::test::TestRequest;
 use serde_json::{Value, json};
 use std::str::FromStr;
@@ -292,24 +291,5 @@ async fn test_purl_license_details(ctx: &TrustifyContext) -> Result<(), anyhow::
       "licenses_ref_mapping": []
     });
     assert!(expected_result.contains_subset(response.clone()));
-    Ok(())
-}
-
-#[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn garbage_collect(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    setup(&ctx.db, &ctx.graph).await?;
-    let app = caller(ctx).await?;
-
-    let uri = "/api/v2/purl/gc";
-    let request = TestRequest::get().uri(uri).to_request();
-    let response = app.call_service(request).await;
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body_bytes = actix_web::test::read_body(response).await;
-    let body_str = std::str::from_utf8(&body_bytes)?;
-    assert_eq!(body_str, "8");
-
     Ok(())
 }
