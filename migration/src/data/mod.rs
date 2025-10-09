@@ -114,7 +114,8 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
             .collect();
         drop(tx);
 
-        let pb = Arc::new(ProgressBar::new(all.len() as u64));
+        let count = all.len();
+        let pb = Arc::new(ProgressBar::new(count as u64));
         pb.set_style(
             ProgressStyle::with_template(
                 "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})",
@@ -151,6 +152,8 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
         if let Some(pb) = &pb {
             pb.finish_with_message("Done");
         }
+
+        tracing::info!("Processed {count} documents");
 
         Ok(())
     }
