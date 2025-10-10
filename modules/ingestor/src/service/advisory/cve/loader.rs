@@ -1,3 +1,5 @@
+use crate::graph::cvss::ScoreCreator;
+use crate::service::advisory::cve::extract_scores;
 use crate::{
     graph::{
         Graph,
@@ -93,6 +95,10 @@ impl<'g> CveLoader<'g> {
             .graph
             .ingest_advisory(id, labels, digests, advisory_info, &tx)
             .await?;
+
+        let mut score_creator = ScoreCreator::new(advisory.advisory.id);
+        extract_scores(&cve, &mut score_creator);
+        score_creator.create(&tx).await?;
 
         // Link the advisory to the backing vulnerability
         let advisory_vuln = advisory

@@ -1,3 +1,4 @@
+use crate::service::advisory::osv::extract_vulnerability_ids;
 use crate::{
     graph::{
         Graph,
@@ -6,6 +7,7 @@ use crate::{
             advisory_vulnerability::AdvisoryVulnerabilityContext,
             version::{Version, VersionInfo, VersionSpec},
         },
+        cvss::ScoreCreator,
         purl::{
             self,
             creator::PurlCreator,
@@ -16,7 +18,7 @@ use crate::{
     model::IngestResult,
     service::{
         Error, Warnings,
-        advisory::osv::{prefix::get_well_known_prefixes, translate},
+        advisory::osv::{extract_scores, prefix::get_well_known_prefixes, translate},
     },
 };
 use osv::schema::{Ecosystem, Event, Range, RangeType, ReferenceType, SeverityType, Vulnerability};
@@ -94,10 +96,20 @@ impl<'g> OsvLoader<'g> {
         vuln_creator.create(&tx).await?;
 
         let mut purl_creator = PurlCreator::new();
+<<<<<<< HEAD
         let mut purl_status_creator = PurlStatusCreator::new();
         let mut base_purls = HashSet::new();
 
         for cve_id in &cve_ids {
+=======
+        let mut score_creator = ScoreCreator::new(advisory.advisory.id);
+
+        extract_scores(&osv, &mut score_creator);
+
+        for cve_id in extract_vulnerability_ids(&osv) {
+            self.graph.ingest_vulnerability(&cve_id, (), &tx).await?;
+
+>>>>>>> 26d7d87d (feat: ingest scores)
             let advisory_vuln = advisory
                 .link_to_vulnerability(
                     cve_id,
@@ -310,6 +322,7 @@ impl<'g> OsvLoader<'g> {
         }
 
         purl_creator.create(&tx).await?;
+        score_creator.create(&tx).await?;
 
         // Create base PURLs for range-based status entries
         purl::batch_create_base_purls(base_purls, &tx).await?;

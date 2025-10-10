@@ -1,5 +1,6 @@
 pub mod advisory;
 pub mod advisory_vulnerability;
+pub mod advisory_vulnerability_score;
 pub mod base_purl;
 pub mod cpe;
 pub mod cvss3;

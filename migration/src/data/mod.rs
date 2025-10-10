@@ -194,7 +194,7 @@ macro_rules! sbom {
 ///
 /// See: [`handler!`].
 #[macro_export]
-macro_rules! advisories {
+macro_rules! advisory {
     (async | $doc:ident, $model:ident, $tx:ident | $body:block) => {
         $crate::handler!(async |$doc: $crate::data::Advisory, $model, $tx| $body)
     };

@@ -1,5 +1,6 @@
 pub mod advisory;
 pub mod cpe;
+pub mod cvss;
 pub mod db_context;
 pub mod error;
 pub mod organization;
