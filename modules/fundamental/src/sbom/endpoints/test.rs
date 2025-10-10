@@ -1181,8 +1181,7 @@ async fn download_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let sbom = app.call_and_read_body_json::<SbomSummary>(req).await;
     assert_eq!(Id::Uuid(sbom.head.id), result.id);
 
-    assert!(sbom.source_document.is_some());
-    let doc = sbom.source_document.unwrap();
+    let doc = sbom.source_document;
 
     let hashes = vec![doc.sha256, doc.sha384, doc.sha512];
 

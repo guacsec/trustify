@@ -181,10 +181,7 @@ async fn ingested_timestamp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
                 .await?
                 .expect("must find the document");
 
-            let ingested = sbom
-                .source_document
-                .expect("must have a source document")
-                .ingested;
+            let ingested = sbom.source_document.ingested;
             let now = OffsetDateTime::now_utc();
             assert!(ingested > start && ingested < now);
 

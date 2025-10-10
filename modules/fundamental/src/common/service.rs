@@ -66,21 +66,15 @@ fn escape(text: String) -> String {
 /// Delete the original raw json doc from storage. An appropriate
 /// message is returned in the event of an error, but it's up to the
 /// caller to either log the message or return failure to its caller.
-pub async fn delete_doc(
-    doc: Option<&SourceDocument>,
-    storage: impl DocumentDelete,
-) -> Result<(), Error> {
-    match doc {
-        Some(doc) => {
-            let key = doc.try_into()?;
-            storage.delete(key).await
-        }
-        None => Ok(()),
-    }
+pub async fn delete_doc(doc: &SourceDocument, storage: impl DocumentDelete) -> Result<(), Error> {
+    let key = doc.try_into()?;
+    storage.delete(key).await
 }
+
 pub trait DocumentDelete {
     fn delete(&self, key: StorageKey) -> impl Future<Output = Result<(), Error>>;
 }
+
 impl DocumentDelete for &DispatchBackend {
     async fn delete(&self, key: StorageKey) -> Result<(), Error> {
         (*self).delete(key).await.map_err(Error::Storage)
@@ -137,13 +131,9 @@ mod test {
             }
         }
 
-        // Deleting no doc is fine, error or not
-        let msg = delete_doc(None, FailingDelete {}).await;
-        assert!(msg.is_ok());
-
         // Failing to delete an invalid doc from storage should log an error
         let doc = SourceDocument::default();
-        match delete_doc(Some(&doc), FailingDelete {}).await {
+        match delete_doc(&doc, FailingDelete {}).await {
             Ok(_) => panic!("expected error"),
             Err(e) => assert!(e.to_string().contains("Missing prefix")),
         };
@@ -155,7 +145,7 @@ mod test {
             ),
             ..Default::default()
         };
-        match delete_doc(Some(&doc), FailingDelete {}).await {
+        match delete_doc(&doc, FailingDelete {}).await {
             Ok(_) => panic!("expected error"),
             Err(e) => assert!(e.to_string().contains("Delete failed")),
         };

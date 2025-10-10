@@ -17,7 +17,7 @@ pub struct AdvisoryDetails {
     pub head: AdvisoryHead,
 
     #[serde(flatten)]
-    pub source_document: Option<SourceDocument>,
+    pub source_document: SourceDocument,
 
     /// Vulnerabilities addressed within this advisory.
     pub vulnerabilities: Vec<AdvisoryVulnerabilitySummary>,
@@ -60,10 +60,7 @@ impl AdvisoryDetails {
                 tx,
             )
             .await?,
-            source_document: advisory
-                .source_document
-                .as_ref()
-                .map(SourceDocument::from_entity),
+            source_document: SourceDocument::from_entity(&advisory.source_document),
             vulnerabilities,
             average_severity: None,
             average_score: None,

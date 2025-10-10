@@ -3278,9 +3278,7 @@ components:
     AdvisoryDetails:
       allOf:
       - $ref: '#/components/schemas/AdvisoryHead'
-      - oneOf:
-        - type: 'null'
-        - $ref: '#/components/schemas/SourceDocument'
+      - $ref: '#/components/schemas/SourceDocument'
       - type: object
         required:
         - vulnerabilities
@@ -3361,10 +3359,8 @@ components:
     AdvisorySummary:
       allOf:
       - $ref: '#/components/schemas/AdvisoryHead'
-      - oneOf:
-        - type: 'null'
-        - $ref: '#/components/schemas/SourceDocument'
-          description: Information pertaning to the underlying source document, if any.
+      - $ref: '#/components/schemas/SourceDocument'
+        description: Information pertaning to the underlying source document, if any.
       - type: object
         required:
         - average_severity
@@ -4190,10 +4186,8 @@ components:
           items:
             allOf:
             - $ref: '#/components/schemas/AdvisoryHead'
-            - oneOf:
-              - type: 'null'
-              - $ref: '#/components/schemas/SourceDocument'
-                description: Information pertaning to the underlying source document, if any.
+            - $ref: '#/components/schemas/SourceDocument'
+              description: Information pertaning to the underlying source document, if any.
             - type: object
               required:
               - average_severity
@@ -4519,9 +4513,7 @@ components:
           items:
             allOf:
             - $ref: '#/components/schemas/SbomHead'
-            - oneOf:
-              - type: 'null'
-              - $ref: '#/components/schemas/SourceDocument'
+            - $ref: '#/components/schemas/SourceDocument'
             - type: object
               required:
               - described_by
@@ -5101,9 +5093,7 @@ components:
     SbomSummary:
       allOf:
       - $ref: '#/components/schemas/SbomHead'
-      - oneOf:
-        - type: 'null'
-        - $ref: '#/components/schemas/SourceDocument'
+      - $ref: '#/components/schemas/SourceDocument'
       - type: object
         required:
         - described_by

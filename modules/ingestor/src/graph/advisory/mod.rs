@@ -164,7 +164,7 @@ impl Graph {
             modified: Set(modified),
             withdrawn: Set(withdrawn),
             labels: Set(labels.validate()?),
-            source_document_id: Set(Some(new_id)),
+            source_document_id: Set(new_id),
         };
 
         let result = model.insert(connection).await?;

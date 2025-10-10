@@ -17,7 +17,7 @@ pub struct AdvisorySummary {
 
     /// Information pertaning to the underlying source document, if any.
     #[serde(flatten)]
-    pub source_document: Option<SourceDocument>,
+    pub source_document: SourceDocument,
 
     /// Average (arithmetic mean) severity of the advisory aggregated from *all* related vulnerability assertions.
     #[schema(required)]
@@ -69,10 +69,7 @@ impl AdvisorySummary {
                     tx,
                 )
                 .await?,
-                source_document: each
-                    .source_document
-                    .as_ref()
-                    .map(SourceDocument::from_entity),
+                source_document: SourceDocument::from_entity(&each.source_document),
                 average_severity: None,
                 average_score: None,
                 vulnerabilities,

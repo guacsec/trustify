@@ -152,12 +152,12 @@ async fn single_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             fetched,
             Some(AdvisoryDetails {
                 head: AdvisoryHead { .. },
-            source_document: Some(SourceDocument {
+            source_document: SourceDocument {
                 sha256,
                 sha384,
                 sha512,
                 ..
-            }),
+            },
             average_severity: None,
                 ..
             })
@@ -168,14 +168,13 @@ async fn single_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             fetched,
             Some(AdvisoryDetails {
                 head: AdvisoryHead { .. },
-            source_document: Some(SourceDocument {
+            source_document: SourceDocument {
                 sha256,
                 sha384,
                 sha512,
                 ..
-            }),
+            },
             average_severity: None,
-
                 ..
             })
         if sha256 == jenny256.to_string() && sha384 == jenny384.to_string() && sha512 == jenny512.to_string()));

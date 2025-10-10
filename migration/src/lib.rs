@@ -28,6 +28,7 @@ mod m0001130_gover_cmp;
 mod m0001140_expand_spdx_licenses_function;
 mod m0001150_case_license_text_sbom_id_function;
 mod m0001160_improve_expand_spdx_licenses_function;
+mod m0001170_non_null_source_document_id;
 
 pub struct Migrator;
 
@@ -63,6 +64,7 @@ impl MigratorTrait for Migrator {
             Box::new(m0001140_expand_spdx_licenses_function::Migration),
             Box::new(m0001150_case_license_text_sbom_id_function::Migration),
             Box::new(m0001160_improve_expand_spdx_licenses_function::Migration),
+            Box::new(m0001170_non_null_source_document_id::Migration),
         ]
     }
 }

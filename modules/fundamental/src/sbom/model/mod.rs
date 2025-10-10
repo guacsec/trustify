@@ -78,7 +78,7 @@ pub struct SbomSummary {
     pub head: SbomHead,
 
     #[serde(flatten)]
-    pub source_document: Option<SourceDocument>,
+    pub source_document: SourceDocument,
 
     pub described_by: Vec<SbomPackage>,
 }
@@ -93,12 +93,16 @@ impl SbomSummary {
         // TODO: consider improving the n-select issues here
         let described_by = service.describes_packages(sbom.sbom_id, (), db).await?;
 
-        let source_document = sbom.find_related(source_document::Entity).one(db).await?;
+        let source_document = sbom
+            .find_related(source_document::Entity)
+            .one(db)
+            .await?
+            .ok_or_else(|| Error::NotFound("Missing source document".to_string()))?;
 
         Ok(match node {
             Some(_) => Some(SbomSummary {
                 head: SbomHead::from_entity(&sbom, node, db).await?,
-                source_document: source_document.as_ref().map(SourceDocument::from_entity),
+                source_document: SourceDocument::from_entity(&source_document),
                 described_by,
             }),
             None => None,
