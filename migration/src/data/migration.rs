@@ -80,6 +80,7 @@ impl<'c> SchemaDataManager<'c> {
         }
     }
 
+    /// Run a data migration
     pub async fn process<D, N>(&self, name: &N, f: impl Handler<D>) -> Result<(), DbErr>
     where
         D: Document,

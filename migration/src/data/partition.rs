@@ -3,7 +3,7 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
     num::NonZeroU64,
 };
-use trustify_entity::sbom;
+use trustify_entity::{advisory, sbom};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Partition {
@@ -11,7 +11,12 @@ pub struct Partition {
     pub total: NonZeroU64,
 }
 
+/// A thing which can be distributed over different partitions via a hashed id.
+///
+/// The idea is that the thing returns a hash ID, which can then be distributed over partitions
+/// by using a "X of Y" approach. Where the thing is processed when "ID modulo Y == X".
 pub trait Partitionable {
+    /// Get the hashed ID for the thing.
     fn hashed_id(&self) -> u64;
 }
 
@@ -19,6 +24,14 @@ impl Partitionable for sbom::Model {
     fn hashed_id(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
         self.sbom_id.hash(&mut hasher);
+        hasher.finish()
+    }
+}
+
+impl Partitionable for advisory::Model {
+    fn hashed_id(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.id.hash(&mut hasher);
         hasher.finish()
     }
 }

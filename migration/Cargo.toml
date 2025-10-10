@@ -17,9 +17,13 @@ trustify-module-storage = { workspace = true }
 anyhow = { workspace = true }
 bytes = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
+csaf = { workspace = true }
+cve = { workspace = true }
 futures = { workspace = true }
 futures-util = { workspace = true }
+humantime = { workspace = true }
 indicatif = { workspace = true, features = ["tokio", "futures"] }
+osv = { workspace = true, features = ["schema"] }
 sea-orm = { workspace = true }
 sea-orm-migration = { workspace = true, features = ["runtime-tokio-rustls", "sqlx-postgres", "with-uuid"] }
 serde-cyclonedx = { workspace = true }
@@ -29,7 +33,6 @@ tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true, features = ["v5"] }
-humantime = { workspace = true }
 
 [dev-dependencies]
 trustify-common = { workspace = true }

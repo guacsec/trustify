@@ -1,30 +1,32 @@
 use super::Document;
 use bytes::Bytes;
 use sea_orm::prelude::*;
-use trustify_entity::sbom;
+use trustify_entity::advisory;
 use trustify_module_storage::service::StorageBackend;
 
 #[allow(clippy::large_enum_variant)]
-pub enum Sbom {
-    CycloneDx(serde_cyclonedx::cyclonedx::v_1_6::CycloneDx),
-    Spdx(spdx_rs::models::SPDX),
+pub enum Advisory {
+    Cve(cve::Cve),
+    Csaf(csaf::Csaf),
+    Osv(osv::schema::Vulnerability),
     Other(Bytes),
 }
 
-impl From<Bytes> for Sbom {
+impl From<Bytes> for Advisory {
     fn from(value: Bytes) -> Self {
         serde_json::from_slice(&value)
-            .map(Sbom::Spdx)
-            .or_else(|_| serde_json::from_slice(&value).map(Sbom::CycloneDx))
-            .unwrap_or_else(|_err| Sbom::Other(value))
+            .map(Advisory::Cve)
+            .or_else(|_| serde_json::from_slice(&value).map(Advisory::Csaf))
+            .or_else(|_| serde_json::from_slice(&value).map(Advisory::Osv))
+            .unwrap_or_else(|_err| Advisory::Other(value))
     }
 }
 
-impl Document for Sbom {
-    type Model = sbom::Model;
+impl Document for Advisory {
+    type Model = advisory::Model;
 
     async fn all<C: ConnectionTrait>(tx: &C) -> Result<Vec<Self::Model>, DbErr> {
-        sbom::Entity::find().all(tx).await
+        advisory::Entity::find().all(tx).await
     }
 
     async fn source<S, C>(model: &Self::Model, storage: &S, tx: &C) -> Result<Self, anyhow::Error>

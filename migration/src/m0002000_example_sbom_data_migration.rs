@@ -47,6 +47,9 @@ impl MigrationTraitWithData for Migration {
                         SbomDoc::Spdx(_sbom) => {
                             model.properties = Set(serde_json::Value::Object(Default::default()));
                         }
+                        SbomDoc::Other(_) => {
+                            // we ignore others
+                        }
                     }
 
                     model.save(tx).await?;

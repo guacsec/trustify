@@ -159,6 +159,7 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
     }
 }
 
+/// A handler for data migration of documents.
 #[macro_export]
 macro_rules! handler {
     (async | $doc:ident: $doc_ty:ty, $model:ident, $tx:ident | $body:block) => {{
@@ -179,10 +180,23 @@ macro_rules! handler {
     }};
 }
 
+/// A handler for SBOMs.
+///
+/// See: [`handler!`].
 #[macro_export]
 macro_rules! sbom {
     (async | $doc:ident, $model:ident, $tx:ident | $body:block) => {
         $crate::handler!(async |$doc: $crate::data::Sbom, $model, $tx| $body)
+    };
+}
+
+/// A handler for advisories.
+///
+/// See: [`handler!`].
+#[macro_export]
+macro_rules! advisories {
+    (async | $doc:ident, $model:ident, $tx:ident | $body:block) => {
+        $crate::handler!(async |$doc: $crate::data::Advisory, $model, $tx| $body)
     };
 }
 
