@@ -328,7 +328,7 @@ pub async fn delete(
             false => Ok(HttpResponse::NotFound().finish()),
             true => {
                 tx.commit().await?;
-                if let Err(e) = delete_doc(v.source_document.as_ref(), i.storage()).await {
+                if let Err(e) = delete_doc(&v.source_document, i.storage()).await {
                     log::warn!("Ignoring {e}");
                 }
                 Ok(HttpResponse::Ok().json(v))
@@ -505,21 +505,15 @@ pub async fn download(
         return Ok(HttpResponse::NotFound().finish());
     };
 
-    if let Some(doc) = &sbom.source_document {
-        let storage_key = doc.try_into()?;
+    let stream = ingestor
+        .storage()
+        .retrieve(sbom.source_document.try_into()?)
+        .await
+        .map_err(Error::Storage)?
+        .map(|stream| stream.map_err(Error::Storage));
 
-        let stream = ingestor
-            .storage()
-            .retrieve(storage_key)
-            .await
-            .map_err(Error::Storage)?
-            .map(|stream| stream.map_err(Error::Storage));
-
-        Ok(match stream {
-            Some(s) => HttpResponse::Ok().streaming(s),
-            None => HttpResponse::NotFound().finish(),
-        })
-    } else {
-        Ok(HttpResponse::NotFound().finish())
-    }
+    Ok(match stream {
+        Some(s) => HttpResponse::Ok().streaming(s),
+        None => HttpResponse::NotFound().finish(),
+    })
 }

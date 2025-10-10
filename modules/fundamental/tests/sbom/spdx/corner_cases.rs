@@ -222,12 +222,7 @@ async fn special_char(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let stream = ctx
         .storage
-        .retrieve(
-            sbom.source_document
-                .expect("must be found")
-                .try_into()
-                .expect("must be converted"),
-        )
+        .retrieve(sbom.source_document.try_into().expect("must be converted"))
         .await?
         .expect("must be found");
     let data: BytesMut = stream.try_collect().await?;

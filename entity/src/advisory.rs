@@ -31,7 +31,7 @@ pub struct Model {
     pub withdrawn: Option<OffsetDateTime>,
     pub title: Option<String>,
     pub labels: Labels,
-    pub source_document_id: Option<Uuid>,
+    pub source_document_id: Uuid,
 }
 
 #[cfg(feature = "async-graphql")]

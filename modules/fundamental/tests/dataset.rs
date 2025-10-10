@@ -48,10 +48,6 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
 
     let source_doc = sbom_summary.source_document;
 
-    assert!(source_doc.is_some());
-
-    let source_doc = source_doc.unwrap();
-
     let storage_key = (&source_doc).try_into()?;
 
     let stream = storage.retrieve(storage_key).await?;

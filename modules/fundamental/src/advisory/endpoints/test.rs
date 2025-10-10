@@ -560,11 +560,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .call_and_read_body_json(TestRequest::get().uri("/api/v2/advisory").to_request())
         .await;
     assert_eq!(advisory_list.total, 1);
-    let key: StorageKey = advisory_list.items[0]
-        .source_document
-        .as_ref()
-        .expect("valid document")
-        .try_into()?;
+    let key: StorageKey = advisory_list.items[0].source_document.clone().try_into()?;
     assert!(storage.retrieve(key.clone()).await?.is_some());
 
     // first delete should succeed

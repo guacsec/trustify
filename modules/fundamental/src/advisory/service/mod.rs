@@ -199,7 +199,7 @@ impl AdvisoryService {
 
 #[derive(Debug)]
 pub struct AdvisoryCatcher {
-    pub source_document: Option<source_document::Model>,
+    pub source_document: source_document::Model,
     pub advisory: advisory::Model,
     pub issuer: Option<organization::Model>,
 }
@@ -211,7 +211,8 @@ impl FromQueryResult for AdvisoryCatcher {
                 res,
                 "",
                 source_document::Entity,
-            )?,
+            )?
+            .ok_or_else(|| DbErr::Custom("Missing source document".to_string()))?,
             advisory: Self::from_query_result_multi_model(res, "", advisory::Entity)?,
             issuer: Self::from_query_result_multi_model_optional(res, "", organization::Entity)?,
         })
