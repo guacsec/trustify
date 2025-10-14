@@ -8556,7 +8556,7 @@ dependencies = [
  "utoipa",
  "utoipa-actix-web",
  "uuid",
- "zip 5.1.1",
+ "zip 6.0.0",
 ]
 
 [[package]]
@@ -8633,7 +8633,7 @@ dependencies = [
  "utoipa-actix-web",
  "uuid",
  "walkdir",
- "zip 5.1.1",
+ "zip 6.0.0",
 ]
 
 [[package]]
@@ -8713,7 +8713,7 @@ dependencies = [
  "uuid",
  "walkdir",
  "walker-common",
- "zip 5.1.1",
+ "zip 6.0.0",
 ]
 
 [[package]]
@@ -8767,7 +8767,7 @@ dependencies = [
  "utoipa",
  "utoipa-actix-web",
  "uuid",
- "zip 5.1.1",
+ "zip 6.0.0",
 ]
 
 [[package]]
@@ -8936,7 +8936,7 @@ dependencies = [
  "trustify-module-storage",
  "utoipa-actix-web",
  "walkdir",
- "zip 5.1.1",
+ "zip 6.0.0",
 ]
 
 [[package]]
@@ -10215,9 +10215,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "5.1.1"
+version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f852905151ac8d4d06fdca66520a661c09730a74c6d4e2b0f27b436b382e532"
+checksum = "eb2a05c7c36fde6c09b08576c9f7fb4cda705990f73b58fe011abf7dfb24168b"
 dependencies = [
  "aes",
  "arbitrary",
