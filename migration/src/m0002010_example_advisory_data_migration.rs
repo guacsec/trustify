@@ -82,6 +82,19 @@ impl MigrationTraitWithData for Migration {
                             .not_null()
                             .to_owned(),
                     )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from_col(AdvisoryVulnerabilityScore::AdvisoryId)
+                            .from_col(AdvisoryVulnerabilityScore::VulnerabilityId)
+                            .to(
+                                AdvisoryVulnerability::Table,
+                                (
+                                    AdvisoryVulnerability::AdvisoryId,
+                                    AdvisoryVulnerability::VulnerabilityId,
+                                ),
+                            )
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
                     .to_owned(),
             )
             .await?;
@@ -135,6 +148,13 @@ impl MigrationTraitWithData for Migration {
 
         Ok(())
     }
+}
+
+#[derive(DeriveIden)]
+enum AdvisoryVulnerability {
+    Table,
+    AdvisoryId,
+    VulnerabilityId,
 }
 
 #[derive(DeriveIden)]
