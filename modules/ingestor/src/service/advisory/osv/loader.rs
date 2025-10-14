@@ -96,20 +96,15 @@ impl<'g> OsvLoader<'g> {
         vuln_creator.create(&tx).await?;
 
         let mut purl_creator = PurlCreator::new();
-<<<<<<< HEAD
         let mut purl_status_creator = PurlStatusCreator::new();
         let mut base_purls = HashSet::new();
-
-        for cve_id in &cve_ids {
-=======
         let mut score_creator = ScoreCreator::new(advisory.advisory.id);
 
         extract_scores(&osv, &mut score_creator);
 
         for cve_id in extract_vulnerability_ids(&osv) {
-            self.graph.ingest_vulnerability(&cve_id, (), &tx).await?;
+            self.graph.ingest_vulnerability(cve_id, (), &tx).await?;
 
->>>>>>> 26d7d87d (feat: ingest scores)
             let advisory_vuln = advisory
                 .link_to_vulnerability(
                     cve_id,

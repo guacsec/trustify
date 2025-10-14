@@ -9,14 +9,13 @@ use test_context::{futures, test_context};
 use test_log::test;
 use tracing::instrument;
 use trustify_common::{cpe::Cpe, purl::Purl, sbom::spdx::parse_spdx};
-use trustify_module_ingestor::service::Cache;
 use trustify_module_ingestor::{
     graph::{
         cpe::CpeCreator,
         purl::creator::PurlCreator,
         sbom::{LicenseCreator, LicenseInfo},
     },
-    service::{Discard, Format},
+    service::{Cache, Discard, Format},
 };
 use trustify_test_context::{TrustifyContext, document_bytes, spdx::fix_spdx_rels};
 use uuid::Uuid;
