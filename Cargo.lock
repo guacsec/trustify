@@ -8422,6 +8422,7 @@ dependencies = [
  "async-graphql",
  "cpe",
  "cvss 0.1.0",
+ "cvss 2.1.1",
  "deepsize",
  "log",
  "rstest",
