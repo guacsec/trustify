@@ -1502,3 +1502,171 @@ async fn all_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let id = ctx
+        .ingest_document("cyclonedx/cryptographic/cbom.json")
+        .await?
+        .id
+        .to_string();
+    let uri = format!("/api/v2/sbom/{id}");
+    let req = TestRequest::get().uri(&uri).to_request();
+    let sbom: Value = app.call_and_read_body_json(req).await;
+    log::debug!("{sbom:#?}");
+
+    // assert expected fields
+    assert_eq!(sbom["id"], id);
+    assert_eq!(
+        sbom["document_id"],
+        "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79/1"
+    );
+    assert_eq!(sbom["number_of_packages"], 4);
+    let labels = sbom["labels"].as_object().unwrap();
+    assert_eq!(labels["kind"], "cbom");
+    assert_eq!(labels["type"], "cyclonedx");
+
+    let uri = format!("/api/v2/sbom/{id}/packages");
+    let req = TestRequest::get().uri(&uri).to_request();
+    let response: Value = app.call_and_read_body_json(req).await;
+    log::info!("{:#}", json!(response));
+    let expected_result = json!({
+    "items": [
+      {
+        "id": "acme-application",
+        "name": "Acme Application",
+        "group": null,
+        "version": "1.0",
+        "purl": [],
+        "cpe": [],
+        "licenses": [],
+        "licenses_ref_mapping": []
+      },
+      {
+        "id": "aes128gcm",
+        "name": "AES",
+        "group": null,
+        "version": null,
+        "purl": [],
+        "cpe": [],
+        "licenses": [],
+        "licenses_ref_mapping": []
+      },
+      {
+        "id": "crypto-library",
+        "name": "Crypto library",
+        "group": null,
+        "version": "1.0.0",
+        "purl": [],
+        "cpe": [],
+        "licenses": [],
+        "licenses_ref_mapping": []
+      },
+      {
+        "id": "some-library",
+        "name": "Some library",
+        "group": null,
+        "version": "1.0.0",
+        "purl": [],
+        "cpe": [],
+        "licenses": [],
+        "licenses_ref_mapping": []
+      }
+    ],
+    "total": 4 });
+    assert!(expected_result.contains_subset(response.clone()));
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let id = ctx
+        .ingest_document("cyclonedx/ai/ibm-granite_granite-docling-258M_aibom.json")
+        .await?
+        .id
+        .to_string();
+    let uri = format!("/api/v2/sbom/{id}");
+    let req = TestRequest::get().uri(&uri).to_request();
+    let sbom: Value = app.call_and_read_body_json(req).await;
+    log::debug!("{sbom:#?}");
+
+    // assert expected fields
+    assert_eq!(sbom["id"], id);
+    assert_eq!(sbom["number_of_packages"], 2);
+    let labels = sbom["labels"].as_object().unwrap();
+    assert_eq!(labels["kind"], "aibom");
+    assert_eq!(labels["type"], "cyclonedx");
+
+    let uri = format!("/api/v2/sbom/{id}/packages");
+    let req = TestRequest::get().uri(&uri).to_request();
+    let response: Value = app.call_and_read_body_json(req).await;
+    log::info!("{:#}", json!(response));
+    let expected_result = json!(
+          {
+           "items": [
+        {
+          "id": "pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0",
+          "name": "granite-docling-258M",
+          "group": null,
+          "version": "1.0",
+          "purl": [
+            {
+              "uuid": "b3d8c434-ec9c-592a-91c8-596183beb691",
+              "purl": "pkg:generic/ibm-granite/granite-docling-258M@1.0",
+              "base": {
+                "uuid": "c28a16be-ec3a-5289-a37c-769330a32905",
+                "purl": "pkg:generic/ibm-granite/granite-docling-258M"
+              },
+              "version": {
+                "uuid": "b3d8c434-ec9c-592a-91c8-596183beb691",
+                "purl": "pkg:generic/ibm-granite/granite-docling-258M@1.0",
+                "version": "1.0"
+              },
+              "qualifiers": {}
+            }
+          ],
+          "cpe": [],
+          "licenses": [],
+          "licenses_ref_mapping": []
+        },
+        {
+          "id": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+          "name": "granite-docling-258M",
+          "group": null,
+          "version": "1.0",
+          "purl": [
+            {
+              "uuid": "6884c2b0-c1da-5650-bc00-a72a1a000714",
+              "purl": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+              "base": {
+                "uuid": "62fcd64b-f64c-55b1-8a0b-c78a4c1012f3",
+                "purl": "pkg:huggingface/ibm-granite/granite-docling-258M"
+              },
+              "version": {
+                "uuid": "6884c2b0-c1da-5650-bc00-a72a1a000714",
+                "purl": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+                "version": "1.0"
+              },
+              "qualifiers": {}
+            }
+          ],
+          "cpe": [],
+          "licenses": [
+            {
+              "license_name": "unknown",
+              "license_type": "declared"
+            }
+          ],
+          "licenses_ref_mapping": []
+        }
+      ],
+      "total": 2
+    }
+          );
+    assert!(expected_result.contains_subset(response.clone()));
+    Ok(())
+}
