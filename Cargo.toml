@@ -151,6 +151,7 @@ utoipa-swagger-ui = "9.0.0"
 uuid = "1.7.0"
 walkdir = "2.5"
 walker-common = "0.14.1"
+wiremock = "0.6"
 zip = "6"
 
 trustify-auth = { path = "common/auth", features = ["actix", "swagger"] }

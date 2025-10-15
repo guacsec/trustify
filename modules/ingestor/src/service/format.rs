@@ -53,7 +53,7 @@ pub enum Format {
 }
 
 impl Format {
-    #[instrument(skip(self, graph, buffer))]
+    #[instrument(skip_all)]
     pub async fn load(
         &self,
         graph: &'_ Graph,

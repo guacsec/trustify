@@ -1,0 +1,57 @@
+{
+  "repositories": [
+    {
+      "namespace": "redhat-user-workloads",
+      "name": "rhtap-o11y-tenant/o11y/o11y",
+      "description": "AppStudio repository for the user",
+      "is_public": true,
+      "kind": "image",
+      "state": "NORMAL",
+      "last_modified": 1760466595,
+      "quota_report": {
+        "quota_bytes": 37095445321,
+        "configured_quota": null
+      }
+    },
+    {
+      "namespace": "redhat-user-workloads",
+      "name": "crt-redhat-acm-tenant/config-policy-controller/config-policy-controller-0pyc",
+      "description": "AppStudio repository for the user",
+      "is_public": true,
+      "kind": "image",
+      "state": "NORMAL",
+      "last_modified": 1714660256,
+      "quota_report": {
+        "quota_bytes": 7054253958,
+        "configured_quota": null
+      }
+    },
+    {
+      "namespace": "redhat-user-workloads",
+      "name": "crt-redhat-acm-tenant/governance-policy-addon-controller/governance-policy-addon-controller-ocyz",
+      "description": "AppStudio repository for the user",
+      "is_public": true,
+      "kind": "image",
+      "state": "NORMAL",
+      "last_modified": 1714658754,
+      "quota_report": {
+        "quota_bytes": 7875486728,
+        "configured_quota": null
+      }
+    },
+    {
+      "namespace": "redhat-user-workloads",
+      "name": "crt-redhat-acm-tenant/governance-policy-framework-addon/governance-policy-framework-addon-dfsa",
+      "description": "AppStudio repository for the user",
+      "is_public": true,
+      "kind": "image",
+      "state": "NORMAL",
+      "last_modified": 1714660711,
+      "quota_report": {
+        "quota_bytes": 5840585101,
+        "configured_quota": null
+      }
+    }
+  ],
+  "next_page": null
+}

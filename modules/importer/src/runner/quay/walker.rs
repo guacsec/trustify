@@ -103,6 +103,7 @@ impl<C: RunContext> QuayWalker<C> {
     }
 
     async fn fetch(&self, reference: &Reference) -> Option<Vec<u8>> {
+        log::debug!("Fetching reference: {reference}");
         match self.oci.fetch(reference).await {
             Ok(bytes) => Some(bytes),
             Err(err) => {
@@ -177,6 +178,7 @@ impl<C: RunContext> QuayWalker<C> {
                     .get(self.importer.repositories_url(&page))
                     .send()
                     .await?
+                    .error_for_status()?
                     .json()
                     .await?;
                 Ok::<_, Error>(Some((
@@ -196,8 +198,15 @@ impl<C: RunContext> QuayWalker<C> {
         match (repo.namespace, repo.name) {
             (Some(namespace), Some(name)) => {
                 let url = self.importer.repository_url(&namespace, &name);
-                log::debug!("Fetching {url}");
-                Ok(self.client.get(url).send().await?.json().await?)
+                log::debug!("Fetching repo {url}");
+                Ok(self
+                    .client
+                    .get(url)
+                    .send()
+                    .await?
+                    .error_for_status()?
+                    .json()
+                    .await?)
             }
             _ => Err(Error::Processing(anyhow!(
                 "Repository name and namespace are required"
@@ -299,10 +308,15 @@ mod test {
     use test_context::test_context;
     use test_log::test;
     use trustify_test_context::TrustifyContext;
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
-    async fn walk(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    #[ignore]
+    async fn walk_quay(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         let walker = QuayWalker::new(
             QuayImporter {
                 source: "quay.io".into(),
@@ -317,6 +331,43 @@ mod test {
         .continuation(LastModified(Some(
             OffsetDateTime::now_utc().unix_timestamp(),
         )));
+        walker.run().await?;
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn missing_repo(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        // Start a background HTTP server on a random local port
+        let quay = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/repository"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(include_str!(
+                "../../../../../etc/test-data/quay/sample-repos.json"
+            )))
+            .mount(&quay)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(
+                "/api/v1/repository/redhat-user-workloads/rhtap-o11y-tenant/o11y/o11y",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_string(include_str!(
+                "../../../../../etc/test-data/quay/sample-repo.json"
+            )))
+            .mount(&quay)
+            .await;
+
+        let walker = QuayWalker::new(
+            QuayImporter {
+                source: quay.uri(),
+                ..Default::default()
+            },
+            ctx.ingestor.clone(),
+            Arc::new(Mutex::new(ReportBuilder::new())),
+            (),
+        )?;
         walker.run().await?;
 
         Ok(())
