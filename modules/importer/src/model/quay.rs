@@ -67,14 +67,19 @@ impl QuayImporter {
         // returned for a namespace
         let ns = self.namespace.as_deref().unwrap_or_default();
         format!(
-            "https://{}/api/v1/repository?public=true&last_modified=true&next_page={page}&namespace={ns}",
-            self.source
+            "{}/api/v1/repository?public=true&last_modified=true&next_page={page}&namespace={ns}",
+            self.base_url()
         )
     }
     pub fn repository_url(&self, namespace: &str, name: &str) -> String {
-        format!(
-            "https://{}/api/v1/repository/{namespace}/{name}",
-            self.source
-        )
+        format!("{}/api/v1/repository/{namespace}/{name}", self.base_url())
+    }
+
+    pub fn base_url(&self) -> String {
+        if self.source.to_lowercase().starts_with("http") {
+            self.source.clone()
+        } else {
+            format!("https://{}", self.source)
+        }
     }
 }

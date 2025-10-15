@@ -60,3 +60,4 @@ bytesize = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
 test-context = { workspace = true }
 trustify-test-context = { workspace = true }
+wiremock = { workspace = true }

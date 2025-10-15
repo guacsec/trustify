@@ -1,0 +1,78 @@
+{
+  "namespace": "redhat-user-workloads",
+  "name": "rhtap-o11y-tenant/o11y/o11y",
+  "kind": "image",
+  "description": "AppStudio repository for the user",
+  "is_public": true,
+  "is_organization": true,
+  "is_starred": false,
+  "status_token": "",
+  "trust_enabled": false,
+  "tag_expiration_s": 1209600,
+  "is_free_account": false,
+  "state": "NORMAL",
+  "tags": {
+    "sha256-1e52a468c89471a4491c664457659d3b2de5d65bfc0f956df20bb21c25c79743.src": {
+      "name": "sha256-1e52a468c89471a4491c664457659d3b2de5d65bfc0f956df20bb21c25c79743.src",
+      "size": 126899461,
+      "last_modified": "Tue, 14 Oct 2025 18:29:41 -0000",
+      "manifest_digest": "sha256:748c1aeb94767ac1e5fbe6cb57ebb284c33874076aff616897be37bc34581a24"
+    },
+    "sha256-1e52a468c89471a4491c664457659d3b2de5d65bfc0f956df20bb21c25c79743.sig": {
+      "name": "sha256-1e52a468c89471a4491c664457659d3b2de5d65bfc0f956df20bb21c25c79743.sig",
+      "size": 273,
+      "last_modified": "Tue, 14 Oct 2025 18:29:25 -0000",
+      "manifest_digest": "sha256:a8e16cb9ba9068596e3b18a6cff2c728db24bf07250265e1b059500c0a605638"
+    },
+    "sha256-1e52a468c89471a4491c664457659d3b2de5d65bfc0f956df20bb21c25c79743.sbom": {
+      "name": "sha256-1e52a468c89471a4491c664457659d3b2de5d65bfc0f956df20bb21c25c79743.sbom",
+      "size": 141513,
+      "last_modified": "Tue, 14 Oct 2025 18:29:22 -0000",
+      "manifest_digest": "sha256:ef9e2a9b69501d05ecaf57ca5b46c70f27eb094a88081661530500c32b9d5e67"
+    },
+    "sha256-e5e92b128daf08bdc05121b7e07b82da2941926a03b87d1fa8cfb8edfb9a1554.src": {
+      "name": "sha256-e5e92b128daf08bdc05121b7e07b82da2941926a03b87d1fa8cfb8edfb9a1554.src",
+      "size": 126899440,
+      "last_modified": "Tue, 14 Oct 2025 17:44:30 -0000",
+      "manifest_digest": "sha256:8714ba13b5dc3b3c00944bcde169e20ff205feb1fdcdf1560dddd2f2618f1c31"
+    },
+    "sha256-e5e92b128daf08bdc05121b7e07b82da2941926a03b87d1fa8cfb8edfb9a1554.sig": {
+      "name": "sha256-e5e92b128daf08bdc05121b7e07b82da2941926a03b87d1fa8cfb8edfb9a1554.sig",
+      "size": 273,
+      "last_modified": "Tue, 14 Oct 2025 17:44:14 -0000",
+      "manifest_digest": "sha256:1675200b73a4c4c47e9402d5943c274673bf8fa838bba5f0d798ae551b46a6e6"
+    },
+    "sha256-e5e92b128daf08bdc05121b7e07b82da2941926a03b87d1fa8cfb8edfb9a1554.sbom": {
+      "name": "sha256-e5e92b128daf08bdc05121b7e07b82da2941926a03b87d1fa8cfb8edfb9a1554.sbom",
+      "size": 141519,
+      "last_modified": "Tue, 14 Oct 2025 17:44:10 -0000",
+      "manifest_digest": "sha256:2dddf41ed0bd13f224e5db5547ffe868c1491f8df23d0bba2a0133b4ca81faf7"
+    },
+    "sha256-a5f1dddbb40548b64cb4d04825e207cfc7699a84629a2fbf27e143c1b87293bd.sig": {
+      "name": "sha256-a5f1dddbb40548b64cb4d04825e207cfc7699a84629a2fbf27e143c1b87293bd.sig",
+      "size": 273,
+      "last_modified": "Tue, 14 Oct 2025 16:31:15 -0000",
+      "manifest_digest": "sha256:ff8b878badd63d1cffd9dfc99aa0e1e8570c07b61767f9aca1b08c1cddef2269"
+    },
+    "sha256-a5f1dddbb40548b64cb4d04825e207cfc7699a84629a2fbf27e143c1b87293bd.sbom": {
+      "name": "sha256-a5f1dddbb40548b64cb4d04825e207cfc7699a84629a2fbf27e143c1b87293bd.sbom",
+      "size": 141519,
+      "last_modified": "Tue, 14 Oct 2025 16:31:11 -0000",
+      "manifest_digest": "sha256:7defd07f42f0904645c8f8a21dc25211f11b41cada0986ddeb020e699c879969"
+    },
+    "sha256-e35282a95cae70cca60eabd27bb564cd7822872cd32b9cb5d4c89b3907be16a8.sig": {
+      "name": "sha256-e35282a95cae70cca60eabd27bb564cd7822872cd32b9cb5d4c89b3907be16a8.sig",
+      "size": 273,
+      "last_modified": "Tue, 14 Oct 2025 16:31:10 -0000",
+      "manifest_digest": "sha256:3ecfef1f6602b11612ff10133408b64f2c3e4b3dd94dc33f5a7c0292900c303c"
+    },
+    "sha256-e35282a95cae70cca60eabd27bb564cd7822872cd32b9cb5d4c89b3907be16a8.sbom": {
+      "name": "sha256-e35282a95cae70cca60eabd27bb564cd7822872cd32b9cb5d4c89b3907be16a8.sbom",
+      "size": 141522,
+      "last_modified": "Tue, 14 Oct 2025 16:31:05 -0000",
+      "manifest_digest": "sha256:dc87ece0469950ea6e5354c438116f7cdd56577f1f7cfce8e005a9ef73cf36ba"
+    }
+  },
+  "can_write": false,
+  "can_admin": false
+}
