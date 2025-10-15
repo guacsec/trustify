@@ -13,6 +13,7 @@ trustify-common = { workspace = true }
 trustify-cvss = { workspace = true }
 
 cpe = { workspace = true }
+cvss = { workspace = true }
 deepsize = { workspace = true }
 schemars = { workspace = true }
 sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "with-json", "postgres-array"] }

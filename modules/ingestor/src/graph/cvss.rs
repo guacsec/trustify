@@ -1,11 +1,43 @@
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set};
 use trustify_entity::advisory_vulnerability_score;
+use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
 use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct ScoreCreator {
     advisory_id: Uuid,
     scores: Vec<advisory_vulnerability_score::ActiveModel>,
+}
+
+/// Information required to create a new
+#[derive(Clone, Debug)]
+pub struct ScoreInformation {
+    pub vulnerability_id: String,
+    pub r#type: ScoreType,
+    pub vector: String,
+    pub score: f64,
+    pub severity: Severity,
+}
+
+impl From<ScoreInformation> for advisory_vulnerability_score::ActiveModel {
+    fn from(value: ScoreInformation) -> Self {
+        let ScoreInformation {
+            vulnerability_id,
+            r#type,
+            vector,
+            score,
+            severity,
+        } = value;
+
+        Self {
+            vulnerability_id: Set(vulnerability_id),
+            r#type: Set(r#type),
+            vector: Set(vector),
+            score: Set(score),
+            severity: Set(severity),
+            ..Default::default()
+        }
+    }
 }
 
 impl ScoreCreator {

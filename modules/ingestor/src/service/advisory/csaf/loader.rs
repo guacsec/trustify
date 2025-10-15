@@ -1,3 +1,5 @@
+use crate::graph::cvss::ScoreCreator;
+use crate::service::advisory::csaf::extract_scores;
 use crate::{
     graph::{
         Graph,
@@ -126,6 +128,10 @@ impl<'g> CsafLoader<'g> {
             self.ingest_vulnerability(&csaf, &advisory, vuln, &warnings, &tx)
                 .await?;
         }
+
+        let mut creator = ScoreCreator::new(advisory.advisory.id);
+        extract_scores(&csaf, &mut creator);
+        creator.create(&tx).await?;
 
         tx.commit().await?;
 

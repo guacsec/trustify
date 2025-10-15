@@ -4,7 +4,7 @@ use cve::Cve;
 pub mod divination;
 pub mod loader;
 
-pub fn extract_scores(cve: &Cve, score_creator: &mut ScoreCreator) {
+pub fn extract_scores(cve: &Cve, creator: &mut ScoreCreator) {
     let Cve::Published(cve) = cve else {
         return;
     };

@@ -7,7 +7,7 @@ use sea_orm_migration::prelude::*;
 use strum::VariantNames;
 use trustify_module_ingestor::{
     graph::cvss::ScoreCreator,
-    service::advisory::{cve, osv},
+    service::advisory::{csaf, cve, osv},
 };
 
 #[derive(DeriveMigrationName)]
@@ -103,22 +103,23 @@ impl MigrationTraitWithData for Migration {
             .process(
                 self,
                 advisory!(async |advisory, model, tx| {
+                    let mut creator = ScoreCreator::new(model.id);
                     match advisory {
                         AdvisoryDoc::Cve(advisory) => {
-                            let mut creator = ScoreCreator::new(model.id);
                             cve::extract_scores(&advisory, &mut creator);
-                            creator.create(tx).await?;
                         }
-                        AdvisoryDoc::Csaf(advisory) => {}
+                        AdvisoryDoc::Csaf(advisory) => {
+                            csaf::extract_scores(&advisory, &mut creator);
+                        }
                         AdvisoryDoc::Osv(advisory) => {
-                            let mut creator = ScoreCreator::new(model.id);
                             osv::extract_scores(&advisory, &mut creator);
-                            creator.create(tx).await?;
                         }
                         _ => {
                             // we ignore others
                         }
                     }
+
+                    creator.create(tx).await?;
 
                     Ok(())
                 }),

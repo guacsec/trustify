@@ -19,6 +19,7 @@ bytes = { workspace = true }
 cpe = { workspace = true }
 csaf = { workspace = true }
 cve = { workspace = true }
+cvss = { workspace = true }
 hex = { workspace = true }
 humantime = { workspace = true }
 jsn = { workspace = true }
