@@ -54,7 +54,7 @@ impl MigrationTraitWithData for Migration {
                     )
                     .col(
                         ColumnDef::new(AdvisoryVulnerabilityScore::VulnerabilityId)
-                            .uuid()
+                            .string()
                             .not_null()
                             .to_owned(),
                     )
