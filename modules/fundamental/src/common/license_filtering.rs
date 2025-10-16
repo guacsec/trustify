@@ -3,14 +3,16 @@ use sea_orm::{
     ColumnTrait, EntityTrait, QueryFilter, QuerySelect, QueryTrait, RelationTrait, Select,
 };
 use sea_query::{
-    ColumnType, Condition, Expr, Func, JoinType, SelectStatement, SimpleExpr, UnionType,
-    extension::postgres::PgExpr,
+    Alias, ColumnType, CommonTableExpression, Condition, Expr, Func, JoinType, PgFunc,
+    SelectStatement, SimpleExpr, UnionType, WithClause, extension::postgres::PgExpr,
 };
 use trustify_common::db::{
-    CaseLicenseTextSbomId, ExpandLicenseExpression,
+    CaseLicenseTextSbomId, CustomFunc, ExpandLicenseExpression,
     query::{Columns, Filtering, IntoColumns, Query, q},
 };
-use trustify_entity::{license, sbom_package, sbom_package_license, sbom_package_purl_ref};
+use trustify_entity::{
+    license, licensing_infos, sbom_package, sbom_package_license, sbom_package_purl_ref,
+};
 
 pub const LICENSE: &str = "license";
 
@@ -190,4 +192,110 @@ pub fn get_case_license_text_sbom_id() -> SimpleExpr {
                 sbom_package_license::Column::SbomId,
             ))),
     )
+}
+
+/// Builds a WithClause containing the three CTEs required for SPDX license filtering
+///
+/// This function creates the Common Table Expressions (CTEs) needed to handle SPDX license
+/// expression expansion with LicenseRef mappings:
+///
+/// 1. `licensing_infos_mappings` - Aggregates license ID/name mappings per SBOM
+/// 2. `unique_license_sbom` - Deduplicates license text by (license_text, sbom_id)
+/// 3. `expanded` - Applies expand_license_expression_with_mappings() to resolve LicenseRefs
+///
+/// # Returns
+/// A WithClause containing all three CTEs, ready to be attached to a query via `.with()`
+///
+/// # Example Usage
+/// ```rust
+/// use sea_orm::{EntityTrait, QueryTrait};
+/// use trustify_entity::sbom;
+/// use trustify_module_fundamental::common::license_filtering::build_license_filtering_with_clause;
+///
+/// let with_clause = build_license_filtering_with_clause();
+/// let my_select_query = sbom::Entity::find();
+/// let query = my_select_query.into_query().with(with_clause);
+/// ```
+pub fn build_license_filtering_with_clause() -> WithClause {
+    // licensing_infos_mappings CTE
+    let licensing_infos_mappings_query = licensing_infos::Entity::find()
+        .select_only()
+        .expr_as(
+            PgFunc::array_agg(
+                Expr::cust_with_exprs(
+                    "ROW($1, $2)",
+                    [
+                        Expr::col(licensing_infos::Column::LicenseId).into(),
+                        Expr::col(licensing_infos::Column::Name).into(),
+                    ],
+                )
+                .cast_as("license_mapping"),
+            ),
+            "license_mapping",
+        )
+        .column(licensing_infos::Column::SbomId)
+        .group_by(licensing_infos::Column::SbomId);
+
+    let licensing_infos_mappings_cte = CommonTableExpression::new()
+        .query(licensing_infos_mappings_query.into_query())
+        .table_name(Alias::new("licensing_infos_mappings"))
+        .to_owned();
+
+    // unique_license_sbom CTE
+    let unique_license_sbom_query = sbom_package_license::Entity::find()
+        .distinct()
+        .select_only()
+        .column(license::Column::Text)
+        .expr(Expr::col((
+            sbom_package_license::Entity,
+            sbom_package_license::Column::SbomId,
+        )))
+        .column_as(license::Column::Id, "license_id")
+        .join(
+            JoinType::Join,
+            sbom_package_license::Relation::License.def(),
+        );
+
+    let unique_license_sbom_cte = CommonTableExpression::new()
+        .query(unique_license_sbom_query.into_query())
+        .table_name(Alias::new("unique_license_sbom"))
+        .to_owned();
+
+    // expanded CTE
+    let expanded_query = sea_query::Query::select()
+        .column((Alias::new("unique_license_sbom"), Alias::new("sbom_id")))
+        .column((Alias::new("unique_license_sbom"), Alias::new("license_id")))
+        .expr_as(
+            Func::cust(CustomFunc::ExpandLicenseExpressionWithMappings).args([
+                Expr::col((Alias::new("unique_license_sbom"), Alias::new("text"))).into(),
+                Expr::col((
+                    Alias::new("licensing_infos_mappings"),
+                    Alias::new("license_mapping"),
+                ))
+                .into(),
+            ]),
+            Alias::new("expanded_text"),
+        )
+        .from(Alias::new("unique_license_sbom"))
+        .join(
+            JoinType::LeftJoin,
+            Alias::new("licensing_infos_mappings"),
+            Expr::col((Alias::new("unique_license_sbom"), Alias::new("sbom_id"))).equals((
+                Alias::new("licensing_infos_mappings"),
+                Alias::new("sbom_id"),
+            )),
+        )
+        .to_owned();
+
+    let expanded_cte = CommonTableExpression::new()
+        .query::<SelectStatement>(expanded_query)
+        .table_name(Alias::new("expanded"))
+        .to_owned();
+
+    // Combine all CTEs into a WithClause
+    WithClause::new()
+        .cte(licensing_infos_mappings_cte)
+        .cte(unique_license_sbom_cte)
+        .cte(expanded_cte)
+        .to_owned()
 }
