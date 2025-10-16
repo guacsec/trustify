@@ -98,10 +98,6 @@ impl<'g> CveLoader<'g> {
             .ingest_advisory(id, labels, digests, advisory_info, &tx)
             .await?;
 
-        let mut score_creator = ScoreCreator::new(advisory.advisory.id);
-        extract_scores(&cve, &mut score_creator);
-        score_creator.create(&tx).await?;
-
         // Link the advisory to the backing vulnerability
         let advisory_vuln = advisory
             .link_to_vulnerability(
@@ -124,6 +120,10 @@ impl<'g> CveLoader<'g> {
                 advisory_vuln.ingest_cvss3_score(score, &tx).await?;
             }
         }
+
+        let mut score_creator = ScoreCreator::new(advisory.advisory.id);
+        extract_scores(&cve, &mut score_creator);
+        score_creator.create(&tx).await?;
 
         // Initialize batch creator for efficient status ingestion
         let mut purl_status_creator = PurlStatusCreator::new();
