@@ -240,6 +240,32 @@ async fn list_licenses_with_search_filter(ctx: &TrustifyContext) -> Result<(), a
 
     assert_eq!(0, response.total);
     assert_eq!(0, response.items.len());
+
+    // Test search filter for "ASL" (Apache Software License) and sorting (default asc)
+    let uri = "/api/v2/license?q=license~ASL&sort=license";
+    let request = TestRequest::get().uri(uri).to_request();
+    let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
+
+    assert_eq!(response.total, 4);
+    // Verify licenses are sorted in ascending order
+    let license_names: Vec<String> = response.items.iter().map(|l| l.license.clone()).collect();
+    let mut sorted_licenses = license_names.clone();
+    sorted_licenses.sort();
+    assert_eq!(license_names, sorted_licenses);
+
+    // Test full text search filter for "ASL" (Apache Software License) and sorting desc
+    let uri = "/api/v2/license?q=ASL&sort=license:desc";
+    let request = TestRequest::get().uri(uri).to_request();
+    let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
+
+    assert_eq!(response.total, 4);
+    // Verify licenses are sorted in descending order
+    let license_names: Vec<String> = response.items.iter().map(|l| l.license.clone()).collect();
+    let mut sorted_licenses = license_names.clone();
+    sorted_licenses.sort();
+    sorted_licenses.reverse();
+    assert_eq!(license_names, sorted_licenses);
+
     Ok(())
 }
 

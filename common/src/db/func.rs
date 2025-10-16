@@ -98,3 +98,9 @@ impl Iden for CaseLicenseTextSbomId {
         write!(s, "case_license_text_sbom_id").unwrap()
     }
 }
+
+#[derive(Iden)]
+pub enum CustomFunc {
+    #[iden = "expand_license_expression_with_mappings"]
+    ExpandLicenseExpressionWithMappings,
+}

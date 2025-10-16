@@ -4,7 +4,7 @@ use crate::{
     common::{
         LicenseRefMapping,
         license_filtering::{
-            LICENSE, apply_license_filtering, create_sbom_license_filtering_base_query,
+            LICENSE, apply_license_filtering, build_license_filtering_with_clause,
             create_sbom_package_license_filtering_base_query, get_case_license_text_sbom_id,
         },
     },
@@ -15,11 +15,13 @@ use crate::{
 };
 use futures_util::{StreamExt, TryStreamExt, stream};
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromJsonQueryResult, FromQueryResult,
-    IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, RelationTrait, Select,
-    SelectColumns, Statement, StreamTrait, prelude::Uuid,
+    ColumnTrait, ConnectionTrait, DbBackend, DbErr, EntityTrait, FromJsonQueryResult,
+    FromQueryResult, IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait,
+    RelationTrait, Select, SelectColumns, Statement, StreamTrait, prelude::Uuid,
 };
-use sea_query::{Expr, JoinType, extension::postgres::PgExpr};
+use sea_query::{
+    Alias, ColumnType, Condition, Expr, JoinType, PostgresQueryBuilder, extension::postgres::PgExpr,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -32,7 +34,7 @@ use trustify_common::{
     db::{
         limiter::{LimiterTrait, limit_selector},
         multi_model::{FromQueryResultMultiModel, SelectIntoMultiModel},
-        query::{Columns, Filtering, IntoColumns, Query},
+        query::{Columns, Filtering, IntoColumns, Query, q},
     },
     id::{Id, TrySelectForId},
     model::{Paginated, PaginatedResults},
@@ -145,12 +147,94 @@ impl SbomService {
         };
 
         // Add license filtering if license query is present
-        query = apply_license_filtering(
-            query,
-            &search,
-            create_sbom_license_filtering_base_query,
-            sbom::Column::SbomId,
-        )?;
+        if let Some(license_query) = search
+            .get_constraint_for_field(LICENSE)
+            .map(|constraint| q(&format!("{constraint}")))
+        {
+            #[derive(Debug, FromQueryResult)]
+            struct QualifiedPurlIdResult {
+                id: Uuid,
+            }
+
+            // Build the CTEs for license filtering
+            let with_clause = build_license_filtering_with_clause();
+
+            let mut statement = sbom_package_license::Entity::find()
+                .select_only()
+                .column_as(sbom_package_license::Column::SbomId, "id")
+                .join(
+                    JoinType::Join,
+                    sbom_package_license::Relation::License.def(),
+                )
+                .filtering_with(
+                    license_query.clone(),
+                    Columns::default()
+                        .add_column("expanded_text", ColumnType::Text)
+                        .translator(|field, operator, value| match field {
+                            LICENSE => Some(format!("expanded_text{operator}{value}")),
+                            _ => None,
+                        }),
+                )?
+                .into_query();
+            let x = statement
+                .join(
+                    JoinType::Join,
+                    Alias::new("expanded"),
+                    Condition::all()
+                        .add(
+                            Expr::col((
+                                sbom_package_license::Entity,
+                                sbom_package_license::Column::SbomId,
+                            ))
+                            .equals((Alias::new("expanded"), Alias::new("sbom_id"))),
+                        )
+                        .add(
+                            Expr::col((
+                                sbom_package_license::Entity,
+                                sbom_package_license::Column::LicenseId,
+                            ))
+                            .equals((Alias::new("expanded"), Alias::new("license_id"))),
+                        ),
+                )
+                .to_owned();
+            let main_query = x.with(with_clause);
+            let (sql, values) = main_query.build(PostgresQueryBuilder);
+            let qualified_purl_ids_filtered_by_license: Vec<Uuid> =
+                QualifiedPurlIdResult::find_by_statement(Statement::from_sql_and_values(
+                    DbBackend::Postgres,
+                    sql,
+                    values,
+                ))
+                .all(connection)
+                .await?
+                .into_iter()
+                .map(|r| r.id)
+                .collect();
+
+            let cyclonedx_subquery = sbom_package_license::Entity::find()
+                .select_only()
+                .column(sbom_package_license::Column::SbomId)
+                .join(
+                    JoinType::Join,
+                    sbom_package_license::Relation::License.def(),
+                )
+                .filtering_with(
+                    license_query,
+                    license::Entity
+                        .columns()
+                        .translator(|field, operator, value| match field {
+                            LICENSE => Some(format!("text{operator}{value}")),
+                            _ => None,
+                        }),
+                )?
+                .into_query();
+
+            // Combine SPDX and CycloneDX results
+            let combined_condition = Condition::any()
+                .add(sbom::Column::SbomId.is_in(qualified_purl_ids_filtered_by_license))
+                .add(sbom::Column::SbomId.in_subquery(cyclonedx_subquery));
+            query = query.filter(combined_condition);
+        }
 
         let limiter = query
             .join(JoinType::Join, sbom::Relation::SourceDocument.def())
