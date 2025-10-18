@@ -195,18 +195,20 @@ impl<C: RunContext> QuayWalker<C> {
         if self.context.is_canceled().await {
             return Err(Error::Canceled);
         }
-        match (repo.namespace, repo.name) {
+        match (&repo.namespace, &repo.name) {
             (Some(namespace), Some(name)) => {
-                let url = self.importer.repository_url(&namespace, &name);
+                let url = self.importer.repository_url(namespace, name);
                 log::debug!("Fetching repo {url}");
-                Ok(self
-                    .client
-                    .get(url)
-                    .send()
-                    .await?
-                    .error_for_status()?
-                    .json()
-                    .await?)
+                let result = match self.client.get(&url).send().await?.error_for_status() {
+                    Ok(response) => response.json().await?,
+                    Err(err) => {
+                        log::warn!("Error fetching repo {url}: {err}");
+                        let mut report = self.report.lock().await;
+                        report.add_error(Phase::Retrieval, url, err.to_string());
+                        repo
+                    }
+                };
+                Ok(result)
             }
             _ => Err(Error::Processing(anyhow!(
                 "Repository name and namespace are required"
