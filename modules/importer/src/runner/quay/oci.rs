@@ -1,7 +1,11 @@
 pub use oci_client::Reference;
 
 use crate::runner::common::Error;
-use oci_client::{Client as OciClient, secrets::RegistryAuth};
+use oci_client::{
+    Client as OciClient,
+    client::{ClientConfig, ClientProtocol},
+    secrets::RegistryAuth,
+};
 
 pub struct Client {
     client: OciClient,
@@ -9,9 +13,17 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new() -> Self {
+    pub fn new(unencrypted: bool) -> Self {
+        let config = ClientConfig {
+            protocol: if unencrypted {
+                ClientProtocol::Http
+            } else {
+                ClientProtocol::Https
+            },
+            ..Default::default()
+        };
         Self {
-            client: OciClient::default(),
+            client: OciClient::new(config),
             auth: RegistryAuth::Anonymous,
         }
     }
