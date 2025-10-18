@@ -1,0 +1,31 @@
+{
+  "repositories": [
+    {
+      "namespace": "redhat-user-workloads",
+      "name": "o11y",
+      "description": "AppStudio repository for the user",
+      "is_public": true,
+      "kind": "image",
+      "state": "NORMAL",
+      "last_modified": 1760466595,
+      "quota_report": {
+        "quota_bytes": 37095445321,
+        "configured_quota": null
+      }
+    },
+    {
+      "namespace": "redhat-user-workloads",
+      "name": "o22y",
+      "description": "AppStudio repository for the user",
+      "is_public": true,
+      "kind": "image",
+      "state": "NORMAL",
+      "last_modified": 1714660711,
+      "quota_report": {
+        "quota_bytes": 5840585101,
+        "configured_quota": null
+      }
+    }
+  ],
+  "next_page": null
+}

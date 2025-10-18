@@ -1,0 +1,73 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "creationInfo": {
+    "created": "2025-10-17T18:27:39Z",
+    "creators": [
+      "Organization: Red Hat",
+      "Tool: Konflux CI",
+      "Tool: Mobster-0.6.0"
+    ]
+  },
+  "dataLicense": "CC0-1.0",
+  "name": "quay.io/redhat-user-workloads/service-mesh-tenant/ossm-fbc-v4-16@sha256:e7f8383339dc5d00aac63fde262ce5f5f51c0726634b6344feaceb0a9f7a4eff",
+  "spdxVersion": "SPDX-2.3",
+  "documentNamespace": "https://konflux-ci.dev/spdxdocs/quay.io/redhat-user-workloads/service-mesh-tenant/ossm-fbc-v4-16@sha256:e7f8383339dc5d00aac63fde262ce5f5f51c0726634b6344feaceb0a9f7a4eff-9f1eefce-174d-4d90-8fa6-28f1324fdd71",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-image-index",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "e7f8383339dc5d00aac63fde262ce5f5f51c0726634b6344feaceb0a9f7a4eff"
+        }
+      ],
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE_MANAGER",
+          "referenceLocator": "pkg:oci/ossm-fbc-v4-16@sha256:e7f8383339dc5d00aac63fde262ce5f5f51c0726634b6344feaceb0a9f7a4eff?repository_url=quay.io/redhat-user-workloads/service-mesh-tenant/ossm-fbc-v4-16",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseDeclared": "NOASSERTION",
+      "name": "ossm-fbc-v4-16",
+      "supplier": "Organization: Red Hat",
+      "versionInfo": "on-pr-5d17776479deafb5ad39153fa646d8db92397f5c"
+    },
+    {
+      "SPDXID": "SPDXRef-image-ossm-fbc-v4-16-aa064a6118e327fb79561c0670c82ba1fa6e55344fb553b3fffcfb71d702559a",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "65513880e1af6574d97fe4fb7c986a8b8a70345c72067b5bd684c45452ec6f39"
+        }
+      ],
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE_MANAGER",
+          "referenceLocator": "pkg:oci/ossm-fbc-v4-16@sha256:65513880e1af6574d97fe4fb7c986a8b8a70345c72067b5bd684c45452ec6f39?repository_url=quay.io/redhat-user-workloads/service-mesh-tenant/ossm-fbc-v4-16",
+          "referenceType": "purl"
+        }
+      ],
+      "filesAnalyzed": false,
+      "licenseDeclared": "NOASSERTION",
+      "name": "ossm-fbc-v4-16_amd64",
+      "supplier": "Organization: Red Hat",
+      "versionInfo": "on-pr-5d17776479deafb5ad39153fa646d8db92397f5c"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-image-index",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-image-ossm-fbc-v4-16-aa064a6118e327fb79561c0670c82ba1fa6e55344fb553b3fffcfb71d702559a",
+      "relatedSpdxElement": "SPDXRef-image-index",
+      "relationshipType": "VARIANT_OF"
+    }
+  ]
+}

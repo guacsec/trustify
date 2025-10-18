@@ -50,7 +50,7 @@ impl<C: RunContext> QuayWalker<C> {
                 Default::default()
             }
         };
-        let oci = oci::Client::new();
+        let oci = oci::Client::new(importer.unencrypted);
         Ok(Self {
             continuation: LastModified(None),
             importer,
@@ -304,13 +304,12 @@ struct Sbom {
 #[cfg(test)]
 mod test {
     use super::*;
-    use bytesize::ByteSize;
     use test_context::test_context;
     use test_log::test;
     use trustify_test_context::TrustifyContext;
     use wiremock::{
         Mock, MockServer, ResponseTemplate,
-        matchers::{method, path},
+        matchers::{method, path, path_regex},
     };
 
     #[test_context(TrustifyContext)]
@@ -321,7 +320,6 @@ mod test {
             QuayImporter {
                 source: "quay.io".into(),
                 namespace: Some("redhat-user-workloads".into()),
-                size_limit: Some(ByteSize::kib(5).into()),
                 ..Default::default()
             },
             ctx.ingestor.clone(),
@@ -338,24 +336,79 @@ mod test {
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
+    async fn walk_mock_quay(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        // Start a background HTTP server on a random local port
+        let quay = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/repository"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(include_str!("../../../../../etc/test-data/quay/repos.json")),
+            )
+            .mount(&quay)
+            .await;
+        Mock::given(method("GET"))
+            .and(path_regex(
+                "/api/v1/repository/redhat-user-workloads/o(11|22)y",
+            ))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(include_str!("../../../../../etc/test-data/quay/repo.json")),
+            )
+            .mount(&quay)
+            .await;
+        Mock::given(method("GET"))
+            .and(path_regex(r".+sha256-.+\.sbom$"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(include_str!(
+                "../../../../../etc/test-data/quay/manifest.json"
+            )))
+            .mount(&quay)
+            .await;
+        Mock::given(method("GET"))
+            .and(path_regex(r".+/blobs/sha256:.+$"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(include_str!("../../../../../etc/test-data/quay/sbom.json")),
+            )
+            .mount(&quay)
+            .await;
+
+        let walker = QuayWalker::new(
+            QuayImporter {
+                source: quay.uri()[7..].to_string(),
+                unencrypted: true,
+                ..Default::default()
+            },
+            ctx.ingestor.clone(),
+            Arc::new(Mutex::new(ReportBuilder::new())),
+            (),
+        )?;
+        walker.run().await?;
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
     async fn missing_repo(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         // Start a background HTTP server on a random local port
         let quay = MockServer::start().await;
 
         Mock::given(method("GET"))
             .and(path("/api/v1/repository"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(include_str!(
-                "../../../../../etc/test-data/quay/sample-repos.json"
-            )))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(include_str!("../../../../../etc/test-data/quay/repos.json")),
+            )
             .mount(&quay)
             .await;
         Mock::given(method("GET"))
-            .and(path(
-                "/api/v1/repository/redhat-user-workloads/rhtap-o11y-tenant/o11y/o11y",
-            ))
-            .respond_with(ResponseTemplate::new(200).set_body_string(include_str!(
-                "../../../../../etc/test-data/quay/sample-repo.json"
-            )))
+            .and(path("/api/v1/repository/redhat-user-workloads/o11y"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(include_str!("../../../../../etc/test-data/quay/repo.json")),
+            )
             .mount(&quay)
             .await;
 
