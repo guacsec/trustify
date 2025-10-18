@@ -361,7 +361,8 @@ mod test {
 
         let walker = QuayWalker::new(
             QuayImporter {
-                source: quay.uri(),
+                source: quay.uri()[7..].to_string(),
+                unencrypted: true,
                 ..Default::default()
             },
             ctx.ingestor.clone(),
