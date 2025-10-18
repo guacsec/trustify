@@ -542,6 +542,11 @@
           ],
           "format": "uint",
           "minimum": 0
+        },
+        "unencrypted": {
+          "description": "Whether the scheme used is 'http' [true] or 'https' [false]",
+          "type": "boolean",
+          "default": false
         }
       },
       "required": [

@@ -37,6 +37,10 @@ pub struct QuayImporter {
     /// The maximum concurrent repository fetches
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub concurrency: Option<usize>,
+
+    /// Whether the scheme used is 'http' [true] or 'https' [false]
+    #[serde(default)]
+    pub unencrypted: bool,
 }
 
 pub const DEFAULT_SOURCE_QUAY: &str = "quay.io";
@@ -67,19 +71,20 @@ impl QuayImporter {
         // returned for a namespace
         let ns = self.namespace.as_deref().unwrap_or_default();
         format!(
-            "{}/api/v1/repository?public=true&last_modified=true&next_page={page}&namespace={ns}",
-            self.base_url()
+            "{scheme}://{registry}/api/v1/repository?public=true&last_modified=true&next_page={page}&namespace={ns}",
+            scheme = self.scheme(),
+            registry = self.source
         )
     }
     pub fn repository_url(&self, namespace: &str, name: &str) -> String {
-        format!("{}/api/v1/repository/{namespace}/{name}", self.base_url())
+        format!(
+            "{scheme}://{registry}/api/v1/repository/{namespace}/{name}",
+            scheme = self.scheme(),
+            registry = self.source
+        )
     }
 
-    pub fn base_url(&self) -> String {
-        if self.source.to_lowercase().starts_with("http") {
-            self.source.clone()
-        } else {
-            format!("https://{}", self.source)
-        }
+    fn scheme(&self) -> &str {
+        if self.unencrypted { "http" } else { "https" }
     }
 }

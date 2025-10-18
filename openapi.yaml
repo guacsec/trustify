@@ -4852,6 +4852,9 @@ components:
           source:
             type: string
             description: The name of the quay registry, e.g. quay.io
+          unencrypted:
+            type: boolean
+            description: Whether the scheme used is 'http' [true] or 'https' [false]
     RecommendEntry:
       type: object
       required:
