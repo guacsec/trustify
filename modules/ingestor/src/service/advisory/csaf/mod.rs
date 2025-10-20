@@ -19,7 +19,9 @@ pub fn extract_scores(csaf: &Csaf, creator: &mut ScoreCreator) {
 
         for score in vuln.scores.iter().flatten() {
             if let Some(score) = &score.cvss_v2 {
-                // TODO: add implementation
+                if let Ok(score) = serde_json::from_value::<cvss::v2_0::CvssV2>(score.clone()) {
+                    creator.add((vulnerability_id.clone(), score))
+                }
             }
 
             if let Some(score) = &score.cvss_v3 {
