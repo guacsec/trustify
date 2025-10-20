@@ -1,0 +1,4 @@
+$schema: ../../../xtask/schema/generate-dump.json
+
+paths:
+  - ../../../etc/datasets/ds3

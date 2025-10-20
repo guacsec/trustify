@@ -94,6 +94,15 @@ impl FileSystemBackend {
             .map(|result| (result, dir))
     }
 
+    /// Create a new storage for testing
+    pub async fn for_test_with(compression: Compression) -> anyhow::Result<(Self, TempDir)> {
+        let dir = tempdir()?;
+
+        Self::new(dir.path(), compression)
+            .await
+            .map(|result| (result, dir))
+    }
+
     async fn locate(
         &self,
         StorageKey(hash): StorageKey,

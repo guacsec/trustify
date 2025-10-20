@@ -4,14 +4,23 @@
   "type": "object",
   "properties": {
     "import": {
+      "description": "importer configurations to run",
       "type": "array",
       "items": {
         "$ref": "#/$defs/ImporterConfiguration"
+      },
+      "default": []
+    },
+    "paths": {
+      "description": "Files or directories to scan and import",
+      "type": "array",
+      "items": {
+        "type": "string"
       }
     }
   },
   "required": [
-    "import"
+    "paths"
   ],
   "$defs": {
     "ImporterConfiguration": {

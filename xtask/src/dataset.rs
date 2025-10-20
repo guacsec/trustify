@@ -1,7 +1,11 @@
+use anyhow::anyhow;
+use bytes::Bytes;
 use clap::Parser;
 use postgresql_commands::{CommandBuilder, CommandExecutor, pg_dump::PgDumpBuilder};
 use serde_json::Value;
-use std::{io::BufReader, path::PathBuf, time::Duration};
+use std::{env, io::BufReader, path::PathBuf, time::Duration};
+use tar::Builder;
+use tokio::fs;
 use trustify_common::model::BinaryByteSize;
 use trustify_module_importer::{
     model::{CommonImporter, CsafImporter, CveImporter, ImporterConfiguration, SbomImporter},
@@ -11,14 +15,22 @@ use trustify_module_importer::{
         progress::{Progress, TracingProgress},
     },
 };
-use trustify_module_storage::service::Compression;
-use trustify_module_storage::service::fs::FileSystemBackend;
+use trustify_module_ingestor::{
+    graph::Graph,
+    service::{Cache, Format, IngestorService},
+};
+use trustify_module_storage::service::{Compression, fs::FileSystemBackend};
+use walker_common::compression::Detector;
 
 #[derive(Debug, Parser)]
 pub struct GenerateDump {
     /// The name of the output dump file
     #[arg(short, long, default_value = "dump.sql")]
     output: PathBuf,
+
+    /// The name of the output storage dump file
+    #[arg(short, long)]
+    storage_output: Option<PathBuf>,
 
     /// The name of the input configuration. Uses a default configuration if missing.
     #[arg(short, long)]
@@ -39,15 +51,24 @@ pub struct GenerateDump {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct Instructions {
+    /// importer configurations to run
+    #[serde(default)]
     import: Vec<ImporterConfiguration>,
+    /// Files or directories to scan and import
+    paths: Vec<PathBuf>,
 }
 
 impl GenerateDump {
-    fn load_config(&self) -> anyhow::Result<Instructions> {
+    fn load_config(&self) -> anyhow::Result<(PathBuf, Instructions)> {
         match &self.input {
-            Some(input) => Ok(serde_yml::from_reader(BufReader::new(
-                std::fs::File::open(input)?,
-            ))?),
+            Some(input) => {
+                let mut path = input.clone();
+                path.pop();
+                Ok((
+                    path,
+                    serde_yml::from_reader(BufReader::new(std::fs::File::open(input)?))?,
+                ))
+            }
             None => {
                 let import = vec![
                     ImporterConfiguration::Cve(CveImporter {
@@ -76,7 +97,15 @@ impl GenerateDump {
                     })
                 ];
 
-                Ok(Instructions { import })
+                let path = env::current_dir()?;
+
+                Ok((
+                    path,
+                    Instructions {
+                        import,
+                        paths: vec![],
+                    },
+                ))
             }
         }
     }
@@ -87,14 +116,15 @@ impl GenerateDump {
             None => trustify_db::embedded::create().await?,
         };
 
-        let (storage, _tmp) = match &self.working_dir {
+        let (storage, storage_path, _tmp) = match &self.working_dir {
             Some(wd) => (
                 FileSystemBackend::new(wd.join("storage"), Compression::Zstd).await?,
+                wd.clone(),
                 None,
             ),
             None => {
-                let (storage, tmp) = FileSystemBackend::for_test().await?;
-                (storage, Some(tmp))
+                let (storage, tmp) = FileSystemBackend::for_test_with(Compression::Zstd).await?;
+                (storage, tmp.path().to_owned(), Some(tmp))
             }
         };
 
@@ -110,7 +140,7 @@ impl GenerateDump {
 
         self.ingest(importer).await?;
 
-        // create dump
+        // create DB dump
 
         let settings = postgres.settings();
         let mut pg_dump = PgDumpBuilder::from(settings)
@@ -122,11 +152,27 @@ impl GenerateDump {
         log::debug!("stdout: {stdout}");
         log::debug!("stderr: {stderr}");
         log::info!("Dumped to: {}", self.output.display());
+
+        // create storage dump
+
+        if let Some(file) = self.storage_output {
+            let tar = std::fs::File::create(&file)?;
+            let mut tar = Builder::new(tar);
+            tar.append_dir_all(".", storage_path)?;
+            drop(tar);
+
+            log::info!("Dumped storage to: {}", file.display());
+        }
+
+        // done
+
         Ok(())
     }
 
     async fn ingest(&self, runner: ImportRunner) -> anyhow::Result<()> {
-        let config = self.load_config()?;
+        let (wd, config) = self.load_config()?;
+
+        // run importers
 
         for run in config.import {
             log::info!(
@@ -136,6 +182,59 @@ impl GenerateDump {
 
             self.ingest_one(&runner, run).await?;
         }
+
+        // ingest files
+
+        let service =
+            IngestorService::new(Graph::new(runner.db.clone()), runner.storage.clone(), None);
+        for path in config.paths {
+            log::info!("Ingesting: {}", path.display());
+            let path = wd.join(path).canonicalize()?;
+            log::info!(" Resolved: {}", path.display());
+
+            let mut files = vec![];
+
+            if path.is_dir() {
+                for entry in walkdir::WalkDir::new(path).follow_links(true) {
+                    let entry = entry?;
+                    if !entry.file_type().is_file() {
+                        continue;
+                    }
+                    if entry.file_name().to_string_lossy().starts_with(".") {
+                        continue;
+                    }
+                    files.push(entry.into_path());
+                }
+            } else {
+                files.push(path);
+            }
+
+            for file in files {
+                let name = file.as_os_str().to_string_lossy().to_string();
+
+                log::info!("Loading: {name}");
+                let data: Bytes = fs::read(file).await?.into();
+
+                let detector = Detector {
+                    file_name: Some(name.as_str()),
+                    ..Default::default()
+                };
+                let data = detector.decompress(data).map_err(|err| anyhow!("{err}"))?;
+
+                let result = service
+                    .ingest(&data, Format::Unknown, (), None, Cache::Skip)
+                    .await?;
+                log::info!("  id: {}", result.id);
+                if !result.warnings.is_empty() {
+                    log::warn!("  warnings:");
+                    for warning in result.warnings {
+                        log::warn!("    - {}", warning);
+                    }
+                }
+            }
+        }
+
+        // done
 
         log::info!("Done ingesting");
 

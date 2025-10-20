@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+bytes = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 log = { workspace = true }
 postgresql_commands = { workspace = true }
@@ -14,12 +15,16 @@ schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yml = { workspace = true }
+tar = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "tracing-log", "ansi"] }
+walkdir = { workspace = true }
+walker-common = { workspace = true }
 
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }
 trustify-db = { workspace = true }
 trustify-module-importer = { workspace = true }
+trustify-module-ingestor = { workspace = true }
 trustify-module-storage = { workspace = true }
 trustify-server = { workspace = true }
