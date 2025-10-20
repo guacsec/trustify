@@ -376,6 +376,7 @@ mod test {
             .mount(&quay)
             .await;
 
+        let report = Arc::new(Mutex::new(ReportBuilder::new()));
         let walker = QuayWalker::new(
             QuayImporter {
                 source: quay.uri()[7..].to_string(),
@@ -383,17 +384,21 @@ mod test {
                 ..Default::default()
             },
             ctx.ingestor.clone(),
-            Arc::new(Mutex::new(ReportBuilder::new())),
+            report.clone(),
             (),
         )?;
         walker.run().await?;
+
+        let report = Arc::try_unwrap(report).unwrap().into_inner().build();
+        assert_eq!(8, report.number_of_items);
+        assert_eq!(0, report.messages.len());
 
         Ok(())
     }
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
-    async fn missing_repo(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    async fn missing_repo_and_sboms(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         // Start a background HTTP server on a random local port
         let quay = MockServer::start().await;
 
@@ -414,6 +419,7 @@ mod test {
             .mount(&quay)
             .await;
 
+        let report = Arc::new(Mutex::new(ReportBuilder::new()));
         let walker = QuayWalker::new(
             QuayImporter {
                 source: quay.uri()[7..].to_string(),
@@ -421,10 +427,15 @@ mod test {
                 ..Default::default()
             },
             ctx.ingestor.clone(),
-            Arc::new(Mutex::new(ReportBuilder::new())),
+            report.clone(),
             (),
         )?;
         walker.run().await?;
+
+        let report = Arc::try_unwrap(report).unwrap().into_inner().build();
+        assert_eq!(0, report.number_of_items);
+        // 5 404's: 4 sboms + 1 repo details
+        assert_eq!(5, report.messages[&Phase::Retrieval].len());
 
         Ok(())
     }
