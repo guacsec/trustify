@@ -50,9 +50,9 @@ aws-smithy-http-client = { version = "1", features = ["rustls-aws-lc"] }
 aws-smithy-types = { version = "1" }
 base64 = "0.22"
 biscuit = "0.7"
-build-info = "0.0.41"
-build-info-build = "0.0.41"
-build-info-common = "0.0.41"
+build-info = "0.0.42"
+build-info-build = "0.0.42"
+build-info-common = "0.0.42"
 bytes = "1.5"
 bytesize = "2.0"
 chrono = { version = "0.4.35", default-features = false }
