@@ -71,13 +71,13 @@ else
 fi
 
 # create realm roles
-kcadm create roles -r "${REALM}" -s name=chicken-user || true
-kcadm create roles -r "${REALM}" -s name=chicken-manager || true
-kcadm create roles -r "${REALM}" -s name=chicken-admin || true
-# add chicken-user as default role
-kcadm add-roles -r "${REALM}" --rname "default-roles-${REALM}" --rolename chicken-user
+kcadm create roles -r "${REALM}" -s name=trustify-user || true
+kcadm create roles -r "${REALM}" -s name=trustify-manager || true
+kcadm create roles -r "${REALM}" -s name=trustify-admin || true
+# add trustify-user as default role
+kcadm add-roles -r "${REALM}" --rname "default-roles-${REALM}" --rolename trustify-user
 
-MANAGER_ID=$(kcadm get roles -r "${REALM}" --fields id,name --format csv --noquotes | grep ",chicken-manager" | cut -d ',' -f 1)
+MANAGER_ID=$(kcadm get roles -r "${REALM}" --fields id,name --format csv --noquotes | grep ",trustify-manager" | cut -d ',' -f 1)
 
 # create scopes
 # shellcheck disable=SC2043
@@ -88,8 +88,8 @@ done
 for i in create:document delete:document; do
 kcadm create client-scopes -r "${REALM}" -s "name=$i" -s protocol=openid-connect || true
 ID=$(kcadm get client-scopes -r "${REALM}" --fields id,name --format csv --noquotes | grep ",${i}" | cut -d ',' -f 1)
-# add all scopes to the chicken-manager
-kcadm create "client-scopes/${ID}/scope-mappings/realm" -r "${REALM}" -b '[{"name":"chicken-manager", "id":"'"${MANAGER_ID}"'"}]' || true
+# add all scopes to the trustify-manager
+kcadm create "client-scopes/${ID}/scope-mappings/realm" -r "${REALM}" -b '[{"name":"trustify-manager", "id":"'"${MANAGER_ID}"'"}]' || true
 done
 
 # create clients - frontend
@@ -116,26 +116,26 @@ if [[ -n "$ID" ]]; then
 else
   kcadm create clients -r "${REALM}" -f "${INIT_DATA}/client-walker.json" "${CLIENT_OPTS[@]}"
 fi
-kcadm add-roles -r "${REALM}" --uusername service-account-walker --rolename chicken-manager
+kcadm add-roles -r "${REALM}" --uusername service-account-walker --rolename trustify-manager
 # now set the client-secret
 ID=$(kcadm get clients -r "${REALM}" --query exact=true --query "clientId=walker" --fields id --format csv --noquotes)
 kcadm update "clients/${ID}" -r "${REALM}" -s "secret=${WALKER_SECRET}"
 
 # create user
-ID=$(kcadm get users -r "${REALM}" --query exact=true --query "username=${CHICKEN_ADMIN}" --fields id --format csv --noquotes)
+ID=$(kcadm get users -r "${REALM}" --query exact=true --query "username=${TRUSTIFY_ADMIN}" --fields id --format csv --noquotes)
 if [[ -n "$ID" ]]; then
   kcadm update "users/$ID" -r "${REALM}" -s enabled=true
 else
-  kcadm create users -r "${REALM}" -s "username=${CHICKEN_ADMIN}" -s enabled=true
+  kcadm create users -r "${REALM}" -s "username=${TRUSTIFY_ADMIN}" -s enabled=true
 fi
 
 # set role
-kcadm add-roles -r "${REALM}" --uusername "${CHICKEN_ADMIN}" --rolename chicken-admin
-kcadm add-roles -r "${REALM}" --uusername "${CHICKEN_ADMIN}" --rolename chicken-manager
+kcadm add-roles -r "${REALM}" --uusername "${TRUSTIFY_ADMIN}" --rolename trustify-admin
+kcadm add-roles -r "${REALM}" --uusername "${TRUSTIFY_ADMIN}" --rolename trustify-manager
 
 # set password
-ID=$(kcadm get users -r "${REALM}" --query exact=true --query "username=${CHICKEN_ADMIN}" --fields id --format csv --noquotes)
-kcadm update "users/${ID}/reset-password" -r "${REALM}" -s type=password -s "value=${CHICKEN_ADMIN_PASSWORD}" -s temporary=false -n
+ID=$(kcadm get users -r "${REALM}" --query exact=true --query "username=${TRUSTIFY_ADMIN}" --fields id --format csv --noquotes)
+kcadm update "users/${ID}/reset-password" -r "${REALM}" -s type=password -s "value=${TRUSTIFY_ADMIN_PASSWORD}" -s temporary=false -n
 
 if [[ -f "${INIT_DATA}/there-is-more.sh" ]]; then
   echo Performing additional setup

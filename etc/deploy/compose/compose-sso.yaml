@@ -34,8 +34,8 @@ services:
       - KEYCLOAK_ADMIN_PASSWORD=admin123456
       - REALM=trustify
       - INIT_DATA=/init-sso/data
-      - CHICKEN_ADMIN=admin
-      - CHICKEN_ADMIN_PASSWORD=admin123456
+      - TRUSTIFY_ADMIN=admin
+      - TRUSTIFY_ADMIN_PASSWORD=admin123456
       - REDIRECT_URIS=["http://localhost:*"]
       - WALKER_SECRET=ZVzq9AMOVUdMY1lSohpx1jI3aW56QDPS
       # The internal name (between containers) is "keycloak". However, from the host it reachable as "localhost:8090".

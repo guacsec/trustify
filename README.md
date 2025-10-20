@@ -108,7 +108,7 @@ cargo install oidc-cli
 Then, set up an initial client (needs to be done every time the client/keycloak instance is re-created):
 
 ```bash
-oidc create confidential trusty --issuer http://localhost:8090/realms/chicken --client-id walker --client-secret ZVzq9AMOVUdMY1lSohpx1jI3aW56QDPS
+oidc create confidential trusty --issuer http://localhost:8090/realms/trustify --client-id walker --client-secret ZVzq9AMOVUdMY1lSohpx1jI3aW56QDPS
 ```
 
 Then one can perform `http` request using HTTPie like this:
