@@ -1,6 +1,6 @@
 ARG SYFT_REGISTRY=ghcr.io/anchore
 ARG SYFT_IMAGE=syft
-ARG SYFT_TAG=latest
+ARG SYFT_TAG=v1.36.0
 
 FROM registry.access.redhat.com/ubi9/ubi:latest
 
