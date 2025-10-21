@@ -54,7 +54,9 @@ pub struct Instructions {
     /// importer configurations to run
     #[serde(default)]
     import: Vec<ImporterConfiguration>,
+
     /// Files or directories to scan and import
+    #[serde(default)]
     paths: Vec<PathBuf>,
 }
 

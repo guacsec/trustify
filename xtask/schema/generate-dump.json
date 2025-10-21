@@ -16,12 +16,10 @@
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "default": []
     }
   },
-  "required": [
-    "paths"
-  ],
   "$defs": {
     "ImporterConfiguration": {
       "oneOf": [
