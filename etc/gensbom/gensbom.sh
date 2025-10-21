@@ -71,6 +71,11 @@ function usage() {
 	    A file with the valid container registry credentials following the
 	    Docker format. This file must be in the current working directory
 
+	  ${_VIOLET}trust.crt${_RESET}
+	    Optional custom trust anchors, needed to be installed on the container
+	    to make the TPA instance accessible from it, in case the TPA instance
+	    uses a certificate signed by these trust anchors
+
 	  ${_VIOLET}TPA_AUTH_TOKEN${_RESET}
 	    Authorization token for TPA
 
@@ -124,6 +129,13 @@ if [[ -z "${TPA_AUTH_TOKEN:-}" ]]; then
     _AUTH_HEADER=""
 fi
 
+_TRUST_CRT="${WORKSPACE}/trust.crt"
+_CA_OPTS=()
+
+if [[ -f "${_TRUST_CRT}" ]]; then
+    _CA_OPTS+=( "--cacert" "${_TRUST_CRT}" )
+fi
+
 _SBOMS_DIR="${WORKSPACE}/sboms"
 _SBOMS_ARCHIVE="sboms.zip"
 
@@ -131,6 +143,11 @@ rm -rf "${_SBOMS_DIR}" "${WORKSPACE}/${_SBOMS_ARCHIVE}"
 mkdir -p "${_SBOMS_DIR}"
 
 _SBOM_COUNTER=0
+
+_CURL_FLAGS="-LsSf"
+
+# Service ping: curl will report when token and/or certs are not valid
+curl ${_CURL_FLAGS} ${_CA_OPTS[@]} ${_AUTH_HEADER:+-H "${_AUTH_HEADER}"} "${TPA_SERVICE_URL}/api/v2/sbom?limit=1" > /dev/null || :
 
 while IFS="" read -r _IMAGE || [[ -n "${_IMAGE}" ]]; do
     if [[ -z "${_IMAGE}" ]]; then
@@ -156,7 +173,8 @@ while IFS="" read -r _IMAGE || [[ -n "${_IMAGE}" ]]; do
     _SHA512="sha512:$(sha512sum "${_SBOM}" | awk '{print $1}')"
     inform "File ${_Q1}${_SBOM}${_Q0} with ${_Q1}${_SHA512}${_Q0} has been created"
 
-    if curl -sSfL \
+    if curl ${_CURL_FLAGS} \
+        ${_CA_OPTS[@]} \
         ${_AUTH_HEADER:+-H "${_AUTH_HEADER}"} \
         "${TPA_SERVICE_URL}/api/v2/sbom/${_SHA512}/download" \
         >/dev/null 2>&1; \
@@ -166,8 +184,9 @@ while IFS="" read -r _IMAGE || [[ -n "${_IMAGE}" ]]; do
         continue
     fi
 
-    if ! curl -sSfL \
+    if ! curl ${_CURL_FLAGS} \
         -X POST \
+        ${_CA_OPTS[@]} \
         ${_AUTH_HEADER:+-H "${_AUTH_HEADER}"} \
         -H "Content-Type: application/json" \
         -d "@${_SBOM}" \
