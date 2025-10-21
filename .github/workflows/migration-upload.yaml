@@ -1,0 +1,51 @@
+name: migration-upload
+
+on:
+  push:
+    branches:
+      - main
+      - release/**
+
+concurrency:
+  group: migration-dumps
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - run: |
+          cargo xtask generate-dump --input .github/scripts/migration-dump/config.yaml --storage-output dump.tar
+
+      - run: |
+          # compress the SQL dump
+          xz dump.sql
+          # we don't need to compress the storage tar file, as individual files are already compressed
+
+      - name: Upload to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.TRUSTIFY_S3_UPLOAD_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.TRUSTIFY_S3_UPLOAD_SECRET_ACCESS_KEY }}
+          AWS_REGION: eu-central-1
+          AWS_BUCKET: guacsec-migration-dumps
+        run: |
+          BRANCH=${GITHUB_REF_NAME}
+          COMMIT=${GITHUB_SHA}
+
+          for f in dump.sql.xz dump.tar; do
+            sha256sum "$f" | awk '{print $1}' > "$f.sha256"
+          
+            # Commit-specific version
+            aws s3 cp "$f" s3://${AWS_BUCKET}/${BRANCH}/commit-${COMMIT}/
+            aws s3 cp "$f.sha256" s3://${AWS_BUCKET}/${BRANCH}/commit-${COMMIT}/
+          
+            # Latest version (per branch)
+            aws s3 cp "$f" s3://${AWS_BUCKET}/${BRANCH}/latest/
+            aws s3 cp "$f.sha256" s3://${AWS_BUCKET}/${BRANCH}/latest/
+          done
