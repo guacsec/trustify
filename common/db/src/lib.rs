@@ -55,7 +55,10 @@ impl<'a> Database<'a> {
 
         db.execute(Statement::from_string(
             db.get_database_backend(),
-            format!("CREATE DATABASE \"{}\";", database.name),
+            format!(
+                "CREATE DATABASE \"{}\" WITH LC_COLLATE 'C' TEMPLATE 'template0';",
+                database.name
+            ),
         ))
         .await?;
         db.close().await?;
