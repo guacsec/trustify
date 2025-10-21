@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{Context as _, anyhow};
 use bytes::Bytes;
 use clap::Parser;
 use postgresql_commands::{CommandBuilder, CommandExecutor, pg_dump::PgDumpBuilder};
@@ -191,7 +191,10 @@ impl GenerateDump {
             IngestorService::new(Graph::new(runner.db.clone()), runner.storage.clone(), None);
         for path in config.paths {
             log::info!("Ingesting: {}", path.display());
-            let path = wd.join(path).canonicalize()?;
+            let path = wd.join(path);
+            let path = path
+                .canonicalize()
+                .with_context(|| format!("failed to canonicalize '{}'", path.display()))?;
             log::info!(" Resolved: {}", path.display());
 
             let mut files = vec![];
@@ -221,7 +224,10 @@ impl GenerateDump {
                     file_name: Some(name.as_str()),
                     ..Default::default()
                 };
-                let data = detector.decompress(data).map_err(|err| anyhow!("{err}"))?;
+                let data = detector
+                    .decompress(data)
+                    .map_err(|err| anyhow!("{err}"))
+                    .with_context(|| format!("failed to decompress: '{name}'"))?;
 
                 let result = service
                     .ingest(&data, Format::Unknown, (), None, Cache::Skip)
