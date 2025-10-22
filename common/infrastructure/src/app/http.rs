@@ -14,7 +14,7 @@ use anyhow::{Context, anyhow};
 use bytesize::ByteSize;
 use clap::{Arg, ArgMatches, Args, Command, Error, FromArgMatches, value_parser};
 use openssl::ssl::SslFiletype;
-use opentelemetry_instrumentation_actix_web::{RequestMetrics, RequestTracing};
+use opentelemetry_instrumentation_actix_web::{RequestMetrics, RequestTracing, RouteFormatter};
 use std::{
     fmt::Debug,
     marker::PhantomData,
@@ -35,6 +35,19 @@ use utoipa_actix_web::AppExt;
 use utoipa_rapidoc::RapiDoc;
 
 const DEFAULT_ADDR: SocketAddr = SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 8080);
+
+#[derive(Debug, Clone)]
+pub struct DefaultRootRouteFormatter;
+
+impl RouteFormatter for DefaultRootRouteFormatter {
+    fn format(&self, path: &str) -> String {
+        if path.is_empty() {
+            "/".to_string()
+        } else {
+            path.to_string()
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct BindPort<E: Endpoint> {
@@ -462,7 +475,12 @@ impl HttpServerBuilder {
 
             let metrics = match self.metrics {
                 Metrics::Disabled => None,
-                Metrics::Enabled => Some(RequestMetrics::default()),
+                Metrics::Enabled => {
+                    let request_metrics = RequestMetrics::builder()
+                        .with_route_formatter(DefaultRootRouteFormatter)
+                        .build();
+                    Some(request_metrics)
+                }
             };
 
             log::debug!(
