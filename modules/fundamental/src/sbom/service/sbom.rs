@@ -20,7 +20,8 @@ use sea_orm::{
     RelationTrait, Select, SelectColumns, Statement, StreamTrait, prelude::Uuid,
 };
 use sea_query::{
-    Alias, ColumnType, Condition, Expr, JoinType, PostgresQueryBuilder, extension::postgres::PgExpr,
+    Alias, ColumnType, Condition, Expr, JoinType, PgFunc, PostgresQueryBuilder,
+    extension::postgres::PgExpr,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -160,6 +161,7 @@ impl SbomService {
             let with_clause = build_license_filtering_with_clause();
 
             let mut statement = sbom_package_license::Entity::find()
+                .distinct()
                 .select_only()
                 .column_as(sbom_package_license::Column::SbomId, "id")
                 .join(
@@ -231,7 +233,10 @@ impl SbomService {
 
             // Combine SPDX and CycloneDX results
             let combined_condition = Condition::any()
-                .add(sbom::Column::SbomId.is_in(qualified_purl_ids_filtered_by_license))
+                .add(
+                    Expr::col((sbom::Entity, sbom::Column::SbomId))
+                        .eq(PgFunc::any(qualified_purl_ids_filtered_by_license)),
+                )
                 .add(sbom::Column::SbomId.in_subquery(cyclonedx_subquery));
             query = query.filter(combined_condition);
         }
