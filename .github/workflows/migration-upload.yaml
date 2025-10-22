@@ -29,6 +29,7 @@ jobs:
           # we don't need to compress the storage tar file, as individual files are already compressed
 
       - name: Upload to S3
+        if: ${{ secrets.TRUSTIFY_S3_UPLOAD_ACCESS_KEY_ID }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.TRUSTIFY_S3_UPLOAD_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.TRUSTIFY_S3_UPLOAD_SECRET_ACCESS_KEY }}
