@@ -10,8 +10,11 @@ trustify-migration = { workspace = true }
 trustify-common = { workspace = true }
 
 anyhow = { workspace = true }
+async-compression = { workspace = true, features = ["tokio", "lzma"] }
 log = { workspace = true }
+postgresql_commands = { workspace = true, features = ["tokio"] }
 postgresql_embedded = { workspace = true, features = ["blocking", "tokio"] }
 sea-orm = { workspace = true }
 sea-orm-migration = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }

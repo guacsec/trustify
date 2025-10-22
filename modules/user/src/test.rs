@@ -132,13 +132,13 @@ async fn collision(ctx: TrustifyContext) -> anyhow::Result<()> {
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(actix_web::test)]
 async fn wrong_rev(ctx: TrustifyContext) {
-    let db = ctx.db;
+    let db = &ctx.db;
     let app = actix::init_service(
         App::new()
             .into_utoipa_app()
             .service(
                 utoipa_actix_web::scope("/api")
-                    .configure(|svc| super::endpoints::configure(svc, db)),
+                    .configure(|svc| super::endpoints::configure(svc, db.clone())),
             )
             .into_app(),
     )

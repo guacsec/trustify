@@ -49,10 +49,10 @@ async fn semver_reverse_precedence(
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn version_compare(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
     semver_precedence(
-        &db,
+        db,
         vec![
             "1.0.0-alpha",
             "1.0.0-alpha.1",
@@ -69,7 +69,7 @@ async fn version_compare(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
     .await?;
 
     semver_reverse_precedence(
-        &db,
+        db,
         vec![
             "1.1.3",
             "1.0.2",
@@ -135,24 +135,24 @@ async fn semver_lt(db: &Database, left: &str, right: &str) -> Result<Option<bool
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn comparison_helpers(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
-    assert_eq!(Some(true), semver_eq(&db, "1.0.0", "1.0.0").await?);
-    assert_eq!(Some(false), semver_eq(&db, "1.0.1", "1.0.0").await?);
+    assert_eq!(Some(true), semver_eq(db, "1.0.0", "1.0.0").await?);
+    assert_eq!(Some(false), semver_eq(db, "1.0.1", "1.0.0").await?);
 
-    assert_eq!(Some(true), semver_lte(&db, "1.0.0", "1.0.0").await?);
-    assert_eq!(Some(true), semver_lte(&db, "1.0.0", "1.0.1").await?);
-    assert_eq!(Some(false), semver_lte(&db, "1.0.1", "1.0.0").await?);
+    assert_eq!(Some(true), semver_lte(db, "1.0.0", "1.0.0").await?);
+    assert_eq!(Some(true), semver_lte(db, "1.0.0", "1.0.1").await?);
+    assert_eq!(Some(false), semver_lte(db, "1.0.1", "1.0.0").await?);
 
-    assert_eq!(Some(false), semver_lt(&db, "1.0.0", "1.0.0").await?);
-    assert_eq!(Some(true), semver_lt(&db, "1.1.1", "1.2.0").await?);
+    assert_eq!(Some(false), semver_lt(db, "1.0.0", "1.0.0").await?);
+    assert_eq!(Some(true), semver_lt(db, "1.1.1", "1.2.0").await?);
 
-    assert_eq!(Some(false), semver_gt(&db, "1.0.0", "1.0.0").await?);
-    assert_eq!(Some(true), semver_gt(&db, "1.2.1", "1.2.0").await?);
+    assert_eq!(Some(false), semver_gt(db, "1.0.0", "1.0.0").await?);
+    assert_eq!(Some(true), semver_gt(db, "1.2.1", "1.2.0").await?);
 
-    assert_eq!(Some(false), semver_gte(&db, "1.0.0", "1.0.1").await?);
-    assert_eq!(Some(true), semver_gte(&db, "1.0.0", "1.0.0").await?);
-    assert_eq!(Some(true), semver_gte(&db, "1.2.1", "1.2.0").await?);
+    assert_eq!(Some(false), semver_gte(db, "1.0.0", "1.0.1").await?);
+    assert_eq!(Some(true), semver_gte(db, "1.0.0", "1.0.0").await?);
+    assert_eq!(Some(true), semver_gte(db, "1.2.1", "1.2.0").await?);
 
     Ok(())
 }
@@ -160,14 +160,14 @@ async fn comparison_helpers(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
-    assert!(version_matches(&db, "1.0.2", VersionRange::Exact("1.0.2"), "semver").await?);
-    assert!(!version_matches(&db, "1.0.2", VersionRange::Exact("1.0.0"), "semver").await?);
+    assert!(version_matches(db, "1.0.2", VersionRange::Exact("1.0.2"), "semver").await?);
+    assert!(!version_matches(db, "1.0.2", VersionRange::Exact("1.0.0"), "semver").await?);
 
     assert!(
         version_matches(
-            &db,
+            db,
             "1.0.2",
             VersionRange::Range(Version::Unbounded, Version::Inclusive("1.0.2")),
             "semver"
@@ -177,7 +177,7 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 
     assert!(
         !version_matches(
-            &db,
+            db,
             "1.0.2",
             VersionRange::Range(Version::Unbounded, Version::Exclusive("1.0.2")),
             "semver"
@@ -187,7 +187,7 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 
     assert!(
         version_matches(
-            &db,
+            db,
             "1.0.2-beta.2",
             VersionRange::Range(Version::Unbounded, Version::Exclusive("1.0.2")),
             "semver"
@@ -197,7 +197,7 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 
     assert!(
         version_matches(
-            &db,
+            db,
             "1.0.2",
             VersionRange::Range(Version::Inclusive("1.0.2"), Version::Exclusive("1.0.5")),
             "semver"

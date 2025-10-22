@@ -92,14 +92,14 @@ async fn test_pythonver_cmp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
-    assert!(version_matches(&db, "1.0.2", VersionRange::Exact("1.0.2"), "python").await?);
-    assert!(!version_matches(&db, "1.0.2", VersionRange::Exact("1.0.0"), "python").await?);
+    assert!(version_matches(db, "1.0.2", VersionRange::Exact("1.0.2"), "python").await?);
+    assert!(!version_matches(db, "1.0.2", VersionRange::Exact("1.0.0"), "python").await?);
 
     assert!(
         version_matches(
-            &db,
+            db,
             "1.0.2",
             VersionRange::Range(Version::Unbounded, Version::Inclusive("1.0.2")),
             "python"
@@ -109,7 +109,7 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 
     assert!(
         !version_matches(
-            &db,
+            db,
             "1.0.2",
             VersionRange::Range(Version::Unbounded, Version::Exclusive("1.0.2")),
             "python"
@@ -119,7 +119,7 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 
     assert!(
         version_matches(
-            &db,
+            db,
             "1.0.2b2",
             VersionRange::Range(Version::Unbounded, Version::Exclusive("1.0.2")),
             "python"
@@ -129,7 +129,7 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 
     assert!(
         version_matches(
-            &db,
+            db,
             "1.0.2",
             VersionRange::Range(Version::Inclusive("1.0.2"), Version::Exclusive("1.0.5")),
             "python"
@@ -143,11 +143,11 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn test_version_matches_commons_compress(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
     assert!(
         !version_matches(
-            &db,
+            db,
             "1.26",
             VersionRange::Range(Version::Inclusive("1.21"), Version::Exclusive("1.26")),
             "python"

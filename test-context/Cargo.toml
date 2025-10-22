@@ -19,13 +19,17 @@ actix-web = { workspace = true }
 anyhow = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
-liblzma = { workspace = true }
+git2 = { workspace = true }
 log = { workspace = true }
 peak_alloc = { workspace = true }
 postgresql_embedded = { workspace = true }
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
 spdx-rs = { workspace = true }
+tar = { workspace = true }
+tempfile = { workspace = true }
 test-context = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
@@ -33,6 +37,7 @@ tracing = { workspace = true }
 tracing-flame =  { workspace = true }
 tracing-log = { workspace = true }
 tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
 utoipa-actix-web = { workspace = true }
 walkdir = { workspace = true }
 zip = { workspace = true }
