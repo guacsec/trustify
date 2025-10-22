@@ -3,15 +3,19 @@
 pub mod app;
 pub mod auth;
 pub mod call;
+pub mod ctx;
 pub mod flame;
+pub mod migration;
 pub mod spdx;
 pub mod subset;
 
-use futures::Stream;
-use migration::{
+pub use ctx::{ReadOnly, TrustifyContext, TrustifyMigrationContext};
+
+use ::migration::{
     ConnectionTrait, DbErr,
     sea_orm::{RuntimeErr, Statement, sqlx},
 };
+use futures::Stream;
 use peak_alloc::PeakAlloc;
 use postgresql_embedded::PostgreSQL;
 use serde::Serialize;
@@ -19,15 +23,11 @@ use std::{
     env,
     fmt::Debug,
     io::{Cursor, Read, Seek, Write},
-    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
-use test_context::AsyncTestContext;
+use tempfile::TempDir;
 use tokio_util::{bytes::Bytes, io::ReaderStream};
-use tracing::instrument;
-use trustify_common::{
-    self as common, db, db::Database, decompress::decompress_async, hashing::Digests,
-};
+use trustify_common::{db::Database, decompress::decompress_async, hashing::Digests};
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::{
     graph::Graph,
@@ -54,23 +54,27 @@ impl AsRef<Path> for Dataset {
 /// **NOTE:** Dropping it will tear down the embedded database. So it must be kept until the end
 /// of the test.
 #[allow(dead_code)]
-pub struct TrustifyContext {
-    pub db: db::Database,
+pub struct TrustifyTestContext {
+    pub db: Database,
     pub graph: Graph,
     pub storage: FileSystemBackend,
     pub ingestor: IngestorService,
     pub mem_limit_mb: f32,
     pub postgresql: Option<PostgreSQL>,
+    /// Temp directory resource, will be deleted when dropped
+    _tmp: TempDir,
 }
 
 #[global_allocator]
 static PEAK_ALLOC: PeakAlloc = PeakAlloc;
 
-impl TrustifyContext {
-    async fn new(db: db::Database, postgresql: impl Into<Option<PostgreSQL>>) -> Self {
-        let (storage, _) = FileSystemBackend::for_test()
-            .await
-            .expect("initializing the storage backend");
+impl TrustifyTestContext {
+    async fn new(
+        db: Database,
+        storage: FileSystemBackend,
+        tmp: TempDir,
+        postgresql: impl Into<Option<PostgreSQL>>,
+    ) -> Self {
         let graph = Graph::new(db.clone());
         let ingestor = IngestorService::new(graph.clone(), storage.clone(), Default::default());
         let mem_limit_mb = env::var("MEM_LIMIT_MB")
@@ -85,6 +89,7 @@ impl TrustifyContext {
             ingestor,
             mem_limit_mb,
             postgresql: postgresql.into(),
+            _tmp: tmp,
         }
     }
 
@@ -245,37 +250,8 @@ $$;
 
         Ok(self.ingestor.ingest_dataset(&data, (), 0).await?)
     }
-}
 
-impl AsyncTestContext for TrustifyContext {
-    #[instrument]
-    #[allow(clippy::expect_used)]
-    async fn setup() -> TrustifyContext {
-        if env::var("EXTERNAL_TEST_DB").is_ok() {
-            log::warn!("Using external database from 'DB_*' env vars");
-            let config = common::config::Database::from_env().expect("DB config from env");
-
-            let db = if matches!(
-                env::var("EXTERNAL_TEST_DB_BOOTSTRAP").as_deref(),
-                Ok("1" | "true")
-            ) {
-                trustify_db::Database::bootstrap(&config).await
-            } else {
-                db::Database::new(&config).await
-            }
-            .expect("Configuring the database");
-
-            return TrustifyContext::new(db, None).await;
-        }
-
-        let (db, postgresql) = trustify_db::embedded::create()
-            .await
-            .expect("Create an embedded database");
-
-        TrustifyContext::new(db, postgresql).await
-    }
-
-    async fn teardown(self) {
+    pub(crate) fn teardown(&self) {
         let peak_mem = PEAK_ALLOC.peak_usage_as_mb();
         let args: Vec<String> = env::args().collect();
         // Prints the error message when running the tests with threads=1
@@ -283,37 +259,6 @@ impl AsyncTestContext for TrustifyContext {
             log::error!("Too much RAM used: {peak_mem} MB");
         }
         PEAK_ALLOC.reset_peak_usage();
-    }
-}
-
-pub struct ReadOnly<T>(pub T);
-
-impl AsyncTestContext for ReadOnly<TrustifyContext> {
-    async fn setup() -> Self {
-        Self(
-            <TrustifyContext as AsyncTestContext>::setup()
-                .await
-                .read_only()
-                .await
-                .expect("must be able to make read-only"),
-        )
-    }
-
-    async fn teardown(self) {
-        AsyncTestContext::teardown(self.0).await;
-    }
-}
-
-impl<T> Deref for ReadOnly<T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<T> DerefMut for ReadOnly<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 

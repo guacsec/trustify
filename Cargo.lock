@@ -1785,6 +1785,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "485abf41ac0c8047c07c87c72c8fb3eb5197f6e9d7ded615dfd1a00ae00a0f64"
 dependencies = [
  "compression-core",
+ "liblzma",
  "zstd",
  "zstd-safe",
 ]
@@ -8377,10 +8378,13 @@ name = "trustify-db"
 version = "0.4.0-beta.1"
 dependencies = [
  "anyhow",
+ "async-compression",
  "log",
+ "postgresql_commands",
  "postgresql_embedded",
  "sea-orm",
  "sea-orm-migration",
+ "tokio",
  "tracing",
  "trustify-common",
  "trustify-migration",
@@ -8867,15 +8871,19 @@ dependencies = [
  "anyhow",
  "bytes",
  "futures",
+ "git2",
  "hex",
- "liblzma",
  "log",
  "osv",
  "peak_alloc",
  "postgresql_embedded",
+ "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "spdx-rs",
+ "tar",
+ "tempfile",
  "test-context",
  "test-log",
  "tokio",

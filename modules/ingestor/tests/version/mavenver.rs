@@ -108,14 +108,14 @@ async fn test_mavenver_cmp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
-    assert!(version_matches(&db, "1.0.2", VersionRange::Exact("1.0.2"), "maven").await?);
-    assert!(!version_matches(&db, "1.0.2", VersionRange::Exact("1.0.0"), "maven").await?);
+    assert!(version_matches(db, "1.0.2", VersionRange::Exact("1.0.2"), "maven").await?);
+    assert!(!version_matches(db, "1.0.2", VersionRange::Exact("1.0.0"), "maven").await?);
 
     assert!(
         version_matches(
-            &db,
+            db,
             "1.0.2",
             VersionRange::Range(Version::Unbounded, Version::Inclusive("1.0.2")),
             "maven"
@@ -125,7 +125,7 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 
     assert!(
         !version_matches(
-            &db,
+            db,
             "1.0.2",
             VersionRange::Range(Version::Unbounded, Version::Exclusive("1.0.2")),
             "maven"
@@ -135,7 +135,7 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 
     assert!(
         version_matches(
-            &db,
+            db,
             "1.0.2-beta.2",
             VersionRange::Range(Version::Unbounded, Version::Exclusive("1.0.2")),
             "maven"
@@ -145,7 +145,7 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 
     assert!(
         version_matches(
-            &db,
+            db,
             "1.0.2",
             VersionRange::Range(Version::Inclusive("1.0.2"), Version::Exclusive("1.0.5")),
             "maven"
@@ -159,11 +159,11 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn test_version_matches_commons_compress(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
     assert!(
         !version_matches(
-            &db,
+            db,
             "1.26",
             VersionRange::Range(Version::Inclusive("1.21"), Version::Exclusive("1.26")),
             "maven"
@@ -179,11 +179,11 @@ async fn test_version_matches_commons_compress(ctx: TrustifyContext) -> Result<(
 async fn test_version_matches_commons_compress_but_as_semver_because_the_cve_says_its_semver(
     ctx: TrustifyContext,
 ) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
     assert!(
         !version_matches(
-            &db,
+            db,
             "1.26",
             VersionRange::Range(Version::Inclusive("1.21"), Version::Exclusive("1.26")),
             "semver"
@@ -197,11 +197,11 @@ async fn test_version_matches_commons_compress_but_as_semver_because_the_cve_say
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn test_version_matches_rht_suffixen(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
     assert!(
         !version_matches(
-            &db,
+            db,
             "1.26.0.redhat-00001",
             VersionRange::Range(Version::Inclusive("1.21"), Version::Exclusive("1.26")),
             "maven"
@@ -217,11 +217,11 @@ async fn test_version_matches_rht_suffixen(ctx: TrustifyContext) -> Result<(), a
 async fn test_version_matches_rht_suffixen_as_semver_wrongly(
     ctx: TrustifyContext,
 ) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
     assert!(
         !version_matches(
-            &db,
+            db,
             "1.26.0.redhat-00001",
             VersionRange::Range(Version::Inclusive("1.21"), Version::Exclusive("1.26")),
             "semver"
@@ -235,11 +235,11 @@ async fn test_version_matches_rht_suffixen_as_semver_wrongly(
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn test_version_matches_netty_codec(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
     assert!(
         version_matches(
-            &db,
+            db,
             "4.1.108.Final-redhat-0001",
             VersionRange::Exact("4.1.108.Final-redhat-0001"),
             "maven"
@@ -249,7 +249,7 @@ async fn test_version_matches_netty_codec(ctx: TrustifyContext) -> Result<(), an
 
     assert!(
         version_matches(
-            &db,
+            db,
             "4.1.108.Final-redhat-0001",
             VersionRange::Range(Version::Inclusive("4.1.108"), Version::Exclusive("4.2")),
             "maven"
@@ -259,7 +259,7 @@ async fn test_version_matches_netty_codec(ctx: TrustifyContext) -> Result<(), an
 
     assert!(
         !version_matches(
-            &db,
+            db,
             "4.1.108.Final-redhat-0001",
             VersionRange::Range(
                 Version::Inclusive("0.0"),
@@ -278,11 +278,11 @@ async fn test_version_matches_netty_codec(ctx: TrustifyContext) -> Result<(), an
 async fn test_version_matches_netty_codec_semver(
     ctx: TrustifyContext,
 ) -> Result<(), anyhow::Error> {
-    let db = ctx.db;
+    let db = &ctx.db;
 
     assert!(
         version_matches(
-            &db,
+            db,
             "4.1.108.Final-redhat-0001",
             VersionRange::Exact("4.1.108.Final-redhat-0001"),
             "semver"
@@ -292,7 +292,7 @@ async fn test_version_matches_netty_codec_semver(
 
     assert!(
         version_matches(
-            &db,
+            db,
             "4.1.108.Final-redhat-0001",
             VersionRange::Range(Version::Inclusive("4.1.108"), Version::Exclusive("4.2")),
             "semver"

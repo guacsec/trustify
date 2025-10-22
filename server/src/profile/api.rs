@@ -555,7 +555,7 @@ mod test {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(actix_web::test)]
     async fn routing(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let db = ctx.db;
+        let db = &ctx.db;
         let (storage, _) = FileSystemBackend::for_test().await?;
         let ui = Arc::new(UiResources::new(&UI::default())?);
         let analysis = AnalysisService::new(AnalysisConfig::default(), db.clone());
@@ -568,7 +568,7 @@ mod test {
                         svc,
                         Config {
                             config: ModuleConfig::default(),
-                            db,
+                            db: db.clone(),
                             storage: DispatchBackend::Filesystem(storage),
                             auth: None,
                             analysis,
