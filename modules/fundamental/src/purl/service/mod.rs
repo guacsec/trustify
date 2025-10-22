@@ -16,7 +16,9 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
     QuerySelect, QueryTrait, RelationTrait, Statement, prelude::Uuid,
 };
-use sea_query::{Alias, ColumnType, Condition, Expr, JoinType, Order, PostgresQueryBuilder};
+use sea_query::{
+    Alias, ColumnType, Condition, Expr, JoinType, Order, PgFunc, PostgresQueryBuilder,
+};
 use tracing::instrument;
 use trustify_common::{
     db::{
@@ -408,7 +410,10 @@ impl PurlService {
 
             // Combine SPDX and CycloneDX results
             let combined_condition = Condition::any()
-                .add(qualified_purl::Column::Id.is_in(qualified_purl_ids_filtered_by_license))
+                .add(
+                    Expr::col((qualified_purl::Entity, qualified_purl::Column::Id))
+                        .eq(PgFunc::any(qualified_purl_ids_filtered_by_license)),
+                )
                 .add(qualified_purl::Column::Id.in_subquery(cyclonedx_subquery));
             select = select.filter(combined_condition);
         }
