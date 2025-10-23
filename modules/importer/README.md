@@ -38,7 +38,7 @@ http POST localhost:8080/api/v2/importer/osv-r osv[source]=https://github.com/RC
 Quarkus & RHEL 9 data:
 
 ```shell
-http POST localhost:8080/api/v2/importer/redhat-sbom sbom[source]=https://access.redhat.com/security/data/sbom/beta/ sbom[keys][]=https://access.redhat.com/security/data/97f5eac4.txt#77E79ABE93673533ED09EBE2DCE3823597F5EAC4 sbom[disabled]:=false sbom[onlyPatterns][]=quarkus sbom[onlyPatterns][]=rhel-9 sbom[period]=30s sbom[v3Signatures]:=true
+http POST localhost:8080/api/v2/importer/redhat-sbom sbom[source]=https://security.access.redhat.com/data/sbom/v1/spdx/ sbom[keys][]=https://security.access.redhat.com/data/97f5eac4.txt#77E79ABE93673533ED09EBE2DCE3823597F5EAC4 sbom[disabled]:=false sbom[onlyPatterns][]=quarkus sbom[onlyPatterns][]=rhel-9 sbom[period]=30s sbom[v3Signatures]:=true
 ```
 
 ### Get all importers
