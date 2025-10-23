@@ -73,7 +73,7 @@ jobs:
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
           RUST_LOG: info,sqlx=error,sea_orm=error
-          TRUSTIFY_S3_AWS_REGION: eu-central-1
+          TRUSTIFY_S3_AWS_REGION: eu-west-1
           TRUSTIFY_S3_AWS_BUCKET: guacsec-migration-dumps
 
       - name: Export and Validate Generated Openapi Spec
