@@ -180,9 +180,9 @@ pub async fn sample_data(db: trustify_common::db::Database) -> anyhow::Result<()
             description: Some("All Red Hat SBOMs".into()),
             labels: Default::default(),
         },
-        source: "https://access.redhat.com/security/data/sbom/beta/".to_string(),
+        source: "https://security.access.redhat.com/data/sbom/v1/spdx/".to_string(),
         keys: vec![
-            Url::parse("https://access.redhat.com/security/data/97f5eac4.txt#77E79ABE93673533ED09EBE2DCE3823597F5EAC4")?
+            Url::parse("https://security.access.redhat.com/data/97f5eac4.txt#77E79ABE93673533ED09EBE2DCE3823597F5EAC4")?
         ],
         v3_signatures: true,
         only_patterns: vec![],
