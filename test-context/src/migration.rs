@@ -143,12 +143,20 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
         .map(|s| s.to_string());
     let head_commit = head.peel_to_commit()?;
 
-    // Early return if we're on main or release/*
+    // Early return if we're on main or release/* or GitHub merge queue
 
-    if let Some(ref name) = branch_shorthand
-        && is_relevant(name)
-    {
-        return Ok(name.clone());
+    if let Some(ref name) = branch_shorthand {
+        if is_relevant(name) {
+            log::info!("Is relevant base: {name}");
+            return Ok(name.clone());
+        }
+
+        // GitHub merge queue branches look like: gh-readonly-queue/<base>/<id>
+
+        if let Some(name) = is_merge_queue(name) {
+            log::info!("Is merge queue for base: {name}");
+            return Ok(name);
+        }
     }
 
     // Collect candidate parent branches: local branches named `main` or starting with `release/`.
@@ -211,6 +219,21 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
     // Fallback: return branch shorthand if meaningful, otherwise "main"
 
     Ok(branch_shorthand.unwrap_or_else(|| "main".to_string()))
+}
+
+/// Check if the branch name is a merge queue name and return the base branch
+fn is_merge_queue(name: &str) -> Option<String> {
+    if let Some(stripped) = name.strip_prefix("gh-readonly-queue/") {
+        let parts: Vec<_> = stripped.split('/').collect();
+        let parent = if parts.len() > 1 {
+            parts[..parts.len() - 1].join("/")
+        } else {
+            String::new()
+        };
+        Some(parent)
+    } else {
+        None
+    }
 }
 
 /// validate checksums of `<file>` by validating its SHA256 against the value from `<file>.sha256`
@@ -304,4 +327,54 @@ async fn download_artifacts(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Checks a merge queue branch with multiple middle parts; should return all parts except the last.
+    #[test]
+    fn merge_queue_with_multiple_parts() {
+        assert_eq!(
+            is_merge_queue("gh-readonly-queue/main/bar/pr"),
+            Some("main/bar".to_string())
+        );
+    }
+
+    /// Checks a merge queue branch that only has the base branch; should return an empty string.
+    #[test]
+    fn merge_queue_with_only_base_branch() {
+        assert_eq!(
+            is_merge_queue("gh-readonly-queue/main"),
+            Some("".to_string())
+        );
+    }
+
+    /// Checks a merge queue branch with exactly two parts; should return the first part.
+    #[test]
+    fn merge_queue_with_two_parts() {
+        assert_eq!(
+            is_merge_queue("gh-readonly-queue/main/pr"),
+            Some("main".to_string())
+        );
+    }
+
+    /// Checks a non-merge-queue branch; should return None.
+    #[test]
+    fn non_merge_queue_branch() {
+        assert_eq!(is_merge_queue("feature/new-feature"), None);
+    }
+
+    /// Checks an empty string as input; should return None.
+    #[test]
+    fn empty_string() {
+        assert_eq!(is_merge_queue(""), None);
+    }
+
+    /// Checks a branch name that is only the merge queue prefix; should return an empty string.
+    #[test]
+    fn prefix_only() {
+        assert_eq!(is_merge_queue("gh-readonly-queue/"), Some("".to_string()));
+    }
 }
