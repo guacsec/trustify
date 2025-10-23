@@ -33,7 +33,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.TRUSTIFY_S3_UPLOAD_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.TRUSTIFY_S3_UPLOAD_SECRET_ACCESS_KEY }}
-          AWS_REGION: eu-central-1
+          AWS_REGION: eu-west-1
           AWS_BUCKET: guacsec-migration-dumps
         run: |
           BRANCH=${GITHUB_REF_NAME}
