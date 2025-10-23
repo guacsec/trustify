@@ -12,7 +12,7 @@ use crate::{
 use actix_web::{HttpResponse, Responder, get, web};
 use serde_json::json;
 use trustify_auth::{
-    Permission, ReadSbom,
+    Permission, ReadSbom, ReadSystemInformation,
     authenticator::user::UserInformation,
     authorizer::{Authorizer, Require},
     utoipa::AuthResponse,
@@ -60,10 +60,9 @@ pub async fn analysis_status(
     user: UserInformation,
     authorizer: web::Data<Authorizer>,
     web::Query(StatusQuery { details }): web::Query<StatusQuery>,
-    _: Require<ReadSbom>,
+    _: Require<ReadSystemInformation>,
 ) -> actix_web::Result<impl Responder> {
-    // TODO: Replace with a more "admin" style permission when revisiting the permission system
-    authorizer.require(&user, Permission::CreateSbom)?;
+    authorizer.require(&user, Permission::ReadSystemInformation)?;
     Ok(HttpResponse::Ok().json(service.status(db.as_ref(), details).await?))
 }
 
