@@ -134,11 +134,14 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
 
     log::info!("Discovering the current branch at {}", path.display());
     let repo = Repository::discover(path)?;
-
-    // HEAD may be symbolic (branch) or direct (detached)
-
     let head = repo.head()?;
-    let branch_shorthand = head.shorthand().map(|s| s.to_string());
+
+    // Try to get branch shorthand (may be "HEAD" or commit hash in detached state)
+    let branch_shorthand = head
+        .shorthand()
+        .filter(|s| *s != "HEAD")
+        .map(|s| s.to_string());
+    let head_commit = head.peel_to_commit()?;
 
     // Early return if we're on main or release/*
 
@@ -162,9 +165,17 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
         }
     }
 
-    // Resolve HEAD commit (works in detached mode)
+    // Try to find if HEAD matches any branch tip exactly
 
-    let head_commit = head.peel_to_commit()?;
+    for candidate in &candidates {
+        let Ok(commit) = candidate.get().peel_to_commit() else {
+            continue;
+        };
+
+        if commit.id() == head_commit.id() {
+            return Ok(candidate.name()?.unwrap_or("unknown").to_string());
+        }
+    }
 
     // Find a candidate whose tip shares the most recent common ancestor with HEAD.
 
@@ -197,16 +208,9 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
         return Ok(b);
     }
 
-    // Fallbacks:
-    // - If we have a branch shorthand (even if it's not main/release), return it.
+    // Fallback: return branch shorthand if meaningful, otherwise "main"
 
-    if let Some(name) = branch_shorthand {
-        return Ok(name);
-    }
-
-    // - Otherwise return the HEAD commit OID (detached head with no shorthand).
-
-    Ok(head_commit.id().to_string())
+    Ok(branch_shorthand.unwrap_or_else(|| "main".to_string()))
 }
 
 /// validate checksums of `<file>` by validating its SHA256 against the value from `<file>.sha256`
