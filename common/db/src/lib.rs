@@ -112,6 +112,7 @@ impl<'a> Database<'a> {
         // some maintenance after import
 
         db.execute_unprepared(r#"VACUUM FULL ANALYZE"#).await?;
+        db.execute_unprepared(r#"REINDEX database"#).await?;
 
         // we do not migrate the database here automatically
 
