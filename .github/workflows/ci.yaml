@@ -69,10 +69,10 @@ jobs:
           docker compose -f etc/deploy/compose/compose-minio.yaml up -d --wait
 
       - name: Test
-        run: cargo test --all-features -- --nocapture
+        run: cargo test --all-features
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
-          RUST_LOG: warn,sqlx=error,sea_orm=error
+          RUST_LOG: info,sqlx=error,sea_orm=error
           TRUSTIFY_S3_AWS_REGION: eu-central-1
           TRUSTIFY_S3_AWS_BUCKET: guacsec-migration-dumps
 
