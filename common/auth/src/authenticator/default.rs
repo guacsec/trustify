@@ -27,6 +27,7 @@ pub const DEFAULT_SCOPE_MAPPINGS: &[(&str, &[&str])] = &[
             "read.metadata",
             "read.sbom",
             "read.weakness",
+            "read.systemInformation",
         ],
     ),
     (

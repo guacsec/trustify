@@ -93,7 +93,8 @@ The CLI alternative provides predefined scope mappings that cannot be customized
             "read.importer",
             "read.metadata",
             "read.sbom",
-            "read.weakness"
+            "read.weakness",
+            "read.systemInformation",
           ],
           "update:document": [
             "update.advisory",

@@ -103,6 +103,9 @@ permission! {
         #[strum(serialize = "upload.dataset")]
         UploadDataset,
 
+        #[strum(serialize = "read.systemInformation")]
+        ReadSystemInformation,
+
         #[strum(serialize = "ai")]
         Ai,
     }
