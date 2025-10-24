@@ -38,7 +38,7 @@ mod m0001180_expand_spdx_licenses_with_mappings_function;
 mod m0001190_optimize_product_advisory_query;
 mod m0001200_source_document_fk_indexes;
 mod m0002000_example_sbom_data_migration;
-mod m0002010_example_advisory_data_migration;
+mod m0002010_add_advisory_scores;
 
 pub struct Migrator;
 
@@ -78,7 +78,7 @@ impl Migrator {
             .normal(m0001190_optimize_product_advisory_query::Migration)
             .normal(m0001200_source_document_fk_indexes::Migration)
             .data(m0002000_example_sbom_data_migration::Migration)
-            .data(m0002010_example_advisory_data_migration::Migration)
+            .data(m0002010_add_advisory_scores::Migration)
     }
 }
 
