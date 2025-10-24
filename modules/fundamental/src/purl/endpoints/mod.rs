@@ -1,5 +1,6 @@
 use crate::{
     Error,
+    db::DatabaseExt,
     endpoints::Deprecation,
     purl::{
         model::{
@@ -55,12 +56,13 @@ pub async fn get(
     web::Query(Deprecation { deprecated }): web::Query<Deprecation>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
+    let tx = db.begin_read().await?;
     if key.starts_with("pkg") {
         let purl = Purl::from_str(&key).map_err(Error::Purl)?;
-        Ok(HttpResponse::Ok().json(service.purl_by_purl(&purl, deprecated, db.as_ref()).await?))
+        Ok(HttpResponse::Ok().json(service.purl_by_purl(&purl, deprecated, &tx).await?))
     } else {
         let id = Uuid::from_str(&key).map_err(|e| Error::IdKey(IdError::InvalidUuid(e)))?;
-        Ok(HttpResponse::Ok().json(service.purl_by_uuid(&id, deprecated, db.as_ref()).await?))
+        Ok(HttpResponse::Ok().json(service.purl_by_uuid(&id, deprecated, &tx).await?))
     }
 }
 
@@ -84,7 +86,8 @@ pub async fn all(
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    Ok(HttpResponse::Ok().json(service.purls(search, paginated, db.as_ref()).await?))
+    let tx = db.begin_read().await?;
+    Ok(HttpResponse::Ok().json(service.purls(search, paginated, &tx).await?))
 }
 
 #[utoipa::path(
@@ -102,9 +105,8 @@ pub async fn recommend(
     request: web::Json<RecommendRequest>,
     _: Require<ReadAdvisory>,
 ) -> actix_web::Result<impl Responder> {
-    let recommendations = purl_service
-        .recommend_purls(&request.purls, db.as_ref())
-        .await?;
+    let tx = db.begin_read().await?;
+    let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
     let response = RecommendResponse { recommendations };
 

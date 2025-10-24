@@ -10,6 +10,7 @@ use crate::{
         service::AdvisoryService,
     },
     common::service::delete_doc,
+    db::DatabaseExt,
     endpoints::Deprecation,
 };
 use actix_web::{HttpResponse, Responder, delete, get, http::header, post, web};
@@ -93,9 +94,10 @@ pub async fn all(
     web::Query(Deprecation { deprecated }): web::Query<Deprecation>,
     _: Require<ReadAdvisory>,
 ) -> actix_web::Result<impl Responder> {
+    let tx = db.begin_read().await?;
     Ok(HttpResponse::Ok().json(
         state
-            .fetch_advisories(search, paginated, deprecated, db.as_ref())
+            .fetch_advisories(search, paginated, deprecated, &tx)
             .await?,
     ))
 }
@@ -120,7 +122,8 @@ pub async fn get(
     _: Require<ReadAdvisory>,
 ) -> actix_web::Result<impl Responder> {
     let hash_key = Id::from_str(&key).map_err(Error::IdKey)?;
-    let fetched = state.fetch_advisory(hash_key, db.as_ref()).await?;
+    let tx = db.begin_read().await?;
+    let fetched = state.fetch_advisory(hash_key, &tx).await?;
 
     if let Some(fetched) = fetched {
         Ok(HttpResponse::Ok().json(fetched))
@@ -247,9 +250,10 @@ pub async fn download(
 ) -> Result<impl Responder, Error> {
     // the user requested id
     let id = Id::from_str(&key).map_err(Error::IdKey)?;
+    let tx = db.begin_read_snapshot().await?;
 
     // look up document by id
-    let Some(advisory) = advisory.fetch_advisory(id, db.as_ref()).await? else {
+    let Some(advisory) = advisory.fetch_advisory(id, &tx).await? else {
         return Ok(HttpResponse::NotFound().finish());
     };
 

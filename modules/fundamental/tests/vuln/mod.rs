@@ -15,7 +15,11 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = VulnerabilityService::new();
 
     let result = service
-        .analyze_purls(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db)
+        .analyze_purls(
+            ["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"],
+            &ctx.db,
+            &ctx.db,
+        )
         .await?;
 
     println!("{:#?}", result);

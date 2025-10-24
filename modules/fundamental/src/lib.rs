@@ -2,6 +2,7 @@
 
 pub mod advisory;
 pub mod common;
+pub mod db;
 pub mod endpoints;
 pub mod error;
 pub mod license;

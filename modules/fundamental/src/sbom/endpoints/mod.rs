@@ -9,6 +9,7 @@ pub use query::*;
 use crate::{
     Error,
     common::{LicenseRefMapping, service::delete_doc},
+    db::DatabaseExt,
     license::{
         get_sanitize_filename,
         service::{LicenseService, license_export::LicenseExporter},
@@ -93,7 +94,8 @@ pub async fn get_unique_licenses(
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let parsed_id = Id::from_str(&id).map_err(Error::IdKey)?;
-    let all_licenses_info = fetcher.get_all_license_info(parsed_id, db.as_ref()).await?;
+    let tx = db.begin_read().await?;
+    let all_licenses_info = fetcher.get_all_license_info(parsed_id, &tx).await?;
     match all_licenses_info {
         Some(all_licenses) => Ok(HttpResponse::Ok().json(all_licenses)),
         None => Ok(HttpResponse::NotFound().into()),
@@ -118,8 +120,9 @@ pub async fn get_license_export(
     id: web::Path<String>,
 ) -> actix_web::Result<impl Responder> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
+    let tx = db.begin_read().await?;
 
-    let license_export_result = fetcher.license_export(id, db.as_ref()).await?;
+    let license_export_result = fetcher.license_export(id, &tx).await?;
     if let Some(name_group_version) = license_export_result.sbom_name_group_version.clone() {
         let exporter = LicenseExporter::new(
             name_group_version.sbom_id.clone(),
@@ -167,9 +170,8 @@ pub async fn all(
 ) -> actix_web::Result<impl Responder> {
     authorizer.require(&user, Permission::ReadSbom)?;
 
-    let result = fetch
-        .fetch_sboms(search, paginated, (), db.as_ref())
-        .await?;
+    let tx = db.begin_read().await?;
+    let result = fetch.fetch_sboms(search, paginated, (), &tx).await?;
 
     Ok(HttpResponse::Ok().json(result))
 }
@@ -203,10 +205,9 @@ pub async fn all_related(
     authorizer.require(&user, Permission::ReadSbom)?;
 
     let id = (&all_related).try_into()?;
+    let tx = db.begin_read().await?;
 
-    let result = sbom
-        .find_related_sboms(id, paginated, search, db.as_ref())
-        .await?;
+    let result = sbom.find_related_sboms(id, paginated, search, &tx).await?;
 
     Ok(HttpResponse::Ok().json(result))
 }
@@ -237,7 +238,8 @@ pub async fn count_related(
         .map(SbomExternalPackageReference::try_from)
         .collect::<Result<Vec<_>, _>>()?;
 
-    let result = sbom.count_related_sboms(ids, db.as_ref()).await?;
+    let tx = db.begin_read().await?;
+    let result = sbom.count_related_sboms(ids, &tx).await?;
 
     Ok(HttpResponse::Ok().json(result))
 }
@@ -262,7 +264,10 @@ pub async fn get(
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
-    match fetcher.fetch_sbom_summary(id, db.as_ref()).await? {
+
+    let tx = db.begin_read().await?;
+
+    match fetcher.fetch_sbom_summary(id, &tx).await? {
         Some(v) => Ok(HttpResponse::Ok().json(v)),
         None => Ok(HttpResponse::NotFound().finish()),
     }
@@ -288,11 +293,10 @@ pub async fn get_sbom_advisories(
     _: Require<GetSbomAdvisories>,
 ) -> actix_web::Result<impl Responder> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
+    let tx = db.begin_read().await?;
+
     let statuses: Vec<String> = vec!["affected".to_string()];
-    match fetcher
-        .fetch_sbom_details(id, statuses, db.as_ref())
-        .await?
-    {
+    match fetcher.fetch_sbom_details(id, statuses, &tx).await? {
         Some(v) => Ok(HttpResponse::Ok().json(v.advisories)),
         None => Ok(HttpResponse::NotFound().finish()),
     }
@@ -360,8 +364,9 @@ pub async fn packages(
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
+    let tx = db.begin_read().await?;
     let result = fetch
-        .fetch_sbom_packages(id.into_inner(), search, paginated, db.as_ref())
+        .fetch_sbom_packages(id.into_inner(), search, paginated, &tx)
         .await?;
 
     Ok(HttpResponse::Ok().json(result))
@@ -405,6 +410,7 @@ pub async fn related(
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let id = id.into_inner();
+    let tx = db.begin_read().await?;
 
     let result = fetch
         .fetch_related_packages(
@@ -417,7 +423,7 @@ pub async fn related(
                 Some(id) => SbomNodeReference::Package(id),
             },
             related.relationship,
-            db.as_ref(),
+            &tx,
         )
         .await?;
 
@@ -500,8 +506,9 @@ pub async fn download(
     _: Require<ReadSbom>,
 ) -> Result<impl Responder, Error> {
     let id = Id::from_str(&key).map_err(Error::IdKey)?;
+    let tx = db.begin_read().await?;
 
-    let Some(sbom) = sbom.fetch_sbom_summary(id, db.as_ref()).await? else {
+    let Some(sbom) = sbom.fetch_sbom_summary(id, &tx).await? else {
         return Ok(HttpResponse::NotFound().finish());
     };
 

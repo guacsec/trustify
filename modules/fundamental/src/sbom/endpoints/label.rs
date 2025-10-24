@@ -1,5 +1,6 @@
 use crate::{
     common::service::{DocumentType, fetch_labels},
+    db::DatabaseExt,
     sbom::service::SbomService,
 };
 use actix_web::{HttpResponse, Responder, get, patch, put, web};
@@ -48,13 +49,8 @@ pub async fn all(
 ) -> actix_web::Result<impl Responder> {
     authorizer.require(&user, Permission::ReadSbom)?;
 
-    let result = fetch_labels(
-        DocumentType::Sbom,
-        query.filter_text,
-        query.limit,
-        db.as_ref(),
-    )
-    .await?;
+    let tx = db.begin_read().await?;
+    let result = fetch_labels(DocumentType::Sbom, query.filter_text, query.limit, &tx).await?;
 
     Ok(HttpResponse::Ok().json(result))
 }

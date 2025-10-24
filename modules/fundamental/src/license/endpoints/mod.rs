@@ -1,6 +1,9 @@
-use crate::license::{
-    endpoints::spdx::{get_spdx_license, list_spdx_licenses},
-    service::{LicenseService, LicenseText},
+use crate::{
+    db::DatabaseExt,
+    license::{
+        endpoints::spdx::{get_spdx_license, list_spdx_licenses},
+        service::{LicenseService, LicenseText},
+    },
 };
 use actix_web::{HttpResponse, Responder, get, web};
 use trustify_auth::{ReadSbom, authorizer::Require};
@@ -49,7 +52,8 @@ pub async fn list_licenses(
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    Ok(HttpResponse::Ok().json(service.licenses(search, paginated, db.as_ref()).await?))
+    let tx = db.begin_read().await?;
+    Ok(HttpResponse::Ok().json(service.licenses(search, paginated, &tx).await?))
 }
 
 #[cfg(test)]

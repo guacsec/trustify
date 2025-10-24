@@ -83,6 +83,8 @@ impl SbomDetails {
             vec![sbom.sbom_id],
         ));
 
+        // Use database pool connections for streams to avoid concurrent queries on the
+        // transaction connection. The cvss3 nested queries will use the tx (REPEATABLE READ).
         let relevant_advisory_info = query
             .join(
                 JoinType::LeftJoin,
@@ -109,12 +111,13 @@ impl SbomDetails {
             )
             .select_only()
             .try_into_multi_model::<QueryCatcher>()?
-            .stream(tx)
+            .stream(service.db())
             .await?;
 
-        log::info!("Result: {:?}", relevant_advisory_info.size_hint());
+        log::debug!("Result: {:?}", relevant_advisory_info.size_hint());
 
-        let result = tx
+        let result = service
+            .db()
             .stream(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 raw_sql::product_advisory_info_sql(),

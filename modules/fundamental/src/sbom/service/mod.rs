@@ -15,4 +15,8 @@ impl SbomService {
     pub fn new(db: Database) -> Self {
         Self { db }
     }
+
+    pub fn db(&self) -> &Database {
+        &self.db
+    }
 }

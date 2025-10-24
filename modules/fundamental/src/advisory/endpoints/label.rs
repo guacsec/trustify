@@ -1,6 +1,7 @@
 use crate::{
     advisory::service::AdvisoryService,
     common::{service::DocumentType, service::fetch_labels},
+    db::DatabaseExt,
 };
 use actix_web::{HttpResponse, Responder, get, patch, put, web};
 use trustify_auth::{
@@ -47,13 +48,8 @@ pub async fn all(
 ) -> actix_web::Result<impl Responder> {
     authorizer.require(&user, Permission::ReadAdvisory)?;
 
-    let result = fetch_labels(
-        DocumentType::Advisory,
-        query.filter_text,
-        query.limit,
-        db.as_ref(),
-    )
-    .await?;
+    let tx = db.begin_read().await?;
+    let result = fetch_labels(DocumentType::Advisory, query.filter_text, query.limit, &tx).await?;
 
     Ok(HttpResponse::Ok().json(result))
 }

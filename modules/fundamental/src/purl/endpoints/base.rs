@@ -1,5 +1,6 @@
 use crate::{
     Error,
+    db::DatabaseExt,
     purl::{
         model::{details::base_purl::BasePurlDetails, summary::base_purl::BasePurlSummary},
         service::PurlService,
@@ -34,12 +35,13 @@ pub async fn get_base_purl(
     key: web::Path<String>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
+    let tx = db.begin_read().await?;
     if key.starts_with("pkg:") {
         let purl = Purl::from_str(&key).map_err(|e| Error::IdKey(IdError::Purl(e)))?;
-        Ok(HttpResponse::Ok().json(service.base_purl_by_purl(&purl, db.as_ref()).await?))
+        Ok(HttpResponse::Ok().json(service.base_purl_by_purl(&purl, &tx).await?))
     } else {
         let uuid = Uuid::from_str(&key).map_err(|e| Error::IdKey(IdError::InvalidUuid(e)))?;
-        Ok(HttpResponse::Ok().json(service.base_purl_by_uuid(&uuid, db.as_ref()).await?))
+        Ok(HttpResponse::Ok().json(service.base_purl_by_uuid(&uuid, &tx).await?))
     }
 }
 
@@ -62,5 +64,6 @@ pub async fn all_base_purls(
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
 ) -> actix_web::Result<impl Responder> {
-    Ok(HttpResponse::Ok().json(service.base_purls(search, paginated, db.as_ref()).await?))
+    let tx = db.begin_read().await?;
+    Ok(HttpResponse::Ok().json(service.base_purls(search, paginated, &tx).await?))
 }

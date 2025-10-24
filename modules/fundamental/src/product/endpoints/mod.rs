@@ -3,6 +3,7 @@ mod test;
 
 use crate::{
     Error,
+    db::DatabaseExt,
     product::{
         model::{details::ProductDetails, summary::ProductSummary},
         service::ProductService,
@@ -46,7 +47,8 @@ pub async fn all(
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadMetadata>,
 ) -> actix_web::Result<impl Responder> {
-    Ok(HttpResponse::Ok().json(state.fetch_products(search, paginated, db.as_ref()).await?))
+    let tx = db.begin_read().await?;
+    Ok(HttpResponse::Ok().json(state.fetch_products(search, paginated, &tx).await?))
 }
 
 #[utoipa::path(
@@ -67,7 +69,8 @@ pub async fn get(
     id: web::Path<Uuid>,
     _: Require<ReadMetadata>,
 ) -> actix_web::Result<impl Responder> {
-    let fetched = state.fetch_product(*id, db.as_ref()).await?;
+    let tx = db.begin_read().await?;
+    let fetched = state.fetch_product(*id, &tx).await?;
     if let Some(fetched) = fetched {
         Ok(HttpResponse::Ok().json(fetched))
     } else {
