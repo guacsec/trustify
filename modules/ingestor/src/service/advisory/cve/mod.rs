@@ -1,6 +1,6 @@
 use crate::graph::cvss::ScoreCreator;
 use cve::Cve;
-use cvss::{v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4, Cvss};
+use cvss::{Cvss, v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 
 pub mod divination;
 pub mod loader;
