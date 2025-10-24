@@ -156,6 +156,12 @@ impl ScoreCreator {
             .exec(db)
             .await?;
 
+        // if we have none, return now
+
+        if scores.is_empty() {
+            return Ok(());
+        }
+
         // transform and set advisory
 
         let scores = scores.into_iter().map(|score| {
