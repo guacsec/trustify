@@ -81,7 +81,7 @@ impl GenerateDump {
                     }),
                     ImporterConfiguration::Sbom(SbomImporter {
                         common: default_common("All Red Hat SBOMs"),
-                        source: "https://security.access.redhat.com/data/sbom/v1/spdx/".to_string(),
+                        source: "https://security.access.redhat.com/data/sbom/v1/".to_string(),
                         keys: vec!["https://security.access.redhat.com/data/97f5eac4.txt#77E79ABE93673533ED09EBE2DCE3823597F5EAC4".parse()?],
                         v3_signatures: true,
                         only_patterns: vec![],
