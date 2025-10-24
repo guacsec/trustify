@@ -130,12 +130,18 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
             .map(async |model| {
                 let tx = db.begin().await?;
 
-                let doc = D::source(&model, storage, &tx).await.map_err(|err| {
-                    DbErr::Migration(format!("Failed to load source document: {err}"))
-                })?;
-                f.call(doc, model, &tx).await.map_err(|err| {
-                    DbErr::Migration(format!("Failed to process document: {err}"))
-                })?;
+                let doc = D::source(&model, storage, &tx)
+                    .await
+                    .inspect_err(|err| tracing::info!("Failed to load source document: {err}"))
+                    .map_err(|err| {
+                        DbErr::Migration(format!("Failed to load source document: {err}"))
+                    })?;
+                f.call(doc, model, &tx)
+                    .await
+                    .inspect_err(|err| tracing::info!("Failed to process document: {err}"))
+                    .map_err(|err| {
+                        DbErr::Migration(format!("Failed to process document: {err}"))
+                    })?;
 
                 tx.commit().await?;
 

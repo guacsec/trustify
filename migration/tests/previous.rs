@@ -1,3 +1,4 @@
+use migration::data::MigrationWithData;
 use test_context::test_context;
 use test_log::test;
 use trustify_db::Database;
@@ -10,7 +11,10 @@ async fn from_previous(ctx: &TrustifyMigrationContext) -> Result<(), anyhow::Err
     // We automatically start with a database imported from the previous commit.
     // But we haven't migrated to the most recent schema so far. That's done by the next step.
 
-    Database(&ctx.db).migrate().await?;
+    MigrationWithData::run_with_test_storage(ctx.storage.clone(), async {
+        Database(&ctx.db).migrate().await
+    })
+    .await?;
 
     Ok(())
 }

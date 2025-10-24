@@ -7,6 +7,7 @@ use futures::executor::block_on;
 use sea_orm::DbErr;
 use sea_orm_migration::{MigrationName, MigrationTrait, SchemaManager};
 use std::{ffi::OsString, ops::Deref, sync::LazyLock};
+use tokio::task_local;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 
 pub struct MigrationWithData {
@@ -17,6 +18,10 @@ pub struct MigrationWithData {
 
 static STORAGE: LazyLock<DispatchBackend> = LazyLock::new(init_storage);
 static OPTIONS: LazyLock<Options> = LazyLock::new(init_options);
+
+task_local! {
+    static TEST_STORAGE: DispatchBackend;
+}
 
 #[allow(clippy::expect_used)]
 fn init_storage() -> DispatchBackend {
@@ -36,11 +41,27 @@ impl MigrationWithData {
     ///
     /// **NOTE:** This may panic if the storage configuration is missing.
     pub fn new(migration: Box<dyn MigrationTraitWithData>) -> Self {
+        // if we have a test storage set, use this instead.
+        let storage = TEST_STORAGE
+            .try_with(|s| s.clone())
+            .unwrap_or_else(|_| STORAGE.clone());
+
         Self {
-            storage: STORAGE.clone(),
+            storage,
             options: OPTIONS.clone(),
             migration,
         }
+    }
+
+    /// Set a storage backend to be used for running tests.
+    ///
+    /// This will, for the duration of the call, initialize the migrator with the provided storage
+    /// backend.
+    pub async fn run_with_test_storage<F>(storage: impl Into<DispatchBackend>, f: F) -> F::Output
+    where
+        F: Future,
+    {
+        TEST_STORAGE.scope(storage.into(), f).await
     }
 }
 
@@ -114,6 +135,7 @@ impl MigrationTrait for MigrationWithData {
             &SchemaDataManager::new(manager, &self.storage, &self.options),
         )
         .await
+        .inspect_err(|err| tracing::warn!("Migration failed: {err}"))
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
