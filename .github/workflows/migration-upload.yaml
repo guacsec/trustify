@@ -29,13 +29,18 @@ jobs:
           # we don't need to compress the storage tar file, as individual files are already compressed
 
       - name: Upload to S3
-        if: ${{ secrets.TRUSTIFY_S3_UPLOAD_ACCESS_KEY_ID }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.TRUSTIFY_S3_UPLOAD_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.TRUSTIFY_S3_UPLOAD_SECRET_ACCESS_KEY }}
           AWS_REGION: eu-west-1
           AWS_BUCKET: guacsec-migration-dumps
         run: |
+          # we can't check in an `if` condition, as secrets are not available there
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "::warning title=Upload to S3::AWS credentials not set, skipping S3 upload"
+            exit 0
+          fi
+
           BRANCH=${GITHUB_REF_NAME}
           COMMIT=${GITHUB_SHA}
 
