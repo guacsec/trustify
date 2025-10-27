@@ -1,4 +1,4 @@
-# 00008. Re-process documents
+# 00009. Re-process documents
 
 Date: 2025-08-08
 
@@ -21,14 +21,14 @@ all documents affected by this change.
 ### Example
 
 We do ignore all CVSS v2 scores at the moment. Adding new fields for storing v2 scores, we wouldn't have
-any stored in the database without re-processing documents and extracting that information.
+any stored values in the database. It therefore is necessary to re-process documents and extracting this information.
 
 ### Assumptions
 
 This ADR makes the following assumptions:
 
 * All documents are stored in the storage
-* It is expected that an upgrade is actually required
+* It is expected that the step of upgrading has to be performed by someone
 * Running such migrations is expected to take a long time
 * The management of infrastructure (PostgreSQL) is not in the scope of Trustify
 
@@ -36,9 +36,10 @@ Question? Do we want to support downgrades?
 
 ## Decision
 
-During the migration of database structures (sea orm), we also re-process all documents (if required). This would
-be running during the migration job of the Helm chart and would have an impact on updates as the rollout of newer
-version pods would be delayed until the migration (of data) has been finished.
+During the migration of database structures (sea orm), we also re-process all documents (if required).
+
+For Helm deployments, this would be running during the migration job of the Helm chart and would have an impact on
+updates as the rollout of newer version pods would be delayed until the migration (of data) has been finished.
 
 This would also require to prevent users from creating new documents during that time. Otherwise, we would need to
 re-process documents ingested during the migration time. A way of doing this could be to leverage PostgreSQL's ability
@@ -72,10 +73,22 @@ error.
 An alternative to this could also be to configure the system first to go into "read-only mode", by using a default
 transaction mode of read-only.
 
+## Consequences
+
+Migrations which do re-process data have to be written in a way, that they can be run and re-run without failing
+during the migration of the schema (e.g. add "if not exist"). In this case, the data migration job can be run
+"out of band" (beforehand) and the data be processed. Then, the actual upgrade and schema migration can run.
+
+
 ## Open items
 
+* [ ] Do we want to support downgrades?
+  * I'd say no. Downgrades could also be handled by keeping a snapshot of the original database.
 * [ ] How to handle unparsable or failing documents during migration?
+  * Pass them in as "unsupported"
 * [ ] Add a version number to the document, tracking upgrades
+  * This adds some complexity, but might allow to track the progress and identify upgraded documents. This could also
+    ensure the correct order of applying data migrations out of band.
 
 ## Alternative approaches
 
@@ -84,9 +97,9 @@ transaction mode of read-only.
 We create a similar module as for the importer. Running migrations after an upgrade. Accepting that in the meantime,
 we might service inaccurate data.
 
-* 👎 Might serve inaccurate data for a while for a longer time
+* 👎 Might serve inaccurate data for a longer time
 * 👎 Can't fully migrate database (new mandatory field won't work)
-* 👍 Upgrade process is faster and less complex
+* 👍 Upgrade process itself is faster and less complex
 * 👎 Requires some coordination between instances (only one processor at a time, maybe one after the other)
 
 ### Option 3
@@ -101,6 +114,16 @@ original sources.
 * 👎 Won't work for manual (API) uploads
 * 👎 Would require removing optimizations for existing documents
 
+### Option 4
+
+Have the operator orchestrate the process of switching the database into read-only mode and running the migrations.
+
+* 👍 Very user friendly
+* 👎 Rather complex
+* 👎 Required access to the user's DB infrastructure
+
+This adds a lot of user-friendliness. However, it also is rather complex and so we should, as a first step, have this
+as a manual step.
 
 ## Consequences
 
