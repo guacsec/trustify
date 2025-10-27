@@ -1,4 +1,8 @@
-use crate::{sbom::model::SbomExternalPackageReference, sbom::service::SbomService};
+use crate::{
+    purl::service::PurlService, sbom::model::SbomExternalPackageReference,
+    sbom::service::SbomService,
+};
+use sea_orm::TransactionTrait;
 use std::{collections::HashMap, str::FromStr};
 use test_context::test_context;
 use test_log::test;
@@ -449,6 +453,206 @@ async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<
             "Total should match full query"
         );
     }
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let purl_service = PurlService::new();
+    assert_eq!(
+        0,
+        purl_service
+            .purls(Query::default(), Paginated::default(), &ctx.db)
+            .await?
+            .items
+            .len()
+    );
+
+    // ingest an sbom
+    let quarkus_sbom = ctx
+        .ingest_document("quarkus-bom-2.13.8.Final-redhat-00004.json")
+        .await?;
+
+    // check the expected PURLs have been created
+    assert_eq!(
+        880,
+        purl_service
+            .purls(Query::default(), Paginated::default(), &ctx.db)
+            .await?
+            .items
+            .len()
+    );
+
+    // ingest another sbom
+    let ubi9_sbom = ctx.ingest_document("ubi9-9.2-755.1697625012.json").await?;
+
+    // check there are more PURLs
+    assert_eq!(
+        1490,
+        purl_service
+            .purls(Query::default(), Paginated::default(), &ctx.db)
+            .await?
+            .items
+            .len()
+    );
+
+    let tx = ctx.db.begin().await?;
+    let sbom_service = SbomService::new(ctx.db.clone());
+    // delete the UBI SBOM
+    assert!(
+        sbom_service
+            .delete_sbom(ubi9_sbom.id.try_as_uid().unwrap(), &tx)
+            .await?
+    );
+    tx.commit().await?;
+
+    // it should not leave behind orphaned purls
+    let result = purl_service
+        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .await?;
+    // running the deletion, should have deleted those orphaned purls
+    assert_eq!(880, result.items.len());
+
+    // delete the quarkus sbom....
+    let tx = ctx.db.begin().await?;
+    assert!(
+        sbom_service
+            .delete_sbom(quarkus_sbom.id.try_as_uid().unwrap(), &tx)
+            .await?
+    );
+    tx.commit().await?;
+
+    // running the deletion, should have deleted those orphaned purls
+    let result = purl_service
+        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .await?;
+
+    assert_eq!(0, result.items.len());
+    Ok(())
+}
+
+/// Test that verifies the SBOM deletion preserves packages referenced by advisories.
+///
+/// This test validates the conservative SBOM deletion approach where packages are retained if
+/// their base_purl is referenced in purl_status (advisory reference), even after the SBOM that
+/// created them is deleted.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn delete_sbom_preserves_advisory_referenced_packages(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    use crate::purl::service::PurlService;
+
+    // Ingest advisory and SBOMs with correlating data (same as sbom_details_status test)
+    let results = ctx
+        .ingest_documents([
+            // this advisory refers to many packages in both the Quarkus SBOMs
+            "csaf/rhsa-2024-2705.json",
+            "spdx/quarkus-bom-3.2.11.Final-redhat-00001.json",
+            "spdx/quarkus-bom-3.2.12.Final-redhat-00002.json",
+            // this SBOM is totally unrelated with the previous documents
+            "ubi9-9.2-755.1697625012.json",
+        ])
+        .await?;
+
+    let purl_service = PurlService::new();
+
+    // Count all PURLs before deletion
+    let packages_before = purl_service
+        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .await?;
+    log::debug!(
+        "Total packages before SBOM deletion: {}",
+        packages_before.total
+    );
+    assert_eq!(
+        packages_before.total, 2087,
+        "Should have packages after ingestion"
+    );
+
+    // Delete one of the SBOMs
+    let service = SbomService::new(ctx.db.clone());
+    let sbom_uuid = results[1].id.try_as_uid().expect("SBOM should have a UUID");
+    let tx = ctx.db.begin().await?;
+    assert!(
+        service.delete_sbom(sbom_uuid, &tx).await?,
+        "SBOM should be deleted"
+    );
+    tx.commit().await?;
+
+    // Count all packages after deletion
+    let packages_after = purl_service
+        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .await?;
+    log::debug!(
+        "Total packages after SBOM deletion: {}",
+        packages_before.total
+    );
+    assert_eq!(
+        packages_after.total, 2083,
+        "Should have packages after deletion"
+    );
+
+    // The conservative SBOM deletion approach preserves packages if:
+    // 1. They are referenced by another SBOM, OR
+    // 2. Their base_purl is referenced in purl_status (advisory reference)
+    //
+    // Since we have TWO overlapping quarkus SBOMs and an advisory that references
+    // many of the same packages, the SBOM deletion should only delete a small number of packages:
+    // - Packages unique to the deleted SBOM (not in the other SBOM)
+    // - AND not referenced by the advisory
+    //
+    // We verify that MOST packages are preserved (conservative approach).
+    let packages_deleted = packages_before.total - packages_after.total;
+    log::debug!("Qualified PURLs deleted: {}", packages_deleted);
+
+    assert_eq!(packages_deleted, 4, "Should have deleted 4 packages");
+
+    // Delete the other SBOM
+    let sbom_uuid = results[2].id.try_as_uid().expect("SBOM should have a UUID");
+    let tx = ctx.db.begin().await?;
+    assert!(
+        service.delete_sbom(sbom_uuid, &tx).await?,
+        "SBOM should be deleted"
+    );
+    tx.commit().await?;
+
+    // Count all packages after deletion
+    let packages_after = purl_service
+        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .await?;
+    log::debug!(
+        "Total packages after second SBOM deletion: {}",
+        packages_before.total
+    );
+    assert_eq!(
+        packages_after.total, 2082,
+        "Should have packages after second deletion"
+    );
+
+    // Delete the UBI SBOM, unrelated with other SBOMs and the advisory
+    let ubi_sbom_uuid = results[3].id.try_as_uid().expect("SBOM should have a UUID");
+    let tx = ctx.db.begin().await?;
+    assert!(
+        service.delete_sbom(ubi_sbom_uuid, &tx).await?,
+        "SBOM should be deleted"
+    );
+    tx.commit().await?;
+
+    // Count all packages after deletion
+    let packages_after = purl_service
+        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .await?;
+    log::debug!(
+        "Total packages after third SBOM deletion: {}",
+        packages_before.total
+    );
+    assert_eq!(
+        packages_after.total, 1472,
+        "Should have packages after second deletion"
+    );
 
     Ok(())
 }

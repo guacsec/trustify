@@ -109,6 +109,24 @@ impl SbomService {
         id: Uuid,
         connection: &C,
     ) -> Result<bool, Error> {
+        // IMPORTANT: Capture qualified_purl IDs before CASCADE deletion.
+        // After SBOM deletion, CASCADE removes sbom_package_purl_ref entries,
+        // then GC uses the captured IDs to clean up orphaned PURLs.
+        let qualified_purl_ids: Vec<Uuid> = sbom_package_purl_ref::Entity::find()
+            .select_only()
+            .column(sbom_package_purl_ref::Column::QualifiedPurlId)
+            .filter(sbom_package_purl_ref::Column::SbomId.eq(id))
+            .into_tuple()
+            .all(connection)
+            .await?;
+
+        log::debug!(
+            "Captured {} qualified_purl IDs from SBOM {} for cleanup",
+            qualified_purl_ids.len(),
+            id
+        );
+
+        // Delete the SBOM - CASCADE will properly delete sbom_package and sbom_package_purl_ref
         let stmt = Statement::from_sql_and_values(
             connection.get_database_backend(),
             r#"DELETE FROM sbom WHERE sbom_id=$1 RETURNING source_document_id"#,
@@ -127,6 +145,34 @@ impl SbomService {
                     .exec(connection)
                     .await?;
             }
+        }
+
+        // Cleanup orphaned PURLs if deletion succeeded and we had PURLs to check
+        if !qualified_purl_ids.is_empty() && result.len() == 1 {
+            // Build array parameter for the GC query
+            let array_param = sea_query::Value::Array(
+                sea_query::ArrayType::Uuid,
+                Some(Box::new(
+                    qualified_purl_ids
+                        .iter()
+                        .map(|&id| sea_query::Value::Uuid(Some(Box::new(id))))
+                        .collect(),
+                )),
+            );
+
+            let gc_stmt = Statement::from_sql_and_values(
+                connection.get_database_backend(),
+                // it looks much more readable in an SQL file
+                include_str!("gc_purls_after_sbom_deletion.sql"),
+                vec![array_param],
+            );
+
+            let gc_result = connection.execute(gc_stmt).await?;
+            log::debug!(
+                "Cleaned up {} orphaned purl records after SBOM {} deletion",
+                gc_result.rows_affected(),
+                id
+            );
         }
 
         Ok(result.len() == 1)

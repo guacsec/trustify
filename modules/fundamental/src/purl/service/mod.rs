@@ -429,15 +429,6 @@ impl PurlService {
     }
 
     #[instrument(skip(self, connection), err)]
-    pub async fn gc_purls<C: ConnectionTrait>(&self, connection: &C) -> Result<u64, Error> {
-        let res = connection
-            .execute_unprepared(include_str!("gc_purls.sql"))
-            .await?;
-
-        Ok(res.rows_affected())
-    }
-
-    #[instrument(skip(self, connection), err)]
     pub async fn recommend_purls<C: ConnectionTrait>(
         &self,
         purls: &[Purl],
