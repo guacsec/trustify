@@ -2,19 +2,21 @@ use migration::{
     Migrator, MigratorExt,
     data::{MigrationWithData, Migrations},
 };
+use sea_orm::{ConnectionTrait, Statement};
 use sea_orm_migration::{MigrationTrait, MigratorTrait};
 use test_context::test_context;
 use test_log::test;
 use trustify_test_context::TrustifyMigrationContext;
 
+struct MigratorTest;
+
 mod sbom {
     use migration::{
+        ColumnDef, DeriveIden, DeriveMigrationName, Table, async_trait,
         data::{MigrationTraitWithData, Sbom as SbomDoc, SchemaDataManager},
         sbom,
     };
-    use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
-    use sea_orm_migration::prelude::*;
-    use trustify_common::advisory::cyclonedx::extract_properties_json;
+    use sea_orm::{ConnectionTrait, DbErr, Statement};
 
     #[derive(DeriveMigrationName)]
     pub struct Migration;
@@ -27,10 +29,7 @@ mod sbom {
                     Table::alter()
                         .table(Sbom::Table)
                         .add_column_if_not_exists(
-                            ColumnDef::new(Sbom::Properties)
-                                .json()
-                                .default(serde_json::Value::Null)
-                                .to_owned(),
+                            ColumnDef::new(Sbom::Foo).string().default("").to_owned(),
                         )
                         .to_owned(),
                 )
@@ -40,7 +39,7 @@ mod sbom {
                 .alter_table(
                     Table::alter()
                         .table(Sbom::Table)
-                        .modify_column(ColumnDef::new(Sbom::Properties).not_null().to_owned())
+                        .modify_column(ColumnDef::new(Sbom::Foo).not_null().to_owned())
                         .to_owned(),
                 )
                 .await?;
@@ -49,21 +48,23 @@ mod sbom {
                 .process(
                     self,
                     sbom!(async |sbom, model, tx| {
-                        let mut model = model.into_active_model();
-                        match sbom {
-                            SbomDoc::CycloneDx(sbom) => {
-                                model.properties = Set(extract_properties_json(&sbom));
+                        // we just pick a random value
+                        let value = match sbom {
+                            SbomDoc::CycloneDx(sbom) => sbom.serial_number,
+                            SbomDoc::Spdx(sbom) => {
+                                Some(sbom.document_creation_information.spdx_document_namespace)
                             }
-                            SbomDoc::Spdx(_sbom) => {
-                                model.properties =
-                                    Set(serde_json::Value::Object(Default::default()));
-                            }
-                            SbomDoc::Other(_) => {
-                                // we ignore others
-                            }
-                        }
+                            SbomDoc::Other(_) => None,
+                        };
 
-                        model.save(tx).await?;
+                        if let Some(value) = value {
+                            let stmt = Statement::from_sql_and_values(
+                                tx.get_database_backend(),
+                                r#"UPDATE SBOM SET FOO = $1 WHERE SBOM_ID = $2"#,
+                                [value.into(), model.sbom_id.into()],
+                            );
+                            tx.execute(stmt).await?;
+                        }
 
                         Ok(())
                     }),
@@ -78,7 +79,7 @@ mod sbom {
                 .alter_table(
                     Table::alter()
                         .table(Sbom::Table)
-                        .drop_column(Sbom::Properties)
+                        .drop_column(Sbom::Foo)
                         .to_owned(),
                 )
                 .await?;
@@ -90,11 +91,9 @@ mod sbom {
     #[derive(DeriveIden)]
     enum Sbom {
         Table,
-        Properties,
+        Foo,
     }
 }
-
-struct MigratorTest;
 
 impl MigratorExt for MigratorTest {
     fn build_migrations() -> Migrations {
@@ -115,6 +114,31 @@ async fn examples(ctx: &TrustifyMigrationContext) -> Result<(), anyhow::Error> {
         MigratorTest::up(&ctx.db, None).await
     })
     .await?;
+
+    let result = ctx
+        .db
+        .query_all(Statement::from_string(
+            ctx.db.get_database_backend(),
+            r#"SELECT FOO FROM SBOM"#,
+        ))
+        .await?;
+
+    let foos = result
+        .into_iter()
+        .map(|row| row.try_get_by(0))
+        .collect::<Result<Vec<String>, _>>()?;
+
+    assert_eq!(
+        [
+            "",
+            "",
+            "",
+            "https://access.redhat.com/security/data/sbom/beta/spdx/ubi8-micro-container-0ca57f3b-b0e7-4251-b32b-d2929a52f05c",
+            "https://access.redhat.com/security/data/sbom/beta/spdx/ubi9-container-f8098ef8-eee0-4ee6-b5d1-b00d992adef5",
+            "https://access.redhat.com/security/data/sbom/beta/spdx/ubi9-minimal-container-9b954617-943f-43ab-bd5b-3df62a706ed6"
+        ].into_iter().map(|s| s.to_owned()).collect::<Vec<_>>(),
+        foos
+    );
 
     Ok(())
 }
