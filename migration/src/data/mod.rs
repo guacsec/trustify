@@ -227,6 +227,12 @@ impl Migrations {
     }
 }
 
+impl Extend<Migration> for Migrations {
+    fn extend<T: IntoIterator<Item = Migration>>(&mut self, iter: T) {
+        self.all.extend(iter)
+    }
+}
+
 impl IntoIterator for Migrations {
     type Item = Migration;
     type IntoIter = std::vec::IntoIter<Self::Item>;

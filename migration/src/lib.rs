@@ -40,10 +40,25 @@ mod m0001200_source_document_fk_indexes;
 mod m0002000_example_sbom_data_migration;
 mod m0002010_add_advisory_scores;
 
+pub trait MigratorExt: Send {
+    fn build_migrations() -> Migrations;
+
+    fn into_migrations() -> Vec<Box<dyn MigrationTrait>> {
+        // Get all migrations, wrap data migrations. This will initialize the storage config.
+        Self::build_migrations()
+            .into_iter()
+            .map(|migration| match migration {
+                Migration::Normal(migration) => migration,
+                Migration::Data(migration) => Box::new(MigrationWithData::new(migration)),
+            })
+            .collect()
+    }
+}
+
 pub struct Migrator;
 
-impl Migrator {
-    fn migrations() -> Migrations {
+impl MigratorExt for Migrator {
+    fn build_migrations() -> Migrations {
         Migrations::new()
             .normal(m0000010_init::Migration)
             .normal(m0000020_add_sbom_group::Migration)
@@ -82,23 +97,16 @@ impl Migrator {
     }
 }
 
-impl MigratorWithData for Migrator {
+impl<M: MigratorExt> MigratorWithData for M {
     fn data_migrations() -> Vec<Box<dyn MigrationTraitWithData>> {
-        Self::migrations().only_data()
+        Self::build_migrations().only_data()
     }
 }
 
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        // Get all migrations, wrap data migrations. This will initialize the storage config.
-        Self::migrations()
-            .into_iter()
-            .map(|migration| match migration {
-                Migration::Normal(migration) => migration,
-                Migration::Data(migration) => Box::new(MigrationWithData::new(migration)),
-            })
-            .collect()
+        Self::into_migrations()
     }
 }
 
