@@ -9,8 +9,7 @@ use actix_web::web;
 use anyhow::Context;
 use bytesize::ByteSize;
 use futures::FutureExt;
-use std::{env, fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc, time::Duration};
-use tokio_schedule::{Job, every};
+use std::{env, fs::create_dir_all, path::PathBuf, process::ExitCode, sync::Arc};
 use trustify_auth::{
     auth::AuthConfigArguments,
     authenticator::Authenticator,
@@ -29,7 +28,6 @@ use trustify_infrastructure::{
     otel::{Metrics as OtelMetrics, Tracing},
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
-use trustify_module_fundamental::purl::service::PurlService;
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::{
     config::{StorageConfig, StorageStrategy},
@@ -37,9 +35,6 @@ use trustify_module_storage::{
 };
 use trustify_module_ui::{UI, endpoints::UiResources};
 use utoipa::openapi::{Info, License};
-
-const GC_FREQ: Duration = Duration::from_secs(0);
-const ENV_GC_FREQ: &str = "TRUSTD_GC_FREQ";
 
 /// Run the API server
 #[derive(clap::Args, Debug)]
@@ -249,9 +244,6 @@ impl InitData {
             .register("database", spawn_db_check(db.clone())?)
             .await;
 
-        // Schedule any DB garbage collection tasks
-        schedule_db_tasks(db.clone());
-
         let storage = match run.storage.storage_strategy {
             StorageStrategy::Fs => {
                 let storage = run
@@ -365,42 +357,6 @@ impl InitData {
 
         result
     }
-}
-
-fn schedule_db_tasks(db: db::Database) {
-    let freq = match env::var(ENV_GC_FREQ) {
-        Ok(s) => match humantime::parse_duration(&s) {
-            Ok(t) => t,
-            Err(e) => {
-                log::warn!("Failed to parse {ENV_GC_FREQ}='{s}': {e}");
-                GC_FREQ
-            }
-        },
-        _ => GC_FREQ,
-    };
-    if freq < Duration::from_secs(1) {
-        log::warn!("Garbage collection is disabled; to enable, set {ENV_GC_FREQ} to at least 1s");
-        return;
-    }
-    log::info!("GC frequency set to {}", humantime::Duration::from(freq));
-    let gc_purls = every(freq.as_secs() as u32).seconds().perform(move || {
-        let db = db.clone();
-        let service = PurlService::new();
-        async move {
-            let start = std::time::Instant::now();
-            match service.gc_purls(&db).await {
-                Ok(count) => {
-                    if count > 0 {
-                        log::info!("Garbage collected {count} records");
-                    }
-                }
-                Err(e) => log::error!("Error collecting purl garbage: {e}"),
-            }
-            let duration = start.elapsed();
-            log::info!("GC completed in {}", humantime::Duration::from(duration));
-        }
-    });
-    tokio::spawn(gc_purls);
 }
 
 pub fn default_openapi_info() -> Info {
