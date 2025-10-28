@@ -35,10 +35,10 @@ impl AuthenticatorConfig {
     /// Create settings when using `--devmode`.
     pub fn devmode() -> Self {
         Self {
-            clients: devmode::CLIENT_IDS
+            clients: devmode::client_ids()
                 .iter()
                 .map(|client_id| AuthenticatorClientConfig {
-                    client_id: client_id.to_string(),
+                    client_id: client_id.clone(),
                     issuer_url: devmode::issuer_url(),
                     scope_mappings: default_scope_mappings(),
                     additional_permissions: Default::default(),
