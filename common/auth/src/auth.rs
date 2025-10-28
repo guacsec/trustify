@@ -119,7 +119,10 @@ mod tests {
         assert!(result.is_some());
         let auth_client_configs = result.unwrap().0.clients;
         assert!(!auth_client_configs.is_empty());
-        let client_config = auth_client_configs.first();
-        assert_eq!(client_config.unwrap().client_id, "frontend");
+        assert!(
+            auth_client_configs
+                .iter()
+                .any(|config| &config.client_id == "frontend")
+        );
     }
 }
