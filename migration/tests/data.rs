@@ -4,6 +4,7 @@ use migration::{
 };
 use sea_orm::{ConnectionTrait, Statement};
 use sea_orm_migration::{MigrationTrait, MigratorTrait};
+use std::collections::BTreeSet;
 use test_context::test_context;
 use test_log::test;
 use trustify_test_context::TrustifyMigrationContext;
@@ -126,7 +127,7 @@ async fn examples(ctx: &TrustifyMigrationContext) -> Result<(), anyhow::Error> {
     let foos = result
         .into_iter()
         .map(|row| row.try_get_by(0))
-        .collect::<Result<Vec<String>, _>>()?;
+        .collect::<Result<BTreeSet<String>, _>>()?;
 
     assert_eq!(
         [
@@ -136,7 +137,7 @@ async fn examples(ctx: &TrustifyMigrationContext) -> Result<(), anyhow::Error> {
             "https://access.redhat.com/security/data/sbom/beta/spdx/ubi8-micro-container-0ca57f3b-b0e7-4251-b32b-d2929a52f05c",
             "https://access.redhat.com/security/data/sbom/beta/spdx/ubi9-container-f8098ef8-eee0-4ee6-b5d1-b00d992adef5",
             "https://access.redhat.com/security/data/sbom/beta/spdx/ubi9-minimal-container-9b954617-943f-43ab-bd5b-3df62a706ed6"
-        ].into_iter().map(|s| s.to_owned()).collect::<Vec<_>>(),
+        ].into_iter().map(|s| s.to_owned()).collect::<BTreeSet<_>>(),
         foos
     );
 
