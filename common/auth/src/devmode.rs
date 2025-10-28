@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 /// The default issuer when using `--devmode`.
 pub const ISSUER_URL: &str = "http://localhost:8090/realms/trustify";
 
@@ -40,16 +42,18 @@ pub fn issuer_url() -> String {
 ///
 /// This combines the hardcoded [`CLIENT_IDS`] with any additional client IDs from the
 /// `TRUSTD_ADDITIONAL_CLIENTS` environment variable (comma-separated).
-pub fn client_ids() -> Vec<String> {
-    let mut clients: Vec<String> = CLIENT_IDS.iter().map(|s| s.to_string()).collect();
+pub fn client_ids() -> HashSet<String> {
+    let mut clients: HashSet<String> = CLIENT_IDS.iter().map(|s| s.to_string()).collect();
 
     if let Ok(additional_clients) = std::env::var("TRUSTD_ADDITIONAL_CLIENTS") {
-        for client in additional_clients.split(',') {
-            let client = client.trim();
-            if !client.is_empty() && !clients.contains(&client.to_string()) {
-                clients.push(client.to_string());
-            }
-        }
+        let additional: HashSet<String> = additional_clients
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect();
+
+        clients.extend(additional);
     }
 
     clients
