@@ -30,7 +30,7 @@
 | `OPENAI_API_KEY`                         | OpenAI access key                                                                   |                                         |
 | `OPENAI_API_BASE`                        | To set the base URL path for API requests                                           | `https://api.openapi.com/v1`            |
 | `OPENAI_MODEL`                           | OpenAI model                                                                        | `gpt-4o`                                |
-| `TRUSTD_ADDITIONAL_CLIENTS`              | Additional allowed development OAuth clients                                        |                                         |
+| `TRUSTD_DEVMODE_ADDITIONAL_CLIENTS`      | Additional allowed development OAuth clients                                        |                                         |
 | `TRUSTD_DB_HOST`                         | Database address                                                                    | `localhost`                             |
 | `TRUSTD_DB_MAX_CONN`                     | Database max connections                                                            | `75`                                    |
 | `TRUSTD_DB_MIN_CONN`                     | Database min connections                                                            | `25`                                    |

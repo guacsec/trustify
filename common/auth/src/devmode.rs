@@ -46,14 +46,13 @@ pub fn client_ids() -> HashSet<String> {
     let mut clients: HashSet<String> = CLIENT_IDS.iter().map(|s| s.to_string()).collect();
 
     if let Ok(additional_clients) = std::env::var("TRUSTD_ADDITIONAL_CLIENTS") {
-        let additional: HashSet<String> = additional_clients
-            .split(',')
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string())
-            .collect();
-
-        clients.extend(additional);
+        clients.extend(
+            additional_clients
+                .split(',')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string()),
+        );
     }
 
     clients
