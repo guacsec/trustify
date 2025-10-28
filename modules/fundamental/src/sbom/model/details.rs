@@ -10,16 +10,14 @@ use crate::{
     vulnerability::model::VulnerabilityHead,
 };
 use cpe::uri::OwnedUri;
-use futures_util::{Stream, pin_mut, stream::StreamExt};
 use sea_orm::{
-    ConnectionTrait, DbBackend, DbErr, FromQueryResult, JoinType, ModelTrait, QueryFilter,
-    QuerySelect, RelationTrait, Statement, StreamTrait,
+    ConnectionTrait, DbBackend, EntityTrait, FromQueryResult, JoinType, ModelTrait, QueryFilter,
+    QuerySelect, RelationTrait, Statement,
 };
-use sea_query::{Asterisk, Expr, Func, SimpleExpr};
+use sea_query::{Asterisk, Expr, Func, PgFunc, SimpleExpr};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tracing::{debug_span, instrument};
-use tracing_futures::Instrument;
+use tracing::instrument;
 use trustify_common::{
     db::{VersionMatches, multi_model::SelectIntoMultiModel},
     memo::Memo,
@@ -31,6 +29,7 @@ use trustify_entity::{
     vulnerability,
 };
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SbomDetails {
@@ -50,7 +49,7 @@ impl SbomDetails {
         statuses: Vec<String>,
     ) -> Result<Option<SbomDetails>, Error>
     where
-        C: ConnectionTrait + StreamTrait,
+        C: ConnectionTrait,
     {
         let summary = match SbomSummary::from_entity((sbom.clone(), node), service, tx).await? {
             Some(summary) => summary,
@@ -83,9 +82,8 @@ impl SbomDetails {
             vec![sbom.sbom_id],
         ));
 
-        // Use database pool connections for streams to avoid concurrent queries on the
-        // transaction connection. The cvss3 nested queries will use the tx (REPEATABLE READ).
-        let relevant_advisory_info = query
+        // Collect all results from the first query using the transaction
+        let mut relevant_advisory_info = query
             .join(
                 JoinType::LeftJoin,
                 purl_status::Relation::VersionRange.def(),
@@ -111,27 +109,58 @@ impl SbomDetails {
             )
             .select_only()
             .try_into_multi_model::<QueryCatcher>()?
-            .stream(service.db())
+            .all(tx)
             .await?;
 
-        log::debug!("Result: {:?}", relevant_advisory_info.size_hint());
+        log::debug!("Result: {:?}", relevant_advisory_info.len());
 
-        let result = service
-            .db()
-            .stream(Statement::from_sql_and_values(
+        // Execute the raw SQL query and collect results
+        let raw_results = tx
+            .query_all(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 raw_sql::product_advisory_info_sql(),
                 [sbom.sbom_id.into(), statuses.into()],
             ))
-            .await?
-            .map(|row| match row {
-                Ok(row) => QueryCatcher::from_query_result(&row, ""),
-                Err(err) => Err(err),
-            });
+            .await?;
 
-        let relevant_advisory_info = relevant_advisory_info.chain(result);
+        // Convert raw SQL results to QueryCatcher objects
+        for row in raw_results {
+            match QueryCatcher::from_query_result(&row, "") {
+                Ok(result) => relevant_advisory_info.push(result),
+                Err(err) => return Err(Error::from(err)),
+            }
+        }
 
-        let advisories = SbomAdvisory::from_models(relevant_advisory_info, tx).await?;
+        log::debug!("Combined results: {}", relevant_advisory_info.len());
+
+        // Pre-fetch all cvss3 scores in bulk - collect unique IDs
+        let (advisory_ids, vulnerability_ids): (Vec<Uuid>, Vec<String>) = relevant_advisory_info
+            .iter()
+            .map(|info| (info.advisory.id, info.vulnerability.id.clone()))
+            .unzip();
+
+        let cvss3_scores = if !advisory_ids.is_empty() {
+            cvss3::Entity::find()
+                .filter(Expr::col(cvss3::Column::AdvisoryId).eq(PgFunc::any(advisory_ids)))
+                .filter(
+                    Expr::col(cvss3::Column::VulnerabilityId).eq(PgFunc::any(vulnerability_ids)),
+                )
+                .all(tx)
+                .await?
+        } else {
+            vec![]
+        };
+
+        // Build lookup map: (advisory_id, vulnerability_id) -> Vec<cvss3::Model>
+        let mut cvss3_map: HashMap<(Uuid, String), Vec<cvss3::Model>> = HashMap::new();
+        for score in cvss3_scores {
+            cvss3_map
+                .entry((score.advisory_id, score.vulnerability_id.clone()))
+                .or_default()
+                .push(score);
+        }
+
+        let advisories = SbomAdvisory::from_models(relevant_advisory_info, &cvss3_map, tx).await?;
 
         Ok(Some(SbomDetails {
             summary,
@@ -150,15 +179,13 @@ pub struct SbomAdvisory {
 impl SbomAdvisory {
     #[instrument(skip_all, err(level=tracing::Level::INFO))]
     pub async fn from_models<C: ConnectionTrait>(
-        statuses: impl Stream<Item = Result<QueryCatcher, DbErr>>,
+        statuses: Vec<QueryCatcher>,
+        cvss3_map: &HashMap<(Uuid, String), Vec<cvss3::Model>>,
         tx: &C,
     ) -> Result<Vec<Self>, Error> {
         let mut advisories = HashMap::new();
 
-        let statuses = statuses.instrument(debug_span!("consuming statuses"));
-        pin_mut!(statuses);
-
-        while let Some(each) = statuses.next().await.transpose()? {
+        for each in statuses {
             let status_cpe = each
                 .context_cpe
                 .as_ref()
@@ -197,7 +224,11 @@ impl SbomAdvisory {
                     each.status.slug,
                     status_cpe,
                     vec![],
-                    tx,
+                    // Look up pre-fetched cvss3 scores from the map
+                    cvss3_map
+                        .get(&(each.advisory.id, each.vulnerability.id.clone()))
+                        .cloned()
+                        .unwrap_or_default(),
                 )
                 .await?;
                 advisory.status.push(status);
@@ -260,19 +291,18 @@ impl SbomStatus {
             advisory_vulnerability,
             vulnerability,
             packages,
-            tx
+            cvss3
         ),
         err(level=tracing::Level::INFO)
     )]
-    pub async fn new<C: ConnectionTrait>(
+    pub async fn new(
         advisory_vulnerability: &advisory_vulnerability::Model,
         vulnerability: &vulnerability::Model,
         status: String,
         cpe: Option<OwnedUri>,
         packages: Vec<SbomPackage>,
-        tx: &C,
+        cvss3: Vec<cvss3::Model>,
     ) -> Result<Self, Error> {
-        let cvss3 = vulnerability.find_related(cvss3::Entity).all(tx).await?;
         let average = Score::from_iter(cvss3.iter().map(Cvss3Base::from));
         let scores = cvss3
             .into_iter()
