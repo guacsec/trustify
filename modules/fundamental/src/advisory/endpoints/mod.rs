@@ -250,7 +250,7 @@ pub async fn download(
 ) -> Result<impl Responder, Error> {
     // the user requested id
     let id = Id::from_str(&key).map_err(Error::IdKey)?;
-    let tx = db.begin_read_snapshot().await?;
+    let tx = db.begin_read().await?;
 
     // look up document by id
     let Some(advisory) = advisory.fetch_advisory(id, &tx).await? else {
