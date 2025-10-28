@@ -103,21 +103,6 @@ impl Database {
     pub fn name(&self) -> &str {
         &self.name
     }
-
-    /// Begin a REPEATABLE READ transaction for consistent read operations.
-    ///
-    /// This ensures that all queries within the transaction see a consistent snapshot
-    /// of the database, preventing race conditions from concurrent DELETE operations.
-    ///
-    /// Uses REPEATABLE READ isolation level with READ ONLY access mode, which is
-    /// lightweight in PostgreSQL (no locks acquired, uses MVCC snapshots).
-    pub async fn begin_read_snapshot(&self) -> Result<DatabaseTransaction, DbErr> {
-        self.begin_with_config(
-            Some(IsolationLevel::RepeatableRead),
-            Some(AccessMode::ReadOnly),
-        )
-        .await
-    }
 }
 
 impl Deref for Database {
