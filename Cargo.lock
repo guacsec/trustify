@@ -8811,6 +8811,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "tracing-flame",
+ "tracing-log",
  "tracing-subscriber",
  "trustify-auth",
  "trustify-common",
