@@ -131,7 +131,7 @@ impl SbomDetails {
             }
         }
 
-        log::debug!("Combined results: {}", relevant_advisory_info.len());
+        log::debug!("Combined result: {}", relevant_advisory_info.len());
 
         // Pre-fetch all cvss3 scores in bulk - collect unique IDs
         let (advisory_ids, vulnerability_ids): (Vec<Uuid>, Vec<String>) = relevant_advisory_info
@@ -150,6 +150,7 @@ impl SbomDetails {
         } else {
             vec![]
         };
+        log::debug!("Pre-fetched result: {} cvss3 scores", cvss3_scores.len());
 
         // Build lookup map: (advisory_id, vulnerability_id) -> Vec<cvss3::Model>
         let mut cvss3_map: HashMap<(Uuid, String), Vec<cvss3::Model>> = HashMap::new();
