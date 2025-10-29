@@ -312,8 +312,8 @@ async fn get_cves_by_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(cves[0]["vulnerabilityId"], "CVE-2024-2700");
     assert_eq!(cves[0]["status"], "not_affected");
 
-    assert_eq!(cves[1]["vulnerabilityId"], "CVE-2024-29025");
-    assert_eq!(cves[1]["status"], "not_affected");
+    assert_eq!(cves[2]["vulnerabilityId"], "CVE-2024-29025");
+    assert_eq!(cves[2]["status"], "not_affected");
 
     /*
     TODO: Gilles!
