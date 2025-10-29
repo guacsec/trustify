@@ -25,7 +25,7 @@ spec:
             - /usr/local/bin/trustd
             - db
             - data
-            - m0002000_example_data_migration # name of the migration
+            - m0002010_add_advisory_scores # name of the migration
           env:
             - name: MIGRATION_DATA_CONCURRENT
               value: "5" # in-process parallelism
