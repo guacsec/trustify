@@ -10,3 +10,5 @@ services:
     shm_size: '1g'
     command: >
       postgres -c random_page_cost=1.1 -c max_parallel_workers_per_gather=4 -c shared_preload_libraries='pg_stat_statements'
+#    volumes:
+#      - <base>/dump.sql.gz:/docker-entrypoint-initdb.d/dump.sql.gz:Z
