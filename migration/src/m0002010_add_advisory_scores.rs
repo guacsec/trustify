@@ -2,7 +2,7 @@ use crate::{
     advisory,
     data::{Advisory as AdvisoryDoc, MigrationTraitWithData, SchemaDataManager},
 };
-use sea_orm::sea_query::extension::postgres::Type;
+use sea_orm::sea_query::extension::postgres::*;
 use sea_orm_migration::prelude::*;
 use strum::VariantNames;
 use trustify_module_ingestor::{
@@ -13,26 +13,56 @@ use trustify_module_ingestor::{
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
+/// create a type, if it not already exists
+///
+/// This is required as Postgres doesn't support `CREATE TYPE IF NOT EXISTS`
+pub async fn create_enum_if_not_exists<T, I>(
+    manager: &SchemaManager<'_>,
+    name: impl IntoIden + Clone,
+    values: I,
+) -> Result<(), DbErr>
+where
+    T: IntoIden,
+    I: IntoIterator<Item = T>,
+{
+    let builder = manager.get_connection().get_database_backend();
+    let r#type = name.clone().into_iden();
+    let stmt = builder.build(Type::create().as_enum(name).values(values));
+    let stmt = format!(
+        r#"
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_type WHERE typname = '{name}'
+  ) THEN
+    {stmt};
+  END IF;
+END$$;
+"#,
+        name = r#type.to_string()
+    );
+
+    manager.get_connection().execute_unprepared(&stmt).await?;
+
+    Ok(())
+}
+
 #[async_trait::async_trait]
 impl MigrationTraitWithData for Migration {
     async fn up(&self, manager: &SchemaDataManager) -> Result<(), DbErr> {
-        manager
-            .create_type(
-                Type::create()
-                    .as_enum(Severity::Table)
-                    .values(Severity::VARIANTS.iter().skip(1).copied())
-                    .to_owned(),
-            )
-            .await?;
+        create_enum_if_not_exists(
+            manager,
+            Severity::Table,
+            Severity::VARIANTS.iter().skip(1).copied(),
+        )
+        .await?;
 
-        manager
-            .create_type(
-                Type::create()
-                    .as_enum(ScoreType::Table)
-                    .values(ScoreType::VARIANTS.iter().skip(1).copied())
-                    .to_owned(),
-            )
-            .await?;
+        create_enum_if_not_exists(
+            manager,
+            ScoreType::Table,
+            ScoreType::VARIANTS.iter().skip(1).copied(),
+        )
+        .await?;
 
         manager
             .create_table(
@@ -170,7 +200,7 @@ enum AdvisoryVulnerabilityScore {
     Severity,
 }
 
-#[derive(DeriveIden, strum::VariantNames, strum::Display)]
+#[derive(DeriveIden, strum::VariantNames, strum::Display, Clone)]
 #[allow(unused)]
 enum ScoreType {
     Table,
@@ -184,7 +214,7 @@ enum ScoreType {
     V4_0,
 }
 
-#[derive(DeriveIden, strum::VariantNames, strum::Display)]
+#[derive(DeriveIden, strum::VariantNames, strum::Display, Clone)]
 #[strum(serialize_all = "lowercase")]
 #[allow(unused)]
 enum Severity {
