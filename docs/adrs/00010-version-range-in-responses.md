@@ -1,8 +1,8 @@
-# 00009. Add Version Range to purl status responses
+# 00010. Add Version Range to purl status responses
 
 ## Status
 
-PROPOSED
+APPROVED
 
 ## Context
 
