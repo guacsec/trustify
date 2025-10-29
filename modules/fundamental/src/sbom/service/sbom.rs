@@ -28,6 +28,7 @@ use serde_json::Value;
 use std::{
     collections::{BTreeMap, HashMap},
     fmt::Debug,
+    sync::Arc,
 };
 use tracing::instrument;
 use trustify_common::{
@@ -839,37 +840,63 @@ fn package_from_row(row: PackageCatcher, licensing_infos: BTreeMap<String, Strin
 
 #[derive(Debug)]
 pub struct QueryCatcher {
-    pub advisory: advisory::Model,
-    pub qualified_purl: qualified_purl::Model,
-    pub sbom_package: sbom_package::Model,
-    pub sbom_node: sbom_node::Model,
-    pub advisory_vulnerability: advisory_vulnerability::Model,
-    pub vulnerability: vulnerability::Model,
-    pub context_cpe: Option<cpe::Model>,
-    pub status: status::Model,
-    pub organization: Option<organization::Model>,
+    pub advisory: Arc<advisory::Model>,
+    pub qualified_purl: Arc<qualified_purl::Model>,
+    pub sbom_package: Arc<sbom_package::Model>,
+    pub sbom_node: Arc<sbom_node::Model>,
+    pub advisory_vulnerability: Arc<advisory_vulnerability::Model>,
+    pub vulnerability: Arc<vulnerability::Model>,
+    pub context_cpe: Option<Arc<cpe::Model>>,
+    pub status: Arc<status::Model>,
+    pub organization: Option<Arc<organization::Model>>,
 }
 
 impl FromQueryResult for QueryCatcher {
     fn from_query_result(res: &QueryResult, _pre: &str) -> Result<Self, DbErr> {
         Ok(Self {
-            advisory: Self::from_query_result_multi_model(res, "", advisory::Entity)?,
-            advisory_vulnerability: Self::from_query_result_multi_model(
+            advisory: Arc::new(Self::from_query_result_multi_model(
+                res,
+                "",
+                advisory::Entity,
+            )?),
+            advisory_vulnerability: Arc::new(Self::from_query_result_multi_model(
                 res,
                 "",
                 advisory_vulnerability::Entity,
-            )?,
-            vulnerability: Self::from_query_result_multi_model(res, "", vulnerability::Entity)?,
-            qualified_purl: Self::from_query_result_multi_model(res, "", qualified_purl::Entity)?,
-            sbom_package: Self::from_query_result_multi_model(res, "", sbom_package::Entity)?,
-            sbom_node: Self::from_query_result_multi_model(res, "", sbom_node::Entity)?,
-            context_cpe: Self::from_query_result_multi_model_optional(res, "", cpe::Entity)?,
-            status: Self::from_query_result_multi_model(res, "", status::Entity)?,
+            )?),
+            vulnerability: Arc::new(Self::from_query_result_multi_model(
+                res,
+                "",
+                vulnerability::Entity,
+            )?),
+            qualified_purl: Arc::new(Self::from_query_result_multi_model(
+                res,
+                "",
+                qualified_purl::Entity,
+            )?),
+            sbom_package: Arc::new(Self::from_query_result_multi_model(
+                res,
+                "",
+                sbom_package::Entity,
+            )?),
+            sbom_node: Arc::new(Self::from_query_result_multi_model(
+                res,
+                "",
+                sbom_node::Entity,
+            )?),
+            context_cpe: Self::from_query_result_multi_model_optional(res, "", cpe::Entity)?
+                .map(Arc::new),
+            status: Arc::new(Self::from_query_result_multi_model(
+                res,
+                "",
+                status::Entity,
+            )?),
             organization: Self::from_query_result_multi_model_optional(
                 res,
                 "",
                 organization::Entity,
-            )?,
+            )?
+            .map(Arc::new),
         })
     }
 }
