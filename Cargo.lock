@@ -2090,11 +2090,10 @@ dependencies = [
 [[package]]
 name = "csaf"
 version = "0.5.0"
-source = "git+https://github.com/trustification/csaf-rs#17620a225744b4a18845d4f7bf63354e01109b91"
+source = "git+https://github.com/trustification/csaf-rs?branch=cvss#d6df319076cdc685a2cded0cb6797ad7ce92b9c9"
 dependencies = [
  "chrono",
  "cpe",
- "cvss 2.1.1",
  "packageurl",
  "serde",
  "serde_json",
@@ -2214,9 +2213,6 @@ name = "cvss"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f4f643e062e9a8e26edea270945e05011c441ca6a56e9d9d4464c6b0be1352bd"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "darling"

@@ -5,9 +5,9 @@ mod util;
 mod creator;
 pub use creator::*;
 
-use crate::graph::cvss::{ScoreCreator, ScoreInformation};
+use crate::graph::cvss::ScoreCreator;
 use csaf::Csaf;
-use trustify_entity::advisory_vulnerability_score::ScoreType;
+use cvss::v3::CvssV3;
 
 /// Extract scores from a CSAF document
 pub fn extract_scores(csaf: &Csaf, creator: &mut ScoreCreator) {
@@ -24,17 +24,10 @@ pub fn extract_scores(csaf: &Csaf, creator: &mut ScoreCreator) {
                 creator.add((vulnerability_id.clone(), score))
             }
 
-            if let Some(score) = &score.cvss_v3 {
-                // TODO: maybe use raw values from JSON
-                let vector = score.to_string();
-                let score = score.score();
-                creator.add(ScoreInformation {
-                    vulnerability_id: vulnerability_id.clone(),
-                    r#type: ScoreType::V3_0,
-                    vector,
-                    score: score.value(),
-                    severity: score.severity().into(),
-                })
+            if let Some(cvss_v3) = &score.cvss_v3
+                && let Ok(cvss) = serde_json::from_value::<CvssV3>(cvss_v3.clone())
+            {
+                creator.add((vulnerability_id.clone(), cvss))
             }
         }
     }

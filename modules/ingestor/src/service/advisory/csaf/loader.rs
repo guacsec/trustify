@@ -19,6 +19,7 @@ use csaf::{
     Csaf,
     vulnerability::{ProductStatus, Vulnerability},
 };
+use cvss::v3::CvssV3;
 use hex::ToHex;
 use sbom_walker::report::ReportSink;
 use sea_orm::{ConnectionTrait, TransactionTrait};
@@ -187,16 +188,23 @@ impl<'g> CsafLoader<'g> {
         }
 
         for score in vulnerability.scores.iter().flatten() {
-            if let Some(v3) = &score.cvss_v3 {
-                match Cvss3Base::from_str(&v3.to_string()) {
-                    Ok(cvss3) => {
-                        log::debug!("{cvss3:?}");
-                        advisory_vulnerability
-                            .ingest_cvss3_score(cvss3, connection)
-                            .await?;
-                    }
+            if let Some(cvss_v3) = &score.cvss_v3 {
+                match serde_json::from_value::<CvssV3>(cvss_v3.clone()) {
+                    Ok(cvss) => match Cvss3Base::from_str(&cvss.vector_string) {
+                        Ok(cvss3) => {
+                            log::debug!("{cvss3:?}");
+                            advisory_vulnerability
+                                .ingest_cvss3_score(cvss3, connection)
+                                .await?;
+                        }
+                        Err(err) => {
+                            let msg = format!("Unable to parse CVSS3: {err:#?}");
+                            log::info!("{msg}");
+                            report.error(msg);
+                        }
+                    },
                     Err(err) => {
-                        let msg = format!("Unable to parse CVSS3: {err:#?}");
+                        let msg = format!("Unable to deserialize CVSS3 JSON: {err:#?}");
                         log::info!("{msg}");
                         report.error(msg);
                     }
