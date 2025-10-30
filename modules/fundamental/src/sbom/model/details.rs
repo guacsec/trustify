@@ -492,8 +492,7 @@ impl SbomAdvisory {
                         .get(&(each.advisory.id, each.vulnerability.id.clone()))
                         .cloned()
                         .unwrap_or_default(),
-                )
-                .await?;
+                )?;
                 advisory.status.push(status);
                 if let Some(status) = advisory.status.last_mut() {
                     status
@@ -558,7 +557,7 @@ impl SbomStatus {
         ),
         err(level=tracing::Level::INFO)
     )]
-    pub async fn new(
+    pub fn new(
         advisory_vulnerability: &advisory_vulnerability::Model,
         vulnerability: &vulnerability::Model,
         status: String,
