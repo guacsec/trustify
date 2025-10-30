@@ -108,6 +108,11 @@ impl MigratorTrait for MigratorTest {
     }
 }
 
+/// test an example migration base on an existing database dump from the previous commit.
+///
+/// The idea is to add a new field and populate it with data.
+///
+/// As we don't actually change the entities, this has to work with plain SQL.
 #[test_context(TrustifyMigrationContext)]
 #[test(tokio::test)]
 async fn examples(ctx: &TrustifyMigrationContext) -> Result<(), anyhow::Error> {
