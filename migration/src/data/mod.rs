@@ -73,6 +73,22 @@ impl Default for Options {
     }
 }
 
+impl Options {
+    pub fn should_skip(&self, name: &str) -> bool {
+        if self.skip_all {
+            // we skip all migration
+            return true;
+        }
+
+        if self.skip.iter().any(|s| s == name) {
+            // we skip a list of migrations, and it's on the list
+            return true;
+        }
+
+        false
+    }
+}
+
 impl From<&Options> for Partition {
     fn from(value: &Options) -> Self {
         Self {

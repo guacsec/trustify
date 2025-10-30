@@ -107,13 +107,7 @@ impl<'c> SchemaDataManager<'c> {
         D: Document,
         N: MigrationName + Send + Sync,
     {
-        if self.options.skip_all {
-            // we skip all migration
-            return Ok(());
-        }
-
-        if self.options.skip.iter().any(|s| s == name.name()) {
-            // we skip a list of migrations, and it's on the list
+        if self.options.should_skip(name.name()) {
             return Ok(());
         }
 
