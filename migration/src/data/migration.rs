@@ -21,6 +21,7 @@ static OPTIONS: LazyLock<Options> = LazyLock::new(init_options);
 
 task_local! {
     static TEST_STORAGE: DispatchBackend;
+    static TEST_OPTIONS: Options;
 }
 
 #[allow(clippy::expect_used)]
@@ -46,9 +47,13 @@ impl MigrationWithData {
             .try_with(|s| s.clone())
             .unwrap_or_else(|_| STORAGE.clone());
 
+        let options = TEST_OPTIONS
+            .try_with(|o| o.clone())
+            .unwrap_or_else(|_| OPTIONS.clone());
+
         Self {
             storage,
-            options: OPTIONS.clone(),
+            options,
             migration,
         }
     }
@@ -57,11 +62,19 @@ impl MigrationWithData {
     ///
     /// This will, for the duration of the call, initialize the migrator with the provided storage
     /// backend.
-    pub async fn run_with_test_storage<F>(storage: impl Into<DispatchBackend>, f: F) -> F::Output
+    pub async fn run_with_test<F>(
+        storage: impl Into<DispatchBackend>,
+        options: impl Into<Options>,
+        f: F,
+    ) -> F::Output
     where
         F: Future,
     {
-        TEST_STORAGE.scope(storage.into(), f).await
+        TEST_STORAGE
+            .scope(storage.into(), async {
+                TEST_OPTIONS.scope(options.into(), f).await
+            })
+            .await
     }
 }
 

@@ -1,3 +1,5 @@
+mod m0002010;
+
 use migration::{
     Migrator, MigratorExt,
     data::{MigrationWithData, Migrations},
@@ -116,7 +118,7 @@ impl MigratorTrait for MigratorTest {
 #[test_context(TrustifyMigrationContext)]
 #[test(tokio::test)]
 async fn examples(ctx: &TrustifyMigrationContext) -> Result<(), anyhow::Error> {
-    MigrationWithData::run_with_test_storage(ctx.storage.clone(), async {
+    MigrationWithData::run_with_test(ctx.storage.clone(), (), async {
         MigratorTest::up(&ctx.db, None).await
     })
     .await?;

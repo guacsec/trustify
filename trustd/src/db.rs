@@ -1,4 +1,4 @@
-use migration::data::{Direction, Options, Runner};
+use migration::data::{self, Direction, Options, Runner};
 use postgresql_embedded::{PostgreSQL, VersionReq};
 use std::{collections::HashMap, env, fs::create_dir_all, process::ExitCode, time::Duration};
 use trustify_common::{config::Database, db};
@@ -134,8 +134,10 @@ impl Data {
             Ok(db) => {
                 trustify_db::Database(&db)
                     .data_migrate(Runner {
-                        database_url: database.to_url(),
-                        database_schema: None,
+                        database: data::Database::Config {
+                            url: database.to_url(),
+                            schema: None,
+                        },
                         storage: storage.into_storage(false).await?,
                         direction,
                         migrations,

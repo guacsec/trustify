@@ -68,8 +68,8 @@ impl Migration {
     /// Provide the base dump path, for this branch.
     ///
     /// This may include downloading content from S3.
-    pub async fn provide(&self) -> anyhow::Result<PathBuf> {
-        let base = self.base.join(&self.branch);
+    pub async fn provide(&self, id: &str) -> anyhow::Result<PathBuf> {
+        let base = self.base.join(&self.branch).join(id);
 
         log::info!("branch base path: '{}'", base.display());
 
@@ -101,6 +101,7 @@ impl Migration {
                 &self.bucket,
                 &self.region,
                 &self.branch,
+                id,
                 files,
             )
             .await?
@@ -297,6 +298,7 @@ async fn download_artifacts(
     bucket: &str,
     region: &str,
     branch: &str,
+    commit: &str,
     files: impl IntoIterator<Item = impl AsRef<str>>,
 ) -> anyhow::Result<()> {
     let base = base.as_ref();
@@ -305,10 +307,7 @@ async fn download_artifacts(
         let file = file.as_ref();
         vec![file.to_string(), format!("{file}.sha256")]
     }) {
-        let url = format!(
-            "https://{}.s3.{}.amazonaws.com/{}/latest/{}",
-            bucket, region, branch, file
-        );
+        let url = format!("https://{bucket}.s3.{region}.amazonaws.com/{branch}/{commit}/{file}",);
 
         log::info!("downloading file: '{url}'");
 

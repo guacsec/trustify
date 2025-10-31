@@ -1,7 +1,7 @@
 use clap::Parser;
 use migration::{
     Migrator,
-    data::{Direction, MigratorWithData, Options, Runner},
+    data::{Database, Direction, MigratorWithData, Options, Runner},
 };
 use trustify_module_storage::config::StorageConfig;
 
@@ -86,10 +86,12 @@ impl Run {
             direction,
             storage,
             migrations: self.migrations,
-            database_url: self
-                .database_url
-                .expect("Environment variable 'DATABASE_URL' not set"),
-            database_schema: self.database_schema,
+            database: Database::Config {
+                url: self
+                    .database_url
+                    .expect("Environment variable 'DATABASE_URL' not set"),
+                schema: self.database_schema,
+            },
             options: self.options,
         }
         .run::<Migrator>()

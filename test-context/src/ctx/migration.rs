@@ -1,15 +1,43 @@
 use crate::{TrustifyTestContext, migration::Migration};
 use anyhow::Context;
+use std::borrow::Cow;
+use std::marker::PhantomData;
 use std::ops::Deref;
 use tar::Archive;
 use test_context::AsyncTestContext;
 use trustify_db::embedded::{Options, Source, default_settings};
 use trustify_module_storage::service::fs::FileSystemBackend;
 
-/// Creates a database and imports the previous DB and storage dump.
-pub struct TrustifyMigrationContext(pub(crate) TrustifyTestContext);
+#[macro_export]
+macro_rules! commit {
+    ($t:ident($id:literal)) => {
+        pub struct $t;
 
-impl Deref for TrustifyMigrationContext {
+        impl DumpId for $t {
+            fn dump_id() -> Option<&'static str> {
+                Some($id)
+            }
+        }
+    };
+}
+
+pub trait DumpId {
+    fn dump_id() -> Option<&'static str>;
+}
+
+impl DumpId for () {
+    fn dump_id() -> Option<&'static str> {
+        None
+    }
+}
+
+/// Creates a database and imports the previous DB and storage dump.
+pub struct TrustifyMigrationContext<ID: DumpId = ()>(
+    pub(crate) TrustifyTestContext,
+    PhantomData<ID>,
+);
+
+impl<ID: DumpId> Deref for TrustifyMigrationContext<ID> {
     type Target = TrustifyTestContext;
 
     fn deref(&self) -> &Self::Target {
@@ -17,10 +45,14 @@ impl Deref for TrustifyMigrationContext {
     }
 }
 
-impl TrustifyMigrationContext {
+impl<ID: DumpId> TrustifyMigrationContext<ID> {
     pub async fn new() -> anyhow::Result<Self> {
         let migration = Migration::new().expect("failed to create migration manager");
-        let base = migration.provide().await?;
+        let id: Cow<'static, str> = match ID::dump_id() {
+            Some(id) => format!("commit-{id}").into(),
+            None => "latest".into(),
+        };
+        let base = migration.provide(&id).await?;
 
         // create storage
 
@@ -50,13 +82,14 @@ impl TrustifyMigrationContext {
 
         Ok(Self(
             TrustifyTestContext::new(db, storage, tmp, postgresql).await,
+            Default::default(),
         ))
     }
 }
 
-impl AsyncTestContext for TrustifyMigrationContext {
+impl<ID: DumpId> AsyncTestContext for TrustifyMigrationContext<ID> {
     async fn setup() -> Self {
-        TrustifyMigrationContext::new()
+        Self::new()
             .await
             .expect("failed to create migration context")
     }

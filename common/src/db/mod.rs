@@ -103,6 +103,10 @@ impl Database {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    pub fn into_connection(self) -> DatabaseConnection {
+        self.db
+    }
 }
 
 impl Deref for Database {

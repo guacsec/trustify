@@ -1,9 +1,8 @@
 use crate::data::{MigratorWithData, Options, SchemaDataManager};
 use anyhow::bail;
-use sea_orm::{ConnectOptions, Database};
+use sea_orm::ConnectOptions;
 use sea_orm_migration::{IntoSchemaManagerConnection, SchemaManager};
-use std::collections::HashMap;
-use std::time::SystemTime;
+use std::{collections::HashMap, time::SystemTime};
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
@@ -14,12 +13,16 @@ pub enum Direction {
 }
 
 pub struct Runner {
-    pub database_url: String,
-    pub database_schema: Option<String>,
+    pub database: Database,
     pub storage: DispatchBackend,
     pub direction: Direction,
     pub migrations: Vec<String>,
     pub options: Options,
+}
+
+pub enum Database {
+    Config { url: String, schema: Option<String> },
+    Provided(sea_orm::DatabaseConnection),
 }
 
 impl Runner {
@@ -38,15 +41,20 @@ impl Runner {
             running.push(migration);
         }
 
-        let schema = self.database_schema.unwrap_or_else(|| "public".to_owned());
+        let database = match self.database {
+            Database::Config { url, schema } => {
+                let schema = schema.unwrap_or_else(|| "public".to_owned());
 
-        let connect_options = ConnectOptions::new(self.database_url)
-            .set_schema_search_path(schema)
-            .to_owned();
+                let connect_options = ConnectOptions::new(url)
+                    .set_schema_search_path(schema)
+                    .to_owned();
 
-        let db = Database::connect(connect_options).await?;
+                sea_orm::Database::connect(connect_options).await?
+            }
+            Database::Provided(database) => database,
+        };
 
-        let manager = SchemaManager::new(db.into_schema_manager_connection());
+        let manager = SchemaManager::new(database.into_schema_manager_connection());
         let manager = SchemaDataManager::new(&manager, &self.storage, &self.options);
 
         for run in running {

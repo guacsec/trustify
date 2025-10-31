@@ -73,6 +73,12 @@ impl Default for Options {
     }
 }
 
+impl From<()> for Options {
+    fn from(_: ()) -> Self {
+        Self::default()
+    }
+}
+
 impl Options {
     pub fn should_skip(&self, name: &str) -> bool {
         if self.skip_all {
