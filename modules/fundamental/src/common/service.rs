@@ -13,6 +13,8 @@ pub enum DocumentType {
 /// Fetch all unique key/value labels matching the `filter_text` for all the `r#type` entities, i.e. `DocumentType::Advisory` or `DocumentType::Sbom`
 ///
 /// If limit=0 then all data will be fetched
+///
+/// Labels with the key `file` are excluded from the results.
 pub async fn fetch_labels<C: ConnectionTrait>(
     r#type: DocumentType,
     filter_text: String,
@@ -34,6 +36,7 @@ WHERE
         WHEN kv.value IS NULL THEN kv.key
         ELSE kv.key || '=' || kv.value
     END ILIKE $1 ESCAPE '\'
+    AND kv.key <> 'file'
 ORDER BY
     kv.key, kv.value
 "#,
