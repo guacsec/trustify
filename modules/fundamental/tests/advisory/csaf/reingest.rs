@@ -5,6 +5,7 @@ use test_context::test_context;
 use test_log::test;
 use trustify_common::purl::Purl;
 use trustify_cvss::cvss3::severity::Severity;
+use trustify_module_fundamental::purl::model::details::version_range::VersionRange;
 use trustify_module_fundamental::{
     purl::{
         model::details::purl::{PurlStatus, StatusContext},
@@ -162,6 +163,13 @@ async fn change_ps_list_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
             context: Some(StatusContext::Cpe(
                 "cpe:/a:redhat:jboss_enterprise_application_platform:7.4:*:el9:*".to_string()
             )),
+            version_range: Some(VersionRange::Full {
+                version_scheme_id: "rpm".into(),
+                left: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                left_inclusive: true,
+                right: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                right_inclusive: true
+            }),
         }]
     );
 
@@ -265,6 +273,13 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
             context: Some(StatusContext::Cpe(
                 "cpe:/a:redhat:jboss_enterprise_application_platform:7.4:*:el9:*".to_string()
             )),
+            version_range: Some(VersionRange::Full {
+                version_scheme_id: "rpm".into(),
+                left: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                left_inclusive: true,
+                right: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                right_inclusive: true
+            }),
         }]
     );
     assert_eq!(
@@ -281,6 +296,13 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
             context: Some(StatusContext::Cpe(
                 "cpe:/a:redhat:jboss_enterprise_application_platform:7.4:*:el9:*".to_string()
             )),
+            version_range: Some(VersionRange::Full {
+                version_scheme_id: "rpm".into(),
+                left: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                left_inclusive: true,
+                right: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                right_inclusive: true
+            }),
         }]
     );
 

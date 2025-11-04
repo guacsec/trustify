@@ -3300,41 +3300,18 @@ components:
               All CVSS3 scores from the advisory for the given vulnerability.
               May include several, varying by minor version of the CVSS3 vector.
       description: Summary of information from this advisory regarding a single specific vulnerability.
-    AnalysisAdvisory:
-      allOf:
-      - $ref: '#/components/schemas/AdvisoryHead'
-      - type: object
-        required:
-        - scores
-        properties:
-          scores:
-            type: array
-            items:
-              $ref: '#/components/schemas/Score'
-            description: CVSS scores
     AnalysisDetails:
       allOf:
       - $ref: '#/components/schemas/VulnerabilityHead'
       - type: object
         required:
-        - status
+        - purl_statuses
         properties:
-          status:
-            type: object
-            description: |-
-              Map of status to advisories
-
-              Allowed status values:
-              - `affected`: Advisories that affect the package
-              - `under_investigation`: Advisories that might affect the package, but the investigation is still ongoing
-
-              Additional status values may be added in the future; see API documentation for details.
-            additionalProperties:
-              type: array
-              items:
-                $ref: '#/components/schemas/AnalysisAdvisory'
-            propertyNames:
-              type: string
+          purl_statuses:
+            type: array
+            items:
+              $ref: '#/components/schemas/PurlStatus'
+            description: List of purl statuses
     AnalysisRequest:
       type: object
       required:
@@ -4656,6 +4633,10 @@ components:
           - $ref: '#/components/schemas/StatusContext'
         status:
           type: string
+        version_range:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/VersionRange'
         vulnerability:
           $ref: '#/components/schemas/VulnerabilityHead'
     PurlSummary:
@@ -5129,6 +5110,50 @@ components:
         oneOf:
         - type: 'null'
         - type: string
+    VersionRange:
+      oneOf:
+      - type: object
+        required:
+        - version_scheme_id
+        - left
+        - left_inclusive
+        - right
+        - right_inclusive
+        properties:
+          left:
+            type: string
+          left_inclusive:
+            type: boolean
+          right:
+            type: string
+          right_inclusive:
+            type: boolean
+          version_scheme_id:
+            type: string
+      - type: object
+        required:
+        - version_scheme_id
+        - left
+        - left_inclusive
+        properties:
+          left:
+            type: string
+          left_inclusive:
+            type: boolean
+          version_scheme_id:
+            type: string
+      - type: object
+        required:
+        - version_scheme_id
+        - right
+        - right_inclusive
+        properties:
+          right:
+            type: string
+          right_inclusive:
+            type: boolean
+          version_scheme_id:
+            type: string
     VersionedPurlHead:
       type: object
       required:

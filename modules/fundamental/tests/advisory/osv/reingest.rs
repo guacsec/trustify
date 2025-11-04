@@ -4,7 +4,10 @@ use test_log::test;
 use trustify_common::purl::Purl;
 use trustify_cvss::cvss3::severity::Severity;
 use trustify_module_fundamental::{
-    purl::{model::details::purl::PurlStatus, service::PurlService},
+    purl::{
+        model::details::{purl::PurlStatus, version_range::VersionRange},
+        service::PurlService,
+    },
     vulnerability::{model::VulnerabilityHead, service::VulnerabilityService},
 };
 use trustify_module_ingestor::common::Deprecation;
@@ -128,6 +131,13 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
             average_score: 0f64,
             status: "affected".to_string(),
             context: None,
+            version_range: Some(VersionRange::Full {
+                version_scheme_id: "cran".into(),
+                left: "1.0".into(),
+                left_inclusive: true,
+                right: "1.0".into(),
+                right_inclusive: true
+            }),
         }]
     );
     assert_eq!(
@@ -142,6 +152,13 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
             average_score: 0f64,
             status: "affected".to_string(),
             context: None,
+            version_range: Some(VersionRange::Full {
+                version_scheme_id: "cran".into(),
+                left: "1.0".into(),
+                left_inclusive: true,
+                right: "1.0".into(),
+                right_inclusive: true
+            }),
         }]
     );
 

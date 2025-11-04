@@ -2,7 +2,9 @@ use crate::{
     Error,
     advisory::model::AdvisoryHead,
     common::{LicenseInfo, LicenseRefMapping, license_filtering},
-    purl::model::{BasePurlHead, PurlHead, VersionedPurlHead},
+    purl::model::{
+        BasePurlHead, PurlHead, VersionedPurlHead, details::version_range::VersionRange,
+    },
     sbom::{model::SbomHead, service::sbom::LicenseBasicInfo},
     vulnerability::model::VulnerabilityHead,
 };
@@ -270,7 +272,8 @@ impl PurlAdvisory {
         for product_status in product_statuses {
             let purl_status = PurlStatus::new(
                 &product_status.vulnerability,
-                product_status.status.slug,
+                product_status.status.slug.clone(),
+                Some(VersionRange::from_entity(product_status.version_range)?),
                 Some(product_status.cpe.to_string()),
                 tx,
             )
@@ -312,6 +315,7 @@ pub struct PurlStatus {
     pub status: String,
     #[schema(required)]
     pub context: Option<StatusContext>,
+    pub version_range: Option<VersionRange>,
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug, ToSchema, PartialEq, Eq)]
@@ -325,6 +329,7 @@ impl PurlStatus {
     pub async fn new<C: ConnectionTrait>(
         vuln: &vulnerability::Model,
         status: String,
+        version_range: Option<VersionRange>,
         cpe: Option<String>,
         tx: &C,
     ) -> Result<Self, Error> {
@@ -341,6 +346,24 @@ impl PurlStatus {
             average_score: average_score.value(),
             status,
             context: cpe.map(StatusContext::Cpe),
+            version_range,
+        })
+    }
+
+    pub fn from_head(
+        vuln_head: VulnerabilityHead,
+        status: String,
+        version_range: Option<VersionRange>,
+        cpe: Option<String>,
+        score: Score,
+    ) -> Result<Self, Error> {
+        Ok(Self {
+            vulnerability: vuln_head,
+            average_severity: score.severity(),
+            average_score: score.value(),
+            status,
+            context: cpe.map(StatusContext::Cpe),
+            version_range,
         })
     }
 
@@ -361,7 +384,12 @@ impl PurlStatus {
             }
             _ => None,
         };
-        PurlStatus::new(vuln, status, cpe, tx).await
+        let version_range = version_range::Entity::find_by_id(package_status.version_range_id)
+            .one(tx)
+            .await?
+            .map(VersionRange::from_entity)
+            .transpose()?;
+        PurlStatus::new(vuln, status, version_range, cpe, tx).await
     }
 }
 
@@ -429,6 +457,7 @@ pub struct ProductStatusCatcher {
     vulnerability: vulnerability::Model,
     cpe: trustify_entity::cpe::Model,
     status: status::Model,
+    version_range: version_range::Model,
 }
 
 impl FromQueryResult for ProductStatusCatcher {
@@ -438,6 +467,7 @@ impl FromQueryResult for ProductStatusCatcher {
             vulnerability: Self::from_query_result_multi_model(res, "", vulnerability::Entity)?,
             cpe: Self::from_query_result_multi_model(res, "", trustify_entity::cpe::Entity)?,
             status: Self::from_query_result_multi_model(res, "", status::Entity)?,
+            version_range: Self::from_query_result_multi_model(res, "", version_range::Entity)?,
         })
     }
 }
@@ -448,6 +478,7 @@ impl FromQueryResultMultiModel for ProductStatusCatcher {
             .try_model_columns(advisory::Entity)?
             .try_model_columns(vulnerability::Entity)?
             .try_model_columns(trustify_entity::cpe::Entity)?
-            .try_model_columns(status::Entity)
+            .try_model_columns(status::Entity)?
+            .try_model_columns(version_range::Entity)
     }
 }

@@ -51,26 +51,38 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .find(|e| e.head.identifier == "CVE-2024-28834")
         .expect("must find entry");
 
-    assert_eq!(vuln_entry.status.len(), 1);
+    let status_entries: Vec<_> = vuln_entry
+        .purl_statuses
+        .iter()
+        .filter(|status| status.status == "affected")
+        .collect();
 
-    let status_entry = &vuln_entry.status["affected"];
-
-    assert_eq!(status_entry.len(), 1);
-    let json = serde_json::to_value(status_entry).expect("must serialize");
+    assert_eq!(status_entries.len(), 1);
+    let json = serde_json::to_value(status_entries).expect("must serialize");
     assert!(
         json.contains_subset(json!([{
-            "document_id": "CVE-2024-28834",
-            "identifier": "https://www.redhat.com/#CVE-2024-28834",
-            "modified": "2025-01-07T01:43:37Z",
-            "published": "2024-03-21T00:00:00Z",
-            "title": "gnutls: vulnerable to Minerva side-channel information leak",
-            "scores": [
-                {
-                    "type": "3.1",
-                    "value": 5.3,
-                    "severity": "medium",
-                }
-            ]
+            "vulnerability": {
+                "normative": true,
+                "identifier": "CVE-2024-28834",
+                "title": "Gnutls: vulnerable to minerva side-channel information leak",
+                "description": "A flaw was found in GnuTLS. The Minerva attack is a cryptographic vulnerability that exploits deterministic behavior in systems like GnuTLS, leading to side-channel leaks. In specific scenarios, such as when using the GNUTLS_PRIVKEY_FLAG_REPRODUCIBLE flag, it can result in a noticeable step in nonce size from 513 to 512 bits, exposing a potential timing side-channel.",
+                "reserved": "2024-03-11T14:43:43.973Z",
+                "published": "2024-03-21T13:29:11.532Z",
+                "modified": "2024-11-25T02:45:53.454Z",
+                "withdrawn": null,
+                "discovered": null,
+                "released": null,
+                "cwes": ["CWE-327"]
+            },
+            "average_severity": "medium",
+            "average_score": 5.3,
+            "status": "affected",
+            "context": null,
+            "version_range": {
+                "version_scheme_id": "rpm",
+                "right": "3.8.3-4.el9_4",
+                "right_inclusive": false,
+            }
         }])),
         "doesn't match: {json:#?}"
     );
