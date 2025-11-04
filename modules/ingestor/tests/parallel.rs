@@ -89,7 +89,7 @@ fn duplicate_sbom(spdx: &SPDX) -> anyhow::Result<SPDX> {
 
 /// Assert that all results are ok. Logs errors other of failures.
 fn assert_all_ok<T>(num: usize, result: Vec<Result<T, anyhow::Error>>) {
-    assert_eq!(result.len(), num);
+    assert_eq!(num, result.len());
 
     let ok = result
         .iter()
@@ -102,7 +102,7 @@ fn assert_all_ok<T>(num: usize, result: Vec<Result<T, anyhow::Error>>) {
         })
         .count();
 
-    assert_eq!(ok, num);
+    assert_eq!(num, ok);
 }
 
 /// Ingest x CSAF documents in parallel
@@ -271,5 +271,35 @@ async fn license_creator(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // done
 
+    Ok(())
+}
+
+/// Ingest advisories in parallel
+#[test_context(TrustifyContext)]
+#[instrument]
+#[test(tokio::test(flavor = "multi_thread", worker_threads = 4))]
+async fn advisories_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let mut data = vec![];
+    data.push(document_bytes("osv/GHSA-gqp3-2cvr-x8m3.json.bz2").await?);
+    data.push(document_bytes("osv/GHSA-h3gc-qfqq-6h8f.json.bz2").await?);
+    let mut tasks = vec![];
+    data.iter().for_each(|advisory| {
+        let next = advisory.clone();
+        let service = ctx.ingestor.clone();
+        tasks.push(async move {
+            service
+                .ingest(&next, Format::Advisory, (), None, Cache::Skip)
+                .await?;
+            Ok::<_, anyhow::Error>(())
+        });
+    });
+
+    // progress ingestion tasks
+    let result = futures::future::join_all(tasks).await;
+
+    // now test
+    assert_all_ok(data.len(), result);
+
+    // done
     Ok(())
 }

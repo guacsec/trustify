@@ -8,7 +8,8 @@ use crate::graph::{Graph, error::Error};
 use package_version::PackageVersionContext;
 use qualified_package::QualifiedPackageContext;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Set, prelude::Uuid,
+    ColumnTrait, ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult, QueryFilter,
+    Statement, prelude::Uuid,
 };
 use sea_query::SelectStatement;
 use std::fmt::{Debug, Formatter};
@@ -64,18 +65,45 @@ impl Graph {
         purl: &Purl,
         connection: &C,
     ) -> Result<PackageContext<'_>, Error> {
-        if let Some(found) = self.get_package(purl, connection).await? {
-            Ok(found)
-        } else {
-            let model = entity::base_purl::ActiveModel {
-                id: Set(purl.package_uuid()),
-                r#type: Set(purl.ty.clone()),
-                namespace: Set(purl.namespace.clone()),
-                name: Set(purl.name.clone()),
-            };
+        let id = purl.package_uuid();
 
-            Ok(PackageContext::new(self, model.insert(connection).await?))
-        }
+        // Raw SQL required: SeaORM's .exec() with ON CONFLICT DO NOTHING doesn't support RETURNING,
+        // forcing a SELECT after every INSERT attempt (2 queries always). This approach uses
+        // RETURNING to get the row in 1 query on success, only doing a SELECT on conflict.
+        let sql_insert = r#"
+            INSERT INTO base_purl (id, type, namespace, name)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT DO NOTHING
+            RETURNING *
+        "#;
+
+        let result = entity::base_purl::Model::find_by_statement(Statement::from_sql_and_values(
+            DatabaseBackend::Postgres,
+            sql_insert,
+            vec![
+                id.into(),
+                purl.ty.clone().into(),
+                purl.namespace.as_deref().into(),
+                purl.name.clone().into(),
+            ],
+        ))
+        .one(connection)
+        .await?;
+
+        // If INSERT returned None (conflict occurred), fetch the existing row
+        let result = if let Some(model) = result {
+            model
+        } else {
+            // Use the deterministic id to fetch the exact row
+            entity::base_purl::Entity::find_by_id(id)
+                .one(connection)
+                .await?
+                .ok_or_else(|| {
+                    Error::Any(anyhow::anyhow!("Failed to find base_purl after conflict"))
+                })?
+        };
+
+        Ok(PackageContext::new(self, result))
     }
 
     /// Retrieve a *fully-qualified* package entry, if it exists.
@@ -252,20 +280,43 @@ impl<'g> PackageContext<'g> {
         connection: &C,
     ) -> Result<PackageVersionContext<'g>, Error> {
         if let Some(version) = &purl.version {
-            if let Some(found) = self.get_package_version(purl, connection).await? {
-                Ok(found)
-            } else {
-                let model = entity::versioned_purl::ActiveModel {
-                    id: Set(purl.version_uuid()),
-                    base_purl_id: Set(self.base_purl.id),
-                    version: Set(version.clone()),
-                };
+            let id = purl.version_uuid();
 
-                Ok(PackageVersionContext::new(
-                    self,
-                    model.insert(connection).await?,
+            // Raw SQL required: SeaORM's .exec() with ON CONFLICT DO NOTHING doesn't support RETURNING,
+            // forcing a SELECT after every INSERT attempt (2 queries always). This approach uses
+            // RETURNING to get the row in 1 query on success, only doing a SELECT on conflict.
+            let sql_insert = r#"
+                INSERT INTO versioned_purl (id, base_purl_id, version)
+                VALUES ($1, $2, $3)
+                ON CONFLICT DO NOTHING
+                RETURNING *
+            "#;
+
+            let result =
+                entity::versioned_purl::Model::find_by_statement(Statement::from_sql_and_values(
+                    DatabaseBackend::Postgres,
+                    sql_insert,
+                    vec![id.into(), self.base_purl.id.into(), version.clone().into()],
                 ))
-            }
+                .one(connection)
+                .await?;
+
+            // If INSERT returned None (conflict occurred), fetch the existing row
+            let result = if let Some(model) = result {
+                model
+            } else {
+                // Use the deterministic id to fetch the exact row
+                entity::versioned_purl::Entity::find_by_id(id)
+                    .one(connection)
+                    .await?
+                    .ok_or_else(|| {
+                        Error::Any(anyhow::anyhow!(
+                            "Failed to find versioned_purl after conflict"
+                        ))
+                    })?
+            };
+
+            Ok(PackageVersionContext::new(self, result))
         } else {
             Err(Error::Purl(PurlErr::MissingVersion(purl.to_string())))
         }
