@@ -71,7 +71,6 @@ pub async fn analysis_status(
     operation_id = "getComponent",
     params(
         ("key" = String, Path, description = "provide component name, URL-encoded pURL, or CPE itself"),
-        Query,
         Paginated,
         QueryOptions,
     ),
@@ -201,7 +200,6 @@ pub async fn search_latest_component(
     operation_id = "getLatestComponent",
     params(
         ("key" = String, Path, description = "provide component name, URL-encoded pURL, or CPE itself"),
-        Query,
         Paginated,
         QueryOptions,
     ),
@@ -211,7 +209,7 @@ pub async fn search_latest_component(
     ),
 )]
 #[get("/v2/analysis/latest/component/{key}")]
-/// Retrieve SBOM components (packages) by name, Package URL, or CPE.
+/// Retrieve latest SBOM components (packages) by name, Package URL, or CPE.
 pub async fn get_latest_component(
     service: web::Data<AnalysisService>,
     db: web::Data<Database>,
