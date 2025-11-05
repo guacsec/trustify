@@ -151,7 +151,6 @@ async fn csaf_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[instrument]
 #[test(tokio::test(flavor = "multi_thread", worker_threads = 4))]
-#[ignore = "Enable once the PURL database structure has been refactored"]
 async fn purl_creator(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     const NUM: usize = 25;
     const ITEMS: usize = 25;

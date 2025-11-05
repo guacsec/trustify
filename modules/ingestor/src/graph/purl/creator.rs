@@ -75,13 +75,9 @@ impl PurlCreator {
 
         for batch in &packages.into_values().chunked() {
             base_purl::Entity::insert_many(batch)
-                .on_conflict(
-                    OnConflict::columns([base_purl::Column::Id])
-                        .do_nothing()
-                        .to_owned(),
-                )
+                .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .do_nothing()
-                .exec(db)
+                .exec_without_returning(db)
                 .await?;
         }
 
@@ -89,13 +85,9 @@ impl PurlCreator {
 
         for batch in &versions.into_values().chunked() {
             versioned_purl::Entity::insert_many(batch)
-                .on_conflict(
-                    OnConflict::columns([versioned_purl::Column::Id])
-                        .do_nothing()
-                        .to_owned(),
-                )
+                .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .do_nothing()
-                .exec(db)
+                .exec_without_returning(db)
                 .await?;
         }
 
@@ -103,13 +95,9 @@ impl PurlCreator {
 
         for batch in &qualifieds.into_values().chunked() {
             qualified_purl::Entity::insert_many(batch)
-                .on_conflict(
-                    OnConflict::columns([qualified_purl::Column::Id])
-                        .do_nothing()
-                        .to_owned(),
-                )
+                .on_conflict(OnConflict::new().do_nothing().to_owned())
                 .do_nothing()
-                .exec(db)
+                .exec_without_returning(db)
                 .await?;
         }
 
