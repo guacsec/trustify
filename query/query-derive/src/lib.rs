@@ -28,25 +28,27 @@ fn impl_query(ast: &syn::DeriveInput) -> TokenStream {
     };
     let field_names = format!("\"{}\"", fields.join("\" | \""));
     let query_description = format!(
-        "Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
+        r#"Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
+```text
 (* Query Grammar - EBNF Compliant *)
-query = ( values | filter ) , {{ \"&\" , query }} ;
-values = value , {{ \"|\" , value }} ;
+query = ( values | filter ) , {{ "&" , query }} ;
+values = value , {{ "|" , value }} ;
 filter = field , operator , values ;
-operator = \"=\" | \"!=\" | \"~\" | \"!~\" | \">=\" | \">\" | \"<=\" | \"<\" ;
+operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<" ;
 field = ({field_names})
 value = {{ value_char }} ;
 value_char = escaped_char | normal_char ;
-escaped_char = \"\\\" , special_char ;
-normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\\' ? ;
-special_char = \"&\" | \"|\" | \"=\" | \"!\" | \"~\" | \">\" | \"<\" | \"\\\" ;
-(* Examples:
-    - Simple filter: title=example
-    - Multiple values filter: title=foo|bar|baz
-    - Complex filter: modified>2024-01-01
-    - Combined query: title=foo&average_severity=high
-    - Escaped characters: title=foo\\&bar
-*)"
+escaped_char = "\" , special_char ;
+normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\' ? ;
+special_char = "&" | "|" | "=" | "!" | "~" | ">" | "<" | "\" ;
+```
+Examples:
+- Simple filter: title=example
+- Multiple values filter: title=foo|bar|baz
+- Complex filter: modified>2024-01-01
+- Combined query: title=foo&average_severity=high
+- Escaped characters: title=foo\\&bar
+"#
     );
     let sort_description = format!(
         "EBNF grammar for the _sort_ parameter:
