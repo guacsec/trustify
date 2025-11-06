@@ -170,20 +170,6 @@ while IFS="" read -r _IMAGE || [[ -n "${_IMAGE}" ]]; do
         continue
     fi
 
-    _SHA512="sha512:$(sha512sum "${_SBOM}" | awk '{print $1}')"
-    inform "File ${_Q1}${_SBOM}${_Q0} with ${_Q1}${_SHA512}${_Q0} has been created"
-
-    if curl ${_CURL_FLAGS} \
-        ${_CA_OPTS[@]} \
-        ${_AUTH_HEADER:+-H "${_AUTH_HEADER}"} \
-        "${TPA_SERVICE_URL}/api/v2/sbom/${_SHA512}/download" \
-        >/dev/null 2>&1; \
-    then
-        # Do not ingest already ingested SBOM
-        inform "File ${_Q1}${_SBOM}${_Q0} is already ingested"
-        continue
-    fi
-
     if ! curl ${_CURL_FLAGS} \
         -X POST \
         ${_CA_OPTS[@]} \
