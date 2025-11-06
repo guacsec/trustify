@@ -170,6 +170,7 @@ async fn add_quay(
     .await
 }
 
+/// Insert example importers, ignoring existing ones
 pub async fn sample_data(db: trustify_common::db::Database) -> anyhow::Result<()> {
     let importer = ImporterService::new(db);
 

@@ -42,6 +42,7 @@ pub struct Run {
     #[arg(long, env)]
     pub devmode: bool,
 
+    /// Inject example importer configurations during startup
     #[arg(long, env)]
     pub sample_data: bool,
 
