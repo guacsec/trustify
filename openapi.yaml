@@ -33,8 +33,9 @@ paths:
       parameters:
       - name: q
         in: query
-        description: |-
+        description: |
           Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
+          ```text
           (* Query Grammar - EBNF Compliant *)
           query = ( values | filter ) , { "&" , query } ;
           values = value , { "|" , value } ;
@@ -46,13 +47,13 @@ paths:
           escaped_char = "\" , special_char ;
           normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\' ? ;
           special_char = "&" | "|" | "=" | "!" | "~" | ">" | "<" | "\" ;
-          (* Examples:
-              - Simple filter: title=example
-              - Multiple values filter: title=foo|bar|baz
-              - Complex filter: modified>2024-01-01
-              - Combined query: title=foo&average_severity=high
-              - Escaped characters: title=foo\&bar
-          *)
+          ```
+          Examples:
+          - Simple filter: title=example
+          - Multiple values filter: title=foo|bar|baz
+          - Complex filter: modified>2024-01-01
+          - Combined query: title=foo&average_severity=high
+          - Escaped characters: title=foo\\&bar
         required: false
         schema:
           type: string
@@ -1183,8 +1184,9 @@ paths:
       parameters:
       - name: q
         in: query
-        description: |-
+        description: |
           Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
+          ```text
           (* Query Grammar - EBNF Compliant *)
           query = ( values | filter ) , { "&" , query } ;
           values = value , { "|" , value } ;
@@ -1196,13 +1198,13 @@ paths:
           escaped_char = "\" , special_char ;
           normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\' ? ;
           special_char = "&" | "|" | "=" | "!" | "~" | ">" | "<" | "\" ;
-          (* Examples:
-              - Simple filter: title=example
-              - Multiple values filter: title=foo|bar|baz
-              - Complex filter: modified>2024-01-01
-              - Combined query: title=foo&average_severity=high
-              - Escaped characters: title=foo\&bar
-          *)
+          ```
+          Examples:
+          - Simple filter: title=example
+          - Multiple values filter: title=foo|bar|baz
+          - Complex filter: modified>2024-01-01
+          - Combined query: title=foo&average_severity=high
+          - Escaped characters: title=foo\\&bar
         required: false
         schema:
           type: string
@@ -2899,8 +2901,9 @@ paths:
       parameters:
       - name: q
         in: query
-        description: |-
+        description: |
           Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
+          ```text
           (* Query Grammar - EBNF Compliant *)
           query = ( values | filter ) , { "&" , query } ;
           values = value , { "|" , value } ;
@@ -2912,13 +2915,13 @@ paths:
           escaped_char = "\" , special_char ;
           normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\' ? ;
           special_char = "&" | "|" | "=" | "!" | "~" | ">" | "<" | "\" ;
-          (* Examples:
-              - Simple filter: title=example
-              - Multiple values filter: title=foo|bar|baz
-              - Complex filter: modified>2024-01-01
-              - Combined query: title=foo&average_severity=high
-              - Escaped characters: title=foo\&bar
-          *)
+          ```
+          Examples:
+          - Simple filter: title=example
+          - Multiple values filter: title=foo|bar|baz
+          - Complex filter: modified>2024-01-01
+          - Combined query: title=foo&average_severity=high
+          - Escaped characters: title=foo\\&bar
         required: false
         schema:
           type: string
