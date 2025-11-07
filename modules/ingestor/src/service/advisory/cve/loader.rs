@@ -5,6 +5,10 @@ use crate::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
             version::{Version, VersionInfo, VersionSpec},
         },
+        purl::{
+            self,
+            status_creator::{PurlStatusCreator, PurlStatusEntry},
+        },
         vulnerability::VulnerabilityInformation,
     },
     model::IngestResult,
@@ -114,9 +118,16 @@ impl<'g> CveLoader<'g> {
             }
         }
 
+        // Initialize batch creator for efficient status ingestion
+        let mut purl_status_creator = PurlStatusCreator::new();
+        let mut base_purls = std::collections::HashSet::new();
+
         if let Some(affected) = affected {
             for product in affected {
                 if let Some(purl) = divine_purl(product) {
+                    // Collect base PURL for batch creation
+                    base_purls.insert(purl.clone());
+
                     // okay! we have a purl, now
                     // sort out version bounds & status
                     for version in &product.versions {
@@ -146,29 +157,38 @@ impl<'g> CveLoader<'g> {
                             },
                         };
 
-                        advisory_vuln
-                            .ingest_package_status(
-                                None,
-                                &purl,
-                                match status {
-                                    Status::Affected => "affected",
-                                    Status::Unaffected => "not_affected",
-                                    Status::Unknown => "unknown",
-                                },
-                                VersionInfo {
-                                    scheme: version_type
-                                        .as_deref()
-                                        .map(VersionScheme::from)
-                                        .unwrap_or(VersionScheme::Generic),
-                                    spec: version_spec,
-                                },
-                                &tx,
-                            )
-                            .await?
+                        // Add package status entry to batch creator
+                        purl_status_creator.add(&PurlStatusEntry {
+                            advisory_id: advisory_vuln.advisory.advisory.id,
+                            vulnerability_id: advisory_vuln
+                                .advisory_vulnerability
+                                .vulnerability_id
+                                .clone(),
+                            purl: purl.clone(),
+                            status: match status {
+                                Status::Affected => "affected".to_string(),
+                                Status::Unaffected => "not_affected".to_string(),
+                                Status::Unknown => "unknown".to_string(),
+                            },
+                            version_info: VersionInfo {
+                                scheme: version_type
+                                    .as_deref()
+                                    .map(VersionScheme::from)
+                                    .unwrap_or(VersionScheme::Generic),
+                                spec: version_spec,
+                            },
+                            context_cpe: None,
+                        });
                     }
                 }
             }
         }
+
+        // Batch create base PURLs (without versions/qualifiers)
+        purl::batch_create_base_purls(base_purls, &tx).await?;
+
+        // Batch create statuses
+        purl_status_creator.create(&tx).await?;
 
         vulnerability
             .drop_descriptions_for_advisory(advisory.advisory.id, &tx)

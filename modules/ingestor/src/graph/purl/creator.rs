@@ -1,11 +1,10 @@
-use crate::graph::error::Error;
+use crate::graph::{error::Error, purl};
 use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait};
 use sea_query::OnConflict;
 use std::collections::{BTreeMap, HashSet};
 use tracing::instrument;
 use trustify_common::{db::chunk::EntityChunkedIter, purl::Purl};
 use trustify_entity::{
-    base_purl,
     qualified_purl::{self, Qualifiers},
     versioned_purl,
 };
@@ -35,23 +34,15 @@ impl PurlCreator {
             return Ok(());
         }
 
-        // insert all packages
+        // Use the shared helper to batch create base PURLs
+        purl::batch_create_base_purls(self.purls.iter().cloned(), db).await?;
 
-        let mut packages = BTreeMap::new();
         let mut versions = BTreeMap::new();
         let mut qualifieds = BTreeMap::new();
 
         for purl in self.purls {
             let cp = purl.clone().into();
             let (package, version, qualified) = purl.uuids();
-            packages
-                .entry(package)
-                .or_insert_with(|| base_purl::ActiveModel {
-                    id: Set(package),
-                    r#type: Set(purl.ty),
-                    namespace: Set(purl.namespace),
-                    name: Set(purl.name),
-                });
 
             versions
                 .entry(version)
@@ -69,16 +60,6 @@ impl PurlCreator {
                     qualifiers: Set(Qualifiers(purl.qualifiers)),
                     purl: Set(cp),
                 });
-        }
-
-        // insert packages
-
-        for batch in &packages.into_values().chunked() {
-            base_purl::Entity::insert_many(batch)
-                .on_conflict(OnConflict::new().do_nothing().to_owned())
-                .do_nothing()
-                .exec_without_returning(db)
-                .await?;
         }
 
         // insert all package versions

@@ -3,19 +3,22 @@
 pub mod creator;
 pub mod package_version;
 pub mod qualified_package;
+pub mod status_creator;
 
 use crate::graph::{Graph, error::Error};
 use package_version::PackageVersionContext;
 use qualified_package::QualifiedPackageContext;
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult, QueryFilter,
-    Statement, prelude::Uuid,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Set, prelude::Uuid,
 };
-use sea_query::SelectStatement;
-use std::fmt::{Debug, Formatter};
+use sea_query::{OnConflict, SelectStatement};
+use std::{
+    collections::BTreeMap,
+    fmt::{Debug, Formatter},
+};
 use tracing::instrument;
 use trustify_common::{
-    db::limiter::LimiterTrait,
+    db::{chunk::EntityChunkedIter, limiter::LimiterTrait},
     model::{Paginated, PaginatedResults},
     purl::{Purl, PurlErr},
 };
@@ -65,45 +68,18 @@ impl Graph {
         purl: &Purl,
         connection: &C,
     ) -> Result<PackageContext<'_>, Error> {
-        let id = purl.package_uuid();
-
-        // Raw SQL required: SeaORM's .exec() with ON CONFLICT DO NOTHING doesn't support RETURNING,
-        // forcing a SELECT after every INSERT attempt (2 queries always). This approach uses
-        // RETURNING to get the row in 1 query on success, only doing a SELECT on conflict.
-        let sql_insert = r#"
-            INSERT INTO base_purl (id, type, namespace, name)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT DO NOTHING
-            RETURNING *
-        "#;
-
-        let result = entity::base_purl::Model::find_by_statement(Statement::from_sql_and_values(
-            DatabaseBackend::Postgres,
-            sql_insert,
-            vec![
-                id.into(),
-                purl.ty.clone().into(),
-                purl.namespace.as_deref().into(),
-                purl.name.clone().into(),
-            ],
-        ))
-        .one(connection)
-        .await?;
-
-        // If INSERT returned None (conflict occurred), fetch the existing row
-        let result = if let Some(model) = result {
-            model
+        if let Some(found) = self.get_package(purl, connection).await? {
+            Ok(found)
         } else {
-            // Use the deterministic id to fetch the exact row
-            entity::base_purl::Entity::find_by_id(id)
-                .one(connection)
-                .await?
-                .ok_or_else(|| {
-                    Error::Any(anyhow::anyhow!("Failed to find base_purl after conflict"))
-                })?
-        };
+            let model = entity::base_purl::ActiveModel {
+                id: Set(purl.package_uuid()),
+                r#type: Set(purl.ty.clone()),
+                namespace: Set(purl.namespace.clone()),
+                name: Set(purl.name.clone()),
+            };
 
-        Ok(PackageContext::new(self, result))
+            Ok(PackageContext::new(self, model.insert(connection).await?))
+        }
     }
 
     /// Retrieve a *fully-qualified* package entry, if it exists.
@@ -280,43 +256,20 @@ impl<'g> PackageContext<'g> {
         connection: &C,
     ) -> Result<PackageVersionContext<'g>, Error> {
         if let Some(version) = &purl.version {
-            let id = purl.version_uuid();
-
-            // Raw SQL required: SeaORM's .exec() with ON CONFLICT DO NOTHING doesn't support RETURNING,
-            // forcing a SELECT after every INSERT attempt (2 queries always). This approach uses
-            // RETURNING to get the row in 1 query on success, only doing a SELECT on conflict.
-            let sql_insert = r#"
-                INSERT INTO versioned_purl (id, base_purl_id, version)
-                VALUES ($1, $2, $3)
-                ON CONFLICT DO NOTHING
-                RETURNING *
-            "#;
-
-            let result =
-                entity::versioned_purl::Model::find_by_statement(Statement::from_sql_and_values(
-                    DatabaseBackend::Postgres,
-                    sql_insert,
-                    vec![id.into(), self.base_purl.id.into(), version.clone().into()],
-                ))
-                .one(connection)
-                .await?;
-
-            // If INSERT returned None (conflict occurred), fetch the existing row
-            let result = if let Some(model) = result {
-                model
+            if let Some(found) = self.get_package_version(purl, connection).await? {
+                Ok(found)
             } else {
-                // Use the deterministic id to fetch the exact row
-                entity::versioned_purl::Entity::find_by_id(id)
-                    .one(connection)
-                    .await?
-                    .ok_or_else(|| {
-                        Error::Any(anyhow::anyhow!(
-                            "Failed to find versioned_purl after conflict"
-                        ))
-                    })?
-            };
+                let model = entity::versioned_purl::ActiveModel {
+                    id: Set(purl.version_uuid()),
+                    base_purl_id: Set(self.base_purl.id),
+                    version: Set(version.clone()),
+                };
 
-            Ok(PackageVersionContext::new(self, result))
+                Ok(PackageVersionContext::new(
+                    self,
+                    model.insert(connection).await?,
+                ))
+            }
         } else {
             Err(Error::Purl(PurlErr::MissingVersion(purl.to_string())))
         }
@@ -376,6 +329,41 @@ impl<'g> PackageContext<'g> {
                 .collect(),
         })
     }
+}
+
+/// Batch create base PURLs (without versions or qualifiers).
+///
+/// This helper function efficiently creates multiple base_purl entries in batches,
+/// handling duplicates via ON CONFLICT DO NOTHING. It's used by both PurlCreator
+/// and advisory loaders to avoid code duplication.
+pub async fn batch_create_base_purls<C: ConnectionTrait>(
+    purls: impl IntoIterator<Item = Purl>,
+    connection: &C,
+) -> Result<(), Error> {
+    let mut packages = BTreeMap::new();
+
+    for purl in purls {
+        let package = purl.package_uuid();
+        packages
+            .entry(package)
+            .or_insert_with(|| entity::base_purl::ActiveModel {
+                id: Set(package),
+                r#type: Set(purl.ty),
+                namespace: Set(purl.namespace),
+                name: Set(purl.name),
+            });
+    }
+
+    // Batch insert packages
+    for batch in &packages.into_values().chunked() {
+        entity::base_purl::Entity::insert_many(batch)
+            .on_conflict(OnConflict::new().do_nothing().to_owned())
+            .do_nothing()
+            .exec(connection)
+            .await?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
