@@ -20,8 +20,7 @@ use cve::{
 };
 use sea_orm::TransactionTrait;
 use serde_json::Value;
-use std::fmt::Debug;
-use std::str::FromStr;
+use std::{collections::HashSet, fmt::Debug, str::FromStr};
 use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::{hashing::Digests, id::Id};
@@ -120,7 +119,7 @@ impl<'g> CveLoader<'g> {
 
         // Initialize batch creator for efficient status ingestion
         let mut purl_status_creator = PurlStatusCreator::new();
-        let mut base_purls = std::collections::HashSet::new();
+        let mut base_purls = HashSet::new();
 
         if let Some(affected) = affected {
             for product in affected {
@@ -158,7 +157,7 @@ impl<'g> CveLoader<'g> {
                         };
 
                         // Add package status entry to batch creator
-                        purl_status_creator.add(&PurlStatusEntry {
+                        purl_status_creator.add(PurlStatusEntry {
                             advisory_id: advisory_vuln.advisory.advisory.id,
                             vulnerability_id: advisory_vuln
                                 .advisory_vulnerability
