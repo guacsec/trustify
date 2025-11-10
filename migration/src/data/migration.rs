@@ -10,6 +10,7 @@ use std::{ffi::OsString, ops::Deref, sync::LazyLock};
 use tokio::task_local;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 
+/// A migration which also processes data.
 pub struct MigrationWithData {
     pub storage: DispatchBackend,
     pub options: Options,
@@ -87,6 +88,7 @@ where
     }
 }
 
+/// A [`SchemaManager`], extended with data migration features.
 pub struct SchemaDataManager<'c> {
     pub manager: &'c SchemaManager<'c>,
     storage: &'c DispatchBackend,

@@ -80,6 +80,10 @@ impl From<()> for Options {
 }
 
 impl Options {
+    /// Check if we should skip a data migration. Returns `true` if it should be skipped.
+    ///
+    /// Skipping means that the "data" part of the migration should not be processes. The schema
+    /// part still will be processes.
     pub fn should_skip(&self, name: &str) -> bool {
         if self.skip_all {
             // we skip all migration
@@ -104,6 +108,7 @@ impl From<&Options> for Partition {
     }
 }
 
+/// A trait for processing documents
 pub trait DocumentProcessor {
     fn process<D>(
         &self,
@@ -116,6 +121,42 @@ pub trait DocumentProcessor {
 }
 
 impl<'c> DocumentProcessor for SchemaManager<'c> {
+    /// Process documents for a schema *data* migration.
+    ///
+    /// ## Pre-requisites
+    ///
+    /// The database should be maintenance mode. Meaning that the actual application should be
+    /// running from a read-only clone for the time of processing.
+    ///
+    /// ## Partitioning
+    ///
+    /// This will partition documents and only process documents selected for *this* partition.
+    /// The partition configuration normally comes from outside, as configuration through env-vars.
+    ///
+    /// This means that there may be other instances of this processor running in a different
+    /// process instance. However, not touching documents of our partition.
+    ///
+    /// ## Transaction strategy
+    ///
+    /// The processor will identify all documents, filtering out all which are not part of this
+    /// partition. This is done in a dedicated transaction. As the database is supposed to be in
+    /// read-only mode for the running instance, this is ok as no additional documents will be
+    /// created during the time of processing.
+    ///
+    /// Next, it is processing all found documents, in a concurrent way. Meaning, this single
+    /// process instance, will process multiple documents in parallel.
+    ///
+    /// Each document is loaded and processed within a dedicated transaction. Commiting the
+    /// transaction at the end each step and before moving on the next document.
+    ///
+    /// As handlers are intended to be idempotent, there's no harm in re-running them, in case
+    /// things go wrong.
+    ///
+    /// ## Caveats
+    ///
+    /// However, this may lead to a situation where only a part of the documents is processed.
+    /// But, this is ok, as the migration is supposed to run on a clone of the database and so the
+    /// actual system is still running from the read-only clone of the original data.
     async fn process<D>(
         &self,
         storage: &DispatchBackend,
@@ -188,6 +229,9 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
 }
 
 /// A handler for data migration of documents.
+///
+/// Handlers have to be written in a way that they can be re-run multiple times on the same
+/// document without failing and creating the exact same output state.
 #[macro_export]
 macro_rules! handler {
     (async | $doc:ident: $doc_ty:ty, $model:ident, $tx:ident | $body:block) => {{

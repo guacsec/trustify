@@ -1,4 +1,4 @@
-# 00009. Re-process documents
+# 00011. Re-process documents
 
 Date: 2025-08-08
 
@@ -28,7 +28,7 @@ any stored values in the database. It therefore is necessary to re-process docum
 This ADR makes the following assumptions:
 
 * All documents are stored in the storage
-* It is expected that the step of upgrading has to be performed by someone
+* It is expected that the step of upgrading has to be performed by someone, it is not magically happening
 * Running such migrations is expected to take a long time
 * The management of infrastructure (PostgreSQL) is not in the scope of Trustify
 
@@ -52,7 +52,7 @@ We could provide an endpoint to the UI, reporting the fact that the system is in
 * 👍 Can fully migrate database (create mandatory field as optional -> re-process -> make mandatory)
 * 👍 Might allow for an out-of-band migration of data, before running the upgrade (even on a staging env)
 * 👍 Would allow to continue serving data while the process is running
-* 👎 Might be tricky to create a combined re-processing of multiple ones
+* 👎 Might be tricky to create a combined re-processing of multiple ones at the same time
 * 👎 Might block an upgrade if re-processing fails
 
 We do want to support different approaches of this migration. Depending on the needs of the user, the size of the
@@ -77,8 +77,14 @@ transaction mode of read-only.
 
 Migrations which do re-process data have to be written in a way, that they can be run and re-run without failing
 during the migration of the schema (e.g. add "if not exist"). In this case, the data migration job can be run
-"out of band" (beforehand) and the data be processed. Then, the actual upgrade and schema migration can run.
+"out of band" (beforehand) and the data be processed. Then, the actual upgrade and schema migration can run, keeping
+the SeaORM process.
 
+* The migration will block the upgrade process until it is finished
+* Ansible and the operator will need to handle this as well
+* The system will become read-only during a migration
+* The UI should let the user know the system is in read-only mode. This is a feature which has to be rolled out before
+  the data migration can be used.
 
 ## Open items
 
@@ -124,10 +130,3 @@ Have the operator orchestrate the process of switching the database into read-on
 
 This adds a lot of user-friendliness. However, it also is rather complex and so we should, as a first step, have this
 as a manual step.
-
-## Consequences
-
-* The migration will block the upgrade process until it is finished
-* Ansible and the operator will need to handle this as well
-* The system will become read-only during a migration
-* The UI needs to provide a page for monitoring the migration state. The backend needs to provide appropriate APIs.

@@ -5,6 +5,7 @@ use std::{
 };
 use trustify_entity::{advisory, sbom};
 
+/// Information required for partitioning data
 #[derive(Debug, Copy, Clone)]
 pub struct Partition {
     pub current: u64,
@@ -43,6 +44,9 @@ impl Default for Partition {
 }
 
 impl Partition {
+    /// Create a new partition of one.
+    ///
+    /// This will be one processor processing everything.
     pub const fn new_one() -> Self {
         Self {
             current: 0,

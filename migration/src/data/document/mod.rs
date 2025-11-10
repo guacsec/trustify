@@ -14,6 +14,7 @@ use trustify_entity::source_document;
 use trustify_module_storage::service::{StorageBackend, StorageKey};
 use uuid::Uuid;
 
+/// A document eligible for re-processing.
 #[allow(async_fn_in_trait)]
 pub trait Document: Sized + Send + Sync {
     type Model: Partitionable + Send;
