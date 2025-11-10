@@ -37,8 +37,8 @@ impl PurlStatusCreator {
     }
 
     /// Add a PURL status entry to be created
-    pub fn add(&mut self, entry: &PurlStatusEntry) {
-        self.entries.push(entry.clone());
+    pub fn add(&mut self, entry: PurlStatusEntry) {
+        self.entries.push(entry);
     }
 
     /// Create all collected PURL statuses in batches

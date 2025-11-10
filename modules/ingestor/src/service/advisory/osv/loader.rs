@@ -142,7 +142,7 @@ impl<'g> OsvLoader<'g> {
                     for version in affected.versions.iter().flatten() {
                         purl_creator.add(purl.with_version(version));
                         // Process explicit versions for advisory linking
-                        purl_status_creator.add(&PurlStatusEntry {
+                        purl_status_creator.add(PurlStatusEntry {
                             advisory_id: advisory_vuln.advisory.advisory.id,
                             vulnerability_id: advisory_vuln
                                 .advisory_vulnerability
@@ -170,7 +170,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Semver,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Git, _) => {
@@ -180,7 +180,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Git,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Ecosystem, Ecosystem::Maven(_)) => {
@@ -190,7 +190,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Maven,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Ecosystem, Ecosystem::PyPI | Ecosystem::Python) => {
@@ -200,7 +200,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Python,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Ecosystem, Ecosystem::Go) => {
@@ -210,7 +210,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Golang,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Ecosystem, Ecosystem::Npm) => {
@@ -220,7 +220,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Npm,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Ecosystem, Ecosystem::Packagist) => {
@@ -230,7 +230,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Packagist,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Ecosystem, Ecosystem::NuGet) => {
@@ -240,7 +240,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::NuGet,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Ecosystem, Ecosystem::RubyGems) => {
@@ -250,7 +250,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Gem,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Ecosystem, Ecosystem::Hex) => {
@@ -260,7 +260,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Hex,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Ecosystem, Ecosystem::SwiftURL) => {
@@ -270,7 +270,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Swift,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (RangeType::Ecosystem, Ecosystem::Pub) => {
@@ -280,7 +280,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     VersionScheme::Pub,
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                             (_, _) => {
@@ -290,7 +290,7 @@ impl<'g> OsvLoader<'g> {
                                     range,
                                     affected.versions.iter().flatten(),
                                 ) {
-                                    purl_status_creator.add(&entry);
+                                    purl_status_creator.add(entry);
                                 }
                             }
                         }
