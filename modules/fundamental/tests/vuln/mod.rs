@@ -57,10 +57,33 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .filter(|status| status.status == "affected")
         .collect();
 
-    assert_eq!(status_entries.len(), 1);
+    assert_eq!(status_entries.len(), 2);
     let json = serde_json::to_value(status_entries).expect("must serialize");
     assert!(
         json.contains_subset(json!([{
+            "vulnerability": {
+                "normative": true,
+                "identifier": "CVE-2024-28834",
+                "title": "Gnutls: vulnerable to minerva side-channel information leak",
+                "description": "A flaw was found in GnuTLS. The Minerva attack is a cryptographic vulnerability that exploits deterministic behavior in systems like GnuTLS, leading to side-channel leaks. In specific scenarios, such as when using the GNUTLS_PRIVKEY_FLAG_REPRODUCIBLE flag, it can result in a noticeable step in nonce size from 513 to 512 bits, exposing a potential timing side-channel.",
+                "reserved": "2024-03-11T14:43:43.973Z",
+                "published": "2024-03-21T13:29:11.532Z",
+                "modified": "2024-11-25T02:45:53.454Z",
+                "withdrawn": null,
+                "discovered": null,
+                "released": null,
+                "cwes": ["CWE-327"]
+            },
+            "average_severity": "medium",
+            "average_score": 5.3,
+            "status": "affected",
+            "context": null,
+            "version_range": {
+                "version_scheme_id": "rpm",
+                "right": "3.7.6-23.el9_3.4",
+                "right_inclusive": false,
+            }
+        }, {
             "vulnerability": {
                 "normative": true,
                 "identifier": "CVE-2024-28834",

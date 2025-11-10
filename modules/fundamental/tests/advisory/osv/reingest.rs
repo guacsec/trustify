@@ -132,7 +132,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
             status: "affected".to_string(),
             context: None,
             version_range: Some(VersionRange::Full {
-                version_scheme_id: "cran".into(),
+                version_scheme_id: "generic".into(),
                 left: "1.0".into(),
                 left_inclusive: true,
                 right: "1.0".into(),
@@ -153,7 +153,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
             status: "affected".to_string(),
             context: None,
             version_range: Some(VersionRange::Full {
-                version_scheme_id: "cran".into(),
+                version_scheme_id: "generic".into(),
                 left: "1.0".into(),
                 left_inclusive: true,
                 right: "1.0".into(),
