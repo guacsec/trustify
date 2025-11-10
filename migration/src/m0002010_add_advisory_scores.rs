@@ -1,11 +1,9 @@
-use crate::{
-    advisory,
-    data::{Advisory as AdvisoryDoc, MigrationTraitWithData, SchemaDataManager},
-};
-use sea_orm::sea_query::extension::postgres::*;
+use crate::data::{Advisory, MigrationTraitWithData, SchemaDataManager};
+use sea_orm::{DatabaseTransaction, sea_query::extension::postgres::*};
 use sea_orm_migration::prelude::*;
 use strum::VariantNames;
 use trustify_common::db::create_enum_if_not_exists;
+use trustify_entity::advisory;
 use trustify_module_ingestor::{
     graph::cvss::ScoreCreator,
     service::advisory::{csaf, cve, osv},
@@ -99,16 +97,16 @@ impl MigrationTraitWithData for Migration {
         manager
             .process(
                 self,
-                advisory!(async |advisory, model, tx| {
+                async |advisory: Advisory, model: advisory::Model, tx: &DatabaseTransaction| {
                     let mut creator = ScoreCreator::new(model.id);
                     match advisory {
-                        AdvisoryDoc::Cve(advisory) => {
+                        Advisory::Cve(advisory) => {
                             cve::extract_scores(&advisory, &mut creator);
                         }
-                        AdvisoryDoc::Csaf(advisory) => {
+                        Advisory::Csaf(advisory) => {
                             csaf::extract_scores(&advisory, &mut creator);
                         }
-                        AdvisoryDoc::Osv(advisory) => {
+                        Advisory::Osv(advisory) => {
                             osv::extract_scores(&advisory, &mut creator);
                         }
                         _ => {
@@ -119,7 +117,7 @@ impl MigrationTraitWithData for Migration {
                     creator.create(tx).await?;
 
                     Ok(())
-                }),
+                },
             )
             .await?;
 

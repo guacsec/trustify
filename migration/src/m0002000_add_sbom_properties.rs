@@ -1,10 +1,8 @@
-use crate::{
-    data::{MigrationTraitWithData, Sbom as SbomDoc, SchemaDataManager},
-    sbom,
-};
-use sea_orm::{ActiveModelTrait, IntoActiveModel, Set};
+use crate::data::{MigrationTraitWithData, Sbom as SbomDoc, SchemaDataManager};
+use sea_orm::{ActiveModelTrait, DatabaseTransaction, IntoActiveModel, Set};
 use sea_orm_migration::prelude::*;
 use trustify_common::advisory::cyclonedx::extract_properties_json;
+use trustify_entity::sbom;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -38,7 +36,7 @@ impl MigrationTraitWithData for Migration {
         manager
             .process(
                 self,
-                sbom!(async |sbom, model, tx| {
+                async |sbom: SbomDoc, model: sbom::Model, tx: &DatabaseTransaction| {
                     let mut model = model.into_active_model();
                     match sbom {
                         SbomDoc::CycloneDx(sbom) => {
@@ -55,7 +53,7 @@ impl MigrationTraitWithData for Migration {
                     model.save(tx).await?;
 
                     Ok(())
-                }),
+                },
             )
             .await?;
 

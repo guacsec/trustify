@@ -17,9 +17,9 @@ mod sbom {
     use migration::{
         ColumnDef, DeriveIden, DeriveMigrationName, Table, async_trait,
         data::{MigrationTraitWithData, Sbom as SbomDoc, SchemaDataManager},
-        sbom,
     };
-    use sea_orm::{ConnectionTrait, DbErr, Statement};
+    use sea_orm::{ConnectionTrait, DatabaseTransaction, DbErr, Statement};
+    use trustify_entity::sbom;
 
     #[derive(DeriveMigrationName)]
     pub struct Migration;
@@ -50,7 +50,7 @@ mod sbom {
             manager
                 .process(
                     self,
-                    sbom!(async |sbom, model, tx| {
+                    async |sbom: SbomDoc, model: sbom::Model, tx: &DatabaseTransaction| {
                         // we just pick a random value
                         let value = match sbom {
                             SbomDoc::CycloneDx(sbom) => sbom.serial_number,
@@ -70,7 +70,7 @@ mod sbom {
                         }
 
                         Ok(())
-                    }),
+                    },
                 )
                 .await?;
 

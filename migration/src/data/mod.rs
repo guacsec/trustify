@@ -21,6 +21,7 @@ use std::{
 };
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
+/// A handler for processing a [`Document`] data migration.
 #[allow(async_fn_in_trait)]
 pub trait Handler<D>: Send
 where
@@ -32,6 +33,21 @@ where
         model: D::Model,
         tx: &DatabaseTransaction,
     ) -> anyhow::Result<()>;
+}
+
+impl<F, D> Handler<D> for F
+where
+    D: Document,
+    for<'x> F: AsyncFn(D, D::Model, &'x DatabaseTransaction) -> anyhow::Result<()> + Send,
+{
+    async fn call(
+        &self,
+        document: D,
+        model: D::Model,
+        tx: &DatabaseTransaction,
+    ) -> anyhow::Result<()> {
+        (self)(document, model, tx).await
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, clap::Parser)]
@@ -108,7 +124,7 @@ impl From<&Options> for Partition {
     }
 }
 
-/// A trait for processing documents
+/// A trait for processing documents using a [`Handler`].
 pub trait DocumentProcessor {
     fn process<D>(
         &self,
@@ -226,50 +242,6 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
 
         Ok(())
     }
-}
-
-/// A handler for data migration of documents.
-///
-/// Handlers have to be written in a way that they can be re-run multiple times on the same
-/// document without failing and creating the exact same output state.
-#[macro_export]
-macro_rules! handler {
-    (async | $doc:ident: $doc_ty:ty, $model:ident, $tx:ident | $body:block) => {{
-        struct H;
-
-        impl $crate::data::Handler<$doc_ty> for H {
-            async fn call(
-                &self,
-                $doc: $doc_ty,
-                $model: <$doc_ty as $crate::data::Document>::Model,
-                $tx: &sea_orm::DatabaseTransaction,
-            ) -> anyhow::Result<()> {
-                $body
-            }
-        }
-
-        H
-    }};
-}
-
-/// A handler for SBOMs.
-///
-/// See: [`handler!`].
-#[macro_export]
-macro_rules! sbom {
-    (async | $doc:ident, $model:ident, $tx:ident | $body:block) => {
-        $crate::handler!(async |$doc: $crate::data::Sbom, $model, $tx| $body)
-    };
-}
-
-/// A handler for advisories.
-///
-/// See: [`handler!`].
-#[macro_export]
-macro_rules! advisory {
-    (async | $doc:ident, $model:ident, $tx:ident | $body:block) => {
-        $crate::handler!(async |$doc: $crate::data::Advisory, $model, $tx| $body)
-    };
 }
 
 pub trait MigratorWithData {
