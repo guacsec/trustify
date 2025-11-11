@@ -1,6 +1,7 @@
 mod cyclonedx;
 mod dot;
 mod latest_filters;
+pub mod req;
 mod rh_variant;
 mod spdx;
 
