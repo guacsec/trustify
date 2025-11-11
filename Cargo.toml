@@ -40,7 +40,7 @@ actix-web-extras = "0.1"
 actix-web-httpauth = "0.8"
 actix-web-static-files = "4.0.1"
 anyhow = "1.0.72"
-async-compression = "0.4.13"
+async-compression = "=0.4.31" # FIXME: unpin when https://github.com/Nullus157/async-compression/issues/420 is sorted
 async-graphql = "7.0.5"
 async-graphql-actix-web = "7.0.5"
 async-trait = "0.1.74"
@@ -184,6 +184,10 @@ postgresql_archive = { version = "0.20.0", default-features = false, features = 
 postgresql_embedded = { version = "0.20.0", default-features = false, features = ["theseus", "rustls"] }
 postgresql_commands = { version = "0.20.0", default-features = false, features = ["tokio"] }
 
+# FIXME: drop when https://github.com/Nullus157/async-compression/issues/420 is sorted
+compression-core = "=0.4.29"
+compression-codecs = "=0.4.30"
+
 [patch.crates-io]
 #csaf-walker = { git = "https://github.com/ctron/csaf-walker", rev = "7b6e64dd56e4be79e184b053ef754a42e1496fe0" }
 #sbom-walker = { git = "https://github.com/ctron/csaf-walker", rev = "7b6e64dd56e4be79e184b053ef754a42e1496fe0" }
@@ -202,7 +206,7 @@ postgresql_commands = { version = "0.20.0", default-features = false, features =
 # required due to https://github.com/KenDJohnson/cpe-rs/pull/15
 #cpe = { git = "https://github.com/ctron/cpe-rs", rev = "c3c05e637f6eff7dd4933c2f56d070ee2ddfb44b" }
 # required due to https://github.com/voteblake/csaf-rs/pull/29
-csaf = { git = "https://github.com/trustification/csaf-rs" }
+csaf = { git = "https://github.com/trustification/csaf-rs", rev = "17620a225744b4a18845d4f7bf63354e01109b91" }
 # required due to https://github.com/gcmurphy/osv/pull/58
 #osv = { git = "https://github.com/ctron/osv", branch = "feature/drop_deps_1" }
 

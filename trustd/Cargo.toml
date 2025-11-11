@@ -10,6 +10,10 @@ name = "trustd"
 path = "src/main.rs"
 
 [dependencies]
+# FIXME: drop when https://github.com/Nullus157/async-compression/issues/420 is sorted
+compression-core = { workspace = true }
+compression-codecs = { workspace = true }
+
 trustify-common = { workspace = true }
 trustify-db = { workspace = true }
 trustify-infrastructure = { workspace = true }
