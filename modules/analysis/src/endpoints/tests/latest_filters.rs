@@ -1,6 +1,6 @@
 use super::req::*;
 use crate::test::caller;
-use serde_json::json;
+use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
 use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
