@@ -1,11 +1,9 @@
+use super::req::*;
 use crate::test::caller;
-
-use actix_http::Request;
-use actix_web::test::TestRequest;
-use serde_json::{Value, json};
+use serde_json::json;
 use test_context::test_context;
 use test_log::test;
-use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
+use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -24,65 +22,59 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
     ])
         .await?;
 
-    let uri: String = "/api/v2/analysis/component".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app.req(Req::default()).await?;
 
     // cpe search
-    let uri: String = format!(
-        "/api/v2/analysis/component/{}",
-        urlencoding::encode("cpe:/a:redhat:quay:3::el8")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
-    assert!(response.contains_subset(json!({
-      "total":2
-    })));
+    let response = app
+        .req(Req {
+            loc: Loc::Id("cpe:/a:redhat:quay:3::el8"),
+            ..Req::default()
+        })
+        .await?;
+    assert_eq!(2, response["total"]);
 
     // cpe latest search
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component/{}",
-        urlencoding::encode("cpe:/a:redhat:quay:3::el8")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
-    assert!(response.contains_subset(json!({
-      "total":1
-    })));
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Id("cpe:/a:redhat:quay:3::el8"),
+            ..Req::default()
+        })
+        .await?;
+    assert_eq!(1, response["total"]);
 
     // purl partial search
-    let uri: String = format!(
-        "/api/v2/analysis/component?q={}&ancestors=10",
-        urlencoding::encode("pkg:oci/quay-builder-qemu-rhcos-rhel8")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            loc: Loc::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(18, response["total"]);
 
     // purl partial search latest
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component?q={}&ancestors=10",
-        urlencoding::encode("pkg:oci/quay-builder-qemu-rhcos-rhel8")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
-    log::warn!("{:?}", response.get("total"));
-    assert!(response.contains_subset(json!({
-      "total":2
-    })));
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
+    assert_eq!(2, response["total"]);
 
     // purl partial search latest
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component?q={}&ancestors=10",
-        urlencoding::encode("purl:name~quay-builder-qemu-rhcos-rhel8&purl:ty=oci")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
-    log::warn!("{:?}", response.get("total"));
-    assert!(response.contains_subset(json!({
-      "total":7
-    })));
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Q("purl:name~quay-builder-qemu-rhcos-rhel8&purl:ty=oci"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
+    assert_eq!(7, response["total"]);
+
     Ok(())
 }
 
@@ -101,72 +93,74 @@ async fn resolve_rh_variant_latest_filter_rpms_cdx(
     ])
         .await?;
 
-    let uri: String = "/api/v2/analysis/component".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app.req(Req::default()).await?;
 
     // cpe search
-    let uri: String = format!(
-        "/api/v2/analysis/component/{}",
-        urlencoding::encode("cpe:/a:redhat:rhel_eus:9.4::crb")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            loc: Loc::Id("cpe:/a:redhat:rhel_eus:9.4::crb"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 2);
 
     // cpe latest search
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component/{}",
-        urlencoding::encode("cpe:/a:redhat:rhel_eus:9.4::crb")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Id("cpe:/a:redhat:rhel_eus:9.4::crb"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 1);
 
     // purl partial search
-    let uri: String = format!(
-        "/api/v2/analysis/component?q={}&ancestors=10",
-        urlencoding::encode("pkg:rpm/redhat/NetworkManager-libnm")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 30);
 
     // purl partial latest search
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component?q={}",
-        urlencoding::encode("pkg:rpm/redhat/NetworkManager-libnm")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 15);
 
     // purl more specific latest q search
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component?q={}",
-        urlencoding::encode("pkg:rpm/redhat/NetworkManager-libnm-devel@")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm-devel@"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 5);
 
     // name exact search
-    let uri: String = format!(
-        "/api/v2/analysis/component/{}",
-        urlencoding::encode("NetworkManager-libnm-devel")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            loc: Loc::Id("NetworkManager-libnm-devel"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 10);
 
     // latest name exact search
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component/{}",
-        urlencoding::encode("NetworkManager-libnm-devel")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Id("NetworkManager-libnm-devel"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 5);
 
     Ok(())
@@ -189,63 +183,64 @@ async fn resolve_rh_variant_latest_filter_middleware_cdx(
     ])
     .await?;
 
-    let uri: String = "/api/v2/analysis/component".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app.req(Req::default()).await?;
 
     // cpe search
-    let uri: String = format!(
-        "/api/v2/analysis/component/{}",
-        urlencoding::encode("cpe:/a:redhat:camel_quarkus:3")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            loc: Loc::Id("cpe:/a:redhat:camel_quarkus:3"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 2);
 
     // cpe latest search
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component/{}",
-        urlencoding::encode("cpe:/a:redhat:camel_quarkus:3")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Id("cpe:/a:redhat:camel_quarkus:3"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 1);
 
     // purl partial search
-    let uri: String = format!(
-        "/api/v2/analysis/component?q={}&ancestors=10",
-        urlencoding::encode("pkg:maven/io.vertx/vertx-core@")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            loc: Loc::Q("pkg:maven/io.vertx/vertx-core@"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 6);
 
     // purl partial latest search
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component?q={}",
-        urlencoding::encode("pkg:maven/io.vertx/vertx-core@")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Q("pkg:maven/io.vertx/vertx-core@"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 2);
 
     // name exact search
-    let uri: String = format!(
-        "/api/v2/analysis/component/{}",
-        urlencoding::encode("vertx-core")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            loc: Loc::Id("vertx-core"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 6);
 
     // latest name exact search
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component/{}",
-        urlencoding::encode("vertx-core")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Id("vertx-core"),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(response["total"], 2);
 
     Ok(())
@@ -266,18 +261,17 @@ async fn test_tc2606(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ])
     .await?;
 
-    let uri: String = "/api/v2/analysis/component".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app.req(Req::default()).await?;
 
     // latest cpe search
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component/{}?descendants=1",
-        urlencoding::encode("cpe:/a:redhat:rhel_eus:9.4::appstream")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Id("cpe:/a:redhat:rhel_eus:9.4::appstream"),
+            descendants: Some(1),
+            ..Req::default()
+        })
+        .await?;
     log::info!("{response:#?}");
     assert_eq!(response["total"], 2);
 
@@ -360,18 +354,18 @@ async fn test_tc2677(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ])
     .await?;
 
-    let uri: String = "/api/v2/analysis/component".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app.req(Req::default()).await?;
 
     // latest cpe search
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component/{}?descendants=10",
-        urlencoding::encode("cpe:/a:redhat:3scale:2.15::el9")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Id("cpe:/a:redhat:3scale:2.15::el9"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
+
     log::info!("{response:#?}");
     assert_eq!(response["total"], 1);
 
@@ -438,17 +432,16 @@ async fn test_tc2717(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ])
     .await?;
 
-    let uri: String = "/api/v2/analysis/component".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app.req(Req::default()).await?;
 
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component/{}",
-        urlencoding::encode("pkg:maven/io.vertx/vertx-core")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Id("pkg:maven/io.vertx/vertx-core"),
+            ..Req::default()
+        })
+        .await?;
+
     assert_eq!(response["total"], 2);
 
     Ok(())
@@ -472,17 +465,17 @@ async fn test_tc2578(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ])
     .await?;
 
-    let uri: String = "/api/v2/analysis/component".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app.req(Req::default()).await?;
 
-    let uri: String = format!(
-        "/api/v2/analysis/latest/component/{}?descendants=100",
-        urlencoding::encode("cpe:/a:redhat:jboss_enterprise_application_platform:7.4")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response = app
+        .req(Req {
+            latest: true,
+            loc: Loc::Id("cpe:/a:redhat:jboss_enterprise_application_platform:7.4"),
+            descendants: Some(100),
+            ..Req::default()
+        })
+        .await?;
+
     assert_eq!(response["total"], 1);
     assert!(response.contains_subset(json!(
     {
@@ -519,5 +512,6 @@ async fn test_tc2578(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     }],
   "total": 1
 })));
+
     Ok(())
 }
