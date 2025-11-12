@@ -34,8 +34,9 @@ impl SbomContext {
             purls.add(purl);
             licenses.add(&license_info);
         }
-        purls.create(db).await?;
+        // Order matters to prevent cross-table deadlocks - licenses before purls
         licenses.create(db).await?;
+        purls.create(db).await?;
 
         // purl_license_assertion::Entity::insert_many(assertions)
         //     .on_conflict(

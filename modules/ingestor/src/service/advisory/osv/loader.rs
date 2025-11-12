@@ -11,6 +11,7 @@ use crate::{
             creator::PurlCreator,
             status_creator::{PurlStatusCreator, PurlStatusEntry},
         },
+        vulnerability::creator::VulnerabilityCreator,
     },
     model::IngestResult,
     service::{
@@ -52,13 +53,17 @@ impl<'g> OsvLoader<'g> {
 
         let tx = self.graph.db.begin().await?;
 
-        let cve_ids = osv.aliases.iter().flat_map(|aliases| {
-            aliases
-                .iter()
-                .filter(|e| e.starts_with("CVE-"))
-                .cloned()
-                .collect::<Vec<_>>()
-        });
+        let cve_ids: Vec<String> = osv
+            .aliases
+            .iter()
+            .flat_map(|aliases| {
+                aliases
+                    .iter()
+                    .filter(|e| e.starts_with("CVE-"))
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
+            .collect();
 
         let information = AdvisoryInformation {
             id: osv.id.clone(),
@@ -81,16 +86,21 @@ impl<'g> OsvLoader<'g> {
                 .await?;
         }
 
+        // Batch create all vulnerabilities
+        let mut vuln_creator = VulnerabilityCreator::new();
+        for cve_id in &cve_ids {
+            vuln_creator.add(cve_id, ());
+        }
+        vuln_creator.create(&tx).await?;
+
         let mut purl_creator = PurlCreator::new();
         let mut purl_status_creator = PurlStatusCreator::new();
         let mut base_purls = HashSet::new();
 
-        for cve_id in cve_ids {
-            self.graph.ingest_vulnerability(&cve_id, (), &tx).await?;
-
+        for cve_id in &cve_ids {
             let advisory_vuln = advisory
                 .link_to_vulnerability(
-                    &cve_id,
+                    cve_id,
                     Some(AdvisoryVulnerabilityInformation {
                         title: osv.summary.clone(),
                         summary: osv.summary.clone(),

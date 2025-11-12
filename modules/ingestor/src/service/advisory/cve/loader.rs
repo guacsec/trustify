@@ -5,11 +5,12 @@ use crate::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
             version::{Version, VersionInfo, VersionSpec},
         },
+        error::Error::Any,
         purl::{
             self,
             status_creator::{PurlStatusCreator, PurlStatusEntry},
         },
-        vulnerability::VulnerabilityInformation,
+        vulnerability::{VulnerabilityInformation, creator::VulnerabilityCreator},
     },
     model::IngestResult,
     service::{Error, Warnings, advisory::cve::divination::divine_purl},
@@ -81,10 +82,17 @@ impl<'g> CveLoader<'g> {
             withdrawn: information.withdrawn,
         };
 
+        // Batch create vulnerability (single entry for CVE, but using creator for consistency)
+        let mut vuln_creator = VulnerabilityCreator::new();
+        vuln_creator.add(id, information.clone());
+        vuln_creator.create(&tx).await?;
+
+        // Get the vulnerability context for description handling
         let vulnerability = self
             .graph
-            .ingest_vulnerability(id, information, &tx)
-            .await?;
+            .get_vulnerability(id, &tx)
+            .await?
+            .ok_or_else(|| Any(anyhow::anyhow!("Failed to find vulnerability: {}", id)))?;
 
         let entries = Self::build_descriptions(descriptions);
         let english_description = Self::find_best_description_for_title(descriptions);

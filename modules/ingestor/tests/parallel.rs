@@ -1,5 +1,6 @@
 //! Testing parallel operations
 
+use bytes::Bytes;
 use csaf::Csaf;
 use serde_json::Value;
 use spdx_rs::models::SPDX;
@@ -301,5 +302,61 @@ async fn advisories_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     assert_all_ok(data.len(), result);
 
     // done
+    Ok(())
+}
+
+/// Ingest SBOMs and Advisories in parallel
+#[test_context(TrustifyContext)]
+#[instrument]
+#[test(tokio::test(flavor = "multi_thread", worker_threads = 4))]
+async fn sbom_advisories_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Load all SBOMs from parallel test data
+    let mut sbom_data = vec![];
+    sbom_data.push(document_bytes("cyclonedx/rhel-9.2-eus.cdx.json.bz2").await?);
+    sbom_data.push(document_bytes("spdx/rhel-9.2-eus.spdx.json.bz2").await?);
+
+    // Load all advisories from parallel test data
+    let mut advisory_data: Vec<Bytes> = vec![];
+    advisory_data.push(document_bytes("csaf/RHSA-2024_2705.json.bz2").await?);
+    advisory_data.push(document_bytes("csaf/RHSA-CVE-2024-29025.json.bz2").await?);
+
+    // Create tasks for SBOM ingestion
+    let mut sbom_tasks = vec![];
+    sbom_data.iter().for_each(|sbom| {
+        let next = sbom.clone();
+        let service = ctx.ingestor.clone();
+        sbom_tasks.push(async move {
+            service
+                .ingest(&next, Format::SBOM, (), None, Cache::Skip)
+                .await?;
+            Ok::<_, anyhow::Error>(())
+        });
+    });
+
+    // Create tasks for advisory ingestion
+    let mut advisory_tasks = vec![];
+    advisory_data.iter().for_each(|advisory| {
+        let next = advisory.clone();
+        let service = ctx.ingestor.clone();
+        advisory_tasks.push(async move {
+            service
+                .ingest(&next, Format::Advisory, (), None, Cache::Skip)
+                .await?;
+            Ok::<_, anyhow::Error>(())
+        });
+    });
+
+    // Progress ingestion tasks concurrently
+    let (sbom_result, advisory_result) = futures::future::join(
+        futures::future::join_all(sbom_tasks),
+        futures::future::join_all(advisory_tasks),
+    )
+    .await;
+
+    // Verify all ingestions succeeded
+    let mut all_results = sbom_result;
+    all_results.extend(advisory_result);
+    assert_all_ok(sbom_data.len() + advisory_data.len(), all_results);
+
     Ok(())
 }

@@ -331,11 +331,12 @@ impl<'a> Creator<'a> {
             .validate(sources)
             .map_err(Error::InvalidContent)?;
 
-        // create
+        // create - order matters to prevent cross-table deadlocks when running concurrent
+        // SBOM ingestions. All SBOM loaders must use the same table insertion order.
 
+        licenses.create(db).await?;
         purls.create(db).await?;
         cpes.create(db).await?;
-        licenses.create(db).await?;
         packages.create(db).await?;
         relationships.create(db).await?;
 
