@@ -3,6 +3,7 @@
 use crate::service::{StorageBackend, StorageKey};
 use bytes::BytesMut;
 use futures::TryStreamExt;
+use rand::Rng;
 use trustify_common::id::Id;
 
 pub async fn test_store_read_and_delete<B: StorageBackend>(backend: B) {
@@ -34,6 +35,39 @@ pub async fn test_store_read_and_delete<B: StorageBackend>(backend: B) {
         .delete(digest.key())
         .await
         .expect("delete should be idempotent");
+}
+
+/// Use random content in various sizes
+pub async fn test_store_read_and_delete_rng<B: StorageBackend>(backend: B) {
+    for i in 1..1024 {
+        let i = i * 1024 + rand::rng().random_range(0..=100);
+        let content = vec![0u8; i];
+
+        let digest = backend
+            .store(content.as_slice())
+            .await
+            .expect("store must succeed");
+
+        let stream = backend
+            .retrieve(digest.key())
+            .await
+            .expect("retrieve must succeed")
+            .expect("must be found");
+
+        let read = stream.try_collect::<BytesMut>().await.unwrap();
+
+        assert_eq!(read.as_ref(), content);
+
+        backend
+            .delete(digest.key())
+            .await
+            .expect("delete must succeed");
+        assert!(backend.retrieve(digest.key()).await.unwrap().is_none());
+        backend
+            .delete(digest.key())
+            .await
+            .expect("delete should be idempotent");
+    }
 }
 
 pub async fn test_read_not_found<B: StorageBackend>(backend: B) {

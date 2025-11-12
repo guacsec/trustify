@@ -193,7 +193,7 @@ mod test {
     use super::*;
     use crate::service::{
         dispatch::DispatchBackend,
-        test::{test_read_not_found, test_store_read_and_delete},
+        test::{test_read_not_found, test_store_read_and_delete, test_store_read_and_delete_rng},
     };
     use bytes::BytesMut;
     use futures::StreamExt;
@@ -251,6 +251,16 @@ mod test {
         let (backend, _dir) = backend(compression).await;
 
         test_store_read_and_delete(backend).await
+    }
+
+    #[test(tokio::test)]
+    #[rstest]
+    #[case(Compression::None)]
+    #[case(Compression::Zstd)]
+    async fn store_read_and_delete_rng(#[case] compression: Compression) {
+        let (backend, _dir) = backend(compression).await;
+
+        test_store_read_and_delete_rng(backend).await
     }
 
     /// This test should ensure that we can also read compression algorithm other than the
