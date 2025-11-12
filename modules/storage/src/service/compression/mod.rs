@@ -3,8 +3,7 @@ use async_compression::tokio::write::ZstdEncoder;
 use std::fmt::{Display, Formatter};
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tokio::io;
-use tokio::io::{AsyncBufRead, AsyncRead, AsyncWrite, BufReader, ReadBuf};
+use tokio::io::{self, AsyncBufRead, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader, ReadBuf};
 
 #[derive(
     Copy, Clone, Eq, PartialEq, Default, Debug, strum::EnumIter, strum::EnumString, clap::ValueEnum,
@@ -58,14 +57,27 @@ impl Compression {
     }
 
     /// Write content, compressed.
-    pub async fn write<R, W>(&self, r: &mut R, w: &mut W) -> io::Result<u64>
+    pub async fn write<R, W>(&self, r: &mut R, mut w: &mut W) -> io::Result<u64>
     where
         R: AsyncRead + Unpin,
         W: AsyncWrite + Unpin,
     {
+        /// [io::copy] and [`AsyncWriteExt::shutdown`]
+        ///
+        /// As we take ownership of the output stream, ensure that we shut down it, writing
+        /// remaining content.
+        async fn copy_shutdown(
+            r: &mut (impl AsyncRead + Unpin),
+            mut w: &mut (impl AsyncWrite + Unpin),
+        ) -> io::Result<u64> {
+            let result = io::copy(r, &mut w).await?;
+            w.shutdown().await?;
+            Ok(result)
+        }
+
         match self {
-            Self::None => io::copy(r, w).await,
-            Self::Zstd => io::copy(r, &mut ZstdEncoder::new(w)).await,
+            Self::None => copy_shutdown(r, &mut w).await,
+            Self::Zstd => copy_shutdown(r, &mut ZstdEncoder::new(&mut w)).await,
         }
     }
 

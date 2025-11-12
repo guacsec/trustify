@@ -5,7 +5,7 @@ use sha2::Digest;
 use std::{env, fs::File, path::Path, path::PathBuf};
 use tokio::{
     fs,
-    io::{self, AsyncBufReadExt, AsyncReadExt, BufReader},
+    io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     task,
 };
 
@@ -324,6 +324,8 @@ async fn download_artifacts(
             let chunk = chunk?;
             io::copy(&mut chunk.as_ref(), &mut dest).await?;
         }
+
+        dest.shutdown().await?;
     }
 
     Ok(())
