@@ -58,10 +58,10 @@ jobs:
               sudo apt install -y libssl-dev
 
           - target: x86_64-apple-darwin
-            os: macos-13
+            os: macos-15-intel
             args: --features vendored
           - target: aarch64-apple-darwin
-            os: macos-14
+            os: macos-15
             args: --features vendored
 
           - target: x86_64-pc-windows-msvc
