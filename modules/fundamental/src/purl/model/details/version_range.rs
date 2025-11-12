@@ -9,20 +9,20 @@ use crate::Error;
 pub enum VersionRange {
     Full {
         version_scheme_id: String,
-        left: String,
-        left_inclusive: bool,
-        right: String,
-        right_inclusive: bool,
+        low_version: String,
+        low_inclusive: bool,
+        high_version: String,
+        high_inclusive: bool,
     },
     Left {
         version_scheme_id: String,
-        left: String,
-        left_inclusive: bool,
+        low_version: String,
+        low_inclusive: bool,
     },
     Right {
         version_scheme_id: String,
-        right: String,
-        right_inclusive: bool,
+        high_version: String,
+        high_inclusive: bool,
     },
 }
 
@@ -37,21 +37,21 @@ impl VersionRange {
             (Some(left), Some(left_inclusive), Some(right), Some(right_inclusive)) => {
                 Ok(VersionRange::Full {
                     version_scheme_id: value.version_scheme_id.to_string(),
-                    left,
-                    left_inclusive,
-                    right,
-                    right_inclusive,
+                    low_version: left,
+                    low_inclusive: left_inclusive,
+                    high_version: right,
+                    high_inclusive: right_inclusive,
                 })
             }
             (None, None, Some(right), Some(right_inclusive)) => Ok(VersionRange::Right {
                 version_scheme_id: value.version_scheme_id.to_string(),
-                right,
-                right_inclusive,
+                high_version: right,
+                high_inclusive: right_inclusive,
             }),
             (Some(left), Some(left_inclusive), None, None) => Ok(VersionRange::Left {
                 version_scheme_id: value.version_scheme_id.to_string(),
-                left,
-                left_inclusive,
+                low_version: left,
+                low_inclusive: left_inclusive,
             }),
             _ => Err(Error::Data("invalid version_range model".into())),
         }

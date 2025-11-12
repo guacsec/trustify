@@ -80,8 +80,8 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             "context": null,
             "version_range": {
                 "version_scheme_id": "rpm",
-                "right": "3.7.6-23.el9_3.4",
-                "right_inclusive": false,
+                "high_version": "3.7.6-23.el9_3.4",
+                "high_inclusive": false,
             }
         }, {
             "vulnerability": {
@@ -103,8 +103,8 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             "context": null,
             "version_range": {
                 "version_scheme_id": "rpm",
-                "right": "3.8.3-4.el9_4",
-                "right_inclusive": false,
+                "high_version": "3.8.3-4.el9_4",
+                "high_inclusive": false,
             }
         }])),
         "doesn't match: {json:#?}"

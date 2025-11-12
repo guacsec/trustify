@@ -5115,43 +5115,43 @@ components:
       - type: object
         required:
         - version_scheme_id
-        - left
-        - left_inclusive
-        - right
-        - right_inclusive
+        - low_version
+        - low_inclusive
+        - high_version
+        - high_inclusive
         properties:
-          left:
-            type: string
-          left_inclusive:
+          high_inclusive:
             type: boolean
-          right:
+          high_version:
             type: string
-          right_inclusive:
+          low_inclusive:
             type: boolean
+          low_version:
+            type: string
           version_scheme_id:
             type: string
       - type: object
         required:
         - version_scheme_id
-        - left
-        - left_inclusive
+        - low_version
+        - low_inclusive
         properties:
-          left:
-            type: string
-          left_inclusive:
+          low_inclusive:
             type: boolean
+          low_version:
+            type: string
           version_scheme_id:
             type: string
       - type: object
         required:
         - version_scheme_id
-        - right
-        - right_inclusive
+        - high_version
+        - high_inclusive
         properties:
-          right:
-            type: string
-          right_inclusive:
+          high_inclusive:
             type: boolean
+          high_version:
+            type: string
           version_scheme_id:
             type: string
     VersionedPurlHead:

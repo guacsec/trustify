@@ -165,10 +165,10 @@ async fn change_ps_list_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
             )),
             version_range: Some(VersionRange::Full {
                 version_scheme_id: "rpm".into(),
-                left: "1.76.0-4.redhat_00001.1.el9eap".into(),
-                left_inclusive: true,
-                right: "1.76.0-4.redhat_00001.1.el9eap".into(),
-                right_inclusive: true
+                low_version: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                low_inclusive: true,
+                high_version: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                high_inclusive: true
             }),
         }]
     );
@@ -275,10 +275,10 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
             )),
             version_range: Some(VersionRange::Full {
                 version_scheme_id: "rpm".into(),
-                left: "1.76.0-4.redhat_00001.1.el9eap".into(),
-                left_inclusive: true,
-                right: "1.76.0-4.redhat_00001.1.el9eap".into(),
-                right_inclusive: true
+                low_version: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                low_inclusive: true,
+                high_version: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                high_inclusive: true
             }),
         }]
     );
@@ -298,10 +298,10 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
             )),
             version_range: Some(VersionRange::Full {
                 version_scheme_id: "rpm".into(),
-                left: "1.76.0-4.redhat_00001.1.el9eap".into(),
-                left_inclusive: true,
-                right: "1.76.0-4.redhat_00001.1.el9eap".into(),
-                right_inclusive: true
+                low_version: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                low_inclusive: true,
+                high_version: "1.76.0-4.redhat_00001.1.el9eap".into(),
+                high_inclusive: true
             }),
         }]
     );

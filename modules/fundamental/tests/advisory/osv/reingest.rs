@@ -133,10 +133,10 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
             context: None,
             version_range: Some(VersionRange::Full {
                 version_scheme_id: "generic".into(),
-                left: "1.0".into(),
-                left_inclusive: true,
-                right: "1.0".into(),
-                right_inclusive: true
+                low_version: "1.0".into(),
+                low_inclusive: true,
+                high_version: "1.0".into(),
+                high_inclusive: true
             }),
         }]
     );
@@ -154,10 +154,10 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
             context: None,
             version_range: Some(VersionRange::Full {
                 version_scheme_id: "generic".into(),
-                left: "1.0".into(),
-                left_inclusive: true,
-                right: "1.0".into(),
-                right_inclusive: true
+                low_version: "1.0".into(),
+                low_inclusive: true,
+                high_version: "1.0".into(),
+                high_inclusive: true
             }),
         }]
     );
