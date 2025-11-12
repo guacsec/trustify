@@ -5,6 +5,7 @@ use crate::{
             AdvisoryContext, AdvisoryInformation, AdvisoryVulnerabilityInformation,
             advisory_vulnerability::AdvisoryVulnerabilityContext,
         },
+        vulnerability::creator::VulnerabilityCreator,
     },
     model::IngestResult,
     service::{
@@ -111,6 +112,16 @@ impl<'g> CsafLoader<'g> {
             .ingest_advisory(&advisory_id, labels, digests, Information(&csaf), &tx)
             .await?;
 
+        // Batch create all vulnerabilities first
+        let mut vuln_creator = VulnerabilityCreator::new();
+        for vuln in csaf.vulnerabilities.iter().flatten() {
+            if let Some(cve_id) = &vuln.cve {
+                vuln_creator.add(cve_id, ());
+            }
+        }
+        vuln_creator.create(&tx).await?;
+
+        // Then process each vulnerability for linking and product status
         for vuln in csaf.vulnerabilities.iter().flatten() {
             self.ingest_vulnerability(&csaf, &advisory, vuln, &warnings, &tx)
                 .await?;
@@ -143,10 +154,7 @@ impl<'g> CsafLoader<'g> {
             return Ok(());
         };
 
-        self.graph
-            .ingest_vulnerability(cve_id, (), connection)
-            .await?;
-
+        // Vulnerability already created in batch, just link it
         let advisory_vulnerability = advisory
             .link_to_vulnerability(
                 cve_id,
