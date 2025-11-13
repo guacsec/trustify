@@ -5,6 +5,7 @@ use crate::{
     graph::{
         CreateOutcome, Graph, Outcome,
         advisory::advisory_vulnerability::AdvisoryVulnerabilityContext, error::Error,
+        organization::creator::OrganizationCreator,
     },
 };
 use sea_orm::{
@@ -143,8 +144,14 @@ impl Graph {
             CreateOutcome::Created(new_id) => new_id,
         };
 
-        let organization = if let Some(issuer) = issuer {
-            Some(self.ingest_organization(issuer, (), connection).await?)
+        // Batch create organization using OrganizationCreator to avoid race conditions
+        let organization = if let Some(issuer) = issuer.clone() {
+            let mut org_creator = OrganizationCreator::new();
+            org_creator.add(&issuer, None, None);
+            org_creator.create(connection).await?;
+
+            // Query back the organization
+            self.get_organization_by_name(&issuer, connection).await?
         } else {
             None
         };
