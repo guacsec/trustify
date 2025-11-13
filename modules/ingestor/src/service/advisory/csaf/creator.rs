@@ -7,7 +7,7 @@ use crate::{
             version::{Version, VersionInfo, VersionSpec},
         },
         cpe::CpeCreator,
-        organization::{OrganizationContext, OrganizationInformation},
+        organization::creator::OrganizationCreator,
         product::ProductInformation,
         purl::creator::PurlCreator,
     },
@@ -94,13 +94,39 @@ impl<'a> StatusCreator<'a> {
         let mut purls = PurlCreator::new();
         let mut cpes = CpeCreator::new();
 
-        let mut org_cache: HashMap<String, organization::Model> = HashMap::new();
         let mut product_models = Vec::new();
         let mut version_ranges = Vec::new();
         let mut product_version_ranges = Vec::new();
 
         let mut package_statuses = Vec::new();
         let product_statuses = self.products.clone();
+
+        // Batch create all organizations to prevent race conditions and deadlocks
+        let mut org_creator = OrganizationCreator::new();
+        let mut vendor_names = HashSet::new();
+
+        for product in &product_statuses {
+            if let Some(vendor) = &product.vendor
+                && vendor_names.insert(vendor.clone())
+            {
+                let organization_cpe_key = product
+                    .cpe
+                    .as_ref()
+                    .map(|cpe| cpe.vendor().as_ref().to_string());
+
+                org_creator.add(vendor, organization_cpe_key, None);
+            }
+        }
+
+        org_creator.create(connection).await?;
+
+        // Query back all organizations and populate cache for later use
+        let mut org_cache: HashMap<String, organization::Model> = HashMap::new();
+        for vendor in vendor_names {
+            if let Some(org_ctx) = graph.get_organization_by_name(&vendor, connection).await? {
+                org_cache.insert(vendor, org_ctx.organization);
+            }
+        }
 
         for product in product_statuses {
             let status_id = graph
@@ -110,35 +136,11 @@ impl<'a> StatusCreator<'a> {
                 .get_status_id(product.status, connection)
                 .await?;
 
-            // There should be only a few organizations per document,
-            // so simple caching should work here.
-            // If we find examples where this is not a case, we can switch to
-            // batch ingesting of organizations as well.
-            let org_id = match product.vendor.clone() {
-                Some(vendor) => match org_cache.get(&vendor) {
-                    Some(entry) => Some(entry.id),
-                    None => {
-                        let organization_cpe_key = product
-                            .cpe
-                            .clone()
-                            .map(|cpe| cpe.vendor().as_ref().to_string());
-
-                        let org = OrganizationInformation {
-                            cpe_key: organization_cpe_key,
-                            website: None,
-                        };
-
-                        let org: OrganizationContext<'_> =
-                            graph.ingest_organization(&vendor, org, connection).await?;
-                        org_cache
-                            .entry(vendor.clone())
-                            .or_insert(org.organization.clone());
-
-                        Some(org.organization.id)
-                    }
-                },
-                None => None,
-            };
+            // Organizations have been pre-ingested, just look up from cache
+            let org_id = product
+                .vendor
+                .as_ref()
+                .and_then(|vendor| org_cache.get(vendor).map(|org| org.id));
 
             // Create all product entities for batch ingesting
             let product_cpe_key = product
@@ -257,6 +259,15 @@ impl<'a> StatusCreator<'a> {
             version_ranges.push(version_range.clone());
             package_statuses.push(purl_status);
         }
+
+        // Sort all collections by ID before batch inserting to ensure consistent lock acquisition
+        // order across transactions. This prevents deadlocks from index page lock contention
+        // when multiple concurrent transactions insert overlapping data.
+        product_models.sort_by(|a, b| a.id.as_ref().cmp(b.id.as_ref()));
+        version_ranges.sort_by(|a, b| a.id.as_ref().cmp(b.id.as_ref()));
+        package_statuses.sort_by(|a, b| a.id.as_ref().cmp(b.id.as_ref()));
+        product_version_ranges.sort_by(|a, b| a.id.as_ref().cmp(b.id.as_ref()));
+        product_status_models.sort_by(|a, b| a.id.as_ref().cmp(b.id.as_ref()));
 
         for batch in &product_models.chunked() {
             product::Entity::insert_many(batch)

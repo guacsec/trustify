@@ -12,7 +12,7 @@ use trustify_entity as entity;
 use trustify_entity::product;
 use uuid::Uuid;
 
-use crate::graph::{Graph, error::Error, organization::OrganizationInformation};
+use crate::graph::{Graph, error::Error, organization::creator::OrganizationCreator};
 
 use self::product_version::ProductVersionContext;
 
@@ -173,23 +173,28 @@ impl Graph {
             {
                 return Ok(found);
             } else {
+                // Batch create organization using OrganizationCreator to avoid race conditions
                 let organization_cpe_key = information
                     .cpe
                     .clone()
                     .map(|cpe| cpe.vendor().as_ref().to_string());
-                let org = OrganizationInformation {
-                    cpe_key: organization_cpe_key,
-                    website: None,
-                };
-                let org: OrganizationContext<'_> =
-                    self.ingest_organization(vendor, org, connection).await?;
 
-                id = ProductInformation::create_uuid(Some(org.organization.id), name.clone());
+                let mut org_creator = OrganizationCreator::new();
+                org_creator.add(&vendor, organization_cpe_key, None);
+                org_creator.create(connection).await?;
+
+                // Query back the organization
+                let org = self
+                    .get_organization_by_name(&vendor, connection)
+                    .await?
+                    .map(|org| org.organization.id);
+
+                id = ProductInformation::create_uuid(org, name.clone());
                 product::ActiveModel {
                     id: Set(id),
                     name: Set(name),
                     cpe_key: Set(cpe_key),
-                    vendor_id: Set(Some(org.organization.id)),
+                    vendor_id: Set(org),
                 }
             }
         } else {
