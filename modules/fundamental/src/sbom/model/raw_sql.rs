@@ -171,6 +171,7 @@ pub fn product_advisory_info_sql() -> String {
         JOIN "vulnerability" ON "advisory_vulnerability"."vulnerability_id" = "vulnerability"."id"
         LEFT JOIN "cpe" ON m.context_cpe_id = "cpe"."id"
         WHERE ($2::text[] = ARRAY[]::text[] OR "status"."slug" = ANY($2::text[]))
+          AND "advisory"."deprecated" = false
         "#
     .to_string()
 }

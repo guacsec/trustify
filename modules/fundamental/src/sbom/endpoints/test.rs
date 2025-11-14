@@ -1239,6 +1239,61 @@ async fn get_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
+async fn get_advisories_with_deprecated_filtering(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let id = ctx
+        .ingest_documents([
+            "quarkus-bom-2.13.8.Final-redhat-00004.json",
+            "cve/CVE-2024-26308.json",
+            // "cve/CVE-2024-26308-updated.json",
+        ])
+        .await?[0]
+        .id
+        .to_string();
+
+    let app = caller(ctx).await?;
+    let v: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("/api/v2/sbom/{id}/advisory"))
+                .to_request(),
+        )
+        .await;
+
+    log::debug!("{v:#?}");
+
+    // assert expected fields
+    assert_eq!(v.as_array().unwrap().len(), 1);
+    assert_eq!(v[0]["identifier"], "CVE-2024-26308");
+    assert_eq!(v[0]["status"][0]["average_severity"], "none");
+    assert!(v[0]["status"][0]["scores"].as_array().unwrap().is_empty());
+
+    ctx.ingest_documents(["cve/CVE-2024-26308-updated.json"])
+        .await?;
+
+    let v: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("/api/v2/sbom/{id}/advisory"))
+                .to_request(),
+        )
+        .await;
+
+    // Should only return 1 advisory (the updated, non-deprecated version)
+    assert_eq!(v.as_array().unwrap().len(), 1);
+    assert_eq!(v[0]["identifier"], "CVE-2024-26308");
+    // The updated version has CVSS scores, unlike the original
+    assert_eq!(v[0]["status"][0]["average_severity"], "medium");
+    assert_eq!(v[0]["status"][0]["scores"][0]["type"], "3.1");
+    assert_eq!(v[0]["status"][0]["scores"][0]["value"], 5.5);
+    assert_eq!(v[0]["status"][0]["scores"][0]["severity"], "medium");
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
 async fn query_sboms_by_ingested_time(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     async fn query(app: &impl CallService, q: &str) -> Value {
         let uri = format!(

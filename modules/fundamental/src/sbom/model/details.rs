@@ -154,6 +154,7 @@ impl SbomDetails {
             ))
             .join(JoinType::LeftJoin, purl_status::Relation::ContextCpe.def())
             .join(JoinType::Join, purl_status::Relation::Advisory.def())
+            .filter(Expr::col((advisory::Entity, advisory::Column::Deprecated)).eq(false))
             .join(JoinType::LeftJoin, advisory::Relation::Issuer.def())
             .join(
                 JoinType::Join,
