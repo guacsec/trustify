@@ -5,7 +5,6 @@ use crate::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
             version::{Version, VersionInfo, VersionSpec},
         },
-        error::Error::Any,
         purl::{
             self,
             status_creator::{PurlStatusCreator, PurlStatusEntry},
@@ -86,13 +85,6 @@ impl<'g> CveLoader<'g> {
         let mut vuln_creator = VulnerabilityCreator::new();
         vuln_creator.add(id, information.clone());
         vuln_creator.create(&tx).await?;
-
-        // Get the vulnerability context for description handling
-        let vulnerability = self
-            .graph
-            .get_vulnerability(id, &tx)
-            .await?
-            .ok_or_else(|| Any(anyhow::anyhow!("Failed to find vulnerability: {}", id)))?;
 
         let entries = Self::build_descriptions(descriptions);
         let english_description = Self::find_best_description_for_title(descriptions);
@@ -197,13 +189,9 @@ impl<'g> CveLoader<'g> {
         // Batch create statuses
         purl_status_creator.create(&tx).await?;
 
-        vulnerability
-            .drop_descriptions_for_advisory(advisory.advisory.id, &tx)
-            .await?;
-
-        vulnerability
-            .add_descriptions(advisory.advisory.id, entries, &tx)
-            .await?;
+        // Manage vulnerability descriptions without needing to query the vulnerability
+        Graph::drop_vulnerability_descriptions_for_advisory(advisory.advisory.id, &tx).await?;
+        Graph::add_vulnerability_descriptions(id, advisory.advisory.id, entries, &tx).await?;
 
         tx.commit().await?;
 
