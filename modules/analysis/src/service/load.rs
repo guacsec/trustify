@@ -33,6 +33,7 @@ use tracing::{Level, instrument};
 use trustify_common::{
     cpe::Cpe as TrustifyCpe,
     db::query::{Columns, Filtering, IntoColumns},
+    id::IdError,
     purl::Purl,
 };
 use trustify_entity::{
@@ -381,13 +382,13 @@ impl InnerService {
         /// which returns correctly because name related filters are already performed.
         ///
         /// It is worth mentioning that aforementioned CPE queries cannot use CPE only partitioning because we
-        /// need to discriminate on component name (across CPEs) hence special casing both code paths.   
+        /// need to discriminate on component name (across CPEs) hence special casing both code paths.
         ///
         ///
         /// # Returns
         ///
         ///   An unexecuted `sea_orm::Select<sbom_node::Entity>` query builder struct.
-        ///       
+        ///
         fn build_ranked_query(
             sbom_package_relation: sbom_node::Relation,
             partition_by_name: bool,
@@ -737,82 +738,92 @@ impl InnerService {
             distinct_sbom_ids.len()
         );
 
-        let mut seen_sbom_ids: HashSet<String> = HashSet::new();
-        self.load_graphs_inner(connection, distinct_sbom_ids, &mut seen_sbom_ids)
+        self.load_graphs_inner(connection, distinct_sbom_ids, &mut HashSet::new())
             .await
     }
 
+    /// Load a list of graphs, and also load related graphs.
+    #[instrument(
+        skip_all,
+        err(level=tracing::Level::INFO)
+    )]
     pub async fn load_graphs_inner<C: ConnectionTrait>(
         &self,
         connection: &C,
+        // TODO: distinct_sbom_ids: impl IntoIterator<Item = impl AsRef<str> + Debug>,
         distinct_sbom_ids: &[impl AsRef<str> + Debug],
         seen_sbom_ids: &mut HashSet<String>,
     ) -> Result<Vec<(String, Arc<PackageGraph>)>, Error> {
         let mut results = Vec::new();
 
-        for distinct_sbom_id in distinct_sbom_ids.iter().map(AsRef::as_ref) {
-            log::debug!("loading sbom: {:?}", distinct_sbom_id);
-            let current_sbom_id_str = distinct_sbom_id.to_string();
-            if seen_sbom_ids.insert(current_sbom_id_str.clone()) {
-                // at this stage we just have sbom_id string, so have to convert back to uuid
-                let distinct_sbom_id_uuid = match Uuid::parse_str(distinct_sbom_id) {
-                    Ok(uuid) => uuid,
-                    Err(e) => {
-                        log::error!(
-                            "Failed to parse distinct_sbom_id '{distinct_sbom_id:?}' as UUID: {e:?}"
-                        );
-                        Uuid::nil()
-                    }
-                };
-                // select all related external nodes
-                let external_sboms = sbom_external_node::Entity::find()
-                    .filter(sbom_external_node::Column::SbomId.eq(distinct_sbom_id_uuid))
-                    .all(connection)
-                    .await?;
+        for distinct_sbom_id in distinct_sbom_ids {
+            let distinct_sbom_id = distinct_sbom_id.as_ref();
+            log::debug!("loading sbom: {distinct_sbom_id}");
 
-                //resolve and load externally referenced sboms
-                for external_sbom in &external_sboms {
-                    let resolved_external_sbom =
-                        resolve_external_sbom(&external_sbom.node_id, connection).await;
-                    log::debug!("resolved external sbom: {:?}", resolved_external_sbom);
-                    if let Some(resolved_external_sbom) = resolved_external_sbom {
-                        let resolved_external_sbom_id_str =
-                            resolved_external_sbom.sbom_id.to_string();
-                        if seen_sbom_ids.insert(resolved_external_sbom_id_str.clone()) {
-                            results.push((
-                                resolved_external_sbom_id_str,
-                                self.load_graph(
-                                    connection,
-                                    &resolved_external_sbom.sbom_id.to_string(),
-                                )
-                                .await?,
-                            ));
-                            // recurse into to find nested external sboms
-                            Box::pin(self.load_graphs_inner(
-                                connection,
-                                &[resolved_external_sbom.sbom_id.to_string()],
-                                seen_sbom_ids,
-                            ))
-                            .await?;
-                        } else {
-                            log::debug!(
-                                "Skipping duplicate external SBOM ID: {}",
-                                resolved_external_sbom_id_str
-                            );
-                        }
-                    } else {
-                        log::debug!("Cannot find external sbom {:?}", external_sbom.node_id);
-                        continue;
-                    }
-                }
-
-                results.push((
-                    current_sbom_id_str,
-                    self.load_graph(connection, distinct_sbom_id).await?,
-                ));
-            } else {
-                log::debug!("Skipping duplicate SBOM ID: {}", current_sbom_id_str);
+            // if we can insert into the seen map, we need to process...
+            if !seen_sbom_ids.insert(distinct_sbom_id.to_string()) {
+                // ... otherwise, we already did and can move on.
+                log::debug!("Skipping duplicate SBOM ID: {distinct_sbom_id}");
+                continue;
             }
+
+            // load and remember the result
+            results.push((
+                distinct_sbom_id.to_string(),
+                self.load_graph(connection, distinct_sbom_id).await?,
+            ));
+
+            // at this stage we just have sbom_id string, so have to convert back to uuid
+            let distinct_sbom_id_uuid =
+                Uuid::parse_str(distinct_sbom_id).map_err(IdError::InvalidUuid)?;
+
+            // select all related external nodes
+            let external_sboms = sbom_external_node::Entity::find()
+                .filter(sbom_external_node::Column::SbomId.eq(distinct_sbom_id_uuid))
+                .all(connection)
+                .await?;
+
+            log::debug!(
+                "Found {} external nodes (for SBOM: {distinct_sbom_id_uuid})",
+                external_sboms.len()
+            );
+
+            let mut resolved = Vec::new();
+
+            // resolve and load externally referenced sboms
+            for external_sbom in &external_sboms {
+                log::debug!(
+                    "resolving external: {}/{}",
+                    external_sbom.sbom_id,
+                    external_sbom.node_id
+                );
+                let resolved_external_sbom =
+                    resolve_external_sbom(&external_sbom.node_id, connection).await?;
+
+                let Some(resolved_external_sbom) = resolved_external_sbom else {
+                    log::warn!("Cannot find external sbom {}", external_sbom.node_id);
+                    continue;
+                };
+
+                log::debug!("resolved external sbom: {:?}", resolved_external_sbom);
+
+                resolved.push(resolved_external_sbom.sbom_id.to_string());
+            }
+
+            log::debug!("Resolved {} SBOMs", resolved.len());
+            if log::log_enabled!(log::Level::Debug) {
+                for r in &resolved {
+                    log::debug!("  Resolved: {r}");
+                }
+            }
+
+            let sub = Box::pin(async {
+                self.load_graphs_inner(connection, &resolved, seen_sbom_ids)
+                    .await
+            })
+            .await?;
+
+            results.extend(sub);
         }
 
         Ok(results)
