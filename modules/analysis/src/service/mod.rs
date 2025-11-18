@@ -17,7 +17,7 @@ use crate::{
     model::{AnalysisStatus, BaseSummary, GraphMap, Node, PackageGraph, graph},
 };
 use fixedbitset::FixedBitSet;
-use futures::{StreamExt, stream};
+use futures::{StreamExt, TryStreamExt, stream};
 
 use crate::model::AnalysisStatusDetails;
 use futures::future::Shared;
@@ -99,74 +99,84 @@ struct ResolvedSbom {
     pub node_id: String,
 }
 
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_external_sbom<C: ConnectionTrait>(
     node_id: &str,
     connection: &C,
-) -> Option<ResolvedSbom> {
+) -> Result<Option<ResolvedSbom>, Error> {
     // we first lookup in sbom_external_node
-    let sbom_external_node = match sbom_external_node::Entity::find()
+    let Some(sbom_external_node) = sbom_external_node::Entity::find()
         .filter(sbom_external_node::Column::NodeId.eq(node_id))
         .one(connection)
-        .await
-    {
-        Ok(Some(entity)) => entity,
-        _ => return None,
+        .await?
+    else {
+        log::debug!("External node not found: {node_id}");
+        return Ok(None);
     };
+
+    log::debug!("External type: {:?}", sbom_external_node.external_type);
 
     match sbom_external_node.external_type {
         ExternalType::SPDX => {
             // For spdx, sbom_external_node discriminator_type and discriminator_value are used
             // to lookup sbom_id via join to SourceDocument. The node_id is just the external_node_ref.
 
-            let discriminator_value = sbom_external_node.discriminator_value?;
-
-            if discriminator_value.is_empty() {
-                return None;
-            }
-
-            let query =
-                sbom::Entity::find().join(JoinType::Join, sbom::Relation::SourceDocument.def());
-
-            let query = match sbom_external_node.discriminator_type? {
-                DiscriminatorType::Sha256 => {
-                    query.filter(source_document::Column::Sha256.eq(&discriminator_value))
-                }
-                _ => return None,
+            let Some(discriminator_type) = sbom_external_node.discriminator_type else {
+                return Ok(None);
             };
 
-            match query.one(connection).await {
-                Ok(Some(entity)) => Some(ResolvedSbom {
+            let Some(discriminator_value) = sbom_external_node.discriminator_value else {
+                return Ok(None);
+            };
+
+            if discriminator_value.is_empty() {
+                return Ok(None);
+            }
+
+            let mut query =
+                sbom::Entity::find().join(JoinType::Join, sbom::Relation::SourceDocument.def());
+
+            match discriminator_type {
+                DiscriminatorType::Sha256 => {
+                    query = query.filter(source_document::Column::Sha256.eq(&discriminator_value))
+                }
+                _ => {
+                    return Ok(None);
+                }
+            };
+
+            Ok(match query.one(connection).await? {
+                Some(entity) => Some(ResolvedSbom {
                     sbom_id: entity.sbom_id,
                     node_id: sbom_external_node.external_node_ref,
                 }),
                 _ => None,
-            }
+            })
         }
         ExternalType::CycloneDx => {
             // For cyclonedx, sbom_external_node discriminator_type and discriminator_value are used
             // we construct external_doc_id to lookup sbom_id directly from sbom entity. The node_id
             // is the external_node_ref
 
-            let discriminator_value = sbom_external_node.discriminator_value?;
+            let Some(discriminator_value) = sbom_external_node.discriminator_value else {
+                return Ok(None);
+            };
 
             if discriminator_value.is_empty() {
-                return None;
+                return Ok(None);
             }
 
             let external_doc_ref = sbom_external_node.external_doc_ref;
             let external_doc_id = format!("urn:cdx:{external_doc_ref}/{discriminator_value}");
 
-            match sbom::Entity::find()
+            Ok(sbom::Entity::find()
                 .filter(sbom::Column::DocumentId.eq(external_doc_id))
                 .one(connection)
-                .await
-            {
-                Ok(Some(entity)) => Some(ResolvedSbom {
+                .await?
+                .map(|entity| ResolvedSbom {
                     sbom_id: entity.sbom_id,
                     node_id: sbom_external_node.external_node_ref,
-                }),
-                _ => None,
-            }
+                }))
         }
         ExternalType::RedHatProductComponent => {
             // for RH variations we assume the sbom_external_node_ref is the package checksum
@@ -183,78 +193,86 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
     }
 }
 
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_rh_external_sbom_descendants<C: ConnectionTrait>(
     sbom_external_sbom_id: Uuid,
     sbom_external_node_ref: String,
     connection: &C,
-) -> Option<ResolvedSbom> {
+) -> Result<Option<ResolvedSbom>, Error> {
     // find checksum value for the node
-    match sbom_node_checksum::Entity::find()
+
+    let Some(entity) = sbom_node_checksum::Entity::find()
         .filter(sbom_node_checksum::Column::NodeId.eq(sbom_external_node_ref.clone()))
         .filter(sbom_node_checksum::Column::SbomId.eq(sbom_external_sbom_id))
         .one(connection)
-        .await
-    {
-        Ok(Some(entity)) => {
-            // now find if there are any other nodes with the same checksums
-            match sbom_node_checksum::Entity::find()
-                .filter(sbom_node_checksum::Column::Value.eq(entity.value.to_string()))
-                .filter(sbom_node_checksum::Column::SbomId.ne(entity.sbom_id))
-                .all(connection)
-                .await
-            {
-                Ok(matches) => matches
-                    .into_iter()
-                    // The use of .find here ensures we never match on cdx top level metadata component
-                    // which has not defined a bom-ref - we can 'sniff' this because such nodes always
-                    // are ingested with a uuid node-id.
-                    .find(|model| Uuid::parse_str(&model.node_id).is_err())
-                    .map(|matched_model| ResolvedSbom {
-                        sbom_id: matched_model.sbom_id,
-                        node_id: matched_model.node_id,
-                    }),
-                _ => None,
+        .await?
+    else {
+        log::debug!("Unable to find checksum");
+        return Ok(None);
+    };
+
+    log::debug!("Checksum: {} / {}", entity.value, entity.sbom_id);
+
+    // now find if there are any other nodes with the same checksums
+    let matches = sbom_node_checksum::Entity::find()
+        .filter(sbom_node_checksum::Column::Value.eq(entity.value.to_string()))
+        .filter(sbom_node_checksum::Column::SbomId.ne(entity.sbom_id))
+        .all(connection)
+        .await?;
+
+    log::debug!("Found {} nodes by checksum", matches.len());
+
+    Ok(matches
+        .into_iter()
+        // The use of .find here ensures we never match on cdx top level metadata component
+        // which has not defined a bom-ref - we can 'sniff' this because such nodes always
+        // are ingested with a uuid node-id.
+        .find(|model| {
+            if Uuid::parse_str(&model.node_id).is_err() {
+                // failed to parse, we keep it
+                true
+            } else {
+                log::debug!("Dropping suspected top-level node ID: {}", model.node_id);
+                false
             }
-        }
-        _ => None,
-    }
+        })
+        .map(|matched_model| ResolvedSbom {
+            sbom_id: matched_model.sbom_id,
+            node_id: matched_model.node_id,
+        }))
 }
 
 async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
     sbom_external_sbom_id: Uuid,
     sbom_external_node_ref: String,
     connection: &C,
-) -> Vec<ResolvedSbom> {
+) -> Result<Vec<ResolvedSbom>, Error> {
     // find related checksum value(s) for the node, because any single component can be referred to by multiple
     // sboms, this function returns a Vec<ResolvedSbom>.
-    match sbom_node_checksum::Entity::find()
-        .filter(sbom_node_checksum::Column::NodeId.eq(sbom_external_node_ref.clone()))
-        .filter(sbom_node_checksum::Column::SbomId.eq(sbom_external_sbom_id))
-        .one(connection)
-        .await
-    {
-        Ok(Some(entity)) => {
-            // now find if there are any other nodes with the same checksums
-            match sbom_node_checksum::Entity::find()
-                .filter(sbom_node_checksum::Column::Value.eq(entity.value.to_string()))
-                .filter(sbom_node_checksum::Column::SbomId.ne(entity.sbom_id))
-                .all(connection)
-                .await
-            {
-                Ok(matches) => matches
+    Ok(
+        match sbom_node_checksum::Entity::find()
+            .filter(sbom_node_checksum::Column::NodeId.eq(sbom_external_node_ref.clone()))
+            .filter(sbom_node_checksum::Column::SbomId.eq(sbom_external_sbom_id))
+            .one(connection)
+            .await?
+        {
+            Some(entity) => {
+                // now find if there are any other nodes with the same checksums
+                sbom_node_checksum::Entity::find()
+                    .filter(sbom_node_checksum::Column::Value.eq(entity.value.to_string()))
+                    .filter(sbom_node_checksum::Column::SbomId.ne(entity.sbom_id))
+                    .all(connection)
+                    .await?
                     .into_iter()
                     .map(|matched| ResolvedSbom {
                         sbom_id: matched.sbom_id,
                         node_id: matched.node_id,
                     })
-                    .collect(),
-                _ => vec![],
+                    .collect()
             }
-        }
-        _ => {
-            vec![]
-        }
-    }
+            _ => vec![],
+        },
+    )
 }
 
 impl AnalysisService {
@@ -426,10 +444,10 @@ impl AnalysisService {
         graphs: &'g [(String, Arc<PackageGraph>)],
         concurrency: usize,
         create: F,
-    ) -> Vec<Node>
+    ) -> Result<Vec<Node>, Error>
     where
         F: Fn(&'g Graph<graph::Node, Relationship>, NodeIndex, &'g graph::Node) -> Fut + Clone,
-        Fut: Future<Output = Node>,
+        Fut: Future<Output = Result<Node, Error>>,
     {
         let query = query.into();
 
@@ -449,7 +467,7 @@ impl AnalysisService {
             .map(move |(node_index, package_node)| create(graph, node_index, package_node))
         })
         .buffer_unordered(concurrency)
-        .collect::<Vec<_>>()
+        .try_collect::<Vec<_>>()
         .await
     }
 
@@ -461,7 +479,7 @@ impl AnalysisService {
         graphs: &[(String, Arc<PackageGraph>)],
         connection: &C,
         graph_cache: Arc<GraphMap>,
-    ) -> Vec<Node> {
+    ) -> Result<Vec<Node>, Error> {
         let relationships = options.relationships;
         log::debug!("relations: {:?}", relationships);
 
@@ -507,12 +525,12 @@ impl AnalysisService {
 
                     let (ancestors, descendants) = futures::join!(ancestors, descendants);
 
-                    Node {
+                    Ok(Node {
                         base: node.into(),
                         relationship: None,
-                        ancestors,
-                        descendants,
-                    }
+                        ancestors: ancestors?,
+                        descendants: descendants?,
+                    })
                 }
             },
         )
@@ -544,7 +562,7 @@ impl AnalysisService {
                 connection,
                 self.inner.graph_cache.clone(),
             )
-            .await;
+            .await?;
 
         Ok(paginated.paginate_array(&components))
     }
@@ -571,7 +589,7 @@ impl AnalysisService {
                 connection,
                 self.inner.graph_cache.clone(),
             )
-            .await;
+            .await?;
 
         Ok(paginated.paginate_array(&components))
     }
@@ -603,7 +621,7 @@ impl AnalysisService {
                 connection,
                 self.inner.graph_cache.clone(),
             )
-            .await;
+            .await?;
 
         Ok(paginated.paginate_array(&components))
     }
