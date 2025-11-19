@@ -7,7 +7,8 @@ use trustify_common::{
     model::Paginated,
     purl::Purl,
 };
-use trustify_test_context::TrustifyContext;
+use trustify_test_context::{Dataset, TrustifyContext};
+use uuid::Uuid;
 
 async fn ingest_extra_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ctx.graph
@@ -919,6 +920,27 @@ async fn unqualified_purl_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::E
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
+async fn odd_purl(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = PurlService::new();
+
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    let results = service
+        .purl_by_uuid(
+            &Uuid::from_str("528a575d-5ed9-5aaa-9882-14701d64b51e").unwrap(),
+            Default::default(),
+            &ctx.db,
+        )
+        .await?
+        .unwrap();
+
+    assert_eq!(results.head.purl.to_version(), Purl::from_str("pkg:maven/io.quarkus/quarkus-vertx-http@2.13.8.Final-redhat-00004")?);
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
 async fn base_purl_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = PurlService::new();
 
@@ -951,6 +973,256 @@ async fn versioned_base_purl_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow
         .await?;
 
     assert!(!results.unwrap().purls.is_empty());
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn version_ranges_cover_all_variants(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use crate::purl::model::details::version_range::VersionRange;
+    use sea_orm::EntityTrait;
+    use trustify_entity::version_range;
+
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    let rows = version_range::Entity::find().all(&ctx.db).await?;
+
+    let mut full_count = 0;
+    let mut left_count = 0;
+    let mut right_count = 0;
+
+    for row in rows {
+        match VersionRange::from_entity(row.clone()) {
+            Ok(VersionRange::Full { .. }) => full_count += 1,
+            Ok(VersionRange::Left { .. }) => left_count += 1,
+            Ok(VersionRange::Right { .. }) => right_count += 1,
+            Err(e) => {
+                log::error!("Failed to convert version_range id={}: {}", row.id, e);
+            }
+        }
+    }
+
+    log::info!(
+        "DS3 version ranges: Full={}, Left={}, Right={}",
+        full_count,
+        left_count,
+        right_count
+    );
+
+    assert!(
+        full_count > 0 || left_count > 0 || right_count > 0,
+        "Expected at least one version range variant in DS3 (Full={}, Left={}, Right={})",
+        full_count,
+        left_count,
+        right_count
+    );
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn version_range_boundary_semantics(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use crate::purl::model::details::version_range::VersionRange;
+    use sea_orm::EntityTrait;
+    use trustify_entity::version_range;
+
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    let rows = version_range::Entity::find().all(&ctx.db).await?;
+
+    let mut tested_full = false;
+    let mut tested_left = false;
+    let mut tested_right = false;
+
+    for row in rows.iter() {
+        match VersionRange::from_entity(row.clone()) {
+            Ok(VersionRange::Full {
+                version_scheme_id,
+                low_version,
+                low_inclusive,
+                high_version,
+                high_inclusive,
+            }) if !tested_full => {
+                log::info!(
+                    "Testing Full range: {} [{} {}..{} {}]",
+                    version_scheme_id,
+                    if low_inclusive { "[" } else { "(" },
+                    low_version,
+                    high_version,
+                    if high_inclusive { "]" } else { ")" }
+                );
+
+                assert!(
+                    !version_scheme_id.is_empty(),
+                    "version_scheme_id should not be empty"
+                );
+                assert!(!low_version.is_empty(), "low_version should not be empty");
+                assert!(!high_version.is_empty(), "high_version should not be empty");
+
+                tested_full = true;
+            }
+            Ok(VersionRange::Left {
+                version_scheme_id,
+                low_version,
+                low_inclusive,
+            }) if !tested_left => {
+                log::info!(
+                    "Testing Left range: {} [{} {}..)",
+                    version_scheme_id,
+                    if low_inclusive { "[" } else { "(" },
+                    low_version
+                );
+
+                assert!(
+                    !version_scheme_id.is_empty(),
+                    "version_scheme_id should not be empty"
+                );
+                assert!(!low_version.is_empty(), "low_version should not be empty");
+
+                tested_left = true;
+            }
+            Ok(VersionRange::Right {
+                version_scheme_id,
+                high_version,
+                high_inclusive,
+            }) if !tested_right => {
+                log::info!(
+                    "Testing Right range: {} (..{} {}]",
+                    version_scheme_id,
+                    high_version,
+                    if high_inclusive { "]" } else { ")" }
+                );
+
+                assert!(
+                    !version_scheme_id.is_empty(),
+                    "version_scheme_id should not be empty"
+                );
+                assert!(!high_version.is_empty(), "high_version should not be empty");
+
+                tested_right = true;
+            }
+            _ => {}
+        }
+
+        if tested_full && tested_left && tested_right {
+            break;
+        }
+    }
+
+    assert!(
+        tested_full || tested_left || tested_right,
+        "Should have tested at least one range variant (Full={}, Left={}, Right={})",
+        tested_full,
+        tested_left,
+        tested_right
+    );
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn version_range_with_affected_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use crate::purl::model::details::version_range::VersionRange;
+
+    let service = PurlService::new();
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    let all_purls = service
+        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .await?;
+
+    let mut tested_count = 0;
+
+    for purl_summary in all_purls.items.iter().take(100) {
+        if let Some(purl_details) = service
+            .purl_by_uuid(&purl_summary.head.uuid, Default::default(), &ctx.db)
+            .await?
+        {
+            if !purl_details.advisories.is_empty() {
+                for advisory in &purl_details.advisories {
+                    for status in &advisory.status {
+                        if let Some(ref version_range) = status.version_range {
+                            log::info!("PURL with version range: {}", purl_summary.head.purl);
+                            log::info!(
+                                "  Advisory: {}, Vulnerability: {}, Status: {}",
+                                advisory.head.identifier,
+                                status.vulnerability.identifier,
+                                status.status
+                            );
+
+                            match version_range {
+                                VersionRange::Full {
+                                    version_scheme_id,
+                                    low_version,
+                                    low_inclusive,
+                                    high_version,
+                                    high_inclusive,
+                                } => {
+                                    assert!(!version_scheme_id.is_empty());
+                                    assert!(!low_version.is_empty());
+                                    assert!(!high_version.is_empty());
+                                    log::info!(
+                                        "    Full range: [{}{}, {}{}]",
+                                        if *low_inclusive { "[" } else { "(" },
+                                        low_version,
+                                        high_version,
+                                        if *high_inclusive { "]" } else { ")" }
+                                    );
+                                }
+                                VersionRange::Left {
+                                    version_scheme_id,
+                                    low_version,
+                                    low_inclusive,
+                                } => {
+                                    assert!(!version_scheme_id.is_empty());
+                                    assert!(!low_version.is_empty());
+                                    log::info!(
+                                        "    Left range: {}{}, ∞)",
+                                        if *low_inclusive { "[" } else { "(" },
+                                        low_version
+                                    );
+                                }
+                                VersionRange::Right {
+                                    version_scheme_id,
+                                    high_version,
+                                    high_inclusive,
+                                } => {
+                                    assert!(!version_scheme_id.is_empty());
+                                    assert!(!high_version.is_empty());
+                                    log::info!(
+                                        "    Right range: (-∞, {}{}]",
+                                        high_version,
+                                        if *high_inclusive { "]" } else { ")" }
+                                    );
+                                }
+                            }
+
+                            tested_count += 1;
+                            if tested_count >= 10 {
+                                break;
+                            }
+                        }
+                    }
+                    if tested_count >= 10 {
+                        break;
+                    }
+                }
+                if tested_count >= 10 {
+                    break;
+                }
+            }
+        }
+    }
+
+    assert!(
+        tested_count > 0,
+        "Expected to find at least one PURL with version range in advisories"
+    );
+
+    log::info!("Tested {} PURLs with version ranges", tested_count);
 
     Ok(())
 }

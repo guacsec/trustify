@@ -43,17 +43,24 @@ impl VersionRange {
                     high_inclusive: right_inclusive,
                 })
             }
-            (None, None, Some(right), Some(right_inclusive)) => Ok(VersionRange::Right {
+            (_, _, Some(right), Some(right_inclusive)) => Ok(VersionRange::Right {
                 version_scheme_id: value.version_scheme_id.to_string(),
                 high_version: right,
                 high_inclusive: right_inclusive,
             }),
-            (Some(left), Some(left_inclusive), None, None) => Ok(VersionRange::Left {
+            (Some(left), Some(left_inclusive), _, _) => Ok(VersionRange::Left {
                 version_scheme_id: value.version_scheme_id.to_string(),
                 low_version: left,
                 low_inclusive: left_inclusive,
             }),
-            _ => Err(Error::Data("invalid version_range model".into())),
+            (None, _, None, _) => Err(Error::Data(format!(
+                "invalid version_range model: id={} low_version and high_version are None",
+                value.id
+            ))),
+            _ => Err(Error::Data(format!(
+                "invalid version_range model: id={}",
+                value.id
+            ))),
         }
     }
 }
