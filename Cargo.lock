@@ -8415,6 +8415,7 @@ dependencies = [
  "packageurl",
  "parking_lot 0.12.5",
  "petgraph 0.8.3",
+ "rstest",
  "sea-orm",
  "sea-query",
  "serde",
