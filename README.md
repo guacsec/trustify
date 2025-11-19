@@ -47,6 +47,9 @@ That will create its own database in your current directory beneath
 * To use the **GUI**, navigate to: <http://localhost:8080>.
 * To use the **REST API**, navigate to: <http://localhost:8080/openapi/>.
 
+For trustd-pm to work, IPv6 must be enabled on the system. In addition, 
+it must be ensured that IPv6 name resolution from localhost to ::1 works.
+
 ### Data
 
 The app's not much fun without data, e.g. SBOM's and Advisories. There are a few ways to ingest some:
