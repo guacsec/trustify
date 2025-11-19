@@ -41,20 +41,21 @@ actix-http = { workspace = true }
 bytes = { workspace = true }
 bytesize = { workspace = true }
 chrono = { workspace = true }
+csaf = { workspace = true }
 hex = { workspace = true }
 humantime = { workspace = true }
 itertools = { workspace = true }
 jsonpath-rust = { workspace = true }
 log = { workspace = true }
+packageurl = { workspace = true }
 petgraph = { workspace = true }
+rstest = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
-tokio-util = { workspace = true, features = ["full"] }
 tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = ["full"] }
 trustify-test-context = { workspace = true }
 urlencoding = { workspace = true }
-csaf = { workspace = true }
-packageurl = { workspace = true }
 zip = { workspace = true }

@@ -1,14 +1,38 @@
 use super::req::*;
 use crate::test::caller;
+use rstest::*;
 use serde_json::{Value, json};
 use test_context::test_context;
-use test_log::test;
 use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
+#[rstest]
+#[case( // cpe search
+    Req { loc: Loc::Id("cpe:/a:redhat:quay:3::el8"), ..Req::default() },
+    2
+)]
+#[case( // cpe latest search
+    Req { loc: Loc::Id("cpe:/a:redhat:quay:3::el8"), latest: true, ..Req::default() },
+    1
+)]
+#[case( // purl partial search
+    Req { loc: Loc::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), ..Req::default() },
+    18
+)]
+#[case( // purl partial search latest
+    Req { loc: Loc::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), latest: true, ..Req::default() },
+    2
+)]
+#[case( // purl partial search latest
+    Req { loc: Loc::Q("purl:name~quay-builder-qemu-rhcos-rhel8&purl:ty=oci"), ancestors: Some(10), latest: true, ..Req::default() },
+    7
+)]
+#[test_log::test(actix_web::test)]
 async fn resolve_rh_variant_latest_filter_container_cdx(
     ctx: &TrustifyContext,
+    #[case] req: Req<'_>,
+    #[case] total: usize,
+    #[values(false, true)] prime_cache: bool,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
@@ -22,66 +46,54 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
     ])
         .await?;
 
-    let _response = app.req(Req::default()).await?;
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
 
-    // cpe search
-    let response = app
-        .req(Req {
-            loc: Loc::Id("cpe:/a:redhat:quay:3::el8"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(2, response["total"]);
+    let response = app.req(req).await?;
 
-    // cpe latest search
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Id("cpe:/a:redhat:quay:3::el8"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(1, response["total"]);
-
-    // purl partial search
-    let response = app
-        .req(Req {
-            loc: Loc::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"),
-            ancestors: Some(10),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(18, response["total"]);
-
-    // purl partial search latest
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"),
-            ancestors: Some(10),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(2, response["total"]);
-
-    // purl partial search latest
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Q("purl:name~quay-builder-qemu-rhcos-rhel8&purl:ty=oci"),
-            ancestors: Some(10),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(7, response["total"]);
+    log::info!("{response:#?}");
+    assert_eq!(total, response["total"]);
 
     Ok(())
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
+#[rstest]
+#[case( // cpe search
+    Req { loc: Loc::Id("cpe:/a:redhat:rhel_eus:9.4::crb"), ..Req::default() },
+    2
+)]
+#[case( // cpe latest search
+    Req { loc: Loc::Id("cpe:/a:redhat:rhel_eus:9.4::crb"), latest: true, ..Req::default() },
+    1
+)]
+#[case( // purl partial search
+    Req { loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm"), ancestors: Some(10), ..Req::default() },
+    30
+)]
+#[case( // purl partial latest search
+    Req { loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm"), ancestors: Some(10), latest: true, ..Req::default() },
+    15
+)]
+#[case( // purl more specific latest q search
+    Req { loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm-devel@"), latest: true, ..Req::default() },
+    5
+)]
+#[case( // name exact search
+    Req { loc: Loc::Id("NetworkManager-libnm-devel"), ..Req::default() },
+    10
+)]
+#[case( // latest name exact search
+    Req { loc: Loc::Id("NetworkManager-libnm-devel"), latest: true, ..Req::default() },
+    5
+)]
+#[test_log::test(actix_web::test)]
 async fn resolve_rh_variant_latest_filter_rpms_cdx(
     ctx: &TrustifyContext,
+    #[case] req: Req<'_>,
+    #[case] total: usize,
+    #[values(false, true)] prime_cache: bool,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
@@ -93,83 +105,50 @@ async fn resolve_rh_variant_latest_filter_rpms_cdx(
     ])
         .await?;
 
-    let _response = app.req(Req::default()).await?;
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
 
-    // cpe search
-    let response = app
-        .req(Req {
-            loc: Loc::Id("cpe:/a:redhat:rhel_eus:9.4::crb"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 2);
+    let response = app.req(req).await?;
 
-    // cpe latest search
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Id("cpe:/a:redhat:rhel_eus:9.4::crb"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 1);
-
-    // purl partial search
-    let response = app
-        .req(Req {
-            loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm"),
-            ancestors: Some(10),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 30);
-
-    // purl partial latest search
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 15);
-
-    // purl more specific latest q search
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm-devel@"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 5);
-
-    // name exact search
-    let response = app
-        .req(Req {
-            loc: Loc::Id("NetworkManager-libnm-devel"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 10);
-
-    // latest name exact search
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Id("NetworkManager-libnm-devel"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 5);
+    log::info!("{response:#?}");
+    assert_eq!(total, response["total"]);
 
     Ok(())
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
+#[rstest]
+#[case( // cpe search
+    Req { loc: Loc::Id("cpe:/a:redhat:camel_quarkus:3"), ..Req::default() },
+    2
+)]
+#[case( // cpe latest search
+    Req { loc: Loc::Id("cpe:/a:redhat:camel_quarkus:3"), latest: true, ..Req::default() },
+    1
+)]
+#[case( // purl partial search
+    Req { loc: Loc::Q("pkg:maven/io.vertx/vertx-core@"), ancestors: Some(10), ..Req::default() },
+    6
+)]
+#[case( // purl partial latest search
+    Req { loc: Loc::Q("pkg:maven/io.vertx/vertx-core@"), latest: true, ..Req::default() },
+    2
+)]
+#[case( // name exact search
+    Req { loc: Loc::Id("vertx-core"), ..Req::default() },
+    6
+)]
+#[case( // latest name exact search
+    Req { loc: Loc::Id("vertx-core"), latest: true, ..Req::default() },
+    2
+)]
+#[test_log::test(actix_web::test)]
 async fn resolve_rh_variant_latest_filter_middleware_cdx(
     ctx: &TrustifyContext,
+    #[case] req: Req<'_>,
+    #[case] total: usize,
+    #[values(false, true)] prime_cache: bool,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
@@ -183,72 +162,25 @@ async fn resolve_rh_variant_latest_filter_middleware_cdx(
     ])
     .await?;
 
-    let _response = app.req(Req::default()).await?;
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
 
-    // cpe search
-    let response = app
-        .req(Req {
-            loc: Loc::Id("cpe:/a:redhat:camel_quarkus:3"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 2);
+    let response = app.req(req).await?;
 
-    // cpe latest search
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Id("cpe:/a:redhat:camel_quarkus:3"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 1);
-
-    // purl partial search
-    let response = app
-        .req(Req {
-            loc: Loc::Q("pkg:maven/io.vertx/vertx-core@"),
-            ancestors: Some(10),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 6);
-
-    // purl partial latest search
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Q("pkg:maven/io.vertx/vertx-core@"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 2);
-
-    // name exact search
-    let response = app
-        .req(Req {
-            loc: Loc::Id("vertx-core"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 6);
-
-    // latest name exact search
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Id("vertx-core"),
-            ..Req::default()
-        })
-        .await?;
-    assert_eq!(response["total"], 2);
+    log::info!("{response:#?}");
+    assert_eq!(total, response["total"]);
 
     Ok(())
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn test_tc2606(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[test_log::test(actix_web::test)]
+async fn test_tc2606(
+    ctx: &TrustifyContext,
+    #[values(false, true)] prime_cache: bool,
+) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     ctx.ingest_documents([
@@ -261,7 +193,9 @@ async fn test_tc2606(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ])
     .await?;
 
-    let _response = app.req(Req::default()).await?;
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
 
     // latest cpe search
     let response = app
@@ -273,7 +207,6 @@ async fn test_tc2606(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         })
         .await?;
     log::info!("{response:#?}");
-    assert_eq!(response["total"], 2);
 
     assert!(response.contains_subset(json!(
             {
@@ -337,14 +270,19 @@ async fn test_tc2606(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
           ],
         }
       ],
-      "total": 2
     })));
+    assert_eq!(response["total"], 2);
+
     Ok(())
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn test_tc2677(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[test_log::test(actix_web::test)]
+async fn test_tc2677(
+    ctx: &TrustifyContext,
+    #[values(false, true)] prime_cache: bool,
+) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     ctx.ingest_documents([
@@ -354,7 +292,9 @@ async fn test_tc2677(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ])
     .await?;
 
-    let _response = app.req(Req::default()).await?;
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
 
     // latest cpe search
     let response = app
@@ -422,8 +362,22 @@ async fn test_tc2677(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn test_tc2717(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[case( // non-latest
+    Req { loc: Loc::Id("pkg:maven/io.vertx/vertx-core"), ..Req::default() },
+    0
+)]
+#[case( // latest
+    Req { loc: Loc::Id("pkg:maven/io.vertx/vertx-core"), latest: true, ..Req::default() },
+    2
+)]
+#[test_log::test(actix_web::test)]
+async fn test_tc2717(
+    ctx: &TrustifyContext,
+    #[case] req: Req<'_>,
+    #[case] total: usize,
+    #[values(false, true)] prime_cache: bool,
+) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     ctx.ingest_documents([
@@ -432,24 +386,23 @@ async fn test_tc2717(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ])
     .await?;
 
-    let _response = app.req(Req::default()).await?;
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
 
-    let response = app
-        .req(Req {
-            latest: true,
-            loc: Loc::Id("pkg:maven/io.vertx/vertx-core"),
-            ..Req::default()
-        })
-        .await?;
-
-    assert_eq!(response["total"], 2);
+    let response = app.req(req).await?;
+    assert_eq!(total, response["total"]);
 
     Ok(())
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn test_tc2578(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[test_log::test(actix_web::test)]
+async fn test_tc2578(
+    ctx: &TrustifyContext,
+    #[values(false, true)] prime_cache: bool,
+) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     ctx.ingest_documents([
@@ -465,7 +418,9 @@ async fn test_tc2578(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ])
     .await?;
 
-    let _response = app.req(Req::default()).await?;
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
 
     let response = app
         .req(Req {
