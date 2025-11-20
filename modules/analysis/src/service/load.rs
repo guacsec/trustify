@@ -20,7 +20,7 @@ use sea_orm::{
     FromQueryResult, QueryFilter, QuerySelect, QueryTrait, Related, RelationTrait, Select,
     Statement,
 };
-use sea_query::{Alias, Cond, Expr, JoinType, PostgresQueryBuilder, Query, SelectStatement};
+use sea_query::{Alias, Expr, JoinType, PostgresQueryBuilder, Query, SelectStatement};
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
@@ -44,7 +44,7 @@ use trustify_entity::{
     relationship::Relationship,
     sbom, sbom_external_node,
     sbom_external_node::ExternalType,
-    sbom_node, sbom_package, sbom_package_cpe_ref, sbom_package_purl_ref, versioned_purl,
+    sbom_node, sbom_package, sbom_package_cpe_ref, sbom_package_purl_ref,
 };
 use uuid::Uuid;
 
@@ -460,31 +460,15 @@ impl InnerService {
                 query_all(subquery.into_query(), connection).await?
             }
             GraphQuery::Component(ComponentReference::Purl(purl)) => {
-                let subquery = find::<sbom_node::Entity>()
+                let subquery = find::<sbom_package_purl_ref::Entity>()
                     .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
                     .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
                     .join(
                         JoinType::LeftJoin,
                         sbom_package_cpe_ref::Relation::Cpe.def(),
                     )
-                    .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_package_purl_ref::Relation::Purl.def(),
-                    )
-                    .join(
-                        JoinType::LeftJoin,
-                        qualified_purl::Relation::VersionedPurl.def(),
-                    )
-                    .join(JoinType::LeftJoin, versioned_purl::Relation::BasePurl.def())
                     .filter(
-                        Cond::any()
-                            .add(
-                                sbom_package_purl_ref::Column::QualifiedPurlId
-                                    .eq(purl.qualifier_uuid()),
-                            )
-                            .add(qualified_purl::Column::VersionedPurlId.eq(purl.version_uuid()))
-                            .add(versioned_purl::Column::BasePurlId.eq(purl.package_uuid())),
+                        sbom_package_purl_ref::Column::QualifiedPurlId.eq(purl.qualifier_uuid()),
                     );
 
                 query_all(subquery.into_query(), connection).await?
