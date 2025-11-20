@@ -481,7 +481,8 @@ impl InnerService {
             }
             GraphQuery::Component(ComponentReference::Purl(purl)) => {
                 let subquery = find_rank_name::<sbom_package_purl_ref::Entity>()
-                    .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
+                    .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def().rev())
+                    .join(JoinType::LeftJoin, sbom_node::Relation::Package.def().rev())
                     .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
                     .join(
                         JoinType::LeftJoin,
