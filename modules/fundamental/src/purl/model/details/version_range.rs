@@ -24,6 +24,7 @@ pub enum VersionRange {
         high_version: String,
         high_inclusive: bool,
     },
+    Unbounded,
 }
 
 impl VersionRange {
@@ -43,20 +44,17 @@ impl VersionRange {
                     high_inclusive: right_inclusive,
                 })
             }
-            (_, _, Some(right), Some(right_inclusive)) => Ok(VersionRange::Right {
+            (None, _, Some(right), Some(right_inclusive)) => Ok(VersionRange::Right {
                 version_scheme_id: value.version_scheme_id.to_string(),
                 high_version: right,
                 high_inclusive: right_inclusive,
             }),
-            (Some(left), Some(left_inclusive), _, _) => Ok(VersionRange::Left {
+            (Some(left), Some(left_inclusive), None, _) => Ok(VersionRange::Left {
                 version_scheme_id: value.version_scheme_id.to_string(),
                 low_version: left,
                 low_inclusive: left_inclusive,
             }),
-            (None, _, None, _) => Err(Error::Data(format!(
-                "invalid version_range model: id={} low_version and high_version are None",
-                value.id
-            ))),
+            (None, _, None, _) => Ok(VersionRange::Unbounded),
             _ => Err(Error::Data(format!(
                 "invalid version_range model: id={}",
                 value.id

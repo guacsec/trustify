@@ -5154,6 +5154,8 @@ components:
             type: string
           version_scheme_id:
             type: string
+      - type: 'null'
+        default: null
     VersionedPurlHead:
       type: object
       required:
