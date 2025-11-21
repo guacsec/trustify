@@ -369,7 +369,7 @@ async fn test_tc2677(
 )]
 #[case( // latest
     Req { what: What::Id("pkg:maven/io.vertx/vertx-core"), latest: true, ..Req::default() },
-    2
+    0
 )]
 #[test_log::test(actix_web::test)]
 async fn test_tc2717(
