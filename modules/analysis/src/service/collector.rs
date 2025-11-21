@@ -247,10 +247,10 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
 
                     // recurse into those external sbom nodes and save
 
-                    Ok(collector
+                    collector
                         .with(external_graph.as_ref(), external_node_index)
                         .collect_graph()
-                        .await?)
+                        .await
                 }
             })
             .buffer_unordered(self.concurrency)
