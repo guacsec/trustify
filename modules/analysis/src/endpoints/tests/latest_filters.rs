@@ -8,23 +8,23 @@ use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
 #[test_context(TrustifyContext)]
 #[rstest]
 #[case( // cpe search
-    Req { loc: Loc::Id("cpe:/a:redhat:quay:3::el8"), ..Req::default() },
+    Req { what: What::Id("cpe:/a:redhat:quay:3::el8"), ..Req::default() },
     2
 )]
 #[case( // cpe latest search
-    Req { loc: Loc::Id("cpe:/a:redhat:quay:3::el8"), latest: true, ..Req::default() },
+    Req { what: What::Id("cpe:/a:redhat:quay:3::el8"), latest: true, ..Req::default() },
     1
 )]
 #[case( // purl partial search
-    Req { loc: Loc::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), ..Req::default() },
+    Req { what: What::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), ..Req::default() },
     18
 )]
 #[case( // purl partial search latest
-    Req { loc: Loc::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), latest: true, ..Req::default() },
+    Req { what: What::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), latest: true, ..Req::default() },
     2
 )]
 #[case( // purl partial search latest
-    Req { loc: Loc::Q("purl:name~quay-builder-qemu-rhcos-rhel8&purl:ty=oci"), ancestors: Some(10), latest: true, ..Req::default() },
+    Req { what: What::Q("purl:name~quay-builder-qemu-rhcos-rhel8&purl:ty=oci"), ancestors: Some(10), latest: true, ..Req::default() },
     7
 )]
 #[test_log::test(actix_web::test)]
@@ -61,31 +61,31 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
 #[test_context(TrustifyContext)]
 #[rstest]
 #[case( // cpe search
-    Req { loc: Loc::Id("cpe:/a:redhat:rhel_eus:9.4::crb"), ..Req::default() },
+    Req { what: What::Id("cpe:/a:redhat:rhel_eus:9.4::crb"), ..Req::default() },
     2
 )]
 #[case( // cpe latest search
-    Req { loc: Loc::Id("cpe:/a:redhat:rhel_eus:9.4::crb"), latest: true, ..Req::default() },
+    Req { what: What::Id("cpe:/a:redhat:rhel_eus:9.4::crb"), latest: true, ..Req::default() },
     1
 )]
 #[case( // purl partial search
-    Req { loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm"), ancestors: Some(10), ..Req::default() },
+    Req { what: What::Q("pkg:rpm/redhat/NetworkManager-libnm"), ancestors: Some(10), ..Req::default() },
     30
 )]
 #[case( // purl partial latest search
-    Req { loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm"), ancestors: Some(10), latest: true, ..Req::default() },
+    Req { what: What::Q("pkg:rpm/redhat/NetworkManager-libnm"), ancestors: Some(10), latest: true, ..Req::default() },
     15
 )]
 #[case( // purl more specific latest q search
-    Req { loc: Loc::Q("pkg:rpm/redhat/NetworkManager-libnm-devel@"), latest: true, ..Req::default() },
+    Req { what: What::Q("pkg:rpm/redhat/NetworkManager-libnm-devel@"), latest: true, ..Req::default() },
     5
 )]
 #[case( // name exact search
-    Req { loc: Loc::Id("NetworkManager-libnm-devel"), ..Req::default() },
+    Req { what: What::Id("NetworkManager-libnm-devel"), ..Req::default() },
     10
 )]
 #[case( // latest name exact search
-    Req { loc: Loc::Id("NetworkManager-libnm-devel"), latest: true, ..Req::default() },
+    Req { what: What::Id("NetworkManager-libnm-devel"), latest: true, ..Req::default() },
     5
 )]
 #[test_log::test(actix_web::test)]
@@ -120,27 +120,27 @@ async fn resolve_rh_variant_latest_filter_rpms_cdx(
 #[test_context(TrustifyContext)]
 #[rstest]
 #[case( // cpe search
-    Req { loc: Loc::Id("cpe:/a:redhat:camel_quarkus:3"), ..Req::default() },
+    Req { what: What::Id("cpe:/a:redhat:camel_quarkus:3"), ..Req::default() },
     2
 )]
 #[case( // cpe latest search
-    Req { loc: Loc::Id("cpe:/a:redhat:camel_quarkus:3"), latest: true, ..Req::default() },
+    Req { what: What::Id("cpe:/a:redhat:camel_quarkus:3"), latest: true, ..Req::default() },
     1
 )]
 #[case( // purl partial search
-    Req { loc: Loc::Q("pkg:maven/io.vertx/vertx-core@"), ancestors: Some(10), ..Req::default() },
+    Req { what: What::Q("pkg:maven/io.vertx/vertx-core@"), ancestors: Some(10), ..Req::default() },
     6
 )]
 #[case( // purl partial latest search
-    Req { loc: Loc::Q("pkg:maven/io.vertx/vertx-core@"), latest: true, ..Req::default() },
+    Req { what: What::Q("pkg:maven/io.vertx/vertx-core@"), latest: true, ..Req::default() },
     2
 )]
 #[case( // name exact search
-    Req { loc: Loc::Id("vertx-core"), ..Req::default() },
+    Req { what: What::Id("vertx-core"), ..Req::default() },
     6
 )]
 #[case( // latest name exact search
-    Req { loc: Loc::Id("vertx-core"), latest: true, ..Req::default() },
+    Req { what: What::Id("vertx-core"), latest: true, ..Req::default() },
     2
 )]
 #[test_log::test(actix_web::test)]
@@ -201,7 +201,7 @@ async fn test_tc2606(
     let response = app
         .req(Req {
             latest: true,
-            loc: Loc::Id("cpe:/a:redhat:rhel_eus:9.4::appstream"),
+            what: What::Id("cpe:/a:redhat:rhel_eus:9.4::appstream"),
             descendants: Some(1),
             ..Req::default()
         })
@@ -300,7 +300,7 @@ async fn test_tc2677(
     let response = app
         .req(Req {
             latest: true,
-            loc: Loc::Id("cpe:/a:redhat:3scale:2.15::el9"),
+            what: What::Id("cpe:/a:redhat:3scale:2.15::el9"),
             descendants: Some(10),
             ..Req::default()
         })
@@ -364,11 +364,11 @@ async fn test_tc2677(
 #[test_context(TrustifyContext)]
 #[rstest]
 #[case( // non-latest
-    Req { loc: Loc::Id("pkg:maven/io.vertx/vertx-core"), ..Req::default() },
+    Req { what: What::Id("pkg:maven/io.vertx/vertx-core"), ..Req::default() },
     0
 )]
 #[case( // latest
-    Req { loc: Loc::Id("pkg:maven/io.vertx/vertx-core"), latest: true, ..Req::default() },
+    Req { what: What::Id("pkg:maven/io.vertx/vertx-core"), latest: true, ..Req::default() },
     2
 )]
 #[test_log::test(actix_web::test)]
@@ -425,7 +425,7 @@ async fn test_tc2578(
     let response = app
         .req(Req {
             latest: true,
-            loc: Loc::Id("cpe:/a:redhat:jboss_enterprise_application_platform:7.4"),
+            what: What::Id("cpe:/a:redhat:jboss_enterprise_application_platform:7.4"),
             descendants: Some(100),
             ..Req::default()
         })
