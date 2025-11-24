@@ -76,7 +76,7 @@ pub async fn analysis_status(
     ),
     responses(
         AuthResponse,
-        (status = 200, description = "Retrieved component(s) located by name, pURL, or CPE", body = PaginatedResults<Node>),
+        (status = 200, description = "Retrieved component(s) located by an exact match of name, pURL, or CPE", body = PaginatedResults<Node>),
     ),
 )]
 #[get("/v2/analysis/component/{key}")]
@@ -205,7 +205,7 @@ pub async fn search_latest_component(
     ),
     responses(
         AuthResponse,
-        (status = 200, description = "Retrieved latest component(s) located by name, pURL, or CPE", body = PaginatedResults<Node>),
+        (status = 200, description = "Retrieved latest component(s) located by an exact match of name, pURL, or CPE", body = PaginatedResults<Node>),
     ),
 )]
 #[get("/v2/analysis/latest/component/{key}")]

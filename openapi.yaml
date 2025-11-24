@@ -519,7 +519,7 @@ paths:
           type: string
       responses:
         '200':
-          description: Retrieved component(s) located by name, pURL, or CPE
+          description: Retrieved component(s) located by an exact match of name, pURL, or CPE
           content:
             application/json:
               schema:
@@ -743,7 +743,7 @@ paths:
           type: string
       responses:
         '200':
-          description: Retrieved latest component(s) located by name, pURL, or CPE
+          description: Retrieved latest component(s) located by an exact match of name, pURL, or CPE
           content:
             application/json:
               schema:
