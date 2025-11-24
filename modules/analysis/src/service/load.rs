@@ -411,6 +411,23 @@ impl InnerService {
                 .left_join(sbom::Entity)
         }
 
+        trait JoinCpe {
+            fn join_cpe(self) -> Self;
+        }
+
+        impl<E> JoinCpe for Select<E>
+        where
+            E: EntityTrait + Related<sbom::Entity>,
+        {
+            fn join_cpe(self) -> Self {
+                self.join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
+                    .join(
+                        JoinType::LeftJoin,
+                        sbom_package_cpe_ref::Relation::Cpe.def(),
+                    )
+            }
+        }
+
         fn find<E>() -> Select<E>
         where
             E: EntityTrait + Related<sbom::Entity>,
@@ -458,11 +475,7 @@ impl InnerService {
             GraphQuery::Component(ComponentReference::Id(node_id)) => {
                 let subquery = find::<sbom_node::Entity>()
                     .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
-                    .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_package_cpe_ref::Relation::Cpe.def(),
-                    )
+                    .join_cpe()
                     .filter(sbom_node::Column::NodeId.eq(node_id));
 
                 query_all(subquery.into_query(), connection).await?
@@ -470,11 +483,7 @@ impl InnerService {
             GraphQuery::Component(ComponentReference::Name(name)) => {
                 let subquery = find_rank_name::<sbom_node::Entity>()
                     .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
-                    .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_package_cpe_ref::Relation::Cpe.def(),
-                    )
+                    .join_cpe()
                     .filter(sbom_node::Column::Name.eq(name));
 
                 query_all(subquery.into_query(), connection).await?
@@ -483,11 +492,7 @@ impl InnerService {
                 let subquery = find_rank_name::<sbom_package_purl_ref::Entity>()
                     .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def().rev())
                     .join(JoinType::LeftJoin, sbom_node::Relation::Package.def().rev())
-                    .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_package_cpe_ref::Relation::Cpe.def(),
-                    )
+                    .join_cpe()
                     .filter(
                         sbom_package_purl_ref::Column::QualifiedPurlId.eq(purl.qualifier_uuid()),
                     );
@@ -500,11 +505,7 @@ impl InnerService {
                         JoinType::LeftJoin,
                         sbom_node::Relation::PackageBySbomId.def(),
                     )
-                    .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_package_cpe_ref::Relation::Cpe.def(),
-                    )
+                    .join_cpe()
                     // For CPE searches the .not_like("pkg:%") filter is required
                     .filter(sbom_node::Column::Name.not_like("pkg:%"))
                     .filter(sbom_package_cpe_ref::Column::CpeId.eq(cpe.uuid()));
@@ -515,15 +516,11 @@ impl InnerService {
                 let subquery = find_rank_name::<sbom_node::Entity>()
                     .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
                     .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
-                    .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_package_cpe_ref::Relation::Cpe.def(),
-                    )
                     .join(
                         JoinType::LeftJoin,
                         sbom_package_purl_ref::Relation::Purl.def(),
                     )
+                    .join_cpe()
                     .filtering_with(query.clone(), q_columns())?;
 
                 query_all(subquery.into_query(), connection).await?
