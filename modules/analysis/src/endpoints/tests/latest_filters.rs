@@ -363,13 +363,24 @@ async fn test_tc2677(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case( // non-latest
+#[case( // non-latest, fuzzy match, which must not work with IDs
     Req { what: What::Id("pkg:maven/io.vertx/vertx-core"), ..Req::default() },
     0
 )]
-#[case( // latest
+#[case( // latest, fuzzy match, which must not work with IDs
     Req { what: What::Id("pkg:maven/io.vertx/vertx-core"), latest: true, ..Req::default() },
     0
+)]
+#[case( // non-latest, exact match: 2x in camel, 1x in CXF
+    Req { what: What::Id("pkg:maven/io.vertx/vertx-core@4.5.13.redhat-00001?type=jar"), ..Req::default() },
+    3
+)]
+#[case(
+    // latest, exact match: 2x in camel, 1x in CXF, but one overlaps the other because of "latest".
+    // Not sure that's actually correct, as both SBOMs don't have a CPE and so don't have a
+    // relationship.
+    Req { what: What::Id("pkg:maven/io.vertx/vertx-core@4.5.13.redhat-00001?type=jar"), latest: true, ..Req::default() },
+    2
 )]
 #[test_log::test(actix_web::test)]
 async fn test_tc2717(
