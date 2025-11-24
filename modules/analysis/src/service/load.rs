@@ -389,20 +389,40 @@ impl InnerService {
         ///
         ///   An unexecuted `sea_orm::Select<E>` query builder struct.
         ///
-        fn find<E>() -> Select<E>
+        fn build_ranked_query<E>(partition_by_name: bool) -> Select<E>
         where
             E: EntityTrait + Related<sbom::Entity>,
         {
-            const RANK_SQL: &str =
-                "RANK() OVER (PARTITION BY sbom_node.name,cpe.id ORDER BY sbom.published DESC)";
+            // Dynamically select the RANK SQL based on the flag
+            let rank_sql = if partition_by_name {
+                // for CPE queries
+                "RANK() OVER (PARTITION BY sbom_node.name, cpe.id ORDER BY sbom.published DESC)"
+            } else {
+                // for exact/partial name queries
+                "RANK() OVER (PARTITION BY cpe.id ORDER BY sbom.published DESC)"
+            };
 
             E::find()
                 .select_only()
                 .column(sbom::Column::SbomId)
                 .column(sbom::Column::Published)
                 .column(cpe::Column::Id)
-                .column_as(Expr::cust(RANK_SQL), "rank")
+                .column_as(Expr::cust(rank_sql), "rank") // Use the selected SQL string
                 .left_join(sbom::Entity)
+        }
+
+        fn find<E>() -> Select<E>
+        where
+            E: EntityTrait + Related<sbom::Entity>,
+        {
+            build_ranked_query(true)
+        }
+
+        fn find_rank_name<E>() -> Select<E>
+        where
+            E: EntityTrait + Related<sbom::Entity>,
+        {
+            build_ranked_query(false)
         }
 
         async fn query_all<C>(
@@ -448,7 +468,7 @@ impl InnerService {
                 query_all(subquery.into_query(), connection).await?
             }
             GraphQuery::Component(ComponentReference::Name(name)) => {
-                let subquery = find::<sbom_node::Entity>()
+                let subquery = find_rank_name::<sbom_node::Entity>()
                     .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
                     .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
                     .join(
@@ -460,7 +480,7 @@ impl InnerService {
                 query_all(subquery.into_query(), connection).await?
             }
             GraphQuery::Component(ComponentReference::Purl(purl)) => {
-                let subquery = find::<sbom_package_purl_ref::Entity>()
+                let subquery = find_rank_name::<sbom_package_purl_ref::Entity>()
                     .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
                     .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
                     .join(
@@ -491,7 +511,7 @@ impl InnerService {
                 query_all(subquery.into_query(), connection).await?
             }
             GraphQuery::Query(query) => {
-                let subquery = find::<sbom_node::Entity>()
+                let subquery = find_rank_name::<sbom_node::Entity>()
                     .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
                     .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
                     .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
