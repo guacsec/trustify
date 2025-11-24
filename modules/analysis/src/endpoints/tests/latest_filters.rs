@@ -361,6 +361,12 @@ async fn test_tc2677(
     Ok(())
 }
 
+/// originally test if searching for PURLs works, instead of throwing a 500 error
+///
+/// This was due to a missing relationship/join.
+///
+/// On top, this test will now verify that there is no partial PURL matching. Which got introduced
+/// during the original fixing of TC-2171, but was never part of the API.
 #[test_context(TrustifyContext)]
 #[rstest]
 #[case( // non-latest, fuzzy match, which must not work with IDs
