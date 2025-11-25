@@ -7,6 +7,7 @@ use super::service::{AnalysisService, QueryOptions};
 use crate::{
     endpoints::query::OwnedComponentReference,
     model::{AnalysisStatus, Node},
+    parse_sbom_id,
     service::render::Renderer,
 };
 use actix_web::{HttpResponse, Responder, get, web};
@@ -156,7 +157,9 @@ pub async fn render_sbom_graph(
         return Ok(HttpResponse::UnsupportedMediaType().finish());
     };
 
-    let graph = service.load_graph(db.as_ref(), &sbom).await?;
+    let sbom = parse_sbom_id(&sbom)?;
+
+    let graph = service.load_graph(db.as_ref(), sbom).await?;
 
     if let Some((data, content_type)) = service.render(graph.as_ref(), ext) {
         Ok(HttpResponse::Ok().content_type(content_type).body(data))

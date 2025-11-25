@@ -27,7 +27,7 @@ impl DiscoveredTracker {
 #[derive(Clone)]
 pub struct Collector<'a, C: ConnectionTrait> {
     graph_cache: &'a Arc<GraphMap>,
-    graphs: &'a [(String, Arc<PackageGraph>)],
+    graphs: &'a [(Uuid, Arc<PackageGraph>)],
     graph: &'a NodeGraph,
     node: NodeIndex,
     direction: Direction,
@@ -58,7 +58,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         graph_cache: &'a Arc<GraphMap>,
-        graphs: &'a [(String, Arc<PackageGraph>)],
+        graphs: &'a [(Uuid, Arc<PackageGraph>)],
         graph: &'a NodeGraph,
         node: NodeIndex,
         direction: Direction,
@@ -159,7 +159,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         };
 
         // retrieve external sbom graph from graph_cache
-        let Some(external_graph) = self.graph_cache.get(&external_sbom_id.to_string()) else {
+        let Some(external_graph) = self.graph_cache.get(external_sbom_id) else {
             log::warn!(
                 "external sbom graph {:?} for {:?} not found during collection.",
                 &external_sbom_id.to_string(),
@@ -223,10 +223,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
 
                     // get the external sbom graph
 
-                    let Some(external_graph) = collector
-                        .graph_cache
-                        .clone()
-                        .get(&matched.sbom_id.to_string())
+                    let Some(external_graph) = collector.graph_cache.clone().get(matched.sbom_id)
                     else {
                         log::warn!(
                             "external sbom graph {} not found in graph cache",

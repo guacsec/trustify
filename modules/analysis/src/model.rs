@@ -17,6 +17,7 @@ use std::{
 use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::relationship::Relationship;
 use utoipa::ToSchema;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, ToSchema, serde::Serialize)]
 pub struct AnalysisStatus {
@@ -128,13 +129,13 @@ pub struct GraphMap {
     /// cache capacity in bytes
     capacity: u64,
     /// the cache
-    map: Cache<String, Arc<PackageGraph>>,
+    map: Cache<Uuid, Arc<PackageGraph>>,
 }
 
 #[allow(clippy::ptr_arg)] // &String is required by Cache::builder().weigher() method
-fn size_of_graph_entry(key: &String, value: &Arc<PackageGraph>) -> u32 {
+fn size_of_graph_entry(_key: &Uuid, value: &Arc<PackageGraph>) -> u32 {
     (
-        key.deep_size_of()
+        16 /* Uuid */
             + DeepSizeGraph(value.as_ref()).deep_size_of()
             // Also add in some entry overhead of the cache entry
             + 20
@@ -200,8 +201,8 @@ impl GraphMap {
     }
 
     /// Check if the map contains a key
-    pub fn contains_key(&self, key: &str) -> bool {
-        self.map.contains_key(key)
+    pub fn contains_key(&self, key: Uuid) -> bool {
+        self.map.contains_key(&key)
     }
 
     /// Get the number of graphs in the map
@@ -223,14 +224,14 @@ impl GraphMap {
     }
 
     /// Add a new graph with the given key (write access)
-    pub fn insert(&self, key: String, graph: Arc<PackageGraph>) {
+    pub fn insert(&self, key: Uuid, graph: Arc<PackageGraph>) {
         self.map.insert(key, graph);
         self.map.run_pending_tasks();
     }
 
     /// Retrieve a reference to a graph by its key (read access)
-    pub fn get(&self, key: &str) -> Option<Arc<PackageGraph>> {
-        self.map.get(key)
+    pub fn get(&self, key: Uuid) -> Option<Arc<PackageGraph>> {
+        self.map.get(&key)
     }
 
     /// Clear all graphs from the map

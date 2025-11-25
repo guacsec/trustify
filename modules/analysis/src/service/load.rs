@@ -11,7 +11,7 @@ use ::cpe::{
     cpe::{Cpe, CpeType, Language},
     uri::OwnedUri,
 };
-use actix_http::StatusCode;
+use anyhow::anyhow;
 use futures::FutureExt;
 use opentelemetry::KeyValue;
 use petgraph::{Graph, prelude::NodeIndex};
@@ -34,7 +34,6 @@ use tracing::{Level, instrument};
 use trustify_common::{
     cpe::Cpe as TrustifyCpe,
     db::query::{Columns, Filtering, IntoColumns},
-    id::IdError,
     purl::Purl,
 };
 use trustify_entity::{
@@ -261,7 +260,7 @@ impl AnalysisService {
     pub async fn load_graph<C: ConnectionTrait>(
         &self,
         connection: &C,
-        distinct_sbom_id: &str,
+        distinct_sbom_id: Uuid,
     ) -> Result<Arc<PackageGraph>, Error> {
         self.inner.load_graph(connection, distinct_sbom_id).await
     }
@@ -271,8 +270,8 @@ impl AnalysisService {
     pub async fn load_graphs<C: ConnectionTrait>(
         &self,
         connection: &C,
-        distinct_sbom_ids: &[impl AsRef<str> + Debug],
-    ) -> Result<Vec<(String, Arc<PackageGraph>)>, Error> {
+        distinct_sbom_ids: impl IntoIterator<Item = Uuid> + Debug,
+    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
         self.inner.load_graphs(connection, distinct_sbom_ids).await
     }
 }
@@ -284,7 +283,7 @@ impl InnerService {
         &self,
         connection: &C,
         query: GraphQuery<'_>,
-    ) -> Result<Vec<(String, Arc<PackageGraph>)>, Error> {
+    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
         let search_sbom_subquery = match query {
             GraphQuery::Component(ComponentReference::Id(name)) => sbom_node::Entity::find()
                 .filter(sbom_node::Column::NodeId.eq(name))
@@ -342,7 +341,7 @@ impl InnerService {
         &self,
         connection: &C,
         query: GraphQuery<'_>,
-    ) -> Result<Vec<(String, Arc<PackageGraph>)>, Error> {
+    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
         #[derive(Debug, FromQueryResult)]
         struct Row {
             sbom_id: Uuid,
@@ -442,10 +441,7 @@ impl InnerService {
             build_ranked_query(false)
         }
 
-        async fn query_all<C>(
-            subquery: SelectStatement,
-            connection: &C,
-        ) -> Result<Vec<String>, Error>
+        async fn query_all<C>(subquery: SelectStatement, connection: &C) -> Result<Vec<Uuid>, Error>
         where
             C: ConnectionTrait,
         {
@@ -465,13 +461,10 @@ impl InnerService {
             .all(connection)
             .await?;
 
-            Ok(rows
-                .into_iter()
-                .map(|row| row.sbom_id.to_string())
-                .collect())
+            Ok(rows.into_iter().map(|row| row.sbom_id).collect())
         }
 
-        let latest_sbom_ids: Vec<_> = match query {
+        let latest_sbom_ids = match query {
             GraphQuery::Component(ComponentReference::Id(node_id)) => {
                 let subquery = find::<sbom_node::Entity>()
                     .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
@@ -527,7 +520,7 @@ impl InnerService {
             }
         };
 
-        self.load_graphs(connection, &latest_sbom_ids).await
+        self.load_graphs(connection, latest_sbom_ids).await
     }
 
     /// Take a select for sboms, and ensure they are loaded and return their IDs.
@@ -535,17 +528,16 @@ impl InnerService {
         &self,
         connection: &C,
         subquery: SelectStatement,
-    ) -> Result<Vec<(String, Arc<PackageGraph>)>, Error> {
-        let distinct_sbom_ids: Vec<String> = sbom::Entity::find()
+    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
+        let distinct_sbom_ids = sbom::Entity::find()
             .filter(sbom::Column::SbomId.in_subquery(subquery))
             .select()
             .all(connection)
             .await?
             .into_iter()
-            .map(|record| record.sbom_id.to_string()) // Assuming sbom_id is of type String
-            .collect();
+            .map(|record| record.sbom_id);
 
-        self.load_graphs(connection, &distinct_sbom_ids).await
+        self.load_graphs(connection, distinct_sbom_ids).await
     }
 
     /// Load the SBOM matching the provided ID
@@ -556,7 +548,7 @@ impl InnerService {
     pub async fn load_graph<C: ConnectionTrait>(
         &self,
         connection: &C,
-        distinct_sbom_id: &str,
+        distinct_sbom_id: Uuid,
     ) -> Result<Arc<PackageGraph>, Error> {
         log::debug!("loading sbom: {:?}", distinct_sbom_id);
 
@@ -566,12 +558,6 @@ impl InnerService {
             // early return if we already loaded it
             return Ok(g);
         }
-
-        let distinct_sbom_id =
-            Uuid::parse_str(distinct_sbom_id).map_err(|err| Error::BadRequest {
-                msg: format!("Unable to parse SBOM ID {distinct_sbom_id}: {err}"),
-                status: StatusCode::BAD_REQUEST,
-            })?;
 
         // check if there is a loading operation pending
 
@@ -632,8 +618,7 @@ impl InnerService {
         };
         let g = Arc::new(g);
 
-        self.graph_cache
-            .insert(distinct_sbom_id.to_string(), g.clone());
+        self.graph_cache.insert(distinct_sbom_id, g.clone());
 
         // remove the ops handle and notify the waiting tasks
 
@@ -740,17 +725,16 @@ impl InnerService {
     /// Load all SBOMs by the provided IDs, also resolve external references and load them too
     #[instrument(
         skip(self, connection, distinct_sbom_ids),
-        fields(distinct_sbom_ids_len = distinct_sbom_ids.len()),
         err(level=tracing::Level::INFO))
     ]
     pub async fn load_graphs<C: ConnectionTrait>(
         &self,
         connection: &C,
-        distinct_sbom_ids: &[impl AsRef<str> + Debug],
-    ) -> Result<Vec<(String, Arc<PackageGraph>)>, Error> {
+        distinct_sbom_ids: impl IntoIterator<Item = Uuid> + Debug,
+    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
         log::info!(
-            "Initiating SBOM graph loading for {} SBOM(s)",
-            distinct_sbom_ids.len()
+            "Initiating SBOM graph loading for {:?} SBOM(s)",
+            distinct_sbom_ids
         );
 
         self.load_graphs_inner(connection, distinct_sbom_ids, &mut HashSet::new())
@@ -765,18 +749,16 @@ impl InnerService {
     pub async fn load_graphs_inner<C: ConnectionTrait>(
         &self,
         connection: &C,
-        // TODO: distinct_sbom_ids: impl IntoIterator<Item = impl AsRef<str> + Debug>,
-        distinct_sbom_ids: &[impl AsRef<str> + Debug],
-        seen_sbom_ids: &mut HashSet<String>,
-    ) -> Result<Vec<(String, Arc<PackageGraph>)>, Error> {
+        distinct_sbom_ids: impl IntoIterator<Item = Uuid>,
+        seen_sbom_ids: &mut HashSet<Uuid>,
+    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
         let mut results = Vec::new();
 
         for distinct_sbom_id in distinct_sbom_ids {
-            let distinct_sbom_id = distinct_sbom_id.as_ref();
             log::debug!("loading sbom: {distinct_sbom_id}");
 
             // if we can insert into the seen map, we need to process...
-            if !seen_sbom_ids.insert(distinct_sbom_id.to_string()) {
+            if !seen_sbom_ids.insert(distinct_sbom_id) {
                 // ... otherwise, we already did and can move on.
                 log::debug!("Skipping duplicate SBOM ID: {distinct_sbom_id}");
                 continue;
@@ -784,56 +766,57 @@ impl InnerService {
 
             // load and remember the result
             results.push((
-                distinct_sbom_id.to_string(),
+                distinct_sbom_id,
                 self.load_graph(connection, distinct_sbom_id).await?,
             ));
 
-            // at this stage we just have sbom_id string, so have to convert back to uuid
-            let distinct_sbom_id_uuid =
-                Uuid::parse_str(distinct_sbom_id).map_err(IdError::InvalidUuid)?;
-
             // select all related external nodes
-            let external_sboms = sbom_external_node::Entity::find()
-                .filter(sbom_external_node::Column::SbomId.eq(distinct_sbom_id_uuid))
+            let external_nodes = sbom_external_node::Entity::find()
+                .filter(sbom_external_node::Column::SbomId.eq(distinct_sbom_id))
                 .all(connection)
                 .await?;
 
             log::debug!(
-                "Found {} external nodes (for SBOM: {distinct_sbom_id_uuid})",
-                external_sboms.len()
+                "Found {} external descendant nodes (for SBOM: {distinct_sbom_id})",
+                external_nodes.len()
             );
 
-            let mut resolved = Vec::new();
+            let mut resolved = vec![];
 
             // resolve and load externally referenced sboms
-            for external_sbom in &external_sboms {
+            for external_node in &external_nodes {
                 log::debug!(
                     "resolving external: {}/{}",
-                    external_sbom.sbom_id,
-                    external_sbom.node_id
+                    external_node.sbom_id,
+                    external_node.node_id
                 );
                 let resolved_external_sbom =
-                    resolve_external_sbom(&external_sbom.node_id, connection).await?;
+                    resolve_external_sbom(&external_node.node_id, connection).await?;
 
                 let Some(resolved_external_sbom) = resolved_external_sbom else {
-                    log::warn!("Cannot find external sbom {}", external_sbom.node_id);
+                    log::warn!(
+                        "Cannot find external node {} / {}",
+                        external_node.sbom_id,
+                        external_node.node_id
+                    );
                     continue;
                 };
 
                 log::debug!("resolved external sbom: {:?}", resolved_external_sbom);
 
-                resolved.push(resolved_external_sbom.sbom_id.to_string());
+                resolved.push(resolved_external_sbom.sbom_id);
             }
 
             log::debug!("Resolved {} SBOMs", resolved.len());
             if log::log_enabled!(log::Level::Debug) {
                 for r in &resolved {
-                    log::debug!("  Resolved: {r}");
+                    let sbom_id = sbom_id(*r, connection).await?;
+                    log::debug!("  Resolved: {r} -> {sbom_id:?}");
                 }
             }
 
             let sub = Box::pin(async {
-                self.load_graphs_inner(connection, &resolved, seen_sbom_ids)
+                self.load_graphs_inner(connection, resolved, seen_sbom_ids)
                     .await
             })
             .await?;
@@ -888,4 +871,12 @@ fn q_columns() -> Columns {
                 _ => None,
             }
         })
+}
+
+async fn sbom_id(id: Uuid, connection: &impl ConnectionTrait) -> anyhow::Result<Option<String>> {
+    Ok(sbom::Entity::find_by_id(id)
+        .one(connection)
+        .await?
+        .ok_or_else(|| anyhow!("Unable to find SBOM: {id}"))?
+        .document_id)
 }

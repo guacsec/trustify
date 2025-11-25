@@ -294,7 +294,7 @@ impl IngestorService {
             return;
         };
 
-        match analysis.queue_load(id.to_string()) {
+        match analysis.queue_load(id) {
             Ok(r) if wait => {
                 // queued ok, await processing
                 if let Err(err) = r.await {

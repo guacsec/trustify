@@ -338,7 +338,7 @@ async fn test_status_service(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     let analysis_status = service.status(&ctx.db, false).await?;
     assert_eq!(analysis_status.sbom_count, 1);
     assert_eq!(analysis_status.graph_count, 1);
-    assert_eq!(analysis_status.graph_memory, 2268);
+    assert_eq!(analysis_status.graph_memory, 2224);
     assert!(analysis_status.details.is_none());
 
     service.clear_all_graphs()?;
