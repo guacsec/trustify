@@ -11,16 +11,14 @@ pub mod render;
 #[cfg(test)]
 mod test;
 
+use crate::model::AnalysisStatusDetails;
 use crate::{
     Error,
     config::AnalysisConfig,
     model::{AnalysisStatus, BaseSummary, GraphMap, Node, PackageGraph, graph},
 };
 use fixedbitset::FixedBitSet;
-use futures::{StreamExt, TryStreamExt, stream};
-
-use crate::model::AnalysisStatusDetails;
-use futures::future::Shared;
+use futures::{StreamExt, TryStreamExt, future::Shared, stream};
 use opentelemetry::{global, metrics::Counter};
 use parking_lot::Mutex;
 use petgraph::{
@@ -62,7 +60,7 @@ type NodeGraph = Graph<graph::Node, Relationship, petgraph::Directed>;
 
 #[derive(Debug)]
 struct QueueEntry {
-    id: String,
+    id: Uuid,
     tx: oneshot::Sender<()>,
 }
 
@@ -363,7 +361,7 @@ impl AnalysisService {
             let (ids, txs): (Vec<_>, Vec<_>) =
                 next.drain(..).map(|entry| (entry.id, entry.tx)).unzip();
 
-            match service.load_graphs(&connection, ids.as_slice()).await {
+            match service.load_graphs(&connection, ids).await {
                 Ok(r) => {
                     log::info!("Loaded {} graphs", r.len());
                 }
@@ -388,7 +386,7 @@ impl AnalysisService {
     }
 
     /// Queue an SBOM for loading into the cache
-    pub fn queue_load(&self, id: String) -> Result<Queued, QueueError> {
+    pub fn queue_load(&self, id: Uuid) -> Result<Queued, QueueError> {
         let (tx, rx) = oneshot::channel();
         self.tx
             .send(QueueEntry { id, tx })
@@ -400,7 +398,7 @@ impl AnalysisService {
     pub async fn load_all_graphs<C: ConnectionTrait>(
         &self,
         connection: &C,
-    ) -> Result<Vec<(String, Arc<PackageGraph>)>, Error> {
+    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
         // retrieve all sboms in trustify
 
         let distinct_sbom_ids = sbom::Entity::find()
@@ -408,10 +406,10 @@ impl AnalysisService {
             .all(connection)
             .await?
             .into_iter()
-            .map(|record| record.sbom_id.to_string()) // Assuming sbom_id is of type String
+            .map(|record| record.sbom_id) // Assuming sbom_id is of type String
             .collect::<Vec<_>>();
 
-        self.load_graphs(connection, &distinct_sbom_ids).await
+        self.load_graphs(connection, distinct_sbom_ids).await
     }
 
     pub fn clear_all_graphs(&self) -> Result<(), Error> {
@@ -441,7 +439,7 @@ impl AnalysisService {
     async fn collect_graph<'a, 'g, F, Fut>(
         &self,
         query: impl Into<GraphQuery<'a>> + Debug,
-        graphs: &'g [(String, Arc<PackageGraph>)],
+        graphs: &'g [(Uuid, Arc<PackageGraph>)],
         concurrency: usize,
         create: F,
     ) -> Result<Vec<Node>, Error>
@@ -454,7 +452,7 @@ impl AnalysisService {
         stream::iter(
             graphs
                 .iter()
-                .filter(|(sbom_id, graph)| acyclic(sbom_id, graph)),
+                .filter(|(sbom_id, graph)| acyclic(*sbom_id, graph)),
         )
         .flat_map(|(_, graph)| {
             let create = create.clone();
@@ -476,7 +474,7 @@ impl AnalysisService {
         &self,
         query: impl Into<GraphQuery<'a>> + Debug,
         options: QueryOptions,
-        graphs: &[(String, Arc<PackageGraph>)],
+        graphs: &[(Uuid, Arc<PackageGraph>)],
         connection: &C,
         graph_cache: Arc<GraphMap>,
     ) -> Result<Vec<Node>, Error> {
@@ -548,12 +546,12 @@ impl AnalysisService {
         paginated: Paginated,
         connection: &C,
     ) -> Result<PaginatedResults<Node>, Error> {
-        let distinct_sbom_ids = vec![sbom_id.to_string()];
+        let distinct_sbom_ids = vec![sbom_id];
 
         let query = query.into();
         let options = options.into();
 
-        let graphs = self.load_graphs(connection, &distinct_sbom_ids).await?;
+        let graphs = self.load_graphs(connection, distinct_sbom_ids).await?;
         let components = self
             .run_graph_query(
                 query,
@@ -682,7 +680,7 @@ impl AnalysisService {
     }
 }
 
-fn acyclic(id: &str, graph: &Arc<PackageGraph>) -> bool {
+fn acyclic(id: Uuid, graph: &Arc<PackageGraph>) -> bool {
     use petgraph::visit::{DfsEvent, depth_first_search};
     let g = graph.as_ref();
     let result = depth_first_search(g, g.node_identifiers(), |event| match event {

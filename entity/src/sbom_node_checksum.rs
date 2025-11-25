@@ -26,6 +26,12 @@ pub enum Relation {
     Sbom,
     #[sea_orm(has_many = "super::sbom_node::Entity")]
     Node,
+    #[sea_orm(
+        belongs_to = "Entity",
+        from = "(Column::Value, Column::Type)",
+        to = "(Column::Value, Column::Type)"
+    )]
+    SelfRef,
 }
 
 impl Related<super::sbom::Entity> for Entity {
