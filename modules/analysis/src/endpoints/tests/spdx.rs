@@ -1,3 +1,4 @@
+use super::req::*;
 use crate::test::caller;
 use actix_http::Request;
 use actix_web::test::TestRequest;
@@ -16,12 +17,13 @@ async fn spdx_generated_from(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
 
     // Find all deps of src rpm
     let src = "pkg:rpm/redhat/openssl@3.0.7-18.el9_2?arch=src";
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode(src)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(src),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
     log::debug!("{response:#?}");
 
     let deps = response.query(
@@ -31,12 +33,13 @@ async fn spdx_generated_from(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
 
     // Ensure binary rpm GeneratedFrom src rpm
     let x86 = "pkg:rpm/redhat/openssl@3.0.7-18.el9_2?arch=x86_64";
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode(x86)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(x86),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     log::debug!("{response:#?}");
 
     assert!(response.contains_subset(json!({
@@ -70,12 +73,13 @@ async fn spdx_variant_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Ensure variant relationships
     for parent in parents {
-        let uri = format!(
-            "/api/v2/analysis/component/{}?descendants=10",
-            urlencoding::encode(parent)
-        );
-        let request: Request = TestRequest::get().uri(&uri).to_request();
-        let response: Value = app.call_and_read_body_json(request).await;
+        let response: Value = app
+            .req(Req {
+                what: What::Id(parent),
+                descendants: Some(10),
+                ..Req::default()
+            })
+            .await?;
         tracing::debug!(test = "", "{response:#?}");
 
         assert!(response.contains_subset(json!({
@@ -89,12 +93,13 @@ async fn spdx_variant_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         })));
     }
 
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode(child)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(child),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
 
     assert!(response.contains_subset(json!({
@@ -134,12 +139,13 @@ async fn spdx_ancestor_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let child = "pkg:rpm/redhat/B@0.0.0";
 
     // Ensure parent has ancestors that include the child
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode(parent)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(parent),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
 
     assert!(response.contains_subset(json!({
@@ -153,12 +159,13 @@ async fn spdx_ancestor_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     })));
 
     // Ensure child has ancestors that include the parent
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode(child)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(child),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
 
     assert!(response.contains_subset(json!({
@@ -187,12 +194,13 @@ async fn spdx_package_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let purl = "pkg:rpm/redhat/rubygem-google-cloud-compute@0.5.0-1.el8sat?arch=src";
 
     // Ensure child has an ancestor that includes it
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode(purl)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(purl),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     log::debug!("{}", serde_json::to_string_pretty(&response)?);
 
     assert!(response.contains_subset(json!({
@@ -206,12 +214,13 @@ async fn spdx_package_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     })));
 
     // Ensure the product contains the component
-    let uri = format!(
-        "/api/v2/analysis/component?q={}&descendants=10",
-        urlencoding::encode("SATELLITE-6.15-RHEL-8")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Q("SATELLITE-6.15-RHEL-8"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
     log::debug!("{}", serde_json::to_string_pretty(&response)?);
 
     assert!(response.contains_subset(json!({
@@ -266,15 +275,22 @@ async fn resolve_spdx_external_reference(ctx: &TrustifyContext) -> Result<(), an
     let app = caller(ctx).await?;
 
     ctx.ingest_document("spdx/simple-ext-a.json").await?;
-    let uri = "/api/v2/analysis/component/A?descendants=10".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app
+        .req(Req {
+            what: What::Id("A"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     ctx.ingest_document("spdx/simple-ext-b.json").await?;
-    let uri = "/api/v2/analysis/component/A?descendants=10".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("A"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     //ensure we match on external node DocumentRef-ext-b:SPDXRef-A
     assert!(response.contains_subset(json!({
