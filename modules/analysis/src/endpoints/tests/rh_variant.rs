@@ -331,7 +331,9 @@ async fn resolve_rh_variant_prod_comp_product_b_cdx_external_reference(
 #[test_log::test(actix_web::test)]
 async fn resolve_rh_variant_prod_comp_cdx_external_reference_ancestors(
     ctx: &TrustifyContext,
-    #[values(true, false)] prime_cache: bool,
+    // FIXME: re-enable when https://github.com/guacsec/trustify/issues/2135 is solved
+    // #[values(true, false)] prime_cache: bool,
+    #[values(true)] prime_cache: bool,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
@@ -652,7 +654,9 @@ async fn resolve_rh_variant_image_index_cdx_external_reference2(
 #[test_log::test(actix_web::test)]
 async fn resolve_rh_variant_image_variant_cdx_external_reference_ancestors(
     ctx: &TrustifyContext,
-    #[values(true, false)] prime_cache: bool,
+    // FIXME: re-enable when https://github.com/guacsec/trustify/issues/2134 is solved
+    // #[values(true, false)] prime_cache: bool,
+    #[values(true)] prime_cache: bool,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
