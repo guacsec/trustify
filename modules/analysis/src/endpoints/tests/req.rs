@@ -12,6 +12,10 @@ pub struct Req<'a> {
     pub ancestors: Option<u64>,
     /// Level of descendants to request
     pub descendants: Option<u64>,
+    /// Limit the number of results
+    pub limit: Option<u64>,
+    /// Offset for pagination
+    pub offset: Option<u64>,
     /// What is being requested
     pub what: What<'a>,
 }
@@ -40,6 +44,8 @@ impl<C: CallService> ReqExt for C {
             what: loc,
             ancestors,
             descendants,
+            limit,
+            offset,
         } = req;
 
         let latest = match latest {
@@ -70,6 +76,14 @@ impl<C: CallService> ReqExt for C {
 
         if let Some(descendants) = descendants {
             uri = format!("{uri}descendants={descendants}&");
+        }
+
+        if let Some(limit) = limit {
+            uri = format!("{uri}limit={limit}&");
+        }
+
+        if let Some(offset) = offset {
+            uri = format!("{uri}offset={offset}&");
         }
 
         let request: Request = TestRequest::get().uri(&uri).to_request();

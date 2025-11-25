@@ -8,11 +8,12 @@ mod spdx;
 use crate::test::caller;
 use actix_http::Request;
 use actix_web::test::TestRequest;
+use req::*;
+use rstest::rstest;
 use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
 use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
-use urlencoding::encode;
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -23,9 +24,13 @@ async fn test_simple_retrieve_analysis_endpoint(
     ctx.ingest_documents(["spdx/simple.json"]).await?;
 
     //should match multiple components
-    let uri = "/api/v2/analysis/component?q=B&ancestors=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Q("B"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [{
@@ -35,9 +40,13 @@ async fn test_simple_retrieve_analysis_endpoint(
     assert_eq!(&response["total"], 2);
 
     //should match a single component
-    let uri = "/api/v2/analysis/component?q=BB&ancestors=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Q("BB"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [{
@@ -60,9 +69,13 @@ async fn test_simple_retrieve_by_name_analysis_endpoint(
     let app = caller(ctx).await?;
     ctx.ingest_documents(["spdx/simple.json"]).await?;
 
-    let uri = "/api/v2/analysis/component/B?ancestors=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("B"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [{
@@ -85,12 +98,13 @@ async fn test_simple_retrieve_by_purl_analysis_endpoint(
     let app = caller(ctx).await?;
     ctx.ingest_documents(["spdx/simple.json"]).await?;
 
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode("pkg:rpm/redhat/B@0.0.0")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("pkg:rpm/redhat/B@0.0.0"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [{
@@ -118,9 +132,13 @@ async fn test_quarkus_retrieve_analysis_endpoint(
     .await?;
 
     let purl = "pkg:maven/net.spy/spymemcached@2.12.1?type=jar";
-    let uri = "/api/v2/analysis/component?q=spymemcached&ancestors=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Q("spymemcached"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [
@@ -152,9 +170,12 @@ async fn test_status_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::Error
     ctx.ingest_documents(["spdx/simple.json"]).await?;
 
     // prime the graph hashmap
-    let uri = "/api/v2/analysis/component?q=BB";
-    let load1 = TestRequest::get().uri(uri).to_request();
-    let _response: Value = app.call_and_read_body_json(load1).await;
+    let _response: Value = app
+        .req(Req {
+            what: What::Q("BB"),
+            ..Req::default()
+        })
+        .await?;
 
     let uri = "/api/v2/analysis/status";
     let request: Request = TestRequest::get().uri(uri).to_request();
@@ -182,9 +203,14 @@ async fn test_simple_dep_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::E
     let app = caller(ctx).await?;
     ctx.ingest_documents(["spdx/simple.json"]).await?;
 
-    let uri = "/api/v2/analysis/component?q=A&ancestors=10&descendants=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Q("A"),
+            ancestors: Some(10),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     tracing::debug!(test = "", "{response:#?}");
 
@@ -233,9 +259,13 @@ async fn test_simple_dep_by_name_endpoint(ctx: &TrustifyContext) -> Result<(), a
     let app = caller(ctx).await?;
     ctx.ingest_documents(["spdx/simple.json"]).await?;
 
-    let uri = "/api/v2/analysis/component/A?descendants=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("A"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [{
@@ -259,12 +289,13 @@ async fn test_simple_dep_by_purl_endpoint(ctx: &TrustifyContext) -> Result<(), a
     ctx.ingest_documents(["spdx/simple.json"]).await?;
 
     let purl = "pkg:rpm/redhat/AA@0.0.0?arch=src";
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode(purl)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(purl),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [{
@@ -290,9 +321,13 @@ async fn test_quarkus_dep_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::
     .await?;
 
     let purl = "pkg:maven/net.spy/spymemcached@2.12.1?type=jar";
-    let uri = "/api/v2/analysis/component?q=spymemcached&descendants=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Q("spymemcached"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [
@@ -323,9 +358,12 @@ async fn quarkus_component_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::
     .await?;
 
     let purl = "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=pom";
-    let uri = format!("/api/v2/analysis/component/{}", urlencoding::encode(purl));
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(purl),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [{
@@ -350,12 +388,12 @@ async fn quarkus_component_by_cpe(ctx: &TrustifyContext) -> Result<(), anyhow::E
     .await?;
 
     let cpe = "cpe:/a:redhat:quarkus:3.2:*:el8:*";
-    let uri = format!(
-        "/api/v2/analysis/component/{}",
-        urlencoding::encode("cpe:/a:redhat:quarkus:3.2::el8")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("cpe:/a:redhat:quarkus:3.2::el8"),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [
@@ -376,123 +414,181 @@ async fn quarkus_component_by_cpe(ctx: &TrustifyContext) -> Result<(), anyhow::E
 
 async fn query(ctx: &TrustifyContext, query: &str) -> Value {
     let app = caller(ctx).await.unwrap();
-    let uri = format!("/api/v2/analysis/component?q={}&limit=0", encode(query));
-    let request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Q(query),
+            limit: Some(0),
+            ..Req::default()
+        })
+        .await
+        .unwrap();
     tracing::debug!(test = "", "{response:#?}");
     response
 }
 
 /// find a component by query
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn find_component_by_query(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[case(r"purl=pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/\&type=pom")]
+#[case(
+    "purl~pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001&purl:qualifiers:type=pom&purl:qualifiers:repository_url=https://maven.repository.redhat.com/ga/"
+)]
+#[case("purl~pkg:maven/com.redhat.quarkus.platform/quarkus-bom@")]
+#[case("purl~pkg:maven/com.redhat.quarkus.platform/quarkus-bom")]
+// #[case("purl~pkg:maven/com.redhat.quarkus.platform/quarkus-bo")] // <-- not all partial purl's will match
+#[case("purl:name=quarkus-bom")]
+#[case("cpe=cpe:/a:redhat:quarkus:3.2::el8")]
+#[case("cpe~cpe:/a:redhat:quarkus:3.2::el8")]
+#[case("cpe~cpe:/a:redhat:quarkus:3.2")]
+#[case("cpe~cpe:/a::quarkus")]
+#[case("purl~quarkus")] // invalid PURL results in a full-text search
+#[case("cpe~redhat")] // invalid CPE results in a full-text search
+#[case("purl~quarkus&cpe~redhat")] // essentially the same as `quarkus|redhat`
+#[case("purl~quarkus&cpe~cpe:/a:redhat")] // valid CPE, invalid PURL so full-text search
+#[test_log::test(actix_web::test)]
+async fn find_component_by_query(
+    ctx: &TrustifyContext,
+    #[case] query_str: &str,
+) -> Result<(), anyhow::Error> {
     ctx.ingest_documents(["spdx/quarkus-bom-3.2.11.Final-redhat-00001.json"])
         .await?;
 
     const PURL: &str = "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=pom";
 
-    for each in [
-        r"purl=pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/\&type=pom",
-        "purl~pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001&purl:qualifiers:type=pom&purl:qualifiers:repository_url=https://maven.repository.redhat.com/ga/",
-        "purl~pkg:maven/com.redhat.quarkus.platform/quarkus-bom@",
-        "purl~pkg:maven/com.redhat.quarkus.platform/quarkus-bom",
-        // "purl~pkg:maven/com.redhat.quarkus.platform/quarkus-bo", <-- not all partial purl's will match
-        "purl:name=quarkus-bom",
-        "cpe=cpe:/a:redhat:quarkus:3.2::el8",
-        "cpe~cpe:/a:redhat:quarkus:3.2::el8",
-        "cpe~cpe:/a:redhat:quarkus:3.2",
-        "cpe~cpe:/a::quarkus",
-        "purl~quarkus",                   // invalid PURL results in a full-text search
-        "cpe~redhat",                     // invalid CPE results in a full-text search
-        "purl~quarkus&cpe~redhat",        // essentially the same as `quarkus|redhat`
-        "purl~quarkus&cpe~cpe:/a:redhat", // valid CPE, invalid PURL so full-text search
-    ] {
-        assert!(
-            query(ctx, each).await.contains_subset(json!({
-                "items": [{
-                    "purl": [ PURL ],
-                    "cpe": ["cpe:/a:redhat:quarkus:3.2:*:el8:*"]
-                }]
-            })),
-            "test failed for '{each}'"
-        );
-    }
+    assert!(
+        query(ctx, query_str).await.contains_subset(json!({
+            "items": [{
+                "purl": [ PURL ],
+                "cpe": ["cpe:/a:redhat:quarkus:3.2:*:el8:*"]
+            }]
+        })),
+        "test failed for '{query_str}'"
+    );
 
     Ok(())
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn find_components_without_namespace(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[case("purl~pkg:nuget/NGX")]
+// #[case("purl~pkg:nuget/NGX@")]
+#[case("purl=pkg:nuget/NGX@31.0.15.5356")]
+// #[case("pkg:nuget/NGX@31.0.15.5356")]
+#[test_log::test(actix_web::test)]
+async fn find_components_without_namespace(
+    ctx: &TrustifyContext,
+    #[case] query_str: &str,
+) -> Result<(), anyhow::Error> {
     ctx.ingest_documents(["spdx/rhelai1_binary.json"]).await?;
 
     const PURL: &str = "pkg:nuget/NGX@31.0.15.5356";
 
-    for each in [
-        "purl~pkg:nuget/NGX",
-        // "purl~pkg:nuget/NGX@",
-        "purl=pkg:nuget/NGX@31.0.15.5356",
-        // "pkg:nuget/NGX@31.0.15.5356",
-    ] {
-        assert!(
-            query(ctx, each).await.contains_subset(json!({
-                "items": [{
-                    "purl": [ PURL ],
-                }]
-            })),
-            "for {each}"
-        );
-    }
+    assert!(
+        query(ctx, query_str).await.contains_subset(json!({
+            "items": [{
+                "purl": [ PURL ],
+            }]
+        })),
+        "for {query_str}"
+    );
 
     Ok(())
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn test_retrieve_query_params_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[case( // filter on node_id with descendants
+    Req {
+        what: What::Q("node_id=SPDXRef-A"),
+        descendants: Some(10),
+        ..Req::default()
+    },
+    Some("A"),
+    1
+)]
+#[case( // filter on node_id with ancestors
+    Req {
+        what: What::Q("node_id=SPDXRef-B"),
+        ancestors: Some(10),
+        ..Req::default()
+    },
+    Some("B"),
+    1
+)]
+#[case( // filter on node_id & name
+    Req {
+        what: What::Q("node_id=SPDXRef-B&name=B"),
+        ancestors: Some(10),
+        ..Req::default()
+    },
+    Some("B"),
+    1
+)]
+#[case( // negative test: non-existent sbom_id
+    Req {
+        what: What::Q("sbom_id=urn:uuid:99999999-9999-9999-9999-999999999999"),
+        ancestors: Some(10),
+        ..Req::default()
+    },
+    None,
+    0
+)]
+#[case( // negative test: mismatched node_id and name
+    Req {
+        what: What::Q("node_id=SPDXRef-B&name=A"),
+        ancestors: Some(10),
+        ..Req::default()
+    },
+    None,
+    0
+)]
+#[test_log::test(actix_web::test)]
+async fn test_retrieve_query_params_endpoint(
+    ctx: &TrustifyContext,
+    #[case] req: Req<'_>,
+    #[case] expected_name: Option<&str>,
+    #[case] expected_total: usize,
+) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
     ctx.ingest_documents(["spdx/simple.json"]).await?;
 
-    // filter on node_id
-    let uri = "/api/v2/analysis/component?q=node_id%3DSPDXRef-A&descendants=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
-    assert_eq!(response["items"][0]["name"], "A");
-    assert_eq!(&response["total"], 1);
+    let response: Value = app.req(req).await?;
 
-    // filter on node_id
-    let uri = "/api/v2/analysis/component?q=node_id%3DSPDXRef-B&ascendants=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
-    assert_eq!(response["items"][0]["name"], "B");
-    assert_eq!(&response["total"], 1);
+    if let Some(name) = expected_name {
+        assert_eq!(response["items"][0]["name"], name);
+    }
+    assert_eq!(&response["total"], expected_total);
 
-    // filter on node_id & name
-    let uri = "/api/v2/analysis/component?q=node_id%3DSPDXRef-B%26name%3DB&ascendants=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
-    assert_eq!(response["items"][0]["name"], "B");
-    assert_eq!(&response["total"], 1);
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn test_retrieve_query_params_endpoint_sbom_id(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_documents(["spdx/simple.json"]).await?;
+
+    // First get a response to extract sbom_id
+    let response: Value = app
+        .req(Req {
+            what: What::Q("node_id=SPDXRef-B&name=B"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     // filter on sbom_id (which has urn:uuid: prefix)
     let sbom_id = response["items"][0]["sbom_id"].as_str().unwrap();
-    let uri = format!("/api/v2/analysis/component?q=sbom_id={sbom_id}&ascendants=10");
-    let request: Request = TestRequest::get().uri(uri.clone().as_str()).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Q(&format!("sbom_id={sbom_id}")),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     assert_eq!(&response["total"], 9);
 
-    // negative test
-    let uri = "/api/v2/analysis/component?q=sbom_id=urn:uuid:99999999-9999-9999-9999-999999999999&ascendants=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
-    assert_eq!(&response["total"], 0);
-
-    // negative test
-    let uri = "/api/v2/analysis/component?q=node_id%3DSPDXRef-B%26name%3DA&ascendants=10";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
-
-    assert_eq!(&response["total"], 0);
     Ok(())
 }

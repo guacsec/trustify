@@ -1,11 +1,10 @@
+use super::req::*;
 use crate::test::caller;
-use actix_http::Request;
-use actix_web::test::TestRequest;
 use jsonpath_rust::JsonPath;
 use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
-use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
+use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -16,12 +15,13 @@ async fn cdx_generated_from(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 
     // Find all deps of src rpm
     let src = "pkg:rpm/redhat/openssl@3.0.7-18.el9_2?arch=src";
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode(src)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(src),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
 
     let deps = response.query(&format!(
@@ -31,12 +31,13 @@ async fn cdx_generated_from(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 
     // Ensure binary rpm GeneratedFrom src rpm
     let x86 = "pkg:rpm/redhat/openssl@3.0.7-18.el9_2?arch=x86_64";
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode(x86)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(x86),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [{
@@ -62,12 +63,13 @@ async fn cdx_variant_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let parent = "pkg:oci/ose-console@sha256:c2d69e860b7457eb42f550ba2559a0452ec3e5c9ff6521d758c186266247678e?arch=s390x&os=linux&tag=v4.14.0-202412110104.p0.g350e1ea.assembly.stream.el8";
     let child = "pkg:oci/openshift-ose-console@sha256:94a0d7feec34600a858c8e383ee0e8d5f4a077f6bbc327dcad8762acfcf40679";
 
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode(parent)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(parent),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
 
     assert!(response.contains_subset(json!({
@@ -81,12 +83,13 @@ async fn cdx_variant_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     })));
 
     // Ensure child is variant of src
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode(child)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(child),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
     tracing::debug!(test = "", "{response:#?}");
 
     assert!(response.contains_subset(json!({
@@ -113,12 +116,13 @@ async fn cdx_ancestor_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let child = "pkg:rpm/redhat/openssl@3.0.7-18.el9_2?arch=src";
 
     // Ensure parent has ancestors that include the child
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode(parent)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(parent),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
     log::debug!("{response:#?}");
 
     assert!(response.contains_subset(json!({
@@ -132,12 +136,13 @@ async fn cdx_ancestor_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     })));
 
     // Ensure parent has deps that include the child
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode(child)
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(child),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
     log::debug!("{response:#?}");
 
     assert!(response.contains_subset(json!({
@@ -159,15 +164,22 @@ async fn resolve_cdx_external_reference(ctx: &TrustifyContext) -> Result<(), any
     let app = caller(ctx).await?;
 
     ctx.ingest_document("cyclonedx/simple-ext-a.json").await?;
-    let uri = "/api/v2/analysis/component/A?descendants=10".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app
+        .req(Req {
+            what: What::Id("A"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     ctx.ingest_document("cyclonedx/simple-ext-b.json").await?;
-    let uri = "/api/v2/analysis/component/A?descendants=10".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("A"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     //ensure we match on external node urn:cdx:a4f16b62-fea9-42c1-8365-d72d3cef37d1/2#a
     assert!(response.contains_subset(json!({

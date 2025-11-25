@@ -1,10 +1,10 @@
+use super::req::*;
 use crate::test::caller;
-use actix_http::Request;
-use actix_web::test::TestRequest;
+use rstest::rstest;
 use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
-use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
+use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -15,22 +15,24 @@ async fn resolve_rh_variant_prod_comp_src_binary_spdx_external_reference(
 
     ctx.ingest_document("spdx/rh/product_component/rhel-9.2-eus.spdx.json")
         .await?;
-    let uri =
-        "/api/v2/analysis/component/SPDXRef-openssl-3.0.7-18.el9-2?descendants=10".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app
+        .req(Req {
+            what: What::Id("SPDXRef-openssl-3.0.7-18.el9-2"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     ctx.ingest_document("spdx/rh/product_component/openssl-3.0.7-18.el9_2.spdx.json")
         .await?;
 
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode("cpe:/a:redhat:rhel_eus:9.2::appstream")
-    );
-
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("cpe:/a:redhat:rhel_eus:9.2::appstream"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     assert!(response.contains_subset(json!({
         "items": [ {
@@ -86,19 +88,24 @@ async fn resolve_rh_variant_prod_comp_src_binary_spdx_external_reference_ancesto
 
     ctx.ingest_document("spdx/rh/product_component/rhel-9.2-eus.spdx.json")
         .await?;
-    let uri =
-        "/api/v2/analysis/component/SPDXRef-openssl-3.0.7-18.el9-2?descendants=10".to_string();
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app
+        .req(Req {
+            what: What::Id("SPDXRef-openssl-3.0.7-18.el9-2"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     ctx.ingest_document("spdx/rh/product_component/openssl-3.0.7-18.el9_2.spdx.json")
         .await?;
 
-    let uri = "/api/v2/analysis/component/openssl-perl?ancestors=10";
-
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("openssl-perl"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     assert!(response.contains_subset(json!({
         "items": [ {
@@ -172,15 +179,16 @@ async fn resolve_rh_variant_prod_comp_cdx_external_reference(
 
     ctx.ingest_document("cyclonedx/rh/product_component/openssl-3.0.7-18.el9_2.cdx.json")
         .await?;
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode("cpe:/a:redhat:rhel_eus:9.2::appstream")
-    );
     ctx.ingest_document("cyclonedx/rh/product_component/rhel-9.2-eus.cdx.json")
         .await?;
 
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("cpe:/a:redhat:rhel_eus:9.2::appstream"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     assert!(response.contains_subset(json!({
       "items": [
@@ -218,10 +226,12 @@ async fn resolve_rh_variant_prod_comp_cdx_external_reference(
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
+#[rstest]
+#[test_log::test(actix_web::test)]
 #[ignore = "wait for data change"]
 async fn resolve_rh_variant_prod_comp_product_b_cdx_external_reference(
     ctx: &TrustifyContext,
+    #[values(true, false)] prime_cache: bool,
 ) -> Result<(), anyhow::Error> {
     // make sure when multiple products refer to the same component
     let _load = ctx
@@ -236,17 +246,17 @@ async fn resolve_rh_variant_prod_comp_product_b_cdx_external_reference(
 
     ctx.ingest_document("cyclonedx/rh/product_component/rhel-9.2-eus.cdx.json")
         .await?;
-    let uri = "/api/v2/analysis/component";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
 
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode("pkg:rpm/redhat/openssl-perl@3.0.7-18.el9_2?arch=aarch64")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("pkg:rpm/redhat/openssl-perl@3.0.7-18.el9_2?arch=aarch64"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     assert!(response.contains_subset(json!({
       "items": [
@@ -317,9 +327,11 @@ async fn resolve_rh_variant_prod_comp_product_b_cdx_external_reference(
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
+#[rstest]
+#[test_log::test(actix_web::test)]
 async fn resolve_rh_variant_prod_comp_cdx_external_reference_ancestors(
     ctx: &TrustifyContext,
+    #[values(true, false)] prime_cache: bool,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
@@ -331,18 +343,18 @@ async fn resolve_rh_variant_prod_comp_cdx_external_reference_ancestors(
         .await?;
 
     // prime graph
-    let uri = "/api/v2/analysis/component";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
 
     // search for a dependency "pkg:rpm/redhat/openssl-perl@3.0.7-18.el9_2?arch=aarch64"
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode("pkg:rpm/redhat/openssl-perl@3.0.7-18.el9_2?arch=aarch64")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("pkg:rpm/redhat/openssl-perl@3.0.7-18.el9_2?arch=aarch64"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     assert!(response.contains_subset(json!({
       "items": [
@@ -397,24 +409,25 @@ async fn resolve_rh_variant_prod_comp_cdx_external_reference_curl(
 
     ctx.ingest_document("cyclonedx/rh/product_component/RHEL-8.10.0.Z.MAIN+EUS.json")
         .await?;
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode("cpe:/o:redhat:enterprise_linux:8.10::baseos")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app
+        .req(Req {
+            what: What::Id("cpe:/o:redhat:enterprise_linux:8.10::baseos"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     ctx.ingest_document(
         "cyclonedx/rh/product_component/RHEL-8.10.0.Z_curl@7.61.1-34.el8_10.2.json",
     )
     .await?;
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode("cpe:/o:redhat:enterprise_linux:8.10::baseos")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("cpe:/o:redhat:enterprise_linux:8.10::baseos"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     log::debug!("{response:?}");
 
@@ -450,22 +463,23 @@ async fn resolve_rh_variant_source_binary_cdx_external_reference(
 
     ctx.ingest_document("cyclonedx/rh/rpm_src_binary/example_rpm_source.json")
         .await?;
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode("cpe:/a:redhat:rhel_eus:9.4::appstream")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    let _response = app
+        .req(Req {
+            what: What::Id("cpe:/a:redhat:rhel_eus:9.4::appstream"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     ctx.ingest_document("cyclonedx/rh/rpm_src_binary/example_rpm_binaries.json")
         .await?;
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode("cpe:/a:redhat:rhel_eus:9.4::appstream")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("cpe:/a:redhat:rhel_eus:9.4::appstream"),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     log::debug!("{response:?}");
 
@@ -517,14 +531,15 @@ async fn resolve_rh_variant_image_index_cdx_external_reference(
     ])
     .await?;
 
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode(
-            "pkg:oci/quarkus-mandrel-for-jdk-21-rhel8@sha256%3A04b6da7bed65d56e14bd50a119b6fa9b46b534fedafb623af7c95b1a046bb66a"
-        )
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(
+                "pkg:oci/quarkus-mandrel-for-jdk-21-rhel8@sha256%3A04b6da7bed65d56e14bd50a119b6fa9b46b534fedafb623af7c95b1a046bb66a"
+            ),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     assert!(response.contains_subset(json!({
       "items": [
@@ -581,14 +596,15 @@ async fn resolve_rh_variant_image_index_cdx_external_reference2(
     ])
     .await?;
 
-    let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10",
-        urlencoding::encode(
-            "pkg:oci/openshift-ose-openstack-cinder-csi-driver-operator@sha256%3A4e1a8039dfcd2a1ae7672d99be63777b42f9fad3baca5e9273653b447ae72fe8"
-        )
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id(
+                "pkg:oci/openshift-ose-openstack-cinder-csi-driver-operator@sha256%3A4e1a8039dfcd2a1ae7672d99be63777b42f9fad3baca5e9273653b447ae72fe8"
+            ),
+            descendants: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     assert!(response.contains_subset(json!({
       "items": [
@@ -632,9 +648,11 @@ async fn resolve_rh_variant_image_index_cdx_external_reference2(
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
+#[rstest]
+#[test_log::test(actix_web::test)]
 async fn resolve_rh_variant_image_variant_cdx_external_reference_ancestors(
     ctx: &TrustifyContext,
+    #[values(true, false)] prime_cache: bool,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
@@ -648,18 +666,18 @@ async fn resolve_rh_variant_image_variant_cdx_external_reference_ancestors(
     .await?;
 
     // ensure analysis graphs are primed
-    let uri = "/api/v2/analysis/component";
-    let request: Request = TestRequest::get().uri(uri).to_request();
-    let response = app.call_service(request).await;
-    assert_eq!(200, response.response().status());
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
 
     // search for a dependency "pkg:rpm/redhat/openssl-perl@3.0.7-18.el9_2?arch=aarch64"
-    let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
-        urlencoding::encode("pkg:rpm/redhat/zlib@1.2.11-25.el8?arch=s390x")
-    );
-    let request: Request = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(request).await;
+    let response: Value = app
+        .req(Req {
+            what: What::Id("pkg:rpm/redhat/zlib@1.2.11-25.el8?arch=s390x"),
+            ancestors: Some(10),
+            ..Req::default()
+        })
+        .await?;
 
     assert!(response.contains_subset(json!({
       "items": [
