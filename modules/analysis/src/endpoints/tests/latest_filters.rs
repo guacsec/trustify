@@ -370,6 +370,7 @@ async fn test_tc2677(
 /// "by name" requests.
 #[test_context(TrustifyContext)]
 #[rstest]
+// by-purl
 #[case( // PURL, non-latest, fuzzy match, which must not work with IDs
     Req { what: What::Id("pkg:maven/io.vertx/vertx-core"), ..Req::default() },
     0
@@ -389,6 +390,7 @@ async fn test_tc2677(
     Req { what: What::Id("pkg:maven/io.vertx/vertx-core@4.5.13.redhat-00001?type=jar"), latest: true, ..Req::default() },
     2
 )]
+// by-name
 #[case( // name, non-latest, fuzzy match, which must not work with IDs
     Req { what: What::Id("vertx-co"), ..Req::default() },
     0
@@ -408,8 +410,26 @@ async fn test_tc2677(
     Req { what: What::Id("vertx-core"), latest: true, ..Req::default() },
     2
 )]
+// by-cpe
+#[case( // cpe, non-latest, fuzzy match, which must not work with IDs
+    Req { what: What::Id("cpe:/a:redhat"), ..Req::default() },
+    0
+)]
+#[case( // cpe, latest, fuzzy match, which must not work with IDs
+    Req { what: What::Id("cpe:/a:redhat"), latest: true, ..Req::default() },
+    0
+)]
+#[case( // cpe, non-latest, exact match: 1x in product
+    Req { what: What::Id("cpe:/a:redhat:camel_quarkus:3"), ..Req::default() },
+    1
+)]
+#[case(
+    // cpe, latest, exact match: 1x in product
+    Req { what: What::Id("cpe:/a:redhat:camel_quarkus:3"), latest: true, ..Req::default() },
+    1
+)]
 #[test_log::test(actix_web::test)]
-async fn test_tc2717(
+async fn parse_ids_find_only_exact_matches(
     ctx: &TrustifyContext,
     #[case] req: Req<'_>,
     #[case] total: usize,
@@ -418,6 +438,7 @@ async fn test_tc2717(
     let app = caller(ctx).await?;
 
     ctx.ingest_documents([
+        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.15.4/product-3.15.4.json",
         "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.15.4/quarkus-camel-bom-3.15.4.json",
         "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.15.4/quarkus-cxf-bom-3.15.4.json",
     ])
