@@ -157,6 +157,15 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Push to ghcr.io (gensbom)
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: gensbom
+          tags: ${{ needs.init.outputs.version }}
+          registry: ghcr.io/${{ github.repository_owner }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       # Final step, create the GitHub release, attaching the files
 
       - name: Create Release

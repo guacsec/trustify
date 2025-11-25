@@ -44,6 +44,20 @@ runs:
         containerfiles: |
           .github/scripts/Containerfile.xtask
 
+    - name: Build Image (gensbom)
+      id: build-image-gensbom
+      uses: redhat-actions/buildah-build@v2
+      with:
+        image: gensbom
+        tags: ${{ inputs.image_tag }}
+        envs: |
+          TAG=${{ inputs.image_tag }}
+        build-args: |
+          tag=${{ inputs.image_tag }}
+        platforms: linux/amd64, linux/arm64
+        containerfiles: |
+          etc/gensbom/Containerfile
+
     - name: Check images created
       shell: bash
       run: buildah images
@@ -54,6 +68,7 @@ runs:
       run: |
         podman save --multi-image-archive trustd:${{ inputs.image_tag }} > trustd.tar
         podman save --multi-image-archive xtask:${{ inputs.image_tag }} > xtask.tar
+        podman save --multi-image-archive gensbom:${{ inputs.image_tag }} > gensbom.tar
 
     - uses: actions/upload-artifact@v4
       with:
@@ -65,4 +80,10 @@ runs:
       with:
         name: container-xtask
         path: xtask.tar
+        if-no-files-found: error
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: container-gensbom
+        path: gensbom.tar
         if-no-files-found: error
