@@ -663,7 +663,7 @@ impl InnerService {
                 Entry::Vacant(entry) => {
                     let index = g.add_node(node.into_graph_node(&mut ctx));
 
-                    log::debug!("Inserting - id: {}, index: {index:?}", entry.key());
+                    log::trace!("Inserting - id: {}, index: {index:?}", entry.key());
 
                     entry.insert(index);
                 }
@@ -684,7 +684,7 @@ impl InnerService {
         let mut describedby_node_id: HashSet<NodeIndex> = Default::default();
 
         for edge in edges {
-            log::debug!("Adding edge {:?}", edge);
+            log::trace!("Adding edge {:?}", edge);
 
             // insert edge into the graph
             if let (Some(left), Some(right)) = (
@@ -732,11 +732,6 @@ impl InnerService {
         connection: &C,
         distinct_sbom_ids: impl IntoIterator<Item = Uuid> + Debug,
     ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
-        log::info!(
-            "Initiating SBOM graph loading for {:?} SBOM(s)",
-            distinct_sbom_ids
-        );
-
         self.load_graphs_inner(connection, distinct_sbom_ids, &mut HashSet::new())
             .await
     }
@@ -755,7 +750,10 @@ impl InnerService {
         let mut results = Vec::new();
 
         for distinct_sbom_id in distinct_sbom_ids {
-            log::debug!("loading sbom: {distinct_sbom_id}");
+            if log::log_enabled!(log::Level::Debug) {
+                let sbom = sbom_id(distinct_sbom_id, connection).await?;
+                log::debug!("loading sbom: {distinct_sbom_id} / {sbom:?}");
+            }
 
             // if we can insert into the seen map, we need to process...
             if !seen_sbom_ids.insert(distinct_sbom_id) {
@@ -770,6 +768,8 @@ impl InnerService {
                 self.load_graph(connection, distinct_sbom_id).await?,
             ));
 
+            let mut resolved = vec![];
+
             // select all related external nodes
             let external_nodes = sbom_external_node::Entity::find()
                 .filter(sbom_external_node::Column::SbomId.eq(distinct_sbom_id))
@@ -780,8 +780,6 @@ impl InnerService {
                 "Found {} external descendant nodes (for SBOM: {distinct_sbom_id})",
                 external_nodes.len()
             );
-
-            let mut resolved = vec![];
 
             // resolve and load externally referenced sboms
             for external_node in &external_nodes {

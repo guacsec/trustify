@@ -481,6 +481,8 @@ impl AnalysisService {
         let relationships = options.relationships;
         log::debug!("relations: {:?}", relationships);
 
+        let loader = &GraphLoader::new(self.clone());
+
         self.collect_graph(
             query,
             graphs,
@@ -505,6 +507,7 @@ impl AnalysisService {
                         &relationships,
                         connection,
                         self.concurrency,
+                        loader,
                     )
                     .collect();
 
@@ -518,6 +521,7 @@ impl AnalysisService {
                         &relationships,
                         connection,
                         self.concurrency,
+                        loader,
                     )
                     .collect();
 
