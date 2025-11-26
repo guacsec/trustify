@@ -28,13 +28,6 @@ use trustify_entity::{
 };
 use uuid::Uuid;
 
-/// Helper macro to sort ActiveModel vectors by their id field
-macro_rules! sort_by_id {
-    ($vec:expr) => {
-        $vec.sort_by(|a, b| a.id.as_ref().cmp(b.id.as_ref()))
-    };
-}
-
 #[derive(Debug)]
 pub struct StatusCreator<'a> {
     cache: ResolveProductIdCache<'a>,
@@ -263,18 +256,18 @@ impl<'a> StatusCreator<'a> {
             let (version_range, purl_status) = ps
                 .clone()
                 .into_active_model(self.advisory_id, self.vulnerability_id.clone());
-            version_ranges.push(version_range.clone());
+            version_ranges.push(version_range);
             package_statuses.push(purl_status);
         }
 
         // Sort all collections by ID before batch inserting to ensure consistent lock acquisition
         // order across transactions. This prevents deadlocks from index page lock contention
         // when multiple concurrent transactions insert overlapping data.
-        sort_by_id!(product_models);
-        sort_by_id!(version_ranges);
-        sort_by_id!(package_statuses);
-        sort_by_id!(product_version_ranges);
-        sort_by_id!(product_status_models);
+        product_models.sort_by_key(|model| *model.id.as_ref());
+        version_ranges.sort_by_key(|model| *model.id.as_ref());
+        package_statuses.sort_by_key(|model| *model.id.as_ref());
+        product_version_ranges.sort_by_key(|model| *model.id.as_ref());
+        product_status_models.sort_by_key(|model| *model.id.as_ref());
 
         for batch in &product_models.chunked() {
             product::Entity::insert_many(batch)
