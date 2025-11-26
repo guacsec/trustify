@@ -2992,7 +2992,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnalysisResponse'
+                $ref: '#/components/schemas/AnalysisResponseV2'
   /api/v2/vulnerability/{id}:
     get:
       tags:
@@ -3146,6 +3146,24 @@ paths:
                 $ref: '#/components/schemas/LicenseSummary'
         '404':
           description: The weakness could not be found
+  /api/v3/vulnerability/analyze:
+    post:
+      tags:
+      - vulnerability
+      operationId: analyze_v3
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+        required: true
+      responses:
+        '200':
+          description: Analyze the provided purls to search for known vulnerabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResponse'
 components:
   schemas:
     AdvisoryDetails:
@@ -3300,6 +3318,18 @@ components:
               All CVSS3 scores from the advisory for the given vulnerability.
               May include several, varying by minor version of the CVSS3 vector.
       description: Summary of information from this advisory regarding a single specific vulnerability.
+    AnalysisAdvisory:
+      allOf:
+      - $ref: '#/components/schemas/AdvisoryHead'
+      - type: object
+        required:
+        - scores
+        properties:
+          scores:
+            type: array
+            items:
+              $ref: '#/components/schemas/Score'
+            description: CVSS scores
     AnalysisDetails:
       allOf:
       - $ref: '#/components/schemas/VulnerabilityHead'
@@ -3312,6 +3342,22 @@ components:
             items:
               $ref: '#/components/schemas/PurlStatus'
             description: List of purl statuses
+    AnalysisDetailsV2:
+      allOf:
+      - $ref: '#/components/schemas/VulnerabilityHead'
+      - type: object
+        required:
+        - status
+        properties:
+          status:
+            type: object
+            description: List of purl statuses
+            additionalProperties:
+              type: array
+              items:
+                $ref: '#/components/schemas/AnalysisAdvisory'
+            propertyNames:
+              type: string
     AnalysisRequest:
       type: object
       required:
@@ -3327,6 +3373,12 @@ components:
         $ref: '#/components/schemas/AnalysisResult'
       propertyNames:
         type: string
+    AnalysisResponseV2:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/AnalysisResultV2'
+      propertyNames:
+        type: string
     AnalysisResult:
       type: object
       required:
@@ -3337,6 +3389,20 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AnalysisDetails'
+        warnings:
+          type: array
+          items:
+            type: string
+    AnalysisResultV2:
+      type: object
+      required:
+      - details
+      - warnings
+      properties:
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisDetailsV2'
         warnings:
           type: array
           items:
