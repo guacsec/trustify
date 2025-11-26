@@ -57,6 +57,7 @@ runs:
         platforms: linux/amd64, linux/arm64
         containerfiles: |
           etc/gensbom/Containerfile
+        context: ./etc/gensbom
 
     - name: Check images created
       shell: bash
