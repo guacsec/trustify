@@ -489,7 +489,7 @@ impl AnalysisService {
                 let graph_cache = graph_cache.clone();
                 let relationships = relationships.clone();
                 async move {
-                    log::debug!(
+                    log::trace!(
                         "Discovered node - sbom: {}, node: {}",
                         node.sbom_id,
                         node.node_id
