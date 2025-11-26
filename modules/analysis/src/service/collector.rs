@@ -36,6 +36,7 @@ pub struct Collector<'a, C: ConnectionTrait> {
     relationships: &'a HashSet<Relationship>,
     connection: &'a C,
     concurrency: usize,
+    loader: &'a GraphLoader,
 }
 
 impl<'a, C: ConnectionTrait> Collector<'a, C> {
@@ -51,6 +52,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             relationships: self.relationships,
             connection: self.connection,
             concurrency: self.concurrency,
+            loader: self.loader,
         }
     }
 
@@ -66,6 +68,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         relationships: &'a HashSet<Relationship>,
         connection: &'a C,
         concurrency: usize,
+        loader: &'a GraphLoader,
     ) -> Self {
         Self {
             graph_cache,
@@ -78,6 +81,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             relationships,
             connection,
             concurrency,
+            loader,
         }
     }
 
@@ -107,6 +111,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             relationships: self.relationships,
             connection: self.connection,
             concurrency: self.concurrency,
+            loader: self.loader,
         }
     }
 
@@ -199,56 +204,56 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         .await?;
 
         let resolved_external_nodes: Vec<Node> = stream::iter(find_sbom_externals)
-            .map(|sbom_external_node| {
+            .map(async |sbom_external_node| {
                 let collector = self.clone();
-                async move {
-                    if &sbom_external_node.sbom_id == current_sbom_id {
-                        return Ok::<_, Error>(vec![]);
-                    }
 
-                    // check this is a valid external relationship
-
-                    let Some(matched) = sbom_external_node::Entity::find()
-                        .filter(sbom_external_node::Column::SbomId.eq(sbom_external_node.sbom_id))
-                        .filter(
-                            sbom_external_node::Column::ExternalNodeRef
-                                .eq(&sbom_external_node.node_id),
-                        )
-                        .one(collector.connection)
-                        .await?
-                    else {
-                        log::debug!("no external sbom sbom_external_node {sbom_external_node:?}");
-                        return Ok(vec![]);
-                    };
-
-                    // get the external sbom graph
-
-                    let Some(external_graph) = collector.graph_cache.clone().get(matched.sbom_id)
-                    else {
-                        log::warn!(
-                            "external sbom graph {} not found in graph cache",
-                            matched.sbom_id
-                        );
-                        return Ok(vec![]);
-                    };
-
-                    // find the node in retrieved external graph
-
-                    let Some(external_node_index) = external_graph
-                        .node_indices()
-                        .find(|&node| external_graph[node].node_id.eq(&matched.node_id))
-                    else {
-                        log::warn!("Node with ID {current_node_id} not found in external sbom");
-                        return Ok(vec![]);
-                    };
-
-                    // recurse into those external sbom nodes and save
-
-                    collector
-                        .with(external_graph.as_ref(), external_node_index)
-                        .collect_graph()
-                        .await
+                if &sbom_external_node.sbom_id == current_sbom_id {
+                    return Ok::<_, Error>(vec![]);
                 }
+
+                // check this is a valid external relationship
+
+                let Some(matched) = sbom_external_node::Entity::find()
+                    .filter(sbom_external_node::Column::SbomId.eq(sbom_external_node.sbom_id))
+                    .filter(
+                        sbom_external_node::Column::ExternalNodeRef.eq(&sbom_external_node.node_id),
+                    )
+                    .one(self.connection)
+                    .await?
+                else {
+                    log::debug!("no external sbom sbom_external_node {sbom_external_node:?}");
+                    return Ok(vec![]);
+                };
+
+                // get the external sbom graph
+
+                let Some(external_graph) =
+                    self.loader.load(self.connection, matched.sbom_id).await?
+                else {
+                    log::warn!(
+                        "external sbom graph {} not found in graph cache or database",
+                        matched.sbom_id
+                    );
+
+                    return Ok(vec![]);
+                };
+
+                // find the node in retrieved external graph
+
+                let Some(external_node_index) = external_graph
+                    .node_indices()
+                    .find(|&node| external_graph[node].node_id.eq(&matched.node_id))
+                else {
+                    log::warn!("Node with ID {current_node_id} not found in external sbom");
+                    return Ok(vec![]);
+                };
+
+                // recurse into those external sbom nodes and save
+
+                collector
+                    .with(external_graph.as_ref(), external_node_index)
+                    .collect_graph()
+                    .await
             })
             .buffer_unordered(self.concurrency)
             .map_ok(|nodes| stream::iter(nodes.into_iter().map(Ok::<_, Error>)))
@@ -310,5 +315,28 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             .try_filter_map(|x| async move { Ok(x) }) // drop None
             .try_collect::<Vec<_>>()
             .await
+    }
+}
+
+#[derive(Clone)]
+pub struct GraphLoader {
+    service: AnalysisService,
+}
+
+impl GraphLoader {
+    pub fn new(service: AnalysisService) -> Self {
+        Self { service }
+    }
+
+    pub async fn load(
+        &self,
+        connection: &impl ConnectionTrait,
+        sbom_id: Uuid,
+    ) -> Result<Option<Arc<PackageGraph>>, Error> {
+        let result = self.service.load_graphs(connection, [sbom_id]).await?;
+
+        Ok(result
+            .into_iter()
+            .find_map(|(id, sbom)| if id == sbom_id { Some(sbom) } else { None }))
     }
 }
