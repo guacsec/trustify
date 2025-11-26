@@ -156,7 +156,7 @@ impl<'a> StatusCreator<'a> {
                 vendor_id: Set(org_id),
                 cpe_key: Set(product_cpe_key),
             };
-            product_models.push(product_entity.clone());
+            product_models.push(product_entity);
 
             if let Some(ref info) = product.version {
                 let range = ProductVersionRange {
@@ -167,8 +167,8 @@ impl<'a> StatusCreator<'a> {
 
                 let (version_range_entity, product_version_range_entity) =
                     range.clone().into_active_model();
-                version_ranges.push(version_range_entity.clone());
-                product_version_ranges.push(product_version_range_entity.clone());
+                version_ranges.push(version_range_entity);
+                product_version_ranges.push(product_version_range_entity);
 
                 let packages = if product.packages.is_empty() {
                     // If there are no packages associated to this product, ingest just a product status
