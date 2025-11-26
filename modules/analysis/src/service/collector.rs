@@ -115,16 +115,16 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
     /// If the depth is zero, or the node was already processed, it will return [`None`], indicating
     /// that the request was not processed.
     pub async fn collect(self) -> Result<Option<Vec<Node>>, Error> {
-        tracing::debug!(direction = ?self.direction, "collecting for {:?}", self.node);
+        tracing::trace!(direction = ?self.direction, "collecting for {:?}", self.node);
 
         if self.depth == 0 {
-            log::debug!("depth is zero");
+            log::trace!("depth is zero");
             // we ran out of depth
             return Ok(None);
         }
 
         if !self.discovered.visit(self.graph, self.node) {
-            log::debug!("node got visited already");
+            log::trace!("node got visited already");
             // we've already seen this
             return Ok(None);
         }

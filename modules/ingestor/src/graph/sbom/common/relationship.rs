@@ -138,7 +138,7 @@ impl<ER: ExternalReferenceProcessor> RelationshipCreator<ER> {
 
         // TODO: If, in the future, we want to have this information, this should be removed.
 
-        log::debug!("Recording relationship - left: {left}, rel: {rel}, right: {right}");
+        log::trace!("Recording relationship - left: {left}, rel: {rel}, right: {right}");
 
         if let ("NONE" | "NOASSERTION", _) | (_, "NONE" | "NOASSERTION") = (&*left, &*right) {
             // either side is NONE or NOASSERTION, which we don't ingest at the moment.

@@ -96,8 +96,8 @@ impl super::Processor for RedHatProductComponentRelationships {
             // the internal target node id, which we turn into the external target id
             let comp_node_id = right_node_id;
 
-            if log::log_enabled!(log::Level::Debug) {
-                log::debug!(
+            if log::log_enabled!(log::Level::Trace) {
+                log::trace!(
                     "rel: {relationship:?}, top-level: {}",
                     top_level.contains(prod_node_id)
                 );
