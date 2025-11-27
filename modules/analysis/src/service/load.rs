@@ -1,10 +1,7 @@
 use crate::{
     Error,
     model::{PackageGraph, graph},
-    service::{
-        AnalysisService, ComponentReference, GraphQuery, InnerService, LoadingOp,
-        resolve_external_sbom,
-    },
+    service::{AnalysisService, ComponentReference, GraphQuery, InnerService, LoadingOp},
 };
 use ::cpe::{
     component::Component,
@@ -41,7 +38,7 @@ use trustify_entity::{
     package_relates_to_package,
     qualified_purl::{self, CanonicalPurl},
     relationship::Relationship,
-    sbom, sbom_external_node,
+    sbom,
     sbom_external_node::ExternalType,
     sbom_node, sbom_package, sbom_package_cpe_ref, sbom_package_purl_ref,
 };
@@ -767,59 +764,6 @@ impl InnerService {
                 distinct_sbom_id,
                 self.load_graph(connection, distinct_sbom_id).await?,
             ));
-
-            let mut resolved = vec![];
-
-            // select all related external nodes
-            let external_nodes = sbom_external_node::Entity::find()
-                .filter(sbom_external_node::Column::SbomId.eq(distinct_sbom_id))
-                .all(connection)
-                .await?;
-
-            log::debug!(
-                "Found {} external descendant nodes (for SBOM: {distinct_sbom_id})",
-                external_nodes.len()
-            );
-
-            // resolve and load externally referenced sboms
-            for external_node in &external_nodes {
-                log::debug!(
-                    "resolving external: {}/{}",
-                    external_node.sbom_id,
-                    external_node.node_id
-                );
-                let resolved_external_sbom =
-                    resolve_external_sbom(&external_node.node_id, connection).await?;
-
-                let Some(resolved_external_sbom) = resolved_external_sbom else {
-                    log::warn!(
-                        "Cannot find external node {} / {}",
-                        external_node.sbom_id,
-                        external_node.node_id
-                    );
-                    continue;
-                };
-
-                log::debug!("resolved external sbom: {:?}", resolved_external_sbom);
-
-                resolved.push(resolved_external_sbom.sbom_id);
-            }
-
-            log::debug!("Resolved {} SBOMs", resolved.len());
-            if log::log_enabled!(log::Level::Debug) {
-                for r in &resolved {
-                    let sbom_id = sbom_id(*r, connection).await?;
-                    log::debug!("  Resolved: {r} -> {sbom_id:?}");
-                }
-            }
-
-            let sub = Box::pin(async {
-                self.load_graphs_inner(connection, resolved, seen_sbom_ids)
-                    .await
-            })
-            .await?;
-
-            results.extend(sub);
         }
 
         Ok(results)
