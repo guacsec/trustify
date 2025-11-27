@@ -150,6 +150,7 @@ impl<'a> StatusCreator<'a> {
 
             let product_id = ProductInformation::create_uuid(org_id, product.product.clone());
 
+            // Warn: id must be Set(), required for sorting
             let product_entity = product::ActiveModel {
                 id: Set(product_id),
                 name: Set(product.product.clone()),
@@ -165,6 +166,7 @@ impl<'a> StatusCreator<'a> {
                     cpe: product.cpe.clone(),
                 };
 
+                // Warn: into_active_model() sets id with Set(), required for sorting
                 let (version_range_entity, product_version_range_entity) =
                     range.clone().into_active_model();
                 version_ranges.push(version_range_entity);
@@ -189,6 +191,7 @@ impl<'a> StatusCreator<'a> {
                         product_version_range_id: range.uuid(),
                     };
 
+                    // Warn: into_active_model() sets id with Set(), required for sorting
                     let base_product = product_status
                         .into_active_model(self.advisory_id, self.vulnerability_id.clone());
 
@@ -253,6 +256,7 @@ impl<'a> StatusCreator<'a> {
         cpes.create(connection).await?;
 
         for ps in &self.entries {
+            // Warn: into_active_model() sets id with Set(), required for sorting
             let (version_range, purl_status) = ps
                 .clone()
                 .into_active_model(self.advisory_id, self.vulnerability_id.clone());
@@ -263,6 +267,7 @@ impl<'a> StatusCreator<'a> {
         // Sort all collections by ID before batch inserting to ensure consistent lock acquisition
         // order across transactions. This prevents deadlocks from index page lock contention
         // when multiple concurrent transactions insert overlapping data.
+        // Warn: as_ref() requires id fields to be Set() (never NotSet), guaranteed by constructors above.
         product_models.sort_by_key(|model| *model.id.as_ref());
         version_ranges.sort_by_key(|model| *model.id.as_ref());
         package_statuses.sort_by_key(|model| *model.id.as_ref());
