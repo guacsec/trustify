@@ -1,7 +1,8 @@
 use super::req::*;
 use crate::test::caller;
 use rstest::*;
-use serde_json::json;
+use serde_json::{Value, json};
+use std::cmp;
 use test_context::test_context;
 use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
 
@@ -50,7 +51,9 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
         let _response = app.req(Req::default()).await?;
     }
 
-    let response = app.req(req).await?;
+    let mut response = app.req(req).await?;
+
+    sort(&mut response["items"]);
 
     log::info!("{response:#?}");
     assert_eq!(total, response["total"]);
@@ -527,4 +530,32 @@ async fn test_tc2578(
 })));
 
     Ok(())
+}
+
+/// Sort all entries by document_id, then published, then name.
+///
+/// This includes recursive sorting of ancestors/descendants.
+fn sort(json: &mut Value) {
+    let Value::Array(items) = json else {
+        return;
+    };
+
+    fn by_str(name: &str, a: &Value, b: &Value) -> cmp::Ordering {
+        a[name].as_str().cmp(&b[name].as_str())
+    }
+
+    // sort list
+
+    items.sort_unstable_by(|a, b| {
+        by_str("document_id", a, b)
+            .then_with(|| by_str("published", a, b))
+            .then_with(|| by_str("name", a, b))
+    });
+
+    // now sort child entries
+
+    for item in items {
+        sort(&mut item["ancestors"]);
+        sort(&mut item["descendants"]);
+    }
 }
