@@ -164,7 +164,8 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         };
 
         // retrieve external sbom graph from graph_cache
-        let Some(external_graph) = self.graph_cache.get(external_sbom_id) else {
+        let Some(external_graph) = self.loader.load(self.connection, external_sbom_id).await?
+        else {
             log::warn!(
                 "external sbom graph {:?} for {:?} not found during collection.",
                 &external_sbom_id.to_string(),
