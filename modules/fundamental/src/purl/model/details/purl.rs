@@ -249,7 +249,7 @@ impl PurlAdvisory {
 
             if let Some(advisory) = advisory {
                 let qualified_package_status =
-                    PurlStatus::from_entity(&vulnerability, status, tx).await?;
+                    PurlStatus::from_entity(&vulnerability, advisory, status, tx).await?;
 
                 if let Some(entry) = results.iter_mut().find(|e| e.head.uuid == advisory.id) {
                     entry.status.push(qualified_package_status)
@@ -272,6 +272,7 @@ impl PurlAdvisory {
         for product_status in product_statuses {
             let purl_status = PurlStatus::new(
                 &product_status.vulnerability,
+                &product_status.advisory,
                 product_status.status.slug.clone(),
                 Some(VersionRange::from_entity(product_status.version_range)?),
                 Some(product_status.cpe.to_string()),
@@ -310,6 +311,7 @@ impl PurlAdvisory {
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct PurlStatus {
     pub vulnerability: VulnerabilityHead,
+    pub advisory: AdvisoryHead,
     pub average_severity: Severity,
     pub average_score: f64,
     pub status: String,
@@ -328,6 +330,7 @@ pub enum StatusContext {
 impl PurlStatus {
     pub async fn new<C: ConnectionTrait>(
         vuln: &vulnerability::Model,
+        advisory: &advisory::Model,
         status: String,
         version_range: Option<VersionRange>,
         cpe: Option<String>,
@@ -335,6 +338,8 @@ impl PurlStatus {
     ) -> Result<Self, Error> {
         let cvss3 = vuln.find_related(cvss3::Entity).all(tx).await?;
         let average_score = Score::from_iter(cvss3.iter().map(Cvss3Base::from));
+        let issuer = Memo::Provided(advisory.find_related(organization::Entity).one(tx).await?);
+
         Ok(Self {
             vulnerability: VulnerabilityHead::from_vulnerability_entity(
                 vuln,
@@ -342,6 +347,7 @@ impl PurlStatus {
                 tx,
             )
             .await?,
+            advisory: AdvisoryHead::from_advisory(advisory, issuer, tx).await?,
             average_severity: average_score.severity(),
             average_score: average_score.value(),
             status,
@@ -352,6 +358,7 @@ impl PurlStatus {
 
     pub fn from_head(
         vuln_head: VulnerabilityHead,
+        advisory_head: AdvisoryHead,
         status: String,
         version_range: Option<VersionRange>,
         cpe: Option<String>,
@@ -359,6 +366,7 @@ impl PurlStatus {
     ) -> Result<Self, Error> {
         Ok(Self {
             vulnerability: vuln_head,
+            advisory: advisory_head,
             average_severity: score.severity(),
             average_score: score.value(),
             status,
@@ -369,6 +377,7 @@ impl PurlStatus {
 
     pub async fn from_entity<C: ConnectionTrait>(
         vuln: &vulnerability::Model,
+        advisory: &advisory::Model,
         package_status: &purl_status::Model,
         tx: &C,
     ) -> Result<Self, Error> {
@@ -389,7 +398,7 @@ impl PurlStatus {
             .await?
             .map(VersionRange::from_entity)
             .transpose()?;
-        PurlStatus::new(vuln, status, version_range, cpe, tx).await
+        PurlStatus::new(vuln, advisory, status, version_range, cpe, tx).await
     }
 }
 

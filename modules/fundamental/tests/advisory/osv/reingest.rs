@@ -1,9 +1,12 @@
 use super::{twice, update_mark_fixed_again, update_unmark_fixed};
 use test_context::test_context;
 use test_log::test;
+use time::OffsetDateTime;
 use trustify_common::purl::Purl;
 use trustify_cvss::cvss3::severity::Severity;
+use trustify_entity::labels::Labels;
 use trustify_module_fundamental::{
+    advisory::model::AdvisoryHead,
     purl::{
         model::details::{purl::PurlStatus, version_range::VersionRange},
         service::PurlService,
@@ -12,6 +15,7 @@ use trustify_module_fundamental::{
 };
 use trustify_module_ingestor::common::Deprecation;
 use trustify_test_context::TrustifyContext;
+use uuid::Uuid;
 
 /// Ensure that ingesting the same document twice, leads to the same ID.
 #[test_context(TrustifyContext)]
@@ -111,13 +115,24 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
     assert_eq!(purl.advisories.len(), 2);
     purl.advisories
         .sort_unstable_by(|a, b| a.head.modified.cmp(&b.head.modified));
-    let adv1 = &purl.advisories[0];
-    let adv2 = &purl.advisories[1];
+    let (slice1, slice2) = purl.advisories.split_at_mut(1);
+    let adv1 = &mut slice1[0];
+    let adv2 = &mut slice2[0];
 
     assert_eq!(adv1.head.identifier, "RSEC-2023-6");
     assert_eq!(adv2.head.identifier, "RSEC-2023-6");
 
     // now check the details
+
+    let blank_uuid = Uuid::new_v4();
+
+    adv1.status[0].advisory.uuid = blank_uuid;
+    adv1.status[0].advisory.published = Some(
+        OffsetDateTime::from_unix_timestamp(1696568400)? + time::Duration::nanoseconds(600_000_000),
+    );
+    adv1.status[0].advisory.modified = Some(
+        OffsetDateTime::from_unix_timestamp(1697786820)? + time::Duration::nanoseconds(600_000_000),
+    );
 
     assert_eq!(
         adv1.status,
@@ -138,8 +153,28 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 high_version: "1.0".into(),
                 high_inclusive: true
             }),
+            advisory: AdvisoryHead {
+                uuid: blank_uuid,
+                identifier: "RSEC-2023-6".into(),
+                document_id: "RSEC-2023-6".into(),
+                issuer: None,
+                published: Some(
+                    OffsetDateTime::from_unix_timestamp(1696568400)?
+                        + time::Duration::nanoseconds(600_000_000)
+                ),
+                modified: Some(
+                    OffsetDateTime::from_unix_timestamp(1697786820)?
+                        + time::Duration::nanoseconds(600_000_000)
+                ),
+                withdrawn: None,
+                title: Some("Denial of Service (DoS) vulnerability".into()),
+                labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "osv")])
+            }
         }]
     );
+
+    adv2.status[0].advisory.uuid = blank_uuid;
+
     assert_eq!(
         adv2.status,
         vec![PurlStatus {
@@ -159,6 +194,23 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 high_version: "1.0".into(),
                 high_inclusive: true
             }),
+            advisory: AdvisoryHead {
+                uuid: blank_uuid,
+                identifier: "RSEC-2023-6".into(),
+                document_id: "RSEC-2023-6".into(),
+                issuer: None,
+                published: Some(
+                    OffsetDateTime::from_unix_timestamp(1696568400)?
+                        + time::Duration::nanoseconds(600_000_000)
+                ),
+                modified: Some(
+                    OffsetDateTime::from_unix_timestamp(1697786820)?
+                        + time::Duration::nanoseconds(600_000_000)
+                ),
+                withdrawn: None,
+                title: Some("Denial of Service (DoS) vulnerability".into()),
+                labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "osv")])
+            }
         }]
     );
 

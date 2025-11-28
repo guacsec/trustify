@@ -3,8 +3,12 @@
 use super::prepare_ps_state_change;
 use test_context::test_context;
 use test_log::test;
+use time::OffsetDateTime;
 use trustify_common::purl::Purl;
 use trustify_cvss::cvss3::severity::Severity;
+use trustify_entity::labels::Labels;
+use trustify_module_fundamental::advisory::model::AdvisoryHead;
+use trustify_module_fundamental::organization::model::{OrganizationHead, OrganizationSummary};
 use trustify_module_fundamental::purl::model::details::version_range::VersionRange;
 use trustify_module_fundamental::{
     advisory::service::AdvisoryService,
@@ -16,6 +20,7 @@ use trustify_module_fundamental::{
 };
 use trustify_module_ingestor::common::Deprecation;
 use trustify_test_context::TrustifyContext;
+use uuid::Uuid;
 
 /// Ensure that ingesting an advisory, and a change for it, then deleting the newested one, still
 /// leads to a "most recent" document.
@@ -122,7 +127,7 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
     assert_eq!(purl.advisories.len(), 1);
     purl.advisories
         .sort_unstable_by(|a, b| a.head.modified.cmp(&b.head.modified));
-    let adv1 = &purl.advisories[0];
+    let adv1 = &mut purl.advisories[0];
 
     assert_eq!(
         adv1.head.identifier,
@@ -130,6 +135,13 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
     );
 
     // now check the details
+
+    let blank_uuid = Uuid::new_v4();
+
+    adv1.status[0].advisory.uuid = blank_uuid;
+    if let Some(issuer) = &mut adv1.status[0].advisory.issuer {
+        issuer.head.id = blank_uuid;
+    }
 
     assert_eq!(
         adv1.status,
@@ -152,6 +164,26 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 high_version: "1.76.0-4.redhat_00001.1.el9eap".into(),
                 high_inclusive: true
             }),
+            advisory: AdvisoryHead {
+                uuid: blank_uuid,
+                identifier: "https://www.redhat.com/#CVE-2023-33201".into(),
+                document_id: "CVE-2023-33201".into(),
+                issuer: Some(OrganizationSummary {
+                    head: OrganizationHead {
+                        id: blank_uuid,
+                        name: "Red Hat Product Security".into(),
+                        cpe_key: None,
+                        website: None
+                    }
+                }),
+                published: Some(OffsetDateTime::from_unix_timestamp(1686873600)?),
+                modified: Some(OffsetDateTime::from_unix_timestamp(1696537410)?),
+                withdrawn: None,
+                title: Some(
+                    "potential  blind LDAP injection attack using a self-signed certificate".into()
+                ),
+                labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
+            }
         }]
     );
 

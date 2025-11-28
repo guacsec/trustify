@@ -4693,11 +4693,14 @@ components:
       type: object
       required:
       - vulnerability
+      - advisory
       - average_severity
       - average_score
       - status
       - context
       properties:
+        advisory:
+          $ref: '#/components/schemas/AdvisoryHead'
         average_score:
           type: number
           format: double
