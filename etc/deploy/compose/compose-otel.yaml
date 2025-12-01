@@ -32,7 +32,6 @@ services:
       - GF_AUTH_BASIC_ENABLED=false
       - GF_AUTH_DISABLE_LOGIN_FORM=true
       - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/trustify.json
-      - GF_EXPLORE_ENABLED=false
       - GF_HELP_ENABLED=false
       - GF_LOG_LEVEL=error
       - GF_NEWS_ENABLED=false
