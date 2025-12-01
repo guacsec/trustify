@@ -28,6 +28,10 @@ use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
     Req { what: What::Q("purl:name~quay-builder-qemu-rhcos-rhel8&purl:ty=oci"), ancestors: Some(10), latest: true, ..Req::default() },
     7
 )]
+#[case( // purl partial search latest
+    Req { what: What::Q("pkg:rpm/redhat/harfbuzz"), ancestors: Some(10), latest: true, ..Req::default() },
+    1
+)]
 #[test_log::test(actix_web::test)]
 async fn resolve_rh_variant_latest_filter_container_cdx(
     ctx: &TrustifyContext,
