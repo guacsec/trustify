@@ -18,7 +18,7 @@ use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
 )]
 #[case( // purl partial search
     Req { what: What::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), ..Req::default() },
-    18
+    8
 )]
 #[case( // purl partial search latest
     Req { what: What::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), latest: true, ..Req::default() },
