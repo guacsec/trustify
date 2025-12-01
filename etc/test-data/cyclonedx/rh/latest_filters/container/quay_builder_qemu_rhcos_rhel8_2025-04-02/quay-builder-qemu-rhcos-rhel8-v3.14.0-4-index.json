@@ -69,7 +69,13 @@
               ],
               "name": "Red Hat"
             },
-            "publisher": "Red Hat"
+            "publisher": "Red Hat",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "62547876e96ec9e555f7fde9f8cf034b0a87b0b12f9706893fa57a8f972706b8"
+              }
+            ]
           },
           {
             "name": "quay/quay-builder-qemu-rhcos-rhel8",
