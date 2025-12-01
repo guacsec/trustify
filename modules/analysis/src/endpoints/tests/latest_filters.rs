@@ -26,7 +26,7 @@ use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
 )]
 #[case( // purl partial search latest
     Req { what: What::Q("purl:name~quay-builder-qemu-rhcos-rhel8&purl:ty=oci"), ancestors: Some(10), latest: true, ..Req::default() },
-    7
+    5
 )]
 #[case( // purl partial search latest
     Req { what: What::Q("pkg:rpm/redhat/harfbuzz"), ancestors: Some(10), latest: true, ..Req::default() },
