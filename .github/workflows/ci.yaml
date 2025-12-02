@@ -33,6 +33,12 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo rm -rf /opt/hostedtoolcache/go
           sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/lib/jvm
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /usr/local/julia*
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /opt/microsoft /opt/google
           sudo docker image prune --all --force
           sudo rm -Rf ${JAVA_HOME_8_X64}
           sudo rm -Rf ${JAVA_HOME_11_X64}
@@ -42,10 +48,6 @@ jobs:
           sudo rm -Rf ${RUBY_PATH}
           sudo rm -Rf ${SWIFT_PATH}
           sudo rm -Rf ${GRADLE_HOME}
-          sudo apt purge -y \
-            firefox \
-            google-chrome-stable \
-            microsoft-edge-stable
       - run: df -h
 
       - uses: actions/checkout@v4
