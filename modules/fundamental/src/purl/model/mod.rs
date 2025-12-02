@@ -156,6 +156,7 @@ pub enum VexStatus {
     NotAffected,
     UnderInvestigation,
     Recommended,
+    #[serde(untagged)]
     Other(String),
 }
 

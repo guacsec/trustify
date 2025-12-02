@@ -1,0 +1,30 @@
+{
+  "id": "DUPLICATE",
+  "modified": "2021-10-19T22:14:35Z",
+  "published": "2021-07-07T12:00:00Z",
+  "aliases": [
+    "CVE-2021-32714"
+  ],
+  "affected": [
+    {
+      "package": {
+        "ecosystem": "crates.io",
+        "name": "hyper",
+        "purl": "pkg:cargo/hyper"
+      },
+      "ranges": [
+        {
+          "type": "SEMVER",
+          "events": [
+            {
+              "introduced": "0.0.0-0"
+            },
+            {
+              "fixed": "0.14.10"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

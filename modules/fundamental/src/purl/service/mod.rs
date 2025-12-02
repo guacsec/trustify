@@ -11,6 +11,7 @@ use crate::{
         summary::{base_purl::BasePurlSummary, purl::PurlSummary, r#type::TypeSummary},
     },
 };
+use itertools::Itertools;
 use regex::Regex;
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
@@ -509,12 +510,12 @@ impl PurlService {
                     vulnerabilities: purl_details
                         .advisories
                         .iter()
-                        .flat_map(|advisory| {
-                            advisory.status.iter().map(|status| VulnerabilityStatus {
-                                id: status.vulnerability.identifier.clone(),
-                                status: Some(status.into()),
-                                justification: None,
-                            })
+                        .flat_map(|advisory| &advisory.status)
+                        .unique_by(|status| &status.vulnerability.identifier)
+                        .map(|status| VulnerabilityStatus {
+                            id: status.vulnerability.identifier.clone(),
+                            status: Some(status.into()),
+                            justification: None,
                         })
                         .collect(),
                 });
