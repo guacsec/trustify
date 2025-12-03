@@ -4,6 +4,7 @@ use crate::{
     test::{Node, *},
 };
 use futures::future::try_join_all;
+use rstest::rstest;
 use std::{str::FromStr, time::SystemTime};
 use test_context::test_context;
 use test_log::test;
@@ -562,8 +563,18 @@ async fn test_quarkus_deps_service(ctx: &TrustifyContext) -> Result<(), anyhow::
 }
 
 #[test_context(TrustifyContext)]
-#[test(tokio::test)]
-async fn test_circular_deps_cyclonedx_service(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[case(QueryOptions {
+    descendants: u64::MAX, ..Default::default()
+    })]
+#[case(QueryOptions {
+    ancestors: u64::MAX, ..Default::default()
+    })]
+#[test_log::test(tokio::test)]
+async fn test_circular_deps_cyclonedx_service(
+    ctx: &TrustifyContext,
+    #[case] query: QueryOptions,
+) -> Result<(), anyhow::Error> {
     ctx.ingest_documents(["cyclonedx/cyclonedx-circular.json"])
         .await?;
 
@@ -572,7 +583,7 @@ async fn test_circular_deps_cyclonedx_service(ctx: &TrustifyContext) -> Result<(
     let analysis_graph = service
         .retrieve(
             ComponentReference::Name("junit-bom"),
-            QueryOptions::descendants(),
+            query,
             Paginated::default(),
             &ctx.db,
         )
@@ -585,8 +596,18 @@ async fn test_circular_deps_cyclonedx_service(ctx: &TrustifyContext) -> Result<(
 }
 
 #[test_context(TrustifyContext)]
-#[test(tokio::test)]
-async fn test_circular_deps_spdx_service(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[case(QueryOptions {
+    descendants: u64::MAX, ..Default::default()
+})]
+#[case(QueryOptions {
+    ancestors: u64::MAX, ..Default::default()
+})]
+#[test_log::test(tokio::test)]
+async fn test_circular_deps_spdx_service(
+    ctx: &TrustifyContext,
+    #[case] query: QueryOptions,
+) -> Result<(), anyhow::Error> {
     ctx.ingest_documents(["spdx/loop.json"]).await?;
 
     let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
@@ -594,7 +615,7 @@ async fn test_circular_deps_spdx_service(ctx: &TrustifyContext) -> Result<(), an
     let analysis_graph = service
         .retrieve(
             ComponentReference::Name("A"),
-            QueryOptions::descendants(),
+            query,
             Paginated::default(),
             &ctx.db,
         )
