@@ -11,18 +11,21 @@
   },
   "components": [
     {
+      "bom-ref": "A",
       "name": "A",
       "version": "1",
       "purl": "pkg:rpm/redhat/A@0.0.0?arch=src",
       "type": "library"
     },
     {
+      "bom-ref": "B",
       "name": "B",
       "version": "1",
       "purl": "pkg:rpm/redhat/B@0.0.0?arch=src",
       "type": "library"
     },
     {
+      "bom-ref": "C",
       "name": "C",
       "version": "1",
       "purl": "pkg:rpm/redhat/C@0.0.0?arch=src",

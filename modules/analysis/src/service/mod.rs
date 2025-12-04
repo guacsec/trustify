@@ -25,7 +25,7 @@ use petgraph::{
     Direction,
     graph::{Graph, NodeIndex},
     prelude::EdgeRef,
-    visit::{IntoNodeIdentifiers, VisitMap, Visitable},
+    visit::{VisitMap, Visitable},
 };
 use sea_orm::{
     ColumnTrait, EntityOrSelect, EntityTrait, PaginatorTrait, QueryFilter, QuerySelect,
@@ -449,24 +449,20 @@ impl AnalysisService {
     {
         let query = query.into();
 
-        stream::iter(
-            graphs
-                .iter()
-                .filter(|(sbom_id, graph)| acyclic(*sbom_id, graph)),
-        )
-        .flat_map(|(_, graph)| {
-            let create = create.clone();
-            stream::iter(
-                graph
-                    .node_indices()
-                    .filter(|&i| Self::filter(graph, &query, i))
-                    .filter_map(|i| graph.node_weight(i).map(|w| (i, w))),
-            )
-            .map(move |(node_index, package_node)| create(graph, node_index, package_node))
-        })
-        .buffer_unordered(concurrency)
-        .try_collect::<Vec<_>>()
-        .await
+        stream::iter(graphs)
+            .flat_map(|(_, graph)| {
+                let create = create.clone();
+                stream::iter(
+                    graph
+                        .node_indices()
+                        .filter(|&i| Self::filter(graph, &query, i))
+                        .filter_map(|i| graph.node_weight(i).map(|w| (i, w))),
+                )
+                .map(move |(node_index, package_node)| create(graph, node_index, package_node))
+            })
+            .buffer_unordered(concurrency)
+            .try_collect::<Vec<_>>()
+            .await
     }
 
     #[instrument(skip(self, connection, graphs, graph_cache))]
@@ -525,13 +521,25 @@ impl AnalysisService {
                     )
                     .collect();
 
+                    // join and eval error
+
                     let (ancestors, descendants) = futures::join!(ancestors, descendants);
+                    let ancestors = ancestors?;
+                    let descendants = descendants?;
+
+                    // collect warnings
+
+                    let mut warnings = ancestors.1;
+                    warnings.extend(descendants.1);
+
+                    // return result
 
                     Ok(Node {
                         base: node.into(),
                         relationship: None,
-                        ancestors: ancestors?,
-                        descendants: descendants?,
+                        ancestors: ancestors.0,
+                        descendants: descendants.0,
+                        warnings,
                     })
                 }
             },
@@ -682,25 +690,6 @@ impl AnalysisService {
             }),
         }
     }
-}
-
-fn acyclic(id: Uuid, graph: &Arc<PackageGraph>) -> bool {
-    use petgraph::visit::{DfsEvent, depth_first_search};
-    let g = graph.as_ref();
-    let result = depth_first_search(g, g.node_identifiers(), |event| match event {
-        DfsEvent::BackEdge(source, target) => Err((source, target)),
-        _ => Ok(()),
-    })
-    .err();
-    if let Some((start, end)) = result {
-        // FIXME: we need a better strategy handling such errors
-        let start = graph.node_weight(start);
-        let end = graph.node_weight(end);
-        log::warn!(
-            "analysis graph of sbom {id} has circular references (detected: {start:?} -> {end:?})!",
-        );
-    }
-    result.is_none()
 }
 
 type LoadingOp = Shared<oneshot::Receiver<Result<Arc<PackageGraph>, String>>>;

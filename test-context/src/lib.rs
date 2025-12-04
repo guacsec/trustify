@@ -11,6 +11,7 @@ pub mod subset;
 
 pub use ctx::{ReadOnly, TrustifyContext, TrustifyMigrationContext};
 
+use ::migration::sea_orm::prelude::Uuid;
 use ::migration::{
     ConnectionTrait, DbErr,
     sea_orm::{RuntimeErr, Statement, sqlx},
@@ -27,6 +28,7 @@ use std::{
 };
 use tempfile::TempDir;
 use tokio_util::{bytes::Bytes, io::ReaderStream};
+use trustify_common::id::Id;
 use trustify_common::{db::Database, decompress::decompress_async, hashing::Digests};
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::{
@@ -343,6 +345,45 @@ async fn terminate_connections(db: &Database) -> Result<(), DbErr> {
     terminate_connections_int(db, false).await?;
     terminate_connections_int(db, true).await?;
     Ok(())
+}
+
+pub trait IngestionResult: Sized {
+    fn collect_ids(self) -> impl Iterator<Item = Id>;
+
+    fn into_id<const N: usize>(self) -> [Id; N] {
+        self.collect_ids()
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("Unexpected number of results")
+    }
+
+    fn into_uuid<const N: usize>(self) -> [Uuid; N] {
+        self.collect_ids()
+            .filter_map(|id| match id {
+                Id::Uuid(uuid) => Some(uuid),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("Unexpected number of results")
+    }
+
+    fn into_uuid_str<const N: usize>(self) -> [String; N] {
+        self.collect_ids()
+            .filter_map(|id| match id {
+                Id::Uuid(uuid) => Some(uuid.to_string()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("Unexpected number of results")
+    }
+}
+
+impl IngestionResult for Vec<IngestResult> {
+    fn collect_ids(self) -> impl Iterator<Item = Id> {
+        self.into_iter().map(|r| r.id)
+    }
 }
 
 #[cfg(test)]
