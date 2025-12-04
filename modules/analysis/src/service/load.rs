@@ -109,7 +109,7 @@ impl Node {
                 base,
                 purl: to_purls(self.purls).into(),
                 cpe: to_cpes(self.cpes).into(),
-                version: self.package_version.clone().unwrap_or_default(),
+                version: self.package_version.unwrap_or_default(),
             }),
             (_, Some(_)) => graph::Node::External(graph::ExternalNode {
                 base,

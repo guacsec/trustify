@@ -342,7 +342,7 @@ impl<'g> CveLoader<'g> {
             assigned,
             affected,
             information: VulnerabilityInformation {
-                title: title.clone(),
+                title,
                 reserved,
                 published,
                 modified,

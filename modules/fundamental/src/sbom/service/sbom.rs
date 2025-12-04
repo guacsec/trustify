@@ -811,7 +811,7 @@ fn package_from_row(row: PackageCatcher, licensing_infos: BTreeMap<String, Strin
         .purls
         .into_iter()
         .flat_map(|purl| {
-            serde_json::from_value::<CanonicalPurl>(purl.clone())
+            serde_json::from_value::<CanonicalPurl>(purl)
                 .inspect_err(|err| {
                     log::warn!("Failed to deserialize PURL: {err}");
                 })
@@ -849,9 +849,7 @@ fn package_from_row(row: PackageCatcher, licensing_infos: BTreeMap<String, Strin
         .into_iter()
         .map(|license| {
             // if the license contains a LicenseRef, its mapping must be added to the licenses_ref_mapping
-            if let Ok(parsed) =
-                spdx_expression::SpdxExpression::parse(&license.license_name.clone())
-            {
+            if let Ok(parsed) = spdx_expression::SpdxExpression::parse(&license.license_name) {
                 parsed
                     .licenses()
                     .into_iter()

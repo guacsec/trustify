@@ -185,7 +185,7 @@ impl SbomContext {
                 .ingest_product(
                     component.name.clone(),
                     ProductInformation {
-                        vendor: component.publisher.clone().map(|p| p.to_string()),
+                        vendor: component.publisher.clone(),
                         cpe: product_cpe,
                     },
                     connection,

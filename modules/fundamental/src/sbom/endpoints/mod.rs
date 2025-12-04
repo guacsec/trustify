@@ -138,7 +138,7 @@ pub async fn get_license_export(
                 "Content-Disposition",
                 format!(
                     "attachment; filename=\"{}_licenses.tar.gz\"",
-                    get_sanitize_filename(name_group_version.sbom_name.clone())
+                    get_sanitize_filename(name_group_version.sbom_name)
                 ),
             ))
             .body(zip))
