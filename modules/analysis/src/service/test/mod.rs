@@ -1,10 +1,12 @@
+mod recursive;
+mod warnings;
+
 use super::*;
 use crate::{
     model::*,
     test::{Node, *},
 };
 use futures::future::try_join_all;
-use rstest::rstest;
 use std::{str::FromStr, time::SystemTime};
 use test_context::test_context;
 use test_log::test;
@@ -558,71 +560,6 @@ async fn test_quarkus_deps_service(ctx: &TrustifyContext) -> Result<(), anyhow::
         .await?;
 
     assert_eq!(analysis_graph.total, 2);
-
-    Ok(())
-}
-
-#[test_context(TrustifyContext)]
-#[rstest]
-#[case(QueryOptions {
-    descendants: u64::MAX, ..Default::default()
-    })]
-#[case(QueryOptions {
-    ancestors: u64::MAX, ..Default::default()
-    })]
-#[test_log::test(tokio::test)]
-async fn test_circular_deps_cyclonedx_service(
-    ctx: &TrustifyContext,
-    #[case] query: QueryOptions,
-) -> Result<(), anyhow::Error> {
-    ctx.ingest_documents(["cyclonedx/cyclonedx-circular.json"])
-        .await?;
-
-    let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
-
-    let analysis_graph = service
-        .retrieve(
-            ComponentReference::Name("junit-bom"),
-            query,
-            Paginated::default(),
-            &ctx.db,
-        )
-        .await?;
-
-    // we should get zero, as we don't deal with circular dependencies and don't load such graphs
-    assert_eq!(analysis_graph.total, 0);
-
-    Ok(())
-}
-
-#[test_context(TrustifyContext)]
-#[rstest]
-#[case(QueryOptions {
-    descendants: u64::MAX, ..Default::default()
-})]
-#[case(QueryOptions {
-    ancestors: u64::MAX, ..Default::default()
-})]
-#[test_log::test(tokio::test)]
-async fn test_circular_deps_spdx_service(
-    ctx: &TrustifyContext,
-    #[case] query: QueryOptions,
-) -> Result<(), anyhow::Error> {
-    ctx.ingest_documents(["spdx/loop.json"]).await?;
-
-    let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
-
-    let analysis_graph = service
-        .retrieve(
-            ComponentReference::Name("A"),
-            query,
-            Paginated::default(),
-            &ctx.db,
-        )
-        .await?;
-
-    // we should get zero, as we don't deal with circular dependencies and don't load such graphs
-    assert_eq!(analysis_graph.total, 0);
 
     Ok(())
 }

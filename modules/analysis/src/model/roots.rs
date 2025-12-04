@@ -121,6 +121,7 @@ mod test {
             relationship: None,
             ancestors: None,
             descendants: None,
+            warnings: vec![],
         }
     }
 
@@ -135,6 +136,7 @@ mod test {
                 ..node("A")
             }]),
             descendants: None,
+            warnings: vec![],
         }]
         .roots();
 
@@ -145,6 +147,7 @@ mod test {
                 relationship: Some(Relationship::Dependency),
                 ancestors: Some(vec![]),
                 descendants: None,
+                warnings: vec![],
             }]
         );
     }
@@ -161,6 +164,7 @@ mod test {
                     ..node("A")
                 }]),
                 descendants: None,
+                warnings: vec![],
             }]),
             ..node("AAA")
         }]
@@ -173,6 +177,7 @@ mod test {
                 relationship: Some(Relationship::Dependency),
                 ancestors: Some(vec![]),
                 descendants: None,
+                warnings: vec![],
             }]
         );
     }
@@ -189,6 +194,7 @@ mod test {
                     ..node("A")
                 }]),
                 descendants: None,
+                warnings: vec![],
             }]),
             ..node("AAA")
         }];

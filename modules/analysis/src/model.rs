@@ -107,6 +107,26 @@ pub struct Node {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(no_recursion)]
     pub descendants: Option<Vec<Node>>,
+
+    /// Warnings when processing this node.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<String>,
+}
+
+impl Node {
+    /// Create a node only with warnings.
+    pub fn warning(
+        base: impl Into<BaseSummary>,
+        warnings: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        Self {
+            base: base.into(),
+            ancestors: None,
+            descendants: None,
+            relationship: None,
+            warnings: warnings.into_iter().map(|warning| warning.into()).collect(),
+        }
+    }
 }
 
 impl Deref for Node {

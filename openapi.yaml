@@ -3972,6 +3972,11 @@ components:
             - type: 'null'
             - $ref: '#/components/schemas/Relationship'
               description: The relationship the node has to it's containing node, if any.
+          warnings:
+            type: array
+            items:
+              type: string
+            description: Warnings when processing this node.
     OrganizationDetails:
       allOf:
       - $ref: '#/components/schemas/OrganizationHead'
@@ -4231,6 +4236,11 @@ components:
                   - type: 'null'
                   - $ref: '#/components/schemas/Relationship'
                     description: The relationship the node has to it's containing node, if any.
+                warnings:
+                  type: array
+                  items:
+                    type: string
+                  description: Warnings when processing this node.
         total:
           type: integer
           format: int64

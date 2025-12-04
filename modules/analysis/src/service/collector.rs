@@ -119,34 +119,35 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
     ///
     /// If the depth is zero, or the node was already processed, it will return [`None`], indicating
     /// that the request was not processed.
-    pub async fn collect(self) -> Result<Option<Vec<Node>>, Error> {
+    pub async fn collect(self) -> Result<(Option<Vec<Node>>, Vec<String>), Error> {
         tracing::trace!(direction = ?self.direction, "collecting for {:?}", self.node);
 
         if self.depth == 0 {
             log::trace!("depth is zero");
             // we ran out of depth
-            return Ok(None);
+            return Ok((None, vec![]));
         }
+
+        let node = self.graph.node_weight(self.node);
 
         if !self.discovered.visit(self.graph, self.node) {
             log::trace!("node got visited already");
-            // we've already seen this
-            return Ok(None);
+            return Ok((None, vec!["This node was already visited. Possible relationship loop. Skipping further processing.".into()]));
         }
 
-        match self.graph.node_weight(self.node) {
+        match node {
             Some(graph::Node::External(external_node)) => {
                 self.collect_external(external_node).await
             }
             Some(graph::Node::Package(current_node)) => self.collect_package(current_node).await,
-            _ => Ok(Some(self.collect_graph().await?)),
+            _ => Ok((Some(self.collect_graph().await?), vec![])),
         }
     }
 
     async fn collect_external(
         self,
         external_node: &ExternalNode,
-    ) -> Result<Option<Vec<Node>>, Error> {
+    ) -> Result<(Option<Vec<Node>>, Vec<String>), Error> {
         log::debug!(
             "Collecting external node {}/{}",
             external_node.sbom_id,
@@ -159,19 +160,24 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             node_id: external_node_id,
         }) = resolve_external_sbom(&external_node.node_id, self.connection).await?
         else {
-            log::debug!("Unable to resolve external node: {}", external_node.node_id);
-            return Ok(None);
+            return Ok((
+                None,
+                vec![format!(
+                    "Unable to resolve external node: {}",
+                    external_node.node_id
+                )],
+            ));
         };
 
         // retrieve external sbom graph from graph_cache
         let Some(external_graph) = self.loader.load(self.connection, external_sbom_id).await?
         else {
-            log::warn!(
-                "external sbom graph {:?} for {:?} not found during collection.",
-                &external_sbom_id.to_string(),
-                &external_node_id.to_string()
-            );
-            return Ok(None);
+            return Ok((
+                None,
+                vec![format!(
+                    "external sbom graph {external_sbom_id} for {external_node_id} not found during collection."
+                )],
+            ));
         };
 
         // find the node in retrieved external graph
@@ -179,19 +185,29 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             .node_indices()
             .find(|&node| external_graph[node].node_id.eq(&external_node_id))
         else {
-            log::warn!("Node with ID {external_node_id} not found in external sbom");
-            return Ok(None);
+            return Ok((
+                None,
+                vec![format!(
+                    "Node with ID {external_node_id} not found in external sbom"
+                )],
+            ));
         };
 
         // recurse into those descendent nodes
-        Ok(Some(
-            self.with(external_graph.as_ref(), external_node_index)
-                .collect_graph()
-                .await?,
+        Ok((
+            Some(
+                self.with(external_graph.as_ref(), external_node_index)
+                    .collect_graph()
+                    .await?,
+            ),
+            vec![],
         ))
     }
 
-    async fn collect_package(self, current_node: &PackageNode) -> Result<Option<Vec<Node>>, Error> {
+    async fn collect_package(
+        self,
+        current_node: &PackageNode,
+    ) -> Result<(Option<Vec<Node>>, Vec<String>), Error> {
         // collect external sbom ancestor nodes
         let current_sbom_id = &current_node.sbom_id;
         let current_sbom_uuid = *current_sbom_id;
@@ -264,7 +280,8 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
 
         let mut result = self.collect_graph().await?;
         result.extend(resolved_external_nodes);
-        Ok(Some(result))
+
+        Ok((Some(result), vec![]))
     }
 
     pub async fn collect_graph(&self) -> Result<Vec<Node>, Error> {
@@ -281,13 +298,13 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                     // We recursively call `collect` for the source of the edge.
                     Direction::Incoming => (
                         self.continue_node(edge.source()).collect().await?,
-                        None,
+                        (None, vec![]),
                         self.graph.node_weight(edge.source()),
                     ),
                     // If the direction is outgoing, we are collecting descendants.
                     // We recursively call `collect` for the target of the edge.
                     Direction::Outgoing => (
-                        None,
+                        (None, vec![]),
                         self.continue_node(edge.target()).collect().await?,
                         self.graph.node_weight(edge.target()),
                     ),
@@ -304,12 +321,17 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                     return Ok(None);
                 };
 
+                // collect warnings
+                let mut warnings = ancestor.1;
+                warnings.extend(descendent.1);
+
                 // Create a new `Node` and add it to the result
                 Ok(Some(Node {
                     base: BaseSummary::from(package_node),
                     relationship: Some(*relationship),
-                    ancestors: ancestor,
-                    descendants: descendent,
+                    ancestors: ancestor.0,
+                    descendants: descendent.0,
+                    warnings,
                 }))
             })
             .buffer_unordered(self.concurrency)

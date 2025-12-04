@@ -7,11 +7,12 @@ pub mod flame;
 pub mod spdx;
 pub mod subset;
 
-use futures::Stream;
-use migration::{
+use ::migration::{
     ConnectionTrait, DbErr,
     sea_orm::{RuntimeErr, Statement, sqlx},
 };
+use futures::Stream;
+use migration::sea_orm::sqlx::types::uuid;
 use peak_alloc::PeakAlloc;
 use postgresql_embedded::PostgreSQL;
 use serde::Serialize;
@@ -25,9 +26,7 @@ use std::{
 use test_context::AsyncTestContext;
 use tokio_util::{bytes::Bytes, io::ReaderStream};
 use tracing::instrument;
-use trustify_common::{
-    self as common, db, db::Database, decompress::decompress_async, hashing::Digests,
-};
+use trustify_common::{self as common, db, decompress::decompress_async, hashing::Digests, id::Id};
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::{
     graph::Graph,
@@ -35,6 +34,7 @@ use trustify_module_ingestor::{
     service::{Cache, Format, IngestorService, dataset::DatasetIngestResult},
 };
 use trustify_module_storage::service::fs::FileSystemBackend;
+use uuid::Uuid;
 use zip::write::FileOptions;
 
 pub enum Dataset {
@@ -365,7 +365,7 @@ where
 }
 
 /// terminate connections, either all or only everything except our own
-async fn terminate_connections_int(db: &Database, our: bool) -> Result<(), DbErr> {
+async fn terminate_connections_int(db: &db::Database, our: bool) -> Result<(), DbErr> {
     let and = match our {
         true => "AND pid = pg_backend_pid()",
         false => "AND pid <> pg_backend_pid()",
@@ -392,12 +392,51 @@ async fn terminate_connections_int(db: &Database, our: bool) -> Result<(), DbErr
 }
 
 /// terminate all connections
-async fn terminate_connections(db: &Database) -> Result<(), DbErr> {
+async fn terminate_connections(db: &db::Database) -> Result<(), DbErr> {
     // we do this twice. Once without our own, in order to kill all and then our own
     // if we do this in one step, we will kill our own session and stop killing the remaining ones
     terminate_connections_int(db, false).await?;
     terminate_connections_int(db, true).await?;
     Ok(())
+}
+
+pub trait IngestionResult: Sized {
+    fn collect_ids(self) -> impl Iterator<Item = Id>;
+
+    fn into_id<const N: usize>(self) -> [Id; N] {
+        self.collect_ids()
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("Unexpected number of results")
+    }
+
+    fn into_uuid<const N: usize>(self) -> [Uuid; N] {
+        self.collect_ids()
+            .filter_map(|id| match id {
+                Id::Uuid(uuid) => Some(uuid),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("Unexpected number of results")
+    }
+
+    fn into_uuid_str<const N: usize>(self) -> [String; N] {
+        self.collect_ids()
+            .filter_map(|id| match id {
+                Id::Uuid(uuid) => Some(uuid.to_string()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("Unexpected number of results")
+    }
+}
+
+impl IngestionResult for Vec<IngestResult> {
+    fn collect_ids(self) -> impl Iterator<Item = Id> {
+        self.into_iter().map(|r| r.id)
+    }
 }
 
 #[cfg(test)]
