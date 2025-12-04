@@ -15,7 +15,7 @@ async fn index_graphiql() -> Result<HttpResponse> {
 pub fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, db: Database) {
     let schema = Schema::build(RootQuery::default(), EmptyMutation, EmptySubscription)
         .data::<Arc<Graph>>(Arc::new(Graph::new(db.clone())))
-        .data::<Arc<Database>>(Arc::new(db.clone()))
+        .data::<Arc<Database>>(Arc::new(db))
         .finish();
 
     svc.route(

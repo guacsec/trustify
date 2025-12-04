@@ -63,9 +63,7 @@ impl SbomHead {
             published: sbom.published,
             authors: sbom.authors.clone(),
             suppliers: sbom.suppliers.clone(),
-            name: sbom_node
-                .map(|node| node.name.clone())
-                .unwrap_or("".to_string()),
+            name: sbom_node.map(|node| node.name).unwrap_or("".to_string()),
             data_licenses: sbom.data_licenses.clone(),
             number_of_packages,
         })

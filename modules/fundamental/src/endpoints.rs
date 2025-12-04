@@ -29,7 +29,7 @@ pub fn configure(
     crate::product::endpoints::configure(svc, db.clone());
     crate::sbom::endpoints::configure(svc, db.clone(), config.sbom_upload_limit);
     crate::vulnerability::endpoints::configure(svc, db.clone());
-    crate::weakness::endpoints::configure(svc, db.clone());
+    crate::weakness::endpoints::configure(svc, db);
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, ToSchema, serde::Deserialize, IntoParams)]

@@ -8,7 +8,6 @@ pub mod importer;
 /// A common database check
 pub fn spawn_db_check(db: Database) -> anyhow::Result<impl Check> {
     Local::spawn_periodic("no database connection", Duration::from_secs(1), {
-        let db = db.clone();
         move || {
             let db = db.clone();
             async move {

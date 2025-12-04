@@ -115,7 +115,7 @@ fn extract_labels(components: Option<&Vec<Component>>, labels_in: Labels) -> Lab
     }
 
     if !labels_in.is_empty() {
-        return labels.extend(labels_in.0.clone());
+        return labels.extend(labels_in.0);
     }
 
     labels
