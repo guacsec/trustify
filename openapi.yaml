@@ -2992,7 +2992,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnalysisResponseV2'
+                $ref: '#/components/schemas/AnalysisResponse'
   /api/v2/vulnerability/{id}:
     get:
       tags:
@@ -3163,7 +3163,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AnalysisResponse'
+                $ref: '#/components/schemas/AnalysisResponseV3'
 components:
   schemas:
     AdvisoryDetails:
@@ -3335,18 +3335,6 @@ components:
       - $ref: '#/components/schemas/VulnerabilityHead'
       - type: object
         required:
-        - purl_statuses
-        properties:
-          purl_statuses:
-            type: array
-            items:
-              $ref: '#/components/schemas/PurlStatus'
-            description: List of purl statuses
-    AnalysisDetailsV2:
-      allOf:
-      - $ref: '#/components/schemas/VulnerabilityHead'
-      - type: object
-        required:
         - status
         properties:
           status:
@@ -3358,6 +3346,16 @@ components:
                 $ref: '#/components/schemas/AnalysisAdvisory'
             propertyNames:
               type: string
+    AnalysisDetailsV3:
+      type: object
+      required:
+      - purl_statuses
+      properties:
+        purl_statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurlStatus'
+          description: List of purl statuses
     AnalysisRequest:
       type: object
       required:
@@ -3373,10 +3371,10 @@ components:
         $ref: '#/components/schemas/AnalysisResult'
       propertyNames:
         type: string
-    AnalysisResponseV2:
+    AnalysisResponseV3:
       type: object
       additionalProperties:
-        $ref: '#/components/schemas/AnalysisResultV2'
+        $ref: '#/components/schemas/AnalysisResultV3'
       propertyNames:
         type: string
     AnalysisResult:
@@ -3393,7 +3391,7 @@ components:
           type: array
           items:
             type: string
-    AnalysisResultV2:
+    AnalysisResultV3:
       type: object
       required:
       - details
@@ -3402,7 +3400,7 @@ components:
         details:
           type: array
           items:
-            $ref: '#/components/schemas/AnalysisDetailsV2'
+            $ref: '#/components/schemas/AnalysisDetailsV3'
         warnings:
           type: array
           items:
@@ -4694,6 +4692,7 @@ components:
       required:
       - vulnerability
       - advisory
+      - scores
       - average_severity
       - average_score
       - status
@@ -4704,12 +4703,18 @@ components:
         average_score:
           type: number
           format: double
+          deprecated: true
         average_severity:
           $ref: '#/components/schemas/Severity'
         context:
           oneOf:
           - type: 'null'
           - $ref: '#/components/schemas/StatusContext'
+        scores:
+          type: array
+          items:
+            $ref: '#/components/schemas/Score'
+          description: All CVSS scores associated with the vulnerability
         status:
           type: string
         version_range:

@@ -15,7 +15,7 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = VulnerabilityService::new();
 
     let result = service
-        .analyze_purls(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db)
+        .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db)
         .await?;
 
     log::debug!("{:#?}", result);
@@ -37,7 +37,10 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let ids = entry
         .details
         .iter()
-        .map(|vuln| &vuln.head.identifier)
+        .flat_map(|vuln| &vuln.purl_statuses)
+        .map(|status| status.vulnerability.identifier.clone())
+        .sorted()
+        .dedup()
         .sorted()
         .collect::<Vec<_>>();
 
@@ -48,7 +51,7 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let vuln_entry = entry
         .details
         .iter()
-        .find(|e| e.head.identifier == "CVE-2024-28834")
+        .find(|e| e.purl_statuses[0].vulnerability.identifier == "CVE-2024-28834")
         .expect("must find entry");
 
     let status_entries: Vec<_> = vuln_entry

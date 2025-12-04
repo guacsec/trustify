@@ -8,6 +8,8 @@ use trustify_common::purl::Purl;
 use trustify_cvss::cvss3::severity::Severity;
 use trustify_entity::labels::Labels;
 use trustify_module_fundamental::advisory::model::AdvisoryHead;
+use trustify_module_fundamental::common::model::Score;
+use trustify_module_fundamental::common::model::ScoreType;
 use trustify_module_fundamental::purl::model::details::version_range::VersionRange;
 use trustify_module_fundamental::{
     purl::{
@@ -83,7 +85,6 @@ async fn change_ps_num_advisories(ctx: &TrustifyContext) -> anyhow::Result<()> {
 /// Ingest the same document twice. First having an affected, then fixed state.
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
-
 async fn change_ps_list_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let (r1, r2) = prepare_ps_state_change(ctx).await?;
 
@@ -168,8 +169,22 @@ async fn change_ps_list_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 identifier: "CVE-2023-33201".to_string(),
                 ..Default::default()
             },
+            #[allow(deprecated)]
             average_severity: Severity::Medium,
+            #[allow(deprecated)]
             average_score: 5.3f64,
+            scores: vec![
+                Score {
+                    severity: Severity::Medium,
+                    value: 5.3,
+                    r#type: ScoreType::V3_1,
+                },
+                Score {
+                    severity: Severity::Medium,
+                    value: 5.3,
+                    r#type: ScoreType::V3_1,
+                }
+            ],
             status: "fixed".to_string(),
             context: Some(StatusContext::Cpe(
                 "cpe:/a:redhat:jboss_enterprise_application_platform:7.4:*:el9:*".to_string()
@@ -308,8 +323,22 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 identifier: "CVE-2023-33201".to_string(),
                 ..Default::default()
             },
+            #[allow(deprecated)]
             average_severity: Severity::Medium,
+            #[allow(deprecated)]
             average_score: 5.3f64,
+            scores: vec![
+                Score {
+                    severity: Severity::Medium,
+                    value: 5.3,
+                    r#type: ScoreType::V3_1,
+                },
+                Score {
+                    severity: Severity::Medium,
+                    value: 5.3,
+                    r#type: ScoreType::V3_1,
+                }
+            ],
             status: "affected".to_string(),
             context: Some(StatusContext::Cpe(
                 "cpe:/a:redhat:jboss_enterprise_application_platform:7.4:*:el9:*".to_string()
@@ -359,8 +388,22 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 identifier: "CVE-2023-33201".to_string(),
                 ..Default::default()
             },
+            #[allow(deprecated)]
             average_severity: Severity::Medium,
+            #[allow(deprecated)]
             average_score: 5.3f64,
+            scores: vec![
+                Score {
+                    severity: Severity::Medium,
+                    value: 5.3,
+                    r#type: ScoreType::V3_1
+                },
+                Score {
+                    severity: Severity::Medium,
+                    value: 5.3,
+                    r#type: ScoreType::V3_1
+                }
+            ],
             status: "fixed".to_string(),
             context: Some(StatusContext::Cpe(
                 "cpe:/a:redhat:jboss_enterprise_application_platform:7.4:*:el9:*".to_string()

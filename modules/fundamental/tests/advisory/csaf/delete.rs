@@ -8,6 +8,7 @@ use trustify_common::purl::Purl;
 use trustify_cvss::cvss3::severity::Severity;
 use trustify_entity::labels::Labels;
 use trustify_module_fundamental::advisory::model::AdvisoryHead;
+use trustify_module_fundamental::common::model::{Score, ScoreType};
 use trustify_module_fundamental::organization::model::{OrganizationHead, OrganizationSummary};
 use trustify_module_fundamental::purl::model::details::version_range::VersionRange;
 use trustify_module_fundamental::{
@@ -151,8 +152,15 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 identifier: "CVE-2023-33201".to_string(),
                 ..Default::default()
             },
+            #[allow(deprecated)]
             average_severity: Severity::Medium,
+            #[allow(deprecated)]
             average_score: 5.3f64,
+            scores: vec![Score {
+                severity: Severity::Medium,
+                value: 5.3,
+                r#type: ScoreType::V3_1,
+            }],
             status: "affected".to_string(),
             context: Some(StatusContext::Cpe(
                 "cpe:/a:redhat:jboss_enterprise_application_platform:7.4:*:el9:*".to_string()

@@ -142,8 +142,11 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 identifier: "CVE-2020-5238".to_string(),
                 ..Default::default()
             },
+            #[allow(deprecated)]
             average_severity: Severity::None,
+            #[allow(deprecated)]
             average_score: 0f64,
+            scores: vec![],
             status: "affected".to_string(),
             context: None,
             version_range: Some(VersionRange::Full {
@@ -183,8 +186,11 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 identifier: "CVE-2020-5238".to_string(),
                 ..Default::default()
             },
+            #[allow(deprecated)]
             average_severity: Severity::None,
+            #[allow(deprecated)]
             average_score: 0f64,
+            scores: vec![],
             status: "affected".to_string(),
             context: None,
             version_range: Some(VersionRange::Full {
