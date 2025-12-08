@@ -1,3 +1,4 @@
+mod query;
 mod recursive;
 mod warnings;
 

@@ -466,14 +466,13 @@ impl AnalysisService {
             .await
     }
 
-    #[instrument(skip(self, connection, graphs, graph_cache))]
+    #[instrument(skip(self, connection, graphs))]
     pub async fn run_graph_query<'a, C: ConnectionTrait>(
         &self,
         query: impl Into<GraphQuery<'a>> + Debug,
         options: QueryOptions,
         graphs: &[(Uuid, Arc<PackageGraph>)],
         connection: &C,
-        graph_cache: Arc<GraphMap>,
     ) -> Result<Vec<Node>, Error> {
         let relationships = options.relationships;
         log::debug!("relations: {:?}", relationships);
@@ -485,7 +484,7 @@ impl AnalysisService {
             graphs,
             self.concurrency,
             |graph, node_index, node| {
-                let graph_cache = graph_cache.clone();
+                let graph_cache = self.inner.graph_cache.clone();
                 let relationships = relationships.clone();
                 async move {
                     log::trace!(
@@ -566,13 +565,7 @@ impl AnalysisService {
 
         let graphs = self.load_graphs(connection, distinct_sbom_ids).await?;
         let components = self
-            .run_graph_query(
-                query,
-                options,
-                &graphs,
-                connection,
-                self.inner.graph_cache.clone(),
-            )
+            .run_graph_query(query, options, &graphs, connection)
             .await?;
 
         Ok(paginated.paginate_array(&components))
@@ -590,19 +583,21 @@ impl AnalysisService {
         let query = query.into();
         let options = options.into();
 
-        let graphs = self.inner.load_graphs_query(connection, query).await?;
+        let graphs = self.load_graphs_query(connection, query).await?;
 
         let components = self
-            .run_graph_query(
-                query,
-                options,
-                &graphs,
-                connection,
-                self.inner.graph_cache.clone(),
-            )
+            .run_graph_query(query, options, &graphs, connection)
             .await?;
 
         Ok(paginated.paginate_array(&components))
+    }
+
+    pub(crate) async fn load_graphs_query(
+        &self,
+        connection: &impl ConnectionTrait,
+        query: GraphQuery<'_>,
+    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
+        self.inner.load_graphs_query(connection, query).await
     }
 
     #[instrument(skip(self, connection), err)]
@@ -625,13 +620,7 @@ impl AnalysisService {
         log::debug!("graph sbom count: {:?}", graphs.len());
 
         let components = self
-            .run_graph_query(
-                query,
-                options,
-                &graphs,
-                connection,
-                self.inner.graph_cache.clone(),
-            )
+            .run_graph_query(query, options, &graphs, connection)
             .await?;
 
         Ok(paginated.paginate_array(&components))
