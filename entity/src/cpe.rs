@@ -90,11 +90,8 @@ impl ActiveModel {
         ActiveModel {
             id: Set(cpe.uuid()),
             part: match cpe.part() {
-                CpeType::Any => Set(Some("*".to_string())),
-                CpeType::Hardware => Set(Some("h".to_string())),
-                CpeType::OperatingSystem => Set(Some("o".to_string())),
-                CpeType::Application => Set(Some("a".to_string())),
                 CpeType::Empty => Set(None),
+                ct => Set(Some(ct.to_string())),
             },
             vendor: match cpe.vendor() {
                 Component::Any => Set(Some("*".to_string())),

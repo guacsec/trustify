@@ -144,17 +144,7 @@ const NAMESPACE: Uuid = Uuid::from_bytes([
 impl Cpe {
     /// Build a v5 UUID for this CPE.
     pub fn uuid(&self) -> Uuid {
-        let result = Uuid::new_v5(
-            &NAMESPACE,
-            match self.part() {
-                CpeType::Any => b"*",
-                CpeType::Hardware => b"h",
-                CpeType::OperatingSystem => b"o",
-                CpeType::Application => b"a",
-                CpeType::Empty => b"",
-            },
-        );
-
+        let result = Uuid::new_v5(&NAMESPACE, self.part().as_ref().as_bytes());
         let result = Uuid::new_v5(&result, self.vendor().as_ref().as_bytes());
         let result = Uuid::new_v5(&result, self.product().as_ref().as_bytes());
         let result = Uuid::new_v5(&result, self.version().as_ref().as_bytes());
