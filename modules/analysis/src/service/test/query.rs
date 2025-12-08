@@ -17,7 +17,7 @@ use trustify_test_context::TrustifyContext;
 // When asking for PURL, it must be found
 #[case(format!("purl~{}", escape_q("pkg:rpm/redhat/A@0.0.0?arch=src")), 1)]
 // When asking for PURL, it must be found, even with a partial match
-#[case(format!("purl~{}", escape_q("purl~pkg:rpm/redhat/A")), 1)]
+#[case(format!("purl~{}", escape_q("pkg:rpm/redhat/A")), 1)]
 // When searching for the PURL type, one entry must be found
 #[case("purl:ty=rpm", 1)]
 // Same when using the alias, or remove it
