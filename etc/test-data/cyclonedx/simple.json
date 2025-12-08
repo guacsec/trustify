@@ -15,6 +15,7 @@
       "version": "1",
       "bom-ref": "a",
       "purl": "pkg:rpm/redhat/A@0.0.0?arch=src",
+      "cpe": "cpe:/a:redhat:a:0.0.0",
       "type": "library"
     },
     {
@@ -22,6 +23,7 @@
       "version": "1",
       "bom-ref": "b",
       "purl": "pkg:rpm/redhat/B@0.0.0?arch=src",
+      "cpe": "cpe:/a:redhat:b:0.0.0",
       "type": "library"
     },
     {
@@ -29,6 +31,7 @@
       "version": "1",
       "bom-ref": "aa",
       "purl": "pkg:rpm/redhat/AA@0.0.0?arch=src",
+      "cpe": "cpe:/a:redhat:aa:0.0.0",
       "type": "library"
     },
     {
@@ -36,6 +39,7 @@
       "version": "1",
       "bom-ref": "bb",
       "purl": "pkg:rpm/redhat/BB@0.0.0?arch=src",
+      "cpe": "cpe:/a:redhat:bb:0.0.0",
       "type": "library"
     },
     {
@@ -43,6 +47,7 @@
       "version": "1",
       "bom-ref": "cc",
       "purl": "pkg:rpm/redhat/CC@0.0.0?arch=src",
+      "cpe": "cpe:/a:redhat:cc:0.0.0",
       "type": "library"
     },
     {
@@ -50,6 +55,7 @@
       "version": "1",
       "bom-ref": "dd",
       "purl": "pkg:rpm/redhat/DD@0.0.0?arch=src",
+      "cpe": "cpe:/a:redhat:dd:0.0.0",
       "type": "library"
     },
     {
@@ -57,6 +63,7 @@
       "version": "1",
       "bom-ref": "ee",
       "purl": "pkg:rpm/redhat/EE@0.0.0?arch=src",
+      "cpe": "cpe:/a:redhat:ee:0.0.0",
       "type": "library"
     },
     {
@@ -64,6 +71,7 @@
       "version": "1",
       "bom-ref": "ff",
       "purl": "pkg:rpm/redhat/FF@0.0.0?arch=src",
+      "cpe": "cpe:/a:redhat:ff:0.0.0",
       "type": "library"
     }
   ],

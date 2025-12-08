@@ -382,16 +382,26 @@ impl<'a> ComponentCreator<'a> {
 
         let licenses_uuid = self.add_license(comp);
 
-        if let Some(cpe) = &comp.cpe
-            && let Ok(cpe) = Cpe::from_str(cpe.as_ref())
-        {
-            self.add_cpe(cpe);
+        if let Some(cpe) = &comp.cpe {
+            match Cpe::from_str(cpe.as_ref()) {
+                Ok(cpe) => {
+                    self.add_cpe(cpe);
+                }
+                Err(err) => {
+                    log::info!("Skipping CPE due to parsing error: {err}");
+                }
+            }
         }
 
-        if let Some(purl) = &comp.purl
-            && let Ok(purl) = Purl::from_str(purl.as_ref())
-        {
-            self.add_purl(purl);
+        if let Some(purl) = &comp.purl {
+            match Purl::from_str(purl.as_ref()) {
+                Ok(purl) => {
+                    self.add_purl(purl);
+                }
+                Err(err) => {
+                    log::info!("Skipping PURL due to parsing error: {err}");
+                }
+            }
         }
 
         for identity in comp

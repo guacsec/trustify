@@ -15,11 +15,19 @@ use trustify_test_context::TrustifyContext;
 // There should be not match for PURLs in default fields
 #[case(escape_q("pkg:rpm/redhat/A@0.0.0?arch=src"), 0)]
 // When asking for PURL, it must be found
-#[case(escape_q("purl~pkg:rpm/redhat/A@0.0.0?arch=src"), 1)]
+#[case(format!("purl~{}", escape_q("pkg:rpm/redhat/A@0.0.0?arch=src")), 1)]
 // When asking for PURL, it must be found, even with a partial match
-#[case(escape_q("purl~pkg:rpm/redhat/A"), 1)]
+#[case(format!("purl~{}", escape_q("purl~pkg:rpm/redhat/A")), 1)]
+// When searching for the PURL type, one entry must be found
+#[case("purl:ty=rpm", 1)]
+// Same when using the alias, or remove it
+#[case("purl:type=rpm", 1)]
+// By PURL name should work as well
+#[case("purl:name=A", 1)]
+// By CPE part, exact match
+#[case("part=a", 1)]
 #[test_log::test(tokio::test)]
-async fn test_circular_deps_cyclonedx_service_count(
+async fn alignment(
     ctx: &TrustifyContext,
     #[case] q: String,
     #[case] num_sboms: usize,
@@ -62,8 +70,12 @@ async fn test_circular_deps_cyclonedx_service_count(
 
     // compare
 
-    assert_eq!(sboms_a, sboms_b);
-    assert_eq!(sboms_a.len(), num_sboms);
+    assert_eq!(sboms_a, sboms_b, "Resulting SBOMs must be the same");
+    assert_eq!(
+        sboms_a.len(),
+        num_sboms,
+        "Number of matching SBOMs not as expected"
+    );
 
     // done
 
