@@ -199,6 +199,24 @@ pub enum CpeType {
     Empty,
 }
 
+impl AsRef<str> for CpeType {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Any => "*",
+            Self::Hardware => "h",
+            Self::OperatingSystem => "o",
+            Self::Application => "a",
+            Self::Empty => "",
+        }
+    }
+}
+
+impl Display for CpeType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
 impl From<cpe::cpe::CpeType> for CpeType {
     fn from(value: cpe::cpe::CpeType) -> Self {
         match value {

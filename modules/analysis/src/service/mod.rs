@@ -661,6 +661,10 @@ impl AnalysisService {
                     }
                     _ => vec![],
                 };
+                let parts: Vec<_> = match node {
+                    graph::Node::Package(p) => p.cpe.iter().map(|cpe| cpe.part()).collect(),
+                    _ => vec![],
+                };
                 let sbom_id = node.sbom_id.to_string();
                 let mut context = ValueContext::from([
                     ("sbom_id", Value::String(&sbom_id)),
@@ -673,6 +677,10 @@ impl AnalysisService {
                         context.put_value("cpe", Value::from(&package.cpe));
                         context.put_value("purl", Value::from(&package.purl));
                         context.put_array("purl", purls);
+                        context.put_array(
+                            "part",
+                            parts.iter().map(|p| Value::String(p.as_ref())).collect(),
+                        );
                     }
                     graph::Node::External(external) => {
                         context.put_string(
