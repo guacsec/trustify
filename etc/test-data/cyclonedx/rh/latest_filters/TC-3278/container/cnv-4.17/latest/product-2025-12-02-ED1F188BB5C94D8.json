@@ -1,0 +1,2004 @@
+{
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "services": [
+        {
+          "name": "SBOMer",
+          "version": "f1c3bca6",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0",
+                "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "provider": {
+            "url": [
+              "https://www.redhat.com"
+            ],
+            "name": "Red Hat"
+          },
+          "externalReferences": [
+            {
+              "url": "https://github.com/project-ncl/sbomer",
+              "type": "website"
+            }
+          ]
+        }
+      ]
+    },
+    "supplier": {
+      "url": [
+        "https://www.redhat.com"
+      ],
+      "name": "Red Hat"
+    },
+    "component": {
+      "name": "RHEL-9-CNV-4.17",
+      "type": "framework",
+      "bom-ref": "RHEL-9-CNV-4.17",
+      "version": "RHEL-9-CNV-4.17",
+      "evidence": {
+        "identity": [
+          {
+            "field": "cpe",
+            "concludedValue": "cpe:/a:redhat:container_native_virtualization:4.17::el9"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      }
+    },
+    "timestamp": "2025-12-02T12:05:38Z",
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "156526"
+      }
+    ]
+  },
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "container-native-virtualization/wasp-agent-rhel9",
+      "purl": "pkg:oci/wasp-agent-rhel9@sha256%3Aa2c95d29514f3e841c83677aefbb7eb5466946178aeb2668a52b67b73d1c0e37",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a2c95d29514f3e841c83677aefbb7eb5466946178aeb2668a52b67b73d1c0e37"
+        }
+      ],
+      "bom-ref": "pkg:oci/wasp-agent-rhel9@sha256%3Aa2c95d29514f3e841c83677aefbb7eb5466946178aeb2668a52b67b73d1c0e37",
+      "version": "sha256:a2c95d29514f3e841c83677aefbb7eb5466946178aeb2668a52b67b73d1c0e37",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/wasp-agent-rhel9@sha256%3Aa2c95d29514f3e841c83677aefbb7eb5466946178aeb2668a52b67b73d1c0e37?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fwasp-agent-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/wasp-agent-rhel9@sha256%3Aa2c95d29514f3e841c83677aefbb7eb5466946178aeb2668a52b67b73d1c0e37?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fwasp-agent-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/wasp-agent-rhel9@sha256%3Aa2c95d29514f3e841c83677aefbb7eb5466946178aeb2668a52b67b73d1c0e37?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fwasp-agent-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-cdi-importer-rhel9",
+      "purl": "pkg:oci/virt-cdi-importer-rhel9@sha256%3A63e0d3bd66d81a4846772e561cd4ff4752544814c5e9ff61d4dc74d37979c1d1",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "63e0d3bd66d81a4846772e561cd4ff4752544814c5e9ff61d4dc74d37979c1d1"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-cdi-importer-rhel9@sha256%3A63e0d3bd66d81a4846772e561cd4ff4752544814c5e9ff61d4dc74d37979c1d1",
+      "version": "sha256:63e0d3bd66d81a4846772e561cd4ff4752544814c5e9ff61d4dc74d37979c1d1",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-importer-rhel9@sha256%3A63e0d3bd66d81a4846772e561cd4ff4752544814c5e9ff61d4dc74d37979c1d1?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-importer-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-importer-rhel9@sha256%3A63e0d3bd66d81a4846772e561cd4ff4752544814c5e9ff61d4dc74d37979c1d1?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-importer-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-importer-rhel9@sha256%3A63e0d3bd66d81a4846772e561cd4ff4752544814c5e9ff61d4dc74d37979c1d1?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-importer-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/ovs-cni-plugin-rhel9",
+      "purl": "pkg:oci/ovs-cni-plugin-rhel9@sha256%3Abbbe09c489b4bbd8a4683f809a2988d890f85c960166d8ec55dab3f57aef3b73",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bbbe09c489b4bbd8a4683f809a2988d890f85c960166d8ec55dab3f57aef3b73"
+        }
+      ],
+      "bom-ref": "pkg:oci/ovs-cni-plugin-rhel9@sha256%3Abbbe09c489b4bbd8a4683f809a2988d890f85c960166d8ec55dab3f57aef3b73",
+      "version": "sha256:bbbe09c489b4bbd8a4683f809a2988d890f85c960166d8ec55dab3f57aef3b73",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/ovs-cni-plugin-rhel9@sha256%3Abbbe09c489b4bbd8a4683f809a2988d890f85c960166d8ec55dab3f57aef3b73?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fovs-cni-plugin-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/ovs-cni-plugin-rhel9@sha256%3Abbbe09c489b4bbd8a4683f809a2988d890f85c960166d8ec55dab3f57aef3b73?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fovs-cni-plugin-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/ovs-cni-plugin-rhel9@sha256%3Abbbe09c489b4bbd8a4683f809a2988d890f85c960166d8ec55dab3f57aef3b73?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fovs-cni-plugin-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-ssp-operator-rhel9",
+      "purl": "pkg:oci/kubevirt-ssp-operator-rhel9@sha256%3A4e2f2bea93ac4cdffead6952b2da9f5cbca960101fcec625ecfc51cb34d4e2c3",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4e2f2bea93ac4cdffead6952b2da9f5cbca960101fcec625ecfc51cb34d4e2c3"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-ssp-operator-rhel9@sha256%3A4e2f2bea93ac4cdffead6952b2da9f5cbca960101fcec625ecfc51cb34d4e2c3",
+      "version": "sha256:4e2f2bea93ac4cdffead6952b2da9f5cbca960101fcec625ecfc51cb34d4e2c3",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-ssp-operator-rhel9@sha256%3A4e2f2bea93ac4cdffead6952b2da9f5cbca960101fcec625ecfc51cb34d4e2c3?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-ssp-operator-rhel9&tag=v4.17.36-4"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-ssp-operator-rhel9@sha256%3A4e2f2bea93ac4cdffead6952b2da9f5cbca960101fcec625ecfc51cb34d4e2c3?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-ssp-operator-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-ssp-operator-rhel9@sha256%3A4e2f2bea93ac4cdffead6952b2da9f5cbca960101fcec625ecfc51cb34d4e2c3?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-ssp-operator-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-template-validator-rhel9",
+      "purl": "pkg:oci/kubevirt-template-validator-rhel9@sha256%3A9b7411f914923d7f744ff312bc12124c0a85da98af63c615392a45d83b9e9e73",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9b7411f914923d7f744ff312bc12124c0a85da98af63c615392a45d83b9e9e73"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-template-validator-rhel9@sha256%3A9b7411f914923d7f744ff312bc12124c0a85da98af63c615392a45d83b9e9e73",
+      "version": "sha256:9b7411f914923d7f744ff312bc12124c0a85da98af63c615392a45d83b9e9e73",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-template-validator-rhel9@sha256%3A9b7411f914923d7f744ff312bc12124c0a85da98af63c615392a45d83b9e9e73?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-template-validator-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-template-validator-rhel9@sha256%3A9b7411f914923d7f744ff312bc12124c0a85da98af63c615392a45d83b9e9e73?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-template-validator-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-template-validator-rhel9@sha256%3A9b7411f914923d7f744ff312bc12124c0a85da98af63c615392a45d83b9e9e73?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-template-validator-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-cdi-cloner-rhel9",
+      "purl": "pkg:oci/virt-cdi-cloner-rhel9@sha256%3A748b76396ced4519a607997debb8fedbc20976c35559cda33d318a5a7d723ad9",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "748b76396ced4519a607997debb8fedbc20976c35559cda33d318a5a7d723ad9"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-cdi-cloner-rhel9@sha256%3A748b76396ced4519a607997debb8fedbc20976c35559cda33d318a5a7d723ad9",
+      "version": "sha256:748b76396ced4519a607997debb8fedbc20976c35559cda33d318a5a7d723ad9",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-cloner-rhel9@sha256%3A748b76396ced4519a607997debb8fedbc20976c35559cda33d318a5a7d723ad9?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-cloner-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-cloner-rhel9@sha256%3A748b76396ced4519a607997debb8fedbc20976c35559cda33d318a5a7d723ad9?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-cloner-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-cloner-rhel9@sha256%3A748b76396ced4519a607997debb8fedbc20976c35559cda33d318a5a7d723ad9?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-cloner-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-controller-rhel9",
+      "purl": "pkg:oci/virt-controller-rhel9@sha256%3A6d7d99737df7d268b018ca022d00830e57dd3451a0bbe07f606c2949c975ef76",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6d7d99737df7d268b018ca022d00830e57dd3451a0bbe07f606c2949c975ef76"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-controller-rhel9@sha256%3A6d7d99737df7d268b018ca022d00830e57dd3451a0bbe07f606c2949c975ef76",
+      "version": "sha256:6d7d99737df7d268b018ca022d00830e57dd3451a0bbe07f606c2949c975ef76",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-controller-rhel9@sha256%3A6d7d99737df7d268b018ca022d00830e57dd3451a0bbe07f606c2949c975ef76?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-controller-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-controller-rhel9@sha256%3A6d7d99737df7d268b018ca022d00830e57dd3451a0bbe07f606c2949c975ef76?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-controller-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-controller-rhel9@sha256%3A6d7d99737df7d268b018ca022d00830e57dd3451a0bbe07f606c2949c975ef76?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-controller-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/hostpath-provisioner-rhel9",
+      "purl": "pkg:oci/hostpath-provisioner-rhel9@sha256%3Aed490dfa4aea26e80fb6129a059ad762c398d5b1202a68281c228474bad25736",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ed490dfa4aea26e80fb6129a059ad762c398d5b1202a68281c228474bad25736"
+        }
+      ],
+      "bom-ref": "pkg:oci/hostpath-provisioner-rhel9@sha256%3Aed490dfa4aea26e80fb6129a059ad762c398d5b1202a68281c228474bad25736",
+      "version": "sha256:ed490dfa4aea26e80fb6129a059ad762c398d5b1202a68281c228474bad25736",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hostpath-provisioner-rhel9@sha256%3Aed490dfa4aea26e80fb6129a059ad762c398d5b1202a68281c228474bad25736?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhostpath-provisioner-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hostpath-provisioner-rhel9@sha256%3Aed490dfa4aea26e80fb6129a059ad762c398d5b1202a68281c228474bad25736?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhostpath-provisioner-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hostpath-provisioner-rhel9@sha256%3Aed490dfa4aea26e80fb6129a059ad762c398d5b1202a68281c228474bad25736?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhostpath-provisioner-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-launcher-rhel9",
+      "purl": "pkg:oci/virt-launcher-rhel9@sha256%3A7d10f7c58b2c68e0d6cdb4624b2d6970aa9741e4123cf0039673fd550c0b9604",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "7d10f7c58b2c68e0d6cdb4624b2d6970aa9741e4123cf0039673fd550c0b9604"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-launcher-rhel9@sha256%3A7d10f7c58b2c68e0d6cdb4624b2d6970aa9741e4123cf0039673fd550c0b9604",
+      "version": "sha256:7d10f7c58b2c68e0d6cdb4624b2d6970aa9741e4123cf0039673fd550c0b9604",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-launcher-rhel9@sha256%3A7d10f7c58b2c68e0d6cdb4624b2d6970aa9741e4123cf0039673fd550c0b9604?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-launcher-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-launcher-rhel9@sha256%3A7d10f7c58b2c68e0d6cdb4624b2d6970aa9741e4123cf0039673fd550c0b9604?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-launcher-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-launcher-rhel9@sha256%3A7d10f7c58b2c68e0d6cdb4624b2d6970aa9741e4123cf0039673fd550c0b9604?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-launcher-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-cdi-operator-rhel9",
+      "purl": "pkg:oci/virt-cdi-operator-rhel9@sha256%3A8f551b49544e6b1fe9e12ca21887dd1501fc7a2608f00e325ef0b3374f22c5c8",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8f551b49544e6b1fe9e12ca21887dd1501fc7a2608f00e325ef0b3374f22c5c8"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-cdi-operator-rhel9@sha256%3A8f551b49544e6b1fe9e12ca21887dd1501fc7a2608f00e325ef0b3374f22c5c8",
+      "version": "sha256:8f551b49544e6b1fe9e12ca21887dd1501fc7a2608f00e325ef0b3374f22c5c8",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-operator-rhel9@sha256%3A8f551b49544e6b1fe9e12ca21887dd1501fc7a2608f00e325ef0b3374f22c5c8?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-operator-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-operator-rhel9@sha256%3A8f551b49544e6b1fe9e12ca21887dd1501fc7a2608f00e325ef0b3374f22c5c8?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-operator-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-operator-rhel9@sha256%3A8f551b49544e6b1fe9e12ca21887dd1501fc7a2608f00e325ef0b3374f22c5c8?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-operator-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-operator-rhel9",
+      "purl": "pkg:oci/virt-operator-rhel9@sha256%3A1ecfdadbf0a12e7a363c814197b61f9e243c77c4265332e559a21e37b8e4a916",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1ecfdadbf0a12e7a363c814197b61f9e243c77c4265332e559a21e37b8e4a916"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-operator-rhel9@sha256%3A1ecfdadbf0a12e7a363c814197b61f9e243c77c4265332e559a21e37b8e4a916",
+      "version": "sha256:1ecfdadbf0a12e7a363c814197b61f9e243c77c4265332e559a21e37b8e4a916",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-operator-rhel9@sha256%3A1ecfdadbf0a12e7a363c814197b61f9e243c77c4265332e559a21e37b8e4a916?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-operator-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-operator-rhel9@sha256%3A1ecfdadbf0a12e7a363c814197b61f9e243c77c4265332e559a21e37b8e4a916?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-operator-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-operator-rhel9@sha256%3A1ecfdadbf0a12e7a363c814197b61f9e243c77c4265332e559a21e37b8e4a916?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-operator-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/aaq-operator-rhel9",
+      "purl": "pkg:oci/aaq-operator-rhel9@sha256%3A3a0ffc27148f446956b1124834cdb5b2b62b5b2228056386f147975fafeeec31",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3a0ffc27148f446956b1124834cdb5b2b62b5b2228056386f147975fafeeec31"
+        }
+      ],
+      "bom-ref": "pkg:oci/aaq-operator-rhel9@sha256%3A3a0ffc27148f446956b1124834cdb5b2b62b5b2228056386f147975fafeeec31",
+      "version": "sha256:3a0ffc27148f446956b1124834cdb5b2b62b5b2228056386f147975fafeeec31",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/aaq-operator-rhel9@sha256%3A3a0ffc27148f446956b1124834cdb5b2b62b5b2228056386f147975fafeeec31?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Faaq-operator-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/aaq-operator-rhel9@sha256%3A3a0ffc27148f446956b1124834cdb5b2b62b5b2228056386f147975fafeeec31?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Faaq-operator-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/aaq-operator-rhel9@sha256%3A3a0ffc27148f446956b1124834cdb5b2b62b5b2228056386f147975fafeeec31?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Faaq-operator-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/aaq-server-rhel9",
+      "purl": "pkg:oci/aaq-server-rhel9@sha256%3Ae45503da0c7b8b1acb7ad018b10a5cab3599ce0223627e3ab3d1ad4aef1e7bd4",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e45503da0c7b8b1acb7ad018b10a5cab3599ce0223627e3ab3d1ad4aef1e7bd4"
+        }
+      ],
+      "bom-ref": "pkg:oci/aaq-server-rhel9@sha256%3Ae45503da0c7b8b1acb7ad018b10a5cab3599ce0223627e3ab3d1ad4aef1e7bd4",
+      "version": "sha256:e45503da0c7b8b1acb7ad018b10a5cab3599ce0223627e3ab3d1ad4aef1e7bd4",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/aaq-server-rhel9@sha256%3Ae45503da0c7b8b1acb7ad018b10a5cab3599ce0223627e3ab3d1ad4aef1e7bd4?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Faaq-server-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/aaq-server-rhel9@sha256%3Ae45503da0c7b8b1acb7ad018b10a5cab3599ce0223627e3ab3d1ad4aef1e7bd4?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Faaq-server-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/aaq-server-rhel9@sha256%3Ae45503da0c7b8b1acb7ad018b10a5cab3599ce0223627e3ab3d1ad4aef1e7bd4?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Faaq-server-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-cdi-uploadserver-rhel9",
+      "purl": "pkg:oci/virt-cdi-uploadserver-rhel9@sha256%3A795d9efeb758f1499f31fe23f485411659bd9ef84cc150bab0eeaba51ebabc18",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "795d9efeb758f1499f31fe23f485411659bd9ef84cc150bab0eeaba51ebabc18"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-cdi-uploadserver-rhel9@sha256%3A795d9efeb758f1499f31fe23f485411659bd9ef84cc150bab0eeaba51ebabc18",
+      "version": "sha256:795d9efeb758f1499f31fe23f485411659bd9ef84cc150bab0eeaba51ebabc18",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-uploadserver-rhel9@sha256%3A795d9efeb758f1499f31fe23f485411659bd9ef84cc150bab0eeaba51ebabc18?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-uploadserver-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-uploadserver-rhel9@sha256%3A795d9efeb758f1499f31fe23f485411659bd9ef84cc150bab0eeaba51ebabc18?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-uploadserver-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-uploadserver-rhel9@sha256%3A795d9efeb758f1499f31fe23f485411659bd9ef84cc150bab0eeaba51ebabc18?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-uploadserver-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-tekton-tasks-create-datavolume-rhel9",
+      "purl": "pkg:oci/kubevirt-tekton-tasks-create-datavolume-rhel9@sha256%3A4dd704c03cdafe5f7f811accf01bf7617568124bf0282066bfeaf263afb6e5e7",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4dd704c03cdafe5f7f811accf01bf7617568124bf0282066bfeaf263afb6e5e7"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-tekton-tasks-create-datavolume-rhel9@sha256%3A4dd704c03cdafe5f7f811accf01bf7617568124bf0282066bfeaf263afb6e5e7",
+      "version": "sha256:4dd704c03cdafe5f7f811accf01bf7617568124bf0282066bfeaf263afb6e5e7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-tekton-tasks-create-datavolume-rhel9@sha256%3A4dd704c03cdafe5f7f811accf01bf7617568124bf0282066bfeaf263afb6e5e7?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-tekton-tasks-create-datavolume-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-tekton-tasks-create-datavolume-rhel9@sha256%3A4dd704c03cdafe5f7f811accf01bf7617568124bf0282066bfeaf263afb6e5e7?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-tekton-tasks-create-datavolume-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-tekton-tasks-create-datavolume-rhel9@sha256%3A4dd704c03cdafe5f7f811accf01bf7617568124bf0282066bfeaf263afb6e5e7?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-tekton-tasks-create-datavolume-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-cdi-uploadproxy-rhel9",
+      "purl": "pkg:oci/virt-cdi-uploadproxy-rhel9@sha256%3Ab8bf22e8e0b66a1685429747719ec882b228810d4353006f97e4989243f0ce76",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b8bf22e8e0b66a1685429747719ec882b228810d4353006f97e4989243f0ce76"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-cdi-uploadproxy-rhel9@sha256%3Ab8bf22e8e0b66a1685429747719ec882b228810d4353006f97e4989243f0ce76",
+      "version": "sha256:b8bf22e8e0b66a1685429747719ec882b228810d4353006f97e4989243f0ce76",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-uploadproxy-rhel9@sha256%3Ab8bf22e8e0b66a1685429747719ec882b228810d4353006f97e4989243f0ce76?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-uploadproxy-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-uploadproxy-rhel9@sha256%3Ab8bf22e8e0b66a1685429747719ec882b228810d4353006f97e4989243f0ce76?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-uploadproxy-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-uploadproxy-rhel9@sha256%3Ab8bf22e8e0b66a1685429747719ec882b228810d4353006f97e4989243f0ce76?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-uploadproxy-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-cdi-apiserver-rhel9",
+      "purl": "pkg:oci/virt-cdi-apiserver-rhel9@sha256%3Af2083253812e68cf577f48fb081c3e41e9c7875299f3ba83b13851b9cf1f3567",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f2083253812e68cf577f48fb081c3e41e9c7875299f3ba83b13851b9cf1f3567"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-cdi-apiserver-rhel9@sha256%3Af2083253812e68cf577f48fb081c3e41e9c7875299f3ba83b13851b9cf1f3567",
+      "version": "sha256:f2083253812e68cf577f48fb081c3e41e9c7875299f3ba83b13851b9cf1f3567",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-apiserver-rhel9@sha256%3Af2083253812e68cf577f48fb081c3e41e9c7875299f3ba83b13851b9cf1f3567?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-apiserver-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-apiserver-rhel9@sha256%3Af2083253812e68cf577f48fb081c3e41e9c7875299f3ba83b13851b9cf1f3567?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-apiserver-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-apiserver-rhel9@sha256%3Af2083253812e68cf577f48fb081c3e41e9c7875299f3ba83b13851b9cf1f3567?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-apiserver-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-cdi-controller-rhel9",
+      "purl": "pkg:oci/virt-cdi-controller-rhel9@sha256%3A724a00aa0686927808d622427c008eac1d630bcb21520ba348a2c5a37316dc19",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "724a00aa0686927808d622427c008eac1d630bcb21520ba348a2c5a37316dc19"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-cdi-controller-rhel9@sha256%3A724a00aa0686927808d622427c008eac1d630bcb21520ba348a2c5a37316dc19",
+      "version": "sha256:724a00aa0686927808d622427c008eac1d630bcb21520ba348a2c5a37316dc19",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-controller-rhel9@sha256%3A724a00aa0686927808d622427c008eac1d630bcb21520ba348a2c5a37316dc19?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-controller-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-controller-rhel9@sha256%3A724a00aa0686927808d622427c008eac1d630bcb21520ba348a2c5a37316dc19?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-controller-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-cdi-controller-rhel9@sha256%3A724a00aa0686927808d622427c008eac1d630bcb21520ba348a2c5a37316dc19?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-cdi-controller-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/hostpath-csi-driver-rhel9",
+      "purl": "pkg:oci/hostpath-csi-driver-rhel9@sha256%3A45cad9b92d3cea71ce98168481fdd916528752a5df163b629cef533a1a4dce77",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "45cad9b92d3cea71ce98168481fdd916528752a5df163b629cef533a1a4dce77"
+        }
+      ],
+      "bom-ref": "pkg:oci/hostpath-csi-driver-rhel9@sha256%3A45cad9b92d3cea71ce98168481fdd916528752a5df163b629cef533a1a4dce77",
+      "version": "sha256:45cad9b92d3cea71ce98168481fdd916528752a5df163b629cef533a1a4dce77",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hostpath-csi-driver-rhel9@sha256%3A45cad9b92d3cea71ce98168481fdd916528752a5df163b629cef533a1a4dce77?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhostpath-csi-driver-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hostpath-csi-driver-rhel9@sha256%3A45cad9b92d3cea71ce98168481fdd916528752a5df163b629cef533a1a4dce77?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhostpath-csi-driver-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hostpath-csi-driver-rhel9@sha256%3A45cad9b92d3cea71ce98168481fdd916528752a5df163b629cef533a1a4dce77?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhostpath-csi-driver-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/hostpath-provisioner-operator-rhel9",
+      "purl": "pkg:oci/hostpath-provisioner-operator-rhel9@sha256%3A087a1d292d25b934bc47b47c51055b003b5092ddd1fda66cc3f89d8fbe58be17",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "087a1d292d25b934bc47b47c51055b003b5092ddd1fda66cc3f89d8fbe58be17"
+        }
+      ],
+      "bom-ref": "pkg:oci/hostpath-provisioner-operator-rhel9@sha256%3A087a1d292d25b934bc47b47c51055b003b5092ddd1fda66cc3f89d8fbe58be17",
+      "version": "sha256:087a1d292d25b934bc47b47c51055b003b5092ddd1fda66cc3f89d8fbe58be17",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hostpath-provisioner-operator-rhel9@sha256%3A087a1d292d25b934bc47b47c51055b003b5092ddd1fda66cc3f89d8fbe58be17?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhostpath-provisioner-operator-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hostpath-provisioner-operator-rhel9@sha256%3A087a1d292d25b934bc47b47c51055b003b5092ddd1fda66cc3f89d8fbe58be17?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhostpath-provisioner-operator-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hostpath-provisioner-operator-rhel9@sha256%3A087a1d292d25b934bc47b47c51055b003b5092ddd1fda66cc3f89d8fbe58be17?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhostpath-provisioner-operator-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/cluster-network-addons-operator-rhel9",
+      "purl": "pkg:oci/cluster-network-addons-operator-rhel9@sha256%3A44eda4396eee6eeb365a1daef3cf4740298df153226c842a122f3b645b29a5c8",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "44eda4396eee6eeb365a1daef3cf4740298df153226c842a122f3b645b29a5c8"
+        }
+      ],
+      "bom-ref": "pkg:oci/cluster-network-addons-operator-rhel9@sha256%3A44eda4396eee6eeb365a1daef3cf4740298df153226c842a122f3b645b29a5c8",
+      "version": "sha256:44eda4396eee6eeb365a1daef3cf4740298df153226c842a122f3b645b29a5c8",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/cluster-network-addons-operator-rhel9@sha256%3A44eda4396eee6eeb365a1daef3cf4740298df153226c842a122f3b645b29a5c8?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fcluster-network-addons-operator-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/cluster-network-addons-operator-rhel9@sha256%3A44eda4396eee6eeb365a1daef3cf4740298df153226c842a122f3b645b29a5c8?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fcluster-network-addons-operator-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/cluster-network-addons-operator-rhel9@sha256%3A44eda4396eee6eeb365a1daef3cf4740298df153226c842a122f3b645b29a5c8?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fcluster-network-addons-operator-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-common-instancetypes-rhel9",
+      "purl": "pkg:oci/kubevirt-common-instancetypes-rhel9@sha256%3A3f56642bad303fc45072b1c7809bb5e757e3243bdbc6e9e5a17725eebd76fd27",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3f56642bad303fc45072b1c7809bb5e757e3243bdbc6e9e5a17725eebd76fd27"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-common-instancetypes-rhel9@sha256%3A3f56642bad303fc45072b1c7809bb5e757e3243bdbc6e9e5a17725eebd76fd27",
+      "version": "sha256:3f56642bad303fc45072b1c7809bb5e757e3243bdbc6e9e5a17725eebd76fd27",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-common-instancetypes-rhel9@sha256%3A3f56642bad303fc45072b1c7809bb5e757e3243bdbc6e9e5a17725eebd76fd27?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-common-instancetypes-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-common-instancetypes-rhel9@sha256%3A3f56642bad303fc45072b1c7809bb5e757e3243bdbc6e9e5a17725eebd76fd27?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-common-instancetypes-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-common-instancetypes-rhel9@sha256%3A3f56642bad303fc45072b1c7809bb5e757e3243bdbc6e9e5a17725eebd76fd27?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-common-instancetypes-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/bridge-marker-rhel9",
+      "purl": "pkg:oci/bridge-marker-rhel9@sha256%3Aa8c75b8aa656f38a51b1faee7ab06cd9405cc2b82cdae754c52dbf2a3cd90554",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a8c75b8aa656f38a51b1faee7ab06cd9405cc2b82cdae754c52dbf2a3cd90554"
+        }
+      ],
+      "bom-ref": "pkg:oci/bridge-marker-rhel9@sha256%3Aa8c75b8aa656f38a51b1faee7ab06cd9405cc2b82cdae754c52dbf2a3cd90554",
+      "version": "sha256:a8c75b8aa656f38a51b1faee7ab06cd9405cc2b82cdae754c52dbf2a3cd90554",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/bridge-marker-rhel9@sha256%3Aa8c75b8aa656f38a51b1faee7ab06cd9405cc2b82cdae754c52dbf2a3cd90554?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fbridge-marker-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/bridge-marker-rhel9@sha256%3Aa8c75b8aa656f38a51b1faee7ab06cd9405cc2b82cdae754c52dbf2a3cd90554?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fbridge-marker-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/bridge-marker-rhel9@sha256%3Aa8c75b8aa656f38a51b1faee7ab06cd9405cc2b82cdae754c52dbf2a3cd90554?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fbridge-marker-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubesecondarydns-rhel9",
+      "purl": "pkg:oci/kubesecondarydns-rhel9@sha256%3Ab8834767a8715f782bc17dcaca512d246ca8b466013cddcee356fb60b890e4ec",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b8834767a8715f782bc17dcaca512d246ca8b466013cddcee356fb60b890e4ec"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubesecondarydns-rhel9@sha256%3Ab8834767a8715f782bc17dcaca512d246ca8b466013cddcee356fb60b890e4ec",
+      "version": "sha256:b8834767a8715f782bc17dcaca512d246ca8b466013cddcee356fb60b890e4ec",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubesecondarydns-rhel9@sha256%3Ab8834767a8715f782bc17dcaca512d246ca8b466013cddcee356fb60b890e4ec?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubesecondarydns-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubesecondarydns-rhel9@sha256%3Ab8834767a8715f782bc17dcaca512d246ca8b466013cddcee356fb60b890e4ec?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubesecondarydns-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubesecondarydns-rhel9@sha256%3Ab8834767a8715f782bc17dcaca512d246ca8b466013cddcee356fb60b890e4ec?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubesecondarydns-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/cnv-containernetworking-plugins-rhel9",
+      "purl": "pkg:oci/cnv-containernetworking-plugins-rhel9@sha256%3Ab4cc91b79ca2ed57b8cdee8220cfc151c15c3f07847e60bd9f13ad8c57332b00",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b4cc91b79ca2ed57b8cdee8220cfc151c15c3f07847e60bd9f13ad8c57332b00"
+        }
+      ],
+      "bom-ref": "pkg:oci/cnv-containernetworking-plugins-rhel9@sha256%3Ab4cc91b79ca2ed57b8cdee8220cfc151c15c3f07847e60bd9f13ad8c57332b00",
+      "version": "sha256:b4cc91b79ca2ed57b8cdee8220cfc151c15c3f07847e60bd9f13ad8c57332b00",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/cnv-containernetworking-plugins-rhel9@sha256%3Ab4cc91b79ca2ed57b8cdee8220cfc151c15c3f07847e60bd9f13ad8c57332b00?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fcnv-containernetworking-plugins-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/cnv-containernetworking-plugins-rhel9@sha256%3Ab4cc91b79ca2ed57b8cdee8220cfc151c15c3f07847e60bd9f13ad8c57332b00?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fcnv-containernetworking-plugins-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/cnv-containernetworking-plugins-rhel9@sha256%3Ab4cc91b79ca2ed57b8cdee8220cfc151c15c3f07847e60bd9f13ad8c57332b00?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fcnv-containernetworking-plugins-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubemacpool-rhel9",
+      "purl": "pkg:oci/kubemacpool-rhel9@sha256%3Afdff61819b4c031b96cefd2a4a9ca5e11136f7f0552e66796b7a6c81d8ff0c92",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "fdff61819b4c031b96cefd2a4a9ca5e11136f7f0552e66796b7a6c81d8ff0c92"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubemacpool-rhel9@sha256%3Afdff61819b4c031b96cefd2a4a9ca5e11136f7f0552e66796b7a6c81d8ff0c92",
+      "version": "sha256:fdff61819b4c031b96cefd2a4a9ca5e11136f7f0552e66796b7a6c81d8ff0c92",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubemacpool-rhel9@sha256%3Afdff61819b4c031b96cefd2a4a9ca5e11136f7f0552e66796b7a6c81d8ff0c92?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubemacpool-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubemacpool-rhel9@sha256%3Afdff61819b4c031b96cefd2a4a9ca5e11136f7f0552e66796b7a6c81d8ff0c92?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubemacpool-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubemacpool-rhel9@sha256%3Afdff61819b4c031b96cefd2a4a9ca5e11136f7f0552e66796b7a6c81d8ff0c92?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubemacpool-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/multus-dynamic-networks-rhel9",
+      "purl": "pkg:oci/multus-dynamic-networks-rhel9@sha256%3A9391401b68bdb24de670af5f92fa4ff73e814cfe2adc2ead84b7023853ed19f1",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9391401b68bdb24de670af5f92fa4ff73e814cfe2adc2ead84b7023853ed19f1"
+        }
+      ],
+      "bom-ref": "pkg:oci/multus-dynamic-networks-rhel9@sha256%3A9391401b68bdb24de670af5f92fa4ff73e814cfe2adc2ead84b7023853ed19f1",
+      "version": "sha256:9391401b68bdb24de670af5f92fa4ff73e814cfe2adc2ead84b7023853ed19f1",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/multus-dynamic-networks-rhel9@sha256%3A9391401b68bdb24de670af5f92fa4ff73e814cfe2adc2ead84b7023853ed19f1?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fmultus-dynamic-networks-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/multus-dynamic-networks-rhel9@sha256%3A9391401b68bdb24de670af5f92fa4ff73e814cfe2adc2ead84b7023853ed19f1?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fmultus-dynamic-networks-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/multus-dynamic-networks-rhel9@sha256%3A9391401b68bdb24de670af5f92fa4ff73e814cfe2adc2ead84b7023853ed19f1?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fmultus-dynamic-networks-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-ipam-controller-rhel9",
+      "purl": "pkg:oci/kubevirt-ipam-controller-rhel9@sha256%3A491ec75705f6fb7a2adaf22e106bedcc92061f9bcf8b41c2898727b2b624d7e9",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "491ec75705f6fb7a2adaf22e106bedcc92061f9bcf8b41c2898727b2b624d7e9"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-ipam-controller-rhel9@sha256%3A491ec75705f6fb7a2adaf22e106bedcc92061f9bcf8b41c2898727b2b624d7e9",
+      "version": "sha256:491ec75705f6fb7a2adaf22e106bedcc92061f9bcf8b41c2898727b2b624d7e9",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-ipam-controller-rhel9@sha256%3A491ec75705f6fb7a2adaf22e106bedcc92061f9bcf8b41c2898727b2b624d7e9?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-ipam-controller-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-ipam-controller-rhel9@sha256%3A491ec75705f6fb7a2adaf22e106bedcc92061f9bcf8b41c2898727b2b624d7e9?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-ipam-controller-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-ipam-controller-rhel9@sha256%3A491ec75705f6fb7a2adaf22e106bedcc92061f9bcf8b41c2898727b2b624d7e9?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-ipam-controller-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/aaq-controller-rhel9",
+      "purl": "pkg:oci/aaq-controller-rhel9@sha256%3A479df989f7dba007cbb00ffffcf7d07aef7a93ca1628f013a7ae5c46b0f7cfb2",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "479df989f7dba007cbb00ffffcf7d07aef7a93ca1628f013a7ae5c46b0f7cfb2"
+        }
+      ],
+      "bom-ref": "pkg:oci/aaq-controller-rhel9@sha256%3A479df989f7dba007cbb00ffffcf7d07aef7a93ca1628f013a7ae5c46b0f7cfb2",
+      "version": "sha256:479df989f7dba007cbb00ffffcf7d07aef7a93ca1628f013a7ae5c46b0f7cfb2",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/aaq-controller-rhel9@sha256%3A479df989f7dba007cbb00ffffcf7d07aef7a93ca1628f013a7ae5c46b0f7cfb2?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Faaq-controller-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/aaq-controller-rhel9@sha256%3A479df989f7dba007cbb00ffffcf7d07aef7a93ca1628f013a7ae5c46b0f7cfb2?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Faaq-controller-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/aaq-controller-rhel9@sha256%3A479df989f7dba007cbb00ffffcf7d07aef7a93ca1628f013a7ae5c46b0f7cfb2?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Faaq-controller-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-api-rhel9",
+      "purl": "pkg:oci/virt-api-rhel9@sha256%3A812e18efc651fc5995cf04202f8a698f526f80ec8b4b39da4cbed499b4fac269",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "812e18efc651fc5995cf04202f8a698f526f80ec8b4b39da4cbed499b4fac269"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-api-rhel9@sha256%3A812e18efc651fc5995cf04202f8a698f526f80ec8b4b39da4cbed499b4fac269",
+      "version": "sha256:812e18efc651fc5995cf04202f8a698f526f80ec8b4b39da4cbed499b4fac269",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-api-rhel9@sha256%3A812e18efc651fc5995cf04202f8a698f526f80ec8b4b39da4cbed499b4fac269?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-api-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-api-rhel9@sha256%3A812e18efc651fc5995cf04202f8a698f526f80ec8b4b39da4cbed499b4fac269?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-api-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-api-rhel9@sha256%3A812e18efc651fc5995cf04202f8a698f526f80ec8b4b39da4cbed499b4fac269?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-api-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-artifacts-server-rhel9",
+      "purl": "pkg:oci/virt-artifacts-server-rhel9@sha256%3A2998d6f4cbfa371e2ff64cd16924ecc32a5f0cda916511c43de7ba4426651002",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2998d6f4cbfa371e2ff64cd16924ecc32a5f0cda916511c43de7ba4426651002"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-artifacts-server-rhel9@sha256%3A2998d6f4cbfa371e2ff64cd16924ecc32a5f0cda916511c43de7ba4426651002",
+      "version": "sha256:2998d6f4cbfa371e2ff64cd16924ecc32a5f0cda916511c43de7ba4426651002",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-artifacts-server-rhel9@sha256%3A2998d6f4cbfa371e2ff64cd16924ecc32a5f0cda916511c43de7ba4426651002?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-artifacts-server-rhel9&tag=v4.17.36-2"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-artifacts-server-rhel9@sha256%3A2998d6f4cbfa371e2ff64cd16924ecc32a5f0cda916511c43de7ba4426651002?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-artifacts-server-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-artifacts-server-rhel9@sha256%3A2998d6f4cbfa371e2ff64cd16924ecc32a5f0cda916511c43de7ba4426651002?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-artifacts-server-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-handler-rhel9",
+      "purl": "pkg:oci/virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "cdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa",
+      "version": "sha256:cdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/libguestfs-tools-rhel9",
+      "purl": "pkg:oci/libguestfs-tools-rhel9@sha256%3A2ae57817e3f34912debb993099db7cb6f305b511786ced2fc7f25d5e46817a4d",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2ae57817e3f34912debb993099db7cb6f305b511786ced2fc7f25d5e46817a4d"
+        }
+      ],
+      "bom-ref": "pkg:oci/libguestfs-tools-rhel9@sha256%3A2ae57817e3f34912debb993099db7cb6f305b511786ced2fc7f25d5e46817a4d",
+      "version": "sha256:2ae57817e3f34912debb993099db7cb6f305b511786ced2fc7f25d5e46817a4d",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/libguestfs-tools-rhel9@sha256%3A2ae57817e3f34912debb993099db7cb6f305b511786ced2fc7f25d5e46817a4d?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Flibguestfs-tools-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/libguestfs-tools-rhel9@sha256%3A2ae57817e3f34912debb993099db7cb6f305b511786ced2fc7f25d5e46817a4d?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Flibguestfs-tools-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/libguestfs-tools-rhel9@sha256%3A2ae57817e3f34912debb993099db7cb6f305b511786ced2fc7f25d5e46817a4d?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Flibguestfs-tools-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/pr-helper-rhel9",
+      "purl": "pkg:oci/pr-helper-rhel9@sha256%3Ab615704ff7c53b8a5d2622c8439a421a32064c84eaeaba7341b283a5d1a54975",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b615704ff7c53b8a5d2622c8439a421a32064c84eaeaba7341b283a5d1a54975"
+        }
+      ],
+      "bom-ref": "pkg:oci/pr-helper-rhel9@sha256%3Ab615704ff7c53b8a5d2622c8439a421a32064c84eaeaba7341b283a5d1a54975",
+      "version": "sha256:b615704ff7c53b8a5d2622c8439a421a32064c84eaeaba7341b283a5d1a54975",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/pr-helper-rhel9@sha256%3Ab615704ff7c53b8a5d2622c8439a421a32064c84eaeaba7341b283a5d1a54975?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fpr-helper-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/pr-helper-rhel9@sha256%3Ab615704ff7c53b8a5d2622c8439a421a32064c84eaeaba7341b283a5d1a54975?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fpr-helper-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/pr-helper-rhel9@sha256%3Ab615704ff7c53b8a5d2622c8439a421a32064c84eaeaba7341b283a5d1a54975?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fpr-helper-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-exportproxy-rhel9",
+      "purl": "pkg:oci/virt-exportproxy-rhel9@sha256%3Affacb816619963aee5a7cdfc6e1396395a33b2a5ce8825ed9f40cb6d91c07aca",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ffacb816619963aee5a7cdfc6e1396395a33b2a5ce8825ed9f40cb6d91c07aca"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-exportproxy-rhel9@sha256%3Affacb816619963aee5a7cdfc6e1396395a33b2a5ce8825ed9f40cb6d91c07aca",
+      "version": "sha256:ffacb816619963aee5a7cdfc6e1396395a33b2a5ce8825ed9f40cb6d91c07aca",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-exportproxy-rhel9@sha256%3Affacb816619963aee5a7cdfc6e1396395a33b2a5ce8825ed9f40cb6d91c07aca?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-exportproxy-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-exportproxy-rhel9@sha256%3Affacb816619963aee5a7cdfc6e1396395a33b2a5ce8825ed9f40cb6d91c07aca?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-exportproxy-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-exportproxy-rhel9@sha256%3Affacb816619963aee5a7cdfc6e1396395a33b2a5ce8825ed9f40cb6d91c07aca?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-exportproxy-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virt-exportserver-rhel9",
+      "purl": "pkg:oci/virt-exportserver-rhel9@sha256%3A8a37fea17b83a0f01bea5c684cf349c7f46eba38ec05245f05b24dec9d0e3fa2",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8a37fea17b83a0f01bea5c684cf349c7f46eba38ec05245f05b24dec9d0e3fa2"
+        }
+      ],
+      "bom-ref": "pkg:oci/virt-exportserver-rhel9@sha256%3A8a37fea17b83a0f01bea5c684cf349c7f46eba38ec05245f05b24dec9d0e3fa2",
+      "version": "sha256:8a37fea17b83a0f01bea5c684cf349c7f46eba38ec05245f05b24dec9d0e3fa2",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-exportserver-rhel9@sha256%3A8a37fea17b83a0f01bea5c684cf349c7f46eba38ec05245f05b24dec9d0e3fa2?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-exportserver-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-exportserver-rhel9@sha256%3A8a37fea17b83a0f01bea5c684cf349c7f46eba38ec05245f05b24dec9d0e3fa2?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-exportserver-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virt-exportserver-rhel9@sha256%3A8a37fea17b83a0f01bea5c684cf349c7f46eba38ec05245f05b24dec9d0e3fa2?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-exportserver-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/passt-network-binding-plugin-sidecar-rhel9",
+      "purl": "pkg:oci/passt-network-binding-plugin-sidecar-rhel9@sha256%3A37ba22f3d5c3454bb8b966bb7655d914c29079db3fc1d7f1c385137feba08d8d",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "37ba22f3d5c3454bb8b966bb7655d914c29079db3fc1d7f1c385137feba08d8d"
+        }
+      ],
+      "bom-ref": "pkg:oci/passt-network-binding-plugin-sidecar-rhel9@sha256%3A37ba22f3d5c3454bb8b966bb7655d914c29079db3fc1d7f1c385137feba08d8d",
+      "version": "sha256:37ba22f3d5c3454bb8b966bb7655d914c29079db3fc1d7f1c385137feba08d8d",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/passt-network-binding-plugin-sidecar-rhel9@sha256%3A37ba22f3d5c3454bb8b966bb7655d914c29079db3fc1d7f1c385137feba08d8d?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fpasst-network-binding-plugin-sidecar-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/passt-network-binding-plugin-sidecar-rhel9@sha256%3A37ba22f3d5c3454bb8b966bb7655d914c29079db3fc1d7f1c385137feba08d8d?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fpasst-network-binding-plugin-sidecar-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/passt-network-binding-plugin-sidecar-rhel9@sha256%3A37ba22f3d5c3454bb8b966bb7655d914c29079db3fc1d7f1c385137feba08d8d?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fpasst-network-binding-plugin-sidecar-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/passt-network-binding-plugin-cni-rhel9",
+      "purl": "pkg:oci/passt-network-binding-plugin-cni-rhel9@sha256%3A985b4e662b499377ec458370a9ab9ba8a49c9dee5718a1caebea57617a7d71ec",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "985b4e662b499377ec458370a9ab9ba8a49c9dee5718a1caebea57617a7d71ec"
+        }
+      ],
+      "bom-ref": "pkg:oci/passt-network-binding-plugin-cni-rhel9@sha256%3A985b4e662b499377ec458370a9ab9ba8a49c9dee5718a1caebea57617a7d71ec",
+      "version": "sha256:985b4e662b499377ec458370a9ab9ba8a49c9dee5718a1caebea57617a7d71ec",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/passt-network-binding-plugin-cni-rhel9@sha256%3A985b4e662b499377ec458370a9ab9ba8a49c9dee5718a1caebea57617a7d71ec?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fpasst-network-binding-plugin-cni-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/passt-network-binding-plugin-cni-rhel9@sha256%3A985b4e662b499377ec458370a9ab9ba8a49c9dee5718a1caebea57617a7d71ec?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fpasst-network-binding-plugin-cni-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/passt-network-binding-plugin-cni-rhel9@sha256%3A985b4e662b499377ec458370a9ab9ba8a49c9dee5718a1caebea57617a7d71ec?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fpasst-network-binding-plugin-cni-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/virtio-win-rhel9",
+      "purl": "pkg:oci/virtio-win-rhel9@sha256%3Ae3c8b00ce6d9d9ee45e15a5def276c66298dc8d2d61befb972b4cebd8c680f41",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e3c8b00ce6d9d9ee45e15a5def276c66298dc8d2d61befb972b4cebd8c680f41"
+        }
+      ],
+      "bom-ref": "pkg:oci/virtio-win-rhel9@sha256%3Ae3c8b00ce6d9d9ee45e15a5def276c66298dc8d2d61befb972b4cebd8c680f41",
+      "version": "sha256:e3c8b00ce6d9d9ee45e15a5def276c66298dc8d2d61befb972b4cebd8c680f41",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virtio-win-rhel9@sha256%3Ae3c8b00ce6d9d9ee45e15a5def276c66298dc8d2d61befb972b4cebd8c680f41?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirtio-win-rhel9&tag=v4.17.36-2"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virtio-win-rhel9@sha256%3Ae3c8b00ce6d9d9ee45e15a5def276c66298dc8d2d61befb972b4cebd8c680f41?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirtio-win-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/virtio-win-rhel9@sha256%3Ae3c8b00ce6d9d9ee45e15a5def276c66298dc8d2d61befb972b4cebd8c680f41?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirtio-win-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/cnv-must-gather-rhel9",
+      "purl": "pkg:oci/cnv-must-gather-rhel9@sha256%3A8b961c4fe1eba3b3eafbda4f33ffda4fedbe8d7105ff3b4d8b38164fa6e41375",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8b961c4fe1eba3b3eafbda4f33ffda4fedbe8d7105ff3b4d8b38164fa6e41375"
+        }
+      ],
+      "bom-ref": "pkg:oci/cnv-must-gather-rhel9@sha256%3A8b961c4fe1eba3b3eafbda4f33ffda4fedbe8d7105ff3b4d8b38164fa6e41375",
+      "version": "sha256:8b961c4fe1eba3b3eafbda4f33ffda4fedbe8d7105ff3b4d8b38164fa6e41375",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/cnv-must-gather-rhel9@sha256%3A8b961c4fe1eba3b3eafbda4f33ffda4fedbe8d7105ff3b4d8b38164fa6e41375?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fcnv-must-gather-rhel9&tag=v4.17.36-1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/cnv-must-gather-rhel9@sha256%3A8b961c4fe1eba3b3eafbda4f33ffda4fedbe8d7105ff3b4d8b38164fa6e41375?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fcnv-must-gather-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/cnv-must-gather-rhel9@sha256%3A8b961c4fe1eba3b3eafbda4f33ffda4fedbe8d7105ff3b4d8b38164fa6e41375?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fcnv-must-gather-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-tekton-tasks-disk-virt-customize-rhel9",
+      "purl": "pkg:oci/kubevirt-tekton-tasks-disk-virt-customize-rhel9@sha256%3Acb37e2dd63ff3c1a369300f7f0aa3d7691b658dfab4140082eb881a4d4d477cd",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "cb37e2dd63ff3c1a369300f7f0aa3d7691b658dfab4140082eb881a4d4d477cd"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-tekton-tasks-disk-virt-customize-rhel9@sha256%3Acb37e2dd63ff3c1a369300f7f0aa3d7691b658dfab4140082eb881a4d4d477cd",
+      "version": "sha256:cb37e2dd63ff3c1a369300f7f0aa3d7691b658dfab4140082eb881a4d4d477cd",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-tekton-tasks-disk-virt-customize-rhel9@sha256%3Acb37e2dd63ff3c1a369300f7f0aa3d7691b658dfab4140082eb881a4d4d477cd?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-tekton-tasks-disk-virt-customize-rhel9&tag=v4.17.36-4"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-tekton-tasks-disk-virt-customize-rhel9@sha256%3Acb37e2dd63ff3c1a369300f7f0aa3d7691b658dfab4140082eb881a4d4d477cd?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-tekton-tasks-disk-virt-customize-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-tekton-tasks-disk-virt-customize-rhel9@sha256%3Acb37e2dd63ff3c1a369300f7f0aa3d7691b658dfab4140082eb881a4d4d477cd?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-tekton-tasks-disk-virt-customize-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/vm-network-latency-checkup-rhel9",
+      "purl": "pkg:oci/vm-network-latency-checkup-rhel9@sha256%3A6e395534736d225fb53a8e910905c48cda5deed67d60f679ee777e997d2353c7",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6e395534736d225fb53a8e910905c48cda5deed67d60f679ee777e997d2353c7"
+        }
+      ],
+      "bom-ref": "pkg:oci/vm-network-latency-checkup-rhel9@sha256%3A6e395534736d225fb53a8e910905c48cda5deed67d60f679ee777e997d2353c7",
+      "version": "sha256:6e395534736d225fb53a8e910905c48cda5deed67d60f679ee777e997d2353c7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/vm-network-latency-checkup-rhel9@sha256%3A6e395534736d225fb53a8e910905c48cda5deed67d60f679ee777e997d2353c7?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvm-network-latency-checkup-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/vm-network-latency-checkup-rhel9@sha256%3A6e395534736d225fb53a8e910905c48cda5deed67d60f679ee777e997d2353c7?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvm-network-latency-checkup-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/vm-network-latency-checkup-rhel9@sha256%3A6e395534736d225fb53a8e910905c48cda5deed67d60f679ee777e997d2353c7?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvm-network-latency-checkup-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-dpdk-checkup-rhel9",
+      "purl": "pkg:oci/kubevirt-dpdk-checkup-rhel9@sha256%3Aa1cfe75924fd98623d5bdbfd663f42e1ebcbf0891510e650bc8195ae1ad6af20",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a1cfe75924fd98623d5bdbfd663f42e1ebcbf0891510e650bc8195ae1ad6af20"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-dpdk-checkup-rhel9@sha256%3Aa1cfe75924fd98623d5bdbfd663f42e1ebcbf0891510e650bc8195ae1ad6af20",
+      "version": "sha256:a1cfe75924fd98623d5bdbfd663f42e1ebcbf0891510e650bc8195ae1ad6af20",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-dpdk-checkup-rhel9@sha256%3Aa1cfe75924fd98623d5bdbfd663f42e1ebcbf0891510e650bc8195ae1ad6af20?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-dpdk-checkup-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-dpdk-checkup-rhel9@sha256%3Aa1cfe75924fd98623d5bdbfd663f42e1ebcbf0891510e650bc8195ae1ad6af20?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-dpdk-checkup-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-dpdk-checkup-rhel9@sha256%3Aa1cfe75924fd98623d5bdbfd663f42e1ebcbf0891510e650bc8195ae1ad6af20?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-dpdk-checkup-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-realtime-checkup-rhel9",
+      "purl": "pkg:oci/kubevirt-realtime-checkup-rhel9@sha256%3A21ba2cc0f21cc319a9dccac5b27b735282801c3e378d70ab00c6cb3ec1c9d9a3",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "21ba2cc0f21cc319a9dccac5b27b735282801c3e378d70ab00c6cb3ec1c9d9a3"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-realtime-checkup-rhel9@sha256%3A21ba2cc0f21cc319a9dccac5b27b735282801c3e378d70ab00c6cb3ec1c9d9a3",
+      "version": "sha256:21ba2cc0f21cc319a9dccac5b27b735282801c3e378d70ab00c6cb3ec1c9d9a3",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-realtime-checkup-rhel9@sha256%3A21ba2cc0f21cc319a9dccac5b27b735282801c3e378d70ab00c6cb3ec1c9d9a3?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-realtime-checkup-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-realtime-checkup-rhel9@sha256%3A21ba2cc0f21cc319a9dccac5b27b735282801c3e378d70ab00c6cb3ec1c9d9a3?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-realtime-checkup-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-realtime-checkup-rhel9@sha256%3A21ba2cc0f21cc319a9dccac5b27b735282801c3e378d70ab00c6cb3ec1c9d9a3?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-realtime-checkup-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-storage-checkup-rhel9",
+      "purl": "pkg:oci/kubevirt-storage-checkup-rhel9@sha256%3Aa387afd751151b2e68393d0afacda32bc5be87b8d60a31003f0bd386e002531a",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a387afd751151b2e68393d0afacda32bc5be87b8d60a31003f0bd386e002531a"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-storage-checkup-rhel9@sha256%3Aa387afd751151b2e68393d0afacda32bc5be87b8d60a31003f0bd386e002531a",
+      "version": "sha256:a387afd751151b2e68393d0afacda32bc5be87b8d60a31003f0bd386e002531a",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-storage-checkup-rhel9@sha256%3Aa387afd751151b2e68393d0afacda32bc5be87b8d60a31003f0bd386e002531a?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-storage-checkup-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-storage-checkup-rhel9@sha256%3Aa387afd751151b2e68393d0afacda32bc5be87b8d60a31003f0bd386e002531a?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-storage-checkup-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-storage-checkup-rhel9@sha256%3Aa387afd751151b2e68393d0afacda32bc5be87b8d60a31003f0bd386e002531a?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-storage-checkup-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-apiserver-proxy-rhel9",
+      "purl": "pkg:oci/kubevirt-apiserver-proxy-rhel9@sha256%3A2c0df8aeabb6e62f257d79e53c82f221c140557c168f4da6d1283f698fc90415",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2c0df8aeabb6e62f257d79e53c82f221c140557c168f4da6d1283f698fc90415"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-apiserver-proxy-rhel9@sha256%3A2c0df8aeabb6e62f257d79e53c82f221c140557c168f4da6d1283f698fc90415",
+      "version": "sha256:2c0df8aeabb6e62f257d79e53c82f221c140557c168f4da6d1283f698fc90415",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-apiserver-proxy-rhel9@sha256%3A2c0df8aeabb6e62f257d79e53c82f221c140557c168f4da6d1283f698fc90415?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-apiserver-proxy-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-apiserver-proxy-rhel9@sha256%3A2c0df8aeabb6e62f257d79e53c82f221c140557c168f4da6d1283f698fc90415?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-apiserver-proxy-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-apiserver-proxy-rhel9@sha256%3A2c0df8aeabb6e62f257d79e53c82f221c140557c168f4da6d1283f698fc90415?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-apiserver-proxy-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/vm-console-proxy-rhel9",
+      "purl": "pkg:oci/vm-console-proxy-rhel9@sha256%3A24317d5133999ab616432bfc89d146326765efc52d77eff21e193466835210b5",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "24317d5133999ab616432bfc89d146326765efc52d77eff21e193466835210b5"
+        }
+      ],
+      "bom-ref": "pkg:oci/vm-console-proxy-rhel9@sha256%3A24317d5133999ab616432bfc89d146326765efc52d77eff21e193466835210b5",
+      "version": "sha256:24317d5133999ab616432bfc89d146326765efc52d77eff21e193466835210b5",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/vm-console-proxy-rhel9@sha256%3A24317d5133999ab616432bfc89d146326765efc52d77eff21e193466835210b5?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvm-console-proxy-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/vm-console-proxy-rhel9@sha256%3A24317d5133999ab616432bfc89d146326765efc52d77eff21e193466835210b5?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvm-console-proxy-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/vm-console-proxy-rhel9@sha256%3A24317d5133999ab616432bfc89d146326765efc52d77eff21e193466835210b5?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvm-console-proxy-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/hyperconverged-cluster-operator-rhel9",
+      "purl": "pkg:oci/hyperconverged-cluster-operator-rhel9@sha256%3Af2787270f37aabaeb19af2ee9d1b3164c5f6295642760ed71e335ecb869ba391",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f2787270f37aabaeb19af2ee9d1b3164c5f6295642760ed71e335ecb869ba391"
+        }
+      ],
+      "bom-ref": "pkg:oci/hyperconverged-cluster-operator-rhel9@sha256%3Af2787270f37aabaeb19af2ee9d1b3164c5f6295642760ed71e335ecb869ba391",
+      "version": "sha256:f2787270f37aabaeb19af2ee9d1b3164c5f6295642760ed71e335ecb869ba391",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hyperconverged-cluster-operator-rhel9@sha256%3Af2787270f37aabaeb19af2ee9d1b3164c5f6295642760ed71e335ecb869ba391?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhyperconverged-cluster-operator-rhel9&tag=v4.17.36-2"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hyperconverged-cluster-operator-rhel9@sha256%3Af2787270f37aabaeb19af2ee9d1b3164c5f6295642760ed71e335ecb869ba391?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhyperconverged-cluster-operator-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hyperconverged-cluster-operator-rhel9@sha256%3Af2787270f37aabaeb19af2ee9d1b3164c5f6295642760ed71e335ecb869ba391?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhyperconverged-cluster-operator-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/hyperconverged-cluster-webhook-rhel9",
+      "purl": "pkg:oci/hyperconverged-cluster-webhook-rhel9@sha256%3A9b56a42af131b04c067ae3233b7cddf3950b95fcf2dce535572202fabd827107",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "9b56a42af131b04c067ae3233b7cddf3950b95fcf2dce535572202fabd827107"
+        }
+      ],
+      "bom-ref": "pkg:oci/hyperconverged-cluster-webhook-rhel9@sha256%3A9b56a42af131b04c067ae3233b7cddf3950b95fcf2dce535572202fabd827107",
+      "version": "sha256:9b56a42af131b04c067ae3233b7cddf3950b95fcf2dce535572202fabd827107",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hyperconverged-cluster-webhook-rhel9@sha256%3A9b56a42af131b04c067ae3233b7cddf3950b95fcf2dce535572202fabd827107?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhyperconverged-cluster-webhook-rhel9&tag=v4.17.36-2"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hyperconverged-cluster-webhook-rhel9@sha256%3A9b56a42af131b04c067ae3233b7cddf3950b95fcf2dce535572202fabd827107?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhyperconverged-cluster-webhook-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hyperconverged-cluster-webhook-rhel9@sha256%3A9b56a42af131b04c067ae3233b7cddf3950b95fcf2dce535572202fabd827107?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhyperconverged-cluster-webhook-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/sidecar-shim-rhel9",
+      "purl": "pkg:oci/sidecar-shim-rhel9@sha256%3A91bc9eeefc2e226a6679452e244a2e2b9b5cfc8ef5fa9403c62aa12e75832586",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "91bc9eeefc2e226a6679452e244a2e2b9b5cfc8ef5fa9403c62aa12e75832586"
+        }
+      ],
+      "bom-ref": "pkg:oci/sidecar-shim-rhel9@sha256%3A91bc9eeefc2e226a6679452e244a2e2b9b5cfc8ef5fa9403c62aa12e75832586",
+      "version": "sha256:91bc9eeefc2e226a6679452e244a2e2b9b5cfc8ef5fa9403c62aa12e75832586",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/sidecar-shim-rhel9@sha256%3A91bc9eeefc2e226a6679452e244a2e2b9b5cfc8ef5fa9403c62aa12e75832586?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fsidecar-shim-rhel9&tag=v4.17.36-11"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/sidecar-shim-rhel9@sha256%3A91bc9eeefc2e226a6679452e244a2e2b9b5cfc8ef5fa9403c62aa12e75832586?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fsidecar-shim-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/sidecar-shim-rhel9@sha256%3A91bc9eeefc2e226a6679452e244a2e2b9b5cfc8ef5fa9403c62aa12e75832586?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fsidecar-shim-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/kubevirt-console-plugin-rhel9",
+      "purl": "pkg:oci/kubevirt-console-plugin-rhel9@sha256%3A0dc944701a52cbec15596988776c57a2744016d3b3ca5e173fff14b2c529f40d",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0dc944701a52cbec15596988776c57a2744016d3b3ca5e173fff14b2c529f40d"
+        }
+      ],
+      "bom-ref": "pkg:oci/kubevirt-console-plugin-rhel9@sha256%3A0dc944701a52cbec15596988776c57a2744016d3b3ca5e173fff14b2c529f40d",
+      "version": "sha256:0dc944701a52cbec15596988776c57a2744016d3b3ca5e173fff14b2c529f40d",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-console-plugin-rhel9@sha256%3A0dc944701a52cbec15596988776c57a2744016d3b3ca5e173fff14b2c529f40d?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-console-plugin-rhel9&tag=v4.17.36-11"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-console-plugin-rhel9@sha256%3A0dc944701a52cbec15596988776c57a2744016d3b3ca5e173fff14b2c529f40d?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-console-plugin-rhel9&tag=v4.17.36"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/kubevirt-console-plugin-rhel9@sha256%3A0dc944701a52cbec15596988776c57a2744016d3b3ca5e173fff14b2c529f40d?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fkubevirt-console-plugin-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "container-native-virtualization/hco-bundle-registry",
+      "purl": "pkg:oci/hco-bundle-registry-rhel9@sha256%3A3885ac842a87ea824642cd7708b927ee32ef94030187be89875a4f1a6fb3780f",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3885ac842a87ea824642cd7708b927ee32ef94030187be89875a4f1a6fb3780f"
+        }
+      ],
+      "bom-ref": "pkg:oci/hco-bundle-registry-rhel9@sha256%3A3885ac842a87ea824642cd7708b927ee32ef94030187be89875a4f1a6fb3780f",
+      "version": "sha256:3885ac842a87ea824642cd7708b927ee32ef94030187be89875a4f1a6fb3780f",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hco-bundle-registry-rhel9@sha256%3A3885ac842a87ea824642cd7708b927ee32ef94030187be89875a4f1a6fb3780f?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhco-bundle-registry-rhel9&tag=v4.17.36.rhel9-11"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hco-bundle-registry-rhel9@sha256%3A3885ac842a87ea824642cd7708b927ee32ef94030187be89875a4f1a6fb3780f?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhco-bundle-registry-rhel9&tag=v4.17.36.rhel9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/hco-bundle-registry-rhel9@sha256%3A3885ac842a87ea824642cd7708b927ee32ef94030187be89875a4f1a6fb3780f?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fhco-bundle-registry-rhel9&tag=v4.17"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    }
+  ],
+  "specVersion": "1.6",
+  "dependencies": [
+    {
+      "ref": "RHEL-9-CNV-4.17",
+      "provides": [
+        "pkg:oci/wasp-agent-rhel9@sha256%3Aa2c95d29514f3e841c83677aefbb7eb5466946178aeb2668a52b67b73d1c0e37",
+        "pkg:oci/virt-cdi-importer-rhel9@sha256%3A63e0d3bd66d81a4846772e561cd4ff4752544814c5e9ff61d4dc74d37979c1d1",
+        "pkg:oci/ovs-cni-plugin-rhel9@sha256%3Abbbe09c489b4bbd8a4683f809a2988d890f85c960166d8ec55dab3f57aef3b73",
+        "pkg:oci/kubevirt-ssp-operator-rhel9@sha256%3A4e2f2bea93ac4cdffead6952b2da9f5cbca960101fcec625ecfc51cb34d4e2c3",
+        "pkg:oci/kubevirt-template-validator-rhel9@sha256%3A9b7411f914923d7f744ff312bc12124c0a85da98af63c615392a45d83b9e9e73",
+        "pkg:oci/virt-cdi-cloner-rhel9@sha256%3A748b76396ced4519a607997debb8fedbc20976c35559cda33d318a5a7d723ad9",
+        "pkg:oci/virt-controller-rhel9@sha256%3A6d7d99737df7d268b018ca022d00830e57dd3451a0bbe07f606c2949c975ef76",
+        "pkg:oci/hostpath-provisioner-rhel9@sha256%3Aed490dfa4aea26e80fb6129a059ad762c398d5b1202a68281c228474bad25736",
+        "pkg:oci/virt-launcher-rhel9@sha256%3A7d10f7c58b2c68e0d6cdb4624b2d6970aa9741e4123cf0039673fd550c0b9604",
+        "pkg:oci/virt-cdi-operator-rhel9@sha256%3A8f551b49544e6b1fe9e12ca21887dd1501fc7a2608f00e325ef0b3374f22c5c8",
+        "pkg:oci/virt-operator-rhel9@sha256%3A1ecfdadbf0a12e7a363c814197b61f9e243c77c4265332e559a21e37b8e4a916",
+        "pkg:oci/aaq-operator-rhel9@sha256%3A3a0ffc27148f446956b1124834cdb5b2b62b5b2228056386f147975fafeeec31",
+        "pkg:oci/aaq-server-rhel9@sha256%3Ae45503da0c7b8b1acb7ad018b10a5cab3599ce0223627e3ab3d1ad4aef1e7bd4",
+        "pkg:oci/virt-cdi-uploadserver-rhel9@sha256%3A795d9efeb758f1499f31fe23f485411659bd9ef84cc150bab0eeaba51ebabc18",
+        "pkg:oci/kubevirt-tekton-tasks-create-datavolume-rhel9@sha256%3A4dd704c03cdafe5f7f811accf01bf7617568124bf0282066bfeaf263afb6e5e7",
+        "pkg:oci/virt-cdi-uploadproxy-rhel9@sha256%3Ab8bf22e8e0b66a1685429747719ec882b228810d4353006f97e4989243f0ce76",
+        "pkg:oci/virt-cdi-apiserver-rhel9@sha256%3Af2083253812e68cf577f48fb081c3e41e9c7875299f3ba83b13851b9cf1f3567",
+        "pkg:oci/virt-cdi-controller-rhel9@sha256%3A724a00aa0686927808d622427c008eac1d630bcb21520ba348a2c5a37316dc19",
+        "pkg:oci/hostpath-csi-driver-rhel9@sha256%3A45cad9b92d3cea71ce98168481fdd916528752a5df163b629cef533a1a4dce77",
+        "pkg:oci/hostpath-provisioner-operator-rhel9@sha256%3A087a1d292d25b934bc47b47c51055b003b5092ddd1fda66cc3f89d8fbe58be17",
+        "pkg:oci/cluster-network-addons-operator-rhel9@sha256%3A44eda4396eee6eeb365a1daef3cf4740298df153226c842a122f3b645b29a5c8",
+        "pkg:oci/kubevirt-common-instancetypes-rhel9@sha256%3A3f56642bad303fc45072b1c7809bb5e757e3243bdbc6e9e5a17725eebd76fd27",
+        "pkg:oci/bridge-marker-rhel9@sha256%3Aa8c75b8aa656f38a51b1faee7ab06cd9405cc2b82cdae754c52dbf2a3cd90554",
+        "pkg:oci/kubesecondarydns-rhel9@sha256%3Ab8834767a8715f782bc17dcaca512d246ca8b466013cddcee356fb60b890e4ec",
+        "pkg:oci/cnv-containernetworking-plugins-rhel9@sha256%3Ab4cc91b79ca2ed57b8cdee8220cfc151c15c3f07847e60bd9f13ad8c57332b00",
+        "pkg:oci/kubemacpool-rhel9@sha256%3Afdff61819b4c031b96cefd2a4a9ca5e11136f7f0552e66796b7a6c81d8ff0c92",
+        "pkg:oci/multus-dynamic-networks-rhel9@sha256%3A9391401b68bdb24de670af5f92fa4ff73e814cfe2adc2ead84b7023853ed19f1",
+        "pkg:oci/kubevirt-ipam-controller-rhel9@sha256%3A491ec75705f6fb7a2adaf22e106bedcc92061f9bcf8b41c2898727b2b624d7e9",
+        "pkg:oci/aaq-controller-rhel9@sha256%3A479df989f7dba007cbb00ffffcf7d07aef7a93ca1628f013a7ae5c46b0f7cfb2",
+        "pkg:oci/virt-api-rhel9@sha256%3A812e18efc651fc5995cf04202f8a698f526f80ec8b4b39da4cbed499b4fac269",
+        "pkg:oci/virt-artifacts-server-rhel9@sha256%3A2998d6f4cbfa371e2ff64cd16924ecc32a5f0cda916511c43de7ba4426651002",
+        "pkg:oci/virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa",
+        "pkg:oci/libguestfs-tools-rhel9@sha256%3A2ae57817e3f34912debb993099db7cb6f305b511786ced2fc7f25d5e46817a4d",
+        "pkg:oci/pr-helper-rhel9@sha256%3Ab615704ff7c53b8a5d2622c8439a421a32064c84eaeaba7341b283a5d1a54975",
+        "pkg:oci/virt-exportproxy-rhel9@sha256%3Affacb816619963aee5a7cdfc6e1396395a33b2a5ce8825ed9f40cb6d91c07aca",
+        "pkg:oci/virt-exportserver-rhel9@sha256%3A8a37fea17b83a0f01bea5c684cf349c7f46eba38ec05245f05b24dec9d0e3fa2",
+        "pkg:oci/passt-network-binding-plugin-sidecar-rhel9@sha256%3A37ba22f3d5c3454bb8b966bb7655d914c29079db3fc1d7f1c385137feba08d8d",
+        "pkg:oci/passt-network-binding-plugin-cni-rhel9@sha256%3A985b4e662b499377ec458370a9ab9ba8a49c9dee5718a1caebea57617a7d71ec",
+        "pkg:oci/virtio-win-rhel9@sha256%3Ae3c8b00ce6d9d9ee45e15a5def276c66298dc8d2d61befb972b4cebd8c680f41",
+        "pkg:oci/cnv-must-gather-rhel9@sha256%3A8b961c4fe1eba3b3eafbda4f33ffda4fedbe8d7105ff3b4d8b38164fa6e41375",
+        "pkg:oci/kubevirt-tekton-tasks-disk-virt-customize-rhel9@sha256%3Acb37e2dd63ff3c1a369300f7f0aa3d7691b658dfab4140082eb881a4d4d477cd",
+        "pkg:oci/vm-network-latency-checkup-rhel9@sha256%3A6e395534736d225fb53a8e910905c48cda5deed67d60f679ee777e997d2353c7",
+        "pkg:oci/kubevirt-dpdk-checkup-rhel9@sha256%3Aa1cfe75924fd98623d5bdbfd663f42e1ebcbf0891510e650bc8195ae1ad6af20",
+        "pkg:oci/kubevirt-realtime-checkup-rhel9@sha256%3A21ba2cc0f21cc319a9dccac5b27b735282801c3e378d70ab00c6cb3ec1c9d9a3",
+        "pkg:oci/kubevirt-storage-checkup-rhel9@sha256%3Aa387afd751151b2e68393d0afacda32bc5be87b8d60a31003f0bd386e002531a",
+        "pkg:oci/kubevirt-apiserver-proxy-rhel9@sha256%3A2c0df8aeabb6e62f257d79e53c82f221c140557c168f4da6d1283f698fc90415",
+        "pkg:oci/vm-console-proxy-rhel9@sha256%3A24317d5133999ab616432bfc89d146326765efc52d77eff21e193466835210b5",
+        "pkg:oci/hyperconverged-cluster-operator-rhel9@sha256%3Af2787270f37aabaeb19af2ee9d1b3164c5f6295642760ed71e335ecb869ba391",
+        "pkg:oci/hyperconverged-cluster-webhook-rhel9@sha256%3A9b56a42af131b04c067ae3233b7cddf3950b95fcf2dce535572202fabd827107",
+        "pkg:oci/sidecar-shim-rhel9@sha256%3A91bc9eeefc2e226a6679452e244a2e2b9b5cfc8ef5fa9403c62aa12e75832586",
+        "pkg:oci/kubevirt-console-plugin-rhel9@sha256%3A0dc944701a52cbec15596988776c57a2744016d3b3ca5e173fff14b2c529f40d",
+        "pkg:oci/hco-bundle-registry-rhel9@sha256%3A3885ac842a87ea824642cd7708b927ee32ef94030187be89875a4f1a6fb3780f"
+      ],
+      "dependsOn": []
+    }
+  ],
+  "serialNumber": "urn:uuid:6fbeac32-fad4-32b5-a225-9818e0959794"
+}
