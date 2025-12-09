@@ -1,11 +1,7 @@
-use crate::{
-    Error,
-    advisory::model::{AdvisoryDetails, AdvisorySummary},
-};
 use sea_orm::{
-    ActiveModelTrait, ActiveValue::Set, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
-    FromQueryResult, IntoActiveModel, QueryResult, QuerySelect, QueryTrait, RelationTrait, Select,
-    Statement, TransactionTrait,
+    ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr,
+    EntityTrait, FromQueryResult, IntoActiveModel, QueryFilter, QueryResult, QuerySelect,
+    QueryTrait, RelationTrait, Select, Statement, TransactionTrait,
 };
 use sea_query::{ColumnType, Expr, JoinType};
 use tracing::instrument;
@@ -19,9 +15,17 @@ use trustify_common::{
     id::{Id, TrySelectForId},
     model::{Paginated, PaginatedResults},
 };
-use trustify_entity::{advisory, labels::Labels, organization, source_document};
+use trustify_entity::{
+    advisory, advisory_vulnerability, cvss3, cvss4, labels::Labels, organization, purl_status,
+    source_document, vulnerability_description,
+};
 use trustify_module_ingestor::common::{Deprecation, DeprecationExt};
 use uuid::Uuid;
+
+use crate::{
+    Error,
+    advisory::model::{AdvisoryDetails, AdvisorySummary},
+};
 
 pub struct AdvisoryService {
     db: Database,
@@ -107,19 +111,52 @@ impl AdvisoryService {
         );
 
         let result = connection.query_all(stmt).await?;
+
         if result.len() > 1 {
             return Err(Error::Data(format!("Too many rows deleted for {id}")));
         }
 
-        for row in &result {
-            let identifier = row.try_get_by_index::<String>(0)?;
-            let source_document = row.try_get_by_index::<Option<Uuid>>(1)?;
-            UpdateDeprecatedAdvisory::execute(connection, &identifier).await?;
-            if let Some(doc) = source_document {
-                source_document::Entity::delete_by_id(doc)
-                    .exec(connection)
-                    .await?;
-            }
+        if result.is_empty() {
+            return Ok(false);
+        }
+
+        let row = &result[0];
+        let identifier = row.try_get_by_index::<String>(0)?;
+        let source_document = row.try_get_by_index::<Option<Uuid>>(1)?;
+
+        // Delete related records from child tables in the correct order
+        cvss3::Entity::delete_many()
+            .filter(Expr::col(cvss3::Column::AdvisoryId).eq(id))
+            .exec(connection)
+            .await?;
+
+        cvss4::Entity::delete_many()
+            .filter(Expr::col(cvss4::Column::AdvisoryId).eq(id))
+            .exec(connection)
+            .await?;
+
+        purl_status::Entity::delete_many()
+            .filter(Expr::col(purl_status::Column::AdvisoryId).eq(id))
+            .exec(connection)
+            .await?;
+
+        vulnerability_description::Entity::delete_many()
+            .filter(Expr::col(vulnerability_description::Column::AdvisoryId).eq(id))
+            .exec(connection)
+            .await?;
+
+        // Delete from advisory_vulnerability table
+        advisory_vulnerability::Entity::delete_many()
+            .filter(advisory_vulnerability::Column::AdvisoryId.eq(id))
+            .exec(connection)
+            .await?;
+
+        // Existing post-deletion logic
+        UpdateDeprecatedAdvisory::execute(connection, &identifier).await?;
+        if let Some(doc) = source_document {
+            source_document::Entity::delete_by_id(doc)
+                .exec(connection)
+                .await?;
         }
 
         Ok(result.len() == 1)

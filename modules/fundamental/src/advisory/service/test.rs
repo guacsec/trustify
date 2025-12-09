@@ -1,7 +1,6 @@
-use super::*;
-use crate::{advisory::model::AdvisoryHead, source_document::model::SourceDocument};
-use std::collections::HashMap;
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
+
+use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};
 use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
@@ -10,14 +9,20 @@ use trustify_cvss::cvss3::{
     AttackComplexity, AttackVector, Availability, Confidentiality, Cvss3Base, Integrity,
     PrivilegesRequired, Scope, UserInteraction,
 };
-use trustify_entity::labels::Labels;
-use trustify_entity::version_scheme::VersionScheme;
-use trustify_module_ingestor::graph::Outcome;
-use trustify_module_ingestor::graph::advisory::{
-    AdvisoryContext, AdvisoryInformation,
-    version::{VersionInfo, VersionSpec},
+use trustify_entity::{
+    advisory_vulnerability, cvss3, labels::Labels, purl_status, version_scheme::VersionScheme,
+};
+use trustify_module_ingestor::graph::{
+    Outcome,
+    advisory::{
+        AdvisoryContext, AdvisoryInformation,
+        version::{VersionInfo, VersionSpec},
+    },
 };
 use trustify_test_context::TrustifyContext;
+
+use super::*;
+use crate::{advisory::model::AdvisoryHead, source_document::model::SourceDocument};
 
 pub async fn ingest_sample_advisory<'a>(
     ctx: &'a TrustifyContext,
@@ -67,6 +72,119 @@ pub async fn ingest_and_link_advisory(ctx: &TrustifyContext) -> Result<(), anyho
             &ctx.db,
         )
         .await?;
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn delete_advisory_with_related_records(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let digests = Digests::digest("RHSA-DELETE-TEST");
+
+    // Ingest advisory with related data
+    let advisory = ingest_sample_advisory(ctx, "RHSA-DELETE-TEST", "RHSA-DELETE-TEST").await?;
+
+    let advisory_vuln = advisory
+        .link_to_vulnerability("CVE-DELETE-123", None, &ctx.db)
+        .await?;
+
+    // Add CVSS3 score
+    advisory_vuln
+        .ingest_cvss3_score(
+            Cvss3Base {
+                minor_version: 0,
+                av: AttackVector::Network,
+                ac: AttackComplexity::Low,
+                pr: PrivilegesRequired::None,
+                ui: UserInteraction::None,
+                s: Scope::Unchanged,
+                c: Confidentiality::None,
+                i: Integrity::High,
+                a: Availability::High,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Add package status (purl_status)
+    advisory_vuln
+        .ingest_package_status(
+            None,
+            &Purl::from_str("pkg:maven/org.apache/log4j")?,
+            "fixed",
+            VersionInfo {
+                scheme: VersionScheme::Maven,
+                spec: VersionSpec::Exact("1.2.3".to_string()),
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    let fetch = AdvisoryService::new(ctx.db.clone());
+    let jenny256 = Id::sha256(&digests.sha256);
+    let fetched = fetch.fetch_advisory(jenny256.clone(), &ctx.db).await?;
+    let advisory_details = fetched.expect("Advisory not found");
+    let advisory_id = advisory_details.head.uuid;
+
+    // Verify related records exist before deletion
+    let adv_vuln_count = advisory_vulnerability::Entity::find()
+        .filter(advisory_vulnerability::Column::AdvisoryId.eq(advisory_id))
+        .count(&ctx.db)
+        .await?;
+    assert!(
+        adv_vuln_count > 0,
+        "Should have advisory_vulnerability records"
+    );
+
+    let cvss3_count = cvss3::Entity::find()
+        .filter(Expr::col(cvss3::Column::AdvisoryId).eq(advisory_id))
+        .count(&ctx.db)
+        .await?;
+    assert!(cvss3_count > 0, "Should have cvss3 records");
+
+    let purl_status_count = purl_status::Entity::find()
+        .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+        .count(&ctx.db)
+        .await?;
+    assert!(purl_status_count > 0, "Should have purl_status records");
+
+    // Delete the advisory
+    assert!(
+        fetch.delete_advisory(advisory_id, &ctx.db).await?,
+        "Advisory deletion should succeed"
+    );
+
+    // Verify advisory is deleted
+    let deleted_advisory = fetch.fetch_advisory(jenny256.clone(), &ctx.db).await?;
+    assert!(deleted_advisory.is_none(), "Advisory should be deleted");
+
+    // Verify all related records are deleted
+    let adv_vuln_count_after = advisory_vulnerability::Entity::find()
+        .filter(Expr::col(advisory_vulnerability::Column::AdvisoryId).eq(advisory_id))
+        .count(&ctx.db)
+        .await?;
+    assert_eq!(
+        adv_vuln_count_after, 0,
+        "All advisory_vulnerability records should be deleted"
+    );
+
+    let cvss3_count_after = cvss3::Entity::find()
+        .filter(Expr::col(cvss3::Column::AdvisoryId).eq(advisory_id))
+        .count(&ctx.db)
+        .await?;
+    assert_eq!(cvss3_count_after, 0, "All cvss3 records should be deleted");
+
+    let purl_status_count_after = purl_status::Entity::find()
+        .filter(Expr::col(purl_status::Column::AdvisoryId).eq(advisory_id))
+        .count(&ctx.db)
+        .await?;
+    assert_eq!(
+        purl_status_count_after, 0,
+        "All purl_status records should be deleted"
+    );
+
+    // Note: vulnerability_description records won't exist for this test since we didn't add any,
+    // and cvss4 records also won't exist since we didn't add any CVSS4 scores
+
     Ok(())
 }
 
