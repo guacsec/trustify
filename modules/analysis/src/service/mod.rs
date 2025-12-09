@@ -650,7 +650,14 @@ impl AnalysisService {
             GraphQuery::Query(query) => graph.node_weight(i).is_some_and(|node| {
                 let purls: Vec<_> = match node {
                     graph::Node::Package(p) => {
-                        p.purl.iter().map(|p| Value::Json(p.into())).collect()
+                        p.purl
+                            .iter()
+                            .map(|p| {
+                                let mut v: serde_json::Value = p.into();
+                                v["type"] = v["ty"].clone(); // add the alias to the context
+                                Value::Json(v)
+                            })
+                            .collect()
                     }
                     _ => vec![],
                 };
