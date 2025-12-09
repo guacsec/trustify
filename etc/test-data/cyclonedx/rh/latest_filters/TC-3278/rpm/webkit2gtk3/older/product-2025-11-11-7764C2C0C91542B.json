@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "services": [
+        {
+          "name": "SBOMer",
+          "version": "a128392a",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0",
+                "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "provider": {
+            "url": [
+              "https://www.redhat.com"
+            ],
+            "name": "Red Hat"
+          },
+          "externalReferences": [
+            {
+              "url": "https://github.com/project-ncl/sbomer",
+              "type": "website"
+            }
+          ]
+        }
+      ]
+    },
+    "supplier": {
+      "url": [
+        "https://www.redhat.com"
+      ],
+      "name": "Red Hat"
+    },
+    "component": {
+      "name": "Red Hat Enterprise Linux 9",
+      "type": "operating-system",
+      "bom-ref": "RHEL-9.7.0.Z.MAIN",
+      "version": "RHEL-9.7.0.Z.MAIN",
+      "evidence": {
+        "identity": [
+          {
+            "field": "cpe",
+            "concludedValue": "cpe:/a:redhat:enterprise_linux:9.7::appstream"
+          },
+          {
+            "field": "cpe",
+            "concludedValue": "cpe:/a:redhat:enterprise_linux:9::appstream"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      }
+    },
+    "timestamp": "2025-11-11T13:58:27Z",
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "154820"
+      }
+    ]
+  },
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "webkit2gtk3",
+      "purl": "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2a3145cc5f6f19edc00ade5d4759bad96a520b64f50f848efaa6be44d4b0c5ec"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src",
+      "version": "2.50.1-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src&repository_id=rhel-9-for-ppc64le-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src&repository_id=rhel-9-for-x86_64-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src&repository_id=rhel-9-for-ppc64le-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src&repository_id=rhel-9-for-s390x-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src&repository_id=rhel-9-for-x86_64-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src&repository_id=rhel-9-for-s390x-appstream-source-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      }
+    }
+  ],
+  "specVersion": "1.6",
+  "dependencies": [
+    {
+      "ref": "RHEL-9.7.0.Z.MAIN",
+      "provides": [
+        "pkg:rpm/redhat/webkit2gtk3@2.50.1-1.el9_7?arch=src"
+      ],
+      "dependsOn": []
+    }
+  ],
+  "serialNumber": "urn:uuid:d489e752-0cec-39a7-8c2f-251487e34018"
+}

@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "services": [
+        {
+          "name": "SBOMer",
+          "version": "1b2dba8d",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0",
+                "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "provider": {
+            "url": [
+              "https://www.redhat.com"
+            ],
+            "name": "Red Hat"
+          },
+          "externalReferences": [
+            {
+              "url": "https://github.com/project-ncl/sbomer",
+              "type": "website"
+            }
+          ]
+        }
+      ]
+    },
+    "supplier": {
+      "url": [
+        "https://www.redhat.com"
+      ],
+      "name": "Red Hat"
+    },
+    "component": {
+      "name": "Red Hat build of Quarkus",
+      "type": "framework",
+      "bom-ref": "Red Hat build of Quarkus 3.20.3",
+      "version": "Red Hat build of Quarkus 3.20.3",
+      "evidence": {
+        "identity": [
+          {
+            "field": "cpe",
+            "concludedValue": "cpe:/a:redhat:quarkus:3.20::el8"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      }
+    },
+    "timestamp": "2025-10-14T13:01:32Z",
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "155081"
+      }
+    ]
+  },
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "quarkus-bom",
+      "purl": "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.20.3.redhat-00006?type=pom",
+      "type": "framework",
+      "group": "com.redhat.quarkus.platform",
+      "hashes": [
+        {
+          "alg": "MD5",
+          "content": "908169e859d77c0ffc1f7840041f5671"
+        },
+        {
+          "alg": "SHA-1",
+          "content": "9515775ed9057b36497ebfa6453b7505006131ae"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "df1fa05231622b4c99ae09cdf8fe03bca590c2b5a419bf4f3bd70b9e83940d8d"
+        }
+      ],
+      "bom-ref": "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.20.3.redhat-00006?type=pom",
+      "version": "3.20.3.redhat-00006",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.20.3.redhat-00006?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat",
+      "description": "Red Hat Build of Quarkus - Kubernetes Native Java stack tailored for OpenJDK HotSpot and GraalVM"
+    }
+  ],
+  "specVersion": "1.6",
+  "dependencies": [
+    {
+      "ref": "Red Hat build of Quarkus 3.20.3",
+      "provides": [
+        "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.20.3.redhat-00006?type=pom"
+      ],
+      "dependsOn": []
+    }
+  ],
+  "serialNumber": "urn:uuid:8085c479-c438-35a4-93e9-f30eab5a0791"
+}

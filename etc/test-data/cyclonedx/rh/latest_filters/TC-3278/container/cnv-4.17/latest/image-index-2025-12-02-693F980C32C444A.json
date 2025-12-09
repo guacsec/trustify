@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "services": [
+        {
+          "name": "SBOMer",
+          "version": "f1c3bca6",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0",
+                "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "provider": {
+            "url": [
+              "https://www.redhat.com"
+            ],
+            "name": "Red Hat"
+          },
+          "externalReferences": [
+            {
+              "url": "https://github.com/project-ncl/sbomer",
+              "type": "website"
+            }
+          ]
+        }
+      ]
+    },
+    "supplier": {
+      "url": [
+        "https://www.redhat.com"
+      ],
+      "name": "Red Hat"
+    },
+    "component": {
+      "name": "container-native-virtualization/virt-handler-rhel9",
+      "purl": "pkg:oci/container-native-virtualization-virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3",
+      "type": "container",
+      "description": "Image index manifest of pkg:oci/container-native-virtualization-virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa"
+    },
+    "timestamp": "2025-12-02T09:05:59Z",
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "156526"
+      }
+    ]
+  },
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "container-native-virtualization/virt-handler-rhel9",
+      "purl": "pkg:oci/container-native-virtualization-virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "cdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa"
+        }
+      ],
+      "bom-ref": "virt-handler-rhel9-container_image-index",
+      "version": "sha256:cdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/container-native-virtualization-virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/container-native-virtualization-virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/container-native-virtualization-virt-handler-rhel9@sha256%3Acdd46acbaf731e2192c9ac9c8a2276bf8cc7aa4b598ab27131a1a096d2d879fa?repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36"
+          }
+        ]
+      },
+      "pedigree": {
+        "variants": [
+          {
+            "name": "container-native-virtualization/virt-handler-rhel9",
+            "purl": "pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3",
+            "type": "container",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542"
+              }
+            ],
+            "bom-ref": "virt-handler-rhel9-container_amd64",
+            "version": "sha256:507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542",
+            "supplier": {
+              "url": [
+                "https://www.redhat.com"
+              ],
+              "name": "Red Hat"
+            },
+            "publisher": "Red Hat"
+          },
+          {
+            "name": "container-native-virtualization/virt-handler-rhel9",
+            "purl": "pkg:oci/virt-handler-rhel9@sha256%3A19351b7583cc2b23b6aed869a1969a23be9ecdc32d46ffc05b480750ba113118?arch=arm64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3",
+            "type": "container",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "19351b7583cc2b23b6aed869a1969a23be9ecdc32d46ffc05b480750ba113118"
+              }
+            ],
+            "bom-ref": "virt-handler-rhel9-container_arm64",
+            "version": "sha256:19351b7583cc2b23b6aed869a1969a23be9ecdc32d46ffc05b480750ba113118",
+            "supplier": {
+              "url": [
+                "https://www.redhat.com"
+              ],
+              "name": "Red Hat"
+            },
+            "publisher": "Red Hat"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat",
+      "properties": [
+        {
+          "name": "sbomer:image:labels:com.redhat.component",
+          "value": "virt-handler-rhel9-container"
+        },
+        {
+          "name": "sbomer:image:labels:name",
+          "value": "container-native-virtualization/virt-handler-rhel9"
+        },
+        {
+          "name": "sbomer:image:labels:release",
+          "value": "3"
+        },
+        {
+          "name": "sbomer:image:labels:version",
+          "value": "v4.17.36"
+        }
+      ]
+    }
+  ],
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:64f8a4ee-3ea5-30e5-825e-a0592909b2ef"
+}

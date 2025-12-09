@@ -1,0 +1,2440 @@
+{
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "components": [
+        {
+          "name": "rpm-manifest-generator",
+          "type": "application",
+          "version": "0.0.1",
+          "manufacturer": {
+            "url": [
+              "https://www.redhat.com"
+            ],
+            "name": "Red Hat"
+          }
+        }
+      ]
+    },
+    "licenses": [
+      {
+        "expression": "LGPL-2.0-only"
+      }
+    ],
+    "supplier": {
+      "url": [
+        "https://www.redhat.com"
+      ],
+      "name": "Red Hat"
+    },
+    "component": {
+      "name": "webkit2gtk3",
+      "purl": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "51c73dd55fdf1c0ab25e3230772a499cc1c1225cadc9173381e5e1fc3b601491"
+        }
+      ],
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-x86_64-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-s390x-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-ppc64le-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-ppc64le-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-x86_64-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-s390x-appstream-source-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "ab75a0d1fd07a06e33a7d399ed67883f"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "743d3ed55c73f922f60baa863fbe8c0fb903c24baba979144ec600c685341be4"
+        }
+      ],
+      "description": "WebKitGTK is the port of the portable web rendering engine WebKit to the GTK platform. This package contains WebKit2 based WebKitGTK for GTK 3."
+    },
+    "timestamp": "2025-12-05T10:31:24Z",
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "156970"
+      }
+    ]
+  },
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "webkit2gtk3",
+      "purl": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "51c73dd55fdf1c0ab25e3230772a499cc1c1225cadc9173381e5e1fc3b601491"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-x86_64-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-s390x-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-ppc64le-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-ppc64le-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-x86_64-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src&repository_id=rhel-9-for-s390x-appstream-source-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "name": "webkitgtk",
+            "purl": "pkg:generic/webkitgtk@2.50.3?download_url=https://pkgs.devel.redhat.com/repo/rpms/webkit2gtk3/webkitgtk-2.50.3.tar.xz/sha512/32bebcb99464490ce36116c19e1da40269a7d22bed499056d80a0ad49843defc938203cf3450c122d7ee7aaa87203b265437db400e938e96af30d71f36cef2cf/webkitgtk-2.50.3.tar.xz&checksum=SHA-512:32bebcb99464490ce36116c19e1da40269a7d22bed499056d80a0ad49843defc938203cf3450c122d7ee7aaa87203b265437db400e938e96af30d71f36cef2cf",
+            "type": "library",
+            "hashes": [
+              {
+                "alg": "SHA-512",
+                "content": "32bebcb99464490ce36116c19e1da40269a7d22bed499056d80a0ad49843defc938203cf3450c122d7ee7aaa87203b265437db400e938e96af30d71f36cef2cf"
+              }
+            ],
+            "bom-ref": "pkg:generic/webkitgtk@2.50.3?download_url=https://pkgs.devel.redhat.com/repo/rpms/webkit2gtk3/webkitgtk-2.50.3.tar.xz/sha512/32bebcb99464490ce36116c19e1da40269a7d22bed499056d80a0ad49843defc938203cf3450c122d7ee7aaa87203b265437db400e938e96af30d71f36cef2cf/webkitgtk-2.50.3.tar.xz&checksum=SHA-512:32bebcb99464490ce36116c19e1da40269a7d22bed499056d80a0ad49843defc938203cf3450c122d7ee7aaa87203b265437db400e938e96af30d71f36cef2cf",
+            "version": "2.50.3",
+            "evidence": {
+              "identity": [
+                {
+                  "field": "purl",
+                  "concludedValue": "pkg:generic/webkitgtk@2.50.3?download_url=https://pkgs.devel.redhat.com/repo/rpms/webkit2gtk3/webkitgtk-2.50.3.tar.xz/sha512/32bebcb99464490ce36116c19e1da40269a7d22bed499056d80a0ad49843defc938203cf3450c122d7ee7aaa87203b265437db400e938e96af30d71f36cef2cf/webkitgtk-2.50.3.tar.xz&checksum=SHA-512:32bebcb99464490ce36116c19e1da40269a7d22bed499056d80a0ad49843defc938203cf3450c122d7ee7aaa87203b265437db400e938e96af30d71f36cef2cf"
+                }
+              ]
+            },
+            "pedigree": {
+              "ancestors": [
+                {
+                  "name": "webkitgtk",
+                  "purl": "pkg:generic/webkitgtk@2.50.3?download_url=https://webkitgtk.org/releases/webkitgtk-2.50.3.tar.xz&checksum=SHA-256:70a006b4695bb6b2e157e801f5a0d029f4110f050c6f0882decd8a3bf594d54f",
+                  "type": "library",
+                  "hashes": [
+                    {
+                      "alg": "SHA-256",
+                      "content": "70a006b4695bb6b2e157e801f5a0d029f4110f050c6f0882decd8a3bf594d54f"
+                    }
+                  ],
+                  "bom-ref": "pkg:generic/webkitgtk@2.50.3?download_url=https://webkitgtk.org/releases/webkitgtk-2.50.3.tar.xz&checksum=SHA-256:70a006b4695bb6b2e157e801f5a0d029f4110f050c6f0882decd8a3bf594d54f",
+                  "version": "2.50.3",
+                  "evidence": {
+                    "identity": [
+                      {
+                        "field": "purl",
+                        "concludedValue": "pkg:generic/webkitgtk@2.50.3?download_url=https://webkitgtk.org/releases/webkitgtk-2.50.3.tar.xz&checksum=SHA-256:70a006b4695bb6b2e157e801f5a0d029f4110f050c6f0882decd8a3bf594d54f"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "webkitgtk",
+            "purl": "pkg:generic/webkitgtk@2.50.3?download_url=https://pkgs.devel.redhat.com/repo/rpms/webkit2gtk3/webkitgtk-2.50.3.tar.xz.asc/sha512/635998799265ae125ad5ba6e45f939a33f465719756397d125f340818bf35b31d6924dbf91a762201f1f06741c92d2599515f1e28e5d4bdc2a3f16ae678b7aff/webkitgtk-2.50.3.tar.xz.asc&checksum=SHA-512:635998799265ae125ad5ba6e45f939a33f465719756397d125f340818bf35b31d6924dbf91a762201f1f06741c92d2599515f1e28e5d4bdc2a3f16ae678b7aff",
+            "type": "library",
+            "hashes": [
+              {
+                "alg": "SHA-512",
+                "content": "635998799265ae125ad5ba6e45f939a33f465719756397d125f340818bf35b31d6924dbf91a762201f1f06741c92d2599515f1e28e5d4bdc2a3f16ae678b7aff"
+              }
+            ],
+            "bom-ref": "pkg:generic/webkitgtk@2.50.3?download_url=https://pkgs.devel.redhat.com/repo/rpms/webkit2gtk3/webkitgtk-2.50.3.tar.xz.asc/sha512/635998799265ae125ad5ba6e45f939a33f465719756397d125f340818bf35b31d6924dbf91a762201f1f06741c92d2599515f1e28e5d4bdc2a3f16ae678b7aff/webkitgtk-2.50.3.tar.xz.asc&checksum=SHA-512:635998799265ae125ad5ba6e45f939a33f465719756397d125f340818bf35b31d6924dbf91a762201f1f06741c92d2599515f1e28e5d4bdc2a3f16ae678b7aff",
+            "version": "2.50.3",
+            "evidence": {
+              "identity": [
+                {
+                  "field": "purl",
+                  "concludedValue": "pkg:generic/webkitgtk@2.50.3?download_url=https://pkgs.devel.redhat.com/repo/rpms/webkit2gtk3/webkitgtk-2.50.3.tar.xz.asc/sha512/635998799265ae125ad5ba6e45f939a33f465719756397d125f340818bf35b31d6924dbf91a762201f1f06741c92d2599515f1e28e5d4bdc2a3f16ae678b7aff/webkitgtk-2.50.3.tar.xz.asc&checksum=SHA-512:635998799265ae125ad5ba6e45f939a33f465719756397d125f340818bf35b31d6924dbf91a762201f1f06741c92d2599515f1e28e5d4bdc2a3f16ae678b7aff"
+                }
+              ]
+            },
+            "pedigree": {
+              "ancestors": [
+                {
+                  "name": "webkitgtk",
+                  "purl": "pkg:generic/webkitgtk@2.50.3?download_url=https://webkitgtk.org/releases/webkitgtk-2.50.3.tar.xz.asc&checksum=SHA-256:ce3c3de459b0a7748424ae1d3605d8a270cede0e40977f78b0dd436d8de805a9",
+                  "type": "library",
+                  "hashes": [
+                    {
+                      "alg": "SHA-256",
+                      "content": "ce3c3de459b0a7748424ae1d3605d8a270cede0e40977f78b0dd436d8de805a9"
+                    }
+                  ],
+                  "bom-ref": "pkg:generic/webkitgtk@2.50.3?download_url=https://webkitgtk.org/releases/webkitgtk-2.50.3.tar.xz.asc&checksum=SHA-256:ce3c3de459b0a7748424ae1d3605d8a270cede0e40977f78b0dd436d8de805a9",
+                  "version": "2.50.3",
+                  "evidence": {
+                    "identity": [
+                      {
+                        "field": "purl",
+                        "concludedValue": "pkg:generic/webkitgtk@2.50.3?download_url=https://webkitgtk.org/releases/webkitgtk-2.50.3.tar.xz.asc&checksum=SHA-256:ce3c3de459b0a7748424ae1d3605d8a270cede0e40977f78b0dd436d8de805a9"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "ab75a0d1fd07a06e33a7d399ed67883f"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "743d3ed55c73f922f60baa863fbe8c0fb903c24baba979144ec600c685341be4"
+        }
+      ],
+      "description": "WebKitGTK is the port of the portable web rendering engine WebKit to the GTK platform. This package contains WebKit2 based WebKitGTK for GTK 3.",
+      "externalReferences": [
+        {
+          "url": "https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=3905951",
+          "type": "build-system",
+          "comment": "brew-build-id"
+        }
+      ]
+    },
+    {
+      "name": "webkit2gtk3-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "fa734e5fa4df841f39dde3b732fbba4d677d88059ffe9f9086a04500e9605e69"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=aarch64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "fbd30db0b5647274de5abcefccab5108"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "8d39888f4d6563988a4e7c3e51ffb537fbb15eea51aa34295f1daf0346bde1f8"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-devel-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "79d43bbf9a016c9ff1ed6afa164ae9893502c1395a5829978aca906ed9e6e196"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=aarch64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "fe9a0e0d0ea7ebbd25ac84c54128ec71"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "6db3b9b6db3592f2f7a4746a431668415fb208f7b6e6556f1c886e00750d68bd"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-jsc-devel. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d70433af1759455ad92cdbb361a5071cba8a35080759e78a3381873233f7bb18"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=aarch64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "30bf8f9cebb198db16ed62c64f04ed6d"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "5b0eae6747d9d92ca1978cfb73600e37c44ba5a8d4e107e293410501c7adab33"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-jsc. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-devel-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d4c0b5470264463ebbb272b509636e71556a2ae34f57529cd98aa060f9b71568"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=aarch64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-debug-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "c49e0b007fcde245ad4dbffafebf3076"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "b20df74306c5b71ab82d0ec1f57a3828950c3c2977d4cf746ab8c9b3719c1386"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-devel. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "7fce03aa1f4cbccf792770bf2e25e653670e5fb711fd9ddd9b7fe4e69ae95168"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=aarch64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "fec03c114b21c81242f74632e62e5a30"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "4c4dbcd5fd49b8729e82f3da642c1d587b9b9f598ead9c5f89c3599839c1d5e3"
+        }
+      ],
+      "description": "This package contains JavaScript engine from webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-jsc-devel",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c0ed33d92407718dc1f5d3727522461ac123a56a884f38e183f614c9986ecc6a"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=aarch64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "32a5d61ea42202924d6bbf57714d8f73"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "e3bbb96784e646e656a31722bc0aad637cc755eeed7bfc7812891dc3a2f6d30a"
+        }
+      ],
+      "description": "The webkit2gtk3-jsc-devel package contains libraries, build data, and header files for developing applications that use JavaScript engine from webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-devel",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ce09bcb9afa6168803bb21ea29453cf219e2d9f0d7a78d532b099676657b58b7"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=aarch64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "7a992aa1ccade99fd75093a43f321ff6"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "364898a6867d82e18932342518ecee7b92c0215468a571c093ddcc2b45a7cce0"
+        }
+      ],
+      "description": "The webkit2gtk3-devel package contains libraries, build data, and header files for developing applications that use webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3",
+      "purl": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ea5526c971f9c1d14bb4c211bc4de9dcab3986b3a80ad397a1e076a5ef6a7736"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=aarch64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "5c4abc687d6056ce54b6ef0fd4cd1175"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "42cd86fdcf562094cbd8f2c90f673c5da53fdfb6f71396be01a7594f8eb47e55"
+        }
+      ],
+      "description": "WebKitGTK is the port of the portable web rendering engine WebKit to the GTK platform. This package contains WebKit2 based WebKitGTK for GTK 3."
+    },
+    {
+      "name": "webkit2gtk3-debugsource",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d7a8fac027797bb73b2b6cf181b013b6fd5c277a84e7dc5ee1d39d70580d9dc8"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=aarch64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=aarch64&repository_id=rhel-9-for-aarch64-appstream-source-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "ce03f126d111eeaef03f778ea2b5a697"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "9d180eae2517d30bcf660ef1b7b5fab363587d60a02c6b9fad27ed503a295e0f"
+        }
+      ],
+      "description": "This package provides debug sources for package webkit2gtk3. Debug sources are useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e60d7d752ddadf87a78c04f5b37bbea43b9eb5a549a90fdb62ae2a7977faafaa"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=ppc64le",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "019193f8afe49a870686bd5e97fc9ed8"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "94bfff04cc9aeb3bade57d5e4121675c6df47344933a0c4be512559bde40fdb1"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3",
+      "purl": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "29c02a10fdd6e3075309f7c5fd8ba58c41eb581eae3f582783f84772e153c858"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=ppc64le",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "f053286fa10d6665735d274b99596da8"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "a51b2966d4b9c15d582027055b2c355b940405a871ae0358d1ed3b4d5abd5675"
+        }
+      ],
+      "description": "WebKitGTK is the port of the portable web rendering engine WebKit to the GTK platform. This package contains WebKit2 based WebKitGTK for GTK 3."
+    },
+    {
+      "name": "webkit2gtk3-devel-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c191c22e3155ee11e0d975caa713c7cfec5a0ccdb7b08032e5534aa5f5648be4"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=ppc64le",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "f749bd4e6b0c26d0008032d031295ba6"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "c584bfc1807f7dccae87c2001c6fc5d4e2265a1b7089e35997fbda8d45afdee4"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-devel. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5b59dd192340b5c69d7aadb6b3c67e37d06b4f326364e3e04b295f17ef120eec"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=ppc64le",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "50819658b742533fcee7a64b31b96df7"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "efc40e0382e2b47098162569b95010c5f4e89f767215f8d6e072f882f2baab01"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-jsc. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-devel",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "378dc2c7321ba57f159ac6a519d7c0055bad6e3157b4b7deb94c456389b4bf08"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=ppc64le",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "2d9b09d9fc571928c264bf21aa02c933"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "f16b6ef0a3c07acecff82ab124a5ddc5c7e691a694374e3e30811a3d07743ea1"
+        }
+      ],
+      "description": "The webkit2gtk3-jsc-devel package contains libraries, build data, and header files for developing applications that use JavaScript engine from webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-jsc",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bef86698cdc807d9de937f9bbe720c997b37db84b7396f48b8d22a870b374796"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=ppc64le",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "8d1e83e06e2db2e9f9a8411aad945de9"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "88a74b1874c0fc0a2cbefd06502166fca5685dd148f3431a3ca9b65bd1ca4610"
+        }
+      ],
+      "description": "This package contains JavaScript engine from webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-debugsource",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-source-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c5069416e9730154388453722c02923f9f5f647b1f8a1415aef484e5c0d6dc04"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=ppc64le",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-source-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "84a956eeb5fdfa4986f81fdcad2548e5"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "a22f292f96728216cd611b6e5161a6c74cd51472fd387f46eef73cc916c024d9"
+        }
+      ],
+      "description": "This package provides debug sources for package webkit2gtk3. Debug sources are useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-devel",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e637f1b6500cb46ad9a12c679d96f4d675b744a6e4059133d77bc7db141648cf"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=ppc64le",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "38349c3a6eacbd5b3ce6b86e94dec19c"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "7f1252b8b638964f8f2f328325039e6fa5631ac53a3736f26f4cce1c7330ce2f"
+        }
+      ],
+      "description": "The webkit2gtk3-devel package contains libraries, build data, and header files for developing applications that use webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-jsc-devel-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5b96aae3e2ffd326e8e9bbf9078dbdfeb56e171ca35ee3cf51c8f0edd511caf9"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=ppc64le",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=ppc64le&repository_id=rhel-9-for-ppc64le-appstream-debug-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "8ca1be08317c737ebc7ca12517ae32bf"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "3ed2f7ebd966f3882662bfad3407d732e7623cac42491801d12570da6d3c09cf"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-jsc-devel. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=i686",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f9aada36bee80b46d0373963d590d8eacbf13919a06b9d21aeb2a2c9ab7c9d1a"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=i686",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=i686"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "45c6ca08e8ed401d6915aed444a13604"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "2c43020d6a16d451cd76a88b6b281ecd6f9cbb30417f1136a270f022c1181f18"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-jsc. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=i686",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "21afd7d28fd7f6f38760ef5601c828b02c5c5b960f7a79933cc39d60eebc134d"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=i686",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=i686"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "7a8e1b7906c952e258e444f31d905ef7"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "b23ec07572f43d050405a2fdbc7368b3a3273d877a3cd0b42f123d665318fb9a"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3",
+      "purl": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=i686",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8a7d3e56300215380bfac85a6aaf4d374633c79790c29c79e3abde71bdeb1a17"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=i686",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=i686"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "9cbcef6393dbfcb5038f0dd00825df39"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "cd7897c60f90f114571346a0d73493b6339e2504f94b0eda4b08c173488ffa1f"
+        }
+      ],
+      "description": "WebKitGTK is the port of the portable web rendering engine WebKit to the GTK platform. This package contains WebKit2 based WebKitGTK for GTK 3."
+    },
+    {
+      "name": "webkit2gtk3-debugsource",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=i686",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "924df799cac7dec47e858855530dd1e35eff37d126e6fa7e4acdb4168fff7a69"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=i686",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=i686"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "a0bd07e49ad2419388f65cba127b78a7"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "ebec4c719740fed4439844687a9dd84fa79705510eb3da6e824ca8b55045e8c0"
+        }
+      ],
+      "description": "This package provides debug sources for package webkit2gtk3. Debug sources are useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=i686",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f63d7978116335238c88da6261a23dad141548fec95bd4c46604a69d7b6e63da"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=i686",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=i686"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "bfa1d1efba24d88ec7ce72ca941c8cd2"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "bca419e54659643e461974d2dffbe560212d2fef2e7e516f45b2435c781d660b"
+        }
+      ],
+      "description": "This package contains JavaScript engine from webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-devel",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=i686",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8b937ed9a2a3d1504f0dc4d0be940930c66a5adde31561ea182cd3e0d0028158"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=i686",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=i686"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "b74d98987fd842932866f1fccc09ca3e"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "941062fe9bec3c217f028c1ba0b3e6822a25cc5a999e65b01119be3c1e2004d0"
+        }
+      ],
+      "description": "The webkit2gtk3-devel package contains libraries, build data, and header files for developing applications that use webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-jsc-devel-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=i686",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e92dfddb361d4800c1c92f975ba3ef98954b278e09462d0f6a729ebd299453ec"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=i686",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=i686"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "fb307083872ad2894ee5920a54732f4f"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "0bbbed24018bcc876cb0cc7cd6cf8debb5a44911b92b37254af6e607f757a7f5"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-jsc-devel. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-devel",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=i686",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8217ee6b63c9d5ff70b3402320b46a1b47ea8d16b0c13553c16dd3d8b4c6a298"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=i686",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=i686"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "d772cc5f1204b28a12d385c6baccb5a6"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "00764b88e717e91e1f2d05954e2ea3d998e48f319edeaa1266d496ede42723a0"
+        }
+      ],
+      "description": "The webkit2gtk3-jsc-devel package contains libraries, build data, and header files for developing applications that use JavaScript engine from webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-devel-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=i686",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6584c5c1a978fe458fd91cd406f511ccc40fc704a207a44d3c57be9cbea2e6f1"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=i686",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=i686"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "b8c3c36f508c52234275f3d742b22904"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "48bfaf696d7a2cc03fda1afe244d6aeae38daa436add53373ea4f9850733ab42"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-devel. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a996086c6f168d5ead346f5abcca27e76030c397457ce293d836e86203613749"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=x86_64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "0945c3848a6a8b71242f113c710b1950"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "b21864383474811f48a60cdc84d78beedccdf3349a1cec0481e943202b0fb09a"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-devel-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "828e684b9539826ee28a5f572ff9b5c528d3788e7fba6d0987bd187800970f08"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=x86_64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "4a078e6fd8f6da31b6f2f01cfdda55fc"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "10759abc9149146524ceba2c82a553235563d5d20984861c77bde64fdea2fcb4"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-jsc-devel. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-devel-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5ee878a1cb75bce6f9ed39e9121fb9e40219fee33ef3de86edf72ebf4456e467"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=x86_64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "d5cf4b80602e52f47a21add1b398dfba"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "bdf4fc2dd1b6248419d96eb4d2b9c40be5bfe1f0b657501ee582ac41a363832f"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-devel. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c38081b11995c9c8a5a2b079dbe764c97abe09be420c82b0050f821a6a3b385c"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=x86_64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-debug-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "b67a9d5a5b2184c259b78fef7d2f77de"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "6103cf286a4e7d9fd72f844dc25c784e6caf87ecb3c02a2344bd0e335fe2cd2c"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-jsc. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-devel",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d51732cd9066608af03d978e01dc43b7b9071afda8dacbc300355cf680099469"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=x86_64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "d6b4a66399c1557d80b811118a6fd3fa"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "000a27757900b013ef2c4b92a7e6f88a3c55df68a07c15bd679dfa88b8423659"
+        }
+      ],
+      "description": "The webkit2gtk3-jsc-devel package contains libraries, build data, and header files for developing applications that use JavaScript engine from webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-jsc",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "125168b871b97056f81fd603aa563f0c9e18e7af46d3a9c4df55ba17fa748e0c"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=x86_64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "7a7f197fc8c4a6c6b7b19de9f907cd64"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "ed9d62fdab5c10ab4fb365849d29848941ad9af2c2844d47f9c5462c601092e9"
+        }
+      ],
+      "description": "This package contains JavaScript engine from webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-devel",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5bc2f6b9f2bc7f0bea8d4dd0a21fd3aa47e6e707f1594634ca3b9eb9ba6b1f19"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=x86_64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "5d04ad7cbbe9d8866f8dbfb638575421"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "1b577cebbfaa77b27a2a7767f6a21986d11b27ecb59fc065c40b544d043bc80d"
+        }
+      ],
+      "description": "The webkit2gtk3-devel package contains libraries, build data, and header files for developing applications that use webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3",
+      "purl": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bbfd9e4c811b1cfc20dcf4e73169a502d0514570021664ed9b95a097f0aefedb"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=x86_64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "aa69d8a73acd4233501d61ac1bf84fbd"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "577d4d03013dfcaa5d4dac08d2cbc2aeff58b6be760c285afdd4e1fcfbe201cf"
+        }
+      ],
+      "description": "WebKitGTK is the port of the portable web rendering engine WebKit to the GTK platform. This package contains WebKit2 based WebKitGTK for GTK 3."
+    },
+    {
+      "name": "webkit2gtk3-debugsource",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-source-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "316b1ff09fc976a1f915d0d5b3dff1247a41565f718d2e721c86f07cf3f637d0"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=x86_64",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-source-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=x86_64&repository_id=rhel-9-for-x86_64-appstream-source-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "62510ac400ee40a3a29fea19338f41d2"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "e29835ee5ee17c81cf683bedf725de0c528359db36cd02c9b06f573af511da21"
+        }
+      ],
+      "description": "This package provides debug sources for package webkit2gtk3. Debug sources are useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "717ee0c214ff6f20d413fb32e56779cd83ce04dcf6b5466865022e7c7939695b"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=s390x",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "ff64bd8fffb522b73d63454f53cf5c65"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "6c684f32950056861fc1f54db86fc7f7388615485df9afeaa10f191305367971"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-devel-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5d77874fd070e99c44053e5728c036a4b2aeac50b3ca4dc1bcfe155556a1ea4b"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=s390x",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "f49869e58eafb3e2d2bb6ed8cb6225f8"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "24618d97059128ce23b907a584272b70d2013889b57fdd9473717c1fb3f2824f"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-devel. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-devel-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d265dd4e3e70b7f7a6ca2e423fb1fd7a7375acd87a8c1a0642d80d5ca2c41e31"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=s390x",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "b66a172e59ef1ed05e6969e9b174fcae"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "b9e7c561fd9ee25cf869a21ddff053f5b94adb7182fc9c12093fd95c70621e9f"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-jsc-devel. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-debuginfo",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4a50586cd6d524d269f692b787dda8cd643e713eeb0d427a745f6f15b8691a03"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=s390x",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-debug-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "2e248dfb4b5e31f94429d9814e3571d1"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "899397949fc387fb834356622c62dd971feb604e8a43a63c6c48683cd52c863f"
+        }
+      ],
+      "description": "This package provides debug information for package webkit2gtk3-jsc. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "webkit2gtk3-jsc-devel",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5ac229a945f8a0114d5a48f6ef4baaf0a23dd98792e1d172420ac562fe9dc3a0"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=s390x",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "0efcdebd2ca6d53322dc7c032d6a32a8"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "836097112361a2500e17c95cbb3c8e16d6dcbdf7ef1ed9e3569f5e77afee9333"
+        }
+      ],
+      "description": "The webkit2gtk3-jsc-devel package contains libraries, build data, and header files for developing applications that use JavaScript engine from webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-jsc",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "fa194a5c303b81c0133d31cc329884d44a8565cc4ad004bf2ca3454e40465516"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=s390x",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "d50148a15674272b4fc2a3452afecd6f"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "35faa6a11b03c42412e78565962a09b0990aad933b52914ed412f21962fd268a"
+        }
+      ],
+      "description": "This package contains JavaScript engine from webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3-devel",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "779d7a7747239b898ac1af9c84699242860bef076c854df04c7c8a27aebc57b5"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=s390x",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "eab5cbebb5080dee8e715338fb34e3ff"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "cb07e7ed2c517c2ea761c015c4a883f2e185359c4fad0f4d557e9587bfba8590"
+        }
+      ],
+      "description": "The webkit2gtk3-devel package contains libraries, build data, and header files for developing applications that use webkit2gtk3."
+    },
+    {
+      "name": "webkit2gtk3",
+      "purl": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e40c26b9221fc48cd5f5adedda9d0197c58eb8300c036757dedea3cfec117b25"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=s390x",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-rpms__9_DOT_7"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "12b30e2938ae9fe98400dbd1d8ab2171"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "c64473e96250690d73c60f89651dbcf78969e9d1a19f1f05b88943caf683699b"
+        }
+      ],
+      "description": "WebKitGTK is the port of the portable web rendering engine WebKit to the GTK platform. This package contains WebKit2 based WebKitGTK for GTK 3."
+    },
+    {
+      "name": "webkit2gtk3-debugsource",
+      "purl": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-source-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "770f2f1d0348f47c70abbd47e171c4d5d967a828cf0464e9157115adb1c831d3"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=s390x",
+      "version": "2.50.3-1.el9_7",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-source-rpms__9_DOT_7"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=s390x&repository_id=rhel-9-for-s390x-appstream-source-rpms__9"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-only"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "4405fa41c9104f1947c3130cb3e0ecc7"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "c2925bddd2fcf7c313614e6517c59b3f3dda7dbab713c2de1791606abb5605b5"
+        }
+      ],
+      "description": "This package provides debug sources for package webkit2gtk3. Debug sources are useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "openssl-synthetic-test",
+      "purl": "pkg:rpm/redhat/openssl-synthetic-test@1.1?arch=s390x&repository_id=rhel-9-for-s390x-appstream-source-rpms__9_DOT_7",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5d967a828cf0464e9157115adb1c831d3770f2f1d0348f47c70abbd47e171c4d"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/openssl-synthetic-test@1.1?arch=s390x",
+      "version": "1.1",
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "description": "This package is a TEST package for testing trustify queries."
+    }
+  ],
+  "specVersion": "1.6",
+  "dependencies": [
+    {
+      "ref": "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=src",
+      "provides": [
+        "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=aarch64",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=aarch64",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=aarch64",
+        "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=aarch64",
+        "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=aarch64",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=aarch64",
+        "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=aarch64",
+        "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=aarch64",
+        "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=aarch64",
+        "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=ppc64le",
+        "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=ppc64le",
+        "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=ppc64le",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=ppc64le",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=ppc64le",
+        "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=ppc64le",
+        "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=ppc64le",
+        "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=ppc64le",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=ppc64le",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=i686",
+        "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=i686",
+        "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=i686",
+        "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=i686",
+        "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=i686",
+        "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=i686",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=i686",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=i686",
+        "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=i686",
+        "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=x86_64",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=x86_64",
+        "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=x86_64",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=x86_64",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=x86_64",
+        "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=x86_64",
+        "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=x86_64",
+        "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=x86_64",
+        "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=x86_64",
+        "pkg:rpm/redhat/webkit2gtk3-debuginfo@2.50.3-1.el9_7?arch=s390x",
+        "pkg:rpm/redhat/webkit2gtk3-devel-debuginfo@2.50.3-1.el9_7?arch=s390x",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-devel-debuginfo@2.50.3-1.el9_7?arch=s390x",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-debuginfo@2.50.3-1.el9_7?arch=s390x",
+        "pkg:rpm/redhat/webkit2gtk3-jsc-devel@2.50.3-1.el9_7?arch=s390x",
+        "pkg:rpm/redhat/webkit2gtk3-jsc@2.50.3-1.el9_7?arch=s390x",
+        "pkg:rpm/redhat/webkit2gtk3-devel@2.50.3-1.el9_7?arch=s390x",
+        "pkg:rpm/redhat/webkit2gtk3@2.50.3-1.el9_7?arch=s390x",
+        "pkg:rpm/redhat/webkit2gtk3-debugsource@2.50.3-1.el9_7?arch=s390x",
+        "pkg:rpm/redhat/openssl-synthetic-test@1.1?arch=s390x"
+      ],
+      "dependsOn": []
+    }
+  ],
+  "serialNumber": "urn:uuid:e0ccfbd4-7a39-448c-9c2d-66e3afbeaf31"
+}

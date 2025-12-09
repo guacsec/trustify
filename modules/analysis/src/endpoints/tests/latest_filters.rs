@@ -563,3 +563,84 @@ fn sort(json: &mut Value) {
         sort(&mut item["descendants"]);
     }
 }
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case( // cpe search
+    Req { what: What::Id("cpe:/a:redhat:container_native_virtualization:4.17::el9"), ..Req::default() },
+    2
+)]
+#[case( // cpe latest search
+    Req { what: What::Id("cpe:/a:redhat:container_native_virtualization:4.17::el9"), latest: true, ..Req::default() },
+    1
+)]
+#[case( // cpe search
+    Req { what: What::Id("cpe:/a:redhat:enterprise_linux:9.7::appstream"), ..Req::default() },
+    2
+)]
+#[case( // cpe latest search
+    Req { what: What::Id("cpe:/a:redhat:enterprise_linux:9.7::appstream"), latest: true, ..Req::default() },
+    1
+)]
+#[case( // cpe search
+    Req { what: What::Id("cpe:/a:redhat:quarkus:3.20::el8"), ..Req::default() },
+    2
+)]
+#[case( // cpe latest search
+    Req { what: What::Id("cpe:/a:redhat:quarkus:3.20::el8"), latest: true, ..Req::default() },
+    1
+)]
+#[case( // name exact search
+    Req { what: What::Q("name=openssl-synthetic-test"), ancestors: Some(10), ..Req::default() },
+    4
+)]
+#[case( // name partial search
+    Req { what: What::Q("name~openssl-synthetic"), ancestors: Some(10), ..Req::default() },
+    4
+)]
+#[case( // purl partial search
+    Req { what: What::Q("purl~openssl-synthetic-test"), ancestors: Some(10), ..Req::default() },
+    4
+)]
+#[test_log::test(actix_web::test)]
+async fn resolve_rh_variant_latest_filter_tc_3278(
+    ctx: &TrustifyContext,
+    #[case] req: Req<'_>,
+    #[case] total: usize,
+    #[values(false, true)] prime_cache: bool,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    ctx.ingest_documents([
+        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/latest/binary-2025-12-02-5C502A658F36477.json",
+        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/latest/binary-2025-12-02-C0CF40B259B1491.json",
+        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/latest/image-index-2025-12-02-693F980C32C444A.json",
+        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/latest/product-2025-12-02-ED1F188BB5C94D8.json",
+        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/older/binary-2025-11-25-3E72AAC00183431.json",
+        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/older/binary-2025-11-25-32EBB9C7E6914AD.json",
+        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/older/image-index-2025-11-25-CBE2989E64414F5.json",
+        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/older/product-2025-11-25-D05BF995974542F.json",
+
+        "cyclonedx/rh/latest_filters/TC-3278/middleware/quarkus-3.20/latest/product-2025-12-01-EDA6638AD2F4451.json",
+        "cyclonedx/rh/latest_filters/TC-3278/middleware/quarkus-3.20/older/product-2025-10-14-28954C62C811417.json",
+
+        "cyclonedx/rh/latest_filters/TC-3278/rpm/webkit2gtk3/latest/product-2025-12-08-A9F140D67EB2408.json",
+        "cyclonedx/rh/latest_filters/TC-3278/rpm/webkit2gtk3/latest/rpm-2025-12-05-3705CE313B0F437.json",
+        "cyclonedx/rh/latest_filters/TC-3278/rpm/webkit2gtk3/older/product-2025-11-11-7764C2C0C91542B.json",
+        "cyclonedx/rh/latest_filters/TC-3278/rpm/webkit2gtk3/older/rpm-2025-10-14-CC595A02EB3545E.json",
+    ])
+        .await?;
+
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
+
+    let mut response = app.req(req).await?;
+
+    sort(&mut response["items"]);
+
+    log::info!("{response:#?}");
+    assert_eq!(total, response["total"]);
+
+    Ok(())
+}
