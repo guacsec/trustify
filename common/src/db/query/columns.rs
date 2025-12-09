@@ -531,6 +531,11 @@ mod tests {
             ColumnType::Text,
         );
         test("pearl=42", r#"get_purl("purl") = 42"#, ColumnType::Integer);
+        test(
+            "pkg:rpm/redhat/foo",
+            r#"("advisory"."location" ILIKE '%pkg:rpm/redhat/foo%') OR ("advisory"."title" ILIKE '%pkg:rpm/redhat/foo%') OR (array_to_string("advisory"."authors", '|') ILIKE '%pkg:rpm/redhat/foo%') OR (get_purl("purl") ILIKE '%pkg:rpm/redhat/foo%')"#,
+            ColumnType::Text,
+        );
 
         Ok(())
     }

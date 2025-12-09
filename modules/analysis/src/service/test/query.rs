@@ -13,7 +13,7 @@ use trustify_test_context::TrustifyContext;
 #[test_context(TrustifyContext)]
 #[rstest]
 // There should be not match for PURLs in default fields
-#[case(escape_q("pkg:rpm/redhat/A@0.0.0?arch=src"), 0)]
+#[case(escape_q("pkg:rpm/redhat/A@0.0.0?arch=src"), 1)]
 // When asking for PURL, it must be found
 #[case(format!("purl~{}", escape_q("pkg:rpm/redhat/A@0.0.0?arch=src")), 1)]
 // When asking for PURL, it must be found, even with a partial match
