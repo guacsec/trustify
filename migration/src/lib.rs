@@ -32,7 +32,6 @@ mod m0001170_non_null_source_document_id;
 mod m0001180_expand_spdx_licenses_with_mappings_function;
 mod m0001190_optimize_product_advisory_query;
 mod m0001200_source_document_fk_indexes;
-mod m0001300_restore_get_purl;
 
 pub struct Migrator;
 
@@ -72,7 +71,6 @@ impl MigratorTrait for Migrator {
             Box::new(m0001180_expand_spdx_licenses_with_mappings_function::Migration),
             Box::new(m0001190_optimize_product_advisory_query::Migration),
             Box::new(m0001200_source_document_fk_indexes::Migration),
-            Box::new(m0001300_restore_get_purl::Migration),
         ]
     }
 }

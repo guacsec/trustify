@@ -16,13 +16,11 @@ use futures::FutureExt;
 use opentelemetry::KeyValue;
 use petgraph::{Graph, prelude::NodeIndex};
 use sea_orm::{
-    ColumnTrait, ColumnType, ConnectionTrait, DatabaseBackend, DbErr, EntityOrSelect, EntityTrait,
-    FromQueryResult, IntoIdentity, QueryFilter, QuerySelect, QueryTrait, Related, RelationTrait,
-    Select, Statement,
+    ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityOrSelect, EntityTrait,
+    FromQueryResult, QueryFilter, QuerySelect, QueryTrait, Related, RelationTrait, Select,
+    Statement,
 };
-use sea_query::{
-    Alias, Expr, Func, JoinType, PostgresQueryBuilder, Query, SelectStatement, SimpleExpr,
-};
+use sea_query::{Alias, Expr, JoinType, PostgresQueryBuilder, Query, SelectStatement};
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
@@ -724,14 +722,6 @@ fn q_columns() -> Columns {
                 _ => None,
             }
         })
-        .add_expr(
-            "get_purl",
-            SimpleExpr::FunctionCall(
-                Func::cust("get_purl".into_identity())
-                    .arg(Expr::col(sbom_package_purl_ref::Column::QualifiedPurlId)),
-            ),
-            ColumnType::Text,
-        )
 }
 
 async fn sbom_id(id: Uuid, connection: &impl ConnectionTrait) -> anyhow::Result<Option<String>> {
