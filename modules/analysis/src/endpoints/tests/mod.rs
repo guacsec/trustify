@@ -4,6 +4,7 @@ mod latest_filters;
 pub mod req;
 mod rh_variant;
 mod spdx;
+mod temporal;
 
 use crate::test::caller;
 use actix_http::Request;

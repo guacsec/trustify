@@ -1,5 +1,5 @@
 use super::req::*;
-use crate::test::caller;
+use crate::test::{Join, caller};
 use rstest::*;
 use serde_json::{Value, json};
 use std::cmp;
@@ -45,14 +45,20 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents([
-        "cyclonedx/rh/latest_filters/container/quay_builder_qemu_rhcos_rhel8_2025-02-24/quay-builder-qemu-rhcos-rhel-8-product.json",
-        "cyclonedx/rh/latest_filters/container/quay_builder_qemu_rhcos_rhel8_2025-02-24/quay-builder-qemu-rhcos-rhel-8-image-index.json",
-        "cyclonedx/rh/latest_filters/container/quay_builder_qemu_rhcos_rhel8_2025-02-24/quay-builder-qemu-rhcos-rhel-8-amd64.json",
-        "cyclonedx/rh/latest_filters/container/quay_builder_qemu_rhcos_rhel8_2025-04-02/quay-v3.14.0-product.json",
-        "cyclonedx/rh/latest_filters/container/quay_builder_qemu_rhcos_rhel8_2025-04-02/quay-builder-qemu-rhcos-rhel8-v3.14.0-4-index.json",
-        "cyclonedx/rh/latest_filters/container/quay_builder_qemu_rhcos_rhel8_2025-04-02/quay-builder-qemu-rhcos-rhel8-v3.14.0-4-binary.json",
-    ])
+    ctx.ingest_documents(
+        "cyclonedx/rh/latest_filters/container/quay_builder_qemu_rhcos_rhel8_2025-02-24/".join(&[
+            "quay-builder-qemu-rhcos-rhel-8-product.json",
+            "quay-builder-qemu-rhcos-rhel-8-image-index.json",
+            "quay-builder-qemu-rhcos-rhel-8-amd64.json",
+        ][..])
+        .chain(
+            "cyclonedx/rh/latest_filters/container/quay_builder_qemu_rhcos_rhel8_2025-04-02/".join(&[
+                "quay-v3.14.0-product.json",
+                "quay-builder-qemu-rhcos-rhel8-v3.14.0-4-index.json",
+                "quay-builder-qemu-rhcos-rhel8-v3.14.0-4-binary.json",
+            ][..])
+        )
+    )
         .await?;
 
     if prime_cache {
@@ -108,12 +114,18 @@ async fn resolve_rh_variant_latest_filter_rpms_cdx(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents([
-        "cyclonedx/rh/latest_filters/rpm/NetworkManager/network_manager_2025-02-17/1.46.0-26.el9_4-product.json",
-        "cyclonedx/rh/latest_filters/rpm/NetworkManager/network_manager_2025-02-17/1.46.0-26.el9_4-release.json",
-        "cyclonedx/rh/latest_filters/rpm/NetworkManager/network_manager_2025-04-08/1.46.0-27.el9_4-product.json",
-        "cyclonedx/rh/latest_filters/rpm/NetworkManager/network_manager_2025-04-08/1.46.0-27.el9_4-release.json",
-    ])
+    ctx.ingest_documents(
+        "cyclonedx/rh/latest_filters/rpm/NetworkManager/network_manager_2025-02-17/".join(&[
+            "1.46.0-26.el9_4-product.json",
+            "1.46.0-26.el9_4-release.json",
+        ][..])
+        .chain(
+            "cyclonedx/rh/latest_filters/rpm/NetworkManager/network_manager_2025-04-08/".join(&[
+                "1.46.0-27.el9_4-product.json",
+                "1.46.0-27.el9_4-release.json",
+            ][..])
+        )
+    )
         .await?;
 
     if prime_cache {
@@ -163,14 +175,20 @@ async fn resolve_rh_variant_latest_filter_middleware_cdx(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents([
-        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.15.4/product-3.15.4.json",
-        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.15.4/quarkus-camel-bom-3.15.4.json",
-        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.15.4/quarkus-cxf-bom-3.15.4.json",
-        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.20/product-3.20.json",
-        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.20/quarkus-camel-bom-3.20.json",
-        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.20/quarkus-cxf-bom-3.20.json",
-    ])
+    ctx.ingest_documents(
+        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/".chain([
+            "3.15.4/".join(&[
+                "product-3.15.4.json",
+                "quarkus-camel-bom-3.15.4.json",
+                "quarkus-cxf-bom-3.15.4.json",
+            ][..]),
+            "3.20/".join(&[
+                "product-3.20.json",
+                "quarkus-camel-bom-3.20.json",
+                "quarkus-cxf-bom-3.20.json",
+            ][..]),
+        ])
+    )
     .await?;
 
     if prime_cache {
@@ -194,14 +212,16 @@ async fn test_tc2606(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents([
-        "cyclonedx/rh/latest_filters/TC-2606/1F5B983228BA420.json",
-        "cyclonedx/rh/latest_filters/TC-2606/401A4500E49D44D.json",
-        "cyclonedx/rh/latest_filters/TC-2606/74092FCBFD294FC.json",
-        "cyclonedx/rh/latest_filters/TC-2606/80138DC9368C4D3.json",
-        "cyclonedx/rh/latest_filters/TC-2606/B67E38F00200413.json",
-        "cyclonedx/rh/latest_filters/TC-2606/CE8E7B92C4BD452.json",
-    ])
+    ctx.ingest_documents(
+        "cyclonedx/rh/latest_filters/TC-2606/".join(&[
+            "1F5B983228BA420.json",
+            "401A4500E49D44D.json",
+            "74092FCBFD294FC.json",
+            "80138DC9368C4D3.json",
+            "B67E38F00200413.json",
+            "CE8E7B92C4BD452.json",
+        ][..])
+    )
     .await?;
 
     if prime_cache {
@@ -296,11 +316,13 @@ async fn test_tc2677(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents([
-        "cyclonedx/rh/latest_filters/TC-2677/54FE396D61CE4E1.json",
-        "cyclonedx/rh/latest_filters/TC-2677/A875C1FFA263483.json",
-        "cyclonedx/rh/latest_filters/TC-2677/D52B5B9527D4447.json",
-    ])
+    ctx.ingest_documents(
+        "cyclonedx/rh/latest_filters/TC-2677/".join(&[
+            "54FE396D61CE4E1.json",
+            "A875C1FFA263483.json",
+            "D52B5B9527D4447.json",
+        ][..])
+    )
     .await?;
 
     if prime_cache {
@@ -448,11 +470,13 @@ async fn parse_ids_find_only_exact_matches(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents([
-        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.15.4/product-3.15.4.json",
-        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.15.4/quarkus-camel-bom-3.15.4.json",
-        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.15.4/quarkus-cxf-bom-3.15.4.json",
-    ])
+    ctx.ingest_documents(
+        "cyclonedx/rh/latest_filters/middleware/maven/quarkus/3.15.4/".join(&[
+            "product-3.15.4.json",
+            "quarkus-camel-bom-3.15.4.json",
+            "quarkus-cxf-bom-3.15.4.json",
+        ][..])
+    )
     .await?;
 
     if prime_cache {
@@ -474,17 +498,19 @@ async fn test_tc2578(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents([
-        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0.zip.json",
-        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-core-src.zip.json",
-        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-installer.jar.json",
-        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-javadoc.zip.json",
-        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-maven-repository.zip.json",
-        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-quickstarts.zip.json",
-        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-server-migration-src.zip.json",
-        "cyclonedx/rh/TC-2758/jboss-eap-7.4.0-src.zip.json",
-        "cyclonedx/rh/TC-2758/Red Hat JBoss Enterprise Application Platform.json",
-    ])
+    ctx.ingest_documents(
+        "cyclonedx/rh/TC-2758/".join(&[
+            "jboss-eap-7.4.0.zip.json",
+            "jboss-eap-7.4.0-core-src.zip.json",
+            "jboss-eap-7.4.0-installer.jar.json",
+            "jboss-eap-7.4.0-javadoc.zip.json",
+            "jboss-eap-7.4.0-maven-repository.zip.json",
+            "jboss-eap-7.4.0-quickstarts.zip.json",
+            "jboss-eap-7.4.0-server-migration-src.zip.json",
+            "jboss-eap-7.4.0-src.zip.json",
+            "Red Hat JBoss Enterprise Application Platform.json",
+        ][..])
+    )
     .await?;
 
     if prime_cache {
@@ -615,24 +641,36 @@ async fn resolve_rh_variant_latest_filter_tc_3278(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents([
-        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/latest/binary-2025-12-02-5C502A658F36477.json",
-        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/latest/binary-2025-12-02-C0CF40B259B1491.json",
-        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/latest/image-index-2025-12-02-693F980C32C444A.json",
-        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/latest/product-2025-12-02-ED1F188BB5C94D8.json",
-        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/older/binary-2025-11-25-3E72AAC00183431.json",
-        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/older/binary-2025-11-25-32EBB9C7E6914AD.json",
-        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/older/image-index-2025-11-25-CBE2989E64414F5.json",
-        "cyclonedx/rh/latest_filters/TC-3278/container/cnv-4.17/older/product-2025-11-25-D05BF995974542F.json",
-
-        "cyclonedx/rh/latest_filters/TC-3278/middleware/quarkus-3.20/latest/product-2025-12-01-EDA6638AD2F4451.json",
-        "cyclonedx/rh/latest_filters/TC-3278/middleware/quarkus-3.20/older/product-2025-10-14-28954C62C811417.json",
-
-        "cyclonedx/rh/latest_filters/TC-3278/rpm/webkit2gtk3/latest/product-2025-12-08-A9F140D67EB2408.json",
-        "cyclonedx/rh/latest_filters/TC-3278/rpm/webkit2gtk3/latest/rpm-2025-12-05-3705CE313B0F437.json",
-        "cyclonedx/rh/latest_filters/TC-3278/rpm/webkit2gtk3/older/product-2025-11-11-7764C2C0C91542B.json",
-        "cyclonedx/rh/latest_filters/TC-3278/rpm/webkit2gtk3/older/rpm-2025-10-14-CC595A02EB3545E.json",
-    ])
+    ctx.ingest_documents(
+        "cyclonedx/rh/latest_filters/TC-3278/".chain([
+            "container/cnv-4.17/latest/".join(&[
+                "binary-2025-12-02-5C502A658F36477.json",
+                "binary-2025-12-02-C0CF40B259B1491.json",
+                "image-index-2025-12-02-693F980C32C444A.json",
+                "product-2025-12-02-ED1F188BB5C94D8.json",
+            ][..]),
+            "container/cnv-4.17/older/".join(&[
+                "binary-2025-11-25-3E72AAC00183431.json",
+                "binary-2025-11-25-32EBB9C7E6914AD.json",
+                "image-index-2025-11-25-CBE2989E64414F5.json",
+                "product-2025-11-25-D05BF995974542F.json",
+            ][..]),
+            "middleware/quarkus-3.20/latest/".join(&[
+                "product-2025-12-01-EDA6638AD2F4451.json",
+            ][..]),
+            "middleware/quarkus-3.20/older/".join(&[
+                "product-2025-10-14-28954C62C811417.json",
+            ][..]),
+            "rpm/webkit2gtk3/latest/".join(&[
+                "product-2025-12-08-A9F140D67EB2408.json",
+                "rpm-2025-12-05-3705CE313B0F437.json",
+            ][..]),
+            "rpm/webkit2gtk3/older/".join(&[
+                "product-2025-11-11-7764C2C0C91542B.json",
+                "rpm-2025-10-14-CC595A02EB3545E.json",
+            ][..]),
+        ])
+    )
         .await?;
 
     if prime_cache {

@@ -13,7 +13,7 @@ pub use ctx::{ReadOnly, TrustifyContext, TrustifyMigrationContext};
 
 use ::migration::{
     ConnectionTrait, DbErr,
-    sea_orm::{RuntimeErr, Statement, sqlx},
+    sea_orm::{RuntimeErr, Statement, prelude::Uuid, sqlx},
 };
 use futures::Stream;
 use peak_alloc::PeakAlloc;
@@ -137,13 +137,13 @@ $$;
     }
 
     /// The paths are relative to `<workspace>/etc/test-data`.
-    pub async fn ingest_documents<'a, P: IntoIterator<Item = &'a str>>(
+    pub async fn ingest_documents<'a, P: IntoIterator<Item = impl AsRef<str>>>(
         &self,
         paths: P,
     ) -> Result<Vec<IngestResult>, anyhow::Error> {
         let mut results = Vec::new();
         for path in paths {
-            results.push(self.ingest_document(path).await?);
+            results.push(self.ingest_document(path.as_ref()).await?);
         }
         Ok(results)
     }
