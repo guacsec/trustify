@@ -675,8 +675,8 @@ impl AnalysisService {
                     graph::Node::Package(package) => {
                         context.put_string("version", &package.version);
                         context.put_value("cpe", Value::from(&package.cpe));
-                        context.put_value("purl", Value::from(&package.purl));
-                        context.put_array("purl", purls);
+                        context.put_value_hidden("purl", Value::from(&package.purl));
+                        context.put_array_hidden("purl", purls);
                         context.put_array(
                             "part",
                             parts.iter().map(|p| Value::String(p.as_ref())).collect(),

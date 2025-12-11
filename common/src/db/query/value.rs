@@ -18,6 +18,7 @@ pub enum Value<'a> {
 #[derive(Default)]
 pub struct ValueContext<'a> {
     values: HashMap<String, Value<'a>>,
+    hidden: Vec<String>,
 }
 
 pub trait Context {
@@ -148,7 +149,13 @@ impl Context for &ValueContext<'_> {
         })
     }
     fn values(&self) -> impl Iterator<Item = &Value<'_>> {
-        self.values.values()
+        self.values.iter().filter_map(|(k, v)| {
+            if self.hidden.contains(k) {
+                None
+            } else {
+                Some(v)
+            }
+        })
     }
 }
 
@@ -168,16 +175,29 @@ impl<'a> ValueContext<'a> {
     pub fn put_array<K: Into<String>>(&mut self, key: K, value: Vec<Value<'a>>) {
         self.put(key.into(), Value::Array(value));
     }
+    // Don't include in full-text search
+    pub fn put_array_hidden<K: Into<String>>(&mut self, key: K, value: Vec<Value<'a>>) {
+        let key = key.into();
+        self.hidden.push(key.clone());
+        self.put_array(key, value);
+    }
     pub fn put_json<K: Into<String>>(&mut self, key: K, value: serde_json::Value) {
         self.put(key.into(), Value::Json(value));
     }
     pub fn put_value<K: Into<String>>(&mut self, key: K, value: Value<'a>) {
         self.put(key.into(), value);
     }
+    // Don't include in full-text search
+    pub fn put_value_hidden<K: Into<String>>(&mut self, key: K, value: Value<'a>) {
+        let key = key.into();
+        self.hidden.push(key.clone());
+        self.put_value(key, value);
+    }
     // Convenient initialization
     pub fn from<K: Into<String>, const N: usize>(arr: [(K, Value<'a>); N]) -> Self {
         Self {
             values: HashMap::from(arr.map(|(k, v)| (k.into(), v))),
+            ..Default::default()
         }
     }
     fn put(&mut self, key: String, value: Value<'a>) {
