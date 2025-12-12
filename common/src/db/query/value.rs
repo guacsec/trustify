@@ -15,7 +15,7 @@ pub enum Value<'a> {
     Custom(&'a dyn Valuable),
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ValueContext<'a> {
     values: HashMap<String, Value<'a>>,
     hidden: Vec<String>,
@@ -102,25 +102,6 @@ impl PartialOrd<String> for Value<'_> {
     }
 }
 
-impl<'a, T: Valuable> From<&'a Vec<T>> for Value<'a> {
-    fn from(v: &'a Vec<T>) -> Self {
-        Value::Array(v.iter().map(|v| Value::Custom(v)).collect())
-    }
-}
-
-impl<'a, T: Valuable> From<&'a Arc<[T]>> for Value<'a> {
-    fn from(arc_slice: &'a Arc<[T]>) -> Self {
-        Value::Array(
-            // dereference Arc to slice `&[T]`, then iterate
-            arc_slice
-                .iter()
-                // map each element `&T` to `Value::Custom(&T)`
-                .map(|item_ref| Value::Custom(item_ref))
-                .collect(),
-        )
-    }
-}
-
 impl Context for &ValueContext<'_> {
     fn get(&self, key: &str) -> Option<Value<'_>> {
         fn nested<'a>(json: &'a serde_json::Value, ks: &str) -> Option<Value<'a>> {
@@ -160,47 +141,23 @@ impl Context for &ValueContext<'_> {
 }
 
 impl<'a> ValueContext<'a> {
-    pub fn put_string<S: Into<String>>(&mut self, key: S, value: &'a str) {
-        self.put(key.into(), Value::String(value));
+    pub fn put<K: Into<String>, V: Into<Value<'a>>>(&mut self, key: K, value: V) {
+        self.store(key.into(), value.into());
     }
-    pub fn put_int<K: Into<String>>(&mut self, key: K, value: i32) {
-        self.put(key.into(), Value::Int(value));
-    }
-    pub fn put_float<K: Into<String>>(&mut self, key: K, value: f64) {
-        self.put(key.into(), Value::Float(value));
-    }
-    pub fn put_date<K: Into<String>>(&mut self, key: K, value: &'a OffsetDateTime) {
-        self.put(key.into(), Value::Date(value));
-    }
-    pub fn put_array<K: Into<String>>(&mut self, key: K, value: Vec<Value<'a>>) {
-        self.put(key.into(), Value::Array(value));
-    }
-    // Don't include in full-text search
-    pub fn put_array_hidden<K: Into<String>>(&mut self, key: K, value: Vec<Value<'a>>) {
+    // Omit from full-text search
+    pub fn put_hidden<K: Into<String>, V: Into<Value<'a>>>(&mut self, key: K, value: V) {
         let key = key.into();
         self.hidden.push(key.clone());
-        self.put_array(key, value);
-    }
-    pub fn put_json<K: Into<String>>(&mut self, key: K, value: serde_json::Value) {
-        self.put(key.into(), Value::Json(value));
-    }
-    pub fn put_value<K: Into<String>>(&mut self, key: K, value: Value<'a>) {
-        self.put(key.into(), value);
-    }
-    // Don't include in full-text search
-    pub fn put_value_hidden<K: Into<String>>(&mut self, key: K, value: Value<'a>) {
-        let key = key.into();
-        self.hidden.push(key.clone());
-        self.put_value(key, value);
+        self.put(key, value);
     }
     // Convenient initialization
-    pub fn from<K: Into<String>, const N: usize>(arr: [(K, Value<'a>); N]) -> Self {
+    pub fn from<K: Into<String>, V: Into<Value<'a>>, const N: usize>(arr: [(K, V); N]) -> Self {
         Self {
-            values: HashMap::from(arr.map(|(k, v)| (k.into(), v))),
+            values: HashMap::from(arr.map(|(k, v)| (k.into(), v.into()))),
             ..Default::default()
         }
     }
-    fn put(&mut self, key: String, value: Value<'a>) {
+    fn store(&mut self, key: String, value: Value<'a>) {
         self.values
             .entry(key)
             .and_modify(|val| match val {
@@ -211,6 +168,67 @@ impl<'a> ValueContext<'a> {
                 _ => *val = Value::Array(vec![val.clone(), value.clone()]),
             })
             .or_insert(value);
+    }
+}
+
+impl<'a> From<&'a str> for Value<'a> {
+    fn from(v: &'a str) -> Self {
+        Value::String(v)
+    }
+}
+
+impl<'a> From<&'a OffsetDateTime> for Value<'a> {
+    fn from(v: &'a OffsetDateTime) -> Self {
+        Value::Date(v)
+    }
+}
+
+impl<'a> From<Vec<Value<'a>>> for Value<'a> {
+    fn from(v: Vec<Value<'a>>) -> Self {
+        Value::Array(v)
+    }
+}
+
+impl From<serde_json::Value> for Value<'_> {
+    fn from(v: serde_json::Value) -> Self {
+        Value::Json(v)
+    }
+}
+
+impl From<i32> for Value<'_> {
+    fn from(v: i32) -> Self {
+        Value::Int(v)
+    }
+}
+
+impl From<f64> for Value<'_> {
+    fn from(v: f64) -> Self {
+        Value::Float(v)
+    }
+}
+
+impl<'a, T: Valuable> From<&'a T> for Value<'a> {
+    fn from(v: &'a T) -> Self {
+        Value::Custom(v)
+    }
+}
+
+impl<'a, T: Valuable> From<&'a Vec<T>> for Value<'a> {
+    fn from(v: &'a Vec<T>) -> Self {
+        Value::Array(v.iter().map(|v| v.into()).collect())
+    }
+}
+
+impl<'a, T: Valuable> From<&'a Arc<[T]>> for Value<'a> {
+    fn from(arc_slice: &'a Arc<[T]>) -> Self {
+        Value::Array(
+            // dereference Arc to slice `&[T]`, then iterate
+            arc_slice
+                .iter()
+                // map each element `&T` to `Value::Custom(&T)`
+                .map(|item_ref| Value::Custom(item_ref))
+                .collect(),
+        )
     }
 }
 
@@ -270,13 +288,12 @@ pub(crate) mod tests {
         use time::format_description::well_known::Rfc2822;
         let now = time::OffsetDateTime::now_utc();
         let then = OffsetDateTime::parse("Sat, 12 Jun 1993 13:25:19 GMT", &Rfc2822)?;
-        let context = ValueContext::from([
-            ("id", Value::String("foo")),
-            ("count", Value::Int(42)),
-            ("score", Value::Float(6.66)),
-            ("detected", Value::Date(&then)),
-            ("published", Value::Date(&now)),
-        ]);
+        let mut context = ValueContext::from([("id", "foo")]);
+        context.put("count", 42);
+        context.put("score", 6.66);
+        context.put("detected", &then);
+        context.put("published", &now);
+
         assert!(q("oo|aa|bb&count<100&count>10&id=foo").apply(&context));
         assert!(q("score=6.66").apply(&context));
         assert!(q("count>=42&count<=42").apply(&context));
@@ -303,8 +320,8 @@ pub(crate) mod tests {
         use crate::purl::Purl;
 
         let purl = Purl::from_str("pkg:x/foo").unwrap();
-        let purls = vec![Value::Custom(&purl), Value::String("pkg:x/bar")];
-        let context = ValueContext::from([("purl", Value::Array(purls))]);
+        let purls: Vec<Value> = vec![(&purl).into(), "pkg:x/bar".into()];
+        let context = ValueContext::from([("purl", purls)]);
 
         assert!(q("purl=pkg:x/foo").apply(&context));
         assert!(!q("purl!=pkg:x/foo").apply(&context));
@@ -342,10 +359,10 @@ pub(crate) mod tests {
             "version": "42",
         });
 
-        let mut context = ValueContext::from([("purl", Value::Custom(&purl))]);
-        context.put_json("qualifiers", Json::from(&purl)["qualifiers"].clone());
-        context.put_json("purl", parts);
-        context.put_json("purl", other); // shouldn't overwrite
+        let mut context = ValueContext::from([("purl", &purl)]);
+        context.put("qualifiers", Json::from(&purl)["qualifiers"].clone());
+        context.put("purl", parts);
+        context.put("purl", other); // shouldn't overwrite
 
         assert!(q("purl~pkg:rpm/foo").apply(&context));
         assert!(q("qualifiers:k1=v1").apply(&context));

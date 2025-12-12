@@ -656,8 +656,8 @@ impl AnalysisService {
                             .map(|p| {
                                 let mut v: serde_json::Value = p.into();
                                 // if any translations are applied to
-                                // the DB query, they must be added
-                                // to this context as well
+                                // the DB query, they must be added to
+                                // this context as well
                                 v["type"] = v["ty"].clone();
                                 Value::Json(v)
                             })
@@ -685,24 +685,24 @@ impl AnalysisService {
                 };
                 let sbom_id = node.sbom_id.to_string();
                 let mut context = ValueContext::from([
-                    ("sbom_id", Value::String(&sbom_id)),
-                    ("node_id", Value::String(&node.node_id)),
-                    ("name", Value::String(&node.name)),
+                    ("sbom_id", &*sbom_id),
+                    ("node_id", &*node.node_id),
+                    ("name", &*node.name),
                 ]);
                 match node {
                     graph::Node::Package(package) => {
-                        context.put_string("version", &package.version);
-                        context.put_value("cpe", Value::from(&package.cpe));
-                        context.put_array("cpe", cpes);
-                        context.put_value_hidden("purl", Value::from(&package.purl));
-                        context.put_array_hidden("purl", purls);
+                        context.put("version", &*package.version);
+                        context.put_hidden("cpe", &package.cpe);
+                        context.put_hidden("cpe", cpes);
+                        context.put_hidden("purl", &package.purl);
+                        context.put_hidden("purl", purls);
                     }
                     graph::Node::External(external) => {
-                        context.put_string(
+                        context.put(
                             "external_document_reference",
-                            &external.external_document_reference,
+                            &*external.external_document_reference,
                         );
-                        context.put_string("external_node_id", &external.external_node_id);
+                        context.put("external_node_id", &*external.external_node_id);
                     }
                     _ => {}
                 }
