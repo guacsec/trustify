@@ -24,8 +24,8 @@ use trustify_test_context::TrustifyContext;
 #[case("purl:type=rpm", 1)]
 // By PURL name should work as well
 #[case("purl:name=A", 1)]
-// By CPE part, exact match
-#[case("part=a", 1)]
+// By CPE components, exact match
+#[case("cpe:part=a&cpe:vendor=redhat&cpe:version=0.0.0", 1)]
 #[test_log::test(tokio::test)]
 async fn alignment(
     ctx: &TrustifyContext,

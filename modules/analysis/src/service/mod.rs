@@ -4,6 +4,7 @@ mod walk;
 
 pub use collector::*;
 pub use query::*;
+use serde_json::json;
 pub use walk::*;
 
 mod collector;
@@ -654,15 +655,32 @@ impl AnalysisService {
                             .iter()
                             .map(|p| {
                                 let mut v: serde_json::Value = p.into();
-                                v["type"] = v["ty"].clone(); // add the alias to the context
+                                // if any translations are applied to
+                                // the DB query, they must be added
+                                // to this context as well
+                                v["type"] = v["ty"].clone();
                                 Value::Json(v)
                             })
                             .collect()
                     }
                     _ => vec![],
                 };
-                let parts: Vec<_> = match node {
-                    graph::Node::Package(p) => p.cpe.iter().map(|cpe| cpe.part()).collect(),
+                let cpes: Vec<_> = match node {
+                    graph::Node::Package(p) => p
+                        .cpe
+                        .iter()
+                        .map(|cpe| {
+                            Value::Json(json!({
+                                "part": cpe.part(),
+                                "vendor": cpe.vendor(),
+                                "product": cpe.product(),
+                                "version": cpe.version(),
+                                "update": cpe.update(),
+                                "edition": cpe.edition(),
+                                "language": cpe.language(),
+                            }))
+                        })
+                        .collect(),
                     _ => vec![],
                 };
                 let sbom_id = node.sbom_id.to_string();
@@ -675,12 +693,9 @@ impl AnalysisService {
                     graph::Node::Package(package) => {
                         context.put_string("version", &package.version);
                         context.put_value("cpe", Value::from(&package.cpe));
+                        context.put_array("cpe", cpes);
                         context.put_value_hidden("purl", Value::from(&package.purl));
                         context.put_array_hidden("purl", purls);
-                        context.put_array(
-                            "part",
-                            parts.iter().map(|p| Value::String(p.as_ref())).collect(),
-                        );
                     }
                     graph::Node::External(external) => {
                         context.put_string(

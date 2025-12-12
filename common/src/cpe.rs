@@ -150,11 +150,7 @@ impl Cpe {
         let result = Uuid::new_v5(&result, self.version().as_ref().as_bytes());
         let result = Uuid::new_v5(&result, self.update().as_ref().as_bytes());
         let result = Uuid::new_v5(&result, self.edition().as_ref().as_bytes());
-
-        match self.language() {
-            Language::Any => Uuid::new_v5(&result, b"*"),
-            Language::Language(value) => Uuid::new_v5(&result, value.as_bytes()),
-        }
+        Uuid::new_v5(&result, self.language().as_ref().as_bytes())
     }
 }
 
@@ -175,10 +171,49 @@ impl AsRef<str> for Component {
     }
 }
 
+impl Display for Component {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
+impl Serialize for Component {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_ref())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum Language {
     Any,
     Language(String),
+}
+
+impl AsRef<str> for Language {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Any => "*",
+            Self::Language(value) => value,
+        }
+    }
+}
+
+impl Display for Language {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
+impl Serialize for Language {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_ref())
+    }
 }
 
 pub enum CpeType {
@@ -204,6 +239,15 @@ impl AsRef<str> for CpeType {
 impl Display for CpeType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_ref())
+    }
+}
+
+impl Serialize for CpeType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_ref())
     }
 }
 

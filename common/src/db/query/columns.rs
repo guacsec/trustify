@@ -249,10 +249,13 @@ impl Columns {
         self.columns
             .iter()
             .find(|(col, _)| {
-                matches!(col, ColumnRef::Column(name)
-                     | ColumnRef::TableColumn(_, name)
-                     | ColumnRef::SchemaTableColumn(_, _, name)
-                     if name.to_string().eq_ignore_ascii_case(field))
+                use ColumnRef::*;
+                match field.split_once(':') {
+                    Some((ft, fc)) => // field names may be optionally prefixed by their table names
+                        matches!(col, TableColumn(t, c) | SchemaTableColumn(_, t, c) if t.to_string().eq_ignore_ascii_case(ft) && c.to_string().eq_ignore_ascii_case(fc)),
+                    _ =>
+                        matches!(col, Column(c) | TableColumn(_, c) | SchemaTableColumn(_, _, c) if c.to_string().eq_ignore_ascii_case(field)),
+                }
             })
             .cloned()
     }
@@ -628,6 +631,28 @@ mod tests {
         assert_eq!(
             clause(q("foo"))?,
             r#"("advisory"."location" ILIKE '%foo%') OR ("advisory"."title" ILIKE '%foo%') OR (array_to_string("advisory"."authors", '|') ILIKE '%foo%')"#
+        );
+
+        Ok(())
+    }
+
+    #[test(tokio::test)]
+    async fn optional_table_prefix() -> Result<(), anyhow::Error> {
+        let clause = |query: Query| -> Result<String, Error> {
+            Ok(advisory::Entity::find()
+                .filtering(query)?
+                .build(sea_orm::DatabaseBackend::Postgres)
+                .to_string()
+                .split("WHERE ")
+                .last()
+                .unwrap()
+                .to_string())
+        };
+
+        assert_eq!(clause(q("score=42"))?, r#""advisory"."score" = 42"#);
+        assert_eq!(
+            clause(q("advisory:score=42"))?,
+            r#""advisory"."score" = 42"#
         );
 
         Ok(())
