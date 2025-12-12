@@ -6,10 +6,11 @@ use crate::{
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, LoaderTrait, ModelTrait, QueryFilter, QuerySelect,
-    RelationTrait,
+    RelationTrait, prelude::Uuid,
 };
 use sea_query::{Asterisk, Expr, Func, JoinType, SimpleExpr};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use trustify_common::{db::VersionMatches, memo::Memo};
 use trustify_entity::{
     advisory, base_purl, organization, purl_status, qualified_purl, status, version_range,
@@ -98,17 +99,45 @@ impl VersionedPurlAdvisory {
 
         let advisories = statuses.load_one(advisory::Entity, tx).await?;
 
+        // Batch load organizations for all advisories to avoid more queries
+        let advisory_models: Vec<advisory::Model> = advisories
+            .iter()
+            .filter_map(|opt| opt.as_ref().cloned())
+            .collect();
+        let organizations = advisory_models.load_one(organization::Entity, tx).await?;
+
+        // Create a HashMap for fast organization lookup by advisory ID
+        let org_map: HashMap<Uuid, Option<organization::Model>> = advisory_models
+            .iter()
+            .zip(organizations.iter())
+            .map(|(advisory, org)| (advisory.id, org.clone()))
+            .collect();
+
+        // Batch load status entities to avoid more queries
+        let status_models = statuses.load_one(status::Entity, tx).await?;
+
+        // Create a HashMap for fast status lookup by status ID
+        let status_map: HashMap<Uuid, Option<status::Model>> = statuses
+            .iter()
+            .zip(status_models.iter())
+            .map(|(purl_status, status)| (purl_status.status_id, status.clone()))
+            .collect();
+
         let mut results: Vec<Self> = Vec::new();
 
-        for ((vuln, advisory), status) in vulns.iter().zip(advisories.iter()).zip(statuses.iter()) {
+        for ((vuln, advisory), purl_status) in
+            vulns.iter().zip(advisories.iter()).zip(statuses.iter())
+        {
             if let (Some(vulnerability), Some(advisory)) = (vuln, advisory) {
+                let status_model = status_map.get(&purl_status.status_id).cloned().flatten();
+
                 let qualified_package_status =
-                    VersionedPurlStatus::from_entity(vulnerability, status, tx).await?;
+                    VersionedPurlStatus::from_entity(vulnerability, status_model, tx).await?;
 
                 if let Some(entry) = results.iter_mut().find(|e| e.head.uuid == advisory.id) {
                     entry.status.push(qualified_package_status)
                 } else {
-                    let organization = advisory.find_related(organization::Entity).one(tx).await?;
+                    let organization = org_map.get(&advisory.id).cloned().flatten();
 
                     results.push(Self {
                         head: AdvisoryHead::from_advisory(
@@ -136,14 +165,12 @@ pub struct VersionedPurlStatus {
 impl VersionedPurlStatus {
     pub async fn from_entity<C: ConnectionTrait>(
         vuln: &vulnerability::Model,
-        package_status: &purl_status::Model,
+        status_model: Option<status::Model>,
         tx: &C,
     ) -> Result<Self, Error> {
-        let status = status::Entity::find_by_id(package_status.status_id)
-            .one(tx)
-            .await?;
-
-        let status = status.map(|e| e.slug).unwrap_or("unknown".to_string());
+        let status = status_model
+            .map(|e| e.slug)
+            .unwrap_or("unknown".to_string());
 
         Ok(Self {
             vulnerability: VulnerabilityHead::from_vulnerability_entity(
