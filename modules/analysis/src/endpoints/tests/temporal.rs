@@ -54,6 +54,7 @@ mod middleware {
         )
     }
 
+    #[allow(unused)]
     pub fn all() -> impl Iterator<Item = String> {
         older().chain(later())
     }
@@ -81,6 +82,7 @@ mod rpm {
         ))
     }
 
+    #[allow(unused)]
     pub fn all() -> impl Iterator<Item = String> {
         older().chain(later())
     }
