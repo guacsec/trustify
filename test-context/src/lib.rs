@@ -137,7 +137,7 @@ $$;
     }
 
     /// The paths are relative to `<workspace>/etc/test-data`.
-    pub async fn ingest_documents<'a, P: IntoIterator<Item = impl AsRef<str>>>(
+    pub async fn ingest_documents<P: IntoIterator<Item = impl AsRef<str>>>(
         &self,
         paths: P,
     ) -> Result<Vec<IngestResult>, anyhow::Error> {
