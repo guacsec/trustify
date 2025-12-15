@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "services": [
+        {
+          "name": "SBOMer",
+          "version": "f1c3bca6",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0",
+                "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "provider": {
+            "url": [
+              "https://www.redhat.com"
+            ],
+            "name": "Red Hat"
+          },
+          "externalReferences": [
+            {
+              "url": "https://github.com/project-ncl/sbomer",
+              "type": "website"
+            }
+          ]
+        }
+      ]
+    },
+    "supplier": {
+      "url": [
+        "https://www.redhat.com"
+      ],
+      "name": "Red Hat"
+    },
+    "component": {
+      "name": "RHEL-9 based Middleware Containers",
+      "type": "framework",
+      "bom-ref": "RHEL-9-OSE-Middleware",
+      "version": "RHEL-9-OSE-Middleware",
+      "evidence": {
+        "identity": [
+          {
+            "field": "cpe",
+            "concludedValue": "cpe:/a:redhat:rhosemc:1.0::el9"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      }
+    },
+    "timestamp": "2025-12-08T16:31:12Z",
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "156818"
+      }
+    ]
+  },
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "datagrid/datagrid-8",
+      "purl": "pkg:oci/datagrid-8-rhel9@sha256%3A1d5525d2d575dcc9d90da57afeb5fb310edc28d97d7ba55290db6bd152a34a95",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1d5525d2d575dcc9d90da57afeb5fb310edc28d97d7ba55290db6bd152a34a95"
+        }
+      ],
+      "bom-ref": "pkg:oci/datagrid-8-rhel9@sha256%3A1d5525d2d575dcc9d90da57afeb5fb310edc28d97d7ba55290db6bd152a34a95",
+      "version": "sha256:1d5525d2d575dcc9d90da57afeb5fb310edc28d97d7ba55290db6bd152a34a95",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/datagrid-8-rhel9@sha256%3A1d5525d2d575dcc9d90da57afeb5fb310edc28d97d7ba55290db6bd152a34a95?repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-rhel9&tag=1.5-8.1764765711"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/datagrid-8-rhel9@sha256%3A1d5525d2d575dcc9d90da57afeb5fb310edc28d97d7ba55290db6bd152a34a95?repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-rhel9&tag=1.5"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    },
+    {
+      "name": "datagrid/datagrid-8-prod-operator-bundle",
+      "purl": "pkg:oci/datagrid-8-prod-operator-bundle@sha256%3A16b4763e497fbe5c3798fd3a5fb7cd02614d33ddeff1603aee8aba6eccf4cea0",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "16b4763e497fbe5c3798fd3a5fb7cd02614d33ddeff1603aee8aba6eccf4cea0"
+        }
+      ],
+      "bom-ref": "pkg:oci/datagrid-8-prod-operator-bundle@sha256%3A16b4763e497fbe5c3798fd3a5fb7cd02614d33ddeff1603aee8aba6eccf4cea0",
+      "version": "sha256:16b4763e497fbe5c3798fd3a5fb7cd02614d33ddeff1603aee8aba6eccf4cea0",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/datagrid-8-prod-operator-bundle@sha256%3A16b4763e497fbe5c3798fd3a5fb7cd02614d33ddeff1603aee8aba6eccf4cea0?repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-prod-operator-bundle&tag=8.5.13-1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/datagrid-8-prod-operator-bundle@sha256%3A16b4763e497fbe5c3798fd3a5fb7cd02614d33ddeff1603aee8aba6eccf4cea0?repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-prod-operator-bundle&tag=8.5.13"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat"
+    }
+  ],
+  "specVersion": "1.6",
+  "dependencies": [
+    {
+      "ref": "RHEL-9-OSE-Middleware",
+      "provides": [
+        "pkg:oci/datagrid-8-rhel9@sha256%3A1d5525d2d575dcc9d90da57afeb5fb310edc28d97d7ba55290db6bd152a34a95",
+        "pkg:oci/datagrid-8-prod-operator-bundle@sha256%3A16b4763e497fbe5c3798fd3a5fb7cd02614d33ddeff1603aee8aba6eccf4cea0"
+      ],
+      "dependsOn": []
+    }
+  ],
+  "serialNumber": "urn:uuid:e91920d3-8bc7-3ea4-8ff0-4c2669fd8de0"
+}

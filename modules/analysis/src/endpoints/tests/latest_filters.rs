@@ -641,6 +641,10 @@ fn sort(json: &mut Value) {
     Req { what: What::Q("name~openssl-synthetic"), ancestors: Some(10), ..Req::default() },
     4
 )]
+#[case( // name partial search
+    Req { what: What::Q("name~libsoup3-devel"), ancestors: Some(10), ..Req::default() },
+    8
+)]
 #[case( // purl partial search
     Req { what: What::Q("purl~openssl-synthetic-test"), ancestors: Some(10), ..Req::default() },
     4
@@ -671,8 +675,34 @@ async fn resolve_rh_variant_latest_filter_tc_3278(
                 "product-2025-11-25-D05BF995974542F.json",
             ][..],
         ),
+        "container/datagrid-datagrid-8/latest/".join(
+            &[
+                "binary-2025-12-04-62F0D268C8094C2.json",
+                "image-index-2025-12-04-2BE8E55FCB8946B.json",
+                "product-2025-12-08-6483D4F2E4B1469.json",
+            ][..],
+        ),
+        "container/datagrid-datagrid-8/older/".join(
+            &[
+                "binary-2025-10-06-85E079C4EC034F1.json",
+                "image-index-2025-10-06-BD74B271CC444BA.json",
+                "product-2025-10-07-D792D72A114A47A.json",
+            ][..],
+        ),
         "middleware/quarkus-3.20/latest/".join(&["product-2025-12-01-EDA6638AD2F4451.json"][..]),
         "middleware/quarkus-3.20/older/".join(&["product-2025-10-14-28954C62C811417.json"][..]),
+        "rpm/libsoup3/latest/".join(
+            &[
+                "product-2025-12-11-E2251709C91242E.json",
+                "rpm-2025-12-10-5609FCE0067D4F6.json",
+            ][..],
+        ),
+        "rpm/libsoup3/older/".join(
+            &[
+                "product-2025-11-11-CD32282B963F42C.json",
+                "rpm-2025-10-27-B38A3A44DA644A4.json",
+            ][..],
+        ),
         "rpm/webkit2gtk3/latest/".join(
             &[
                 "product-2025-12-08-A9F140D67EB2408.json",

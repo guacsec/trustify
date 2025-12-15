@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "components": [
+        {
+          "name": "SBOMer",
+          "type": "application",
+          "author": "Red Hat",
+          "version": "17652b6e"
+        }
+      ]
+    },
+    "supplier": {
+      "url": [
+        "https://www.redhat.com"
+      ],
+      "name": "Red Hat"
+    },
+    "component": {
+      "name": "datagrid/datagrid-8",
+      "purl": "pkg:oci/datagrid-datagrid-8@sha256%3A6b78aaf15558c0522d22ba3003244203e6d39e6fe737c3075e30de8763218358?repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-rhel9&tag=1.5-8.1758135428",
+      "type": "container",
+      "description": "Image index manifest of pkg:oci/datagrid-datagrid-8@sha256%3A6b78aaf15558c0522d22ba3003244203e6d39e6fe737c3075e30de8763218358"
+    },
+    "timestamp": "2025-10-06T09:55:01Z",
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "154600"
+      }
+    ]
+  },
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "datagrid/datagrid-8",
+      "purl": "pkg:oci/datagrid-datagrid-8@sha256%3A6b78aaf15558c0522d22ba3003244203e6d39e6fe737c3075e30de8763218358?repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-rhel9&tag=1.5-8.1758135428",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6b78aaf15558c0522d22ba3003244203e6d39e6fe737c3075e30de8763218358"
+        }
+      ],
+      "bom-ref": "datagrid-8-rhel9-container_image-index",
+      "version": "sha256:6b78aaf15558c0522d22ba3003244203e6d39e6fe737c3075e30de8763218358",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/datagrid-datagrid-8@sha256%3A6b78aaf15558c0522d22ba3003244203e6d39e6fe737c3075e30de8763218358?repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-rhel9&tag=1.5"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/datagrid-datagrid-8@sha256%3A6b78aaf15558c0522d22ba3003244203e6d39e6fe737c3075e30de8763218358?repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-rhel9&tag=1.5-8.1758135428"
+          }
+        ]
+      },
+      "pedigree": {
+        "variants": [
+          {
+            "name": "datagrid/datagrid-8",
+            "purl": "pkg:oci/datagrid-8@sha256%3A207b8132820f3e42442379f4ae61fc5f946cfae8c5c71818bbcf969ad7f91747?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-rhel9&tag=1.5-8.1758135428",
+            "type": "container",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "207b8132820f3e42442379f4ae61fc5f946cfae8c5c71818bbcf969ad7f91747"
+              }
+            ],
+            "bom-ref": "datagrid-8-rhel9-container_amd64",
+            "version": "sha256:207b8132820f3e42442379f4ae61fc5f946cfae8c5c71818bbcf969ad7f91747",
+            "supplier": {
+              "url": [
+                "https://www.redhat.com"
+              ],
+              "name": "Red Hat"
+            },
+            "publisher": "Red Hat"
+          },
+          {
+            "name": "datagrid/datagrid-8",
+            "purl": "pkg:oci/datagrid-8@sha256%3A4b0a13c756ade3a50c72b6e4bed3be18bfe674a21259b987c6afe65b30d5ac18?arch=arm64&os=linux&repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-rhel9&tag=1.5-8.1758135428",
+            "type": "container",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "4b0a13c756ade3a50c72b6e4bed3be18bfe674a21259b987c6afe65b30d5ac18"
+              }
+            ],
+            "bom-ref": "datagrid-8-rhel9-container_arm64",
+            "version": "sha256:4b0a13c756ade3a50c72b6e4bed3be18bfe674a21259b987c6afe65b30d5ac18",
+            "supplier": {
+              "url": [
+                "https://www.redhat.com"
+              ],
+              "name": "Red Hat"
+            },
+            "publisher": "Red Hat"
+          },
+          {
+            "name": "datagrid/datagrid-8",
+            "purl": "pkg:oci/datagrid-8@sha256%3Ada7c74f704dcff7efe717102dd5baf4f6ea35f3406c4f5d2c23cab55f5d2856e?arch=ppc64le&os=linux&repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-rhel9&tag=1.5-8.1758135428",
+            "type": "container",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "da7c74f704dcff7efe717102dd5baf4f6ea35f3406c4f5d2c23cab55f5d2856e"
+              }
+            ],
+            "bom-ref": "datagrid-8-rhel9-container_ppc64le",
+            "version": "sha256:da7c74f704dcff7efe717102dd5baf4f6ea35f3406c4f5d2c23cab55f5d2856e",
+            "supplier": {
+              "url": [
+                "https://www.redhat.com"
+              ],
+              "name": "Red Hat"
+            },
+            "publisher": "Red Hat"
+          },
+          {
+            "name": "datagrid/datagrid-8",
+            "purl": "pkg:oci/datagrid-8@sha256%3A394564317f2378619d38e23cd43d251bfb83db560c6c342ff0c8c209e9397523?arch=s390x&os=linux&repository_url=registry.access.redhat.com%2Fdatagrid%2Fdatagrid-8-rhel9&tag=1.5-8.1758135428",
+            "type": "container",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "394564317f2378619d38e23cd43d251bfb83db560c6c342ff0c8c209e9397523"
+              }
+            ],
+            "bom-ref": "datagrid-8-rhel9-container_s390x",
+            "version": "sha256:394564317f2378619d38e23cd43d251bfb83db560c6c342ff0c8c209e9397523",
+            "supplier": {
+              "url": [
+                "https://www.redhat.com"
+              ],
+              "name": "Red Hat"
+            },
+            "publisher": "Red Hat"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat",
+      "properties": [
+        {
+          "name": "sbomer:image:labels:com.redhat.component",
+          "value": "datagrid-8-rhel9-container"
+        },
+        {
+          "name": "sbomer:image:labels:name",
+          "value": "datagrid/datagrid-8"
+        },
+        {
+          "name": "sbomer:image:labels:release",
+          "value": "8.1758135428"
+        },
+        {
+          "name": "sbomer:image:labels:version",
+          "value": "1.5"
+        }
+      ]
+    }
+  ],
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:9bf6cd0b-7279-3803-963a-474eb7ad0609"
+}
