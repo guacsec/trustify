@@ -12,12 +12,12 @@ use crate::{
     model::IngestResult,
     service::{
         Error, Warnings,
-        advisory::csaf::{StatusCreator, util::gen_identifier},
+        advisory::csaf::{RemediationCreator, StatusCreator, util::gen_identifier},
     },
 };
 use csaf::{
     Csaf,
-    vulnerability::{ProductStatus, Vulnerability},
+    vulnerability::{ProductStatus, Remediation, Vulnerability},
 };
 use cvss::v3::CvssV3;
 use hex::ToHex;
@@ -183,8 +183,14 @@ impl<'g> CsafLoader<'g> {
             .await?;
 
         if let Some(product_status) = &vulnerability.product_status {
-            self.ingest_product_statuses(csaf, &advisory_vulnerability, product_status, connection)
-                .await?;
+            self.ingest_product_statuses(
+                csaf,
+                &advisory_vulnerability,
+                product_status,
+                &vulnerability.remediations,
+                connection,
+            )
+            .await?;
         }
 
         for score in vulnerability.scores.iter().flatten() {
@@ -221,6 +227,7 @@ impl<'g> CsafLoader<'g> {
         csaf: &Csaf,
         advisory_vulnerability: &AdvisoryVulnerabilityContext<'_>,
         product_status: &ProductStatus,
+        remediations: &Option<Vec<Remediation>>,
         connection: &C,
     ) -> Result<(), Error> {
         let mut creator = StatusCreator::new(
@@ -236,7 +243,24 @@ impl<'g> CsafLoader<'g> {
         creator.add_all(&product_status.known_not_affected, "not_affected");
         creator.add_all(&product_status.known_affected, "affected");
 
-        creator.create(self.graph, connection).await?;
+        let product_id_mapping = creator.create(self.graph, connection).await?;
+
+        if let Some(remediations) = remediations {
+            let mut remediation_creator = RemediationCreator::new(
+                advisory_vulnerability.advisory_vulnerability.advisory_id,
+                advisory_vulnerability
+                    .advisory_vulnerability
+                    .vulnerability_id
+                    .clone(),
+                product_id_mapping,
+            );
+
+            for remediation in remediations {
+                remediation_creator.add(remediation);
+            }
+
+            remediation_creator.create(connection).await?;
+        }
 
         Ok(())
     }
@@ -405,6 +429,141 @@ mod test {
         assert_eq!(
             score.to_string(),
             "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+        );
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext, skip_teardown)]
+    #[test(tokio::test)]
+    async fn remediations(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+        use trustify_entity::{remediation, remediation_product_status};
+
+        let graph = Graph::new(ctx.db.clone());
+        let loader = CsafLoader::new(&graph);
+
+        let (csaf, digests): (Csaf, _) = document("csaf/cve-2023-0044.json").await?;
+        loader.load(("source", "test"), csaf, &digests).await?;
+
+        let loaded_vulnerability = graph.get_vulnerability("CVE-2023-0044", &ctx.db).await?;
+        assert!(loaded_vulnerability.is_some());
+
+        let loaded_advisory = graph
+            .get_advisory_by_digest(&digests.sha256.encode_hex::<String>(), &ctx.db)
+            .await?;
+        assert!(loaded_advisory.is_some());
+
+        let loaded_advisory = loaded_advisory.unwrap();
+        let advisory_id = loaded_advisory.advisory.id;
+
+        let remediations = remediation::Entity::find()
+            .filter(remediation::Column::AdvisoryId.eq(advisory_id))
+            .filter(remediation::Column::VulnerabilityId.eq("CVE-2023-0044"))
+            .all(&ctx.db)
+            .await?;
+
+        assert_eq!(4, remediations.len());
+
+        let vendor_fix_remediations: Vec<_> = remediations
+            .iter()
+            .filter(|r| r.category == remediation::RemediationCategory::VendorFix)
+            .collect();
+        assert_eq!(2, vendor_fix_remediations.len());
+
+        let workaround_remediations: Vec<_> = remediations
+            .iter()
+            .filter(|r| r.category == remediation::RemediationCategory::Workaround)
+            .collect();
+        assert_eq!(1, workaround_remediations.len());
+
+        let none_available_remediations: Vec<_> = remediations
+            .iter()
+            .filter(|r| r.category == remediation::RemediationCategory::NoneAvailable)
+            .collect();
+        assert_eq!(1, none_available_remediations.len());
+
+        let workaround = &workaround_remediations[0];
+        assert_eq!(
+            workaround.details.as_deref(),
+            Some("This attack can be prevented with the Quarkus CSRF Prevention feature.")
+        );
+
+        let workaround_product_status_links = remediation_product_status::Entity::find()
+            .filter(remediation_product_status::Column::RemediationId.eq(workaround.id))
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(12, workaround_product_status_links.len());
+
+        let none_available = &none_available_remediations[0];
+        assert_eq!(none_available.details.as_deref(), Some("Affected"));
+
+        for vendor_fix in &vendor_fix_remediations {
+            assert!(vendor_fix.url.is_some());
+            assert!(
+                vendor_fix
+                    .url
+                    .as_ref()
+                    .unwrap()
+                    .starts_with("https://access.redhat.com/errata/")
+            );
+        }
+
+        let total_product_status_links = remediation_product_status::Entity::find()
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(
+            15,
+            total_product_status_links.len(),
+            "Expected remediation to be linked to 15 product status's"
+        );
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext, skip_teardown)]
+    #[test(tokio::test)]
+    async fn remediations_with_purls(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+        use trustify_entity::{remediation, remediation_purl_status};
+
+        let graph = Graph::new(ctx.db.clone());
+        let loader = CsafLoader::new(&graph);
+
+        let (csaf, digests): (Csaf, _) = document("csaf/rhsa-2024_3666.json").await?;
+        loader.load(("source", "test"), csaf, &digests).await?;
+
+        let loaded_advisory = graph
+            .get_advisory_by_digest(&digests.sha256.encode_hex::<String>(), &ctx.db)
+            .await?;
+        assert!(loaded_advisory.is_some());
+
+        let loaded_advisory = loaded_advisory.unwrap();
+        let advisory_id = loaded_advisory.advisory.id;
+
+        let remediations = remediation::Entity::find()
+            .filter(remediation::Column::AdvisoryId.eq(advisory_id))
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(4, remediations.len());
+
+        let vendor_fix = remediations
+            .iter()
+            .find(|r| r.category == remediation::RemediationCategory::VendorFix);
+        assert!(vendor_fix.is_some());
+
+        let vendor_fix = vendor_fix.unwrap();
+        let purl_status_links = remediation_purl_status::Entity::find()
+            .filter(remediation_purl_status::Column::RemediationId.eq(vendor_fix.id))
+            .all(&ctx.db)
+            .await?;
+
+        // There are 9 purls in rhsa-2024_3666 and 2 vulnerabilities, but 2 purls share a base
+        // resulting in 8 x 2 = 16
+        assert_eq!(
+            16,
+            purl_status_links.len(),
+            "Expected vendor_fix remediation to be linked to 16 purl statuses"
         );
 
         Ok(())

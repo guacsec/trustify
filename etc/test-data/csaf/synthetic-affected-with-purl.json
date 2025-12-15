@@ -1,0 +1,146 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "text": "Important"
+    },
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE"
+      }
+    },
+    "lang": "en",
+    "publisher": {
+      "category": "vendor",
+      "name": "Test Vendor",
+      "namespace": "https://test.example.com"
+    },
+    "title": "Synthetic CSAF for testing known_affected with purl",
+    "tracking": {
+      "current_release_date": "2024-01-15T12:00:00Z",
+      "id": "SYNTHETIC-2024-0001",
+      "initial_release_date": "2024-01-15T12:00:00Z",
+      "revision_history": [
+        {
+          "date": "2024-01-15T12:00:00Z",
+          "number": "1",
+          "summary": "Initial version"
+        }
+      ],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Test Vendor",
+        "branches": [
+          {
+            "category": "product_name",
+            "name": "Test Product",
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "1.0.0",
+                "product": {
+                  "name": "test-package 1.0.0",
+                  "product_id": "test-package-1.0.0",
+                  "product_identification_helper": {
+                    "purl": "pkg:npm/test-package@1.0.0"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "1.5.0",
+                "product": {
+                  "name": "test-package 1.5.0",
+                  "product_id": "test-package-1.5.0",
+                  "product_identification_helper": {
+                    "purl": "pkg:npm/test-package@1.5.0"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "2.0.0",
+                "product": {
+                  "name": "test-package 2.0.0",
+                  "product_id": "test-package-2.0.0",
+                  "product_identification_helper": {
+                    "purl": "pkg:npm/test-package@2.0.0"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "category": "product_name",
+            "name": "Another Product",
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "1.0.0",
+                "product": {
+                  "name": "another-package 1.0.0",
+                  "product_id": "another-package-1.0.0",
+                  "product_identification_helper": {
+                    "purl": "pkg:npm/another-package@1.0.0"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2024-99999",
+      "notes": [
+        {
+          "category": "description",
+          "text": "A synthetic vulnerability for testing purposes."
+        }
+      ],
+      "product_status": {
+        "known_affected": [
+          "test-package-1.0.0",
+          "test-package-1.5.0",
+          "another-package-1.0.0"
+        ],
+        "fixed": [
+          "test-package-2.0.0"
+        ]
+      },
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Upgrade to version 2.0.0 to fix this vulnerability.",
+          "product_ids": [
+            "test-package-1.0.0"
+          ],
+          "url": "https://test.example.com/advisory/SYNTHETIC-2024-0001"
+        },
+        {
+          "category": "workaround",
+          "details": "Disable the vulnerable feature as a temporary workaround for 1.0.0.",
+          "product_ids": [
+            "test-package-1.0.0"
+          ]
+        },
+        {
+          "category": "mitigation",
+          "details": "Apply configuration change to mitigate the issue for 1.5.0.",
+          "product_ids": [
+            "test-package-1.5.0"
+          ]
+        }
+      ]
+    }
+  ]
+}

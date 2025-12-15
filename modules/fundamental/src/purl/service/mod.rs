@@ -516,6 +516,7 @@ impl PurlService {
                             id: status.vulnerability.identifier.clone(),
                             status: Some(status.into()),
                             justification: None,
+                            remediations: status.remediations.clone(),
                         })
                         .collect(),
                 });

@@ -3613,15 +3613,28 @@ components:
             propertyNames:
               type: string
     AnalysisDetailsV3:
-      type: object
-      required:
-      - purl_statuses
-      properties:
-        purl_statuses:
-          type: array
-          items:
-            $ref: '#/components/schemas/PurlStatus'
-          description: List of purl statuses
+      allOf:
+      - $ref: '#/components/schemas/VulnerabilityHead'
+      - type: object
+        required:
+        - purl_statuses
+        properties:
+          purl_statuses:
+            type: array
+            items:
+              $ref: '#/components/schemas/AnalysisPurlStatus'
+            description: List of purl statuses & remediations
+    AnalysisPurlStatus:
+      allOf:
+      - $ref: '#/components/schemas/PurlStatus'
+      - type: object
+        required:
+        - remediations
+        properties:
+          remediations:
+            type: array
+            items:
+              $ref: '#/components/schemas/RemediationSummary'
     AnalysisRequest:
       type: object
       required:
@@ -5220,6 +5233,36 @@ components:
       - describes
       - package
       - undefined
+    RemediationCategory:
+      type: string
+      enum:
+      - vendor_fix
+      - workaround
+      - mitigation
+      - no_fix_planned
+      - none_available
+      - will_not_fix
+    RemediationSummary:
+      type: object
+      required:
+      - id
+      - category
+      - data
+      properties:
+        category:
+          $ref: '#/components/schemas/RemediationCategory'
+        data: {}
+        details:
+          type:
+          - string
+          - 'null'
+        id:
+          type: string
+          format: uuid
+        url:
+          type:
+          - string
+          - 'null'
     Report:
       type: object
       required:
@@ -5938,6 +5981,7 @@ components:
       type: object
       required:
       - id
+      - remediations
       properties:
         id:
           type: string
@@ -5945,6 +5989,10 @@ components:
           oneOf:
           - type: 'null'
           - $ref: '#/components/schemas/VexJustification'
+        remediations:
+          type: array
+          items:
+            $ref: '#/components/schemas/RemediationSummary'
         status:
           oneOf:
           - type: 'null'

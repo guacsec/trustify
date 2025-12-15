@@ -217,7 +217,7 @@ async fn change_ps_list_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                     "potential  blind LDAP injection attack using a self-signed certificate".into()
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
-            }
+            },
         }]
     );
 
@@ -371,7 +371,7 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
                     "potential  blind LDAP injection attack using a self-signed certificate".into()
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
-            }
+            },
         }]
     );
 
@@ -436,7 +436,7 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
                     "potential  blind LDAP injection attack using a self-signed certificate".into()
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
-            }
+            },
         }]
     );
 

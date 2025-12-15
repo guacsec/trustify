@@ -9,9 +9,9 @@ use crate::{
     vulnerability::model::VulnerabilityHead,
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, Iterable, LoaderTrait,
-    ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
-    Select, SelectColumns,
+    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, LoaderTrait, ModelTrait,
+    QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait, Select,
+    SelectColumns,
 };
 use sea_query::{Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -85,7 +85,6 @@ impl PurlDetails {
         let purl_statuses = purl_status::Entity::find()
             .filter(purl_status::Column::BasePurlId.eq(package.id))
             .left_join(version_range::Entity)
-            .columns(version_range::Column::iter())
             .left_join(base_purl::Entity)
             .filter(SimpleExpr::FunctionCall(
                 Func::cust(VersionMatches)
@@ -426,6 +425,7 @@ impl PurlStatus {
             .await?
             .map(VersionRange::from_entity)
             .transpose()?;
+
         PurlStatus::new(vuln, advisory, status, version_range, cpe, tx).await
     }
 }

@@ -124,4 +124,18 @@ impl Related<super::cpe::Entity> for Entity {
     }
 }
 
+impl Related<super::remediation::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::remediation_purl_status::Relation::Remediation.def()
+    }
+
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::remediation_purl_status::Relation::PurlStatus
+                .def()
+                .rev(),
+        )
+    }
+}
+
 impl ActiveModelBehavior for ActiveModel {}

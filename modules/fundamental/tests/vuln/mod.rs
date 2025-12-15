@@ -38,7 +38,7 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .details
         .iter()
         .flat_map(|vuln| &vuln.purl_statuses)
-        .map(|status| status.vulnerability.identifier.clone())
+        .map(|status| status.purl_status.vulnerability.identifier.clone())
         .sorted()
         .dedup()
         .sorted()
@@ -51,13 +51,13 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let vuln_entry = entry
         .details
         .iter()
-        .find(|e| e.purl_statuses[0].vulnerability.identifier == "CVE-2024-28834")
+        .find(|e| e.purl_statuses[0].purl_status.vulnerability.identifier == "CVE-2024-28834")
         .expect("must find entry");
 
     let status_entries: Vec<_> = vuln_entry
         .purl_statuses
         .iter()
-        .filter(|status| status.status == "affected")
+        .filter(|status| status.purl_status.status == "affected")
         .collect();
 
     assert_eq!(status_entries.len(), 2);

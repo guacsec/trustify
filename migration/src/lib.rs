@@ -37,6 +37,7 @@ mod m0001170_non_null_source_document_id;
 mod m0001180_expand_spdx_licenses_with_mappings_function;
 mod m0001190_optimize_product_advisory_query;
 mod m0001200_source_document_fk_indexes;
+mod m0001210_csaf_remediations;
 mod m0002000_add_sbom_properties;
 mod m0002010_add_advisory_scores;
 mod m0002020_add_sbom_group;
@@ -93,6 +94,7 @@ impl MigratorExt for Migrator {
             .normal(m0001180_expand_spdx_licenses_with_mappings_function::Migration)
             .normal(m0001190_optimize_product_advisory_query::Migration)
             .normal(m0001200_source_document_fk_indexes::Migration)
+            .normal(m0001210_csaf_remediations::Migration)
             .data(m0002000_add_sbom_properties::Migration)
             .data(m0002010_add_advisory_scores::Migration)
             .normal(m0002020_add_sbom_group::Migration)

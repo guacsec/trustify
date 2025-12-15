@@ -191,7 +191,7 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                     "potential  blind LDAP injection attack using a self-signed certificate".into()
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
-            }
+            },
         }]
     );
 

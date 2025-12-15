@@ -172,7 +172,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 withdrawn: None,
                 title: Some("Denial of Service (DoS) vulnerability".into()),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "osv")])
-            }
+            },
         }]
     );
 
@@ -216,7 +216,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 withdrawn: None,
                 title: Some("Denial of Service (DoS) vulnerability".into()),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "osv")])
-            }
+            },
         }]
     );
 

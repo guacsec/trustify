@@ -1,6 +1,11 @@
 use std::collections::HashMap;
 
-use crate::{Error, purl::model::details::versioned_purl::VersionedPurlStatus};
+use crate::{
+    Error,
+    purl::model::{
+        details::versioned_purl::VersionedPurlStatus, summary::remediation::RemediationSummary,
+    },
+};
 use sea_orm::prelude::Uuid;
 use serde::{Deserialize, Serialize};
 use trustify_common::purl::Purl;
@@ -147,6 +152,7 @@ pub struct VulnerabilityStatus {
     pub status: Option<VexStatus>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub justification: Option<VexJustification>,
+    pub remediations: Vec<RemediationSummary>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]

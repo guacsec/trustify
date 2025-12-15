@@ -1,7 +1,9 @@
 use crate::{
     Error,
     advisory::model::AdvisoryHead,
-    purl::model::{BasePurlHead, PurlHead, VersionedPurlHead},
+    purl::model::{
+        BasePurlHead, PurlHead, VersionedPurlHead, summary::remediation::RemediationSummary,
+    },
     vulnerability::model::VulnerabilityHead,
 };
 use sea_orm::{
@@ -13,8 +15,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use trustify_common::{db::VersionMatches, memo::Memo};
 use trustify_entity::{
-    advisory, base_purl, organization, purl_status, qualified_purl, status, version_range,
-    versioned_purl, vulnerability,
+    advisory, base_purl, organization, purl_status, qualified_purl, remediation,
+    remediation_purl_status, status, version_range, versioned_purl, vulnerability,
 };
 use utoipa::ToSchema;
 
@@ -123,16 +125,24 @@ impl VersionedPurlAdvisory {
             .map(|(purl_status, status)| (purl_status.status_id, status.clone()))
             .collect();
 
+        let remediations = statuses
+            .load_many_to_many(remediation::Entity, remediation_purl_status::Entity, tx)
+            .await?;
+
         let mut results: Vec<Self> = Vec::new();
 
-        for ((vuln, advisory), purl_status) in
-            vulns.iter().zip(advisories.iter()).zip(statuses.iter())
+        for (((vuln, advisory), purl_status), remediations) in vulns
+            .iter()
+            .zip(advisories.iter())
+            .zip(statuses.iter())
+            .zip(remediations.iter())
         {
             if let (Some(vulnerability), Some(advisory)) = (vuln, advisory) {
                 let status_model = status_map.get(&purl_status.status_id).cloned().flatten();
 
                 let qualified_package_status =
-                    VersionedPurlStatus::from_entity(vulnerability, status_model, tx).await?;
+                    VersionedPurlStatus::from_entity(vulnerability, status_model, remediations, tx)
+                        .await?;
 
                 if let Some(entry) = results.iter_mut().find(|e| e.head.uuid == advisory.id) {
                     entry.status.push(qualified_package_status)
@@ -160,12 +170,14 @@ impl VersionedPurlAdvisory {
 pub struct VersionedPurlStatus {
     pub vulnerability: VulnerabilityHead,
     pub status: String,
+    pub remediations: Vec<RemediationSummary>,
 }
 
 impl VersionedPurlStatus {
     pub async fn from_entity<C: ConnectionTrait>(
         vuln: &vulnerability::Model,
         status_model: Option<status::Model>,
+        remediations: &[remediation::Model],
         tx: &C,
     ) -> Result<Self, Error> {
         let status = status_model
@@ -180,6 +192,7 @@ impl VersionedPurlStatus {
             )
             .await?,
             status,
+            remediations: RemediationSummary::from_entities(remediations),
         })
     }
 }

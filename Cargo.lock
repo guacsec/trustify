@@ -8428,6 +8428,7 @@ dependencies = [
  "anyhow",
  "async-graphql",
  "cpe",
+ "csaf",
  "cvss",
  "cvss-rs",
  "deepsize",

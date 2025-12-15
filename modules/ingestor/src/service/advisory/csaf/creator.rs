@@ -16,17 +16,27 @@ use crate::{
         advisory::csaf::{product_status::ProductStatus, util::ResolveProductIdCache},
     },
 };
-use csaf::{Csaf, definitions::ProductIdT};
+use csaf::{Csaf, definitions::ProductIdT, vulnerability::Remediation};
 use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use tracing::instrument;
 use trustify_common::{db::chunk::EntityChunkedIter, purl::Purl};
 use trustify_entity::{
-    organization, product, product_status, product_version_range, purl_status, status::Status,
-    version_range, version_scheme::VersionScheme,
+    organization, product, product_status, product_version_range, purl_status,
+    remediation::{self, RemediationCategory},
+    remediation_product_status, remediation_purl_status,
+    status::Status,
+    version_range,
+    version_scheme::VersionScheme,
 };
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Default)]
+pub struct ProductIdStatusMapping {
+    pub purl_status_ids: Vec<Uuid>,
+    pub product_status_ids: Vec<Uuid>,
+}
 
 #[derive(Debug)]
 pub struct StatusCreator<'a> {
@@ -35,6 +45,8 @@ pub struct StatusCreator<'a> {
     vulnerability_id: String,
     entries: HashSet<PurlStatus>,
     products: HashSet<ProductStatus>,
+    product_id_to_product: HashMap<String, ProductStatus>,
+    product_to_purl_statuses: HashMap<ProductStatus, Vec<PurlStatus>>,
 }
 
 impl<'a> StatusCreator<'a> {
@@ -46,6 +58,8 @@ impl<'a> StatusCreator<'a> {
             vulnerability_id: vulnerability_identifier,
             entries: HashSet::new(),
             products: HashSet::new(),
+            product_id_to_product: HashMap::new(),
+            product_to_purl_statuses: HashMap::new(),
         }
     }
 
@@ -80,6 +94,9 @@ impl<'a> StatusCreator<'a> {
                     },
                 );
             }
+
+            self.product_id_to_product
+                .insert(r.0.clone(), product.clone());
             self.products.insert(product);
         }
     }
@@ -89,7 +106,7 @@ impl<'a> StatusCreator<'a> {
         &mut self,
         graph: &Graph,
         connection: &C,
-    ) -> Result<(), Error> {
+    ) -> Result<HashMap<String, ProductIdStatusMapping>, Error> {
         let mut product_status_models = Vec::new();
         let mut purls = PurlCreator::new();
         let mut cpes = CpeCreator::new();
@@ -100,6 +117,9 @@ impl<'a> StatusCreator<'a> {
 
         let mut package_statuses = Vec::new();
         let product_statuses = self.products.clone();
+
+        let mut product_to_status_uuids: HashMap<ProductStatus, ProductIdStatusMapping> =
+            HashMap::new();
 
         // Batch create all organizations to prevent race conditions and deadlocks
         let mut org_creator = OrganizationCreator::new();
@@ -191,6 +211,15 @@ impl<'a> StatusCreator<'a> {
                         product_version_range_id: range.uuid(),
                     };
 
+                    let product_status_uuid =
+                        product_status.uuid(self.advisory_id, self.vulnerability_id.clone());
+
+                    product_to_status_uuids
+                        .entry(product.clone())
+                        .or_default()
+                        .product_status_ids
+                        .push(product_status_uuid);
+
                     // Warn: into_active_model() sets id with Set(), required for sorting
                     let base_product = product_status
                         .into_active_model(self.advisory_id, self.vulnerability_id.clone());
@@ -240,6 +269,17 @@ impl<'a> StatusCreator<'a> {
                             .await?,
                     );
                 }
+            }
+        }
+
+        for (product, purl_statuses) in &self.product_to_purl_statuses {
+            for ps in purl_statuses {
+                let purl_status_uuid = ps.uuid(self.advisory_id, self.vulnerability_id.clone());
+                product_to_status_uuids
+                    .entry(product.clone())
+                    .or_default()
+                    .purl_status_ids
+                    .push(purl_status_uuid);
             }
         }
 
@@ -309,7 +349,14 @@ impl<'a> StatusCreator<'a> {
                 .await?;
         }
 
-        Ok(())
+        let mut result: HashMap<String, ProductIdStatusMapping> = HashMap::new();
+        for (product_id, product) in &self.product_id_to_product {
+            if let Some(mapping) = product_to_status_uuids.get(product) {
+                result.insert(product_id.clone(), mapping.clone());
+            }
+        }
+
+        Ok(result)
     }
 
     fn create_purl_status(
@@ -326,6 +373,123 @@ impl<'a> StatusCreator<'a> {
             status,
             info: VersionInfo { scheme, spec },
         };
+        self.product_to_purl_statuses
+            .entry(product.clone())
+            .or_default()
+            .push(purl_status.clone());
         self.entries.insert(purl_status);
+    }
+}
+
+const REMEDIATION_NAMESPACE: Uuid = Uuid::from_bytes([
+    0x7a, 0x3b, 0x9c, 0x2d, 0x4e, 0x5f, 0x6a, 0x7b, 0x8c, 0x9d, 0xae, 0xbf, 0xc0, 0xd1, 0xe2, 0xf3,
+]);
+
+#[derive(Debug)]
+pub struct RemediationCreator<'a> {
+    advisory_id: Uuid,
+    vulnerability_id: String,
+    product_id_mapping: HashMap<String, ProductIdStatusMapping>,
+    remediations: Vec<&'a Remediation>,
+}
+
+impl<'a> RemediationCreator<'a> {
+    pub fn new(
+        advisory_id: Uuid,
+        vulnerability_id: String,
+        product_id_mapping: HashMap<String, ProductIdStatusMapping>,
+    ) -> Self {
+        Self {
+            advisory_id,
+            vulnerability_id,
+            product_id_mapping,
+            remediations: Vec::new(),
+        }
+    }
+
+    pub fn add(&mut self, remediation: &'a Remediation) {
+        self.remediations.push(remediation);
+    }
+
+    #[instrument(skip_all, err(level=tracing::Level::INFO))]
+    pub async fn create<C: ConnectionTrait>(&self, connection: &C) -> Result<(), Error> {
+        let mut remediation_models = Vec::new();
+        let mut remediation_purl_status_models = Vec::new();
+        let mut remediation_product_status_models = Vec::new();
+
+        for rem in &self.remediations {
+            let remediation_id = self.generate_remediation_uuid(rem);
+
+            let remediation_model = remediation::ActiveModel {
+                id: Set(remediation_id),
+                advisory_id: Set(self.advisory_id),
+                vulnerability_id: Set(self.vulnerability_id.clone()),
+                category: Set((&rem.category).into()),
+                details: Set(Some(rem.details.clone())),
+                url: Set(rem.url.as_ref().map(|u| u.to_string())),
+                data: Set(serde_json::to_value(rem)?),
+            };
+            remediation_models.push(remediation_model);
+
+            if let Some(product_ids) = &rem.product_ids {
+                for product_id in product_ids {
+                    if let Some(mapping) = self.product_id_mapping.get(&product_id.0) {
+                        for purl_status_id in &mapping.purl_status_ids {
+                            remediation_purl_status_models.push(
+                                remediation_purl_status::ActiveModel {
+                                    remediation_id: Set(remediation_id),
+                                    purl_status_id: Set(*purl_status_id),
+                                },
+                            );
+                        }
+                        for product_status_id in &mapping.product_status_ids {
+                            remediation_product_status_models.push(
+                                remediation_product_status::ActiveModel {
+                                    remediation_id: Set(remediation_id),
+                                    product_status_id: Set(*product_status_id),
+                                },
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        remediation_models.sort_by_key(|model| *model.id.as_ref());
+
+        for batch in &remediation_models.chunked() {
+            remediation::Entity::insert_many(batch)
+                .on_conflict_do_nothing()
+                .exec(connection)
+                .await?;
+        }
+
+        for batch in &remediation_purl_status_models.chunked() {
+            remediation_purl_status::Entity::insert_many(batch)
+                .on_conflict_do_nothing()
+                .exec(connection)
+                .await?;
+        }
+
+        for batch in &remediation_product_status_models.chunked() {
+            remediation_product_status::Entity::insert_many(batch)
+                .on_conflict_do_nothing()
+                .exec(connection)
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    fn generate_remediation_uuid(&self, rem: &Remediation) -> Uuid {
+        let category: RemediationCategory = (&rem.category).into();
+        let mut result = Uuid::new_v5(&REMEDIATION_NAMESPACE, self.advisory_id.as_bytes());
+        result = Uuid::new_v5(&result, self.vulnerability_id.as_bytes());
+        result = Uuid::new_v5(&result, category.remediation_category_key().as_bytes());
+        result = Uuid::new_v5(&result, rem.details.as_bytes());
+        if let Some(url) = &rem.url {
+            result = Uuid::new_v5(&result, url.as_str().as_bytes());
+        }
+        result
     }
 }
