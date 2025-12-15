@@ -1,10 +1,69 @@
 use super::req::*;
 use crate::test::{Join, caller, escape_q};
 use rstest::*;
+use std::collections::HashMap;
 use test_context::test_context;
-use trustify_test_context::TrustifyContext;
+use trustify_test_context::{IngestionResult, TrustifyContext};
 
 const BASE: &str = "cyclonedx/rh/latest_filters/TC-3278/";
+
+#[derive(Debug, Clone, Copy)]
+enum Set {
+    Container,
+    Middleware,
+    Rpm,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Phase {
+    Older,
+    Later,
+}
+
+struct Source(Set, Phase);
+
+impl From<Source> for Vec<String> {
+    fn from(Source(set, phase): Source) -> Self {
+        match (set, phase) {
+            (Set::Container, Phase::Older) => container::older().collect(),
+            (Set::Container, Phase::Later) => container::later().collect(),
+            (Set::Middleware, Phase::Older) => middleware::older().collect(),
+            (Set::Middleware, Phase::Later) => middleware::later().collect(),
+            (Set::Rpm, Phase::Older) => rpm::older().collect(),
+            (Set::Rpm, Phase::Later) => rpm::later().collect(),
+        }
+    }
+}
+
+impl IntoIterator for Source {
+    type Item = String;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Vec::from(self).into_iter()
+    }
+}
+
+struct Sources<S: IntoIterator<Item = Set>, P: IntoIterator<Item = Phase>>(S, P);
+
+impl<S: IntoIterator<Item = Set>, P: IntoIterator<Item = Phase>> IntoIterator for Sources<S, P> {
+    type Item = String;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let Self(set, phase) = self;
+
+        let phase = Vec::from_iter(phase);
+
+        let result: Vec<String> = set
+            .into_iter()
+            .flat_map(|set| phase.iter().map(move |phase| Source(set, *phase)))
+            .flatten()
+            .collect();
+
+        result.into_iter()
+    }
+}
 
 mod container {
 
@@ -31,10 +90,6 @@ mod container {
             ][..],
         ))
     }
-
-    pub fn all() -> impl Iterator<Item = String> {
-        older().chain(later())
-    }
 }
 
 mod middleware {
@@ -52,11 +107,6 @@ mod middleware {
             "middleware/quarkus-3.20/latest/"
                 .join(&["product-2025-12-01-EDA6638AD2F4451.json"][..]),
         )
-    }
-
-    #[allow(unused)]
-    pub fn all() -> impl Iterator<Item = String> {
-        older().chain(later())
     }
 }
 
@@ -81,75 +131,95 @@ mod rpm {
             ][..],
         ))
     }
-
-    #[allow(unused)]
-    pub fn all() -> impl Iterator<Item = String> {
-        older().chain(later())
-    }
 }
 
-fn older() -> impl Iterator<Item = String> {
-    container::older()
-        .chain(middleware::older())
-        .chain(rpm::older())
-}
-
-fn later() -> impl Iterator<Item = String> {
-    container::later()
-        .chain(middleware::later())
-        .chain(rpm::later())
-}
-
-fn all() -> impl Iterator<Item = String> {
-    older().chain(later())
-}
-
-/// Test how the responses change when first loading an older dataset, then the newer one.
+/// Perform tests based on a dataset and a request.
+///
+/// * **Request:** The request towards the endpoint
+/// * **Phase:** The phase the data is in (older, later)
+/// * **Set:** The set (rpm, container, middleware)
+/// * **Expected:** Expected set of sbom/node pairs. If a node is `""`, it's an anonymous node in the SBOM
 #[test_context(TrustifyContext)]
 #[rstest]
 #[case( // cpe by id search, non-latest
     Req { what: What::Id("cpe:/a:redhat:container_native_virtualization:4.17::el9"), ..Req::default() },
-    container::older(), 1
+    [Phase::Older],
+    [
+        ("product-2025-11-25-D05BF995974542F.json", "RHEL-9-CNV-4.17"),
+    ]
 )]
 #[case( // cpe by id search, non-latest
     Req { what: What::Id("cpe:/a:redhat:container_native_virtualization:4.17::el9"), ..Req::default() },
-    container::all(), 2
+    [Phase::Older, Phase::Later],
+    [
+        ("product-2025-11-25-D05BF995974542F.json", "RHEL-9-CNV-4.17"),
+        ("product-2025-12-02-ED1F188BB5C94D8.json", "RHEL-9-CNV-4.17"),
+    ]
 )]
 #[case( // cpe by id search
     Req { what: What::Id("cpe:/a:redhat:container_native_virtualization:4.17::el9"), latest: true, ..Req::default() },
-    container::older(), 1
+    [Phase::Older],
+    [
+        ("product-2025-11-25-D05BF995974542F.json", "RHEL-9-CNV-4.17"),
+    ]
 )]
 #[case( // cpe by id search
     Req { what: What::Id("cpe:/a:redhat:container_native_virtualization:4.17::el9"), latest: true, ..Req::default() },
-    container::all(), 1
+    [Phase::Older, Phase::Later],
+    [
+        ("product-2025-12-02-ED1F188BB5C94D8.json", "RHEL-9-CNV-4.17"),
+    ]
 )]
 #[case( // purl search
     Req { what: What::Q(&format!("purl~{}", escape_q("pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"))), ..Req::default() },
-    container::older(), 0
+    [Phase::Older],
+    []
 )]
 #[case( // purl search
     Req { what: What::Q(&format!("purl~{}", escape_q("pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"))), ..Req::default() },
-    container::all(), 3
+    [Phase::Older, Phase::Later],
+    [
+        ("binary-2025-12-02-C0CF40B259B1491.json", ""),
+        ("binary-2025-12-02-C0CF40B259B1491.json", "pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&tag=v4.17.36-3"),
+        ("image-index-2025-12-02-693F980C32C444A.json", "virt-handler-rhel9-container_amd64"),
+    ]
 )]
 #[case( // purl search, latest
     Req { what: What::Q(&format!("purl~{}", escape_q("pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"))), latest: true, ..Req::default() },
-    container::older(), 0 // it is missing here, so zero
+    [Phase::Older],
+    // it is missing here
+    []
 )]
 #[case( // purl search, latest
     Req { what: What::Q(&format!("purl~{}", escape_q("pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"))), latest: true, ..Req::default() },
-    container::all(), 1 // FIXME: I'm not sure what to expect here, we had three matches, from three layers and now only one.
+    [Phase::Older, Phase::Later],
+    [
+        // FIXME: I'm not sure what to expect here, we had three matches, from three layers and now only one.
+        ("image-index-2025-12-02-693F980C32C444A.json", "virt-handler-rhel9-container_amd64")
+    ]
 )]
 #[test_log::test(actix_web::test)]
 async fn container_evolve(
     ctx: &TrustifyContext,
     #[case] req: Req<'_>,
-    #[case] docs: impl IntoIterator<Item = String>,
-    #[case] total: usize,
+    #[values(&[Set::Container][..], &[Set::Container, Set::Rpm][..], &[Set::Container, Set::Rpm, Set::Middleware][..])]
+    set: &[Set],
+    #[case] phase: impl IntoIterator<Item = Phase>,
+    #[case] expected: impl IntoIterator<Item = (&str, &str)>,
     #[values(false, true)] prime_cache: bool,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents(docs).await?;
+    // materialize iterators
+
+    let phase = Vec::from_iter(phase);
+    let docs = Vec::from_iter(Sources(set.iter().copied(), phase));
+
+    // ingest, and create a map of sbom id -> file name
+
+    let sboms = ctx.ingest_documents(&docs).await?.collect_uuid_str();
+    let sboms: HashMap<_, _> = sboms.into_iter().zip(docs).collect();
+    log::info!("SBOMS: {sboms:#?}");
 
     if prime_cache {
         let _response = app.req(Req::default()).await?;
@@ -158,65 +228,44 @@ async fn container_evolve(
     let response = app.req(req).await?;
 
     log::info!("{response:#?}");
-    assert_eq!(total, response["total"]);
 
-    Ok(())
-}
+    // process result, extract sbom/node pairs
 
-#[test_context(TrustifyContext)]
-#[rstest]
-#[case( // cpe by id search, non-latest
-    Req { what: What::Id("cpe:/a:redhat:container_native_virtualization:4.17::el9"), ..Req::default() },
-    older(), 1
-)]
-#[case( // cpe by id search, non-latest
-    Req { what: What::Id("cpe:/a:redhat:container_native_virtualization:4.17::el9"), ..Req::default() },
-    all(), 2
-)]
-#[case( // cpe by id search
-    Req { what: What::Id("cpe:/a:redhat:container_native_virtualization:4.17::el9"), latest: true, ..Req::default() },
-    older(), 1
-)]
-#[case( // cpe by id search
-    Req { what: What::Id("cpe:/a:redhat:container_native_virtualization:4.17::el9"), latest: true, ..Req::default() },
-    all(), 1
-)]
-#[case( // purl search
-    Req { what: What::Q(&format!("purl~{}", escape_q("pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"))), ..Req::default() },
-    older(), 0
-)]
-#[case( // purl search
-    Req { what: What::Q(&format!("purl~{}", escape_q("pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"))), ..Req::default() },
-    all(), 3
-)]
-#[case( // purl search, latest
-    Req { what: What::Q(&format!("purl~{}", escape_q("pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"))), latest: true, ..Req::default() },
-    older(), 0 // it is missing here, so zero
-)]
-#[case( // purl search, latest
-    Req { what: What::Q(&format!("purl~{}", escape_q("pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"))), latest: true, ..Req::default() },
-    all(), 1 // FIXME: I'm not sure what to expect here, we had three matches, from three layers and now only one.
-)]
-#[test_log::test(actix_web::test)]
-async fn all_evolve(
-    ctx: &TrustifyContext,
-    #[case] req: Req<'_>,
-    #[case] docs: impl IntoIterator<Item = String>,
-    #[case] total: usize,
-    #[values(false, true)] prime_cache: bool,
-) -> Result<(), anyhow::Error> {
-    let app = caller(ctx).await?;
+    let mut items = vec![];
+    for item in response["items"].as_array().into_iter().flatten() {
+        let sbom = item["sbom_id"].as_str().expect("SBOM ID must be a string");
+        let node = item["node_id"].as_str().expect("Node ID must be a string");
 
-    ctx.ingest_documents(docs).await?;
+        let sbom = sboms[sbom].as_str();
 
-    if prime_cache {
-        let _response = app.req(Req::default()).await?;
+        items.push((sbom, node));
     }
 
-    let response = app.req(req).await?;
+    let expected = Vec::from_iter(expected);
 
-    log::info!("{response:#?}");
-    assert_eq!(total, response["total"]);
+    // check total number
+
+    assert_eq!(expected.len(), response["total"]);
+
+    // check if expected items match, node ID is equal. SBOM is the file, we only match the
+    // trailing part
+
+    assert!(
+        items.iter().zip(&expected).all(
+            |((item_sbom, item_node), (expected_sbom, expected_node))| {
+                if item_node != expected_node && !expected_node.is_empty() {
+                    // if the expectation is an empty string, then it's an empty node ID which
+                    // got replaced with a generated UUID during ingestion.
+                    return false;
+                }
+
+                item_sbom.ends_with(expected_sbom)
+            }
+        ),
+        "Mismatch - expected: {expected:?}, actual: {items:?}"
+    );
+
+    // done
 
     Ok(())
 }

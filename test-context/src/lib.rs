@@ -347,8 +347,12 @@ async fn terminate_connections(db: &Database) -> Result<(), DbErr> {
 }
 
 pub trait IngestionResult: Sized {
+    /// Collect all IDs from a result
     fn collect_ids(self) -> impl Iterator<Item = Id>;
 
+    /// Turn into an array of IDs
+    ///
+    /// **NOTE:** This will panic if the array size doesn't match the result set size
     fn into_id<const N: usize>(self) -> [Id; N] {
         self.collect_ids()
             .collect::<Vec<_>>()
@@ -356,6 +360,9 @@ pub trait IngestionResult: Sized {
             .expect("Unexpected number of results")
     }
 
+    /// Turn into an array of UUIDs, by extracting UUIDs from the IDs.
+    ///
+    /// **NOTE:** This will panic if the array size doesn't match the result set size
     fn into_uuid<const N: usize>(self) -> [Uuid; N] {
         self.collect_ids()
             .filter_map(|id| match id {
@@ -367,15 +374,23 @@ pub trait IngestionResult: Sized {
             .expect("Unexpected number of results")
     }
 
+    /// Same as [`Self::into_uuid`], but converting the UUIDs into strings.
+    ///
+    /// **NOTE:** This will panic if the array size doesn't match the result set size
     fn into_uuid_str<const N: usize>(self) -> [String; N] {
+        Self::collect_uuid_str(self)
+            .try_into()
+            .expect("Unexpected number of results")
+    }
+
+    /// Collect all IDs which are UUIDs as strings.
+    fn collect_uuid_str(self) -> Vec<String> {
         self.collect_ids()
             .filter_map(|id| match id {
                 Id::Uuid(uuid) => Some(uuid.to_string()),
                 _ => None,
             })
             .collect::<Vec<_>>()
-            .try_into()
-            .expect("Unexpected number of results")
     }
 }
 
