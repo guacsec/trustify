@@ -235,13 +235,13 @@ async fn resolve_rh_variant_prod_comp_product_b_cdx_external_reference(
 ) -> Result<(), anyhow::Error> {
     // make sure when multiple products refer to the same component
     let _load = ctx
-        .ingest_documents(
-            "cyclonedx/rh/product_component/".join(&[
+        .ingest_documents("cyclonedx/rh/product_component/".join(
+            &[
                 "rhel-9.2-eus.cdx.json",
                 "product-b.cdx.json",
                 "openssl-3.0.7-18.el9_2.cdx.json",
-            ][..])
-        )
+            ][..],
+        ))
         .await?;
 
     let app = caller(ctx).await?;
@@ -589,15 +589,15 @@ async fn resolve_rh_variant_image_index_cdx_external_reference2(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents(
-        "cyclonedx/rh/image_index_variants/".join(&[
+    ctx.ingest_documents("cyclonedx/rh/image_index_variants/".join(
+        &[
             "example_container_variant_s390x.json",
             "example_container_variant_ppc.json",
             "example_container_variant_arm64.json",
             "example_container_variant_amd64.json",
             "example_container_index.json",
-        ][..])
-    )
+        ][..],
+    ))
     .await?;
 
     let response: Value = app
@@ -660,15 +660,15 @@ async fn resolve_rh_variant_image_variant_cdx_external_reference_ancestors(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    ctx.ingest_documents(
-        "cyclonedx/rh/image_index_variants/".join(&[
+    ctx.ingest_documents("cyclonedx/rh/image_index_variants/".join(
+        &[
             "example_container_variant_s390x.json",
             "example_container_variant_ppc.json",
             "example_container_variant_arm64.json",
             "example_container_variant_amd64.json",
             "example_container_index.json",
-        ][..])
-    )
+        ][..],
+    ))
     .await?;
 
     // ensure analysis graphs are primed
