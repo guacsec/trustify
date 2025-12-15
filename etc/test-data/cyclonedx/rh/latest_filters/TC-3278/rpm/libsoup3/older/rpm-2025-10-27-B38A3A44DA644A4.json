@@ -1,0 +1,1428 @@
+{
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "components": [
+        {
+          "name": "rpm-manifest-generator",
+          "type": "application",
+          "version": "0.0.1",
+          "manufacturer": {
+            "url": [
+              "https://www.redhat.com"
+            ],
+            "name": "Red Hat"
+          }
+        }
+      ]
+    },
+    "licenses": [
+      {
+        "expression": "LGPL-2.0-or-later"
+      }
+    ],
+    "supplier": {
+      "url": [
+        "https://www.redhat.com"
+      ],
+      "name": "Red Hat"
+    },
+    "component": {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b32fb06c03452a17993867677192da4d5c1c1606f21d695752178d06c42ca4b1"
+        }
+      ],
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-s390x-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-ppc64le-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-aarch64-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-x86_64-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-s390x-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-s390x-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-ppc64le-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-x86_64-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-ppc64le-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-s390x-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-x86_64-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-aarch64-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-x86_64-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-ppc64le-source-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "d304543a9c708bf70f4ceb2d4938afc7"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "86365e4d4faffb0b7106b9f6ff3b78e3d499885bd60f6e739823f8a7e1ce8750"
+        }
+      ],
+      "description": "Libsoup is an HTTP library implementation in C. It was originally part of a SOAP (Simple Object Access Protocol) implementation called Soup, but the SOAP and non-SOAP parts have now been split into separate packages. libsoup uses the Glib main loop and is designed to work well with GTK applications. This enables GNOME applications to access HTTP servers on the network in a completely asynchronous fashion, very similar to the Gtk+ programming model (a synchronous operation mode is also supported for those who want it), but the SOAP parts were removed long ago."
+    },
+    "timestamp": "2025-10-27T09:41:35Z",
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "155545"
+      }
+    ]
+  },
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b32fb06c03452a17993867677192da4d5c1c1606f21d695752178d06c42ca4b1"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-s390x-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-ppc64le-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-aarch64-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-x86_64-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-s390x-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-s390x-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-ppc64le-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-x86_64-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-ppc64le-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-s390x-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-x86_64-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-aarch64-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-x86_64-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-ppc64le-source-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "pedigree": {
+        "ancestors": [
+          {
+            "name": "libsoup",
+            "purl": "pkg:generic/libsoup@3.6.5?download_url=https://pkgs.devel.redhat.com/repo/rpms/libsoup3/libsoup-3.6.5.tar.xz/sha512/cb44d93b16048d31ae04a8c2416bbe233e0e9bdaf2d9bfe2879260fd3da27e90a0bb05cddbd82cdf81a4a778bd451ad172a14dd31e2fd113c3bbbe13c0029b03/libsoup-3.6.5.tar.xz&checksum=SHA-512:cb44d93b16048d31ae04a8c2416bbe233e0e9bdaf2d9bfe2879260fd3da27e90a0bb05cddbd82cdf81a4a778bd451ad172a14dd31e2fd113c3bbbe13c0029b03",
+            "type": "library",
+            "hashes": [
+              {
+                "alg": "SHA-512",
+                "content": "cb44d93b16048d31ae04a8c2416bbe233e0e9bdaf2d9bfe2879260fd3da27e90a0bb05cddbd82cdf81a4a778bd451ad172a14dd31e2fd113c3bbbe13c0029b03"
+              }
+            ],
+            "bom-ref": "pkg:generic/libsoup@3.6.5?download_url=https://pkgs.devel.redhat.com/repo/rpms/libsoup3/libsoup-3.6.5.tar.xz/sha512/cb44d93b16048d31ae04a8c2416bbe233e0e9bdaf2d9bfe2879260fd3da27e90a0bb05cddbd82cdf81a4a778bd451ad172a14dd31e2fd113c3bbbe13c0029b03/libsoup-3.6.5.tar.xz&checksum=SHA-512:cb44d93b16048d31ae04a8c2416bbe233e0e9bdaf2d9bfe2879260fd3da27e90a0bb05cddbd82cdf81a4a778bd451ad172a14dd31e2fd113c3bbbe13c0029b03",
+            "version": "3.6.5",
+            "evidence": {
+              "identity": [
+                {
+                  "field": "purl",
+                  "concludedValue": "pkg:generic/libsoup@3.6.5?download_url=https://pkgs.devel.redhat.com/repo/rpms/libsoup3/libsoup-3.6.5.tar.xz/sha512/cb44d93b16048d31ae04a8c2416bbe233e0e9bdaf2d9bfe2879260fd3da27e90a0bb05cddbd82cdf81a4a778bd451ad172a14dd31e2fd113c3bbbe13c0029b03/libsoup-3.6.5.tar.xz&checksum=SHA-512:cb44d93b16048d31ae04a8c2416bbe233e0e9bdaf2d9bfe2879260fd3da27e90a0bb05cddbd82cdf81a4a778bd451ad172a14dd31e2fd113c3bbbe13c0029b03"
+                }
+              ]
+            },
+            "pedigree": {
+              "ancestors": [
+                {
+                  "name": "libsoup",
+                  "purl": "pkg:generic/libsoup@3.6.5?download_url=https://download.gnome.org/sources/libsoup/3.6/libsoup-3.6.5.tar.xz&checksum=SHA-256:6891765aac3e949017945c3eaebd8cc8216df772456dc9f460976fbdb7ada234",
+                  "type": "library",
+                  "hashes": [
+                    {
+                      "alg": "SHA-256",
+                      "content": "6891765aac3e949017945c3eaebd8cc8216df772456dc9f460976fbdb7ada234"
+                    }
+                  ],
+                  "bom-ref": "pkg:generic/libsoup@3.6.5?download_url=https://download.gnome.org/sources/libsoup/3.6/libsoup-3.6.5.tar.xz&checksum=SHA-256:6891765aac3e949017945c3eaebd8cc8216df772456dc9f460976fbdb7ada234",
+                  "version": "3.6.5",
+                  "evidence": {
+                    "identity": [
+                      {
+                        "field": "purl",
+                        "concludedValue": "pkg:generic/libsoup@3.6.5?download_url=https://download.gnome.org/sources/libsoup/3.6/libsoup-3.6.5.tar.xz&checksum=SHA-256:6891765aac3e949017945c3eaebd8cc8216df772456dc9f460976fbdb7ada234"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "d304543a9c708bf70f4ceb2d4938afc7"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "86365e4d4faffb0b7106b9f6ff3b78e3d499885bd60f6e739823f8a7e1ce8750"
+        }
+      ],
+      "description": "Libsoup is an HTTP library implementation in C. It was originally part of a SOAP (Simple Object Access Protocol) implementation called Soup, but the SOAP and non-SOAP parts have now been split into separate packages. libsoup uses the Glib main loop and is designed to work well with GTK applications. This enables GNOME applications to access HTTP servers on the network in a completely asynchronous fashion, very similar to the Gtk+ programming model (a synchronous operation mode is also supported for those who want it), but the SOAP parts were removed long ago.",
+      "externalReferences": [
+        {
+          "url": "https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=3875948",
+          "type": "build-system",
+          "comment": "brew-build-id"
+        }
+      ]
+    },
+    {
+      "name": "libsoup3-debuginfo",
+      "purl": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-debug-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "aeaf67baae44f6dfb183a2788ab03250ccde6669c733b74810b7eb75a3257d1d"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=aarch64",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=aarch64&repository_id=rhel-10-for-aarch64-appstream-debug-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-debug-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-debug-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=aarch64&repository_id=rhel-10-for-aarch64-appstream-debug-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "791bd01a47d6bbf46520a8c2c8c5ce71"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "1ddb975755a07c138b22241cd581f885ebb9bb16dd46c3dbe25837f9fc9e547d"
+        }
+      ],
+      "description": "This package provides debug information for package libsoup3. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "libsoup3-devel",
+      "purl": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8884a68651a111f71885f1b920b8e403f1bedfc5e7b48d345a70d8a0bfda90e7"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=aarch64",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=aarch64&repository_id=rhel-10-for-aarch64-appstream-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=aarch64&repository_id=rhel-10-for-aarch64-appstream-rpms__10"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "3369d853568891569b6d1c941a1bd5aa"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "a83ebffc136d8a8d85cad25ae52710b30e9b6aa89fb3a9043a353cf2b9db337f"
+        }
+      ],
+      "description": "Libsoup is an HTTP library implementation in C. This package allows you to develop applications that use the libsoup library."
+    },
+    {
+      "name": "libsoup3-debugsource",
+      "purl": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b756d60d229449f31d53fc1c05ce6bc92478081ef21ee49234a5eb6124e8d326"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=aarch64",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=aarch64&repository_id=rhel-10-for-aarch64-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=aarch64&repository_id=rhel-10-for-aarch64-appstream-source-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "1b11ffb241fbce1d096e9b4f1be3bc6a"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "61f8fe4fb020e6fc7259e3ec847825896befa38d20bfbb799fa2378655538f03"
+        }
+      ],
+      "description": "This package provides debug sources for package libsoup3. Debug sources are useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "91e3d51ea70e880830b4bee89fd606869125e66e57a401a8e7635343de815876"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=aarch64",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=aarch64&repository_id=rhel-10-for-aarch64-appstream-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=aarch64&repository_id=rhel-10-for-aarch64-appstream-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=aarch64&repository_id=codeready-builder-for-rhel-10-aarch64-rpms__10"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "f7ed65883da953c676199c354f3d81f6"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "3316e8e46b9f700f77f0a86c66875ece07abe45117ac077d62c5306e61eff67b"
+        }
+      ],
+      "description": "Libsoup is an HTTP library implementation in C. It was originally part of a SOAP (Simple Object Access Protocol) implementation called Soup, but the SOAP and non-SOAP parts have now been split into separate packages. libsoup uses the Glib main loop and is designed to work well with GTK applications. This enables GNOME applications to access HTTP servers on the network in a completely asynchronous fashion, very similar to the Gtk+ programming model (a synchronous operation mode is also supported for those who want it), but the SOAP parts were removed long ago."
+    },
+    {
+      "name": "libsoup3-doc",
+      "purl": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=codeready-builder-for-rhel-10-aarch64-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "246221a99cbc150e8afd6c6f37fabcb47158dde84450589bcd01d428c7e14dbe"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=codeready-builder-for-rhel-10-ppc64le-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=rhel-10-for-aarch64-appstream-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=codeready-builder-for-rhel-10-x86_64-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=codeready-builder-for-rhel-10-s390x-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=rhel-10-for-x86_64-appstream-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=codeready-builder-for-rhel-10-x86_64-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=rhel-10-for-s390x-appstream-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=codeready-builder-for-rhel-10-aarch64-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=rhel-10-for-ppc64le-appstream-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=codeready-builder-for-rhel-10-ppc64le-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=rhel-10-for-x86_64-appstream-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=rhel-10-for-ppc64le-appstream-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=rhel-10-for-aarch64-appstream-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=codeready-builder-for-rhel-10-s390x-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=codeready-builder-for-rhel-10-aarch64-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch&repository_id=rhel-10-for-s390x-appstream-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "62d5131f27185c0d2c75646e82951a2b"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "c344d59b307befab97f64d644b523a29978be3b50d50f6139716047d7bdfe343"
+        }
+      ],
+      "description": "This package contains developer documentation for libsoup3."
+    },
+    {
+      "name": "libsoup3-debuginfo",
+      "purl": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-debug-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "284a8597482a6162864f8ff70b712601085210d6cd99ba43c2b3a987c59aa32f"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=ppc64le",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-debug-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=rhel-10-for-ppc64le-appstream-debug-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=rhel-10-for-ppc64le-appstream-debug-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-debug-rpms__10"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "33d670f46d9f19e10f4342f7e28e9528"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "71ff48c743ba76775283db26d410c9edb8a181cac8df5c465c6a2757760c1a15"
+        }
+      ],
+      "description": "This package provides debug information for package libsoup3. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bb8d7a3a1161c03baac003e6eb2e0dc145d85edfaefa63dafb7828842b1c5b91"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=ppc64le",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=rhel-10-for-ppc64le-appstream-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=rhel-10-for-ppc64le-appstream-rpms__10"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "5a3ac022366aae2114f97bc03a2a514f"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "304fe4d3bfd8b56bdcc2bbd3eb6dede372b4759e1494f6a47b3a7cc51dd77eff"
+        }
+      ],
+      "description": "Libsoup is an HTTP library implementation in C. It was originally part of a SOAP (Simple Object Access Protocol) implementation called Soup, but the SOAP and non-SOAP parts have now been split into separate packages. libsoup uses the Glib main loop and is designed to work well with GTK applications. This enables GNOME applications to access HTTP servers on the network in a completely asynchronous fashion, very similar to the Gtk+ programming model (a synchronous operation mode is also supported for those who want it), but the SOAP parts were removed long ago."
+    },
+    {
+      "name": "libsoup3-debugsource",
+      "purl": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-source-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f1dacd5d9cfeb23e528ba4b7b18c572a33af3e644edfec349ddcfbecfa121b6c"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=ppc64le",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=rhel-10-for-ppc64le-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=rhel-10-for-ppc64le-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-source-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "69666f7534c9276b4ed07b83c832ba5a"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "e214be1811bfbce380c027d28e2df2103386104625f2540675f6eb35c2312c0f"
+        }
+      ],
+      "description": "This package provides debug sources for package libsoup3. Debug sources are useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "libsoup3-devel",
+      "purl": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "4ed34c2738d8f3570be839853b9742a50ef47ed0c78a3668187c2468997c5e0e"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=ppc64le",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=codeready-builder-for-rhel-10-ppc64le-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=rhel-10-for-ppc64le-appstream-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=ppc64le&repository_id=rhel-10-for-ppc64le-appstream-rpms__10"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "94fd34a9f049f8d18ebcd89b7020f678"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "e0f973e887a40db1186c39148d19fa2ce77751ec54cf37e4dbe3b29fb14feb7f"
+        }
+      ],
+      "description": "Libsoup is an HTTP library implementation in C. This package allows you to develop applications that use the libsoup library."
+    },
+    {
+      "name": "libsoup3-debuginfo",
+      "purl": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-debug-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2abdc398df665cd36232fc202b6d652e348a86a2e0745e80f58423c84e746299"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=x86_64",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-debug-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=x86_64&repository_id=rhel-10-for-x86_64-appstream-debug-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=x86_64&repository_id=rhel-10-for-x86_64-appstream-debug-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-debug-rpms__10"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "fe2f82b993c47b74c7d64df2d699504a"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "0f712659389876febf3df825ce2afd1becd26b2fe4064b2aec46fda3a0f5876d"
+        }
+      ],
+      "description": "This package provides debug information for package libsoup3. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b8ee002b24520c10879872bbc0352f3bb3ecda6f20ab1908a3979b57531f6813"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=x86_64",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=x86_64&repository_id=rhel-10-for-x86_64-appstream-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=x86_64&repository_id=rhel-10-for-x86_64-appstream-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "ee4178d04763842b7028b4d46370afbb"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "ef6043c7e0b8e17727751cb44ef24838614657385d490b84364a5bd0a328af6c"
+        }
+      ],
+      "description": "Libsoup is an HTTP library implementation in C. It was originally part of a SOAP (Simple Object Access Protocol) implementation called Soup, but the SOAP and non-SOAP parts have now been split into separate packages. libsoup uses the Glib main loop and is designed to work well with GTK applications. This enables GNOME applications to access HTTP servers on the network in a completely asynchronous fashion, very similar to the Gtk+ programming model (a synchronous operation mode is also supported for those who want it), but the SOAP parts were removed long ago."
+    },
+    {
+      "name": "libsoup3-devel",
+      "purl": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1326cc79c72af45a5f11e34337d571b0973e74fe38c666b88d73441073ef9489"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=x86_64",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=x86_64&repository_id=rhel-10-for-x86_64-appstream-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=x86_64&repository_id=rhel-10-for-x86_64-appstream-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "7c4017838b0ba87628936ee5eb0bb483"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "33dc6ad7b1806ad6068a4abbb4f482d84ed6a29c01bca4e358bc06a6eca61766"
+        }
+      ],
+      "description": "Libsoup is an HTTP library implementation in C. This package allows you to develop applications that use the libsoup library."
+    },
+    {
+      "name": "libsoup3-debugsource",
+      "purl": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-source-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "00d047d6f2ca49e31487ee0443856da7af8b48e00e9d1db981c63bc81d26b11e"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=x86_64",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=x86_64&repository_id=rhel-10-for-x86_64-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=x86_64&repository_id=rhel-10-for-x86_64-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=x86_64&repository_id=codeready-builder-for-rhel-10-x86_64-source-rpms__10"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "82c2f8cd1cbf1fa3491388d17b595577"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "fb05067627fbc6c168e8827029f201e48b3401648b56646b1b004a3c6e572929"
+        }
+      ],
+      "description": "This package provides debug sources for package libsoup3. Debug sources are useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "libsoup3-debuginfo",
+      "purl": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-debug-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0a275a5ac12e8d7022c4a86f187f652bcee1a6f2a0c2b4ca8da01ec142de0bf6"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=s390x",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-debug-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-debug-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=s390x&repository_id=rhel-10-for-s390x-appstream-debug-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=s390x&repository_id=rhel-10-for-s390x-appstream-debug-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "0aa919077211f34929c69ae8695a61f5"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "f52af19b0f2d7a03cb49903c2700afad4b68d5a76b2ade17fec5805de221d7c5"
+        }
+      ],
+      "description": "This package provides debug information for package libsoup3. Debug information is useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c10852d877fc7b53c8247eaafc0ed8512206c796d2a6e6b413d43c8300372804"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=s390x",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=s390x&repository_id=rhel-10-for-s390x-appstream-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=s390x&repository_id=rhel-10-for-s390x-appstream-rpms__10"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "2d7565ae2645361acadb5389bf5a8da7"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "c92195145367c126b26c3a5c683b0d9317eebaffa5768a832dd4452c08d5943e"
+        }
+      ],
+      "description": "Libsoup is an HTTP library implementation in C. It was originally part of a SOAP (Simple Object Access Protocol) implementation called Soup, but the SOAP and non-SOAP parts have now been split into separate packages. libsoup uses the Glib main loop and is designed to work well with GTK applications. This enables GNOME applications to access HTTP servers on the network in a completely asynchronous fashion, very similar to the Gtk+ programming model (a synchronous operation mode is also supported for those who want it), but the SOAP parts were removed long ago."
+    },
+    {
+      "name": "libsoup3-debugsource",
+      "purl": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-source-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ce85f75f6e77fd031a11f2c99100a28f2a5fc72479e743d9d1d1a14b9394f293"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=s390x",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=s390x&repository_id=rhel-10-for-s390x-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=s390x&repository_id=rhel-10-for-s390x-appstream-source-rpms__10"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "545091cb86414f0a12121d1e3fd0ea64"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "54273128970b77513cea9bddd02c3ff2d3d7a1c275515ef30a41358aedbd1b78"
+        }
+      ],
+      "description": "This package provides debug sources for package libsoup3. Debug sources are useful when developing applications that use this package or when debugging this package."
+    },
+    {
+      "name": "libsoup3-devel",
+      "purl": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-rpms__10_DOT_1",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c8967a58c781f47dea91defe49ede016bc1da10faa7c90f0cfcabca914e4fd6c"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=s390x",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=s390x&repository_id=rhel-10-for-s390x-appstream-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=s390x&repository_id=codeready-builder-for-rhel-10-s390x-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=s390x&repository_id=rhel-10-for-s390x-appstream-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "properties": [
+        {
+          "name": "package:rpm:sigmd5",
+          "value": "407a6c109d76fa1391c3ed2f44c39b55"
+        },
+        {
+          "name": "package:rpm:sha256header",
+          "value": "e17beaae40540cb3daf1a1a656cab9e41a362928306364a79908d910599ae3e4"
+        }
+      ],
+      "description": "Libsoup is an HTTP library implementation in C. This package allows you to develop applications that use the libsoup library."
+    },
+    {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/libsoup3@3.6.5-3.el10_1.6",
+      "type": "library",
+      "bom-ref": "pkg:rpm/libsoup3@3.6.5-3.el10_1.6?package-id=1b7d81f94e78429a",
+      "version": "3.6.5-3.el10_1.6",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "elf-binary-package-cataloger"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/usr/lib64/libsoup-3.0.so.0.7.4"
+        }
+      ]
+    },
+    {
+      "name": "/tmp/koji-rpm-manifest-generator-2vcdmyg5/extracted_rpms/libsoup3-3.6.5-3.el10_1.6.aarch64/usr/lib64/libsoup-3.0.so.0.7.4",
+      "type": "file",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "37c7885626a233330e08d4736f45a1ed715352aa"
+        },
+        {
+          "alg": "SHA-256",
+          "content": "e19b4277b3e1d6cc95da5bda860dac4eb094abeb14aaa09478f1a06fdd9962d0"
+        }
+      ],
+      "bom-ref": "033e8adc23c5a072"
+    },
+    {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/libsoup3@3.6.5-3.el10_1.6",
+      "type": "library",
+      "bom-ref": "pkg:rpm/libsoup3@3.6.5-3.el10_1.6?package-id=44a74c66697f3763",
+      "version": "3.6.5-3.el10_1.6",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "elf-binary-package-cataloger"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/usr/lib64/libsoup-3.0.so.0.7.4"
+        }
+      ]
+    },
+    {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/libsoup3@3.6.5-3.el10_1.6",
+      "type": "library",
+      "bom-ref": "pkg:rpm/libsoup3@3.6.5-3.el10_1.6?package-id=3ad276b441e8f3eb",
+      "version": "3.6.5-3.el10_1.6",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "elf-binary-package-cataloger"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/usr/lib64/libsoup-3.0.so.0.7.4"
+        }
+      ]
+    },
+    {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/libsoup3@3.6.5-3.el10_1.6",
+      "type": "library",
+      "bom-ref": "pkg:rpm/libsoup3@3.6.5-3.el10_1.6?package-id=57d58c74a0998c88",
+      "version": "3.6.5-3.el10_1.6",
+      "properties": [
+        {
+          "name": "syft:package:foundBy",
+          "value": "elf-binary-package-cataloger"
+        },
+        {
+          "name": "syft:location:0:path",
+          "value": "/usr/lib64/libsoup-3.0.so.0.7.4"
+        }
+      ]
+    }
+  ],
+  "specVersion": "1.6",
+  "dependencies": [
+    {
+      "ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src",
+      "provides": [
+        "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=aarch64",
+        "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=aarch64",
+        "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=aarch64",
+        "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=aarch64",
+        "pkg:rpm/redhat/libsoup3-doc@3.6.5-3.el10_1.6?arch=noarch",
+        "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=ppc64le",
+        "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=ppc64le",
+        "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=ppc64le",
+        "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=ppc64le",
+        "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=x86_64",
+        "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=x86_64",
+        "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=x86_64",
+        "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=x86_64",
+        "pkg:rpm/redhat/libsoup3-debuginfo@3.6.5-3.el10_1.6?arch=s390x",
+        "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=s390x",
+        "pkg:rpm/redhat/libsoup3-debugsource@3.6.5-3.el10_1.6?arch=s390x",
+        "pkg:rpm/redhat/libsoup3-devel@3.6.5-3.el10_1.6?arch=s390x"
+      ],
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=aarch64",
+      "provides": [
+        "pkg:rpm/libsoup3@3.6.5-3.el10_1.6?package-id=1b7d81f94e78429a",
+        "033e8adc23c5a072"
+      ],
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=ppc64le",
+      "provides": [
+        "033e8adc23c5a072",
+        "pkg:rpm/libsoup3@3.6.5-3.el10_1.6?package-id=44a74c66697f3763"
+      ],
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=x86_64",
+      "provides": [
+        "033e8adc23c5a072",
+        "pkg:rpm/libsoup3@3.6.5-3.el10_1.6?package-id=3ad276b441e8f3eb"
+      ],
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=s390x",
+      "provides": [
+        "pkg:rpm/libsoup3@3.6.5-3.el10_1.6?package-id=57d58c74a0998c88",
+        "033e8adc23c5a072"
+      ],
+      "dependsOn": []
+    }
+  ],
+  "serialNumber": "urn:uuid:290dd718-2cbd-40a8-b39c-24e6ef2d13a9"
+}

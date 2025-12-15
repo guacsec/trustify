@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "services": [
+        {
+          "name": "SBOMer",
+          "version": "a128392a",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0",
+                "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "provider": {
+            "url": [
+              "https://www.redhat.com"
+            ],
+            "name": "Red Hat"
+          },
+          "externalReferences": [
+            {
+              "url": "https://github.com/project-ncl/sbomer",
+              "type": "website"
+            }
+          ]
+        }
+      ]
+    },
+    "supplier": {
+      "url": [
+        "https://www.redhat.com"
+      ],
+      "name": "Red Hat"
+    },
+    "component": {
+      "name": "Red Hat Enterprise Linux 10",
+      "type": "operating-system",
+      "bom-ref": "RHEL-10.1.Z",
+      "version": "RHEL-10.1.Z",
+      "evidence": {
+        "identity": [
+          {
+            "field": "cpe",
+            "concludedValue": "cpe:/o:redhat:enterprise_linux:10.1"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      }
+    },
+    "timestamp": "2025-11-11T19:55:06Z",
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "155545"
+      }
+    ]
+  },
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "libsoup3",
+      "purl": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src",
+      "type": "library",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b32fb06c03452a17993867677192da4d5c1c1606f21d695752178d06c42ca4b1"
+        }
+      ],
+      "bom-ref": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src",
+      "version": "3.6.5-3.el10_1.6",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-s390x-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-ppc64le-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-aarch64-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-x86_64-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-s390x-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-s390x-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-ppc64le-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-x86_64-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-ppc64le-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-aarch64-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-s390x-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-x86_64-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-aarch64-appstream-source-rpms__10_DOT_1"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=rhel-10-for-x86_64-appstream-source-rpms__10"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src&repository_id=codeready-builder-for-rhel-10-ppc64le-source-rpms__10_DOT_1"
+          }
+        ]
+      },
+      "licenses": [
+        {
+          "expression": "LGPL-2.0-or-later"
+        }
+      ],
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      }
+    }
+  ],
+  "specVersion": "1.6",
+  "dependencies": [
+    {
+      "ref": "RHEL-10.1.Z",
+      "provides": [
+        "pkg:rpm/redhat/libsoup3@3.6.5-3.el10_1.6?arch=src"
+      ],
+      "dependsOn": []
+    }
+  ],
+  "serialNumber": "urn:uuid:f19501e3-8954-3cf7-8b60-a373dd1e044c"
+}
