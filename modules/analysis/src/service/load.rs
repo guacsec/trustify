@@ -507,7 +507,17 @@ impl InnerService {
             }
             GraphQuery::Query(query) => {
                 select()
-                    .filtering(query.clone())?
+                    // required for purl and cpe refs
+                    .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
+                    // required for querying purls
+                    .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
+                    .join(
+                        JoinType::LeftJoin,
+                        sbom_package_purl_ref::Relation::Purl.def(),
+                    )
+                    // required for querying CPEs
+                    .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
+                    .filtering_with(query.clone(), q_columns())?
                     .into_model()
                     .all(connection)
                     .await?
