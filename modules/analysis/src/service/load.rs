@@ -14,10 +14,10 @@ use async_recursion::async_recursion;
 use futures::FutureExt;
 use opentelemetry::KeyValue;
 use petgraph::{Graph, prelude::NodeIndex};
-use sea_orm::prelude::DateTimeWithTimeZone;
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityOrSelect, EntityTrait,
-    FromQueryResult, QueryFilter, QuerySelect, QueryTrait, RelationTrait, Select, Statement,
+    FromQueryResult, QueryFilter, QuerySelect, QueryTrait, RelationTrait, Statement,
+    prelude::DateTimeWithTimeZone,
 };
 use sea_query::{JoinType, SelectStatement};
 use serde_json::Value;
@@ -336,7 +336,7 @@ impl InnerService {
     }
 
     #[instrument(skip(self, connection), err(level=Level::INFO))]
-    pub(crate) async fn load_latest_graphs_query<C: ConnectionTrait + Send + Sync>(
+    pub(crate) async fn load_latest_graphs_query<C>(
         &self,
         connection: &C,
         query: GraphQuery<'_>,
@@ -354,12 +354,12 @@ impl InnerService {
             rank: Option<usize>,
         }
         #[async_recursion]
-        async fn resolve_all_ancestors<C: ConnectionTrait + Send + Sync>(
+        async fn resolve_all_ancestors<C>(
             sbom_sbom_id: Uuid,
             sbom_node_ref: String,
             connection: &C,
             visited: &mut HashSet<Uuid>,
-        ) -> Vec<ResolvedSbom>
+        ) -> Result<Vec<ResolvedSbom>, Error>
         where
             C: ConnectionTrait + Send + Sync,
         {
@@ -368,26 +368,18 @@ impl InnerService {
                     "Cycle detected for SBOM {}, skipping recursion.",
                     sbom_sbom_id
                 );
-                return vec![];
+                return Ok(vec![]);
             }
             let mut all_resolved_sboms = vec![];
 
             // 1. Execute query and handle the Result safely ONCE.
             // usage: resolve_rh_external_sbom_ancestors likely returns Result<Vec<...>, Error>
-            let direct_ancestors_result = resolve_rh_external_sbom_ancestors(
+            let direct_ancestors = resolve_rh_external_sbom_ancestors(
                 sbom_sbom_id,
                 sbom_node_ref,
                 connection, // Pass the reference directly (no need to clone if inner fn takes &C)
             )
-            .await;
-
-            let direct_ancestors = match direct_ancestors_result {
-                Ok(data) => data,
-                Err(e) => {
-                    log::warn!("Failed to fetch ancestors: {}", e);
-                    return vec![];
-                }
-            };
+            .await?;
 
             for ancestor in direct_ancestors {
                 all_resolved_sboms.push(ancestor.clone());
@@ -396,8 +388,7 @@ impl InnerService {
                     .filter(package_relates_to_package::Column::SbomId.eq(ancestor.sbom_id))
                     .filter(package_relates_to_package::Column::RightNodeId.eq(ancestor.node_id))
                     .all(connection)
-                    .await
-                    .unwrap();
+                    .await?;
 
                 for package in top_package_of_sbom {
                     let deep_ancestors = resolve_all_ancestors(
@@ -406,13 +397,13 @@ impl InnerService {
                         connection,
                         visited,
                     )
-                    .await;
+                    .await?;
 
                     all_resolved_sboms.extend(deep_ancestors);
                 }
             }
 
-            all_resolved_sboms
+            Ok(all_resolved_sboms)
         }
 
         fn apply_rank(mut items: Vec<RankedSbom>) -> Vec<RankedSbom> {
@@ -463,57 +454,60 @@ impl InnerService {
 
         // step 1 - retrieve sbom_node (by name or purl)
         let matched_sbom_ids: Vec<(Uuid, String, String, DateTimeWithTimeZone)> = match query {
-            GraphQuery::Component(ComponentReference::Id(node_id)) => sbom_node::Entity::find()
-                .filter(sbom_node::Column::NodeId.eq(node_id))
-                .select_only()
-                .column(sbom_node::Column::SbomId)
-                .column(sbom_node::Column::NodeId)
-                .column(sbom_node::Column::Name)
-                .column(sbom::Column::Published)
-                .left_join(sbom::Entity)
-                .into_tuple()
-                .all(connection)
-                .await
-                .unwrap(),
-            GraphQuery::Component(ComponentReference::Name(name)) => sbom_node::Entity::find()
-                .filter(sbom_node::Column::Name.eq(name))
-                .select_only()
-                .column(sbom_node::Column::SbomId)
-                .column(sbom_node::Column::NodeId)
-                .column(sbom_node::Column::Name)
-                .column(sbom::Column::Published)
-                .left_join(sbom::Entity)
-                .into_tuple()
-                .all(connection)
-                .await
-                .unwrap(),
+            GraphQuery::Component(ComponentReference::Id(node_id)) => {
+                sbom_node::Entity::find()
+                    .filter(sbom_node::Column::NodeId.eq(node_id))
+                    .select_only()
+                    .column(sbom_node::Column::SbomId)
+                    .column(sbom_node::Column::NodeId)
+                    .column(sbom_node::Column::Name)
+                    .column(sbom::Column::Published)
+                    .left_join(sbom::Entity)
+                    .into_tuple()
+                    .all(connection)
+                    .await?
+            }
+            GraphQuery::Component(ComponentReference::Name(name)) => {
+                sbom_node::Entity::find()
+                    .filter(sbom_node::Column::Name.eq(name))
+                    .select_only()
+                    .column(sbom_node::Column::SbomId)
+                    .column(sbom_node::Column::NodeId)
+                    .column(sbom_node::Column::Name)
+                    .column(sbom::Column::Published)
+                    .left_join(sbom::Entity)
+                    .into_tuple()
+                    .all(connection)
+                    .await?
+            }
             GraphQuery::Component(ComponentReference::Purl(purl)) => todo!(),
             GraphQuery::Component(ComponentReference::Cpe(cpe)) => todo!(),
-            GraphQuery::Query(query) => sbom_node::Entity::find()
-                .filter(sbom_node::Column::Name.contains(&query.q))
-                .select_only()
-                .column(sbom_node::Column::SbomId)
-                .column(sbom_node::Column::NodeId)
-                .column(sbom_node::Column::Name)
-                .column(sbom::Column::Published)
-                .left_join(sbom::Entity)
-                .into_tuple()
-                .all(connection)
-                .await
-                .unwrap(),
-            _ => todo!(),
+            GraphQuery::Query(query) => {
+                sbom_node::Entity::find()
+                    .filter(sbom_node::Column::Name.contains(&query.q))
+                    .select_only()
+                    .column(sbom_node::Column::SbomId)
+                    .column(sbom_node::Column::NodeId)
+                    .column(sbom_node::Column::Name)
+                    .column(sbom::Column::Published)
+                    .left_join(sbom::Entity)
+                    .filtering(query.clone())?
+                    .into_tuple()
+                    .all(connection)
+                    .await?
+            }
         };
 
         log::warn!("test latest sbom ids: {:?}", matched_sbom_ids);
 
-        // step 2 - get CPEs (by resolving
+        // step 2 - get CPEs (by resolving)
         let mut visited = HashSet::new();
 
         for matched in matched_sbom_ids {
             // find top level package of matched sbom
             let top_package_of_sbom = package_relates_to_package::Entity::find()
-                .filter(package_relates_to_package::Column::SbomId.eq(matched.0.clone()))
-                .filter(package_relates_to_package::Column::RightNodeId.eq(matched.1.clone()))
+                .filter(package_relates_to_package::Column::SbomId.eq(matched.0))
+                .filter(package_relates_to_package::Column::RightNodeId.eq(matched.1))
                 .all(connection)
                 .await?;
 
@@ -530,13 +524,10 @@ impl InnerService {
                     connection,
                     &mut visited,
                 )
-                .await;
+                .await?;
                 log::warn!("ancestor sboms: {:?}", ancestor_sboms);
 
-                top_ancestor_sbom = ancestor_sboms
-                    .last()
-                    .map(|a| a.sbom_id)
-                    .or(Some(matched.0.clone()));
+                top_ancestor_sbom = ancestor_sboms.last().map(|a| a.sbom_id).or(Some(matched.0));
 
                 cpes = sbom_package_cpe_ref::Entity::find()
                     .filter(sbom_package_cpe_ref::Column::SbomId.eq(top_ancestor_sbom))
@@ -545,12 +536,12 @@ impl InnerService {
             }
 
             for cpe in cpes {
-                let ranked_sbom: RankedSbom = RankedSbom {
-                    matched_sbom_id: matched.0.clone(),
+                let ranked_sbom = RankedSbom {
+                    matched_sbom_id: matched.0,
                     matched_name: matched.2.clone(),
-                    ancestor_sbom_id: top_ancestor_sbom.unwrap().clone(),
+                    ancestor_sbom_id: top_ancestor_sbom.unwrap(),
                     cpe_id: cpe.cpe_id,
-                    sbom_date: matched.3.clone(),
+                    sbom_date: matched.3,
                     rank: None,
                 };
                 matched_sboms.push(ranked_sbom);
