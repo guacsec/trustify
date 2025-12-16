@@ -518,6 +518,10 @@ impl InnerService {
                     )
                     // required for querying CPEs
                     .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
+                    .join(
+                        JoinType::LeftJoin,
+                        sbom_package_cpe_ref::Relation::Cpe.def(),
+                    )
                     .filtering_with(query.clone(), q_columns())?
                     .into_model()
                     .all(connection)
