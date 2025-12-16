@@ -450,8 +450,6 @@ impl InnerService {
             items
         }
 
-        let mut matched_sboms: Vec<RankedSbom> = Vec::new();
-
         #[derive(Debug, Clone, FromQueryResult)]
         struct Row {
             sbom_id: Uuid,
@@ -519,6 +517,7 @@ impl InnerService {
         log::debug!("test latest sbom ids: {:?}", matched_sbom_ids);
 
         // step 2 - get CPEs (by resolving)
+        let mut matched_sboms = Vec::new();
         let mut visited = HashSet::new();
 
         for matched in matched_sbom_ids {
@@ -557,17 +556,14 @@ impl InnerService {
                 );
             }
 
-            for cpe in cpes {
-                let ranked_sbom = RankedSbom {
-                    matched_sbom_id: matched.sbom_id,
-                    matched_name: matched.name.clone(),
-                    ancestor_sbom_id: top_ancestor_sbom.unwrap(),
-                    cpe_id: cpe.cpe_id,
-                    sbom_date: matched.published,
-                    rank: None,
-                };
-                matched_sboms.push(ranked_sbom);
-            }
+            matched_sboms.extend(cpes.into_iter().map(|cpe| RankedSbom {
+                matched_sbom_id: matched.sbom_id,
+                matched_name: matched.name.clone(),
+                ancestor_sbom_id: top_ancestor_sbom.unwrap(),
+                cpe_id: cpe.cpe_id,
+                sbom_date: matched.published,
+                rank: None,
+            }));
         }
 
         // apply rank
@@ -575,7 +571,7 @@ impl InnerService {
         log::debug!("ranked sboms: {:?}", ranked_sboms);
 
         // retrieve only ranked_sboms with rank = 1
-        let mut latest_ids: Vec<Uuid> = ranked_sboms
+        let mut latest_ids: Vec<_> = ranked_sboms
             .into_iter()
             .filter(|item| item.rank == Some(1))
             .map(|item| item.matched_sbom_id)
