@@ -532,11 +532,10 @@ impl InnerService {
             // resolve ancestor externally linked sboms
             let mut cpes = vec![];
             let mut top_ancestor_sbom = None;
-            let mut ancestor_sboms = vec![];
 
             for package in top_package_of_sbom {
                 // resolve_all_ancestors is recursive
-                ancestor_sboms = resolve_all_ancestors(
+                let ancestor_sboms = resolve_all_ancestors(
                     package.sbom_id,
                     package.left_node_id,
                     connection,
