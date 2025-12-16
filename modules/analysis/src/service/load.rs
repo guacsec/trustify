@@ -344,6 +344,7 @@ impl InnerService {
     where
         C: ConnectionTrait + Send + Sync,
     {
+        #[allow(dead_code)] // matched_name and ancestor_sbom_id good for debugging
         #[derive(Debug, Clone)]
         struct RankedSbom {
             matched_sbom_id: Uuid,
