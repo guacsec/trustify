@@ -1,3 +1,4 @@
+use crate::service::{ResolvedSbom, resolve_rh_external_sbom_ancestors};
 use crate::{
     Error,
     model::{PackageGraph, graph},
@@ -9,15 +10,16 @@ use ::cpe::{
     uri::OwnedUri,
 };
 use anyhow::anyhow;
+use async_recursion::async_recursion;
 use futures::FutureExt;
 use opentelemetry::KeyValue;
 use petgraph::{Graph, prelude::NodeIndex};
+use sea_orm::prelude::DateTimeWithTimeZone;
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityOrSelect, EntityTrait,
-    FromQueryResult, QueryFilter, QuerySelect, QueryTrait, Related, RelationTrait, Select,
-    Statement,
+    FromQueryResult, QueryFilter, QuerySelect, QueryTrait, RelationTrait, Select, Statement,
 };
-use sea_query::{Alias, Expr, JoinType, PostgresQueryBuilder, Query, SelectStatement};
+use sea_query::{JoinType, SelectStatement};
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
@@ -334,190 +336,244 @@ impl InnerService {
     }
 
     #[instrument(skip(self, connection), err(level=Level::INFO))]
-    pub(crate) async fn load_latest_graphs_query<C: ConnectionTrait>(
+    pub(crate) async fn load_latest_graphs_query<C: ConnectionTrait + Send + Sync>(
         &self,
         connection: &C,
         query: GraphQuery<'_>,
-    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
-        #[derive(Debug, FromQueryResult)]
-        struct Row {
-            sbom_id: Uuid,
+    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error>
+    where
+        C: ConnectionTrait + Send + Sync,
+    {
+        #[derive(Debug, Clone)]
+        struct RankedSbom {
+            matched_sbom_id: Uuid,
+            matched_name: String,
+            ancestor_sbom_id: Uuid,
+            cpe_id: Uuid,
+            sbom_date: DateTimeWithTimeZone,
+            rank: Option<usize>,
         }
-
-        /// Internal helper function to build ranked query, removing duplication.
-        /// boolean flag controls the PARTITION BY clause.
-        ///
-        /// Constructs reusable SeaORM query to find and rank related SBOM package information.
-        ///
-        /// This function is the core logic for finding the most recent SBOM data aka 'latest' for package groups.
-        /// It builds a query that joins SBOM nodes through their package relations to CPEs and their parent SBOMs.
-        ///
-        /// The query returns these columns:
-        /// - `sbom_id`: The ID of the parent SBOM.
-        /// - `published`: The publication timestamp of the SBOM (used for ranking).
-        /// - `cpe_id`: The ID of the related CPE.
-        /// - `rank`: A calculated rank column based on the partitioning strategy.
-        ///
-        /// When partition_by_name=true we generate a list of same named components by CPE and order by
-        /// published and take first result - which ensures it is the latest component.
-        ///
-        /// This works in /latest/ endpoints queries where we use CPE as input but for /latest/ filters based on exact
-        /// or partial name filters we need to drop name in partitioning to avoid incorrect ordering (and correct ranking).
-        /// Mostly the rationale for this is that for groupings of the same name - CPE is sufficient partition.
-        ///
-        /// It may seem intuitive to just reverse order of default partition for such name exact/partial cases as
-        ///
-        /// `PARTITION BY cpe.id, sbom_node.name ORDER BY sbom.published DESC`
-        ///
-        /// but then we run into join alignment problems where partitioning follows subquery results
-        /// - incorrectly leaking latest and non latest in results.
-        ///
-        /// That is why we just use cpe id partitioning:
-        ///
-        /// `PARTITION BY cpe.id ORDER BY sbom.published DESC`
-        ///
-        /// which returns correctly because name related filters are already performed.
-        ///
-        /// It is worth mentioning that aforementioned CPE queries cannot use CPE only partitioning because we
-        /// need to discriminate on component name (across CPEs) hence special casing both code paths.
-        ///
-        /// # Returns
-        ///
-        ///   An unexecuted `sea_orm::Select<E>` query builder struct.
-        ///
-        fn build_ranked_query<E>(partition_by_name: bool) -> Select<E>
+        #[async_recursion]
+        async fn resolve_all_ancestors<C: ConnectionTrait + Send + Sync>(
+            sbom_sbom_id: Uuid,
+            sbom_node_ref: String,
+            connection: &C,
+            visited: &mut HashSet<Uuid>,
+        ) -> Vec<ResolvedSbom>
         where
-            E: EntityTrait + Related<sbom::Entity>,
+            C: ConnectionTrait + Send + Sync,
         {
-            // Dynamically select the RANK SQL based on the flag
-            let rank_sql = if partition_by_name {
-                // for CPE queries
-                "RANK() OVER (PARTITION BY sbom_node.name, cpe.id ORDER BY sbom.published DESC)"
-            } else {
-                // for exact/partial name queries
-                "RANK() OVER (PARTITION BY cpe.id ORDER BY sbom.published DESC)"
+            if !visited.insert(sbom_sbom_id) {
+                log::debug!(
+                    "Cycle detected for SBOM {}, skipping recursion.",
+                    sbom_sbom_id
+                );
+                return vec![];
+            }
+            let mut all_resolved_sboms = vec![];
+
+            // 1. Execute query and handle the Result safely ONCE.
+            // usage: resolve_rh_external_sbom_ancestors likely returns Result<Vec<...>, Error>
+            let direct_ancestors_result = resolve_rh_external_sbom_ancestors(
+                sbom_sbom_id,
+                sbom_node_ref,
+                connection, // Pass the reference directly (no need to clone if inner fn takes &C)
+            )
+            .await;
+
+            let direct_ancestors = match direct_ancestors_result {
+                Ok(data) => data,
+                Err(e) => {
+                    log::warn!("Failed to fetch ancestors: {}", e);
+                    return vec![];
+                }
             };
 
-            E::find()
+            for ancestor in direct_ancestors {
+                all_resolved_sboms.push(ancestor.clone());
+
+                let top_package_of_sbom = package_relates_to_package::Entity::find()
+                    .filter(package_relates_to_package::Column::SbomId.eq(ancestor.sbom_id))
+                    .filter(package_relates_to_package::Column::RightNodeId.eq(ancestor.node_id))
+                    .all(connection)
+                    .await
+                    .unwrap();
+
+                for package in top_package_of_sbom {
+                    let deep_ancestors = resolve_all_ancestors(
+                        package.sbom_id,
+                        package.left_node_id,
+                        connection,
+                        visited,
+                    )
+                    .await;
+
+                    all_resolved_sboms.extend(deep_ancestors);
+                }
+            }
+
+            all_resolved_sboms
+        }
+
+        fn apply_rank(mut items: Vec<RankedSbom>) -> Vec<RankedSbom> {
+            // emulate SQL RANK which partitions vec RankedSBOM on cpe_id and date
+
+            items.sort_by(|a, b| {
+                a.cpe_id
+                    .cmp(&b.cpe_id) // Partition 1
+                    .then(b.sbom_date.cmp(&a.sbom_date)) // Order: DESC (b vs a)
+            });
+
+            let mut current_rank = 1;
+
+            // We iterate with indices so we can compare [i] with [i-1]
+            for i in 0..items.len() {
+                // If it's the first item, it's automatically Rank 1
+                if i == 0 {
+                    items[i].rank = Some(1);
+                    continue;
+                }
+
+                let prev = &items[i - 1];
+                let curr = &items[i];
+
+                // Check if we are in the same "Partition" (Name + CPE)
+                let same_partition = curr.cpe_id == prev.cpe_id;
+
+                if same_partition {
+                    // If dates are exact same, they get same rank.
+                    if curr.sbom_date == prev.sbom_date {
+                        items[i].rank = items[i - 1].rank;
+                    } else {
+                        // Standard increment
+                        current_rank += 1;
+                        items[i].rank = Some(current_rank);
+                    }
+                } else {
+                    // New partition detected! Reset rank.
+                    current_rank = 1;
+                    items[i].rank = Some(1);
+                }
+            }
+
+            items
+        }
+
+        let mut matched_sboms: Vec<RankedSbom> = Vec::new();
+
+        // step 1 - retrieve sbom_node (by name or purl)
+        let matched_sbom_ids: Vec<(Uuid, String, String, DateTimeWithTimeZone)> = match query {
+            GraphQuery::Component(ComponentReference::Id(node_id)) => sbom_node::Entity::find()
+                .filter(sbom_node::Column::NodeId.eq(node_id))
                 .select_only()
-                .column(sbom::Column::SbomId)
+                .column(sbom_node::Column::SbomId)
+                .column(sbom_node::Column::NodeId)
+                .column(sbom_node::Column::Name)
                 .column(sbom::Column::Published)
-                .column(cpe::Column::Id)
-                .column_as(Expr::cust(rank_sql), "rank") // Use the selected SQL string
                 .left_join(sbom::Entity)
-        }
-
-        trait JoinCpe {
-            fn join_cpe(self) -> Self;
-        }
-
-        impl<E> JoinCpe for Select<E>
-        where
-            E: EntityTrait + Related<sbom::Entity>,
-        {
-            fn join_cpe(self) -> Self {
-                self.join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_package_cpe_ref::Relation::Cpe.def(),
-                    )
-            }
-        }
-
-        fn find<E>() -> Select<E>
-        where
-            E: EntityTrait + Related<sbom::Entity>,
-        {
-            build_ranked_query(true)
-        }
-
-        fn find_rank_name<E>() -> Select<E>
-        where
-            E: EntityTrait + Related<sbom::Entity>,
-        {
-            build_ranked_query(false)
-        }
-
-        async fn query_all<C>(subquery: SelectStatement, connection: &C) -> Result<Vec<Uuid>, Error>
-        where
-            C: ConnectionTrait,
-        {
-            let select_query = Query::select()
-                .expr(Expr::col(Alias::new("sbom_id")))
-                .from_subquery(subquery, Alias::new("subquery"))
-                .cond_where(Expr::col(Alias::new("rank")).eq(1))
-                .distinct()
-                .to_owned();
-            let (sql, values) = select_query.build(PostgresQueryBuilder);
-
-            let rows: Vec<Row> = Row::find_by_statement(Statement::from_sql_and_values(
-                DatabaseBackend::Postgres,
-                sql,
-                values,
-            ))
-            .all(connection)
-            .await?;
-
-            Ok(rows.into_iter().map(|row| row.sbom_id).collect())
-        }
-
-        let latest_sbom_ids = match query {
-            GraphQuery::Component(ComponentReference::Id(node_id)) => {
-                let subquery = find::<sbom_node::Entity>()
-                    .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
-                    .join_cpe()
-                    .filter(sbom_node::Column::NodeId.eq(node_id));
-
-                query_all(subquery.into_query(), connection).await?
-            }
-            GraphQuery::Component(ComponentReference::Name(name)) => {
-                let subquery = find_rank_name::<sbom_node::Entity>()
-                    .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
-                    .join_cpe()
-                    .filter(sbom_node::Column::Name.eq(name));
-
-                query_all(subquery.into_query(), connection).await?
-            }
-            GraphQuery::Component(ComponentReference::Purl(purl)) => {
-                let subquery = find_rank_name::<sbom_package_purl_ref::Entity>()
-                    .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def().rev())
-                    .join(JoinType::LeftJoin, sbom_node::Relation::Package.def().rev())
-                    .join_cpe()
-                    .filter(
-                        sbom_package_purl_ref::Column::QualifiedPurlId.eq(purl.qualifier_uuid()),
-                    );
-
-                query_all(subquery.into_query(), connection).await?
-            }
-            GraphQuery::Component(ComponentReference::Cpe(cpe)) => {
-                let subquery = find::<sbom_node::Entity>()
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_node::Relation::PackageBySbomId.def(),
-                    )
-                    .join_cpe()
-                    // For CPE searches the .not_like("pkg:%") filter is required
-                    .filter(sbom_node::Column::Name.not_like("pkg:%"))
-                    .filter(sbom_package_cpe_ref::Column::CpeId.eq(cpe.uuid()));
-
-                query_all(subquery.into_query(), connection).await?
-            }
-            GraphQuery::Query(query) => {
-                let subquery = find_rank_name::<sbom_node::Entity>()
-                    .join(JoinType::LeftJoin, sbom_node::Relation::Package.def())
-                    .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_package_purl_ref::Relation::Purl.def(),
-                    )
-                    .join_cpe()
-                    .filtering_with(query.clone(), q_columns())?;
-
-                query_all(subquery.into_query(), connection).await?
-            }
+                .into_tuple()
+                .all(connection)
+                .await
+                .unwrap(),
+            GraphQuery::Component(ComponentReference::Name(name)) => sbom_node::Entity::find()
+                .filter(sbom_node::Column::Name.eq(name))
+                .select_only()
+                .column(sbom_node::Column::SbomId)
+                .column(sbom_node::Column::NodeId)
+                .column(sbom_node::Column::Name)
+                .column(sbom::Column::Published)
+                .left_join(sbom::Entity)
+                .into_tuple()
+                .all(connection)
+                .await
+                .unwrap(),
+            GraphQuery::Component(ComponentReference::Purl(purl)) => todo!(),
+            GraphQuery::Component(ComponentReference::Cpe(cpe)) => todo!(),
+            GraphQuery::Query(query) => sbom_node::Entity::find()
+                .filter(sbom_node::Column::Name.contains(&query.q))
+                .select_only()
+                .column(sbom_node::Column::SbomId)
+                .column(sbom_node::Column::NodeId)
+                .column(sbom_node::Column::Name)
+                .column(sbom::Column::Published)
+                .left_join(sbom::Entity)
+                .into_tuple()
+                .all(connection)
+                .await
+                .unwrap(),
+            _ => todo!(),
         };
 
-        self.load_graphs(connection, latest_sbom_ids).await
+        log::warn!("test latest sbom ids: {:?}", matched_sbom_ids);
+
+        // step 2 - get CPEs (by resolving
+        let mut visited = HashSet::new();
+
+        for matched in matched_sbom_ids {
+            // find top level package of matched sbom
+            let top_package_of_sbom = package_relates_to_package::Entity::find()
+                .filter(package_relates_to_package::Column::SbomId.eq(matched.0.clone()))
+                .filter(package_relates_to_package::Column::RightNodeId.eq(matched.1.clone()))
+                .all(connection)
+                .await?;
+
+            // resolve ancestor externally linked sboms
+            let mut cpes = vec![];
+            let mut top_ancestor_sbom = None;
+            let mut ancestor_sboms = vec![];
+
+            for package in top_package_of_sbom {
+                // resolve_all_ancestors is recursive
+                ancestor_sboms = resolve_all_ancestors(
+                    package.sbom_id,
+                    package.left_node_id,
+                    connection,
+                    &mut visited,
+                )
+                .await;
+                log::warn!("ancestor sboms: {:?}", ancestor_sboms);
+
+                top_ancestor_sbom = ancestor_sboms
+                    .last()
+                    .map(|a| a.sbom_id)
+                    .or(Some(matched.0.clone()));
+
+                cpes = sbom_package_cpe_ref::Entity::find()
+                    .filter(sbom_package_cpe_ref::Column::SbomId.eq(top_ancestor_sbom))
+                    .all(connection)
+                    .await?;
+            }
+
+            for cpe in cpes {
+                let ranked_sbom: RankedSbom = RankedSbom {
+                    matched_sbom_id: matched.0.clone(),
+                    matched_name: matched.2.clone(),
+                    ancestor_sbom_id: top_ancestor_sbom.unwrap().clone(),
+                    cpe_id: cpe.cpe_id,
+                    sbom_date: matched.3.clone(),
+                    rank: None,
+                };
+                matched_sboms.push(ranked_sbom);
+            }
+        }
+
+        // apply rank
+        let ranked_sboms = apply_rank(matched_sboms);
+        log::warn!("ranked sboms: {:?}", ranked_sboms);
+
+        // retrieve only ranked_sboms with rank = 1
+        let mut latest_ids: Vec<Uuid> = ranked_sboms
+            .into_iter()
+            .filter(|item| item.rank == Some(1))
+            .map(|item| item.matched_sbom_id)
+            .collect();
+
+        // remove dups
+        latest_ids.sort();
+        latest_ids.dedup();
+        log::warn!("latest sboms: {:?}", latest_ids);
+
+        self.load_graphs(connection, latest_ids).await
     }
 
     /// Take a select for sboms, and ensure they are loaded and return their IDs.
