@@ -428,7 +428,7 @@ impl InnerService {
                 let prev = &items[i - 1];
                 let curr = &items[i];
 
-                // Check if we are in the same "Partition" (Name + CPE)
+                // Check if we are in the same "Partition" (CPE)
                 let same_partition = curr.cpe_id == prev.cpe_id;
 
                 if same_partition {
@@ -516,7 +516,7 @@ impl InnerService {
             }
         };
 
-        log::warn!("test latest sbom ids: {:?}", matched_sbom_ids);
+        log::debug!("test latest sbom ids: {:?}", matched_sbom_ids);
 
         // step 2 - get CPEs (by resolving)
         let mut visited = HashSet::new();
@@ -543,7 +543,7 @@ impl InnerService {
                     &mut visited,
                 )
                 .await?;
-                log::warn!("ancestor sboms: {:?}", ancestor_sboms);
+                log::debug!("ancestor sboms: {:?}", ancestor_sboms);
 
                 top_ancestor_sbom = ancestor_sboms
                     .last()
@@ -571,7 +571,7 @@ impl InnerService {
 
         // apply rank
         let ranked_sboms = apply_rank(matched_sboms);
-        log::warn!("ranked sboms: {:?}", ranked_sboms);
+        log::debug!("ranked sboms: {:?}", ranked_sboms);
 
         // retrieve only ranked_sboms with rank = 1
         let mut latest_ids: Vec<Uuid> = ranked_sboms
