@@ -550,10 +550,12 @@ impl InnerService {
                     .map(|a| a.sbom_id)
                     .or(Some(matched.sbom_id));
 
-                cpes = sbom_package_cpe_ref::Entity::find()
-                    .filter(sbom_package_cpe_ref::Column::SbomId.eq(top_ancestor_sbom))
-                    .all(connection)
-                    .await?;
+                cpes.extend(
+                    sbom_package_cpe_ref::Entity::find()
+                        .filter(sbom_package_cpe_ref::Column::SbomId.eq(top_ancestor_sbom))
+                        .all(connection)
+                        .await?,
+                );
             }
 
             for cpe in cpes {
