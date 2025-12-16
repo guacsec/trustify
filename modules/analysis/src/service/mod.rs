@@ -601,7 +601,7 @@ impl AnalysisService {
     }
 
     #[instrument(skip(self, connection), err)]
-    pub async fn retrieve_latest<C: ConnectionTrait>(
+    pub async fn retrieve_latest<C: ConnectionTrait + Send + Sync>(
         &self,
         query: impl Into<GraphQuery<'_>> + Debug,
         options: impl Into<QueryOptions> + Debug,

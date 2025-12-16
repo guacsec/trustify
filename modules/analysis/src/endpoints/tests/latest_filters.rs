@@ -637,6 +637,10 @@ fn sort(json: &mut Value) {
     Req { what: What::Q("name=openssl-synthetic-test"), ancestors: Some(10), ..Req::default() },
     4
 )]
+#[case( // latest name exact search
+    Req { what: What::Q("openssl"),latest: true, ancestors: Some(10), ..Req::default() },
+    4
+)]
 #[case( // name partial search
     Req { what: What::Q("name~openssl-synthetic"), ancestors: Some(10), ..Req::default() },
     4
