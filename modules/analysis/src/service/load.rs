@@ -16,7 +16,7 @@ use opentelemetry::KeyValue;
 use petgraph::{Graph, prelude::NodeIndex};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityOrSelect, EntityTrait,
-    FromQueryResult, QueryFilter, QuerySelect, QueryTrait, RelationTrait, Statement,
+    FromQueryResult, QueryFilter, QuerySelect, QueryTrait, RelationTrait, Select, Statement,
     prelude::DateTimeWithTimeZone,
 };
 use sea_query::{JoinType, SelectStatement};
@@ -452,47 +452,65 @@ impl InnerService {
 
         let mut matched_sboms: Vec<RankedSbom> = Vec::new();
 
+        #[derive(Debug, Clone, FromQueryResult)]
+        struct Row {
+            sbom_id: Uuid,
+            node_id: String,
+            name: String,
+            published: DateTimeWithTimeZone,
+        }
+
+        /// prepare a select statement, returning [`Row`]s.
+        fn select() -> Select<sbom_node::Entity> {
+            sbom_node::Entity::find()
+                .select_only()
+                .column(sbom_node::Column::SbomId)
+                .column(sbom_node::Column::NodeId)
+                .column(sbom_node::Column::Name)
+                .column(sbom::Column::Published)
+                .left_join(sbom::Entity)
+        }
+
         // step 1 - retrieve sbom_node (by name or purl)
-        let matched_sbom_ids: Vec<(Uuid, String, String, DateTimeWithTimeZone)> = match query {
+        let matched_sbom_ids: Vec<Row> = match query {
             GraphQuery::Component(ComponentReference::Id(node_id)) => {
-                sbom_node::Entity::find()
+                select()
                     .filter(sbom_node::Column::NodeId.eq(node_id))
-                    .select_only()
-                    .column(sbom_node::Column::SbomId)
-                    .column(sbom_node::Column::NodeId)
-                    .column(sbom_node::Column::Name)
-                    .column(sbom::Column::Published)
-                    .left_join(sbom::Entity)
-                    .into_tuple()
+                    .into_model()
                     .all(connection)
                     .await?
             }
             GraphQuery::Component(ComponentReference::Name(name)) => {
-                sbom_node::Entity::find()
+                select()
                     .filter(sbom_node::Column::Name.eq(name))
-                    .select_only()
-                    .column(sbom_node::Column::SbomId)
-                    .column(sbom_node::Column::NodeId)
-                    .column(sbom_node::Column::Name)
-                    .column(sbom::Column::Published)
-                    .left_join(sbom::Entity)
-                    .into_tuple()
+                    .into_model()
                     .all(connection)
                     .await?
             }
-            GraphQuery::Component(ComponentReference::Purl(purl)) => todo!(),
-            GraphQuery::Component(ComponentReference::Cpe(cpe)) => todo!(),
+            GraphQuery::Component(ComponentReference::Purl(purl)) => {
+                select()
+                    .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
+                    .join(JoinType::InnerJoin, sbom_package::Relation::Purl.def())
+                    .filter(
+                        sbom_package_purl_ref::Column::QualifiedPurlId.eq(purl.qualifier_uuid()),
+                    )
+                    .into_model()
+                    .all(connection)
+                    .await?
+            }
+            GraphQuery::Component(ComponentReference::Cpe(cpe)) => {
+                select()
+                    .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
+                    .join(JoinType::InnerJoin, sbom_package::Relation::Cpe.def())
+                    .filter(sbom_package_cpe_ref::Column::CpeId.eq(cpe.uuid()))
+                    .into_model()
+                    .all(connection)
+                    .await?
+            }
             GraphQuery::Query(query) => {
-                sbom_node::Entity::find()
-                    .filter(sbom_node::Column::Name.contains(&query.q))
-                    .select_only()
-                    .column(sbom_node::Column::SbomId)
-                    .column(sbom_node::Column::NodeId)
-                    .column(sbom_node::Column::Name)
-                    .column(sbom::Column::Published)
-                    .left_join(sbom::Entity)
+                select()
                     .filtering(query.clone())?
-                    .into_tuple()
+                    .into_model()
                     .all(connection)
                     .await?
             }
@@ -506,8 +524,8 @@ impl InnerService {
         for matched in matched_sbom_ids {
             // find top level package of matched sbom
             let top_package_of_sbom = package_relates_to_package::Entity::find()
-                .filter(package_relates_to_package::Column::SbomId.eq(matched.0))
-                .filter(package_relates_to_package::Column::RightNodeId.eq(matched.1))
+                .filter(package_relates_to_package::Column::SbomId.eq(matched.sbom_id))
+                .filter(package_relates_to_package::Column::RightNodeId.eq(matched.node_id))
                 .all(connection)
                 .await?;
 
@@ -527,7 +545,10 @@ impl InnerService {
                 .await?;
                 log::warn!("ancestor sboms: {:?}", ancestor_sboms);
 
-                top_ancestor_sbom = ancestor_sboms.last().map(|a| a.sbom_id).or(Some(matched.0));
+                top_ancestor_sbom = ancestor_sboms
+                    .last()
+                    .map(|a| a.sbom_id)
+                    .or(Some(matched.sbom_id));
 
                 cpes = sbom_package_cpe_ref::Entity::find()
                     .filter(sbom_package_cpe_ref::Column::SbomId.eq(top_ancestor_sbom))
@@ -537,11 +558,11 @@ impl InnerService {
 
             for cpe in cpes {
                 let ranked_sbom = RankedSbom {
-                    matched_sbom_id: matched.0,
-                    matched_name: matched.2.clone(),
+                    matched_sbom_id: matched.sbom_id,
+                    matched_name: matched.name.clone(),
                     ancestor_sbom_id: top_ancestor_sbom.unwrap(),
                     cpe_id: cpe.cpe_id,
-                    sbom_date: matched.3,
+                    sbom_date: matched.published,
                     rank: None,
                 };
                 matched_sboms.push(ranked_sbom);
