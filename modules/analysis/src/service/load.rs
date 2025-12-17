@@ -1,8 +1,10 @@
-use crate::service::{ResolvedSbom, resolve_rh_external_sbom_ancestors};
 use crate::{
     Error,
     model::{PackageGraph, graph},
-    service::{AnalysisService, ComponentReference, GraphQuery, InnerService, LoadingOp},
+    service::{
+        AnalysisService, ComponentReference, GraphQuery, InnerService, LoadingOp, ResolvedSbom,
+        resolve_rh_external_sbom_ancestors,
+    },
 };
 use ::cpe::{
     component::Component,
@@ -544,7 +546,7 @@ impl InnerService {
                 .await?;
 
             // resolve ancestor externally linked sboms
-            let mut cpes = vec![];
+            let mut cpes = HashSet::new();
             let mut top_ancestor_sbom = None;
 
             for package in top_package_of_sbom {
@@ -566,16 +568,19 @@ impl InnerService {
                 cpes.extend(
                     sbom_package_cpe_ref::Entity::find()
                         .filter(sbom_package_cpe_ref::Column::SbomId.eq(top_ancestor_sbom))
+                        .select_only()
+                        .column(sbom_package_cpe_ref::Column::CpeId)
+                        .into_tuple::<Uuid>()
                         .all(connection)
                         .await?,
                 );
             }
 
-            matched_sboms.extend(cpes.into_iter().map(|cpe| RankedSbom {
+            matched_sboms.extend(cpes.into_iter().map(|cpe_id| RankedSbom {
                 matched_sbom_id: matched.sbom_id,
                 matched_name: matched.name.clone(),
                 ancestor_sbom_id: top_ancestor_sbom.unwrap(),
-                cpe_id: cpe.cpe_id,
+                cpe_id,
                 sbom_date: matched.published,
                 rank: None,
             }));
