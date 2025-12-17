@@ -29,7 +29,7 @@ pub struct RankedSbom {
     #[allow(dead_code)] // good for debugging
     pub matched_name: String,
     #[allow(dead_code)] // good for debugging
-    pub ancestor_sbom_id: Uuid,
+    pub top_ancestor_sbom: Uuid,
     pub cpe_id: Uuid,
     pub sbom_date: DateTimeWithTimeZone,
     pub rank: Option<usize>,
@@ -54,7 +54,7 @@ async fn resolve_all_ancestors<C>(
     visited: &mut HashSet<Uuid>,
 ) -> Result<Vec<ResolvedSbom>, Error>
 where
-    C: ConnectionTrait + Send + Sync,
+    C: ConnectionTrait + Send,
 {
     if !visited.insert(sbom_sbom_id) {
         log::debug!(
@@ -125,7 +125,7 @@ pub async fn resolve_sbom_cpes(
 
         // resolve ancestor externally linked sboms
         let mut cpes = HashSet::new();
-        let mut top_ancestor_sbom = None;
+        let mut top_ancestor_sbom = matched.sbom_id; // default
 
         for package in top_package_of_sbom {
             // resolve_all_ancestors is recursive
@@ -141,7 +141,7 @@ pub async fn resolve_sbom_cpes(
             top_ancestor_sbom = ancestor_sboms
                 .last()
                 .map(|a| a.sbom_id)
-                .or(Some(matched.sbom_id));
+                .unwrap_or(matched.sbom_id);
 
             cpes.extend(
                 sbom_package_cpe_ref::Entity::find()
@@ -157,7 +157,7 @@ pub async fn resolve_sbom_cpes(
         matched_sboms.extend(cpes.into_iter().map(|cpe_id| RankedSbom {
             matched_sbom_id: matched.sbom_id,
             matched_name: matched.name.clone(),
-            ancestor_sbom_id: top_ancestor_sbom.unwrap(),
+            top_ancestor_sbom,
             cpe_id,
             sbom_date: matched.published,
             rank: None,
