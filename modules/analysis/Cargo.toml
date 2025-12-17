@@ -13,6 +13,7 @@ trustify-entity = { workspace = true }
 actix-http = { workspace = true }
 actix-web = { workspace = true }
 anyhow = { workspace = true }
+async-recursion = { workspace = true }
 bytesize = { workspace = true }
 clap = { workspace = true }
 cpe = { workspace = true }
@@ -35,7 +36,6 @@ tracing = { workspace = true }
 utoipa = { workspace = true, features = ["actix_extras", "uuid", "time", "rc_schema"] }
 utoipa-actix-web = { workspace = true }
 uuid = { workspace = true }
-async-recursion = "1.1.1"
 
 [dev-dependencies]
 actix-http = { workspace = true }
@@ -43,6 +43,7 @@ bytes = { workspace = true }
 bytesize = { workspace = true }
 chrono = { workspace = true }
 csaf = { workspace = true }
+futures = { workspace = true }
 hex = { workspace = true }
 humantime = { workspace = true }
 itertools = { workspace = true }

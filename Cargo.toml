@@ -43,6 +43,7 @@ anyhow = "1.0.72"
 async-compression = "0.4.13"
 async-graphql = "7.0.5"
 async-graphql-actix-web = "7.0.5"
+async-recursion = "1"
 async-trait = "0.1.74"
 aws-config = { version = "1.6.1", features = ["behavior-version-latest"] }
 aws-sdk-s3 = { version = "1.83.0", features = ["behavior-version-latest"] }
