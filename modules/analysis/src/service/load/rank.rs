@@ -239,11 +239,56 @@ pub async fn resolve_sbom_cpes(
     let mut visited = HashSet::new();
 
     for matched in rows {
+        // check if matched node has any CPEs attached
+        let direct_cpes = describing_cpes(connection, matched.sbom_id).await?;
+        for direct_cpe in direct_cpes {
+            matched_sboms // create RankedSboms
+                .push(RankedSbom {
+                    matched_sbom_id: matched.sbom_id,
+                    matched_name: matched.name.clone(),
+                    top_ancestor_sbom: matched.sbom_id,
+                    cpe_id: direct_cpe,
+                    sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                    rank: None,
+                });
+        }
+
         // find top level package of matched sbom
         let top_packages_of_sbom =
-            find_node_ancestors(matched.sbom_id, matched.node_id, connection).await?;
+            find_node_ancestors(matched.clone().sbom_id, matched.clone().node_id, connection)
+                .await?;
 
-        // resolve top ancestor externally linked sboms
+        // if top_packages_of_sbom is empty then matched node might be the top level
+        // package of matched sbom
+        if top_packages_of_sbom.is_empty() {
+            let mut cpes = HashSet::new();
+            let external_sboms = find_external_refs(
+                matched.clone().sbom_id,
+                matched.clone().node_id,
+                connection,
+                &mut visited,
+            )
+            .await?;
+            log::debug!("ancestor external sboms: {:?}", external_sboms);
+            let top_ancestor_sbom = external_sboms
+                .last()
+                .map(|a| a.sbom_id)
+                .unwrap_or(matched.sbom_id);
+
+            cpes.extend(describing_cpes(connection, top_ancestor_sbom).await?);
+            matched_sboms // createbuild up RankedSboms
+                .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
+                    matched_sbom_id: matched.sbom_id,
+                    matched_name: matched.name.clone(),
+                    top_ancestor_sbom,
+                    cpe_id,
+                    sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                    rank: None,
+                }));
+        }
+
+        // finally we can now resolve top ancestor externally linked sboms
+        // to the matched node
         let mut cpes = HashSet::new();
         let mut top_ancestor_sbom = matched.sbom_id; // default
 
@@ -266,7 +311,7 @@ pub async fn resolve_sbom_cpes(
             cpes.extend(describing_cpes(connection, top_ancestor_sbom).await?);
         }
 
-        matched_sboms // createbuild up RankedSboms
+        matched_sboms // create RankedSboms
             .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
                 matched_sbom_id: matched.sbom_id,
                 matched_name: matched.name.clone(),
