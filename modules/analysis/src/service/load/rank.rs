@@ -4,7 +4,7 @@ use crate::{
 };
 use async_recursion::async_recursion;
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
+    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
     RelationTrait, Select, prelude::DateTimeWithTimeZone,
 };
 use sea_query::JoinType;
@@ -120,6 +120,77 @@ async fn describing_cpes(
         .await?)
 }
 
+/// Retrieves lineage (ancestors) of a specific node within an SBOM graph.
+///
+/// This function performs an iterative upstream traversal starting from the `start_node_id`.
+/// It walks the `package_relates_to_package` table from Child to Parent until it reaches
+/// a root node (no further parents) or hits a hard-coded recursion depth limit.
+///
+/// # Arguments
+///
+/// * `sbom_id` - The unique identifier of the SBOM to scope the search within.
+/// * `start_node_id` - The identifier of the child node to begin the traversal from.
+/// * `connection` - The database connection used to execute the queries.
+///
+/// # Returns
+///
+/// Returns a `Result` containing:
+/// * `Vec<package_relates_to_package::Model>`: A vector of relationship entities ordered
+///   from the immediate parent up to the root ancestor.
+/// * `DbErr`: If a database error occurs during traversal.
+///
+/// # Behavior & Limitations
+///
+/// * **Single Path Traversal**: If a node has multiple parents (DAG structure), this function
+///   currently selects the *first* parent returned by the database and ignores others.
+/// * **Cycle Protection**: Enforces a `MAX_DEPTH` of 100 to prevents infinite loops in
+///   cyclic graphs (e.g., A -> B -> A).
+pub async fn find_node_ancestors<C: ConnectionTrait>(
+    sbom_id: Uuid,
+    start_node_id: String,
+    connection: &C,
+) -> Result<Vec<package_relates_to_package::Model>, DbErr> {
+    let mut ancestors = Vec::new();
+    let mut current_child_id = start_node_id;
+
+    // guard to prevent infinite loops ( eg. cycles A->B->A)
+    // TODO: we may need to do more for infinite loop handling in pure sql
+    let mut depth = 0;
+    const MAX_DEPTH: usize = 100;
+
+    loop {
+        // Find relationship where current node is the CHILD (Right Side).
+        // The LEFT side is the parent/container node.
+        let parents = package_relates_to_package::Entity::find()
+            .filter(package_relates_to_package::Column::SbomId.eq(sbom_id))
+            .filter(package_relates_to_package::Column::RightNodeId.eq(&current_child_id))
+            .all(connection)
+            .await?;
+
+        // 1. Base Case: No parents found. We are at the top.
+        if parents.is_empty() {
+            break;
+        }
+
+        let parent_rel = &parents[0];
+        ancestors.push(parent_rel.clone());
+        current_child_id = parent_rel.left_node_id.clone();
+
+        depth += 1;
+        if depth > MAX_DEPTH {
+            log::warn!(
+                "Max recursion depth ({}) reached for sbom_id: {}",
+                MAX_DEPTH,
+                sbom_id
+            );
+            break;
+        }
+    }
+
+    log::debug!("Found {} ancestors for node", ancestors.len());
+    Ok(ancestors)
+}
+
 /// Resolve CPEs for matched SBOMs.
 ///
 /// The CPEs of an SBOM are the CPEs of the describing component.
@@ -141,18 +212,16 @@ pub async fn resolve_sbom_cpes(
     let mut visited = HashSet::new();
 
     for matched in rows {
+        log::warn!("working on matched sbom: {:?}", matched);
         // find top level package of matched sbom
-        let top_package_of_sbom = package_relates_to_package::Entity::find()
-            .filter(package_relates_to_package::Column::SbomId.eq(matched.sbom_id))
-            .filter(package_relates_to_package::Column::RightNodeId.eq(matched.node_id))
-            .all(connection)
-            .await?;
+        let top_packages_of_sbom =
+            find_node_ancestors(matched.sbom_id, matched.node_id, connection).await?;
 
         // resolve ancestor externally linked sboms
         let mut cpes = HashSet::new();
         let mut top_ancestor_sbom = matched.sbom_id; // default
 
-        for package in top_package_of_sbom {
+        for package in top_packages_of_sbom {
             // resolve_all_ancestors is recursive
             let ancestor_sboms = resolve_all_ancestors(
                 package.sbom_id,
