@@ -1,5 +1,7 @@
-use crate::config::AnalysisConfig;
+pub mod data;
+
 use crate::{
+    config::AnalysisConfig,
     endpoints::configure,
     model::{BaseSummary, Node as GraphNode},
     service::AnalysisService,

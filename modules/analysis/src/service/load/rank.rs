@@ -4,10 +4,12 @@ use crate::{
 };
 use async_recursion::async_recursion;
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QuerySelect, Select,
-    prelude::DateTimeWithTimeZone,
+    ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
+    RelationTrait, Select, prelude::DateTimeWithTimeZone,
 };
+use sea_query::JoinType;
 use std::collections::HashSet;
+use trustify_entity::relationship::Relationship;
 use trustify_entity::{package_relates_to_package, sbom, sbom_node, sbom_package_cpe_ref};
 use uuid::Uuid;
 
@@ -93,6 +95,29 @@ where
     }
 
     Ok(all_resolved_sboms)
+}
+
+/// Get all CPEs of the "describing component" of an SBOM
+///
+/// This means: all CPEs of all nodes which have the SBOM's node ID on the right side of a "describes" relationship
+async fn describing_cpes(
+    connection: &(impl ConnectionTrait + Send),
+    sbom_id: Uuid,
+) -> Result<Vec<Uuid>, Error> {
+    Ok(sbom_package_cpe_ref::Entity::find()
+        .distinct()
+        .select_only()
+        .column(sbom_package_cpe_ref::Column::CpeId)
+        .filter(sbom_package_cpe_ref::Column::SbomId.eq(sbom_id))
+        .join(JoinType::Join, sbom_package_cpe_ref::Relation::Sbom.def())
+        .join(
+            JoinType::Join,
+            sbom::Relation::PackageRelatesToPackages.def(),
+        )
+        .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Describes))
+        .into_tuple::<Uuid>()
+        .all(connection)
+        .await?)
 }
 
 /// Resolve CPEs for matched SBOMs.
@@ -210,5 +235,40 @@ pub fn apply_rank(items: &mut [RankedSbom]) {
             current_rank = 1;
             items[i].rank = Some(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test::data::*;
+    use futures::{StreamExt, TryStreamExt, stream};
+    use rstest::rstest;
+    use test_context::test_context;
+    use trustify_entity::cpe;
+    use trustify_test_context::{IngestionResult, TrustifyContext};
+
+    #[test_context(TrustifyContext)]
+    #[rstest]
+    #[case(rpm::older(), &["cpe:/a:redhat:enterprise_linux:9.7:*:appstream:*", "cpe:/a:redhat:enterprise_linux:9:*:appstream:*"][..])]
+    #[test_log::test(actix_web::test)]
+    async fn describing_cpes(
+        ctx: &TrustifyContext,
+        #[case] sources: impl IntoIterator<Item = String>,
+        #[case] expected: &[&str],
+    ) -> Result<(), anyhow::Error> {
+        let [product, _rpm] = ctx.ingest_documents(sources).await?.into_uuid();
+
+        let cpes = stream::iter(super::describing_cpes(&ctx.db, product).await?)
+            .then(async |cpe| cpe::Entity::find_by_id(cpe).all(&ctx.db).await)
+            .try_fold(Vec::new(), |mut acc, models| async move {
+                acc.extend(models.into_iter().map(|cpe| cpe.to_string()));
+                Ok(acc)
+            })
+            .await?;
+
+        assert_eq!(cpes.as_slice(), expected);
+
+        Ok(())
     }
 }
