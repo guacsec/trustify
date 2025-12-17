@@ -82,18 +82,15 @@ where
     }
     let mut all_resolved_sboms = vec![];
 
-    // 1. Execute query and handle the Result safely ONCE.
+    // execute query and handle the result safely ONCE.
     // usage: resolve_rh_external_sbom_ancestors likely returns Result<Vec<...>, Error>
     let direct_ancestors = resolve_rh_external_sbom_ancestors(sbom_id, node_id, connection).await?;
 
     for ancestor in direct_ancestors {
         all_resolved_sboms.push(ancestor.clone());
 
-        let top_package_of_sbom = package_relates_to_package::Entity::find()
-            .filter(package_relates_to_package::Column::SbomId.eq(ancestor.sbom_id))
-            .filter(package_relates_to_package::Column::RightNodeId.eq(ancestor.node_id))
-            .all(connection)
-            .await?;
+        let top_package_of_sbom =
+            find_node_ancestors(ancestor.sbom_id, ancestor.node_id.clone(), connection).await?;
 
         for package in top_package_of_sbom {
             let deep_ancestors =
@@ -241,6 +238,7 @@ pub async fn resolve_sbom_cpes(
     for matched in rows {
         // check if matched node has any CPEs attached
         let direct_cpes = describing_cpes(connection, matched.sbom_id).await?;
+
         for direct_cpe in direct_cpes {
             matched_sboms // create RankedSboms
                 .push(RankedSbom {
