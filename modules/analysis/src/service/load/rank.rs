@@ -48,33 +48,43 @@ pub fn select() -> Select<sbom_node::Entity> {
         .left_join(sbom::Entity)
 }
 
+/// Recursively resolves external SBOM references to build a complete dependency graph across multiple SBOM files.
+///
+/// This function performs a **Depth-First Search (DFS)** starting from a specific node in a specific SBOM.
+/// It looks for "external references" (pointers to other SBOMs), resolves them, and then recursively
+/// traverses up the tree of the referenced SBOMs to find further ancestors.
+///
+/// # Arguments
+///
+/// * `sbom_id` - The UUID of the current SBOM being inspected.
+/// * `node_id` - The node ID within the current SBOM to search for external ancestors.
+/// * `connection` - The database connection.
+/// * `visited` - A `HashSet` used to track visited SBOM UUIDs and prevent infinite recursion in cyclic graphs.
+///
+/// # Returns
+///
+/// Returns a `Result` containing:
+/// * `Vec<ResolvedSbom>`: A flattened list of all resolved external SBOM ancestors found recursively.
+/// * `Error`: If a database error occurs.
 #[async_recursion]
-async fn resolve_all_ancestors<C>(
-    sbom_sbom_id: Uuid,
-    sbom_node_ref: String,
+async fn find_external_refs<C>(
+    sbom_id: Uuid,
+    node_id: String,
     connection: &C,
     visited: &mut HashSet<Uuid>,
 ) -> Result<Vec<ResolvedSbom>, Error>
 where
     C: ConnectionTrait + Send,
 {
-    if !visited.insert(sbom_sbom_id) {
-        log::debug!(
-            "Cycle detected for SBOM {}, skipping recursion.",
-            sbom_sbom_id
-        );
+    if !visited.insert(sbom_id) {
+        log::debug!("Cycle detected for SBOM {}, skipping recursion.", sbom_id);
         return Ok(vec![]);
     }
     let mut all_resolved_sboms = vec![];
 
     // 1. Execute query and handle the Result safely ONCE.
     // usage: resolve_rh_external_sbom_ancestors likely returns Result<Vec<...>, Error>
-    let direct_ancestors = resolve_rh_external_sbom_ancestors(
-        sbom_sbom_id,
-        sbom_node_ref,
-        connection, // Pass the reference directly (no need to clone if inner fn takes &C)
-    )
-    .await?;
+    let direct_ancestors = resolve_rh_external_sbom_ancestors(sbom_id, node_id, connection).await?;
 
     for ancestor in direct_ancestors {
         all_resolved_sboms.push(ancestor.clone());
@@ -87,7 +97,7 @@ where
 
         for package in top_package_of_sbom {
             let deep_ancestors =
-                resolve_all_ancestors(package.sbom_id, package.left_node_id, connection, visited)
+                find_external_refs(package.sbom_id, package.left_node_id, connection, visited)
                     .await?;
 
             all_resolved_sboms.extend(deep_ancestors);
@@ -207,55 +217,46 @@ pub async fn resolve_sbom_cpes(
     connection: &(impl ConnectionTrait + Send),
     rows: Vec<Row>,
 ) -> Result<Vec<RankedSbom>, Error> {
-    // step 2 - get CPEs (by resolving)
     let mut matched_sboms = Vec::new();
     let mut visited = HashSet::new();
 
     for matched in rows {
-        log::warn!("working on matched sbom: {:?}", matched);
         // find top level package of matched sbom
         let top_packages_of_sbom =
             find_node_ancestors(matched.sbom_id, matched.node_id, connection).await?;
 
-        // resolve ancestor externally linked sboms
+        // resolve top ancestor externally linked sboms
         let mut cpes = HashSet::new();
         let mut top_ancestor_sbom = matched.sbom_id; // default
 
         for package in top_packages_of_sbom {
-            // resolve_all_ancestors is recursive
-            let ancestor_sboms = resolve_all_ancestors(
+            // find_external_refs is recursive
+            let external_sboms = find_external_refs(
                 package.sbom_id,
                 package.left_node_id,
                 connection,
                 &mut visited,
             )
             .await?;
-            log::debug!("ancestor sboms: {:?}", ancestor_sboms);
+            log::debug!("ancestor external sboms: {:?}", external_sboms);
 
-            top_ancestor_sbom = ancestor_sboms
+            top_ancestor_sbom = external_sboms
                 .last()
                 .map(|a| a.sbom_id)
                 .unwrap_or(matched.sbom_id);
 
-            cpes.extend(
-                sbom_package_cpe_ref::Entity::find()
-                    .filter(sbom_package_cpe_ref::Column::SbomId.eq(top_ancestor_sbom))
-                    .select_only()
-                    .column(sbom_package_cpe_ref::Column::CpeId)
-                    .into_tuple::<Uuid>()
-                    .all(connection)
-                    .await?,
-            );
+            cpes.extend(describing_cpes(connection, top_ancestor_sbom).await?);
         }
 
-        matched_sboms.extend(cpes.into_iter().map(|cpe_id| RankedSbom {
-            matched_sbom_id: matched.sbom_id,
-            matched_name: matched.name.clone(),
-            top_ancestor_sbom,
-            cpe_id,
-            sbom_date: matched.published,
-            rank: None,
-        }));
+        matched_sboms // createbuild up RankedSboms
+            .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
+                matched_sbom_id: matched.sbom_id,
+                matched_name: matched.name.clone(),
+                top_ancestor_sbom,
+                cpe_id,
+                sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                rank: None,
+            }));
     }
 
     Ok(matched_sboms)
