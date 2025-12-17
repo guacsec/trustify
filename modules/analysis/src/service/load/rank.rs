@@ -107,9 +107,26 @@ where
     Ok(all_resolved_sboms)
 }
 
-/// Get all CPEs of the "describing component" of an SBOM
+/// Retrieves the distinct list of CPE (Common Platform Enumeration) UUIDs associated with a specific SBOM,
+/// specifically the "describing component" of an SBOM.
 ///
 /// This means: all CPEs of all nodes which have the SBOM's node ID on the right side of a "describes" relationship
+///
+/// This function queries the `sbom_package_cpe_ref` linking table to find all CPEs tied
+/// to the given `sbom_id`. It includes validation joins to ensure the SBOM exists and
+/// properly contains a "Describes" relationship (indicating a valid root package structure).
+///
+/// # Arguments
+///
+/// * `connection` - The database connection used to execute the query.
+/// * `sbom_id` - The UUID of the SBOM to search within.
+///
+/// # Returns
+///
+/// Returns a `Result` containing:
+/// * `Vec<Uuid>`: A list of unique CPE UUIDs found in the SBOM.
+/// * `Error`: If a database error occurs.
+///
 async fn describing_cpes(
     connection: &(impl ConnectionTrait + Send),
     sbom_id: Uuid,
@@ -130,7 +147,8 @@ async fn describing_cpes(
         .await?)
 }
 
-/// Retrieves lineage (ancestors) of a specific node within an SBOM graph.
+/// Retrieves lineage (ancestors) of a specific node within an SBOM graph as represented
+/// in sql data (NOT in memory graph).
 ///
 /// This function performs an iterative upstream traversal starting from the `start_node_id`.
 /// It walks the `package_relates_to_package` table from Child to Parent until it reaches
@@ -262,12 +280,24 @@ pub async fn resolve_sbom_cpes(
     Ok(matched_sboms)
 }
 
-/// emulate SQL RANK which partitions vec RankedSBOM on cpe_id and date
+/// Assigns a rank to SBOMs within their specific CPE groups based on creation date which
+/// embodies the latest filter heuristics.
 ///
-/// The input is a (possibly) unsorted Vec of RankedSboms. The `rank` field may be empty and
-/// will be filled when the function returns.
+/// This function simulates a SQL Window Function:
+/// `DENSE_RANK() OVER (PARTITION BY cpe_id ORDER BY sbom_date DESC)`.
 ///
-/// As a side effect, the Vec will be sorted by cpe_id, then sbom_date
+/// # Logic
+/// 1. **Sort**: The list is sorted primarily by `cpe_id` (to group items) and secondarily
+///    by `sbom_date` in descending order (newest first).
+/// 2. **Rank**: It iterates through the sorted list:
+///    - **New Group**: If the `cpe_id` changes, the rank resets to 1.
+///    - **Ties**: If the `sbom_date` is identical to the previous item in the same group,
+///      they share the same rank.
+///    - **Progression**: If the date is older, the rank increments by 1 (creating a "Dense" rank,
+///      meaning no numbers are skipped after ties: 1, 1, 2).
+///
+/// # Arguments
+/// * `items` - A mutable slice of `RankedSbom` that will be sorted and updated in-place.
 pub fn apply_rank(items: &mut [RankedSbom]) {
     items.sort_by(|a, b| {
         a.cpe_id
