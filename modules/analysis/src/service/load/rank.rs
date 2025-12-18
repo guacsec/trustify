@@ -7,10 +7,13 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
     RelationTrait, Select, prelude::DateTimeWithTimeZone,
 };
-use sea_query::JoinType;
+use sea_query::{Expr, JoinType};
 use std::collections::HashSet;
 use trustify_entity::relationship::Relationship;
-use trustify_entity::{package_relates_to_package, sbom, sbom_node, sbom_package_cpe_ref};
+use trustify_entity::{
+    package_relates_to_package, sbom, sbom_external_node, sbom_node, sbom_package,
+    sbom_package_cpe_ref,
+};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, FromQueryResult)]
@@ -23,13 +26,15 @@ pub struct Row {
     pub name: String,
     /// publish time of the SBOM that matched
     pub published: DateTimeWithTimeZone,
+    pub group: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct RankedSbom {
     pub matched_sbom_id: Uuid,
-    #[allow(dead_code)] // good for debugging
     pub matched_name: String,
+    #[allow(dead_code)] // good for debugging
+    pub matched_group: String,
     #[allow(dead_code)] // good for debugging
     pub top_ancestor_sbom: Uuid,
     pub cpe_id: Uuid,
@@ -45,6 +50,10 @@ pub fn select() -> Select<sbom_node::Entity> {
         .column(sbom_node::Column::NodeId)
         .column(sbom_node::Column::Name)
         .column(sbom::Column::Published)
+        .column_as(
+            Expr::col(sbom_package::Column::Group).if_null(""),
+            "group".to_string(),
+        )
         .left_join(sbom::Entity)
 }
 
@@ -229,6 +238,7 @@ pub async fn find_node_ancestors<C: ConnectionTrait>(
 /// * A Vec of nodes matching, filled with their CPE.
 ///
 pub async fn resolve_sbom_cpes(
+    cpe_search: bool,
     connection: &(impl ConnectionTrait + Send),
     rows: Vec<Row>,
 ) -> Result<Vec<RankedSbom>, Error> {
@@ -236,19 +246,38 @@ pub async fn resolve_sbom_cpes(
     let mut visited = HashSet::new();
 
     for matched in rows {
-        // check if matched node has any CPEs attached
-        let direct_cpes = describing_cpes(connection, matched.sbom_id).await?;
-
-        for direct_cpe in direct_cpes {
-            matched_sboms // create RankedSboms
-                .push(RankedSbom {
-                    matched_sbom_id: matched.sbom_id,
-                    matched_name: matched.name.clone(),
-                    top_ancestor_sbom: matched.sbom_id,
-                    cpe_id: direct_cpe,
-                    sbom_date: matched.published, // TODO: ensure to revisit this assumption
-                    rank: None,
-                });
+        // cpe search means our matched nodes are always top level sbom DESCRIBE
+        if cpe_search {
+            // TODO: this mess is temporary and will be refactored
+            let direct_cpes = describing_cpes(connection, matched.sbom_id).await?;
+            let direct_external_sboms = sbom_external_node::Entity::find()
+                .filter(sbom_external_node::Column::SbomId.eq(matched.sbom_id.clone()))
+                .all(connection)
+                .await?;
+            for direct_cpe in direct_cpes.clone() {
+                for direct_external_sbom in direct_external_sboms.clone() {
+                    let direct_external_sbom_node_name = sbom_node::Entity::find()
+                        .filter(
+                            sbom_node::Column::NodeId
+                                .eq(direct_external_sbom.clone().external_node_ref),
+                        )
+                        .one(connection)
+                        .await?;
+                    matched_sboms // create RankedSboms
+                        .push(RankedSbom {
+                            matched_sbom_id: matched.sbom_id,
+                            matched_name: direct_external_sbom_node_name.clone().unwrap().name,
+                            matched_group: matched.group.clone(),
+                            top_ancestor_sbom: direct_external_sbom_node_name
+                                .clone()
+                                .unwrap()
+                                .sbom_id,
+                            cpe_id: direct_cpe,
+                            sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                            rank: None,
+                        });
+                }
+            }
         }
 
         // find top level package of matched sbom
@@ -257,39 +286,33 @@ pub async fn resolve_sbom_cpes(
                 .await?;
 
         // if top_packages_of_sbom is empty then matched node might be the top level
-        // package of matched sbom
+        // package of the matched sbom
         if top_packages_of_sbom.is_empty() {
-            let mut cpes = HashSet::new();
-            let external_sboms = find_external_refs(
-                matched.clone().sbom_id,
-                matched.clone().node_id,
+            let external_sboms = resolve_rh_external_sbom_ancestors(
+                matched.sbom_id.clone(),
+                matched.node_id.clone(),
                 connection,
-                &mut visited,
             )
             .await?;
             log::debug!("ancestor external sboms: {:?}", external_sboms);
-            let top_ancestor_sbom = external_sboms
-                .last()
-                .map(|a| a.sbom_id)
-                .unwrap_or(matched.sbom_id);
-
-            cpes.extend(describing_cpes(connection, top_ancestor_sbom).await?);
-            matched_sboms // createbuild up RankedSboms
-                .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
-                    matched_sbom_id: matched.sbom_id,
-                    matched_name: matched.name.clone(),
-                    top_ancestor_sbom,
-                    cpe_id,
-                    sbom_date: matched.published, // TODO: ensure to revisit this assumption
-                    rank: None,
-                }));
+            for external_sbom in external_sboms {
+                let mut cpes = HashSet::new();
+                cpes.extend(describing_cpes(connection, external_sbom.sbom_id.clone()).await?);
+                matched_sboms // createbuild up RankedSboms
+                    .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
+                        matched_sbom_id: matched.sbom_id,
+                        matched_name: matched.name.clone(),
+                        matched_group: matched.group.clone(),
+                        top_ancestor_sbom: external_sbom.sbom_id.clone(),
+                        cpe_id,
+                        sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                        rank: None,
+                    }));
+            }
         }
 
         // finally we can now resolve top ancestor externally linked sboms
         // to the matched node
-        let mut cpes = HashSet::new();
-        let mut top_ancestor_sbom = matched.sbom_id; // default
-
         for package in top_packages_of_sbom {
             // find_external_refs is recursive
             let external_sboms = find_external_refs(
@@ -299,25 +322,22 @@ pub async fn resolve_sbom_cpes(
                 &mut visited,
             )
             .await?;
-            log::debug!("ancestor external sboms: {:?}", external_sboms);
-
-            top_ancestor_sbom = external_sboms
-                .last()
-                .map(|a| a.sbom_id)
-                .unwrap_or(matched.sbom_id);
-
-            cpes.extend(describing_cpes(connection, top_ancestor_sbom).await?);
+            log::warn!("ancestor external sboms: {:?}", external_sboms);
+            for external_sbom in external_sboms {
+                let mut cpes = HashSet::new();
+                cpes.extend(describing_cpes(connection, external_sbom.sbom_id.clone()).await?);
+                matched_sboms // create RankedSboms
+                    .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
+                        matched_sbom_id: matched.sbom_id,
+                        matched_name: matched.name.clone(),
+                        matched_group: matched.group.clone(),
+                        top_ancestor_sbom: external_sbom.sbom_id.clone(),
+                        cpe_id,
+                        sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                        rank: None,
+                    }));
+            }
         }
-
-        matched_sboms // create RankedSboms
-            .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
-                matched_sbom_id: matched.sbom_id,
-                matched_name: matched.name.clone(),
-                top_ancestor_sbom,
-                cpe_id,
-                sbom_date: matched.published, // TODO: ensure to revisit this assumption
-                rank: None,
-            }));
     }
 
     Ok(matched_sboms)
@@ -330,10 +350,10 @@ pub async fn resolve_sbom_cpes(
 /// `DENSE_RANK() OVER (PARTITION BY cpe_id ORDER BY sbom_date DESC)`.
 ///
 /// # Logic
-/// 1. **Sort**: The list is sorted primarily by `cpe_id` (to group items) and secondarily
+/// 1. **Sort**: The list is sorted primarily by `cpe_id`, `name` (to group items) and secondarily
 ///    by `sbom_date` in descending order (newest first).
 /// 2. **Rank**: It iterates through the sorted list:
-///    - **New Group**: If the `cpe_id` changes, the rank resets to 1.
+///    - **New Group**: If the `cpe_id`, `name` changes, the rank resets to 1.
 ///    - **Ties**: If the `sbom_date` is identical to the previous item in the same group,
 ///      they share the same rank.
 ///    - **Progression**: If the date is older, the rank increments by 1 (creating a "Dense" rank,
@@ -342,17 +362,19 @@ pub async fn resolve_sbom_cpes(
 /// # Arguments
 /// * `items` - A mutable slice of `RankedSbom` that will be sorted and updated in-place.
 pub fn apply_rank(items: &mut [RankedSbom]) {
+    // group by (cpe_id, matched_name) before ordering by date.
     items.sort_by(|a, b| {
         a.cpe_id
-            .cmp(&b.cpe_id) // Partition 1
-            .then(b.sbom_date.cmp(&a.sbom_date)) // Order: DESC (b vs a)
+            .cmp(&b.cpe_id) // partition: CPE
+            .then(a.matched_name.cmp(&b.matched_name)) // partition: Name
+            // .then(a.matched_group.cmp(&b.matched_group)) // partition: Group
+            .then(b.sbom_date.cmp(&a.sbom_date)) // Ordering: Date DESC
     });
 
     let mut current_rank = 1;
 
-    // We iterate with indices so we can compare [i] with [i-1]
     for i in 0..items.len() {
-        // If it's the first item, it's automatically Rank 1
+        // first item is always Rank 1
         if i == 0 {
             items[i].rank = Some(1);
             continue;
@@ -361,20 +383,23 @@ pub fn apply_rank(items: &mut [RankedSbom]) {
         let prev = &items[i - 1];
         let curr = &items[i];
 
-        // Check if we are in the same "Partition" (CPE)
-        let same_partition = curr.cpe_id == prev.cpe_id;
+        // we are in the same group only if BOTH
+        // the CPE and the Name match the previous item.
+        let same_partition = curr.cpe_id == prev.cpe_id && curr.matched_name == prev.matched_name;
+        // curr.matched_group == prev.matched_group &&
+        // curr.matched_name == prev.matched_name;
 
         if same_partition {
-            // If dates are exact same, they get same rank.
+            // dense rank logic
             if curr.sbom_date == prev.sbom_date {
                 items[i].rank = items[i - 1].rank;
             } else {
-                // Standard increment
                 current_rank += 1;
                 items[i].rank = Some(current_rank);
             }
         } else {
-            // New partition detected! Reset rank.
+            // partition boundary detected (eg. CPE changed OR Name changed).
+            // reset rank counter.
             current_rank = 1;
             items[i].rank = Some(1);
         }
