@@ -49,10 +49,7 @@ pub fn select() -> Select<sbom_node::Entity> {
         .column(sbom_node::Column::NodeId)
         .column(sbom_node::Column::Name)
         .column(sbom::Column::Published)
-        .column_as(
-            Expr::col(sbom_package::Column::Group).if_null(""),
-            "group".to_string(),
-        )
+        .column_as(Expr::col(sbom_package::Column::Group).if_null(""), "group")
         .left_join(sbom::Entity)
 }
 
@@ -250,7 +247,7 @@ pub async fn resolve_sbom_cpes(
             // TODO: this mess is temporary and will be refactored
             let direct_cpes = describing_cpes(connection, matched.sbom_id).await?;
             let direct_external_sboms = sbom_external_node::Entity::find()
-                .filter(sbom_external_node::Column::SbomId.eq(matched.sbom_id.clone()))
+                .filter(sbom_external_node::Column::SbomId.eq(matched.sbom_id))
                 .all(connection)
                 .await?;
             for direct_cpe in direct_cpes.clone() {
@@ -287,22 +284,19 @@ pub async fn resolve_sbom_cpes(
         // if top_packages_of_sbom is empty then matched node might be the top level
         // package of the matched sbom
         if top_packages_of_sbom.is_empty() {
-            let external_sboms = resolve_rh_external_sbom_ancestors(
-                matched.sbom_id.clone(),
-                matched.node_id.clone(),
-                connection,
-            )
-            .await?;
+            let external_sboms =
+                resolve_rh_external_sbom_ancestors(matched.sbom_id, matched.node_id, connection)
+                    .await?;
             log::debug!("ancestor external sboms: {:?}", external_sboms);
             for external_sbom in external_sboms {
                 let mut cpes = HashSet::new();
-                cpes.extend(describing_cpes(connection, external_sbom.sbom_id.clone()).await?);
+                cpes.extend(describing_cpes(connection, external_sbom.sbom_id).await?);
                 matched_sboms // createbuild up RankedSboms
                     .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
                         matched_sbom_id: matched.sbom_id,
                         matched_name: matched.name.clone(),
                         matched_group: matched.group.clone(),
-                        top_ancestor_sbom: external_sbom.sbom_id.clone(),
+                        top_ancestor_sbom: external_sbom.sbom_id,
                         cpe_id,
                         sbom_date: matched.published, // TODO: ensure to revisit this assumption
                         rank: None,
@@ -324,13 +318,13 @@ pub async fn resolve_sbom_cpes(
             log::warn!("ancestor external sboms: {:?}", external_sboms);
             for external_sbom in external_sboms {
                 let mut cpes = HashSet::new();
-                cpes.extend(describing_cpes(connection, external_sbom.sbom_id.clone()).await?);
+                cpes.extend(describing_cpes(connection, external_sbom.sbom_id).await?);
                 matched_sboms // create RankedSboms
                     .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
                         matched_sbom_id: matched.sbom_id,
                         matched_name: matched.name.clone(),
                         matched_group: matched.group.clone(),
-                        top_ancestor_sbom: external_sbom.sbom_id.clone(),
+                        top_ancestor_sbom: external_sbom.sbom_id,
                         cpe_id,
                         sbom_date: matched.published, // TODO: ensure to revisit this assumption
                         rank: None,
