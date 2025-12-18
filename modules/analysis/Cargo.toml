@@ -60,4 +60,5 @@ tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }
 trustify-test-context = { workspace = true }
 urlencoding = { workspace = true }
+uuid = { workspace = true, features = ["v8"] }
 zip = { workspace = true }

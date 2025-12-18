@@ -9,10 +9,9 @@ use sea_orm::{
 };
 use sea_query::{Expr, JoinType};
 use std::collections::HashSet;
-use trustify_entity::relationship::Relationship;
 use trustify_entity::{
-    package_relates_to_package, sbom, sbom_external_node, sbom_node, sbom_package,
-    sbom_package_cpe_ref,
+    package_relates_to_package, relationship::Relationship, sbom, sbom_external_node, sbom_node,
+    sbom_package, sbom_package_cpe_ref,
 };
 use uuid::Uuid;
 
@@ -29,7 +28,7 @@ pub struct Row {
     pub group: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RankedSbom {
     pub matched_sbom_id: Uuid,
     pub matched_name: String,
@@ -410,6 +409,7 @@ pub fn apply_rank(items: &mut [RankedSbom]) {
 mod test {
     use super::*;
     use crate::test::data::*;
+    use chrono::{TimeZone, Utc};
     use futures::{StreamExt, TryStreamExt, stream};
     use rstest::rstest;
     use test_context::test_context;
@@ -438,5 +438,102 @@ mod test {
         assert_eq!(cpes.as_slice(), expected);
 
         Ok(())
+    }
+
+    /// create a simple [`RankedSbom`] for testing
+    fn ranked(
+        sbom: Uuid,
+        name: &str,
+        cpe_id: Uuid,
+        date: chrono::DateTime<Utc>,
+        rank: usize,
+    ) -> RankedSbom {
+        RankedSbom {
+            matched_sbom_id: sbom,
+            matched_name: name.to_string(),
+            matched_group: "".to_string(),
+            top_ancestor_sbom: Default::default(),
+            cpe_id,
+            sbom_date: date.into(),
+            rank: Some(rank),
+        }
+    }
+
+    /// create an ID for a CPE for testing
+    const fn cpe(i: u8) -> Uuid {
+        Uuid::new_v8([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, i])
+    }
+
+    /// create an ID for an SBOM for testing
+    const fn sbom(i: u8) -> Uuid {
+        Uuid::new_v8([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, i])
+    }
+
+    /// Create a timestamp based on a day, all timestamps created will only very by this day.
+    ///
+    /// The idea is to create timestamps for a stream of days: day 1, day 2, day x, ..
+    fn utc(day: u32) -> chrono::DateTime<Utc> {
+        Utc.with_ymd_and_hms(2025, 1, day, 0, 0, 0).unwrap()
+    }
+
+    /// Testing the [`super::apply_rank`] function.
+    #[rstest]
+    #[case::empty([])]
+    #[case::one([
+        ranked(sbom(1), "a", cpe(1), utc(1), 1),
+    ])]
+    #[case::two_later([
+        ranked(sbom(1), "a", cpe(1), utc(1), 2),
+        ranked(sbom(2), "a", cpe(1), utc(2), 1),
+    ])]
+    #[case::two_later_swapped([
+        ranked(sbom(2), "a", cpe(1), utc(2), 1),
+        ranked(sbom(1), "a", cpe(1), utc(1), 2),
+    ])]
+    #[case::two_different([
+        ranked(sbom(1), "a", cpe(1), utc(1), 1),
+        ranked(sbom(2), "a", cpe(2), utc(2), 1),
+    ])]
+    #[case::two_streams([
+        ranked(sbom(1), "a", cpe(1), utc(1), 2),
+        ranked(sbom(2), "a", cpe(1), utc(2), 1),
+        ranked(sbom(3), "a", cpe(2), utc(1), 2),
+        ranked(sbom(4), "a", cpe(2), utc(2), 1),
+    ])]
+    #[case::two_streams_swapped([
+        ranked(sbom(1), "a", cpe(1), utc(1), 2),
+        ranked(sbom(2), "a", cpe(2), utc(1), 2),
+        ranked(sbom(3), "a", cpe(1), utc(2), 1),
+        ranked(sbom(4), "a", cpe(2), utc(2), 1),
+    ])]
+    #[case::two_streams_names([
+        ranked(sbom(1), "a", cpe(1), utc(1), 2),
+        ranked(sbom(2), "a", cpe(1), utc(2), 1),
+        ranked(sbom(3), "b", cpe(1), utc(1), 2),
+        ranked(sbom(4), "b", cpe(1), utc(2), 1),
+    ])]
+    fn apply_rank_1(#[case] items: impl IntoIterator<Item = RankedSbom>) {
+        // collect first
+        let mut expected = items.into_iter().collect::<Vec<_>>();
+
+        // create input by stripping rank
+        let mut items = expected
+            .iter()
+            .map(|item| RankedSbom {
+                rank: None,
+                ..item.clone()
+            })
+            .collect::<Vec<_>>();
+
+        // process
+
+        apply_rank(&mut items);
+
+        // validate
+
+        let key = |a: &RankedSbom| (a.matched_sbom_id, a.matched_name.clone(), a.cpe_id, a.rank);
+        items.sort_by_key(key);
+        expected.sort_by_key(key);
+        assert_eq!(items, expected);
     }
 }
