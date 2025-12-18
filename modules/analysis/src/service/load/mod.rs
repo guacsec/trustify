@@ -344,6 +344,7 @@ impl InnerService {
     where
         C: ConnectionTrait + Send + Sync,
     {
+        let mut cpe_search: bool = false;
         // step 1 - retrieve sbom_node (by name or purl)
         let matched_sbom_ids: Vec<Row> = match query {
             GraphQuery::Component(ComponentReference::Id(node_id)) => {
@@ -372,6 +373,7 @@ impl InnerService {
                     .await?
             }
             GraphQuery::Component(ComponentReference::Cpe(cpe)) => {
+                cpe_search = true;
                 select()
                     .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
                     .join(JoinType::InnerJoin, sbom_package::Relation::Cpe.def())
@@ -405,7 +407,7 @@ impl InnerService {
 
         log::debug!("test latest sbom ids: {:?}", matched_sbom_ids);
 
-        let mut ranked_sboms = resolve_sbom_cpes(connection, matched_sbom_ids).await?;
+        let mut ranked_sboms = resolve_sbom_cpes(cpe_search, connection, matched_sbom_ids).await?;
 
         // apply rank
         apply_rank(&mut ranked_sboms);
@@ -418,7 +420,7 @@ impl InnerService {
             .map(|item| item.matched_sbom_id)
             .collect();
 
-        log::warn!("latest sboms: {:?}", latest_ids);
+        log::debug!("latest sboms: {:?}", latest_ids);
 
         self.load_graphs(connection, latest_ids).await
     }
