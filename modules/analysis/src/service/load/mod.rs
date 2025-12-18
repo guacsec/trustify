@@ -345,7 +345,7 @@ impl InnerService {
         C: ConnectionTrait + Send + Sync,
     {
         let mut cpe_search: bool = false;
-        // step 1 - retrieve sbom_node (by name or purl)
+        // query for cpe, name or purl
         let matched_sbom_ids: Vec<Row> = match query {
             GraphQuery::Component(ComponentReference::Id(node_id)) => {
                 select()

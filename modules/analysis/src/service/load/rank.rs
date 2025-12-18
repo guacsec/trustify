@@ -7,11 +7,11 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
     RelationTrait, Select, prelude::DateTimeWithTimeZone,
 };
-use sea_query::{Expr, JoinType};
+use sea_query::JoinType;
 use std::collections::HashSet;
 use trustify_entity::{
     package_relates_to_package, relationship::Relationship, sbom, sbom_external_node, sbom_node,
-    sbom_package, sbom_package_cpe_ref,
+    sbom_package_cpe_ref,
 };
 use uuid::Uuid;
 
@@ -25,7 +25,6 @@ pub struct Row {
     pub name: String,
     /// publish time of the SBOM that matched
     pub published: DateTimeWithTimeZone,
-    pub group: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,7 +32,6 @@ pub struct RankedSbom {
     pub matched_sbom_id: Uuid,
     pub matched_name: String,
     #[allow(dead_code)] // good for debugging
-    pub matched_group: String,
     #[allow(dead_code)] // good for debugging
     pub top_ancestor_sbom: Uuid,
     pub cpe_id: Uuid,
@@ -49,7 +47,6 @@ pub fn select() -> Select<sbom_node::Entity> {
         .column(sbom_node::Column::NodeId)
         .column(sbom_node::Column::Name)
         .column(sbom::Column::Published)
-        .column_as(Expr::col(sbom_package::Column::Group).if_null(""), "group")
         .left_join(sbom::Entity)
 }
 
@@ -81,10 +78,12 @@ async fn find_external_refs<C>(
 where
     C: ConnectionTrait + Send,
 {
-    if !visited.insert(sbom_id) {
-        log::debug!("Cycle detected for SBOM {}, skipping recursion.", sbom_id);
-        return Ok(vec![]);
-    }
+    // TODO: we need to fix cyclic detection
+    // if !visited.insert(sbom_id) {
+    //     log::warn!("Cycle detected for SBOM {}, skipping recursion.", sbom_id);
+    //     return Ok(vec![]);
+    // }
+
     let mut all_resolved_sboms = vec![];
 
     // execute query and handle the result safely ONCE.
@@ -263,7 +262,6 @@ pub async fn resolve_sbom_cpes(
                         .push(RankedSbom {
                             matched_sbom_id: matched.sbom_id,
                             matched_name: direct_external_sbom_node_name.clone().unwrap().name,
-                            matched_group: matched.group.clone(),
                             top_ancestor_sbom: direct_external_sbom_node_name
                                 .clone()
                                 .unwrap()
@@ -318,7 +316,6 @@ pub async fn resolve_sbom_cpes(
                 .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
                     matched_sbom_id: matched.sbom_id,
                     matched_name: matched.name.clone(),
-                    matched_group: matched.group.clone(),
                     top_ancestor_sbom: external_sbom.sbom_id,
                     cpe_id,
                     sbom_date: matched.published, // TODO: ensure to revisit this assumption
@@ -439,7 +436,6 @@ mod test {
         RankedSbom {
             matched_sbom_id: sbom,
             matched_name: name.to_string(),
-            matched_group: "".to_string(),
             top_ancestor_sbom: Default::default(),
             cpe_id,
             sbom_date: date.into(),
