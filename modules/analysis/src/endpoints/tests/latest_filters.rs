@@ -638,8 +638,24 @@ fn sort(json: &mut Value) {
     4
 )]
 #[case( // latest name exact search
+    Req { what: What::Q("name=openssl-synthetic-test"),latest: true, ancestors: Some(10), ..Req::default() },
+    2
+)]
+#[case( // name exact search
+    Req { what: What::Q("name=openssl"), ancestors: Some(10), ..Req::default() },
+    6
+)]
+#[case( // latest name exact search
+    Req { what: What::Q("name=openssl"),latest: true, ancestors: Some(10), ..Req::default() },
+    2
+)]
+#[case( // q search
+    Req { what: What::Q("openssl"), ancestors: Some(10), ..Req::default() },
+    24
+)]
+#[case( // latest q search
     Req { what: What::Q("openssl"),latest: true, ancestors: Some(10), ..Req::default() },
-    8
+    12
 )]
 #[case( // name partial search
     Req { what: What::Q("name~openssl-synthetic"), ancestors: Some(10), ..Req::default() },
