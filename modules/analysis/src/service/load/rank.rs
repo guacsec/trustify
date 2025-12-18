@@ -281,55 +281,49 @@ pub async fn resolve_sbom_cpes(
             find_node_ancestors(matched.clone().sbom_id, matched.clone().node_id, connection)
                 .await?;
 
-        // if top_packages_of_sbom is empty then matched node might be the top level
-        // package of the matched sbom
-        if top_packages_of_sbom.is_empty() {
-            let external_sboms =
+        let external_sboms = match top_packages_of_sbom.is_empty() {
+            true => {
+                // if top_packages_of_sbom is empty then matched node might be the top level
+                // package of the matched sbom
                 resolve_rh_external_sbom_ancestors(matched.sbom_id, matched.node_id, connection)
-                    .await?;
-            log::debug!("ancestor external sboms: {:?}", external_sboms);
-            for external_sbom in external_sboms {
-                let mut cpes = HashSet::new();
-                cpes.extend(describing_cpes(connection, external_sbom.sbom_id).await?);
-                matched_sboms // createbuild up RankedSboms
-                    .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
-                        matched_sbom_id: matched.sbom_id,
-                        matched_name: matched.name.clone(),
-                        matched_group: matched.group.clone(),
-                        top_ancestor_sbom: external_sbom.sbom_id,
-                        cpe_id,
-                        sbom_date: matched.published, // TODO: ensure to revisit this assumption
-                        rank: None,
-                    }));
+                    .await?
             }
-        }
+            false => {
+                // finally we can now resolve top ancestor externally linked sboms
+                // to the matched node
+                let mut external_sboms = Vec::new();
 
-        // finally we can now resolve top ancestor externally linked sboms
-        // to the matched node
-        for package in top_packages_of_sbom {
-            // find_external_refs is recursive
-            let external_sboms = find_external_refs(
-                package.sbom_id,
-                package.left_node_id,
-                connection,
-                &mut visited,
-            )
-            .await?;
-            log::warn!("ancestor external sboms: {:?}", external_sboms);
-            for external_sbom in external_sboms {
-                let mut cpes = HashSet::new();
-                cpes.extend(describing_cpes(connection, external_sbom.sbom_id).await?);
-                matched_sboms // create RankedSboms
-                    .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
-                        matched_sbom_id: matched.sbom_id,
-                        matched_name: matched.name.clone(),
-                        matched_group: matched.group.clone(),
-                        top_ancestor_sbom: external_sbom.sbom_id,
-                        cpe_id,
-                        sbom_date: matched.published, // TODO: ensure to revisit this assumption
-                        rank: None,
-                    }));
+                for package in top_packages_of_sbom {
+                    // find_external_refs is recursive
+                    external_sboms.extend(
+                        find_external_refs(
+                            package.sbom_id,
+                            package.left_node_id,
+                            connection,
+                            &mut visited,
+                        )
+                        .await?,
+                    );
+                }
+
+                external_sboms
             }
+        };
+
+        log::warn!("ancestor external sboms: {:?}", external_sboms);
+        for external_sbom in external_sboms {
+            let mut cpes = HashSet::new();
+            cpes.extend(describing_cpes(connection, external_sbom.sbom_id).await?);
+            matched_sboms // create RankedSboms
+                .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
+                    matched_sbom_id: matched.sbom_id,
+                    matched_name: matched.name.clone(),
+                    matched_group: matched.group.clone(),
+                    top_ancestor_sbom: external_sbom.sbom_id,
+                    cpe_id,
+                    sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                    rank: None,
+                }));
         }
     }
 
