@@ -30,11 +30,11 @@ use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
 )]
 #[case( // purl partial latest
     Req { what: What::Q("purl~pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), latest: true, ..Req::default() },
-    5
+    6
 )]
 #[case( // purl partial search latest
     Req { what: What::Q("purl:name~quay-builder-qemu-rhcos-rhel8&purl:ty=oci"), ancestors: Some(10), latest: true, ..Req::default() },
-    5
+    6
 )]
 #[case( // purl partial search latest
     Req { what: What::Q("pkg:rpm/redhat/harfbuzz"), ancestors: Some(10), latest: true, ..Req::default() },
@@ -637,8 +637,44 @@ fn sort(json: &mut Value) {
     Req { what: What::Id("cpe:/a:redhat:quarkus:3.20::el8"), ..Req::default() },
     2
 )]
+#[case( // cpe part search
+    Req { what: What::Q("cpe:part=a"), ..Req::default() },
+    8
+)]
+#[case( // latest cpe part search
+    Req { what: What::Q("cpe:part=a"),  latest: true,..Req::default() },
+    4
+)]
+#[case( // cpe part search
+    Req { what: What::Q("cpe:part=o"), ..Req::default() },
+    2
+)]
+#[case( // latest cpe part search
+    Req { what: What::Q("cpe:part=o"),  latest: true,..Req::default() },
+    1
+)]
 #[case( // cpe latest search
     Req { what: What::Id("cpe:/a:redhat:quarkus:3.20::el8"), latest: true, ..Req::default() },
+    1
+)]
+#[case( // latest name exact search
+    Req { what: What::Q("name=container-native-virtualization/wasp-agent-rhel9"), latest: true, ancestors: Some(10), ..Req::default() },
+    1
+)]
+#[case( // latest name exact search
+    Req { what: What::Q("name=datagrid/datagrid-8"), latest: true, ancestors: Some(10), ..Req::default() },
+    1
+)]
+#[case( // latest name exact search
+    Req { what: What::Q("name=quarkus-bom"), latest: true, ancestors: Some(10), ..Req::default() },
+    1
+)]
+#[case( // latest name exact search
+    Req { what: What::Q("name=webkit2gtk3"), latest: true, ancestors: Some(10), ..Req::default() },
+    1
+)]
+#[case( // latest name exact search
+    Req { what: What::Q("name=libsoup3"), latest: true, ancestors: Some(10), ..Req::default() },
     1
 )]
 #[case( // name exact search

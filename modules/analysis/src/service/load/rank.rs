@@ -323,6 +323,7 @@ pub async fn resolve_sbom_cpes(
         for external_sbom in external_sboms {
             let mut cpes = HashSet::new();
             cpes.extend(describing_cpes(connection, external_sbom.sbom_id).await?);
+            log::debug!("Cpes: {:?}", cpes);
             matched_sboms // create RankedSboms
                 .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
                     matched_sbom_id: matched.sbom_id,

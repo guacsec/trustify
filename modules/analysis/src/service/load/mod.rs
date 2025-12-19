@@ -383,6 +383,7 @@ impl InnerService {
                     .await?
             }
             GraphQuery::Query(query) => {
+                cpe_search = true;
                 select()
                     // required for purl and cpe refs
                     .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
