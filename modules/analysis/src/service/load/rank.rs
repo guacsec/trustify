@@ -9,6 +9,7 @@ use sea_orm::{
 };
 use sea_query::JoinType;
 use std::collections::HashSet;
+
 use trustify_entity::{
     package_relates_to_package, relationship::Relationship, sbom, sbom_external_node, sbom_node,
     sbom_package_cpe_ref,
@@ -74,7 +75,7 @@ async fn find_external_refs<C>(
     sbom_id: Uuid,
     node_id: String,
     connection: &C,
-    visited: &mut HashSet<Uuid>,
+    _visited: &mut HashSet<Uuid>,
 ) -> Result<Vec<ResolvedSbom>, Error>
 where
     C: ConnectionTrait + Send,
@@ -99,7 +100,7 @@ where
 
         for package in top_package_of_sbom {
             let deep_ancestors =
-                find_external_refs(package.sbom_id, package.left_node_id, connection, visited)
+                find_external_refs(package.sbom_id, package.left_node_id, connection, _visited)
                     .await?;
 
             all_resolved_sboms.extend(deep_ancestors);
@@ -262,10 +263,19 @@ pub async fn resolve_sbom_cpes(
                     matched_sboms // create RankedSboms
                         .push(RankedSbom {
                             matched_sbom_id: matched.sbom_id,
-                            matched_name: direct_external_sbom_node_name.clone().unwrap().name,
+                            matched_name: direct_external_sbom_node_name
+                                .clone()
+                                .ok_or_else(|| {
+                                    Error::Data("Ranked matched node is missing name.".to_string())
+                                })?
+                                .name,
                             top_ancestor_sbom: direct_external_sbom_node_name
                                 .clone()
-                                .unwrap()
+                                .ok_or_else(|| {
+                                    Error::Data(
+                                        "Ranked matched node has no top ancestor sbom.".to_string(),
+                                    )
+                                })?
                                 .sbom_id,
                             cpe_id: direct_cpe,
                             sbom_date: matched.published, // TODO: ensure to revisit this assumption
