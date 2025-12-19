@@ -42,6 +42,7 @@ pub struct RankedSbom {
 /// prepare a select statement, returning [`Row`]s.
 pub fn select() -> Select<sbom_node::Entity> {
     sbom_node::Entity::find()
+        .distinct()
         .select_only()
         .column(sbom_node::Column::SbomId)
         .column(sbom_node::Column::NodeId)
@@ -196,7 +197,7 @@ pub async fn find_node_ancestors<C: ConnectionTrait>(
             .all(connection)
             .await?;
 
-        // 1. Base Case: No parents found. We are at the top.
+        // no parents found
         if parents.is_empty() {
             break;
         }
@@ -307,8 +308,8 @@ pub async fn resolve_sbom_cpes(
                 external_sboms
             }
         };
+        log::debug!("external_sboms {:?}", external_sboms);
 
-        log::warn!("ancestor external sboms: {:?}", external_sboms);
         for external_sbom in external_sboms {
             let mut cpes = HashSet::new();
             cpes.extend(describing_cpes(connection, external_sbom.sbom_id).await?);

@@ -16,13 +16,21 @@ use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
     Req { what: What::Id("cpe:/a:redhat:quay:3::el8"), latest: true, ..Req::default() },
     1
 )]
-#[case( // purl partial search
+#[case( // purl q search
     Req { what: What::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), ..Req::default() },
     6
 )]
-#[case( // purl partial search latest
+#[case( // purl q latest
     Req { what: What::Q("pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), latest: true, ..Req::default() },
     1
+)]
+#[case( // purl partial search
+    Req { what: What::Q("purl~pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), ..Req::default() },
+    16
+)]
+#[case( // purl partial latest
+    Req { what: What::Q("purl~pkg:oci/quay-builder-qemu-rhcos-rhel8"), ancestors: Some(10), latest: true, ..Req::default() },
+    5
 )]
 #[case( // purl partial search latest
     Req { what: What::Q("purl:name~quay-builder-qemu-rhcos-rhel8&purl:ty=oci"), ancestors: Some(10), latest: true, ..Req::default() },
