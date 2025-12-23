@@ -2200,19 +2200,20 @@ dependencies = [
 
 [[package]]
 name = "cvss"
-version = "0.1.0"
-source = "git+https://github.com/dejanb/cvss#aadb35f033d124da099bf74fb1383fc30a62c163"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4f643e062e9a8e26edea270945e05011c441ca6a56e9d9d4464c6b0be1352bd"
+
+[[package]]
+name = "cvss-rs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac9b885fb8472719329455432c594b9344b6df6d9665aedb7f142193489bdcfd"
 dependencies = [
  "serde",
  "serde_json",
  "strum 0.26.3",
 ]
-
-[[package]]
-name = "cvss"
-version = "2.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4f643e062e9a8e26edea270945e05011c441ca6a56e9d9d4464c6b0be1352bd"
 
 [[package]]
 name = "darling"
@@ -8417,8 +8418,8 @@ dependencies = [
  "anyhow",
  "async-graphql",
  "cpe",
- "cvss 0.1.0",
- "cvss 2.1.1",
+ "cvss",
+ "cvss-rs",
  "deepsize",
  "log",
  "rstest",
@@ -8728,7 +8729,7 @@ dependencies = [
  "cpe",
  "csaf",
  "cve",
- "cvss 0.1.0",
+ "cvss-rs",
  "hex",
  "humantime",
  "jsn",

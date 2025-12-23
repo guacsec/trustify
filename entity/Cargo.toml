@@ -13,7 +13,7 @@ trustify-common = { workspace = true }
 trustify-cvss = { workspace = true }
 
 cpe = { workspace = true }
-cvss-rs = { workspace = true }
+cvss = { workspace = true }
 cvss-old = { workspace = true }
 deepsize = { workspace = true }
 schemars = { workspace = true }

@@ -1,4 +1,4 @@
-use cvss::version::{VersionV2, VersionV3, VersionV4};
+use cvss::version::VersionV3;
 use cvss::{Cvss, v2_0, v3, v4_0};
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set};
 use trustify_entity::advisory_vulnerability_score::{self, ScoreType, Severity};
@@ -44,7 +44,6 @@ impl From<ScoreInformation> for advisory_vulnerability_score::ActiveModel {
 impl From<(String, v2_0::CvssV2)> for ScoreInformation {
     fn from((vulnerability_id, score): (String, v2_0::CvssV2)) -> Self {
         let v2_0::CvssV2 {
-            version,
             vector_string,
             severity,
             base_score,
@@ -53,9 +52,7 @@ impl From<(String, v2_0::CvssV2)> for ScoreInformation {
 
         Self {
             vulnerability_id,
-            r#type: match version {
-                VersionV2::V2_0 => ScoreType::V2_0,
-            },
+            r#type: ScoreType::V2_0,
             vector: vector_string,
             score: base_score,
             severity: match severity {
@@ -81,8 +78,9 @@ impl From<(String, v3::CvssV3)> for ScoreInformation {
         Self {
             vulnerability_id,
             r#type: match version {
-                VersionV3::V3_0 => ScoreType::V3_0,
-                VersionV3::V3_1 => ScoreType::V3_1,
+                Some(VersionV3::V3_0) => ScoreType::V3_0,
+                Some(VersionV3::V3_1) => ScoreType::V3_1,
+                None => ScoreType::V3_0, // Default to V3_0 if version is not specified
             },
             vector: vector_string,
             score: base_score,
@@ -94,7 +92,6 @@ impl From<(String, v3::CvssV3)> for ScoreInformation {
 impl From<(String, v4_0::CvssV4)> for ScoreInformation {
     fn from((vulnerability_id, score): (String, v4_0::CvssV4)) -> Self {
         let v4_0::CvssV4 {
-            version,
             vector_string,
             base_severity,
             base_score,
@@ -103,9 +100,7 @@ impl From<(String, v4_0::CvssV4)> for ScoreInformation {
 
         Self {
             vulnerability_id,
-            r#type: match version {
-                VersionV4::V4_0 => ScoreType::V4_0,
-            },
+            r#type: ScoreType::V4_0,
             vector: vector_string,
             score: base_score,
             severity: base_severity.into(),
