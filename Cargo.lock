@@ -8471,6 +8471,7 @@ dependencies = [
  "csv",
  "cve",
  "flate2",
+ "futures",
  "futures-util",
  "hex",
  "humantime",

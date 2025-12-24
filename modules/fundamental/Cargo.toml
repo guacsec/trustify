@@ -28,6 +28,7 @@ base64 = { workspace = true }
 cpe = { workspace = true }
 csv = { workspace = true }
 flate2 ={ workspace = true }
+futures = { workspace = true }
 futures-util = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }

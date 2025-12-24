@@ -7,6 +7,7 @@ mod test;
 
 use trustify_common::db::Database;
 
+#[derive(Clone)]
 pub struct SbomService {
     db: Database,
 }

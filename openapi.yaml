@@ -33,9 +33,7 @@ paths:
       parameters:
       - name: ingested
         in: query
-        description: |-
-          Number of days ago from current time to prune SBOMs
-          For example, ingested=90 means prune SBOMs ingested more than 90 days ago
+        description: Number of days ago from current time to prune SBOMs
         required: true
         schema:
           type: integer
@@ -60,19 +58,18 @@ paths:
       - name: max_concurrent
         in: query
         description: Maximum number of concurrent operations
-        required: true
+        required: false
         schema:
           type: integer
-          minimum: 0
+          minimum: 1
+        example: 10
       responses:
         '200':
           description: List of pruned SBOMs
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PrunedSbom'
+                $ref: '#/components/schemas/PrunedSbomLog'
         '500':
           description: Internal server error
   /api/v2/advisory:
@@ -4706,6 +4703,10 @@ components:
           type:
           - string
           - 'null'
+        error:
+          type:
+          - string
+          - 'null'
         ingested:
           type: string
           format: date-time
@@ -4721,6 +4722,35 @@ components:
           type: array
           items:
             type: string
+    PrunedSbomLog:
+      type: object
+      required:
+      - total
+      - successful_total
+      - failed_total
+      - successful_pruned
+      - failed_pruned
+      properties:
+        failed_pruned:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrunedSbom'
+        failed_total:
+          type: integer
+          format: int64
+          minimum: 0
+        successful_pruned:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrunedSbom'
+        successful_total:
+          type: integer
+          format: int64
+          minimum: 0
+        total:
+          type: integer
+          format: int64
+          minimum: 0
     Purl:
       type: string
       format: uri
