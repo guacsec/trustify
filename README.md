@@ -47,7 +47,7 @@ That will create its own database in your current directory beneath
 * To use the **GUI**, navigate to: <http://localhost:8080>.
 * To use the **REST API**, navigate to: <http://localhost:8080/openapi/>.
 
-For trustd-pm to work, IPv6 must be enabled on the system. In addition, 
+For trustd-pm to work, IPv6 must be enabled on the system. In addition,
 it must be ensured that IPv6 name resolution from localhost to ::1 works.
 
 ### Data
@@ -280,3 +280,7 @@ CPE (Product?) and/or pURLs described by the SBOM
 
 * [Trustify scale test results](https://guacsec.github.io/trustify-scale-test-runs/)
 * [Trustify benchmark results](https://guacsec.github.io/trustify/dev/bench/)
+
+
+
+
