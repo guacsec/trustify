@@ -579,8 +579,10 @@ mod test {
     use hex::ToHex;
     use osv::schema::Vulnerability;
     use rstest::rstest;
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     use test_context::test_context;
     use test_log::test;
+    use trustify_entity::advisory_vulnerability_score;
     use trustify_test_context::{TrustifyContext, document};
 
     #[test_context(TrustifyContext)]
@@ -640,6 +642,35 @@ mod test {
                 .get_vulnerability("CVE-8675309", &ctx.db)
                 .await?
                 .is_none()
+        );
+
+        // Verify the advisory_vulnerability_score table has the calculated score
+        let new_scores = advisory_vulnerability_score::Entity::find()
+            .filter(
+                advisory_vulnerability_score::Column::AdvisoryId.eq(loaded_advisory.advisory.id),
+            )
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(1, new_scores.len());
+        let new_score = &new_scores[0];
+        assert_eq!(new_score.vulnerability_id, "CVE-2021-32714");
+        assert_eq!(
+            new_score.r#type,
+            advisory_vulnerability_score::ScoreType::V3_1
+        );
+        assert_eq!(
+            new_score.vector,
+            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H"
+        );
+        // Score should be 9.1 (calculated from the CVSS vector metrics)
+        assert!(
+            (new_score.score - 9.1_f32).abs() < 0.1,
+            "Expected score ~9.1, got {}",
+            new_score.score
+        );
+        assert_eq!(
+            new_score.severity,
+            advisory_vulnerability_score::Severity::Critical
         );
 
         Ok(())

@@ -3,12 +3,10 @@ mod prefix;
 pub mod loader;
 pub mod translate;
 
-use crate::{
-    graph::cvss::{ScoreCreator, ScoreInformation},
-    service::Error,
-};
+use crate::{graph::cvss::ScoreCreator, service::Error};
+use cvss::{v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 use osv::schema::{SeverityType, Vulnerability};
-use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
+use std::str::FromStr;
 
 /// Load a [`Vulnerability`] from YAML, using the "classic" enum representation.
 pub fn from_yaml(data: &[u8]) -> Result<Vulnerability, serde_yml::Error> {
@@ -49,78 +47,65 @@ pub fn extract_vulnerability_ids(osv: &Vulnerability) -> impl IntoIterator<Item 
 
 /// extract scores from OSV
 pub fn extract_scores(osv: &Vulnerability, creator: &mut ScoreCreator) {
-    #[derive(Clone)]
-    struct ScoreInfo {
-        pub r#type: ScoreType,
-        pub vector: String,
-        pub score: f64,
-        pub severity: Severity,
+    // Get all vulnerability IDs upfront
+    let ids: Vec<_> = extract_vulnerability_ids(osv).into_iter().collect();
+
+    // If no vulnerability IDs, nothing to do
+    if ids.is_empty() {
+        return;
     }
 
-    impl From<(String, ScoreInfo)> for ScoreInformation {
-        fn from(
-            (
-                vulnerability_id,
-                ScoreInfo {
-                    r#type,
-                    vector,
-                    score,
-                    severity,
-                },
-            ): (String, ScoreInfo),
-        ) -> Self {
-            Self {
-                vulnerability_id,
-                r#type,
-                vector,
-                score,
-                severity,
+    // Process each severity entry
+    for severity in osv.severity.iter().flatten() {
+        match severity.severity_type {
+            SeverityType::CVSSv2 => match CvssV2::from_str(&severity.score) {
+                Ok(cvss) => {
+                    for id in &ids {
+                        creator.add((id.to_string(), cvss.clone()));
+                    }
+                }
+                Err(e) => {
+                    log::warn!(
+                        "Failed to parse CVSSv2 vector '{}': {:?}",
+                        severity.score,
+                        e
+                    );
+                }
+            },
+
+            SeverityType::CVSSv3 => match CvssV3::from_str(&severity.score) {
+                Ok(cvss) => {
+                    for id in &ids {
+                        creator.add((id.to_string(), cvss.clone()));
+                    }
+                }
+                Err(e) => {
+                    log::warn!(
+                        "Failed to parse CVSSv3 vector '{}': {:?}",
+                        severity.score,
+                        e
+                    );
+                }
+            },
+
+            SeverityType::CVSSv4 => match CvssV4::from_str(&severity.score) {
+                Ok(cvss) => {
+                    for id in &ids {
+                        creator.add((id.to_string(), cvss.clone()));
+                    }
+                }
+                Err(e) => {
+                    log::warn!(
+                        "Failed to parse CVSSv4 vector '{}': {:?}",
+                        severity.score,
+                        e
+                    );
+                }
+            },
+
+            _ => {
+                // Unknown severity type, skip
             }
         }
     }
-
-    // TODO: validate score type by prefix
-    let scores = osv
-        .severity
-        .iter()
-        .flatten()
-        .flat_map(|severity| match severity.severity_type {
-            SeverityType::CVSSv2 => Some(ScoreInfo {
-                r#type: ScoreType::V2_0,
-                vector: severity.score.clone(),
-                score: 10f64, // TODO: replace with actual evaluated score
-                severity: Severity::Critical, // TODO: replace with actual evaluated severity
-            }),
-            SeverityType::CVSSv3 => Some(ScoreInfo {
-                r#type: match severity.score.starts_with("CVSS:3.1/") {
-                    true => ScoreType::V3_1,
-                    false => ScoreType::V3_0,
-                },
-                vector: severity.score.clone(),
-                score: 10f64, // TODO: replace with actual evaluated score
-                severity: Severity::Critical, // TODO: replace with actual evaluated severity
-            }),
-            SeverityType::CVSSv4 => Some(ScoreInfo {
-                r#type: ScoreType::V4_0,
-                vector: severity.score.clone(),
-                score: 10f64, // TODO: replace with actual evaluated score
-                severity: Severity::Critical, // TODO: replace with actual evaluated severity
-            }),
-
-            _ => None,
-        });
-
-    // get all vulnerability IDs
-
-    let ids = extract_vulnerability_ids(osv)
-        .into_iter()
-        .collect::<Vec<_>>();
-
-    // create scores for each vulnerability (alias)
-
-    creator.extend(
-        scores
-            .into_iter()
-            .flat_map(|score| ids.iter().map(move |id| (id.to_string(), score.clone()))),
-    );
 }

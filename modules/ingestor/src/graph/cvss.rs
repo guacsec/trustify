@@ -1,6 +1,7 @@
 use cvss::version::VersionV3;
 use cvss::{Cvss, v2_0, v3, v4_0};
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set};
+use trustify_cvss::cvss3::severity::Severity as CvssSeverity;
 use trustify_entity::advisory_vulnerability_score::{self, ScoreType, Severity};
 use uuid::Uuid;
 
@@ -16,7 +17,7 @@ pub struct ScoreInformation {
     pub vulnerability_id: String,
     pub r#type: ScoreType,
     pub vector: String,
-    pub score: f64,
+    pub score: f32,
     pub severity: Severity,
 }
 
@@ -42,68 +43,72 @@ impl From<ScoreInformation> for advisory_vulnerability_score::ActiveModel {
 }
 
 impl From<(String, v2_0::CvssV2)> for ScoreInformation {
-    fn from((vulnerability_id, score): (String, v2_0::CvssV2)) -> Self {
-        let v2_0::CvssV2 {
-            vector_string,
-            severity,
-            base_score,
-            ..
-        } = score;
+    fn from((vulnerability_id, cvss): (String, v2_0::CvssV2)) -> Self {
+        // Use calculated_base_score() to compute the actual score from metrics
+        let base_score = cvss.calculated_base_score().unwrap_or(0.0);
+        // Derive severity from calculated score using CVSS v2 scale (no "None" or "Critical")
+        let severity = match base_score {
+            x if x < 4.0 => Severity::Low,
+            x if x < 7.0 => Severity::Medium,
+            _ => Severity::High,
+        };
 
         Self {
             vulnerability_id,
             r#type: ScoreType::V2_0,
-            vector: vector_string,
-            score: base_score,
-            severity: match severity {
-                None => Severity::None,
-                Some(v2_0::Severity::Low) => Severity::Low,
-                Some(v2_0::Severity::Medium) => Severity::Medium,
-                Some(v2_0::Severity::High) => Severity::High,
-            },
+            vector: cvss.vector_string,
+            score: base_score as f32,
+            severity,
         }
     }
 }
 
 impl From<(String, v3::CvssV3)> for ScoreInformation {
-    fn from((vulnerability_id, score): (String, v3::CvssV3)) -> Self {
-        let v3::CvssV3 {
-            version,
-            vector_string,
-            base_severity,
-            base_score,
-            ..
-        } = score;
+    fn from((vulnerability_id, cvss): (String, v3::CvssV3)) -> Self {
+        // Use calculated_base_score() to compute the actual score from metrics
+        let base_score = cvss.calculated_base_score().unwrap_or(0.0);
+        // Derive severity from calculated score using CVSS v3 scale
+        let severity = match CvssSeverity::from_f64(base_score) {
+            CvssSeverity::None => Severity::None,
+            CvssSeverity::Low => Severity::Low,
+            CvssSeverity::Medium => Severity::Medium,
+            CvssSeverity::High => Severity::High,
+            CvssSeverity::Critical => Severity::Critical,
+        };
 
         Self {
             vulnerability_id,
-            r#type: match version {
+            r#type: match cvss.version {
                 Some(VersionV3::V3_0) => ScoreType::V3_0,
                 Some(VersionV3::V3_1) => ScoreType::V3_1,
                 None => ScoreType::V3_0, // Default to V3_0 if version is not specified
             },
-            vector: vector_string,
-            score: base_score,
-            severity: base_severity.into(),
+            vector: cvss.vector_string,
+            score: base_score as f32,
+            severity,
         }
     }
 }
 
 impl From<(String, v4_0::CvssV4)> for ScoreInformation {
-    fn from((vulnerability_id, score): (String, v4_0::CvssV4)) -> Self {
-        let v4_0::CvssV4 {
-            vector_string,
-            base_severity,
-            base_score,
-            ..
-        } = score;
+    fn from((vulnerability_id, cvss): (String, v4_0::CvssV4)) -> Self {
+        // Use calculated_base_score() to compute the actual score from metrics
+        let base_score = cvss.calculated_base_score().unwrap_or(0.0);
+        // Derive severity from calculated score using CVSS v4 scale (same as v3)
+        let severity = match CvssSeverity::from_f64(base_score) {
+            CvssSeverity::None => Severity::None,
+            CvssSeverity::Low => Severity::Low,
+            CvssSeverity::Medium => Severity::Medium,
+            CvssSeverity::High => Severity::High,
+            CvssSeverity::Critical => Severity::Critical,
+        };
 
         Self {
             vulnerability_id,
             r#type: ScoreType::V4_0,
-            vector: vector_string,
-            score: base_score,
-            severity: base_severity.into(),
+            vector: cvss.vector_string,
+            score: base_score as f32,
+            severity,
         }
     }
 }
