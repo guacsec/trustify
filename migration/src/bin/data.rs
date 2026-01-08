@@ -11,7 +11,6 @@ struct Cli {
     command: Command,
 }
 
-#[allow(clippy::large_enum_variant)]
 #[derive(clap::Subcommand, Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 enum Command {
