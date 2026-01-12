@@ -107,15 +107,13 @@ impl SbomCommands {
             SbomCommands::Duplicates { command } => {
                 command.run(ctx).await;
             }
-            SbomCommands::Get { id } => {
-                match sbom_api::get(&ctx.client, id).await {
-                    Ok(json) => println!("{}", json),
-                    Err(e) => {
-                        eprintln!("Error: {}", e);
-                        process::exit(1);
-                    }
+            SbomCommands::Get { id } => match sbom_api::get(&ctx.client, id).await {
+                Ok(json) => println!("{}", json),
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    process::exit(1);
                 }
-            }
+            },
             SbomCommands::List {
                 query,
                 limit,
@@ -139,11 +137,7 @@ impl SbomCommands {
                     }
                 }
             }
-            SbomCommands::Delete {
-                id,
-                query,
-                dry_run,
-            } => {
+            SbomCommands::Delete { id, query, dry_run } => {
                 println!(
                     "SBOM delete command executed successfully!{}",
                     if *dry_run { " (dry-run)" } else { "" }
@@ -162,9 +156,16 @@ impl SbomCommands {
 impl DuplicatesCommands {
     pub async fn run(&self, ctx: &Context) {
         match self {
-            DuplicatesCommands::Find { batch_size, concurrency, output } => {
-                let output_path = output.as_ref().map(|s| s.as_str()).unwrap_or("duplicates.json");
-                
+            DuplicatesCommands::Find {
+                batch_size,
+                concurrency,
+                output,
+            } => {
+                let output_path = output
+                    .as_ref()
+                    .map(|s| s.as_str())
+                    .unwrap_or("duplicates.json");
+
                 // Check if output file exists
                 let final_output = check_output_file(output_path);
                 if final_output.is_none() {
@@ -177,9 +178,12 @@ impl DuplicatesCommands {
                     batch_size: *batch_size,
                     concurrency: *concurrency,
                 };
-                match sbom_api::find_duplicates(&ctx.client, &params, &Some(final_output.clone())).await {
+                match sbom_api::find_duplicates(&ctx.client, &params, &Some(final_output.clone()))
+                    .await
+                {
                     Ok(groups) => {
-                        let total_duplicates: usize = groups.iter().map(|g| g.duplicates.len()).sum();
+                        let total_duplicates: usize =
+                            groups.iter().map(|g| g.duplicates.len()).sum();
                         println!(
                             "Found {} document(s) with {} duplicate(s). Saved to {}",
                             groups.len(),
@@ -198,17 +202,27 @@ impl DuplicatesCommands {
                 concurrency,
                 dry_run,
             } => {
-                let input_path = input.as_ref().map(|s| s.as_str()).unwrap_or("duplicates.json");
+                let input_path = input
+                    .as_ref()
+                    .map(|s| s.as_str())
+                    .unwrap_or("duplicates.json");
 
-                match sbom_api::delete_duplicates(&ctx.client, input_path, *concurrency, *dry_run).await {
+                match sbom_api::delete_duplicates(&ctx.client, input_path, *concurrency, *dry_run)
+                    .await
+                {
                     Ok(result) => {
                         if *dry_run {
                             println!("[DRY-RUN] Would delete {} duplicate(s)", result.total);
                         } else {
-                            println!(
-                                "Deleted {} duplicate(s), {} failed out of {} total",
-                                result.deleted, result.failed, result.total
-                            );
+                            let mut msg = format!("Deleted {} duplicate(s)", result.deleted);
+                            if result.skipped > 0 {
+                                msg.push_str(&format!(", {} skipped (not found)", result.skipped));
+                            }
+                            if result.failed > 0 {
+                                msg.push_str(&format!(", {} failed", result.failed));
+                            }
+                            msg.push_str(&format!(" out of {} total", result.total));
+                            println!("{}", msg);
                         }
                     }
                     Err(e) => {
@@ -288,7 +302,7 @@ fn format_list_output(json: &str, format: &ListFormat) {
 /// Returns None if user cancels, Some(path) with the final path to use
 fn check_output_file(output_path: &str) -> Option<String> {
     let path = Path::new(output_path);
-    
+
     if !path.exists() {
         return Some(output_path.to_string());
     }
@@ -330,7 +344,10 @@ fn check_output_file(output_path: &str) -> Option<String> {
 /// Generate a unique filename by appending a number
 fn generate_unique_filename(base_path: &str) -> String {
     let path = Path::new(base_path);
-    let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("duplicates");
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("duplicates");
     let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("json");
     let parent = path.parent().and_then(|p| p.to_str()).unwrap_or("");
 

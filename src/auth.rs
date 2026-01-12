@@ -30,7 +30,11 @@ struct ErrorResponse {
 }
 
 /// Retrieves an OAuth2 access token using client credentials grant
-pub async fn get_token(token_url: &str, client_id: &str, client_secret: &str) -> Result<String, AuthError> {
+pub async fn get_token(
+    token_url: &str,
+    client_id: &str,
+    client_secret: &str,
+) -> Result<String, AuthError> {
     let client = Client::new();
 
     let response = client
@@ -49,7 +53,9 @@ pub async fn get_token(token_url: &str, client_id: &str, client_secret: &str) ->
     } else if response.status().as_u16() == 401 || response.status().as_u16() == 400 {
         // Try to get error details
         if let Ok(error_response) = response.json::<ErrorResponse>().await {
-            if error_response.error == "invalid_client" || error_response.error == "unauthorized_client" {
+            if error_response.error == "invalid_client"
+                || error_response.error == "unauthorized_client"
+            {
                 return Err(AuthError::AuthenticationFailed);
             }
             let msg = error_response
@@ -61,9 +67,6 @@ pub async fn get_token(token_url: &str, client_id: &str, client_secret: &str) ->
     } else {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        Err(AuthError::ServerError(format!(
-            "HTTP {}: {}",
-            status, body
-        )))
+        Err(AuthError::ServerError(format!("HTTP {}: {}", status, body)))
     }
 }

@@ -29,7 +29,9 @@ impl Config {
     /// Returns the auth credentials if all are present
     pub fn auth_credentials(&self) -> Option<(&str, &str, &str)> {
         match (&self.sso_url, &self.client_id, &self.client_secret) {
-            (Some(sso), Some(id), Some(secret)) => Some((sso.as_str(), id.as_str(), secret.as_str())),
+            (Some(sso), Some(id), Some(secret)) => {
+                Some((sso.as_str(), id.as_str(), secret.as_str()))
+            }
             _ => None,
         }
     }

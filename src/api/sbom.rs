@@ -64,7 +64,11 @@ pub async fn list(client: &ApiClient, params: &ListParams) -> Result<String, Api
 }
 
 /// Fetch a single page and extract SBOM entries
-async fn fetch_page(client: &ApiClient, batch_size: u32, offset: u32) -> Result<Vec<SbomEntry>, ApiError> {
+async fn fetch_page(
+    client: &ApiClient,
+    batch_size: u32,
+    offset: u32,
+) -> Result<Vec<SbomEntry>, ApiError> {
     let list_params = ListParams {
         q: None,
         limit: Some(batch_size),
@@ -73,9 +77,8 @@ async fn fetch_page(client: &ApiClient, batch_size: u32, offset: u32) -> Result<
     };
 
     let response = list(client, &list_params).await?;
-    let parsed: Value = serde_json::from_str(&response).map_err(|e| {
-        ApiError::ServerError(format!("Failed to parse response: {}", e))
-    })?;
+    let parsed: Value = serde_json::from_str(&response)
+        .map_err(|e| ApiError::ServerError(format!("Failed to parse response: {}", e)))?;
 
     let items = parsed
         .get("items")
@@ -86,13 +89,23 @@ async fn fetch_page(client: &ApiClient, batch_size: u32, offset: u32) -> Result<
         .iter()
         .filter_map(|item| {
             let id = item.get("id").and_then(|v| v.as_str())?.to_string();
-            let document_id = item.get("document_id").and_then(|v| v.as_str())?.to_string();
-            let published = item.get("published").and_then(|v| v.as_str()).map(|s| s.to_string());
-            
+            let document_id = item
+                .get("document_id")
+                .and_then(|v| v.as_str())?
+                .to_string();
+            let published = item
+                .get("published")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
             if document_id.is_empty() {
                 None
             } else {
-                Some(SbomEntry { id, document_id, published })
+                Some(SbomEntry {
+                    id,
+                    document_id,
+                    published,
+                })
             }
         })
         .collect();
@@ -110,7 +123,7 @@ async fn fetch_worker(
     results: Arc<Mutex<Vec<SbomEntry>>>,
 ) {
     let mut fetched: u64 = 0;
-    
+
     for offset in pages {
         match fetch_page(&client, batch_size, offset).await {
             Ok(entries) => {
@@ -119,11 +132,14 @@ async fn fetch_worker(
                 results.lock().await.extend(entries);
             }
             Err(e) => {
-                progress_bar.println(format!("Worker {}: Error at offset {}: {}", worker_id, offset, e));
+                progress_bar.println(format!(
+                    "Worker {}: Error at offset {}: {}",
+                    worker_id, offset, e
+                ));
             }
         }
     }
-    
+
     progress_bar.finish_with_message("done");
 }
 
@@ -137,21 +153,21 @@ pub async fn find_duplicates(
     let concurrency = params.concurrency;
 
     // First, get the total count
-    let first_page = list(client, &ListParams {
-        q: None,
-        limit: Some(1),
-        offset: Some(0),
-        sort: None,
-    }).await?;
+    let first_page = list(
+        client,
+        &ListParams {
+            q: None,
+            limit: Some(1),
+            offset: Some(0),
+            sort: None,
+        },
+    )
+    .await?;
 
-    let parsed: Value = serde_json::from_str(&first_page).map_err(|e| {
-        ApiError::ServerError(format!("Failed to parse response: {}", e))
-    })?;
+    let parsed: Value = serde_json::from_str(&first_page)
+        .map_err(|e| ApiError::ServerError(format!("Failed to parse response: {}", e)))?;
 
-    let total = parsed
-        .get("total")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as u32;
+    let total = parsed.get("total").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
 
     if total == 0 {
         eprintln!("No SBOMs found");
@@ -171,12 +187,18 @@ pub async fn find_duplicates(
     }
 
     // Calculate how many SBOMs each worker will fetch
-    let worker_counts: Vec<u64> = worker_pages.iter().map(|pages| {
-        pages.iter().map(|&offset| {
-            let remaining = total.saturating_sub(offset);
-            remaining.min(batch_size) as u64
-        }).sum()
-    }).collect();
+    let worker_counts: Vec<u64> = worker_pages
+        .iter()
+        .map(|pages| {
+            pages
+                .iter()
+                .map(|&offset| {
+                    let remaining = total.saturating_sub(offset);
+                    remaining.min(batch_size) as u64
+                })
+                .sum()
+        })
+        .collect();
 
     // Set up progress bars
     let multi_progress = MultiProgress::new();
@@ -239,13 +261,11 @@ pub async fn find_duplicates(
         }
 
         // Sort by published date descending (most recent first)
-        entries.sort_by(|a, b| {
-            match (&b.published, &a.published) {
-                (Some(b_pub), Some(a_pub)) => b_pub.cmp(a_pub),
-                (Some(_), None) => std::cmp::Ordering::Less,
-                (None, Some(_)) => std::cmp::Ordering::Greater,
-                (None, None) => std::cmp::Ordering::Equal,
-            }
+        entries.sort_by(|a, b| match (&b.published, &a.published) {
+            (Some(b_pub), Some(a_pub)) => b_pub.cmp(a_pub),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => std::cmp::Ordering::Equal,
         });
 
         let most_recent = entries.remove(0);
@@ -259,7 +279,10 @@ pub async fn find_duplicates(
         });
     }
 
-    eprintln!("Found {} document(s) with duplicates", duplicate_groups.len());
+    eprintln!(
+        "Found {} document(s) with duplicates",
+        duplicate_groups.len()
+    );
 
     // Save to file
     let output_path = output_file
@@ -267,17 +290,14 @@ pub async fn find_duplicates(
         .map(|s| s.as_str())
         .unwrap_or("duplicates.json");
 
-    let json = serde_json::to_string_pretty(&duplicate_groups).map_err(|e| {
-        ApiError::ServerError(format!("Failed to serialize results: {}", e))
-    })?;
+    let json = serde_json::to_string_pretty(&duplicate_groups)
+        .map_err(|e| ApiError::ServerError(format!("Failed to serialize results: {}", e)))?;
 
-    let mut file = File::create(output_path).map_err(|e| {
-        ApiError::ServerError(format!("Failed to create output file: {}", e))
-    })?;
+    let mut file = File::create(output_path)
+        .map_err(|e| ApiError::ServerError(format!("Failed to create output file: {}", e)))?;
 
-    file.write_all(json.as_bytes()).map_err(|e| {
-        ApiError::ServerError(format!("Failed to write to file: {}", e))
-    })?;
+    file.write_all(json.as_bytes())
+        .map_err(|e| ApiError::ServerError(format!("Failed to write to file: {}", e)))?;
 
     Ok(duplicate_groups)
 }
@@ -292,6 +312,7 @@ pub async fn delete(client: &ApiClient, id: &str) -> Result<(), ApiError> {
 /// Result of deleting duplicates
 pub struct DeleteDuplicatesResult {
     pub deleted: u32,
+    pub skipped: u32,
     pub failed: u32,
     pub total: u32,
 }
@@ -320,14 +341,12 @@ pub async fn delete_duplicates(
     }
 
     // Read and parse the file
-    let file = File::open(path).map_err(|e| {
-        ApiError::ServerError(format!("Failed to open input file: {}", e))
-    })?;
+    let file = File::open(path)
+        .map_err(|e| ApiError::ServerError(format!("Failed to open input file: {}", e)))?;
     let reader = BufReader::new(file);
 
-    let groups: Vec<DuplicateGroup> = serde_json::from_reader(reader).map_err(|e| {
-        ApiError::ServerError(format!("Failed to parse input file: {}", e))
-    })?;
+    let groups: Vec<DuplicateGroup> = serde_json::from_reader(reader)
+        .map_err(|e| ApiError::ServerError(format!("Failed to parse input file: {}", e)))?;
 
     // Collect all duplicate entries to delete
     let entries: Vec<DeleteEntry> = groups
@@ -344,16 +363,23 @@ pub async fn delete_duplicates(
 
     if dry_run {
         for entry in &entries {
-            eprintln!("[DRY-RUN] Would delete: {} (document_id: {})", entry.id, entry.document_id);
+            eprintln!(
+                "[DRY-RUN] Would delete: {} (document_id: {})",
+                entry.id, entry.document_id
+            );
         }
         return Ok(DeleteDuplicatesResult {
             deleted: 0,
+            skipped: 0,
             failed: 0,
             total,
         });
     }
 
-    eprintln!("Deleting {} duplicates with {} concurrent requests...\n", total, concurrency);
+    eprintln!(
+        "Deleting {} duplicates with {} concurrent requests...\n",
+        total, concurrency
+    );
 
     // Set up progress bar
     let progress = ProgressBar::new(total as u64);
@@ -361,22 +387,28 @@ pub async fn delete_duplicates(
         ProgressStyle::default_bar()
             .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")
             .unwrap()
-            .progress_chars("█▓░")
+            .progress_chars("█▓░"),
     );
 
     let deleted = Arc::new(AtomicU32::new(0));
+    let skipped = Arc::new(AtomicU32::new(0));
     let failed = Arc::new(AtomicU32::new(0));
 
     stream::iter(entries)
         .for_each_concurrent(concurrency, |entry| {
             let client = client.clone();
             let deleted = Arc::clone(&deleted);
+            let skipped = Arc::clone(&skipped);
             let failed = Arc::clone(&failed);
             let progress = progress.clone();
             async move {
                 match delete(&client, &entry.id).await {
                     Ok(_) => {
                         deleted.fetch_add(1, Ordering::Relaxed);
+                    }
+                    Err(ApiError::NotFound(_)) => {
+                        // SBOM already deleted or doesn't exist - skip silently
+                        skipped.fetch_add(1, Ordering::Relaxed);
                     }
                     Err(_) => {
                         failed.fetch_add(1, Ordering::Relaxed);
@@ -391,6 +423,7 @@ pub async fn delete_duplicates(
 
     Ok(DeleteDuplicatesResult {
         deleted: deleted.load(Ordering::Relaxed),
+        skipped: skipped.load(Ordering::Relaxed),
         failed: failed.load(Ordering::Relaxed),
         total,
     })
