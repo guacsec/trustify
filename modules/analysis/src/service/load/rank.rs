@@ -174,8 +174,8 @@ async fn describing_cpes(
 /// # Behavior & Limitations
 ///
 /// * **Single Path Traversal**: If a node has multiple parents (DAG structure), this function
-///   currently selects the *first* parent returned by the database and ignores others.
-/// * **Cycle Protection**: Enforces a `MAX_DEPTH` of 100 to prevents infinite loops in
+///   currently selects *a single random* parent returned by the database and ignores others.
+/// * **Cycle Protection**: Records visited nodes of the SBOM to prevent infinite loops in
 ///   cyclic graphs (e.g., A -> B -> A).
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
 pub async fn find_node_ancestors<C: ConnectionTrait>(
@@ -186,12 +186,15 @@ pub async fn find_node_ancestors<C: ConnectionTrait>(
     let mut ancestors = Vec::new();
     let mut current_child_id = start_node_id;
 
-    // guard to prevent infinite loops ( eg. cycles A->B->A)
-    // TODO: we may need to do more for infinite loop handling in pure sql
-    let mut depth = 0;
-    const MAX_DEPTH: usize = 100;
+    // guard to prevent infinite loops (e.g. cycles A->B->A)
+    let mut visited = HashSet::new();
 
     loop {
+        if !visited.insert(current_child_id.clone()) {
+            log::warn!("recursion detected (node: {current_child_id}, sbom: {sbom_id})",);
+            break;
+        }
+
         // Find relationship where current node is the CHILD (Right Side).
         // The LEFT side is the parent/container node.
         let parents = package_relates_to_package::Entity::find()
@@ -208,16 +211,6 @@ pub async fn find_node_ancestors<C: ConnectionTrait>(
         let parent_rel = &parents[0];
         ancestors.push(parent_rel.clone());
         current_child_id = parent_rel.left_node_id.clone();
-
-        depth += 1;
-        if depth > MAX_DEPTH {
-            log::warn!(
-                "Max recursion depth ({}) reached for sbom_id: {}",
-                MAX_DEPTH,
-                sbom_id
-            );
-            break;
-        }
     }
 
     log::debug!("Found {} ancestors for node", ancestors.len());
@@ -478,6 +471,26 @@ mod test {
     use test_context::test_context;
     use trustify_entity::cpe;
     use trustify_test_context::{IngestionResult, TrustifyContext};
+
+    /// Ensure that [`super::find_node_ancestors`] doesn't do infinite runs when having node cycles.
+    #[test_context(TrustifyContext)]
+    #[test_log::test(actix_web::test)]
+    async fn find_node_ancestors(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        let [id] = ctx
+            .ingest_documents(["cyclonedx/loop.json"])
+            .await?
+            .into_uuid();
+
+        let result = super::find_node_ancestors(id, "C".into(), &ctx.db).await?;
+        let result = result
+            .iter()
+            .map(|rel| (rel.left_node_id.as_str(), rel.right_node_id.as_str()))
+            .collect::<Vec<_>>();
+
+        assert_eq!(result, [("B", "C"), ("A", "B"), ("C", "A")]);
+
+        Ok(())
+    }
 
     #[test_context(TrustifyContext)]
     #[rstest]
