@@ -70,7 +70,6 @@ use trustify_test_context::{IngestionResult, TrustifyContext};
     Req { what: What::Q(&format!("purl~{}", escape_q("pkg:oci/virt-handler-rhel9@sha256%3A507d126fa23811854bb17531194f9e832167022a1a30542561aadfd668bf1542?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fcontainer-native-virtualization%2Fvirt-handler-rhel9&tag=v4.17.36-3"))), latest: true, ..Req::default() },
     [Phase::Older, Phase::Later],
     [
-        // FIXME: I'm not sure what to expect here, we had three matches, from three layers and now only one.
         ("image-index-2025-12-02-693F980C32C444A.json", "virt-handler-rhel9-container_amd64")
     ]
 )]
