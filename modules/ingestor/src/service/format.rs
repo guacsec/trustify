@@ -110,7 +110,7 @@ impl Format {
         }
     }
 
-    #[instrument(skip_all, ret)]
+    #[instrument(skip_all, ret(level=tracing::Level::DEBUG))]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         match Self::advisory_from_bytes(bytes) {
             Err(Error::UnsupportedFormat(ea)) => match Self::sbom_from_bytes(bytes) {
@@ -124,7 +124,7 @@ impl Format {
         }
     }
 
-    #[instrument(skip_all, ret)]
+    #[instrument(skip_all, ret(level=tracing::Level::DEBUG))]
     pub fn advisory_from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         if Self::is_csaf(bytes)? {
             Ok(Format::CSAF)
@@ -139,7 +139,7 @@ impl Format {
         }
     }
 
-    #[instrument(skip_all, ret)]
+    #[instrument(skip_all, ret(level=tracing::Level::DEBUG))]
     pub fn sbom_from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         if Self::is_spdx(bytes)? {
             Ok(Format::SPDX)
