@@ -9,7 +9,7 @@ use sea_orm::{
 };
 use sea_query::JoinType;
 use std::collections::HashSet;
-
+use tracing::instrument;
 use trustify_entity::{
     package_relates_to_package, relationship::Relationship, sbom, sbom_external_node, sbom_node,
     sbom_package_cpe_ref,
@@ -234,6 +234,7 @@ pub async fn find_node_ancestors<C: ConnectionTrait>(
 ///
 /// * A Vec of nodes matching, filled with their CPE.
 ///
+#[instrument(skip(connection, rows), fields(rows=rows.len()))]
 pub async fn resolve_sbom_cpes(
     cpe_search: bool,
     connection: &(impl ConnectionTrait + Send),
