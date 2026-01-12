@@ -13,31 +13,41 @@ const RETRY_DELAY_MS: u64 = 1000;
 
 #[derive(Error, Debug, Clone)]
 pub enum ApiError {
-    #[error("Request failed: {0}")]
-    RequestError(String),
+    #[error("Network error: {0}")]
+    NetworkError(String),
 
-    #[error("Not found: {0}")]
+    #[error("HTTP {0}: {1}")]
+    HttpError(u16, String),
+
+    #[error("HTTP 404: Resource not found")]
     NotFound(String),
 
-    #[error("Unauthorized: Please check your authentication credentials")]
+    #[error("HTTP 401: Please check your authentication credentials")]
     Unauthorized,
 
-    #[error("Token expired")]
+    #[error("HTTP 401: Token expired")]
     TokenExpired,
 
-    #[error("Server timeout - please retry")]
-    Timeout,
+    #[error("HTTP {0}: Server timeout")]
+    Timeout(u16),
 
-    #[error("Server error: {0}")]
-    ServerError(String),
+    #[error("HTTP {0}: {1}")]
+    ServerError(u16, String),
+
+    #[error("{0}")]
+    InternalError(String),
 }
 
 impl From<reqwest::Error> for ApiError {
     fn from(e: reqwest::Error) -> Self {
         if e.is_timeout() {
-            ApiError::Timeout
+            ApiError::Timeout(0) // 0 indicates network-level timeout (no HTTP response)
+        } else if e.is_connect() {
+            ApiError::NetworkError(format!("Connection failed: {}", e))
+        } else if e.is_request() {
+            ApiError::NetworkError(format!("Request error: {}", e))
         } else {
-            ApiError::RequestError(e.to_string())
+            ApiError::NetworkError(e.to_string())
         }
     }
 }
@@ -158,7 +168,7 @@ impl ApiClient {
         F: Fn() -> Fut,
         Fut: std::future::Future<Output = Result<String, ApiError>>,
     {
-        let mut last_error = ApiError::RequestError("No attempts made".to_string());
+        let mut last_error = ApiError::NetworkError("No attempts made".to_string());
         let mut token_refreshed = false;
 
         for attempt in 0..MAX_RETRIES {
@@ -174,18 +184,21 @@ impl ApiClient {
                     }
                     return Err(ApiError::Unauthorized);
                 }
-                Err(ApiError::Timeout) | Err(ApiError::ServerError(_))
+                Err(ref e @ ApiError::Timeout(_))
+                | Err(ref e @ ApiError::ServerError(_, _))
+                | Err(ref e @ ApiError::NetworkError(_))
                     if attempt < MAX_RETRIES - 1 =>
                 {
                     let delay = RETRY_DELAY_MS * (attempt as u64 + 1);
                     eprintln!(
-                        "Request failed, retrying in {}ms... (attempt {}/{})",
+                        "{}, retrying in {}ms... (attempt {}/{})",
+                        e,
                         delay,
                         attempt + 1,
                         MAX_RETRIES
                     );
                     sleep(Duration::from_millis(delay)).await;
-                    last_error = ApiError::Timeout;
+                    last_error = e.clone();
                 }
                 Err(e) => return Err(e),
             }
@@ -196,6 +209,7 @@ impl ApiClient {
 
     async fn handle_response(&self, response: reqwest::Response) -> Result<String, ApiError> {
         let status = response.status();
+        let status_code = status.as_u16();
 
         if status.is_success() {
             Ok(response.text().await?)
@@ -206,10 +220,14 @@ impl ApiClient {
         } else if status == StatusCode::FORBIDDEN {
             Err(ApiError::Unauthorized)
         } else if status == StatusCode::GATEWAY_TIMEOUT || status == StatusCode::REQUEST_TIMEOUT {
-            Err(ApiError::Timeout)
+            Err(ApiError::Timeout(status_code))
         } else {
             let body = response.text().await.unwrap_or_default();
-            Err(ApiError::ServerError(format!("HTTP {}: {}", status, body)))
+            if status.is_server_error() {
+                Err(ApiError::ServerError(status_code, body))
+            } else {
+                Err(ApiError::HttpError(status_code, body))
+            }
         }
     }
 }

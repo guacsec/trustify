@@ -78,12 +78,12 @@ async fn fetch_page(
 
     let response = list(client, &list_params).await?;
     let parsed: Value = serde_json::from_str(&response)
-        .map_err(|e| ApiError::ServerError(format!("Failed to parse response: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to parse response: {}", e)))?;
 
     let items = parsed
         .get("items")
         .and_then(|v| v.as_array())
-        .ok_or_else(|| ApiError::ServerError("No items in response".to_string()))?;
+        .ok_or_else(|| ApiError::InternalError("No items in response".to_string()))?;
 
     let entries: Vec<SbomEntry> = items
         .iter()
@@ -165,7 +165,7 @@ pub async fn find_duplicates(
     .await?;
 
     let parsed: Value = serde_json::from_str(&first_page)
-        .map_err(|e| ApiError::ServerError(format!("Failed to parse response: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to parse response: {}", e)))?;
 
     let total = parsed.get("total").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
 
@@ -238,7 +238,7 @@ pub async fn find_duplicates(
     join_all(handles).await;
 
     let all_entries = Arc::try_unwrap(results)
-        .map_err(|_| ApiError::ServerError("Failed to unwrap entries".to_string()))?
+        .map_err(|_| ApiError::InternalError("Failed to unwrap entries".to_string()))?
         .into_inner();
 
     eprintln!("\nProcessing {} SBOMs for duplicates...", all_entries.len());
@@ -291,13 +291,13 @@ pub async fn find_duplicates(
         .unwrap_or("duplicates.json");
 
     let json = serde_json::to_string_pretty(&duplicate_groups)
-        .map_err(|e| ApiError::ServerError(format!("Failed to serialize results: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to serialize results: {}", e)))?;
 
     let mut file = File::create(output_path)
-        .map_err(|e| ApiError::ServerError(format!("Failed to create output file: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to create output file: {}", e)))?;
 
     file.write_all(json.as_bytes())
-        .map_err(|e| ApiError::ServerError(format!("Failed to write to file: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to write to file: {}", e)))?;
 
     Ok(duplicate_groups)
 }
@@ -334,7 +334,7 @@ pub async fn delete_duplicates(
     // Check if file exists
     let path = Path::new(input_file);
     if !path.exists() {
-        return Err(ApiError::ServerError(format!(
+        return Err(ApiError::InternalError(format!(
             "Input file not found: {}",
             input_file
         )));
@@ -342,11 +342,11 @@ pub async fn delete_duplicates(
 
     // Read and parse the file
     let file = File::open(path)
-        .map_err(|e| ApiError::ServerError(format!("Failed to open input file: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to open input file: {}", e)))?;
     let reader = BufReader::new(file);
 
     let groups: Vec<DuplicateGroup> = serde_json::from_reader(reader)
-        .map_err(|e| ApiError::ServerError(format!("Failed to parse input file: {}", e)))?;
+        .map_err(|e| ApiError::InternalError(format!("Failed to parse input file: {}", e)))?;
 
     // Collect all duplicate entries to delete
     let entries: Vec<DeleteEntry> = groups
@@ -410,8 +410,12 @@ pub async fn delete_duplicates(
                         // SBOM already deleted or doesn't exist - skip silently
                         skipped.fetch_add(1, Ordering::Relaxed);
                     }
-                    Err(_) => {
+                    Err(e) => {
                         failed.fetch_add(1, Ordering::Relaxed);
+                        progress.println(format!(
+                            "Failed to delete {} (document_id: {}): {}",
+                            entry.id, entry.document_id, e
+                        ));
                     }
                 }
                 progress.inc(1);
