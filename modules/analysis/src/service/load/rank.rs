@@ -75,16 +75,15 @@ async fn find_external_refs<C>(
     sbom_id: Uuid,
     node_id: String,
     connection: &C,
-    _visited: &mut HashSet<Uuid>,
+    visited: &mut HashSet<(Uuid, String)>,
 ) -> Result<Vec<ResolvedSbom>, Error>
 where
     C: ConnectionTrait + Send,
 {
-    // TODO: we need to fix cyclic detection
-    // if !visited.insert(sbom_id) {
-    //     log::warn!("Cycle detected for SBOM {}, skipping recursion.", sbom_id);
-    //     return Ok(vec![]);
-    // }
+    if !visited.insert((sbom_id, node_id.clone())) {
+        log::warn!("cycle detected for SBOM {sbom_id} / {node_id}, skipping recursion");
+        return Ok(vec![]);
+    }
 
     let mut all_resolved_sboms = vec![];
 
@@ -93,18 +92,18 @@ where
     let direct_ancestors = resolve_rh_external_sbom_ancestors(sbom_id, node_id, connection).await?;
 
     for ancestor in direct_ancestors {
-        all_resolved_sboms.push(ancestor.clone());
-
         let top_package_of_sbom =
             find_node_ancestors(ancestor.sbom_id, ancestor.node_id.clone(), connection).await?;
 
         for package in top_package_of_sbom {
             let deep_ancestors =
-                find_external_refs(package.sbom_id, package.left_node_id, connection, _visited)
+                find_external_refs(package.sbom_id, package.left_node_id, connection, visited)
                     .await?;
 
             all_resolved_sboms.extend(deep_ancestors);
         }
+
+        all_resolved_sboms.push(ancestor);
     }
 
     Ok(all_resolved_sboms)
@@ -241,91 +240,112 @@ pub async fn resolve_sbom_cpes(
     rows: Vec<Row>,
 ) -> Result<Vec<RankedSbom>, Error> {
     let mut matched_sboms = Vec::new();
-    let mut visited = HashSet::new();
 
     for matched in rows {
-        // cpe search means our matched nodes are always top level sbom DESCRIBE
-        if cpe_search {
-            // TODO: this mess is temporary and will be refactored
-            let direct_cpes = describing_cpes(connection, matched.sbom_id).await?;
-            let direct_external_sboms = sbom_external_node::Entity::find()
-                .filter(sbom_external_node::Column::SbomId.eq(matched.sbom_id))
-                .all(connection)
-                .await?;
-            for direct_cpe in direct_cpes {
-                for direct_external_sbom in &direct_external_sboms {
-                    let direct_external_sbom_node = sbom_node::Entity::find()
-                        .filter(
-                            sbom_node::Column::NodeId.eq(&direct_external_sbom.external_node_ref),
-                        )
-                        .one(connection)
-                        .await?
-                        .ok_or_else(|| {
-                            Error::Data("Ranked matched node has no top ancestor sbom.".to_string())
-                        })?;
+        matched_sboms.extend(resolve_sbom_cpe(matched, cpe_search, connection).await?);
+    }
 
-                    matched_sboms // create RankedSboms
-                        .push(RankedSbom {
-                            matched_sbom_id: matched.sbom_id,
-                            matched_name: direct_external_sbom_node.name,
-                            top_ancestor_sbom: direct_external_sbom_node.sbom_id,
-                            cpe_id: direct_cpe,
-                            sbom_date: matched.published, // TODO: ensure to revisit this assumption
-                            rank: None,
-                        });
-                }
-            }
-        }
+    Ok(matched_sboms)
+}
 
-        // find top level package of matched sbom
-        let top_packages_of_sbom =
-            find_node_ancestors(matched.clone().sbom_id, matched.clone().node_id, connection)
-                .await?;
+/// Resolve CPEs for matched SBOMs.
+///
+/// The CPEs of an SBOM are the CPEs of the describing component.
+///
+/// ## Input
+///
+/// * `matched`: single matched row of the initial search
+///
+/// ## Output
+///
+/// * A Vec of nodes matching, filled with their CPE.
+///
+#[instrument(skip(connection))]
+async fn resolve_sbom_cpe(
+    matched: Row,
+    cpe_search: bool,
+    connection: &(impl ConnectionTrait + Send),
+) -> Result<Vec<RankedSbom>, Error> {
+    let mut matched_sboms = vec![];
 
-        let external_sboms = match top_packages_of_sbom.is_empty() {
-            true => {
-                // if top_packages_of_sbom is empty then matched node might be the top level
-                // package of the matched sbom
-                resolve_rh_external_sbom_ancestors(matched.sbom_id, matched.node_id, connection)
+    // cpe search means our matched nodes are always top level sbom DESCRIBE
+    if cpe_search {
+        // TODO: this mess is temporary and will be refactored
+        let direct_cpes = describing_cpes(connection, matched.sbom_id).await?;
+        let direct_external_sboms = sbom_external_node::Entity::find()
+            .filter(sbom_external_node::Column::SbomId.eq(matched.sbom_id))
+            .all(connection)
+            .await?;
+
+        for direct_cpe in direct_cpes {
+            for direct_external_sbom in &direct_external_sboms {
+                let direct_external_sbom_node = sbom_node::Entity::find()
+                    .filter(sbom_node::Column::NodeId.eq(&direct_external_sbom.external_node_ref))
+                    .one(connection)
                     .await?
+                    .ok_or_else(|| {
+                        Error::Data("Ranked matched node has no top ancestor sbom.".to_string())
+                    })?;
+
+                matched_sboms // create RankedSboms
+                    .push(RankedSbom {
+                        matched_sbom_id: matched.sbom_id,
+                        matched_name: direct_external_sbom_node.name,
+                        top_ancestor_sbom: direct_external_sbom_node.sbom_id,
+                        cpe_id: direct_cpe,
+                        sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                        rank: None,
+                    });
             }
-            false => {
-                // finally we can now resolve top ancestor externally linked sboms
-                // to the matched node
-                let mut external_sboms = Vec::new();
-
-                for package in top_packages_of_sbom {
-                    // find_external_refs is recursive
-                    external_sboms.extend(
-                        find_external_refs(
-                            package.sbom_id,
-                            package.left_node_id,
-                            connection,
-                            &mut visited,
-                        )
-                        .await?,
-                    );
-                }
-
-                external_sboms
-            }
-        };
-        log::debug!("external_sboms {:?}", external_sboms);
-
-        for external_sbom in external_sboms {
-            let mut cpes = HashSet::new();
-            cpes.extend(describing_cpes(connection, external_sbom.sbom_id).await?);
-            log::debug!("Cpes: {:?}", cpes);
-            matched_sboms // create RankedSboms
-                .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
-                    matched_sbom_id: matched.sbom_id,
-                    matched_name: matched.name.clone(),
-                    top_ancestor_sbom: external_sbom.sbom_id,
-                    cpe_id,
-                    sbom_date: matched.published, // TODO: ensure to revisit this assumption
-                    rank: None,
-                }));
         }
+    }
+
+    // find top level package of matched sbom
+    let top_packages_of_sbom =
+        find_node_ancestors(matched.clone().sbom_id, matched.clone().node_id, connection).await?;
+
+    let external_sboms = match top_packages_of_sbom.is_empty() {
+        true => {
+            // if top_packages_of_sbom is empty then matched node might be the top level
+            // package of the matched sbom
+            resolve_rh_external_sbom_ancestors(matched.sbom_id, matched.node_id, connection).await?
+        }
+        false => {
+            // finally we can now resolve top ancestor externally linked sboms
+            // to the matched node
+            let mut external_sboms = Vec::new();
+
+            for package in top_packages_of_sbom {
+                // find_external_refs is recursive
+                external_sboms.extend(
+                    find_external_refs(
+                        package.sbom_id,
+                        package.left_node_id,
+                        connection,
+                        &mut HashSet::new(),
+                    )
+                    .await?,
+                );
+            }
+
+            external_sboms
+        }
+    };
+    log::debug!("external_sboms {:?}", external_sboms);
+
+    for external_sbom in external_sboms {
+        let mut cpes = HashSet::new();
+        cpes.extend(describing_cpes(connection, external_sbom.sbom_id).await?);
+        log::debug!("Cpes: {:?}", cpes);
+        matched_sboms // create RankedSboms
+            .extend(cpes.into_iter().map(|cpe_id| RankedSbom {
+                matched_sbom_id: matched.sbom_id,
+                matched_name: matched.name.clone(),
+                top_ancestor_sbom: external_sbom.sbom_id,
+                cpe_id,
+                sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                rank: None,
+            }));
     }
 
     Ok(matched_sboms)
