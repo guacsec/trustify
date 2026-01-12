@@ -241,6 +241,7 @@ async fn resolve_rh_external_sbom_descendants<C: ConnectionTrait>(
         }))
 }
 
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
     sbom_external_sbom_id: Uuid,
     sbom_external_node_ref: String,

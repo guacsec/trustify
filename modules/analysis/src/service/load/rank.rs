@@ -9,7 +9,7 @@ use sea_orm::{
 };
 use sea_query::JoinType;
 use std::collections::{HashMap, HashSet};
-use tracing::instrument;
+use tracing::{Instrument, instrument};
 use trustify_entity::{
     package_relates_to_package, relationship::Relationship, sbom, sbom_external_node, sbom_node,
     sbom_package_cpe_ref,
@@ -71,6 +71,7 @@ pub fn select() -> Select<sbom_node::Entity> {
 /// * `Vec<ResolvedSbom>`: A flattened list of all resolved external SBOM ancestors found recursively.
 /// * `Error`: If a database error occurs.
 #[async_recursion]
+#[instrument(skip(connection, visited), fields(visisted_len=visited.len()), err(level=tracing::Level::INFO))]
 async fn find_external_refs<C>(
     sbom_id: Uuid,
     node_id: String,
@@ -129,6 +130,7 @@ where
 /// * `Vec<Uuid>`: A list of unique CPE UUIDs found in the SBOM.
 /// * `Error`: If a database error occurs.
 ///
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn describing_cpes(
     connection: &(impl ConnectionTrait + Send),
     sbom_id: Uuid,
@@ -175,6 +177,7 @@ async fn describing_cpes(
 ///   currently selects the *first* parent returned by the database and ignores others.
 /// * **Cycle Protection**: Enforces a `MAX_DEPTH` of 100 to prevents infinite loops in
 ///   cyclic graphs (e.g., A -> B -> A).
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
 pub async fn find_node_ancestors<C: ConnectionTrait>(
     sbom_id: Uuid,
     start_node_id: String,
@@ -250,18 +253,22 @@ pub async fn resolve_sbom_cpes(
 
 /// Resolves direct CPE matches by joining external nodes to SBOM nodes.
 /// (hopefully avoiding N+1 queries).
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_direct_cpe_matches(
     matched: &Row,
     connection: &(impl ConnectionTrait + Send),
 ) -> Result<Vec<RankedSbom>, Error> {
-    let (direct_cpes, direct_external_sboms) =
-        tokio::try_join!(describing_cpes(connection, matched.sbom_id), async {
-            sbom_external_node::Entity::find()
-                .filter(sbom_external_node::Column::SbomId.eq(matched.sbom_id))
-                .all(connection)
-                .await
-                .map_err(Error::from)
-        })?;
+    let direct = describing_cpes(connection, matched.sbom_id);
+    let direct_external = async {
+        sbom_external_node::Entity::find()
+            .filter(sbom_external_node::Column::SbomId.eq(matched.sbom_id))
+            .all(connection)
+            .instrument(tracing::info_span!("find external sboms").or_current())
+            .await
+            .map_err(Error::from)
+    };
+
+    let (direct_cpes, direct_external_sboms) = tokio::try_join!(direct, direct_external)?;
 
     if direct_external_sboms.is_empty() {
         return Ok(vec![]);
@@ -275,6 +282,7 @@ async fn resolve_direct_cpe_matches(
     let nodes = sbom_node::Entity::find()
         .filter(sbom_node::Column::NodeId.is_in(node_ids))
         .all(connection)
+        .instrument(tracing::info_span!("lookup nodes").or_current())
         .await
         .map_err(Error::from)?;
 
@@ -303,6 +311,7 @@ async fn resolve_direct_cpe_matches(
 }
 
 /// Finds external SBOMs that are ancestors of the matched node.
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_ancestor_external_sboms(
     matched: &Row,
     connection: &(impl ConnectionTrait + Send),
@@ -335,6 +344,7 @@ async fn resolve_ancestor_external_sboms(
 }
 
 /// Expands a list of External SBOMs into RankedSboms by fetching their CPEs.
+#[instrument(skip(external_sboms, connection), err(level=tracing::Level::INFO))]
 async fn enrich_external_sboms(
     matched: &Row,
     external_sboms: Vec<ResolvedSbom>,
@@ -371,7 +381,7 @@ async fn enrich_external_sboms(
 ///
 /// * A Vec of nodes matching, filled with their CPE.
 ///
-#[instrument(skip(connection))]
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_sbom_cpe(
     matched: Row,
     cpe_search: bool,
