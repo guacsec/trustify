@@ -252,32 +252,23 @@ pub async fn resolve_sbom_cpes(
                 .filter(sbom_external_node::Column::SbomId.eq(matched.sbom_id))
                 .all(connection)
                 .await?;
-            for direct_cpe in direct_cpes.clone() {
-                for direct_external_sbom in direct_external_sboms.clone() {
-                    let direct_external_sbom_node_name = sbom_node::Entity::find()
+            for direct_cpe in direct_cpes {
+                for direct_external_sbom in &direct_external_sboms {
+                    let direct_external_sbom_node = sbom_node::Entity::find()
                         .filter(
-                            sbom_node::Column::NodeId
-                                .eq(direct_external_sbom.clone().external_node_ref),
+                            sbom_node::Column::NodeId.eq(&direct_external_sbom.external_node_ref),
                         )
                         .one(connection)
-                        .await?;
+                        .await?
+                        .ok_or_else(|| {
+                            Error::Data("Ranked matched node has no top ancestor sbom.".to_string())
+                        })?;
+
                     matched_sboms // create RankedSboms
                         .push(RankedSbom {
                             matched_sbom_id: matched.sbom_id,
-                            matched_name: direct_external_sbom_node_name
-                                .clone()
-                                .ok_or_else(|| {
-                                    Error::Data("Ranked matched node is missing name.".to_string())
-                                })?
-                                .name,
-                            top_ancestor_sbom: direct_external_sbom_node_name
-                                .clone()
-                                .ok_or_else(|| {
-                                    Error::Data(
-                                        "Ranked matched node has no top ancestor sbom.".to_string(),
-                                    )
-                                })?
-                                .sbom_id,
+                            matched_name: direct_external_sbom_node.name,
+                            top_ancestor_sbom: direct_external_sbom_node.sbom_id,
                             cpe_id: direct_cpe,
                             sbom_date: matched.published, // TODO: ensure to revisit this assumption
                             rank: None,
