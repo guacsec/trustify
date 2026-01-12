@@ -344,24 +344,26 @@ impl InnerService {
     where
         C: ConnectionTrait + Send + Sync,
     {
-        let mut cpe_search: bool = false;
         // query for cpe, name or purl
-        let matched_sbom_ids: Vec<Row> = match query {
-            GraphQuery::Component(ComponentReference::Id(node_id)) => {
+        let (cpe_search, matched_sbom_ids): (_, Vec<Row>) = match query {
+            GraphQuery::Component(ComponentReference::Id(node_id)) => (
+                false,
                 select()
                     .filter(sbom_node::Column::NodeId.eq(node_id))
                     .into_model()
                     .all(connection)
-                    .await?
-            }
-            GraphQuery::Component(ComponentReference::Name(name)) => {
+                    .await?,
+            ),
+            GraphQuery::Component(ComponentReference::Name(name)) => (
+                false,
                 select()
                     .filter(sbom_node::Column::Name.eq(name))
                     .into_model()
                     .all(connection)
-                    .await?
-            }
-            GraphQuery::Component(ComponentReference::Purl(purl)) => {
+                    .await?,
+            ),
+            GraphQuery::Component(ComponentReference::Purl(purl)) => (
+                false,
                 select()
                     .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
                     .join(JoinType::InnerJoin, sbom_package::Relation::Purl.def())
@@ -370,20 +372,20 @@ impl InnerService {
                     )
                     .into_model()
                     .all(connection)
-                    .await?
-            }
-            GraphQuery::Component(ComponentReference::Cpe(cpe)) => {
-                cpe_search = true;
+                    .await?,
+            ),
+            GraphQuery::Component(ComponentReference::Cpe(cpe)) => (
+                true,
                 select()
                     .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
                     .join(JoinType::InnerJoin, sbom_package::Relation::Cpe.def())
                     .filter(sbom_package_cpe_ref::Column::CpeId.eq(cpe.uuid()))
                     .into_model()
                     .all(connection)
-                    .await?
-            }
-            GraphQuery::Query(query) => {
-                cpe_search = true;
+                    .await?,
+            ),
+            GraphQuery::Query(query) => (
+                true,
                 select()
                     // required for purl and cpe refs
                     .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
@@ -402,8 +404,8 @@ impl InnerService {
                     .filtering_with(query.clone(), q_columns())?
                     .into_model()
                     .all(connection)
-                    .await?
-            }
+                    .await?,
+            ),
         };
 
         log::debug!("test latest sbom ids: {:?}", matched_sbom_ids);
