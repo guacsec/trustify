@@ -293,7 +293,7 @@ async fn resolve_sbom_cpe(
                         matched_name: direct_external_sbom_node.name,
                         top_ancestor_sbom: direct_external_sbom_node.sbom_id,
                         cpe_id: direct_cpe,
-                        sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                        sbom_date: matched.published,
                         rank: None,
                     });
             }
@@ -343,7 +343,7 @@ async fn resolve_sbom_cpe(
                 matched_name: matched.name.clone(),
                 top_ancestor_sbom: external_sbom.sbom_id,
                 cpe_id,
-                sbom_date: matched.published, // TODO: ensure to revisit this assumption
+                sbom_date: matched.published,
                 rank: None,
             }));
     }
