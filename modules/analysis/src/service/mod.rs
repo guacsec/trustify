@@ -548,7 +548,7 @@ impl AnalysisService {
     }
 
     /// locate components, retrieve dependency information, from a single SBOM
-    /// TODO - this is only used by a test
+    #[cfg(test)]
     #[instrument(skip(self, connection), err)]
     pub async fn retrieve_single<C: ConnectionTrait>(
         &self,
