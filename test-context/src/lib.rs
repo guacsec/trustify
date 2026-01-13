@@ -13,7 +13,7 @@ pub use ctx::{ReadOnly, TrustifyContext, TrustifyMigrationContext};
 
 use ::migration::{
     ConnectionTrait, DbErr,
-    sea_orm::{RuntimeErr, Statement, prelude::Uuid, sqlx},
+    sea_orm::{RuntimeErr, Statement, sqlx},
 };
 use futures::Stream;
 use peak_alloc::PeakAlloc;
