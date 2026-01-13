@@ -14,6 +14,42 @@ pub enum AuthError {
     ServerError(String),
 }
 
+/// Authentication credentials for token refresh
+#[derive(Clone)]
+pub struct AuthCredentials {
+    pub token_url: String,
+    pub client_id: String,
+    pub client_secret: String,
+}
+
+impl AuthCredentials {
+    /// Build credentials from SSO URL and client credentials
+    pub fn new(sso_url: &str, client_id: &str, client_secret: &str) -> Self {
+        let token_url = build_token_url(sso_url);
+        Self {
+            token_url,
+            client_id: client_id.to_string(),
+            client_secret: client_secret.to_string(),
+        }
+    }
+
+    /// Get a token using these credentials
+    pub async fn get_token(&self) -> Result<String, AuthError> {
+        get_token(&self.token_url, &self.client_id, &self.client_secret).await
+    }
+}
+
+/// Build the token URL from an SSO base URL
+pub fn build_token_url(sso_url: &str) -> String {
+    if sso_url.ends_with("/token") {
+        sso_url.to_string()
+    } else if sso_url.ends_with('/') {
+        format!("{}protocol/openid-connect/token", sso_url)
+    } else {
+        format!("{}/protocol/openid-connect/token", sso_url)
+    }
+}
+
 #[derive(Deserialize)]
 struct TokenResponse {
     access_token: String,

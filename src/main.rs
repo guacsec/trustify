@@ -1,5 +1,4 @@
 mod api;
-mod auth;
 mod cli;
 mod commands;
 mod config;
@@ -8,7 +7,7 @@ use std::process;
 
 use clap::Parser;
 
-use api::client::AuthCredentials;
+use api::auth::AuthCredentials;
 use api::ApiClient;
 use cli::Cli;
 
@@ -28,22 +27,9 @@ async fn main() {
     // Build auth credentials and get initial token if configured
     let (token, auth_credentials) =
         if let Some((sso_url, client_id, client_secret)) = cli.config.auth_credentials() {
-            let token_url = if sso_url.ends_with("/token") {
-                sso_url.to_string()
-            } else if sso_url.ends_with('/') {
-                format!("{}protocol/openid-connect/token", sso_url)
-            } else {
-                format!("{}/protocol/openid-connect/token", sso_url)
-            };
+            let creds = AuthCredentials::new(sso_url, client_id, client_secret);
 
-            // Store credentials for token refresh
-            let creds = AuthCredentials {
-                token_url: token_url.clone(),
-                client_id: client_id.to_string(),
-                client_secret: client_secret.to_string(),
-            };
-
-            match auth::get_token(&token_url, client_id, client_secret).await {
+            match creds.get_token().await {
                 Ok(token) => (Some(token), Some(creds)),
                 Err(e) => {
                     eprintln!("Error: {}", e);

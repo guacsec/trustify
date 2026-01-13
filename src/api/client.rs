@@ -6,7 +6,6 @@ use thiserror::Error;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 
-use crate::auth;
 
 const MAX_RETRIES: u32 = 3;
 const RETRY_DELAY_MS: u64 = 1000;
@@ -52,13 +51,8 @@ impl From<reqwest::Error> for ApiError {
     }
 }
 
-/// Authentication credentials for token refresh
-#[derive(Clone)]
-pub struct AuthCredentials {
-    pub token_url: String,
-    pub client_id: String,
-    pub client_secret: String,
-}
+// Re-export AuthCredentials from auth module
+pub use super::auth::AuthCredentials;
 
 /// API client for Trustify with retry and token refresh support
 #[derive(Clone)]
@@ -111,7 +105,7 @@ impl ApiClient {
 
         eprintln!("Token expired, refreshing...");
 
-        match auth::get_token(&creds.token_url, &creds.client_id, &creds.client_secret).await {
+        match creds.get_token().await {
             Ok(new_token) => {
                 let mut token = self.token.write().await;
                 *token = Some(new_token);
