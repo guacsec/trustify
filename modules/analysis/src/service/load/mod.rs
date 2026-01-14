@@ -17,10 +17,9 @@ use opentelemetry::KeyValue;
 use petgraph::{Graph, prelude::NodeIndex};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityOrSelect, EntityTrait,
-    FromQueryResult, QueryFilter, QuerySelect, QueryTrait, Related, RelationTrait, Select,
-    Statement,
+    FromQueryResult, QueryFilter, QuerySelect, QueryTrait, RelationTrait, Statement,
 };
-use sea_query::{Alias, Expr, JoinType, PostgresQueryBuilder, Query, SelectStatement};
+use sea_query::{JoinType, SelectStatement};
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
