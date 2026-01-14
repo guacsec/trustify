@@ -31,7 +31,7 @@ pub fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig, d
         .app_data(web::Data::new(purl_service))
         .service(base::get_base_purl)
         .service(base::all_base_purls)
-        .service(recommend)
+        .service(recommend) // Must be before `get` to avoid {key} matching "recommend"
         .service(all)
         .service(get);
 }
