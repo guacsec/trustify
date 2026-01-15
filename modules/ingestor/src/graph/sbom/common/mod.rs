@@ -1,16 +1,20 @@
 mod checksum;
+mod cryptographic_asset;
 mod external;
 mod file;
 mod license;
 mod licensing_info;
+mod machine_learning_model;
 mod node;
 mod package;
 mod relationship;
 
 pub use checksum::*;
+pub use cryptographic_asset::*;
 pub use external::*;
 pub use file::*;
 pub use license::*;
 pub use licensing_info::*;
+pub use machine_learning_model::*;
 pub use package::*;
 pub use relationship::*;

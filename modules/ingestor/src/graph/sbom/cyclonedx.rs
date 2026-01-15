@@ -4,9 +4,10 @@ use crate::{
         product::ProductInformation,
         purl::creator::PurlCreator,
         sbom::{
-            CycloneDx as CycloneDxProcessor, LicenseCreator, LicenseInfo, NodeInfoParam,
-            PackageCreator, PackageLicensenInfo, PackageReference, References, RelationshipCreator,
-            SbomContext, SbomInformation,
+            CryptographicAssetCreator, CycloneDx as CycloneDxProcessor, LicenseCreator,
+            LicenseInfo, MachineLearningModelCreator, NodeInfoParam, PackageCreator,
+            PackageLicensenInfo, PackageReference, References, RelationshipCreator, SbomContext,
+            SbomInformation,
             processor::{
                 InitContext, PostContext, Processor, RedHatProductComponentRelationships,
                 RunProcessors,
@@ -30,6 +31,8 @@ use tracing::instrument;
 use trustify_common::{advisory::cyclonedx::extract_properties_json, cpe::Cpe, purl::Purl};
 use trustify_entity::relationship::Relationship;
 use uuid::Uuid;
+
+use super::FileCreator;
 
 /// Marker we use for identifying the document itself.
 ///
@@ -290,6 +293,9 @@ impl<'a> Creator<'a> {
         let mut purls = PurlCreator::new();
         let mut cpes = CpeCreator::new();
         let mut packages = PackageCreator::with_capacity(self.sbom_id, self.components.len());
+        let mut files = FileCreator::new(self.sbom_id);
+        let mut models = MachineLearningModelCreator::new(self.sbom_id);
+        let mut crypto = CryptographicAssetCreator::new(self.sbom_id);
         let mut relationships = RelationshipCreator::with_capacity(
             self.sbom_id,
             self.relations.len(),
@@ -303,6 +309,9 @@ impl<'a> Creator<'a> {
                 &mut purls,
                 &mut licenses,
                 &mut packages,
+                &mut files,
+                &mut models,
+                &mut crypto,
                 &mut relationships,
             );
             creator.create(comp);
@@ -327,7 +336,10 @@ impl<'a> Creator<'a> {
 
         let sources = References::new()
             .add_source(&[CYCLONEDX_DOC_REF])
-            .add_source(&packages);
+            .add_source(&packages)
+            .add_source(&files)
+            .add_source(&models)
+            .add_source(&crypto);
         relationships
             .validate(sources)
             .map_err(Error::InvalidContent)?;
@@ -339,6 +351,9 @@ impl<'a> Creator<'a> {
         purls.create(db).await?;
         cpes.create(db).await?;
         packages.create(db).await?;
+        files.create(db).await?;
+        models.create(db).await?;
+        crypto.create(db).await?;
         relationships.create(db).await?;
 
         // done
@@ -352,6 +367,9 @@ struct ComponentCreator<'a> {
     purls: &'a mut PurlCreator,
     licenses: &'a mut LicenseCreator,
     packages: &'a mut PackageCreator,
+    files: &'a mut FileCreator,
+    models: &'a mut MachineLearningModelCreator,
+    crypto: &'a mut CryptographicAssetCreator,
     relationships: &'a mut RelationshipCreator<CycloneDxProcessor>,
 
     refs: Vec<PackageReference>,
@@ -363,6 +381,9 @@ impl<'a> ComponentCreator<'a> {
         purls: &'a mut PurlCreator,
         licenses: &'a mut LicenseCreator,
         packages: &'a mut PackageCreator,
+        files: &'a mut FileCreator,
+        models: &'a mut MachineLearningModelCreator,
+        crypto: &'a mut CryptographicAssetCreator,
         relationships: &'a mut RelationshipCreator<CycloneDxProcessor>,
     ) -> Self {
         Self {
@@ -371,6 +392,9 @@ impl<'a> ComponentCreator<'a> {
             licenses,
             refs: Default::default(),
             packages,
+            files,
+            models,
+            crypto,
             relationships,
         }
     }
@@ -439,17 +463,50 @@ impl<'a> ComponentCreator<'a> {
             })
             .collect::<Vec<_>>();
 
-        self.packages.add(
-            NodeInfoParam {
-                node_id: node_id.clone(),
-                name: comp.name.to_string(),
-                group: comp.group.as_ref().map(|v| v.to_string()),
-                version: comp.version.as_ref().map(|v| v.to_string()),
-                package_license_info: cyclone_licenses,
-            },
-            self.refs,
-            comp.hashes.clone().into_iter().flatten(),
-        );
+        match ComponentType::from_str(&comp.type_) {
+            Ok(ty) => {
+                use ComponentType::*;
+                match ty {
+                    // We treat all these types as "packages"
+                    Application | Framework | Library | Container | OperatingSystem => {
+                        self.packages.add(
+                            NodeInfoParam {
+                                node_id: node_id.clone(),
+                                name: comp.name.to_string(),
+                                group: comp.group.as_ref().map(|v| v.to_string()),
+                                version: comp.version.as_ref().map(|v| v.to_string()),
+                                package_license_info: cyclone_licenses,
+                            },
+                            self.refs,
+                            comp.hashes.clone().into_iter().flatten(),
+                        )
+                    }
+                    File => {
+                        self.files.add(
+                            node_id.clone(),
+                            comp.name.to_string(),
+                            comp.hashes.clone().into_iter().flatten(),
+                        );
+                    }
+                    MachineLearningModel => {
+                        self.models.add(
+                            node_id.clone(),
+                            comp.name.to_string(),
+                            comp.hashes.clone().into_iter().flatten(),
+                        );
+                    }
+                    CryptographicAsset => {
+                        self.crypto.add(
+                            node_id.clone(),
+                            comp.name.to_string(),
+                            comp.hashes.clone().into_iter().flatten(),
+                        );
+                    }
+                    _ => log::error!("Unsupported component type: '{ty}'"),
+                }
+            }
+            Err(e) => log::error!("Invalid component type: {e}"),
+        }
 
         for ancestor in comp
             .pedigree
@@ -468,6 +525,9 @@ impl<'a> ComponentCreator<'a> {
                 self.purls,
                 self.licenses,
                 self.packages,
+                self.files,
+                self.models,
+                self.crypto,
                 self.relationships,
             ));
 
@@ -495,6 +555,9 @@ impl<'a> ComponentCreator<'a> {
                 self.purls,
                 self.licenses,
                 self.packages,
+                self.files,
+                self.models,
+                self.crypto,
                 self.relationships,
             ));
 
@@ -549,5 +612,87 @@ impl<'a> ComponentCreator<'a> {
             }
         }
         license_uuid
+    }
+}
+
+/// Type of the components within an SBOM, mostly based on
+/// https://cyclonedx.org/docs/1.6/json/#components_items_type
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    strum::Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
+pub enum ComponentType {
+    /// A software application
+    Application,
+    /// A software framework
+    Framework,
+    /// A software library
+    Library,
+    /// A packaging and/or runtime format
+    Container,
+    /// A runtime environment which interprets or executes software
+    Platform,
+    /// A software operating system without regard to deployment model
+    OperatingSystem,
+    /// A hardware device such as a processor or chip-set
+    Device,
+    /// A special type of software that operates or controls a particular type of device
+    DeviceDriver,
+    /// A special type of software that provides low-level control over a device's hardware
+    Firmware,
+    /// A computer file
+    File,
+    /// A model based on training data that can make predictions or decisions without being explicitly programmed to do so
+    MachineLearningModel,
+    /// A collection of discrete values that convey information
+    Data,
+    /// A cryptographic asset including algorithms, protocols, certificates, keys, tokens, and secrets
+    CryptographicAsset,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use serde_json::json;
+    use std::str::FromStr;
+    use test_log::test;
+
+    #[test]
+    fn component_types() {
+        use ComponentType::*;
+
+        // The standard conversions
+        for (s, t) in [
+            ("application", Application),
+            ("framework", Framework),
+            ("library", Library),
+            ("container", Container),
+            ("platform", Platform),
+            ("operating-system", OperatingSystem),
+            ("device", Device),
+            ("device-driver", DeviceDriver),
+            ("firmware", Firmware),
+            ("file", File),
+            ("machine-learning-model", MachineLearningModel),
+            ("data", Data),
+            ("cryptographic-asset", CryptographicAsset),
+        ] {
+            assert_eq!(ComponentType::from_str(s), Ok(t));
+            assert_eq!(t.to_string(), s);
+            assert_eq!(json!(t), json!(s));
+        }
+
+        // Error handling
+        assert!(ComponentType::from_str("missing").is_err());
+        assert_eq!(ComponentType::from_str("FiLe"), Ok(File));
     }
 }

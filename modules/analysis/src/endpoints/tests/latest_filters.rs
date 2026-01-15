@@ -513,7 +513,7 @@ async fn parse_ids_find_only_exact_matches(
 #[test_context(TrustifyContext)]
 #[rstest]
 #[test_log::test(actix_web::test)]
-async fn test_tc2578(
+async fn test_tc2758(
     ctx: &TrustifyContext,
     #[values(false, true)] prime_cache: bool,
 ) -> Result<(), anyhow::Error> {
@@ -574,8 +574,8 @@ async fn test_tc2578(
               "relationship": "package",
               "descendants": [
                 {
-                  "node_id": "pkg:maven/org.jboss.eap/wildfly-ee-aggregate-javadocs@7.4.0.GA-redhat-00005?classifier=javadocs&type=jar",
-                  "name": "wildfly-ee-aggregate-javadocs",
+                  "node_id": "pkg:generic/pom.xml?checksum=sha256%3A974823188145bdb517f9692341a237bdee75c8312d3c86ae0fc4d390225bb923",
+                  "name": "pom.xml",
                   "relationship": "dependency",
                 }]
             }]

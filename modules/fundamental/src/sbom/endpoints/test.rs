@@ -1578,7 +1578,7 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         sbom["document_id"],
         "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79/1"
     );
-    assert_eq!(sbom["number_of_packages"], 4);
+    assert_eq!(sbom["number_of_packages"], 3);
     let labels = sbom["labels"].as_object().unwrap();
     assert_eq!(labels["kind"], "cbom");
     assert_eq!(labels["type"], "cyclonedx");
@@ -1594,16 +1594,6 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         "name": "Acme Application",
         "group": null,
         "version": "1.0",
-        "purl": [],
-        "cpe": [],
-        "licenses": [],
-        "licenses_ref_mapping": []
-      },
-      {
-        "id": "aes128gcm",
-        "name": "AES",
-        "group": null,
-        "version": null,
         "purl": [],
         "cpe": [],
         "licenses": [],
@@ -1630,7 +1620,7 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         "licenses_ref_mapping": []
       }
     ],
-    "total": 4 });
+    "total": 3 });
     assert!(expected_result.contains_subset(response.clone()));
     Ok(())
 }
@@ -1651,7 +1641,7 @@ async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // assert expected fields
     assert_eq!(sbom["id"], id);
-    assert_eq!(sbom["number_of_packages"], 2);
+    assert_eq!(sbom["number_of_packages"], 1);
     let labels = sbom["labels"].as_object().unwrap();
     assert_eq!(labels["kind"], "aibom");
     assert_eq!(labels["type"], "cyclonedx");
@@ -1688,38 +1678,8 @@ async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
           "licenses": [],
           "licenses_ref_mapping": []
         },
-        {
-          "id": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
-          "name": "granite-docling-258M",
-          "group": null,
-          "version": "1.0",
-          "purl": [
-            {
-              "uuid": "6884c2b0-c1da-5650-bc00-a72a1a000714",
-              "purl": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
-              "base": {
-                "uuid": "62fcd64b-f64c-55b1-8a0b-c78a4c1012f3",
-                "purl": "pkg:huggingface/ibm-granite/granite-docling-258M"
-              },
-              "version": {
-                "uuid": "6884c2b0-c1da-5650-bc00-a72a1a000714",
-                "purl": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
-                "version": "1.0"
-              },
-              "qualifiers": {}
-            }
-          ],
-          "cpe": [],
-          "licenses": [
-            {
-              "license_name": "unknown",
-              "license_type": "declared"
-            }
-          ],
-          "licenses_ref_mapping": []
-        }
       ],
-      "total": 2
+      "total": 1
     }
           );
     assert!(expected_result.contains_subset(response.clone()));
