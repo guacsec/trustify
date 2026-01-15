@@ -1,0 +1,94 @@
+{
+    "SPDXID": "SPDXRef-DOCUMENT",
+    "annotations": [
+        {
+            "annotationDate": "2025-12-22T17:55:59Z",
+            "annotationType": "OTHER",
+            "annotator": "Tool: Mobster-1.1.0",
+            "comment": "release_id=96dd58d8-65f0-4659-940d-df47f6733a05"
+        }
+    ],
+    "creationInfo": {
+        "created": "2025-12-22T17:55:59Z",
+        "creators": [
+            "Organization: Red Hat",
+            "Tool: Konflux CI",
+            "Tool: Mobster-1.1.0"
+        ]
+    },
+    "dataLicense": "CC0-1.0",
+    "name": "Red Hat Enterprise Linux 9.7",
+    "spdxVersion": "SPDX-2.3",
+    "documentNamespace": "https://konflux-ci.dev/spdxdocs/Red Hat Enterprise Linux 9.7-0797cc7a-cd03-494b-bd89-56c47871c10b",
+    "packages": [
+        {
+            "SPDXID": "SPDXRef-product",
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "SECURITY",
+                    "referenceLocator": "cpe:/a:redhat:enterprise_linux:9::appstream",
+                    "referenceType": "cpe22Type"
+                }
+            ],
+            "filesAnalyzed": false,
+            "licenseDeclared": "NOASSERTION",
+            "name": "Red Hat Enterprise Linux",
+            "supplier": "Organization: Red Hat",
+            "versionInfo": "9.7"
+        },
+        {
+            "SPDXID": "SPDXRef-component-mariadb-1011-9-7",
+            "checksums": [
+                {
+                    "algorithm": "SHA256",
+                    "checksumValue": "74f9ea6f46866bbcaeef62d7f65d09ff5b9a23be5c6b01aafd23995880cc7f7c"
+                }
+            ],
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE_MANAGER",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:74f9ea6f46866bbcaeef62d7f65d09ff5b9a23be5c6b01aafd23995880cc7f7c?repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7",
+                    "referenceType": "purl"
+                },
+                {
+                    "referenceCategory": "PACKAGE_MANAGER",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:74f9ea6f46866bbcaeef62d7f65d09ff5b9a23be5c6b01aafd23995880cc7f7c?repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7-1766423591",
+                    "referenceType": "purl"
+                },
+                {
+                    "referenceCategory": "PACKAGE_MANAGER",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:74f9ea6f46866bbcaeef62d7f65d09ff5b9a23be5c6b01aafd23995880cc7f7c?repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=latest",
+                    "referenceType": "purl"
+                },
+                {
+                    "referenceCategory": "PACKAGE_MANAGER",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:74f9ea6f46866bbcaeef62d7f65d09ff5b9a23be5c6b01aafd23995880cc7f7c?repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1",
+                    "referenceType": "purl"
+                },
+                {
+                    "referenceCategory": "PACKAGE_MANAGER",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:74f9ea6f46866bbcaeef62d7f65d09ff5b9a23be5c6b01aafd23995880cc7f7c?repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1-1766423591",
+                    "referenceType": "purl"
+                }
+            ],
+            "filesAnalyzed": false,
+            "licenseDeclared": "NOASSERTION",
+            "name": "mariadb-1011-9-7",
+            "supplier": "Organization: Red Hat"
+        }
+    ],
+    "relationships": [
+        {
+            "spdxElementId": "SPDXRef-DOCUMENT",
+            "relatedSpdxElement": "SPDXRef-product",
+            "relationshipType": "DESCRIBES"
+        },
+        {
+            "spdxElementId": "SPDXRef-component-mariadb-1011-9-7",
+            "relatedSpdxElement": "SPDXRef-product",
+            "relationshipType": "PACKAGE_OF"
+        }
+    ]
+}

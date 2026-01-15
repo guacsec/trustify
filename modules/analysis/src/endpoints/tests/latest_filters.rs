@@ -795,3 +795,95 @@ async fn resolve_rh_variant_latest_filter_tc_3278(
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case( // purl partial search
+    Req { what: What::Q("purl~pkg:rpm/redhat/firefox"), ancestors: Some(10), ..Req::default() },
+    1,
+    vec!["cyclonedx/rh/latest_filters/TC-2719/firefox.json"]
+)]
+#[case( // purl partial search
+    Req { what: What::Q("purl~pkg:rpm/redhat/firefox"), latest: true, ancestors: Some(10), ..Req::default() },
+    1,
+    vec!["cyclonedx/rh/latest_filters/TC-2719/firefox.json"]
+)]
+#[case( // spdx cpe search
+    Req { what: What::Id("cpe:/a:redhat:enterprise_linux:9::appstream"), ancestors: Some(10), ..Req::default() },
+    2,
+    vec![
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-products.json",
+        "spdx/rh/latest/TC-2719/mariadb-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-product.json"
+    ])]
+#[case( // spdx cpe latest search
+    Req { what: What::Id("cpe:/a:redhat:enterprise_linux:9::appstream"), latest:true, ancestors: Some(10), ..Req::default() },
+    1,
+    vec![
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-products.json",
+        "spdx/rh/latest/TC-2719/mariadb-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-product.json"
+    ])]
+#[case( // spdx q name search
+    Req { what: What::Q("name=mariadb-1011-9-7_arm64"), ancestors: Some(10), ..Req::default() },
+    2,
+    vec![
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-products.json",
+        "spdx/rh/latest/TC-2719/mariadb-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-product.json"
+    ])]
+#[case( // spdx latest q name search
+    Req { what: What::Q("name=mariadb-1011-9-7_arm64"), latest:true, ancestors: Some(10), ..Req::default() },
+    1,
+    vec![
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-products.json",
+        "spdx/rh/latest/TC-2719/mariadb-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-product.json"
+    ])]
+#[case( // spdx q partial purl search
+    Req { what: What::Q("purl~pkg:oci/mariadb-1011@"), ancestors: Some(10), ..Req::default() },
+    12,
+    vec![
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-products.json",
+        "spdx/rh/latest/TC-2719/mariadb-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-product.json"
+    ])]
+#[case( // spdx latest q partial purl search
+    Req { what: What::Q("purl~pkg:oci/mariadb-1011@"), latest:true, ancestors: Some(10), ..Req::default() },
+    6,
+    vec![
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-9.7-1763396552-products.json",
+        "spdx/rh/latest/TC-2719/mariadb-binary.json",
+        "spdx/rh/latest/TC-2719/mariadb-product.json"
+    ])]
+#[test_log::test(actix_web::test)]
+async fn resolve_rh_variant_latest_filter_tc_2719(
+    ctx: &TrustifyContext,
+    #[case] req: Req<'_>,
+    #[case] total: usize,
+    #[case] sbom_data: Vec<&str>,
+    #[values(false, true)] prime_cache: bool,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    ctx.ingest_documents(sbom_data).await?;
+
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
+
+    let mut response = app.req(req).await?;
+
+    sort(&mut response["items"]);
+
+    log::info!("{response:#?}");
+    assert_eq!(total, response["total"]);
+
+    Ok(())
+}

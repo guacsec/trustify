@@ -1,0 +1,263 @@
+{
+    "SPDXID": "SPDXRef-DOCUMENT",
+    "creationInfo": {
+        "created": "2025-11-17T16:38:55Z",
+        "creators": [
+            "Organization: Red Hat",
+            "Tool: Konflux CI",
+            "Tool: Mobster-1.1.0",
+            "Tool: Mobster-1.0.0"
+        ]
+    },
+    "dataLicense": "CC0-1.0",
+    "name": "registry.redhat.io/rhel9/mariadb-1011@sha256:0600038402b995e2a189c6c60f6482fd29bc7d4618333d940fa28f6c9bbec547",
+    "spdxVersion": "SPDX-2.3",
+    "documentNamespace": "https://konflux-ci.dev/spdxdocs/quay.io/redhat-user-workloads/osci-rhel-containers-tenant/rhel-9-7/mariadb-1011-9-7@sha256:0600038402b995e2a189c6c60f6482fd29bc7d4618333d940fa28f6c9bbec547-d164c023-3587-4340-9ff2-5f1ac3c8a131",
+    "packages": [
+        {
+            "SPDXID": "SPDXRef-image-index",
+            "checksums": [
+                {
+                    "algorithm": "SHA256",
+                    "checksumValue": "0600038402b995e2a189c6c60f6482fd29bc7d4618333d940fa28f6c9bbec547"
+                }
+            ],
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:0600038402b995e2a189c6c60f6482fd29bc7d4618333d940fa28f6c9bbec547?repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:0600038402b995e2a189c6c60f6482fd29bc7d4618333d940fa28f6c9bbec547?repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7-1763396552"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:0600038402b995e2a189c6c60f6482fd29bc7d4618333d940fa28f6c9bbec547?repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=latest"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:0600038402b995e2a189c6c60f6482fd29bc7d4618333d940fa28f6c9bbec547?repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:0600038402b995e2a189c6c60f6482fd29bc7d4618333d940fa28f6c9bbec547?repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1-1763396552"
+                }
+            ],
+            "filesAnalyzed": false,
+            "licenseDeclared": "NOASSERTION",
+            "name": "mariadb-1011-9-7",
+            "supplier": "Organization: Red Hat",
+            "versionInfo": "256d5aef63bf8cec8fa93e100f526697b76f9c20"
+        },
+        {
+            "SPDXID": "SPDXRef-image-mariadb-1011-9-7-025d33c9c9abf156e737a771da95ab6f1543126004b6190e4623f74f5e1208f2",
+            "checksums": [
+                {
+                    "algorithm": "SHA256",
+                    "checksumValue": "a60c2ab360f480c6963fbef0c1d4262c9b0e55aa9c8a5917d800e11fce840355"
+                }
+            ],
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:a60c2ab360f480c6963fbef0c1d4262c9b0e55aa9c8a5917d800e11fce840355?arch=amd64&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:a60c2ab360f480c6963fbef0c1d4262c9b0e55aa9c8a5917d800e11fce840355?arch=amd64&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7-1763396552"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:a60c2ab360f480c6963fbef0c1d4262c9b0e55aa9c8a5917d800e11fce840355?arch=amd64&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=latest"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:a60c2ab360f480c6963fbef0c1d4262c9b0e55aa9c8a5917d800e11fce840355?arch=amd64&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:a60c2ab360f480c6963fbef0c1d4262c9b0e55aa9c8a5917d800e11fce840355?arch=amd64&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1-1763396552"
+                }
+            ],
+            "filesAnalyzed": false,
+            "licenseDeclared": "NOASSERTION",
+            "name": "mariadb-1011-9-7_amd64",
+            "supplier": "Organization: Red Hat",
+            "versionInfo": "256d5aef63bf8cec8fa93e100f526697b76f9c20"
+        },
+        {
+            "SPDXID": "SPDXRef-image-mariadb-1011-9-7-4fe65f11867119c46de3b76d0e3eea77e91ba962d27c0b0a22ed801d8db1d2f5",
+            "checksums": [
+                {
+                    "algorithm": "SHA256",
+                    "checksumValue": "2281b94f0874c8aea88e22a46b632452ddcbcfa42d165d4d55fdccf21d9e1b0e"
+                }
+            ],
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:2281b94f0874c8aea88e22a46b632452ddcbcfa42d165d4d55fdccf21d9e1b0e?arch=arm64&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:2281b94f0874c8aea88e22a46b632452ddcbcfa42d165d4d55fdccf21d9e1b0e?arch=arm64&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7-1763396552"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:2281b94f0874c8aea88e22a46b632452ddcbcfa42d165d4d55fdccf21d9e1b0e?arch=arm64&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=latest"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:2281b94f0874c8aea88e22a46b632452ddcbcfa42d165d4d55fdccf21d9e1b0e?arch=arm64&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:2281b94f0874c8aea88e22a46b632452ddcbcfa42d165d4d55fdccf21d9e1b0e?arch=arm64&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1-1763396552"
+                }
+            ],
+            "filesAnalyzed": false,
+            "licenseDeclared": "NOASSERTION",
+            "name": "mariadb-1011-9-7_arm64",
+            "supplier": "Organization: Red Hat",
+            "versionInfo": "256d5aef63bf8cec8fa93e100f526697b76f9c20"
+        },
+        {
+            "SPDXID": "SPDXRef-image-mariadb-1011-9-7-fd7687d90b93f9cbe457254af0f29f45942984ef0157fe4f842b369160a9069d",
+            "checksums": [
+                {
+                    "algorithm": "SHA256",
+                    "checksumValue": "dc3b882972536888e5c27bbc5d8dc3586d8a1fb2182dde3890fb662ea69f9d39"
+                }
+            ],
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:dc3b882972536888e5c27bbc5d8dc3586d8a1fb2182dde3890fb662ea69f9d39?arch=s390x&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:dc3b882972536888e5c27bbc5d8dc3586d8a1fb2182dde3890fb662ea69f9d39?arch=s390x&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7-1763396552"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:dc3b882972536888e5c27bbc5d8dc3586d8a1fb2182dde3890fb662ea69f9d39?arch=s390x&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=latest"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:dc3b882972536888e5c27bbc5d8dc3586d8a1fb2182dde3890fb662ea69f9d39?arch=s390x&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:dc3b882972536888e5c27bbc5d8dc3586d8a1fb2182dde3890fb662ea69f9d39?arch=s390x&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1-1763396552"
+                }
+            ],
+            "filesAnalyzed": false,
+            "licenseDeclared": "NOASSERTION",
+            "name": "mariadb-1011-9-7_s390x",
+            "supplier": "Organization: Red Hat",
+            "versionInfo": "256d5aef63bf8cec8fa93e100f526697b76f9c20"
+        },
+        {
+            "SPDXID": "SPDXRef-image-mariadb-1011-9-7-28e9718623f661f7c511cd59907e16e50f12947be39968ee1106072b12bfef40",
+            "checksums": [
+                {
+                    "algorithm": "SHA256",
+                    "checksumValue": "32259f85fc3ceba94ae0ac85862240b0b6a1cdf0fe944dce7c48a2b4a8dc7eb9"
+                }
+            ],
+            "downloadLocation": "NOASSERTION",
+            "externalRefs": [
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:32259f85fc3ceba94ae0ac85862240b0b6a1cdf0fe944dce7c48a2b4a8dc7eb9?arch=ppc64le&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:32259f85fc3ceba94ae0ac85862240b0b6a1cdf0fe944dce7c48a2b4a8dc7eb9?arch=ppc64le&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=9.7-1763396552"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:32259f85fc3ceba94ae0ac85862240b0b6a1cdf0fe944dce7c48a2b4a8dc7eb9?arch=ppc64le&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=latest"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:32259f85fc3ceba94ae0ac85862240b0b6a1cdf0fe944dce7c48a2b4a8dc7eb9?arch=ppc64le&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1"
+                },
+                {
+                    "referenceCategory": "PACKAGE-MANAGER",
+                    "referenceType": "purl",
+                    "referenceLocator": "pkg:oci/mariadb-1011@sha256:32259f85fc3ceba94ae0ac85862240b0b6a1cdf0fe944dce7c48a2b4a8dc7eb9?arch=ppc64le&repository_url=registry.redhat.io/rhel9/mariadb-1011&tag=1-1763396552"
+                }
+            ],
+            "filesAnalyzed": false,
+            "licenseDeclared": "NOASSERTION",
+            "name": "mariadb-1011-9-7_ppc64le",
+            "supplier": "Organization: Red Hat",
+            "versionInfo": "256d5aef63bf8cec8fa93e100f526697b76f9c20"
+        }
+    ],
+    "relationships": [
+        {
+            "spdxElementId": "SPDXRef-DOCUMENT",
+            "relatedSpdxElement": "SPDXRef-image-index",
+            "relationshipType": "DESCRIBES"
+        },
+        {
+            "spdxElementId": "SPDXRef-image-mariadb-1011-9-7-025d33c9c9abf156e737a771da95ab6f1543126004b6190e4623f74f5e1208f2",
+            "relatedSpdxElement": "SPDXRef-image-index",
+            "relationshipType": "VARIANT_OF"
+        },
+        {
+            "spdxElementId": "SPDXRef-image-mariadb-1011-9-7-4fe65f11867119c46de3b76d0e3eea77e91ba962d27c0b0a22ed801d8db1d2f5",
+            "relatedSpdxElement": "SPDXRef-image-index",
+            "relationshipType": "VARIANT_OF"
+        },
+        {
+            "spdxElementId": "SPDXRef-image-mariadb-1011-9-7-fd7687d90b93f9cbe457254af0f29f45942984ef0157fe4f842b369160a9069d",
+            "relatedSpdxElement": "SPDXRef-image-index",
+            "relationshipType": "VARIANT_OF"
+        },
+        {
+            "spdxElementId": "SPDXRef-image-mariadb-1011-9-7-28e9718623f661f7c511cd59907e16e50f12947be39968ee1106072b12bfef40",
+            "relatedSpdxElement": "SPDXRef-image-index",
+            "relationshipType": "VARIANT_OF"
+        }
+    ],
+    "annotations": [
+        {
+            "annotationDate": "2025-11-17T17:22:08Z",
+            "annotationType": "OTHER",
+            "annotator": "Tool: Mobster-1.0.0",
+            "comment": "release_id=23f0a400-7969-41eb-b97b-f6df70339ba9"
+        }
+    ]
+}
