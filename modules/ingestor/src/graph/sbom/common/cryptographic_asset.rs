@@ -2,7 +2,6 @@ use crate::graph::sbom::{Checksum, ReferenceSource, common::node::NodeCreator};
 use sea_orm::{ConnectionTrait, DbErr};
 use uuid::Uuid;
 
-// Creator of files and relationships.
 pub struct CryptographicAssetCreator {
     nodes: NodeCreator,
 }
