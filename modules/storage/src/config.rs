@@ -30,7 +30,7 @@ pub struct StorageConfig {
         id = "storage-strategy",
         long,
         env = "TRUSTD_STORAGE_STRATEGY",
-        requires_ifs([("s3", "bucket"), ("s3", "region"), ("s3", "access_key"), ("s3", "secret_key")]),
+        requires_ifs([("s3", "bucket"), ("s3", "region")]),
         requires_if("fs", "storage-fs-path"),
         default_value_t = StorageStrategy::Fs,
     )]
