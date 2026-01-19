@@ -606,10 +606,11 @@ impl SbomContext {
     ) -> Result<(), Error> {
         let mut creator = PackageCreator::new(self.sbom.sbom_id);
 
-        let refs = purls
+        let refs: Vec<PackageReference> = purls
             .into_iter()
             .map(PackageReference::Purl)
-            .chain(cpes.into_iter().map(PackageReference::Cpe));
+            .chain(cpes.into_iter().map(PackageReference::Cpe))
+            .collect();
         creator.add(
             NodeInfoParam {
                 node_id,
@@ -618,7 +619,7 @@ impl SbomContext {
                 version,
                 package_license_info: vec![],
             },
-            refs,
+            refs.iter(),
             Checksum::NONE,
         );
 

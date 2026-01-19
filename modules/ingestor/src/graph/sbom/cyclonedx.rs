@@ -25,7 +25,7 @@ use sea_orm::ConnectionTrait;
 use serde_cyclonedx::cyclonedx::v_1_6::{
     Component, ComponentEvidenceIdentity, CycloneDx, LicenseChoiceUrl, OrganizationalContact,
 };
-use std::{borrow::Cow, str::FromStr};
+use std::{borrow::Cow, collections::HashMap, str::FromStr};
 use time::{OffsetDateTime, format_description::well_known::Iso8601};
 use tracing::instrument;
 use trustify_common::{advisory::cyclonedx::extract_properties_json, cpe::Cpe, purl::Purl};
@@ -290,71 +290,24 @@ impl<'a> Creator<'a> {
         db: &impl ConnectionTrait,
         processors: &mut [Box<dyn Processor>],
     ) -> Result<(), Error> {
-        let mut purls = PurlCreator::new();
-        let mut cpes = CpeCreator::new();
-        let mut packages = PackageCreator::with_capacity(self.sbom_id, self.components.len());
-        let mut files = FileCreator::new(self.sbom_id);
-        let mut models = MachineLearningModelCreator::new(self.sbom_id);
-        let mut crypto = CryptographicAssetCreator::new(self.sbom_id);
-        let mut relationships = RelationshipCreator::with_capacity(
-            self.sbom_id,
-            self.relations.len(),
-            CycloneDxProcessor,
-        );
-        let mut licenses = LicenseCreator::new();
+        let mut creator = ComponentCreator::new(self.sbom_id, self.components.len());
 
         for comp in self.components {
-            let creator = ComponentCreator::new(
-                &mut cpes,
-                &mut purls,
-                &mut licenses,
-                &mut packages,
-                &mut files,
-                &mut models,
-                &mut crypto,
-                &mut relationships,
-            );
-            creator.create(comp);
+            creator.add(comp);
         }
 
         for (left, rel, right) in self.relations {
-            relationships.relate(left, rel, right);
+            creator.add_relation(left, rel, right);
         }
 
         // post process
-
-        PostContext {
-            cpes: &cpes,
-            purls: &purls,
-            packages: &mut packages,
-            relationships: &mut relationships.rels,
-            externals: &mut relationships.externals,
-        }
-        .run(processors);
+        creator.post_process(processors);
 
         // validate relationships before inserting
+        creator.validate().map_err(Error::InvalidContent)?;
 
-        let sources = References::new()
-            .add_source(&[CYCLONEDX_DOC_REF])
-            .add_source(&packages)
-            .add_source(&files)
-            .add_source(&models)
-            .add_source(&crypto);
-        relationships
-            .validate(sources)
-            .map_err(Error::InvalidContent)?;
-
-        // create - order matters to prevent cross-table deadlocks when running concurrent
-        // SBOM ingestions. All SBOM loaders must use the same table insertion order.
-
-        licenses.create(db).await?;
-        purls.create(db).await?;
-        cpes.create(db).await?;
-        packages.create(db).await?;
-        files.create(db).await?;
-        models.create(db).await?;
-        crypto.create(db).await?;
-        relationships.create(db).await?;
+        // write to db
+        creator.create(db).await?;
 
         // done
 
@@ -362,45 +315,35 @@ impl<'a> Creator<'a> {
     }
 }
 
-struct ComponentCreator<'a> {
-    cpes: &'a mut CpeCreator,
-    purls: &'a mut PurlCreator,
-    licenses: &'a mut LicenseCreator,
-    packages: &'a mut PackageCreator,
-    files: &'a mut FileCreator,
-    models: &'a mut MachineLearningModelCreator,
-    crypto: &'a mut CryptographicAssetCreator,
-    relationships: &'a mut RelationshipCreator<CycloneDxProcessor>,
-
-    refs: Vec<PackageReference>,
+struct ComponentCreator {
+    cpes: CpeCreator,
+    purls: PurlCreator,
+    licenses: LicenseCreator,
+    packages: PackageCreator,
+    files: FileCreator,
+    models: MachineLearningModelCreator,
+    crypto: CryptographicAssetCreator,
+    relationships: RelationshipCreator<CycloneDxProcessor>,
+    // Map each node to a collection of references
+    refs: HashMap<String, Vec<PackageReference>>,
 }
 
-impl<'a> ComponentCreator<'a> {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        cpes: &'a mut CpeCreator,
-        purls: &'a mut PurlCreator,
-        licenses: &'a mut LicenseCreator,
-        packages: &'a mut PackageCreator,
-        files: &'a mut FileCreator,
-        models: &'a mut MachineLearningModelCreator,
-        crypto: &'a mut CryptographicAssetCreator,
-        relationships: &'a mut RelationshipCreator<CycloneDxProcessor>,
-    ) -> Self {
+impl ComponentCreator {
+    pub fn new(sbom_id: Uuid, capacity: usize) -> Self {
         Self {
-            cpes,
-            purls,
-            licenses,
+            cpes: CpeCreator::new(),
+            purls: PurlCreator::new(),
+            licenses: LicenseCreator::new(),
+            packages: PackageCreator::with_capacity(sbom_id, capacity),
+            files: FileCreator::new(sbom_id),
+            models: MachineLearningModelCreator::new(sbom_id),
+            crypto: CryptographicAssetCreator::new(sbom_id),
+            relationships: RelationshipCreator::new(sbom_id, CycloneDxProcessor),
             refs: Default::default(),
-            packages,
-            files,
-            models,
-            crypto,
-            relationships,
         }
     }
 
-    pub fn create(mut self, comp: &Component) {
+    pub fn add(&mut self, comp: &Component) {
         let node_id = comp
             .bom_ref
             .clone()
@@ -411,7 +354,7 @@ impl<'a> ComponentCreator<'a> {
         if let Some(cpe) = &comp.cpe {
             match Cpe::from_str(cpe.as_ref()) {
                 Ok(cpe) => {
-                    self.add_cpe(cpe);
+                    self.add_cpe(node_id.clone(), cpe);
                 }
                 Err(err) => {
                     log::info!("Skipping CPE due to parsing error: {err}");
@@ -422,7 +365,7 @@ impl<'a> ComponentCreator<'a> {
         if let Some(purl) = &comp.purl {
             match Purl::from_str(purl.as_ref()) {
                 Ok(purl) => {
-                    self.add_purl(purl);
+                    self.add_purl(node_id.clone(), purl);
                 }
                 Err(err) => {
                     log::info!("Skipping PURL due to parsing error: {err}");
@@ -443,12 +386,12 @@ impl<'a> ComponentCreator<'a> {
             match (identity.field.as_str(), &identity.concluded_value) {
                 ("cpe", Some(cpe)) => {
                     if let Ok(cpe) = Cpe::from_str(cpe.as_ref()) {
-                        self.add_cpe(cpe);
+                        self.add_cpe(node_id.clone(), cpe);
                     }
                 }
                 ("purl", Some(purl)) => {
                     if let Ok(purl) = Purl::from_str(purl.as_ref()) {
-                        self.add_purl(purl);
+                        self.add_purl(node_id.clone(), purl);
                     }
                 }
 
@@ -470,6 +413,7 @@ impl<'a> ComponentCreator<'a> {
                 match ty {
                     // We treat all these types as "packages"
                     Application | Framework | Library | Container | OperatingSystem => {
+                        const EMPTY: Vec<PackageReference> = vec![];
                         self.packages.add(
                             NodeInfoParam {
                                 node_id: node_id.clone(),
@@ -478,7 +422,7 @@ impl<'a> ComponentCreator<'a> {
                                 version: comp.version.as_ref().map(|v| v.to_string()),
                                 package_license_info: cyclone_licenses,
                             },
-                            self.refs,
+                            self.refs.get(&node_id).unwrap_or(&EMPTY).iter(),
                             comp.hashes.clone().into_iter().flatten(),
                         )
                     }
@@ -519,24 +463,9 @@ impl<'a> ComponentCreator<'a> {
                 .clone()
                 .unwrap_or_else(|| Uuid::new_v4().to_string());
 
-            // create the component
+            self.add(ancestor);
 
-            let creator = Box::new(ComponentCreator::new(
-                self.cpes,
-                self.purls,
-                self.licenses,
-                self.packages,
-                self.files,
-                self.models,
-                self.crypto,
-                self.relationships,
-            ));
-
-            creator.create(ancestor);
-
-            // and store a relationship
-            self.relationships
-                .relate(target, Relationship::AncestorOf, node_id.clone());
+            self.add_relation(target, Relationship::AncestorOf, node_id.clone());
         }
 
         for variant in comp
@@ -549,34 +478,30 @@ impl<'a> ComponentCreator<'a> {
                 .clone()
                 .unwrap_or_else(|| Uuid::new_v4().to_string());
 
-            // create the component
+            self.add(variant);
 
-            let creator = Box::new(ComponentCreator::new(
-                self.cpes,
-                self.purls,
-                self.licenses,
-                self.packages,
-                self.files,
-                self.models,
-                self.crypto,
-                self.relationships,
-            ));
-
-            creator.create(variant);
-
-            self.relationships
-                .relate(node_id.clone(), Relationship::Variant, target);
+            self.add_relation(node_id.clone(), Relationship::Variant, target);
         }
     }
 
-    pub fn add_cpe(&mut self, cpe: Cpe) {
+    fn add_relation(&mut self, left: String, rel: Relationship, right: String) {
+        self.relationships.relate(left, rel, right);
+    }
+
+    fn add_cpe(&mut self, node_id: String, cpe: Cpe) {
         let id = cpe.uuid();
-        self.refs.push(PackageReference::Cpe(id));
+        self.refs
+            .entry(node_id)
+            .or_default()
+            .push(PackageReference::Cpe(id));
         self.cpes.add(cpe);
     }
 
-    pub fn add_purl(&mut self, purl: Purl) {
-        self.refs.push(PackageReference::Purl(purl.clone()));
+    fn add_purl(&mut self, node_id: String, purl: Purl) {
+        self.refs
+            .entry(node_id)
+            .or_default()
+            .push(PackageReference::Purl(purl.clone()));
         self.purls.add(purl);
     }
 
@@ -613,6 +538,43 @@ impl<'a> ComponentCreator<'a> {
             }
         }
         license_uuid
+    }
+
+    fn post_process(&mut self, processors: &mut [Box<dyn Processor>]) {
+        PostContext {
+            cpes: &self.cpes,
+            purls: &self.purls,
+            packages: &mut self.packages,
+            relationships: &mut self.relationships.rels,
+            externals: &mut self.relationships.externals,
+        }
+        .run(processors);
+    }
+
+    fn validate(&self) -> Result<(), anyhow::Error> {
+        let sources = References::new()
+            .add_source(&[CYCLONEDX_DOC_REF])
+            .add_source(&self.packages)
+            .add_source(&self.files)
+            .add_source(&self.models)
+            .add_source(&self.crypto);
+        self.relationships.validate(sources)
+    }
+
+    // order matters to prevent cross-table deadlocks when running
+    // concurrent SBOM ingestions. All SBOM loaders must use the same
+    // table insertion order.
+    async fn create(self, db: &impl ConnectionTrait) -> Result<(), Error> {
+        self.licenses.create(db).await?;
+        self.purls.create(db).await?;
+        self.cpes.create(db).await?;
+        self.packages.create(db).await?;
+        self.files.create(db).await?;
+        self.models.create(db).await?;
+        self.crypto.create(db).await?;
+        self.relationships.create(db).await?;
+
+        Ok(())
     }
 }
 
