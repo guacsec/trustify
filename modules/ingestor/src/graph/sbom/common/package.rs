@@ -1,5 +1,3 @@
-use crate::graph::sbom::common::node::NodeCreator;
-use crate::graph::sbom::{Checksum, ReferenceSource};
 use sea_orm::{ActiveValue::Set, ConnectionTrait, DbErr, EntityTrait};
 use sea_query::OnConflict;
 use tracing::instrument;
@@ -14,7 +12,6 @@ use uuid::Uuid;
 // Creator of packages and relationships.
 pub struct PackageCreator {
     sbom_id: Uuid,
-    pub(crate) nodes: NodeCreator,
     pub(crate) packages: Vec<sbom_package::ActiveModel>,
     pub(crate) purl_refs: Vec<sbom_package_purl_ref::ActiveModel>,
     pub(crate) cpe_refs: Vec<sbom_package_cpe_ref::ActiveModel>,
@@ -23,7 +20,6 @@ pub struct PackageCreator {
 
 pub struct NodeInfoParam {
     pub node_id: String,
-    pub name: String,
     pub group: Option<String>,
     pub version: Option<String>,
     pub package_license_info: Vec<PackageLicensenInfo>,
@@ -43,7 +39,6 @@ impl PackageCreator {
     pub fn new(sbom_id: Uuid) -> Self {
         Self {
             sbom_id,
-            nodes: NodeCreator::new(sbom_id),
             packages: Vec::new(),
             purl_refs: Vec::new(),
             cpe_refs: Vec::new(),
@@ -54,7 +49,6 @@ impl PackageCreator {
     pub fn with_capacity(sbom_id: Uuid, capacity_packages: usize) -> Self {
         Self {
             sbom_id,
-            nodes: NodeCreator::with_capacity(sbom_id, capacity_packages),
             packages: Vec::with_capacity(capacity_packages),
             purl_refs: Vec::with_capacity(capacity_packages),
             cpe_refs: Vec::new(), // most packages won't have a CPE, so we start with a low number
@@ -62,15 +56,11 @@ impl PackageCreator {
         }
     }
 
-    pub fn add<'a, I, C>(
+    pub fn add<'a>(
         &mut self,
         node_info: NodeInfoParam,
         refs: impl Iterator<Item = &'a PackageReference>,
-        checksums: I,
-    ) where
-        I: IntoIterator<Item = C>,
-        C: Into<Checksum>,
-    {
+    ) {
         for r#ref in refs {
             match r#ref {
                 PackageReference::Cpe(cpe) => {
@@ -89,9 +79,6 @@ impl PackageCreator {
                 }
             }
         }
-
-        self.nodes
-            .add(node_info.node_id.clone(), node_info.name, checksums);
 
         self.packages.push(sbom_package::ActiveModel {
             sbom_id: Set(self.sbom_id),
@@ -121,8 +108,6 @@ impl PackageCreator {
         err(level=tracing::Level::INFO)
     )]
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
-        self.nodes.create(db).await?;
-
         for batch in &self.packages.into_iter().chunked() {
             sbom_package::Entity::insert_many(batch)
                 .on_conflict(
@@ -188,11 +173,5 @@ impl PackageCreator {
         }
 
         Ok(())
-    }
-}
-
-impl<'a> ReferenceSource<'a> for PackageCreator {
-    fn references(&'a self) -> impl IntoIterator<Item = &'a str> {
-        self.nodes.references()
     }
 }

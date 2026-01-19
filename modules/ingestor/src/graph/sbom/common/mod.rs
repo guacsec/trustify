@@ -16,5 +16,6 @@ pub use file::*;
 pub use license::*;
 pub use licensing_info::*;
 pub use machine_learning_model::*;
+pub use node::*;
 pub use package::*;
 pub use relationship::*;

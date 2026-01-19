@@ -4,9 +4,9 @@ use crate::{
         product::ProductInformation,
         purl::creator::PurlCreator,
         sbom::{
-            FileCreator, LicenseCreator, LicenseInfo, LicensingInfo, LicensingInfoCreator,
-            NodeInfoParam, PackageCreator, PackageLicensenInfo, PackageReference, References,
-            RelationshipCreator, SbomContext, SbomInformation, Spdx,
+            LicenseCreator, LicenseInfo, LicensingInfo, LicensingInfoCreator, NodeCreator,
+            NodeInfoParam, PackageLicensenInfo, PackageReference, References, RelationshipCreator,
+            SbomContext, SbomInformation, Spdx,
             processor::{
                 InitContext, PostContext, Processor, RedHatProductComponentRelationships,
                 RunProcessors,
@@ -199,8 +199,7 @@ impl SbomContext {
             license_extracted_refs.add(extracted_licensing_info);
         }
 
-        let mut packages =
-            PackageCreator::with_capacity(self.sbom.sbom_id, sbom_data.package_information.len());
+        let mut nodes = NodeCreator::new(self.sbom.sbom_id);
 
         for package in sbom_data.package_information {
             let declared_license_info = package.declared_license.as_ref().map(|e| LicenseInfo {
@@ -294,26 +293,24 @@ impl SbomContext {
                     })
                     .collect::<Vec<_>>(),
             );
-            packages.add(
+
+            nodes.add_package(
                 NodeInfoParam {
                     node_id: package.package_spdx_identifier,
-                    name: package.package_name,
                     group: None,
                     version: package.package_version,
                     package_license_info,
                 },
-                refs.iter(),
+                package.package_name,
                 package.package_checksum,
+                refs.iter(),
             );
         }
 
         // prepare files
 
-        let mut files =
-            FileCreator::with_capacity(self.sbom.sbom_id, sbom_data.file_information.len());
-
         for file in sbom_data.file_information {
-            files.add(
+            nodes.add_file(
                 file.file_spdx_identifier,
                 file.file_name,
                 file.file_checksum,
@@ -325,7 +322,7 @@ impl SbomContext {
         PostContext {
             cpes: &cpes,
             purls: &purls,
-            packages: &mut packages,
+            packages: nodes.get_packages_mut(),
             relationships: &mut relationships.rels,
             externals: &mut relationships.externals,
         }
@@ -344,18 +341,13 @@ impl SbomContext {
             .document_creation_information
             .spdx_identifier
             .as_str()];
-        let sources = References::new()
-            .add_source(&doc_id)
-            .add_source(&packages)
-            .add_source(&files);
+        let sources = References::new().add_source(&doc_id).add_source(&nodes);
         relationships
             .validate(sources)
             .map_err(Error::InvalidContent)?;
 
-        // create packages, files, and relationships
-
-        packages.create(db).await?;
-        files.create(db).await?;
+        // create nodes, packages, files, and relationships
+        nodes.create(db).await?;
         relationships.create(db).await?;
 
         // done
