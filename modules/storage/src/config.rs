@@ -97,11 +97,19 @@ pub struct S3Config {
     pub region: Option<String>,
 
     /// S3 access key
-    #[arg(env = "TRUSTD_S3_ACCESS_KEY", long = "s3-access-key")]
+    #[arg(
+        env = "TRUSTD_S3_ACCESS_KEY",
+        long = "s3-access-key",
+        requires = "s3-secret-key"
+    )]
     pub access_key: Option<String>,
 
     /// S3 secret key
-    #[arg(env = "TRUSTD_S3_SECRET_KEY", long = "s3-secret-key")]
+    #[arg(
+        env = "TRUSTD_S3_SECRET_KEY",
+        long = "s3-secret-key",
+        requires = "s3-access-key"
+    )]
     pub secret_key: Option<String>,
 
     /// Additional trust anchors connections to S3
