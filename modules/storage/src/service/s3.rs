@@ -5,7 +5,7 @@ use crate::{
         temp::TempFile,
     },
 };
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use aws_config::AppName;
 use aws_sdk_s3::{
     Client,
@@ -68,6 +68,16 @@ impl S3Backend {
         log::info!("Using S3 bucket '{bucket:?}' in '{region:?}' for doc storage",);
 
         let name = format!("{}#{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+
+        // Validate credentials: both must be provided or both must be omitted
+        if access_key.is_some() != secret_key.is_some() {
+            let missing = if access_key.is_none() {
+                "access_key"
+            } else {
+                "secret_key"
+            };
+            bail!("S3 {missing} is missing (both credentials must be provided together)");
+        }
 
         // basics
 
@@ -325,5 +335,40 @@ mod test {
             super::cleanup("foo, aws-chunked, bar").as_deref(),
             Some("foo, bar")
         );
+    }
+
+    #[test(tokio::test)]
+    async fn partial_credentials_validation() {
+        // Providing only access_key should fail
+        let result = S3Backend::new(
+            S3Config {
+                bucket: Some("test-bucket".to_string()),
+                region: Some("us-east-1".to_string()),
+                access_key: Some("test-key".to_string()),
+                secret_key: None,
+                trust_anchors: vec![],
+                path_style: false,
+            },
+            Compression::None,
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("secret_key is missing"));
+
+        // Providing only secret_key should fail
+        let result = S3Backend::new(
+            S3Config {
+                bucket: Some("test-bucket".to_string()),
+                region: Some("us-east-1".to_string()),
+                access_key: None,
+                secret_key: Some("test-secret".to_string()),
+                trust_anchors: vec![],
+                path_style: false,
+            },
+            Compression::None,
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("access_key is missing"));
     }
 }
