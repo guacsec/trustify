@@ -100,7 +100,7 @@ pub struct S3Config {
     #[arg(
         env = "TRUSTD_S3_ACCESS_KEY",
         long = "s3-access-key",
-        requires = "s3-secret-key"
+        requires = "secret_key"
     )]
     pub access_key: Option<String>,
 
@@ -108,7 +108,7 @@ pub struct S3Config {
     #[arg(
         env = "TRUSTD_S3_SECRET_KEY",
         long = "s3-secret-key",
-        requires = "s3-access-key"
+        requires = "access_key"
     )]
     pub secret_key: Option<String>,
 

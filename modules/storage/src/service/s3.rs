@@ -26,6 +26,14 @@ use tokio_util::io::ReaderStream;
 use tracing::instrument;
 use urlencoding::encode;
 
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+enum S3CredentialError {
+    #[error("S3 secret_key is missing (both credentials must be provided together)")]
+    SecretKeyMissing,
+    #[error("S3 access_key is missing (both credentials must be provided together)")]
+    AccessKeyMissing,
+}
+
 /// Resolver using a provided base url
 #[derive(Debug)]
 struct StringResolver(Endpoint);
@@ -70,13 +78,10 @@ impl S3Backend {
         let name = format!("{}#{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
 
         // Validate credentials: both must be provided or both must be omitted
-        if access_key.is_some() != secret_key.is_some() {
-            let missing = if access_key.is_none() {
-                "access_key"
-            } else {
-                "secret_key"
-            };
-            bail!("S3 {missing} is missing (both credentials must be provided together)");
+        match (access_key.is_some(), secret_key.is_some()) {
+            (true, true) | (false, false) => {}
+            (true, false) => bail!(S3CredentialError::SecretKeyMissing),
+            (false, true) => bail!(S3CredentialError::AccessKeyMissing),
         }
 
         // basics
@@ -353,11 +358,10 @@ mod test {
         )
         .await;
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("secret_key is missing")
+        let err = result.unwrap_err();
+        assert_eq!(
+            err.downcast_ref::<super::S3CredentialError>(),
+            Some(&super::S3CredentialError::SecretKeyMissing)
         );
 
         // Providing only secret_key should fail
@@ -374,11 +378,10 @@ mod test {
         )
         .await;
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("access_key is missing")
+        let err = result.unwrap_err();
+        assert_eq!(
+            err.downcast_ref::<super::S3CredentialError>(),
+            Some(&super::S3CredentialError::AccessKeyMissing)
         );
     }
 }
