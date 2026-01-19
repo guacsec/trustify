@@ -353,7 +353,12 @@ mod test {
         )
         .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("secret_key is missing"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("secret_key is missing")
+        );
 
         // Providing only secret_key should fail
         let result = S3Backend::new(
@@ -369,6 +374,11 @@ mod test {
         )
         .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("access_key is missing"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("access_key is missing")
+        );
     }
 }
