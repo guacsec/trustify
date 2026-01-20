@@ -5,7 +5,7 @@ use crate::{
         purl::creator::PurlCreator,
         sbom::{
             CryptographicAssetCreator, CycloneDx as CycloneDxProcessor, LicenseCreator,
-            LicenseInfo, MachineLearningModelCreator, NodeCreator, NodeInfoParam,
+            LicenseInfo, MachineLearningModelCreator, NodeInfoParam, PackageCreator,
             PackageLicensenInfo, PackageReference, References, RelationshipCreator, SbomContext,
             SbomInformation,
             processor::{
@@ -31,6 +31,8 @@ use tracing::instrument;
 use trustify_common::{advisory::cyclonedx::extract_properties_json, cpe::Cpe, purl::Purl};
 use trustify_entity::relationship::Relationship;
 use uuid::Uuid;
+
+use super::FileCreator;
 
 /// Marker we use for identifying the document itself.
 ///
@@ -317,7 +319,8 @@ struct ComponentCreator {
     cpes: CpeCreator,
     purls: PurlCreator,
     licenses: LicenseCreator,
-    nodes: NodeCreator,
+    packages: PackageCreator,
+    files: FileCreator,
     models: MachineLearningModelCreator,
     crypto: CryptographicAssetCreator,
     relationships: RelationshipCreator<CycloneDxProcessor>,
@@ -331,9 +334,10 @@ impl ComponentCreator {
             cpes: CpeCreator::new(),
             purls: PurlCreator::new(),
             licenses: LicenseCreator::new(),
-            nodes: NodeCreator::with_capacity(sbom_id, capacity),
-            models: MachineLearningModelCreator::default(),
-            crypto: CryptographicAssetCreator::default(),
+            packages: PackageCreator::with_capacity(sbom_id, capacity),
+            files: FileCreator::new(sbom_id),
+            models: MachineLearningModelCreator::new(sbom_id),
+            crypto: CryptographicAssetCreator::new(sbom_id),
             relationships: RelationshipCreator::new(sbom_id, CycloneDxProcessor),
             refs: Default::default(),
         }
@@ -403,7 +407,6 @@ impl ComponentCreator {
             })
             .collect::<Vec<_>>();
 
-        // Deal with various Component types
         match ComponentType::from_str(&comp.type_) {
             Ok(ty) => {
                 use ComponentType::*;
@@ -411,38 +414,40 @@ impl ComponentCreator {
                     // We treat all these types as "packages"
                     Application | Framework | Library | Container | OperatingSystem => {
                         const EMPTY: Vec<PackageReference> = vec![];
-                        self.nodes.add_package(
+                        self.packages.add(
                             NodeInfoParam {
                                 node_id: node_id.clone(),
+                                name: comp.name.to_string(),
                                 group: comp.group.as_ref().map(|v| v.to_string()),
                                 version: comp.version.as_ref().map(|v| v.to_string()),
                                 package_license_info: cyclone_licenses,
                             },
-                            comp.name.to_string(),
-                            comp.hashes.clone().into_iter().flatten(),
                             self.refs.get(&node_id).unwrap_or(&EMPTY).iter(),
+                            comp.hashes.clone().into_iter().flatten(),
                         )
                     }
-                    File => self.nodes.add_file(
-                        node_id.clone(),
-                        comp.name.to_string(),
-                        comp.hashes.clone().into_iter().flatten(),
-                    ),
-                    MachineLearningModel => {
-                        // TODO: store the model card data
-                        self.nodes.add_model(
+                    File => {
+                        self.files.add(
                             node_id.clone(),
                             comp.name.to_string(),
                             comp.hashes.clone().into_iter().flatten(),
-                        )
+                        );
+                    }
+                    MachineLearningModel => {
+                        // TODO: store the model card data
+                        self.models.add(
+                            node_id.clone(),
+                            comp.name.to_string(),
+                            comp.hashes.clone().into_iter().flatten(),
+                        );
                     }
                     CryptographicAsset => {
                         // TODO: store the crypto properties data
-                        self.nodes.add_crypto(
+                        self.crypto.add(
                             node_id.clone(),
                             comp.name.to_string(),
                             comp.hashes.clone().into_iter().flatten(),
-                        )
+                        );
                     }
                     _ => log::error!("Unsupported component type: '{ty}'"),
                 }
@@ -547,7 +552,7 @@ impl ComponentCreator {
         PostContext {
             cpes: &self.cpes,
             purls: &self.purls,
-            packages: self.nodes.get_packages_mut(),
+            packages: &mut self.packages,
             relationships: &mut self.relationships.rels,
             externals: &mut self.relationships.externals,
         }
@@ -557,7 +562,10 @@ impl ComponentCreator {
     fn validate(&self) -> Result<(), Error> {
         let sources = References::new()
             .add_source(&[CYCLONEDX_DOC_REF])
-            .add_source(&self.nodes);
+            .add_source(&self.packages)
+            .add_source(&self.files)
+            .add_source(&self.models)
+            .add_source(&self.crypto);
         self.relationships
             .validate(sources)
             .map_err(Error::InvalidContent)
@@ -570,7 +578,8 @@ impl ComponentCreator {
         self.licenses.create(db).await?;
         self.purls.create(db).await?;
         self.cpes.create(db).await?;
-        self.nodes.create(db).await?;
+        self.packages.create(db).await?;
+        self.files.create(db).await?;
         self.models.create(db).await?;
         self.crypto.create(db).await?;
         self.relationships.create(db).await?;

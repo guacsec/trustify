@@ -604,26 +604,26 @@ impl SbomContext {
         cpes: Vec<Uuid>,
         connection: &C,
     ) -> Result<(), Error> {
-        let mut nodes = NodeCreator::new(self.sbom.sbom_id);
-        let mut packages = PackageCreator::new(self.sbom.sbom_id);
+        let mut creator = PackageCreator::new(self.sbom.sbom_id);
 
         let refs: Vec<PackageReference> = purls
             .into_iter()
             .map(PackageReference::Purl)
             .chain(cpes.into_iter().map(PackageReference::Cpe))
             .collect();
-        nodes.add(node_id.clone(), name, Checksum::NONE);
-        packages.add(
+        creator.add(
             NodeInfoParam {
                 node_id,
+                name,
                 group: None,
                 version,
                 package_license_info: vec![],
             },
             refs.iter(),
+            Checksum::NONE,
         );
-        nodes.create(connection).await?;
-        packages.create(connection).await?;
+
+        creator.create(connection).await?;
 
         // done
 

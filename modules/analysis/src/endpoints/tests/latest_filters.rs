@@ -574,8 +574,8 @@ async fn test_tc2758(
               "relationship": "package",
               "descendants": [
                 {
-                  "node_id": "pkg:maven/org.jboss.eap/wildfly-ee-aggregate-javadocs@7.4.0.GA-redhat-00005?classifier=javadocs&type=jar",
-                  "name": "wildfly-ee-aggregate-javadocs",
+                  "node_id": "pkg:generic/pom.xml?checksum=sha256%3A974823188145bdb517f9692341a237bdee75c8312d3c86ae0fc4d390225bb923",
+                  "name": "pom.xml",
                   "relationship": "dependency",
                 }]
             }]
