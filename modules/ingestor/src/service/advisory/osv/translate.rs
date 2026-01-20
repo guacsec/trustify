@@ -27,7 +27,7 @@ fn translate<'a>(ecosystem: &Ecosystem, name: &'a str) -> Option<PackageUrl<'a>>
                 let name = split[1];
                 PackageUrl::new("maven", name)
                     .and_then(|mut purl| {
-                        purl.with_namespace(namespace);
+                        purl.with_namespace(namespace)?;
                         if repo != MAVEN_DEFAULT_REPO {
                             purl.add_qualifier("repository_url", repo.clone())?;
                         }
@@ -59,9 +59,9 @@ fn split_name<'a>(name: &'a str, ty: &'a str, separator: &str) -> Option<Package
             let namespace = split[0..=split.len() - 2].join(separator);
             let name = split[split.len() - 1];
             PackageUrl::new(ty, name)
-                .map(|mut purl| {
-                    purl.with_namespace(namespace);
-                    purl
+                .and_then(|mut purl| {
+                    purl.with_namespace(namespace)?;
+                    Ok(purl)
                 })
                 .ok()
         }

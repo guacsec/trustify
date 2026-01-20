@@ -1661,14 +1661,14 @@ async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
           "purl": [
             {
               "uuid": "b3d8c434-ec9c-592a-91c8-596183beb691",
-              "purl": "pkg:generic/ibm-granite/granite-docling-258M@1.0",
+              "purl": "pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0",
               "base": {
                 "uuid": "c28a16be-ec3a-5289-a37c-769330a32905",
-                "purl": "pkg:generic/ibm-granite/granite-docling-258M"
+                "purl": "pkg:generic/ibm-granite%2Fgranite-docling-258M"
               },
               "version": {
                 "uuid": "b3d8c434-ec9c-592a-91c8-596183beb691",
-                "purl": "pkg:generic/ibm-granite/granite-docling-258M@1.0",
+                "purl": "pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0",
                 "version": "1.0"
               },
               "qualifiers": {}
@@ -1681,7 +1681,19 @@ async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
       ],
       "total": 1
     }
-          );
+    );
     assert!(expected_result.contains_subset(response.clone()));
+
+    let uri = format!(
+        "/api/v2/sbom/by-package?purl={}",
+        encode("pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0")
+    );
+    let req = TestRequest::get().uri(&uri).to_request();
+    let response: Value = app.call_and_read_body_json(req).await;
+    assert_eq!(
+        response["items"][0]["described_by"][0]["id"],
+        "pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0"
+    );
+
     Ok(())
 }
