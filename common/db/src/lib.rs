@@ -92,6 +92,7 @@ impl<'a> Database<'a> {
         let db = Self::setup(database).await?;
 
         let mut cmd = PsqlBuilder::new()
+            .quiet() // or .output("/dev/null") to remove set_config noise
             .dbname(&database.name)
             .host(&database.host)
             .port(database.port)
