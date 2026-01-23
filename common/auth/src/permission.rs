@@ -100,6 +100,15 @@ permission! {
         #[strum(serialize = "delete.metadata")]
         DeleteMetadata,
 
+        #[strum(serialize = "create.sbomGroup")]
+        CreateSbomGroup,
+        #[strum(serialize = "read.sbomGroup")]
+        ReadSbomGroup,
+        #[strum(serialize = "update.sbomGroup")]
+        UpdateSbomGroup,
+        #[strum(serialize = "delete.sbomGroup")]
+        DeleteSbomGroup,
+
         #[strum(serialize = "upload.dataset")]
         UploadDataset,
 
