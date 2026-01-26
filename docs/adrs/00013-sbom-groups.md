@@ -78,6 +78,27 @@ The following new permissions will be added:
 * `UpdateSbomGroup`: Allow updating existing SBOM groups
 * `DeleteSbomGroup`: Allow deleting SBOM groups
 
+### Identifiers & Names
+
+Each group is identified by a unique ID provided by the system. On the API level, the ID should be treated as a string,
+and not interpreted in any way.
+
+Each group must also have a name. The name must be unique in the context of a parent.
+
+In general, all names are valid. However, the API will limit the creation/update of names according to the following
+rules:
+
+* Names must have a length between 1 and 255 characters
+* Names must not start or end with whitespace characters
+* Names must only use the following character classes: digits, letters, spaces, `-`, `_`, `.`, `(`, `)`
+
+> [!IMPORTANT]
+> Those rules may be relaxed over time. Therefore, it is important that users of the API can deal with group names
+> which would violate those rules.
+> 
+> For example, the system might return a group name which contains a `:` in a future version. Or return a name which
+> is longer than 255 characters. This is not considered a breaking change.
+
 ### API Data model
 
 ```rust
@@ -230,6 +251,7 @@ Create a new endpoint for creating new groups.
 #### Response
 
 * 400 - if the request could not be understood
+* 400 - if the name of the group is allowed
 * 401 - if the user was not authenticated
 * 403 - if the user was authenticated but not authorized
 * 409 - if the group name is not unique within the parent
@@ -264,6 +286,7 @@ In case a cycle would be created, the operation must fail with a `409` status co
 #### Response
 
 * 400 - if the request could not be understood
+* 400 - if the name of the group is allowed
 * 401 - if the user was not authenticated
 * 403 - if the user was authenticated but not authorized
 * 409 - if the group name is not unique within the parent
@@ -366,10 +389,6 @@ Extend existing endpoint to assign the newly uploaded SBOM to a list of groups (
 ## Open questions
 
 * Do we automatically delete groups recursively
-* Should the "get group" endpoint allow to fetch children as well?
-* Should the "get group" endpoint allow to fetch "number of assigned SBOMs" as well?
-* Should it be possible to re-assign parents? Ensuring no circular references!
-* Do we want to limit group names (e.g. reject characters like `/` to allow using them as path separators)?
 
 ## Future tasks
 
