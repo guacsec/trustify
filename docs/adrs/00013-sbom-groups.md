@@ -169,6 +169,12 @@ By default, the entries will be sorted by name ascending.
 | query | `limit`   | u64        | Maximum number of items to return                            |
 | query | `offset`  | u64        | Initial items to skip before actually returning results      |
 
+The following `q` parameters are supported:
+
+* `name`: Filters groups by their name. Be aware that names are only unique in the context of their parent. It may be
+  that multiple groups with the same name exist globally.
+* `parent`: The ID of the parent to limit the search to. This can only perform an "equals" check.
+
 #### Response
 
 * 200 - if the user is allowed to read groups
