@@ -391,6 +391,7 @@ Extend existing endpoint to assign the newly uploaded SBOM to a list of groups (
 ## Consequences
 
 * We provide access to the described APIs
+* There should be no performance degradation of existing APIs
 
 ## Open questions
 
