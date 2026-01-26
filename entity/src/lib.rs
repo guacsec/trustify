@@ -23,6 +23,8 @@ pub mod relationship;
 pub mod sbom;
 pub mod sbom_external_node;
 pub mod sbom_file;
+pub mod sbom_group;
+pub mod sbom_group_assignment;
 pub mod sbom_node;
 pub mod sbom_node_checksum;
 pub mod sbom_package;

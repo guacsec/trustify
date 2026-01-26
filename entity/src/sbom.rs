@@ -135,6 +135,16 @@ impl Related<super::product_version::Entity> for Entity {
     }
 }
 
+impl Related<super::sbom_group::Entity> for crate::sbom_group::Entity {
+    fn to() -> RelationDef {
+        super::sbom_group_assignment::Relation::Group.def()
+    }
+
+    fn via() -> Option<RelationDef> {
+        Some(super::sbom_group_assignment::Relation::Sbom.def().rev())
+    }
+}
+
 impl ActiveModelBehavior for ActiveModel {}
 
 impl TryFilterForId for Entity {
