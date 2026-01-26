@@ -18,5 +18,6 @@ pub mod weakness;
 pub use endpoints::{Config, configure};
 pub use error::Error;
 
+mod sbom_group;
 #[cfg(test)]
 pub mod test;

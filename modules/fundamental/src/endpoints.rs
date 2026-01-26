@@ -10,6 +10,7 @@ use utoipa::{IntoParams, ToSchema};
 pub struct Config {
     pub sbom_upload_limit: usize,
     pub advisory_upload_limit: usize,
+    pub max_group_name_length: usize,
 }
 
 pub fn configure(
@@ -29,7 +30,8 @@ pub fn configure(
     crate::product::endpoints::configure(svc, db.clone());
     crate::sbom::endpoints::configure(svc, db.clone(), config.sbom_upload_limit);
     crate::vulnerability::endpoints::configure(svc, db.clone());
-    crate::weakness::endpoints::configure(svc, db);
+    crate::weakness::endpoints::configure(svc, db.clone());
+    crate::sbom_group::endpoints::configure(svc, db, config.max_group_name_length);
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, ToSchema, serde::Deserialize, IntoParams)]
