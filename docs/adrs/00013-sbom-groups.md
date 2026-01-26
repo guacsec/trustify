@@ -30,7 +30,7 @@ erDiagram
         string name UK "Unique per parent"
         map labels
     }
-    SBOM 0+ -- 0+ GROUP : "belongs to"
+    SBOM 0+ -- 0+ GROUP: "belongs to"
 ```
 
 If a group has a `null` parent, then it is a "root level" group. The "root" is an implicit group, which does
@@ -39,27 +39,30 @@ not have additional information.
 This would be modeled in SQL like:
 
 ```sql
-CREATE TABLE SBOM (
+CREATE TABLE SBOM
+(
     ID UUID NOT NULL,
-    
+
     PRIMARY KEY (ID)
-    
+
     -- omitted other SBOM fields
 );
 
-CREATE TABLE SBOM_GROUP (
-    ID UUID NOT NULL PRIMARY KEY,
+CREATE TABLE SBOM_GROUP
+(
+    ID        UUID NOT NULL PRIMARY KEY,
     PARENT_ID UUID NULL,
-    NAME TEXT NOT NULL,
-    
-    CONSTRAINT FK_PARENT FOREIGN KEY (PARENT_ID) REFERENCES SBOM_GROUP(ID),
+    NAME      TEXT NOT NULL,
+
+    CONSTRAINT FK_PARENT FOREIGN KEY (PARENT_ID) REFERENCES SBOM_GROUP (ID),
     CONSTRAINT UNIQUE_NAME_PER_PARENT UNIQUE (PARENT_ID, NAME)
 );
 
-CREATE TABLE SBOM_GROUP_ASSIGNMENT (
-    SBOM_ID  UUID NOT NULL REFERENCES SBOM(ID) ON DELETE CASCADE,
-    GROUP_ID UUID NOT NULL REFERENCES SBOM_GROUP(ID) ON DELETE CASCADE,
-    
+CREATE TABLE SBOM_GROUP_ASSIGNMENT
+(
+    SBOM_ID  UUID NOT NULL REFERENCES SBOM (ID) ON DELETE CASCADE,
+    GROUP_ID UUID NOT NULL REFERENCES SBOM_GROUP (ID) ON DELETE CASCADE,
+
     PRIMARY KEY (SBOM_ID, GROUP_ID)
 );
 ```
@@ -99,17 +102,17 @@ struct GroupDetails {
     /// The number of groups owned directly by this group
     ///
     /// This information is only present when requested. 
-    #[serde(default, skip_serializing_if="Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     number_of_groups: Option<u64>,
     /// The number of SBOMs directly assigned to this group
     ///
     /// This information is only present when requested. 
-    #[serde(default, skip_serializing_if="Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     number_of_sboms: Option<u64>,
     /// The path, of IDs, from the root to this group
     ///
     /// This information is only present when requested. 
-    #[serde(default, skip_serializing_if="Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     parents: Option<Vec<String>>,
 }
 ```
@@ -118,7 +121,7 @@ struct GroupDetails {
 /// Group information that can be mutated
 #[derive(Serialize, Deserialize)]
 struct GroupRequest {
-     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     parent: Option<Uuid>,
     name: String,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -146,7 +149,7 @@ By default, the entries will be sorted by name ascending.
 #### Response
 
 * 200 - if the user is allowed to read groups
-  
+
   ```rust
   #[derive(Serialize, Deserialize)]
   struct PaginatedGroup {
@@ -154,7 +157,7 @@ By default, the entries will be sorted by name ascending.
       items: Vec<GroupDetails>,
   }
   ```
-  
+
   The `number_of_groups` and `number_of_sboms` fields will only be present if the `totals` query parameter
   was `true`.
 
@@ -233,9 +236,9 @@ Create a new endpoint for creating new groups.
   ```yaml
   id: <id> # ID of the created group
   ```
-  
+
   And:
-  
+
   ```
   Location: /api/v2/group/sbom/<id>
   ```
@@ -287,6 +290,49 @@ Deleting a group will remove all SBOM assignments to that group.
 * 401 - if the user was not authenticated
 * 403 - if the user was authenticated but not authorized
 * 409 - if the group has child groups (and no delete recursion should happen)
+* 412 - if the `IfMatch` header was present, but its value didn't match the stored revision
+
+### GET `/api/v2/group/sbom-assignment/<id>`
+
+Create a new endpoint to get SBOM group assignment.
+
+#### Request
+
+| part   | name      | type             | description                    |
+|--------|-----------|------------------|--------------------------------|
+| path   | `id`      | `String`         | ID of the SBOM                 |
+
+#### Response
+
+* 400 - if the request could not be understood
+* 401 - if the user was not authenticated
+* 403 - if the user was authenticated but not authorized
+* 404 - if no SBOM with that ID was found
+* 200 - if the SBOM was found
+
+  | part    | name   | type          | description                        |
+  |---------|--------|---------------|------------------------------------|
+  | body    | -      | `Vec<String>` | The current SBOM group assignments |
+  | headers | `ETag` | string        | Value which indicates the revision |
+
+### PUT `/api/v2/group/sbom-assignment/<id>`
+
+Create a new endpoint to assign an SBOM to groups.
+
+#### Request
+
+| part   | name      | type             | description                    |
+|--------|-----------|------------------|--------------------------------|
+| path   | `id`      | `String`         | ID of the SBOM to update       |
+| header | `IfMatch` | `Option<String>` | ETag value, revision to delete | 
+| body   | -         | `Vec<String>`    | Group IDs to set               |
+
+#### Response
+
+* 204 - if the SBOM was successfully updated
+* 400 - if the request could not be understood
+* 401 - if the user was not authenticated
+* 403 - if the user was authenticated but not authorized
 * 412 - if the `IfMatch` header was present, but its value didn't match the stored revision
 
 ### GET `/api/v2/sbom`
