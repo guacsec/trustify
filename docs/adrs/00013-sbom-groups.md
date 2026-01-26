@@ -145,6 +145,8 @@ By default, the entries will be sorted by name ascending.
 | query | `q`       | "q" string | "q style" query string                                       |
 | query | `totals`  | boolean    | Provide sums of child groups and linked SBOMs for each entry |
 | query | `parents` | boolean    | Provide IDs from root to this group                          |
+| query | `limit`   | u64        | Maximum number of items to return                            |
+| query | `offset`  | u64        | Initial items to skip before actually returning results      |
 
 #### Response
 
