@@ -36,6 +36,42 @@ impl MigrationTrait for Migration {
                             .not_null()
                             .to_owned(),
                     )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(SbomGroup::Table, SbomGroup::Parent)
+                            .to(SbomGroup::Table, SbomGroup::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .table(SbomGroup::Table)
+                    .col(SbomGroup::Parent)
+                    .col(SbomGroup::Name)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .table(SbomGroup::Table)
+                    .col(SbomGroup::Parent)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .table(SbomGroup::Table)
+                    .col(SbomGroup::Labels)
+                    .index_type(IndexType::Custom(Alias::new("GIN").into_iden()))
                     .to_owned(),
             )
             .await?;
@@ -73,6 +109,24 @@ impl MigrationTrait for Migration {
                             .to(Sbom::Table, Sbom::SbomId)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .table(SbomGroupAssignment::Table)
+                    .col(SbomGroupAssignment::SbomId)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .table(SbomGroupAssignment::Table)
+                    .col(SbomGroupAssignment::GroupId)
                     .to_owned(),
             )
             .await?;
