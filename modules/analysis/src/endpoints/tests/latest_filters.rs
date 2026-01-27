@@ -887,3 +887,50 @@ async fn resolve_rh_variant_latest_filter_tc_2719(
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[test_log::test(actix_web::test)]
+async fn test_tc3518(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    ctx.ingest_documents("spdx/rh/latest/TC-2719/".join(
+        &[
+            "mariadb-9.7-1763396552-binary.json",
+            "mariadb-9.7-1763396552-products.json",
+        ][..],
+    ))
+    .await?;
+
+    let response = app
+        .req(Req {
+            latest: true,
+            what: What::Id("cpe:/a:redhat:enterprise_linux:9::appstream"),
+            descendants: Some(1),
+            ..Req::default()
+        })
+        .await?;
+
+    log::debug!("{:#?}", response["items"][0]["published"]);
+    assert_eq!(response["items"][0]["published"], "2025-11-17 17:22:07+00");
+    assert_eq!(response["total"], 1);
+
+    ctx.ingest_documents(
+        "spdx/rh/latest/TC-2719/".join(&["mariadb-binary.json", "mariadb-product.json"][..]),
+    )
+    .await?;
+    let response = app
+        .req(Req {
+            latest: true,
+            what: What::Id("cpe:/a:redhat:enterprise_linux:9::appstream"),
+            descendants: Some(1),
+            ..Req::default()
+        })
+        .await?;
+
+    log::debug!("{:#?}", response["items"][0]["published"]);
+    assert_eq!(response["items"][0]["published"], "2025-12-22 17:55:59+00");
+    assert_eq!(response["total"], 1);
+
+    Ok(())
+}
