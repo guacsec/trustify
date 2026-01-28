@@ -16,9 +16,11 @@ use trustify_cvss::cvss3::{
     AttackComplexity, AttackVector, Availability, Confidentiality, Cvss3Base, Integrity,
     PrivilegesRequired, Scope, UserInteraction,
 };
-use trustify_entity::labels::Labels;
+use trustify_entity::{advisory_vulnerability_score, labels::Labels};
 use trustify_module_ingestor::{
-    graph::advisory::AdvisoryInformation, model::IngestResult, service::Format,
+    graph::{advisory::AdvisoryInformation, cvss::ScoreCreator},
+    model::IngestResult,
+    service::Format,
 };
 use trustify_module_storage::service::{StorageBackend, StorageKey};
 use trustify_test_context::{TrustifyContext, call::CallService, document_bytes};
@@ -159,6 +161,19 @@ async fn one_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let advisory_vuln = advisory2
         .link_to_vulnerability("CVE-123", None, &ctx.db)
         .await?;
+
+    // Use ScoreCreator to write to advisory_vulnerability_score table
+    let mut score_creator = ScoreCreator::new(advisory2.advisory.id);
+    score_creator.add(trustify_module_ingestor::graph::cvss::ScoreInformation {
+        vulnerability_id: "CVE-123".to_string(),
+        r#type: advisory_vulnerability_score::ScoreType::V3_0,
+        vector: "CVSS:3.0/AV:N/AC:L/PR:H/UI:N/S:C/C:H/I:N/A:N".to_string(),
+        score: 6.8,
+        severity: advisory_vulnerability_score::Severity::Medium,
+    });
+    score_creator.create(&ctx.db).await?;
+
+    // Also call the legacy method to ensure both tables are populated
     advisory_vuln
         .ingest_cvss3_score(
             Cvss3Base {
@@ -256,6 +271,19 @@ async fn one_advisory_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Error
     let advisory_vuln = advisory
         .link_to_vulnerability("CVE-123", None, &ctx.db)
         .await?;
+
+    // Use ScoreCreator to write to advisory_vulnerability_score table
+    let mut score_creator = ScoreCreator::new(advisory.advisory.id);
+    score_creator.add(trustify_module_ingestor::graph::cvss::ScoreInformation {
+        vulnerability_id: "CVE-123".to_string(),
+        r#type: advisory_vulnerability_score::ScoreType::V3_0,
+        vector: "CVSS:3.0/AV:N/AC:L/PR:H/UI:N/S:C/C:H/I:N/A:N".to_string(),
+        score: 6.8,
+        severity: advisory_vulnerability_score::Severity::Medium,
+    });
+    score_creator.create(&ctx.db).await?;
+
+    // Also call the legacy method to ensure both tables are populated
     advisory_vuln
         .ingest_cvss3_score(
             Cvss3Base {

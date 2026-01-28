@@ -24,10 +24,10 @@ use trustify_common::{
 };
 use trustify_cvss::cvss3::{Cvss3Base, score::Score, severity::Severity};
 use trustify_entity::{
-    advisory, base_purl, cpe, cvss3, license, organization, product, product_status,
-    product_version, product_version_range, purl_status, qualified_purl, sbom, sbom_package,
-    sbom_package_license, sbom_package_purl_ref, status, version_range, versioned_purl,
-    vulnerability,
+    advisory, advisory_vulnerability_score, base_purl, cpe, license, organization, product,
+    product_status, product_version, product_version_range, purl_status, qualified_purl, sbom,
+    sbom_package, sbom_package_license, sbom_package_purl_ref, status, version_range,
+    versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::{Deprecation, DeprecationForExt};
 use utoipa::ToSchema;
@@ -336,8 +336,25 @@ impl PurlStatus {
         cpe: Option<String>,
         tx: &C,
     ) -> Result<Self, Error> {
-        let cvss3 = vuln.find_related(cvss3::Entity).all(tx).await?;
-        let average_score = Score::from_iter(cvss3.iter().map(Cvss3Base::from));
+        let scores = advisory_vulnerability_score::Entity::find()
+            .filter(advisory_vulnerability_score::Column::VulnerabilityId.eq(&vuln.id))
+            .all(tx)
+            .await?;
+
+        // Filter to V3.x scores for average calculation
+        let cvss3_scores: Vec<Cvss3Base> = scores
+            .iter()
+            .filter(|s| {
+                matches!(
+                    s.r#type,
+                    advisory_vulnerability_score::ScoreType::V3_0
+                        | advisory_vulnerability_score::ScoreType::V3_1
+                )
+            })
+            .filter_map(|s| s.vector.parse::<Cvss3Base>().ok())
+            .collect();
+
+        let average_score = Score::from_iter(cvss3_scores);
         let issuer = Memo::Provided(advisory.find_related(organization::Entity).one(tx).await?);
 
         Ok(Self {

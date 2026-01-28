@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use trustify_cvss::cvss3::severity::Severity;
-use trustify_entity::cvss3;
+use trustify_entity::{advisory_vulnerability_score, cvss3};
 use utoipa::{
     PartialSchema, ToSchema,
     openapi::{
@@ -82,6 +82,35 @@ impl TryFrom<cvss3::Model> for Score {
             value: row.score,
             severity: row.score.into(),
         })
+    }
+}
+
+impl From<advisory_vulnerability_score::Model> for Score {
+    fn from(model: advisory_vulnerability_score::Model) -> Self {
+        let r#type = match model.r#type {
+            advisory_vulnerability_score::ScoreType::V2_0 => ScoreType::V2,
+            advisory_vulnerability_score::ScoreType::V3_0 => ScoreType::V3,
+            advisory_vulnerability_score::ScoreType::V3_1 => ScoreType::V3_1,
+            advisory_vulnerability_score::ScoreType::V4_0 => ScoreType::V4,
+        };
+
+        let severity = match model.severity {
+            advisory_vulnerability_score::Severity::None => Severity::None,
+            advisory_vulnerability_score::Severity::Low => Severity::Low,
+            advisory_vulnerability_score::Severity::Medium => Severity::Medium,
+            advisory_vulnerability_score::Severity::High => Severity::High,
+            advisory_vulnerability_score::Severity::Critical => Severity::Critical,
+        };
+
+        // Round to 1 decimal place to avoid f32->f64 precision artifacts
+        // CVSS scores are typically displayed with 1 decimal precision
+        let value = (model.score as f64 * 10.0).round() / 10.0;
+
+        Score {
+            r#type,
+            value,
+            severity,
+        }
     }
 }
 
