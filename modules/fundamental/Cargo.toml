@@ -77,6 +77,7 @@ osv = { workspace = true }
 packageurl = { workspace = true }
 regex = { workspace = true }
 roxmltree = { workspace = true }
+rstest = { workspace = true }
 sanitize-filename = { workspace = true }
 semver = { workspace = true }
 serde-cyclonedx = { workspace = true }

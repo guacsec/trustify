@@ -1,5 +1,6 @@
 use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use sea_orm::DbErr;
+use std::borrow::Cow;
 use trustify_common::{
     db::DatabaseErrors, decompress, error::ErrorInformation, id::IdError, purl::PurlErr,
 };
@@ -20,8 +21,8 @@ pub enum Error {
     Ingestor(#[from] trustify_module_ingestor::service::Error),
     #[error(transparent)]
     Purl(#[from] PurlErr),
-    #[error("Bad request: {0}")]
-    BadRequest(String),
+    #[error("Bad request: {0}: {1:?}")]
+    BadRequest(Cow<'static, str>, Option<Cow<'static, str>>),
     #[error("Not found: {0}")]
     NotFound(String),
     #[error(transparent)]
@@ -46,8 +47,19 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Label(#[from] labels::Error),
+    #[error("revision {0} not found")]
+    RevisionNotFound(String),
     #[error("unavailable")]
     Unavailable,
+}
+
+impl Error {
+    pub fn bad_request(
+        message: impl Into<Cow<'static, str>>,
+        details: Option<impl Into<Cow<'static, str>>>,
+    ) -> Self {
+        Self::BadRequest(message.into(), details.map(|d| d.into()))
+    }
 }
 
 impl From<DbErr> for Error {
@@ -66,9 +78,15 @@ impl ResponseError for Error {
             Self::Purl(err) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("InvalidPurlSyntax", err))
             }
-            Self::BadRequest(msg) => {
-                HttpResponse::BadRequest().json(ErrorInformation::new("BadRequest", msg))
+            Self::BadRequest(message, details) => {
+                HttpResponse::BadRequest().json(ErrorInformation {
+                    error: "BadRequest".into(),
+                    message: message.to_string(),
+                    details: details.as_ref().map(|d| d.to_string()),
+                })
             }
+            Self::RevisionNotFound(msg) => HttpResponse::PreconditionFailed()
+                .json(ErrorInformation::new("RevisionNotFound", msg)),
             Self::NotFound(msg) => {
                 HttpResponse::NotFound().json(ErrorInformation::new("NotFound", msg))
             }

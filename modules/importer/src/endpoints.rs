@@ -7,10 +7,12 @@ use actix_web::{
     patch, post, put, web,
 };
 use std::convert::Infallible;
-use trustify_auth::authorizer::Require;
-use trustify_auth::{CreateImporter, DeleteImporter, ReadImporter, UpdateImporter};
+use trustify_auth::{
+    CreateImporter, DeleteImporter, ReadImporter, UpdateImporter, authorizer::Require,
+};
 use trustify_common::{
     db::{Database, query::Query},
+    endpoints::extract_revision,
     model::{Paginated, PaginatedResults, Revisioned},
 };
 
@@ -267,10 +269,7 @@ async fn delete(
     web::Header(if_match): web::Header<IfMatch>,
     _: Require<DeleteImporter>,
 ) -> Result<impl Responder, Error> {
-    let revision = match &if_match {
-        IfMatch::Any => None,
-        IfMatch::Items(items) => items.first().map(|etag| etag.tag()),
-    };
+    let revision = extract_revision(&if_match);
 
     Ok(match service.delete(&name, revision).await? {
         true => HttpResponse::NoContent().finish(),
