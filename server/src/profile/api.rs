@@ -68,6 +68,10 @@ pub struct Run {
     )]
     pub advisory_upload_limit: BinaryByteSize,
 
+    /// The maximum group name length
+    #[arg(long, env = "TRUSTD_MAX_GROUP_NAME_LENGTH", default_value_t = 255)]
+    pub max_group_name_length: usize,
+
     /// The size limit of documents in a dataset, uncompressed.
     #[arg(
         long,
@@ -257,6 +261,7 @@ impl InitData {
             fundamental: trustify_module_fundamental::endpoints::Config {
                 sbom_upload_limit: run.sbom_upload_limit.into(),
                 advisory_upload_limit: run.advisory_upload_limit.into(),
+                max_group_name_length: run.max_group_name_length,
             },
             ingestor: trustify_module_ingestor::endpoints::Config {
                 dataset_entry_limit: run.dataset_entry_limit.into(),

@@ -47,8 +47,8 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Label(#[from] labels::Error),
-    #[error("revision {0} not found")]
-    RevisionNotFound(String),
+    #[error("revision not found")]
+    RevisionNotFound,
     #[error("unavailable")]
     Unavailable,
 }
@@ -85,8 +85,8 @@ impl ResponseError for Error {
                     details: details.as_ref().map(|d| d.to_string()),
                 })
             }
-            Self::RevisionNotFound(msg) => HttpResponse::PreconditionFailed()
-                .json(ErrorInformation::new("RevisionNotFound", msg)),
+            Self::RevisionNotFound => HttpResponse::PreconditionFailed()
+                .json(ErrorInformation::new("RevisionNotFound", self)),
             Self::NotFound(msg) => {
                 HttpResponse::NotFound().json(ErrorInformation::new("NotFound", msg))
             }

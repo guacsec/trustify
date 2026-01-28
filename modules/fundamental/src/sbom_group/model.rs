@@ -7,11 +7,11 @@ use utoipa::ToSchema;
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]
 pub struct Group {
     /// The ID of the group
-    pub id: Uuid,
+    pub id: String,
 
     /// The parent of this group
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent: Option<Uuid>,
+    pub parent: Option<String>,
 
     /// The name of the group, in the context of its parent
     pub name: String,

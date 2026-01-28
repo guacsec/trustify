@@ -1,9 +1,12 @@
-use crate::{Error, sbom_group::model::GroupRequest};
+use crate::{
+    Error,
+    sbom_group::model::{Group, GroupRequest},
+};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, Set,
     query::QueryFilter,
 };
-use sea_query::Alias;
+use sea_query::{Expr, SimpleExpr};
 use std::borrow::Cow;
 use trustify_common::model::Revisioned;
 use trustify_entity::{importer, sbom_group};
@@ -25,15 +28,7 @@ impl SbomGroupService {
         group: GroupRequest,
         db: &impl ConnectionTrait,
     ) -> Result<Revisioned<String>, Error> {
-        let violations = self.validate_group_name(&group.name);
-        if !violations.is_empty() {
-            let details = violations
-                .iter()
-                .map(|s| format!("* {s}"))
-                .collect::<Vec<_>>()
-                .join("\n");
-            return Err(Error::bad_request("Invalid group name", Some(details)));
-        }
+        self.validate_group_name_or_fail(&group.name)?;
 
         let id = Uuid::now_v7();
         let revision = Uuid::now_v7();
@@ -60,39 +55,101 @@ impl SbomGroupService {
         expected_revision: Option<&str>,
         db: &impl ConnectionTrait,
     ) -> Result<bool, Error> {
-        fn by_revision<Q: QueryFilter>(id: &str, revision: Option<&str>, query: Q) -> Q {
-            let mut query = query.filter(sbom_group::Column::Id.eq(id));
-
-            if let Some(revision) = revision {
-                query = query.filter(
-                    importer::Column::Revision
-                        .into_expr()
-                        .cast_as(Alias::new("text"))
-                        .eq(revision),
-                );
-            }
-
-            query
-        }
-
-        let delete = by_revision(id, expected_revision, sbom_group::Entity::delete_many());
+        let delete = query_by_revision(id, expected_revision, sbom_group::Entity::delete_many());
         let result = delete.exec(db).await?;
 
-        if result.rows_affected == 0
-            && let Some(revision) = expected_revision
-        {
+        if result.rows_affected == 0 && expected_revision.is_some() {
             // check if we had one and the revision did not match
-            let has = by_revision(id, expected_revision, sbom_group::Entity::find())
+            let has = query_by_revision(id, None, sbom_group::Entity::find())
                 .count(db)
                 .await?
                 > 0;
 
             if has {
-                return Err(Error::RevisionNotFound(revision.to_string()));
+                return Err(Error::RevisionNotFound);
             }
         }
 
         Ok(result.rows_affected > 0)
+    }
+
+    pub async fn update(
+        &self,
+        id: &str,
+        revision: Option<&str>,
+        group: GroupRequest,
+        db: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
+        self.validate_group_name_or_fail(&group.name)?;
+
+        self.update_columns(
+            id,
+            revision,
+            vec![
+                (sbom_group::Column::Name, group.name.into()),
+                (sbom_group::Column::Labels, group.labels.into()),
+            ],
+            db,
+        )
+        .await
+    }
+
+    async fn update_columns(
+        &self,
+        id: &str,
+        revision: Option<&str>,
+        updates: Vec<(sbom_group::Column, SimpleExpr)>,
+        db: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
+        // target update
+        let mut update = query_by_revision(id, revision, sbom_group::Entity::update_many())
+            .col_expr(sbom_group::Column::Revision, Expr::value(Uuid::now_v7()));
+
+        // apply changes
+        for (col, expr) in updates {
+            update = update.col_expr(col, expr);
+        }
+
+        // execute update
+        let result = update.exec(db).await?;
+
+        // evaluate result
+        if result.rows_affected == 0 {
+            // now we need to figure out if the item wasn't there or if it was modified
+            if importer::Entity::find_by_id(id).count(db).await? == 0 {
+                Err(Error::NotFound(id.to_string()))
+            } else {
+                Err(Error::RevisionNotFound)
+            }
+        } else {
+            Ok(())
+        }
+    }
+
+    pub async fn read(
+        &self,
+        id: &str,
+        db: &impl ConnectionTrait,
+    ) -> Result<Option<Revisioned<Group>>, Error> {
+        let Some(group) = sbom_group::Entity::find()
+            .filter(sbom_group::Column::Id.into_expr().cast_as("text").eq(id))
+            .one(db)
+            .await?
+        else {
+            return Ok(None);
+        };
+
+        let value = Group {
+            id: group.id.to_string(),
+            name: group.name,
+            parent: group.parent.map(|id| id.to_string()),
+            labels: group.labels,
+        };
+
+        Ok(Some(Revisioned {
+            value,
+            revision: group.revision.to_string(),
+        }))
     }
 
     /// Ensure a group name is valid
@@ -130,6 +187,36 @@ impl SbomGroupService {
 
         result
     }
+
+    fn validate_group_name_or_fail(&self, name: &str) -> Result<(), Error> {
+        let violations = self.validate_group_name(name);
+        if !violations.is_empty() {
+            let details = violations
+                .iter()
+                .map(|s| format!("* {s}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            return Err(Error::bad_request("Invalid group name", Some(details)));
+        }
+
+        Ok(())
+    }
+}
+
+/// Take a query and apply filters to target the entity, with an optional revision.
+fn query_by_revision<Q: QueryFilter>(id: &str, revision: Option<&str>, query: Q) -> Q {
+    let mut query = query.filter(sbom_group::Column::Id.into_expr().cast_as("text").eq(id));
+
+    if let Some(revision) = revision {
+        query = query.filter(
+            sbom_group::Column::Revision
+                .into_expr()
+                .cast_as("text")
+                .eq(revision),
+        );
+    }
+
+    query
 }
 
 #[cfg(test)]
