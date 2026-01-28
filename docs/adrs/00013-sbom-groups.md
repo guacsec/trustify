@@ -257,7 +257,7 @@ Create a new endpoint for creating new groups.
 #### Response
 
 * 400 - if the request could not be understood
-* 400 - if the name of the group is allowed
+* 400 - if the name of the group is not allowed
 * 401 - if the user was not authenticated
 * 403 - if the user was authenticated but not authorized
 * 409 - if the group name is not unique within the parent
