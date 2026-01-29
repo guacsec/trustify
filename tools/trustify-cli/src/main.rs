@@ -7,8 +7,8 @@ use std::process;
 
 use clap::Parser;
 
-use api::auth::AuthCredentials;
 use api::ApiClient;
+use api::auth::AuthCredentials;
 use cli::Cli;
 
 /// Runtime context containing config and API client

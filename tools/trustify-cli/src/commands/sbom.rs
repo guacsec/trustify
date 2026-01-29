@@ -5,8 +5,8 @@ use std::process;
 use clap::{Subcommand, ValueEnum};
 use serde_json::Value;
 
-use crate::api::sbom as sbom_api;
 use crate::Context;
+use crate::api::sbom as sbom_api;
 
 /// Output format for SBOM list
 #[derive(Clone, Default, ValueEnum)]
@@ -172,7 +172,7 @@ impl DuplicatesCommands {
                     eprintln!("Operation cancelled.");
                     process::exit(0);
                 }
-                let final_output = final_output.unwrap();
+                let final_output = final_output.unwrap_or("duplicates.json".to_string());
 
                 let params = sbom_api::FindDuplicatesParams {
                     batch_size: *batch_size,

@@ -1,11 +1,11 @@
-pub mod sbom;
 pub mod auth;
+pub mod sbom;
 
 use clap::Subcommand;
 
 use crate::Context;
-pub use sbom::SbomCommands;
 pub use auth::AuthCommands;
+pub use sbom::SbomCommands;
 
 #[derive(Subcommand)]
 pub enum Commands {

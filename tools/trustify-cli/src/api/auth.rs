@@ -7,7 +7,9 @@ pub enum AuthError {
     #[error("Failed to connect to SSO server: {0}")]
     ConnectionError(#[from] reqwest::Error),
 
-    #[error("Authentication failed: Invalid client_id, client_secret, or SSO URL. Please verify your credentials.")]
+    #[error(
+        "Authentication failed: Invalid client_id, client_secret, or SSO URL. Please verify your credentials."
+    )]
     AuthenticationFailed,
 
     #[error("SSO server returned an error: {0}")]

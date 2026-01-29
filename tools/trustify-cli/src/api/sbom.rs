@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::path::Path;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use futures::future::join_all;
 use futures::stream::{self, StreamExt};
@@ -203,8 +203,7 @@ pub async fn find_duplicates(
     // Set up progress bars
     let multi_progress = MultiProgress::new();
     let style = ProgressStyle::default_bar()
-        .template("{prefix:>12} [{bar:30.cyan/blue}] {pos}/{len} ({percent}%)")
-        .unwrap()
+        .template("{prefix:>12} [{bar:30.cyan/blue}] {pos}/{len} ({percent}%)")?
         .progress_chars("█▓░");
 
     let results: Arc<Mutex<Vec<SbomEntry>>> = Arc::new(Mutex::new(Vec::new()));
@@ -385,8 +384,7 @@ pub async fn delete_duplicates(
     let progress = ProgressBar::new(total as u64);
     progress.set_style(
         ProgressStyle::default_bar()
-            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")
-            .unwrap()
+            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")?
             .progress_chars("█▓░"),
     );
 

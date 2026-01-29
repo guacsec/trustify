@@ -12,7 +12,7 @@ clap = { workspace = true, features = ["derive", "env"] }
 dotenvy = { workspace = true }
 futures = { workspace = true }
 indicatif = { workspace = true }
-reqwest = { workspace = true , features = ["blocking", "form", "json", "query"] }
+reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true , features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

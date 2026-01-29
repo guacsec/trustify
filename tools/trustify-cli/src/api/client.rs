@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use indicatif::style::TemplateError;
 use reqwest::{Client, RequestBuilder, StatusCode};
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
-
 
 const MAX_RETRIES: u32 = 3;
 const RETRY_DELAY_MS: u64 = 1000;
@@ -35,6 +35,9 @@ pub enum ApiError {
 
     #[error("{0}")]
     InternalError(String),
+
+    #[error("Template error: {0}")]
+    TemplateError(String),
 }
 
 impl From<reqwest::Error> for ApiError {
@@ -48,6 +51,12 @@ impl From<reqwest::Error> for ApiError {
         } else {
             ApiError::NetworkError(e.to_string())
         }
+    }
+}
+
+impl From<TemplateError> for ApiError {
+    fn from(e: TemplateError) -> Self {
+        ApiError::TemplateError(e.to_string())
     }
 }
 
