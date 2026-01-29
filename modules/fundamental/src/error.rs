@@ -23,6 +23,8 @@ pub enum Error {
     Purl(#[from] PurlErr),
     #[error("Bad request: {0}: {1:?}")]
     BadRequest(Cow<'static, str>, Option<Cow<'static, str>>),
+    #[error("Conflict: {0}")]
+    Conflict(Cow<'static, str>),
     #[error("Not found: {0}")]
     NotFound(String),
     #[error(transparent)]
@@ -84,6 +86,9 @@ impl ResponseError for Error {
                     message: message.to_string(),
                     details: details.as_ref().map(|d| d.to_string()),
                 })
+            }
+            Self::Conflict(msg) => {
+                HttpResponse::Conflict().json(ErrorInformation::new("Conflict", msg))
             }
             Self::RevisionNotFound => HttpResponse::PreconditionFailed()
                 .json(ErrorInformation::new("RevisionNotFound", self)),

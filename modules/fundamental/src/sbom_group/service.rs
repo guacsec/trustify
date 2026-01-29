@@ -9,7 +9,7 @@ use sea_orm::{
 use sea_query::{Expr, SimpleExpr};
 use std::borrow::Cow;
 use trustify_common::model::Revisioned;
-use trustify_entity::{importer, sbom_group};
+use trustify_entity::sbom_group;
 use uuid::Uuid;
 
 pub struct SbomGroupService {
@@ -30,13 +30,22 @@ impl SbomGroupService {
     ) -> Result<Revisioned<String>, Error> {
         self.validate_group_name_or_fail(&group.name)?;
 
+        let Ok(parent) = group
+            .parent
+            .as_ref()
+            .map(|parent| Uuid::parse_str(&parent))
+            .transpose()
+        else {
+            return Err(Error::BadRequest("Parent group not found".into(), None));
+        };
+
         let id = Uuid::now_v7();
         let revision = Uuid::now_v7();
 
         let group = sbom_group::ActiveModel {
             id: Set(id),
             name: Set(group.name),
-            parent: Set(group.parent),
+            parent: Set(parent),
             revision: Set(revision),
             labels: Set(group.labels),
         };
@@ -82,16 +91,91 @@ impl SbomGroupService {
     ) -> Result<(), Error> {
         self.validate_group_name_or_fail(&group.name)?;
 
+        let Ok(parent) = group
+            .parent
+            .as_ref()
+            .map(|parent| Uuid::parse_str(&parent))
+            .transpose()
+        else {
+            return Err(Error::BadRequest("Parent group not found".into(), None));
+        };
+
+        // Validate that setting this parent won't create a cycle
+        if let Some(parent_id) = &group.parent {
+            self.validate_no_cycle(id, parent_id, db).await?;
+        }
+
         self.update_columns(
             id,
             revision,
             vec![
                 (sbom_group::Column::Name, group.name.into()),
+                (sbom_group::Column::Parent, parent.into()),
                 (sbom_group::Column::Labels, group.labels.into()),
             ],
             db,
         )
         .await
+    }
+
+    /// Validates that setting the given parent won't create a cycle in the hierarchy.
+    ///
+    /// Uses a recursive CTE to walk up the parent chain and detect if the group_id
+    /// appears anywhere in the ancestry of the proposed parent.
+    async fn validate_no_cycle(
+        &self,
+        group_id: &str,
+        parent_id: &str,
+        db: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
+        // Check if parent is the same as the group (direct self-reference)
+        if parent_id == group_id {
+            return Err(Error::Conflict(
+                "Cannot set a group as its own parent".into(),
+            ));
+        }
+
+        // Use recursive CTE to check if group_id appears in the parent chain of parent_id
+        let sql = r#"
+            WITH RECURSIVE parent_chain AS (
+                SELECT id, parent
+                FROM sbom_group
+                WHERE id::text = $1
+
+                UNION ALL
+
+                SELECT g.id, g.parent
+                FROM sbom_group g
+                INNER JOIN parent_chain pc ON g.id = pc.parent
+            )
+            SELECT EXISTS(
+                SELECT 1 FROM parent_chain WHERE id::text = $2
+            ) AS has_cycle
+        "#;
+
+        use sea_orm::FromQueryResult;
+
+        #[derive(FromQueryResult)]
+        struct CycleCheck {
+            has_cycle: bool,
+        }
+
+        let result = CycleCheck::find_by_statement(sea_orm::Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Postgres,
+            sql,
+            vec![parent_id.into(), group_id.into()],
+        ))
+        .one(db)
+        .await?
+        .ok_or_else(|| Error::BadRequest("Failed to check for cycles".into(), None))?;
+
+        if result.has_cycle {
+            Err(Error::Conflict(
+                "Setting this parent would create a cycle in the hierarchy".into(),
+            ))
+        } else {
+            Ok(())
+        }
     }
 
     async fn update_columns(
@@ -116,7 +200,11 @@ impl SbomGroupService {
         // evaluate result
         if result.rows_affected == 0 {
             // now we need to figure out if the item wasn't there or if it was modified
-            if importer::Entity::find_by_id(id).count(db).await? == 0 {
+            if query_by_revision(id, None, sbom_group::Entity::find())
+                .count(db)
+                .await?
+                == 0
+            {
                 Err(Error::NotFound(id.to_string()))
             } else {
                 Err(Error::RevisionNotFound)

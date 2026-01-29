@@ -1,4 +1,3 @@
-use sea_orm::prelude::Uuid;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 use trustify_entity::labels::Labels;
@@ -62,7 +61,7 @@ impl DerefMut for GroupDetails {
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]
 pub struct GroupRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent: Option<Uuid>,
+    pub parent: Option<String>,
 
     pub name: String,
 

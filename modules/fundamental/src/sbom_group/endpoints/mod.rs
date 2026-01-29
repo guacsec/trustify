@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod test;
 
-use crate::db::DatabaseExt;
-use crate::{Error, sbom_group::model::*, sbom_group::service::SbomGroupService};
+use crate::{Error, db::DatabaseExt, sbom_group::model::*, sbom_group::service::SbomGroupService};
 use actix_http::header;
 use actix_web::{
     HttpRequest, HttpResponse, Responder, delete, get,
