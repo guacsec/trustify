@@ -117,7 +117,7 @@ async fn delete(
     )
 )]
 #[put("/v2/group/sbom/{id}")]
-/// Create a new importer configuration
+/// Update an SBOM group
 async fn update(
     service: web::Data<SbomGroupService>,
     db: web::Data<Database>,
@@ -149,7 +149,7 @@ async fn update(
     )
 )]
 #[get("/v2/group/sbom/{id}")]
-/// Create a new importer configuration
+/// Read the SBOM group information
 async fn read(
     service: web::Data<SbomGroupService>,
     db: web::Data<Database>,
