@@ -1,7 +1,7 @@
 use crate::test::caller;
-use actix_http::body::to_bytes;
-use actix_http::header::HeaderMap;
-use actix_web::{dev::ServiceResponse, http, test::TestRequest};
+use actix_http::{body::to_bytes, header::HeaderMap};
+use actix_web::{http, test::TestRequest};
+use anyhow::Context;
 use http::StatusCode;
 use rstest::rstest;
 use serde_json::{Value, json};
@@ -26,35 +26,51 @@ struct GroupResponse {
 }
 
 trait FromCreateResponse: Sized {
-    fn from_create_response(body: Value, headers: HeaderMap) -> anyhow::Result<Self>;
+    fn from_create_response(body: Value, headers: HeaderMap) -> Self;
 }
 
 impl FromCreateResponse for GroupResponse {
-    fn from_create_response(body: Value, headers: HeaderMap) -> anyhow::Result<Self> {
+    fn from_create_response(body: Value, headers: HeaderMap) -> Self {
+        let result: anyhow::Result<GroupResponse> =
+            FromCreateResponse::from_create_response(body, headers);
+        result.expect("failed to parse response")
+    }
+}
+
+impl FromCreateResponse for anyhow::Result<GroupResponse> {
+    fn from_create_response(body: Value, headers: HeaderMap) -> Self {
+        let location = headers
+            .get(&http::header::LOCATION)
+            .context("location must be present")?
+            .to_str()
+            .context("location must be a string")?
+            .to_string();
+
+        let id = body["id"].as_str().context("must be a string")?.to_string();
+
+        assert_eq!(
+            location,
+            format!("/api/v2/group/sbom/{id}").as_str(),
+            "must return a relative URL to the group"
+        );
+
         Ok(GroupResponse {
-            id: body["id"].as_str().expect("must be a string").to_string(),
+            id,
             etag: headers
                 .get(&http::header::ETAG)
-                .expect("must have etag header")
+                .context("must have etag header")?
                 .to_str()
-                .expect("etag must be valid string")
-                .to_string(),
-            location: Some(
-                headers
-                    .get(&http::header::LOCATION)
-                    .expect("location must be present")
-                    .to_str()
-                    .expect("location must be a string")
-                    .to_string(),
-            ),
+                .context("etag must be valid string")
+                .map(ToString::to_string)?,
+            location: Some(location),
             body,
         })
     }
 }
 
 impl FromCreateResponse for () {
-    fn from_create_response(_: Value, _: HeaderMap) -> anyhow::Result<Self> {
-        Ok(())
+    fn from_create_response(_: Value, _: HeaderMap) -> Self {
+        ()
     }
 }
 
@@ -117,7 +133,7 @@ impl Create {
 
         log::info!("body: {body:?}");
 
-        R::from_create_response(body, headers)
+        Ok(R::from_create_response(body, headers))
     }
 }
 
@@ -219,14 +235,6 @@ async fn get_group_helper(
     })
 }
 
-/// Helper to extract response body as JSON
-async fn extract_body(response: ServiceResponse) -> Result<Value, anyhow::Error> {
-    let body = to_bytes(response.into_body())
-        .await
-        .expect("should be valid response");
-    Ok(serde_json::from_slice(&body)?)
-}
-
 /// Helper to add If-Match header based on type
 fn add_if_match(request: TestRequest, if_match_type: IfMatchType, etag: &str) -> TestRequest {
     match if_match_type {
@@ -244,52 +252,33 @@ fn add_if_match(request: TestRequest, if_match_type: IfMatchType, etag: &str) ->
 /// Tests both successful creation with a valid name and failure cases with invalid inputs.
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case(
-    json!({"name": "foo"}),
-    StatusCode::CREATED,
-)]
-#[case(
-    json!({"name": ""}),
-    StatusCode::BAD_REQUEST,
-)]
+#[case("foo", Default::default(), StatusCode::CREATED)]
+#[case("", Default::default(), StatusCode::BAD_REQUEST)]
+#[case("foo", Labels::new().add("foo", "bar"), StatusCode::CREATED)]
+#[case("foo", Labels::new().add("", "bar"), StatusCode::BAD_REQUEST)]
 #[test_log::test(actix_web::test)]
 async fn create_group(
     ctx: &TrustifyContext,
-    #[case] request: Value,
+    #[case] name: &str,
+    #[case] labels: Labels,
     #[case] expected_status: StatusCode,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    let response = app
-        .call_service(
-            TestRequest::post()
-                .uri("/api/v2/group/sbom")
-                .set_json(request)
-                .to_request(),
-        )
-        .await;
+    let group: anyhow::Result<GroupResponse> = Create::new(name)
+        .expect_status(expected_status)
+        .labels(labels)
+        .execute(&app)
+        .await?;
 
-    let status = response.status();
-    let headers = response.headers().clone();
-    let body = extract_body(response).await?;
+    if expected_status.is_success() {
+        let group = group.expect("Must have a result");
 
-    log::info!("{body:#?}");
+        // check if the location is working
 
-    assert_eq!(status, expected_status);
-
-    if status.is_success() {
-        let id = body["id"].as_str().expect("must be a string");
-        assert_eq!(
-            headers
-                .get(&http::header::LOCATION)
-                .map(|s| s.to_str().expect("must be a string")),
-            Some(format!("/api/v2/group/sbom/{id}").as_str()),
-            "must return a relative URL to the group"
-        );
-        assert!(
-            headers.contains_key(http::header::ETAG),
-            "must have etag value"
-        )
+        let req = TestRequest::get().uri(&group.location.expect("must have location"));
+        let read = app.call_and_read_body_json::<Value>(req.to_request()).await;
+        assert_eq!(read["id"].as_str(), Some(group.id.as_str()));
     }
 
     Ok(())

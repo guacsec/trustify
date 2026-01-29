@@ -47,7 +47,7 @@ impl SbomGroupService {
             name: Set(group.name),
             parent: Set(parent),
             revision: Set(revision),
-            labels: Set(group.labels),
+            labels: Set(group.labels.validate()?),
         };
 
         group.insert(db).await.map_err(|err| {
@@ -117,7 +117,7 @@ impl SbomGroupService {
             vec![
                 (sbom_group::Column::Name, group.name.into()),
                 (sbom_group::Column::Parent, parent.into()),
-                (sbom_group::Column::Labels, group.labels.into()),
+                (sbom_group::Column::Labels, group.labels.validate()?.into()),
             ],
             db,
         )
