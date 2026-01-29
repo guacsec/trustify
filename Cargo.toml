@@ -21,6 +21,7 @@ members = [
     "test-context",
     "trustd",
     "xtask",
+    "tools/trustify-cli"
 ]
 
 [workspace.package]
@@ -65,6 +66,7 @@ cve = "0.5.0"
 cvss = { package = "cvss-rs", version = "0.2.1" }
 cvss-old = { package = "cvss", version = "2" }
 deepsize = "0.2.0"
+dotenvy = "0.15.7"
 fixedbitset = "0.5.7"
 flate2 = "1.0.35"
 fs4 = "0.13.1"
@@ -109,7 +111,7 @@ petgraph = { version = "0.8.0", features = ["serde-1"] }
 quick-xml = "0.39.0"
 rand = "0.10.0"
 regex = "1.10.3"
-reqwest = "0.13"
+reqwest = "0.13.1"
 ring = "0.17.8"
 roxmltree = "0.21.1"
 rstest = "0.26.1"
