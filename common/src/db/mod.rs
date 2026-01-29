@@ -35,7 +35,8 @@ pub trait DatabaseErrors {
 impl DatabaseErrors for DbErr {
     fn is_duplicate(&self) -> bool {
         match self {
-            DbErr::Query(RuntimeErr::SqlxError(sqlx::error::Error::Database(err))) => {
+            DbErr::Query(RuntimeErr::SqlxError(sqlx::error::Error::Database(err)))
+            | DbErr::Exec(RuntimeErr::SqlxError(sqlx::error::Error::Database(err))) => {
                 err.is_unique_violation()
             }
             _ => false,
@@ -44,7 +45,8 @@ impl DatabaseErrors for DbErr {
 
     fn is_read_only(&self) -> bool {
         match self {
-            DbErr::Query(RuntimeErr::SqlxError(sqlx::error::Error::Database(err))) => {
+            DbErr::Query(RuntimeErr::SqlxError(sqlx::error::Error::Database(err)))
+            | DbErr::Exec(RuntimeErr::SqlxError(sqlx::error::Error::Database(err))) => {
                 err.code().as_deref() == Some("25006")
             }
             _ => false,

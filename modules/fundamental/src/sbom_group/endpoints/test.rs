@@ -109,6 +109,43 @@ fn add_if_match(request: TestRequest, if_match_type: IfMatchType, etag: &str) ->
     }
 }
 
+/// Helper to update a group with name and optional parent
+async fn update_group_helper(
+    app: &impl CallService,
+    id: &str,
+    etag: &str,
+    name: &str,
+    parent: Option<&str>,
+) -> ServiceResponse {
+    let mut update_request = json!({"name": name});
+    if let Some(parent_id) = parent {
+        update_request["parent"] = json!(parent_id);
+    }
+
+    app.call_service(
+        TestRequest::put()
+            .uri(&format!("/api/v2/group/sbom/{}", id))
+            .insert_header((http::header::IF_MATCH, etag))
+            .set_json(update_request)
+            .to_request(),
+    )
+    .await
+}
+
+/// Helper to update a group and expect a specific status code
+async fn update_group_expect_status(
+    app: &impl CallService,
+    id: &str,
+    etag: &str,
+    name: &str,
+    parent: Option<&str>,
+    expected_status: StatusCode,
+    error_message: &str,
+) {
+    let response = update_group_helper(app, id, etag, name, parent).await;
+    assert_eq!(response.status(), expected_status, "{}", error_message);
+}
+
 /// Test creating an SBOM group with various inputs.
 ///
 /// Tests both successful creation with a valid name and failure cases with invalid inputs.
@@ -277,7 +314,7 @@ async fn update_group(
     // Create a group
     let group = create_group_helper(&app, "test_group", None).await?;
 
-    // Update the group
+    // Update the group with the specified If-Match type
     let update_request = json!({"name": updated_name});
     let update_req = TestRequest::put().uri(&format!("/api/v2/group/sbom/{}", group.id));
     let update_req = add_if_match(update_req, if_match_type, &group.etag);
@@ -352,23 +389,16 @@ async fn create_parent_cycle(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     let group_a = get_group_helper(&app, &group_a.id).await?;
 
     // Try to update group A to have C as its parent (creating a cycle: A -> C -> B -> A)
-    let update_request = json!({"name": "Group A", "parent": group_c.id});
-    let update_response = app
-        .call_service(
-            TestRequest::put()
-                .uri(&format!("/api/v2/group/sbom/{}", group_a.id))
-                .insert_header((http::header::IF_MATCH, group_a.etag.as_str()))
-                .set_json(update_request)
-                .to_request(),
-        )
-        .await;
-
-    // Should return 409 Conflict because this would create a cycle
-    assert_eq!(
-        update_response.status(),
+    update_group_expect_status(
+        &app,
+        &group_a.id,
+        &group_a.etag,
+        "Group A",
+        Some(&group_c.id),
         StatusCode::CONFLICT,
-        "Creating a parent cycle should return 409 Conflict"
-    );
+        "Creating a parent cycle should return 409 Conflict",
+    )
+    .await;
 
     Ok(())
 }
@@ -389,23 +419,218 @@ async fn update_group_parent_to_itself(ctx: &TrustifyContext) -> Result<(), anyh
     let group = get_group_helper(&app, &group.id).await?;
 
     // Try to update the group to have itself as parent
-    let update_request = json!({"name": "Self-Parent Group", "parent": group.id});
-    let update_response = app
+    update_group_expect_status(
+        &app,
+        &group.id,
+        &group.etag,
+        "Self-Parent Group",
+        Some(&group.id),
+        StatusCode::CONFLICT,
+        "Setting a group as its own parent should return 409 Conflict",
+    )
+    .await;
+
+    Ok(())
+}
+
+/// Test creating duplicate group names at the same level.
+///
+/// Verifies that group names must be unique within the same parent context.
+/// Tests both root level (no parent) and under a specific parent.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::duplicate_at_root(None)] // Two groups with same name at root level
+#[case::duplicate_under_parent(Some("parent_group"))] // Two groups with same name under same parent
+#[test_log::test(actix_web::test)]
+async fn create_duplicate_group_names(
+    ctx: &TrustifyContext,
+    #[case] parent_name: Option<&str>,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    // Create parent group if needed
+    let parent_id = if let Some(name) = parent_name {
+        Some(create_group_helper(&app, name, None).await?.id)
+    } else {
+        None
+    };
+
+    // Create first group with name "Duplicate"
+    let _group1 = create_group_helper(&app, "Duplicate", parent_id.as_deref()).await?;
+
+    // Try to create second group with the same name at the same level
+    let mut request_body = json!({"name": "Duplicate"});
+    if let Some(parent) = &parent_id {
+        request_body["parent"] = json!(parent);
+    }
+
+    let response = app
         .call_service(
-            TestRequest::put()
-                .uri(&format!("/api/v2/group/sbom/{}", group.id))
-                .insert_header((http::header::IF_MATCH, group.etag.as_str()))
-                .set_json(update_request)
+            TestRequest::post()
+                .uri("/api/v2/group/sbom")
+                .set_json(request_body)
                 .to_request(),
         )
         .await;
 
-    // Should return 409 Conflict because a group cannot be its own parent
+    // Should return 409 Conflict because the name is already used at this level
     assert_eq!(
-        update_response.status(),
+        response.status(),
         StatusCode::CONFLICT,
-        "Setting a group as its own parent should return 409 Conflict"
+        "Creating a group with duplicate name at the same level should return 409 Conflict"
     );
+
+    Ok(())
+}
+
+/// Test that groups with the same name can exist under different parents.
+///
+/// Verifies that the uniqueness constraint is scoped to the parent level,
+/// allowing groups with identical names in different branches of the hierarchy.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn create_same_name_different_parents(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    // Create two parent groups
+    let parent_a = create_group_helper(&app, "Parent A", None).await?;
+    let parent_b = create_group_helper(&app, "Parent B", None).await?;
+
+    // Create group with name "Child" under parent A
+    let _child_a = create_group_helper(&app, "Child", Some(&parent_a.id)).await?;
+
+    // Create group with same name "Child" under parent B - should succeed
+    let child_b_result = create_group_helper(&app, "Child", Some(&parent_b.id)).await;
+
+    assert!(
+        child_b_result.is_ok(),
+        "Creating groups with same name under different parents should succeed"
+    );
+
+    // Also verify we can create a "Child" at root level
+    let child_root_result = create_group_helper(&app, "Child", None).await;
+
+    assert!(
+        child_root_result.is_ok(),
+        "Creating a group with same name at root level should succeed when others are under parents"
+    );
+
+    Ok(())
+}
+
+/// Test updating a group name to conflict with a sibling.
+///
+/// Creates two groups at the same level with different names, then attempts
+/// to update one to have the same name as the other. This should fail.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::update_at_root(None)] // Update at root level
+#[case::update_under_parent(Some("parent_group"))] // Update under a parent
+#[test_log::test(actix_web::test)]
+async fn update_to_duplicate_name(
+    ctx: &TrustifyContext,
+    #[case] parent_name: Option<&str>,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    // Create parent group if needed
+    let parent_id = if let Some(name) = parent_name {
+        Some(create_group_helper(&app, name, None).await?.id)
+    } else {
+        None
+    };
+
+    // Create two groups with different names at the same level
+    let _group1 = create_group_helper(&app, "Group One", parent_id.as_deref()).await?;
+    let group2 = create_group_helper(&app, "Group Two", parent_id.as_deref()).await?;
+
+    // Get current state of group2
+    let group2 = get_group_helper(&app, &group2.id).await?;
+
+    // Try to update group2 to have the same name as group1
+    update_group_expect_status(
+        &app,
+        &group2.id,
+        &group2.etag,
+        "Group One",
+        parent_id.as_deref(),
+        StatusCode::CONFLICT,
+        "Updating a group to have the same name as a sibling should return 409 Conflict",
+    )
+    .await;
+
+    Ok(())
+}
+
+/// Test changing a group's parent to create a name conflict.
+///
+/// Creates groups with the same name under different parents, then attempts
+/// to move one group to the other parent's level, which would create a conflict.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn update_parent_to_create_name_conflict(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    // Create two parent groups
+    let parent_a = create_group_helper(&app, "Parent A", None).await?;
+    let parent_b = create_group_helper(&app, "Parent B", None).await?;
+
+    // Create group with name "Shared Name" under parent A
+    let _child_a = create_group_helper(&app, "Shared Name", Some(&parent_a.id)).await?;
+
+    // Create group with same name "Shared Name" under parent B
+    let child_b = create_group_helper(&app, "Shared Name", Some(&parent_b.id)).await?;
+
+    // Get current state of child_b
+    let child_b = get_group_helper(&app, &child_b.id).await?;
+
+    // Try to move child_b to parent A, which would create a conflict
+    update_group_expect_status(
+        &app,
+        &child_b.id,
+        &child_b.etag,
+        "Shared Name",
+        Some(&parent_a.id),
+        StatusCode::CONFLICT,
+        "Moving a group to a parent that already has a child with the same name should return 409 Conflict",
+    )
+    .await;
+
+    Ok(())
+}
+
+/// Test changing a group's parent to root level to create a name conflict.
+///
+/// Creates a group at root level and another under a parent with the same name,
+/// then attempts to move the child to root level, which would create a conflict.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn update_parent_to_root_create_conflict(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    // Create a group at root level
+    let _root_group = create_group_helper(&app, "Shared Name", None).await?;
+
+    // Create a parent group
+    let parent = create_group_helper(&app, "Parent", None).await?;
+
+    // Create a group with the same name under the parent
+    let child = create_group_helper(&app, "Shared Name", Some(&parent.id)).await?;
+
+    // Get current state of child
+    let child = get_group_helper(&app, &child.id).await?;
+
+    // Try to move child to root level by removing its parent
+    update_group_expect_status(
+        &app,
+        &child.id,
+        &child.etag,
+        "Shared Name",
+        None,
+        StatusCode::CONFLICT,
+        "Moving a group to root level when a group with the same name exists at root should return 409 Conflict",
+    )
+    .await;
 
     Ok(())
 }

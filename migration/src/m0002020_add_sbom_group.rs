@@ -53,6 +53,7 @@ impl MigrationTrait for Migration {
                     .col(SbomGroup::Parent)
                     .col(SbomGroup::Name)
                     .unique()
+                    .nulls_not_distinct()
                     .to_owned(),
             )
             .await?;

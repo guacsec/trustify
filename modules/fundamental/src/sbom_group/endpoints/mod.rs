@@ -2,10 +2,9 @@
 mod test;
 
 use crate::{Error, db::DatabaseExt, sbom_group::model::*, sbom_group::service::SbomGroupService};
-use actix_http::header;
 use actix_web::{
     HttpRequest, HttpResponse, Responder, delete, get,
-    http::header::{ETag, EntityTag, IfMatch},
+    http::header::{self, ETag, EntityTag, IfMatch},
     post, put, web,
 };
 use sea_orm::TransactionTrait;

@@ -8,7 +8,7 @@ use sea_orm::{
 };
 use sea_query::{Expr, SimpleExpr};
 use std::borrow::Cow;
-use trustify_common::model::Revisioned;
+use trustify_common::{db::DatabaseErrors, model::Revisioned};
 use trustify_entity::sbom_group;
 use uuid::Uuid;
 
@@ -50,7 +50,13 @@ impl SbomGroupService {
             labels: Set(group.labels),
         };
 
-        group.insert(db).await?;
+        group.insert(db).await.map_err(|err| {
+            if err.is_duplicate() {
+                Error::Conflict("A group with this name already exists at this level".into())
+            } else {
+                err.into()
+            }
+        })?;
 
         Ok(Revisioned {
             revision: revision.to_string(),
@@ -195,7 +201,13 @@ impl SbomGroupService {
         }
 
         // execute update
-        let result = update.exec(db).await?;
+        let result = update.exec(db).await.map_err(|err| {
+            if err.is_duplicate() {
+                Error::Conflict("A group with this name already exists at this level".into())
+            } else {
+                err.into()
+            }
+        })?;
 
         // evaluate result
         if result.rows_affected == 0 {
