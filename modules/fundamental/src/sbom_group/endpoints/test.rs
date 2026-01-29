@@ -1,6 +1,6 @@
 use crate::test::caller;
 use actix_http::body::to_bytes;
-use actix_web::{http, test::TestRequest};
+use actix_web::{dev::ServiceResponse, http, test::TestRequest};
 use http::StatusCode;
 use rstest::rstest;
 use serde_json::{Value, json};
@@ -13,6 +13,100 @@ enum IfMatchType {
     Correct,
     Missing,
     Wrong,
+}
+
+/// Helper struct to hold group creation response data
+struct GroupResponse {
+    id: String,
+    etag: String,
+    body: Value,
+}
+
+/// Helper to create a group and extract common response data
+async fn create_group_helper(
+    app: &impl CallService,
+    name: &str,
+    parent: Option<&str>,
+) -> Result<GroupResponse, anyhow::Error> {
+    let mut request_body = json!({"name": name});
+    if let Some(parent_id) = parent {
+        request_body["parent"] = json!(parent_id);
+    }
+
+    let response = app
+        .call_service(
+            TestRequest::post()
+                .uri("/api/v2/group/sbom")
+                .set_json(request_body)
+                .to_request(),
+        )
+        .await;
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let headers = response.headers().clone();
+    let body = to_bytes(response.into_body()).await.expect("must decode");
+    let result: Value = serde_json::from_slice(&body)?;
+
+    Ok(GroupResponse {
+        id: result["id"].as_str().expect("must be a string").to_string(),
+        etag: headers
+            .get(&http::header::ETAG)
+            .expect("must have etag header")
+            .to_str()
+            .expect("etag must be valid string")
+            .to_string(),
+        body: result,
+    })
+}
+
+/// Helper to get a group and extract etag
+async fn get_group_helper(
+    app: &impl CallService,
+    id: &str,
+) -> Result<GroupResponse, anyhow::Error> {
+    let response = app
+        .call_service(
+            TestRequest::get()
+                .uri(&format!("/api/v2/group/sbom/{}", id))
+                .to_request(),
+        )
+        .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let headers = response.headers().clone();
+    let body = to_bytes(response.into_body()).await.expect("must decode");
+    let result: Value = serde_json::from_slice(&body)?;
+
+    Ok(GroupResponse {
+        id: id.to_string(),
+        etag: headers
+            .get(&http::header::ETAG)
+            .expect("must have etag header")
+            .to_str()
+            .expect("etag must be valid string")
+            .to_string(),
+        body: result,
+    })
+}
+
+/// Helper to extract response body as JSON
+async fn extract_body(response: ServiceResponse) -> Result<Value, anyhow::Error> {
+    let body = to_bytes(response.into_body()).await.expect("should be valid response");
+    Ok(serde_json::from_slice(&body)?)
+}
+
+/// Helper to add If-Match header based on type
+fn add_if_match(request: TestRequest, if_match_type: IfMatchType, etag: &str) -> TestRequest {
+    match if_match_type {
+        IfMatchType::Correct => request.insert_header((http::header::IF_MATCH, etag)),
+        IfMatchType::Wildcard => request.insert_header((http::header::IF_MATCH, "*")),
+        IfMatchType::Missing => request,
+        IfMatchType::Wrong => {
+            request.insert_header((http::header::IF_MATCH, "\"wrong-revision-123\""))
+        }
+    }
 }
 
 /// Test creating an SBOM group with various inputs.
@@ -47,20 +141,14 @@ async fn create_group(
 
     let status = response.status();
     let headers = response.headers().clone();
+    let body = extract_body(response).await?;
 
-    let body = to_bytes(response.into_body())
-        .await
-        .expect("should be valid response");
-    let v: Value = serde_json::from_slice(&body)?;
-
-    log::info!("{v:#?}");
-
-    // now assert
+    log::info!("{body:#?}");
 
     assert_eq!(status, expected_status);
 
     if status.is_success() {
-        let id = v["id"].as_str().expect("must be a string");
+        let id = body["id"].as_str().expect("must be a string");
         assert_eq!(
             headers
                 .get(&http::header::LOCATION)
@@ -96,76 +184,31 @@ async fn create_and_delete_group(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    // First, create a group
-    let create_request = json!({"name": "test_group_for_deletion"});
+    // Create a group
+    let group = create_group_helper(&app, "test_group_for_deletion", None).await?;
 
-    let create_response = app
-        .call_service(
-            TestRequest::post()
-                .uri("/api/v2/group/sbom")
-                .set_json(create_request)
-                .to_request(),
-        )
-        .await;
-
-    let create_status = create_response.status();
-    let create_headers = create_response.headers().clone();
-
-    assert_eq!(create_status, StatusCode::CREATED);
-
-    let create_body = to_bytes(create_response.into_body())
-        .await
-        .expect("should be valid response");
-    let create_result: Value = serde_json::from_slice(&create_body)?;
-
-    let group_id = create_result["id"].as_str().expect("must be a string");
-    let etag = create_headers
-        .get(&http::header::ETAG)
-        .expect("must have etag header")
-        .to_str()
-        .expect("etag must be valid string");
-
-    // Now delete the group
-    let mut delete_request = TestRequest::delete().uri(&format!("/api/v2/group/sbom/{}", group_id));
-
-    match if_match_type {
-        IfMatchType::Correct => {
-            delete_request = delete_request.insert_header((http::header::IF_MATCH, etag));
-        }
-        IfMatchType::Wildcard => {
-            delete_request = delete_request.insert_header((http::header::IF_MATCH, "*"));
-        }
-        IfMatchType::Missing => {
-            // Don't add any If-Match header
-        }
-        IfMatchType::Wrong => {
-            delete_request =
-                delete_request.insert_header((http::header::IF_MATCH, "\"wrong-revision-123\""));
-        }
-    }
+    // Delete the group
+    let delete_request = TestRequest::delete().uri(&format!("/api/v2/group/sbom/{}", group.id));
+    let delete_request = add_if_match(delete_request, if_match_type, &group.etag);
 
     let delete_response = app.call_service(delete_request.to_request()).await;
-
-    let delete_status = delete_response.status();
-    assert_eq!(delete_status, expected_status);
+    assert_eq!(delete_response.status(), expected_status);
 
     // Verify the group's existence after the delete attempt
     let get_response = app
         .call_service(
             TestRequest::get()
-                .uri(&format!("/api/v2/group/sbom/{}", group_id))
+                .uri(&format!("/api/v2/group/sbom/{}", group.id))
                 .to_request(),
         )
         .await;
 
-    let get_status = get_response.status();
-
     if expected_status.is_success() {
         // Delete succeeded, group should not exist
-        assert_eq!(get_status, StatusCode::NOT_FOUND);
+        assert_eq!(get_response.status(), StatusCode::NOT_FOUND);
     } else {
         // Delete failed, group should still exist
-        assert_eq!(get_status, StatusCode::OK);
+        assert_eq!(get_response.status(), StatusCode::OK);
     }
 
     Ok(())
@@ -197,20 +240,6 @@ async fn delete_nonexistent_group(ctx: &TrustifyContext) -> Result<(), anyhow::E
     assert_eq!(delete_status, StatusCode::NO_CONTENT);
 
     Ok(())
-}
-
-fn if_match(request: TestRequest, if_match_type: IfMatchType, etag: &str) -> TestRequest {
-    match if_match_type {
-        IfMatchType::Correct => request.insert_header((http::header::IF_MATCH, etag)),
-        IfMatchType::Wildcard => request.insert_header((http::header::IF_MATCH, "*")),
-        IfMatchType::Missing => {
-            // Don't add any If-Match header
-            request
-        }
-        IfMatchType::Wrong => {
-            request.insert_header((http::header::IF_MATCH, "\"wrong-revision-123\""))
-        }
-    }
 }
 
 /// Test updating an SBOM group with various scenarios.
@@ -245,79 +274,29 @@ async fn update_group(
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    // First, create a group with a valid name
-    let create_request = json!({"name": "test_group"});
+    // Create a group
+    let group = create_group_helper(&app, "test_group", None).await?;
 
-    let create_response = app
-        .call_service(
-            TestRequest::post()
-                .uri("/api/v2/group/sbom")
-                .set_json(create_request)
-                .to_request(),
-        )
-        .await;
-
-    let create_status = create_response.status();
-    let create_headers = create_response.headers().clone();
-
-    assert_eq!(create_status, StatusCode::CREATED);
-
-    let create_body = to_bytes(create_response.into_body())
-        .await
-        .expect("should be valid response");
-    let create_result: Value = serde_json::from_slice(&create_body)?;
-
-    let group_id = create_result["id"].as_str().expect("must be a string");
-    let etag = create_headers
-        .get(&http::header::ETAG)
-        .expect("must have etag header")
-        .to_str()
-        .expect("etag must be valid string");
-
-    // Now update the group
+    // Update the group
     let update_request = json!({"name": updated_name});
-
-    let update_req = TestRequest::put().uri(&format!("/api/v2/group/sbom/{}", group_id));
-    let update_req = if_match(update_req, if_match_type, etag);
+    let update_req = TestRequest::put().uri(&format!("/api/v2/group/sbom/{}", group.id));
+    let update_req = add_if_match(update_req, if_match_type, &group.etag);
 
     let update_response = app
         .call_service(update_req.set_json(update_request).to_request())
         .await;
 
-    let update_status = update_response.status();
-    assert_eq!(update_status, expected_status);
+    assert_eq!(update_response.status(), expected_status);
 
-    // If requested, verify the revision changed after update
-    if update_status.is_success() {
-        let get_response = app
-            .call_service(
-                TestRequest::get()
-                    .uri(&format!("/api/v2/group/sbom/{}", group_id))
-                    .to_request(),
-            )
-            .await;
-
-        let get_status = get_response.status();
-        let get_headers = get_response.headers().clone();
-
-        assert_eq!(get_status, StatusCode::OK);
-
-        let get_body = to_bytes(get_response.into_body())
-            .await
-            .expect("should be valid response");
-        let get_result: Value = serde_json::from_slice(&get_body)?;
+    // Verify the revision changed after successful update
+    if expected_status.is_success() {
+        let updated_group = get_group_helper(&app, &group.id).await?;
 
         // Verify the name was updated
-        assert_eq!(get_result["name"].as_str(), Some(updated_name));
+        assert_eq!(updated_group.body["name"].as_str(), Some(updated_name));
 
         // Verify the revision changed
-        let new_etag = get_headers
-            .get(&http::header::ETAG)
-            .expect("must have etag header")
-            .to_str()
-            .expect("etag must be valid string");
-
-        assert_ne!(etag, new_etag, "revision should have changed after update");
+        assert_ne!(group.etag, updated_group.etag, "revision should have changed after update");
     }
 
     Ok(())
@@ -361,78 +340,25 @@ async fn create_parent_cycle(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     let app = caller(ctx).await?;
 
     // Create group A (no parent)
-    let create_a = json!({"name": "Group A"});
-    let response_a = app
-        .call_service(
-            TestRequest::post()
-                .uri("/api/v2/group/sbom")
-                .set_json(create_a)
-                .to_request(),
-        )
-        .await;
-
-    assert_eq!(response_a.status(), StatusCode::CREATED);
-    let body_a = to_bytes(response_a.into_body()).await.expect("must decode");
-    let result_a: Value = serde_json::from_slice(&body_a)?;
-    let group_a_id = result_a["id"].as_str().expect("must be a string");
+    let group_a = create_group_helper(&app, "Group A", None).await?;
 
     // Create group B with parent A
-    let create_b = json!({"name": "Group B", "parent": group_a_id});
-    let response_b = app
-        .call_service(
-            TestRequest::post()
-                .uri("/api/v2/group/sbom")
-                .set_json(create_b)
-                .to_request(),
-        )
-        .await;
-
-    assert_eq!(response_b.status(), StatusCode::CREATED);
-    let body_b = to_bytes(response_b.into_body()).await.expect("must decode");
-    let result_b: Value = serde_json::from_slice(&body_b)?;
-    let group_b_id = result_b["id"].as_str().expect("must be a string");
+    let group_b = create_group_helper(&app, "Group B", Some(&group_a.id)).await?;
 
     // Create group C with parent B
-    let create_c = json!({"name": "Group C", "parent": group_b_id});
-    let response_c = app
-        .call_service(
-            TestRequest::post()
-                .uri("/api/v2/group/sbom")
-                .set_json(create_c)
-                .to_request(),
-        )
-        .await;
+    let group_c = create_group_helper(&app, "Group C", Some(&group_b.id)).await?;
 
-    assert_eq!(response_c.status(), StatusCode::CREATED);
-    let body_c = to_bytes(response_c.into_body()).await.expect("must decode");
-    let result_c: Value = serde_json::from_slice(&body_c)?;
-    let group_c_id = result_c["id"].as_str().expect("must be a string");
+    // Get the current state of group A to obtain its latest ETag
+    let group_a = get_group_helper(&app, &group_a.id).await?;
 
-    // Get the current state of group A to obtain its ETag
-    let get_response = app
-        .call_service(
-            TestRequest::get()
-                .uri(&format!("/api/v2/group/sbom/{}", group_a_id))
-                .to_request(),
-        )
-        .await;
-
-    assert_eq!(get_response.status(), StatusCode::OK);
-    let etag = get_response
-        .headers()
-        .get(&http::header::ETAG)
-        .expect("must have etag header")
-        .to_str()
-        .expect("etag must be valid string");
-
-    // Now try to update group A to have C as its parent (creating a cycle: A -> C -> B -> A)
-    let update_a = json!({"name": "Group A", "parent": group_c_id});
+    // Try to update group A to have C as its parent (creating a cycle: A -> C -> B -> A)
+    let update_request = json!({"name": "Group A", "parent": group_c.id});
     let update_response = app
         .call_service(
             TestRequest::put()
-                .uri(&format!("/api/v2/group/sbom/{}", group_a_id))
-                .insert_header((http::header::IF_MATCH, etag))
-                .set_json(update_a)
+                .uri(&format!("/api/v2/group/sbom/{}", group_a.id))
+                .insert_header((http::header::IF_MATCH, group_a.etag.as_str()))
+                .set_json(update_request)
                 .to_request(),
         )
         .await;
@@ -457,45 +383,18 @@ async fn update_group_parent_to_itself(ctx: &TrustifyContext) -> Result<(), anyh
     let app = caller(ctx).await?;
 
     // Create a group
-    let create_request = json!({"name": "Self-Parent Group"});
-    let create_response = app
-        .call_service(
-            TestRequest::post()
-                .uri("/api/v2/group/sbom")
-                .set_json(create_request)
-                .to_request(),
-        )
-        .await;
+    let group = create_group_helper(&app, "Self-Parent Group", None).await?;
 
-    assert_eq!(create_response.status(), StatusCode::CREATED);
-    let create_body = to_bytes(create_response.into_body()).await.expect("must decode");
-    let create_result: Value = serde_json::from_slice(&create_body)?;
-    let group_id = create_result["id"].as_str().expect("must be a string");
-
-    // Get the current state to obtain its ETag
-    let get_response = app
-        .call_service(
-            TestRequest::get()
-                .uri(&format!("/api/v2/group/sbom/{}", group_id))
-                .to_request(),
-        )
-        .await;
-
-    assert_eq!(get_response.status(), StatusCode::OK);
-    let etag = get_response
-        .headers()
-        .get(&http::header::ETAG)
-        .expect("must have etag header")
-        .to_str()
-        .expect("etag must be valid string");
+    // Get the current state to obtain its latest ETag
+    let group = get_group_helper(&app, &group.id).await?;
 
     // Try to update the group to have itself as parent
-    let update_request = json!({"name": "Self-Parent Group", "parent": group_id});
+    let update_request = json!({"name": "Self-Parent Group", "parent": group.id});
     let update_response = app
         .call_service(
             TestRequest::put()
-                .uri(&format!("/api/v2/group/sbom/{}", group_id))
-                .insert_header((http::header::IF_MATCH, etag))
+                .uri(&format!("/api/v2/group/sbom/{}", group.id))
+                .insert_header((http::header::IF_MATCH, group.etag.as_str()))
                 .set_json(update_request)
                 .to_request(),
         )
