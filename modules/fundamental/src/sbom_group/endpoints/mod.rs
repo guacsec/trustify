@@ -1,7 +1,11 @@
 #[cfg(test)]
 mod test;
 
-use crate::{Error, db::DatabaseExt, sbom_group::model::*, sbom_group::service::SbomGroupService};
+use super::{
+    model::*,
+    service::{ListOptions, SbomGroupService},
+};
+use crate::{Error, db::DatabaseExt};
 use actix_web::{
     HttpRequest, HttpResponse, Responder, delete, get,
     http::header::{self, ETag, EntityTag, IfMatch},
@@ -12,7 +16,11 @@ use serde_json::json;
 use trustify_auth::{
     CreateSbomGroup, DeleteSbomGroup, ReadSbomGroup, UpdateSbomGroup, authorizer::Require,
 };
-use trustify_common::{db::Database, endpoints::extract_revision, model::Revisioned};
+use trustify_common::{
+    db::{Database, query::Query},
+    endpoints::extract_revision,
+    model::{Paginated, Revisioned},
+};
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
@@ -24,10 +32,43 @@ pub fn configure(
     config
         .app_data(web::Data::new(db))
         .app_data(web::Data::new(service))
+        .service(list)
         .service(create)
         .service(read)
         .service(update)
         .service(delete);
+}
+
+#[utoipa::path(
+    tag = "sbomGroup",
+    operation_id = "createSbomGroup",
+    request_body = GroupRequest,
+    params(
+        ListOptions,
+        Paginated,
+    ),
+    responses(
+        (status = 200, description = "Executed the SBOM group query"),
+        (status = 400, description = "The request was not valid"),
+        (status = 401, description = "The user was not authenticated"),
+        (status = 403, description = "The user authenticated, but not authorized for this operation"),
+   )
+)]
+#[get("/v2/group/sbom")]
+/// List SBOM groups
+async fn list(
+    service: web::Data<SbomGroupService>,
+    db: web::Data<Database>,
+    web::Query(pagination): web::Query<Paginated>,
+    web::Query(options): web::Query<ListOptions>,
+    web::Query(query): web::Query<Query>,
+    _: Require<ReadSbomGroup>,
+) -> Result<impl Responder, Error> {
+    let tx = db.begin_read().await?;
+    let result = service.list(options, pagination, query, &tx).await?;
+    tx.rollback().await?;
+
+    Ok(HttpResponse::Ok().json(result))
 }
 
 #[utoipa::path(

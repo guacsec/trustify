@@ -1,16 +1,37 @@
 use crate::{
     Error,
-    sbom_group::model::{Group, GroupRequest},
+    sbom_group::model::{Group, GroupDetails, GroupRequest},
 };
+use itertools::izip;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, Set,
-    query::QueryFilter,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult,
+    PaginatorTrait, Set, Statement, query::QueryFilter,
 };
 use sea_query::{Expr, SimpleExpr};
-use std::borrow::Cow;
-use trustify_common::{db::DatabaseErrors, model::Revisioned};
+use std::{borrow::Cow, iter::repeat};
+use trustify_common::{
+    db::{
+        DatabaseErrors,
+        limiter::LimiterTrait,
+        query::{Filtering, Query},
+    },
+    model::{Paginated, PaginatedResults, Revisioned},
+};
 use trustify_entity::sbom_group;
+use utoipa::IntoParams;
 use uuid::Uuid;
+
+/// Additional list options
+#[derive(
+    IntoParams, Copy, Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct ListOptions {
+    /// return the total number of children
+    totals: bool,
+    /// return the parent chain
+    parents: bool,
+}
 
 pub struct SbomGroupService {
     max_group_name_length: usize,
@@ -21,6 +42,93 @@ impl SbomGroupService {
         Self {
             max_group_name_length,
         }
+    }
+
+    pub async fn list(
+        &self,
+        options: ListOptions,
+        paginated: Paginated,
+        query: Query,
+        db: &impl ConnectionTrait,
+    ) -> Result<PaginatedResults<GroupDetails>, Error> {
+        let ListOptions { totals, parents } = options;
+
+        let query = sbom_group::Entity::find().filtering(query)?;
+
+        let limiter = query.limiting_pagination(db, paginated);
+
+        let result = PaginatedResults::<sbom_group::Model>::new(limiter).await?;
+
+        let mut items = Vec::with_capacity(result.items.len());
+        let total = result.total;
+
+        let ids: Vec<_> = result.items.iter().map(|group| group.id).collect();
+
+        let (total_groups, total_sboms) = if totals {
+            (
+                self.resolve_total_groups(&ids, db).await?,
+                self.resolve_total_sboms(&ids, db).await?,
+            )
+        } else {
+            (Vec::with_capacity(0), Vec::with_capacity(0))
+        };
+
+        let parents = if parents {
+            self.resolve_parents(&ids, db).await?
+        } else {
+            Vec::with_capacity(0)
+        };
+
+        for (group, number_of_groups, number_of_sboms, parents) in izip!(
+            result.items,
+            total_groups.into_iter().map(Some).chain(repeat(None)),
+            total_sboms.into_iter().map(Some).chain(repeat(None)),
+            parents.into_iter().map(Some).chain(repeat(None))
+        ) {
+            items.push(GroupDetails {
+                group: group.into(),
+                parents,
+                number_of_groups,
+                number_of_sboms,
+            })
+        }
+
+        Ok(PaginatedResults { items, total })
+    }
+
+    async fn resolve_total_groups(
+        &self,
+        ids: &[Uuid],
+        db: &impl ConnectionTrait,
+    ) -> Result<Vec<u64>, Error> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        todo!()
+    }
+
+    async fn resolve_total_sboms(
+        &self,
+        ids: &[Uuid],
+        db: &impl ConnectionTrait,
+    ) -> Result<Vec<u64>, Error> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        todo!()
+    }
+
+    async fn resolve_parents(
+        &self,
+        ids: &[Uuid],
+        db: &impl ConnectionTrait,
+    ) -> Result<Vec<Vec<String>>, Error> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        todo!()
     }
 
     pub async fn create(
