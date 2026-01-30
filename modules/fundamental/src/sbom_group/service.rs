@@ -30,14 +30,7 @@ impl SbomGroupService {
     ) -> Result<Revisioned<String>, Error> {
         self.validate_group_name_or_fail(&group.name)?;
 
-        let Ok(parent) = group
-            .parent
-            .as_ref()
-            .map(|parent| Uuid::parse_str(&parent))
-            .transpose()
-        else {
-            return Err(Error::BadRequest("Parent group not found".into(), None));
-        };
+        let parent = parse_parent_group(group.parent.as_deref())?;
 
         let id = Uuid::now_v7();
         let revision = Uuid::now_v7();
@@ -97,14 +90,7 @@ impl SbomGroupService {
     ) -> Result<(), Error> {
         self.validate_group_name_or_fail(&group.name)?;
 
-        let Ok(parent) = group
-            .parent
-            .as_ref()
-            .map(|parent| Uuid::parse_str(&parent))
-            .transpose()
-        else {
-            return Err(Error::BadRequest("Parent group not found".into(), None));
-        };
+        let parent = parse_parent_group(group.parent.as_deref())?;
 
         // Validate that setting this parent won't create a cycle
         if let Some(parent_id) = &group.parent {
@@ -301,6 +287,16 @@ impl SbomGroupService {
 
         Ok(())
     }
+}
+
+/// Parse parent group string into UUID.
+///
+/// If the format is invalid, we claim it was not found, what is actually true.
+fn parse_parent_group(parent: Option<&str>) -> Result<Option<Uuid>, Error> {
+    parent
+        .map(Uuid::parse_str)
+        .transpose()
+        .map_err(|_| Error::BadRequest("Parent group not found".into(), None))
 }
 
 /// Take a query and apply filters to target the entity, with an optional revision.

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
-use trustify_entity::labels::Labels;
+use trustify_entity::{labels::Labels, sbom_group};
 use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]
@@ -18,6 +18,17 @@ pub struct Group {
     /// Additional group labels
     #[serde(default, skip_serializing_if = "Labels::is_empty")]
     pub labels: Labels,
+}
+
+impl From<sbom_group::Model> for Group {
+    fn from(value: sbom_group::Model) -> Self {
+        Self {
+            id: value.id.to_string(),
+            parent: value.parent.map(|id| id.to_string()),
+            name: value.name,
+            labels: value.labels,
+        }
+    }
 }
 
 /// Detailed group information, extends [`Group`]

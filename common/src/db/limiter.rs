@@ -1,4 +1,7 @@
-use crate::db::multi_model::{FromQueryResultMultiModel, SelectIntoMultiModel};
+use crate::{
+    db::multi_model::{FromQueryResultMultiModel, SelectIntoMultiModel},
+    model::Paginated,
+};
 use sea_orm::{
     ConnectionTrait, DbErr, EntityTrait, FromQueryResult, Paginator, PaginatorTrait, QuerySelect,
     Select, SelectModel, SelectTwo, SelectTwoModel, Selector, SelectorTrait,
@@ -34,12 +37,20 @@ where
     }
 }
 
-pub trait LimiterTrait<'db, C>
+pub trait LimiterTrait<'db, C>: Sized
 where
     C: ConnectionTrait,
 {
     type FetchSelector: SelectorTrait + 'db;
     type CountSelector: SelectorTrait + 'db;
+
+    fn limiting_pagination(
+        self,
+        db: &'db C,
+        paginated: Paginated,
+    ) -> Limiter<'db, C, Self::FetchSelector, Self::CountSelector> {
+        self.limiting(db, paginated.offset, paginated.limit)
+    }
 
     fn limiting(
         self,

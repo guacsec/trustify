@@ -69,9 +69,7 @@ impl FromCreateResponse for anyhow::Result<GroupResponse> {
 }
 
 impl FromCreateResponse for () {
-    fn from_create_response(_: Value, _: HeaderMap) -> Self {
-        ()
-    }
+    fn from_create_response(_: Value, _: HeaderMap) -> Self {}
 }
 
 struct Create {
