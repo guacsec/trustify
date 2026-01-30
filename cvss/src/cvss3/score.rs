@@ -74,3 +74,21 @@ impl FromIterator<Cvss3Base> for Score {
         }
     }
 }
+
+impl FromIterator<f64> for Score {
+    fn from_iter<I: IntoIterator<Item = f64>>(iter: I) -> Self {
+        let mut count: usize = 0;
+        let mut sum = 0.0;
+        for v in iter {
+            sum += v;
+            count += 1;
+        }
+        if count > 0 {
+            // Round to 1 decimal place (CVSS scores are displayed with 1 decimal precision)
+            let avg = sum / (count as f64);
+            Self::new((avg * 10.0).round() / 10.0)
+        } else {
+            Self::default()
+        }
+    }
+}

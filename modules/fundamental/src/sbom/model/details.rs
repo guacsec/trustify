@@ -22,11 +22,11 @@ use std::{
 };
 use tracing::instrument;
 use trustify_common::{db::VersionMatches, memo::Memo};
-use trustify_cvss::cvss3::{Cvss3Base, score::Score, severity::Severity};
+use trustify_cvss::cvss3::{score::Score, severity::Severity};
 use trustify_entity::{
-    advisory, advisory_vulnerability, base_purl, cpe, cvss3, organization, purl_status,
-    qualified_purl, sbom, sbom_node, sbom_package, sbom_package_purl_ref, status, version_range,
-    versioned_purl, vulnerability,
+    advisory, advisory_vulnerability, advisory_vulnerability_score, base_purl, cpe, organization,
+    purl_status, qualified_purl, sbom, sbom_node, sbom_package, sbom_package_purl_ref, status,
+    version_range, versioned_purl, vulnerability,
 };
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -333,18 +333,25 @@ impl SbomDetails {
                 .collect();
         log::debug!("Pre-fetched {} organizations", organizations_map.len());
 
-        // Pre-fetch cvss3 scores
-        let cvss3_scores = cvss3::Entity::find()
-            .filter(Expr::col(cvss3::Column::AdvisoryId).eq(PgFunc::any(advisory_ids)))
-            .filter(Expr::col(cvss3::Column::VulnerabilityId).eq(PgFunc::any(vulnerability_ids)))
+        // Pre-fetch scores from advisory_vulnerability_score table
+        let scores = advisory_vulnerability_score::Entity::find()
+            .filter(
+                Expr::col(advisory_vulnerability_score::Column::AdvisoryId)
+                    .eq(PgFunc::any(advisory_ids)),
+            )
+            .filter(
+                Expr::col(advisory_vulnerability_score::Column::VulnerabilityId)
+                    .eq(PgFunc::any(vulnerability_ids)),
+            )
             .all(tx)
             .await?;
-        log::debug!("Pre-fetched {} cvss3 scores", cvss3_scores.len());
+        log::debug!("Pre-fetched {} scores", scores.len());
 
-        // Build cvss3 lookup map (needs special handling for Vec aggregation)
-        let mut cvss3_map: BTreeMap<(Uuid, String), Vec<cvss3::Model>> = BTreeMap::new();
-        for score in cvss3_scores {
-            cvss3_map
+        // Build scores lookup map (needs special handling for Vec aggregation)
+        let mut scores_map: BTreeMap<(Uuid, String), Vec<advisory_vulnerability_score::Model>> =
+            BTreeMap::new();
+        for score in scores {
+            scores_map
                 .entry((score.advisory_id, score.vulnerability_id.clone()))
                 .or_default()
                 .push(score);
@@ -424,7 +431,7 @@ impl SbomDetails {
             });
         }
 
-        let advisories = SbomAdvisory::from_models(relevant_advisory_info, &cvss3_map, tx).await?;
+        let advisories = SbomAdvisory::from_models(relevant_advisory_info, &scores_map, tx).await?;
 
         Ok(Some(SbomDetails {
             summary,
@@ -444,7 +451,7 @@ impl SbomAdvisory {
     #[instrument(skip_all, err(level=tracing::Level::INFO))]
     pub async fn from_models<C: ConnectionTrait>(
         statuses: Vec<QueryCatcher>,
-        cvss3_map: &BTreeMap<(Uuid, String), Vec<cvss3::Model>>,
+        scores_map: &BTreeMap<(Uuid, String), Vec<advisory_vulnerability_score::Model>>,
         tx: &C,
     ) -> Result<Vec<Self>, Error> {
         let mut advisories = BTreeMap::new();
@@ -488,8 +495,8 @@ impl SbomAdvisory {
                     each.status.slug.clone(),
                     status_cpe,
                     vec![],
-                    // Look up pre-fetched cvss3 scores from the map
-                    cvss3_map
+                    // Look up pre-fetched scores from the map
+                    scores_map
                         .get(&(each.advisory.id, each.vulnerability.id.clone()))
                         .cloned()
                         .unwrap_or_default(),
@@ -554,7 +561,7 @@ impl SbomStatus {
             advisory_vulnerability,
             vulnerability,
             packages,
-            cvss3
+            score_models
         ),
         err(level=tracing::Level::INFO)
     )]
@@ -564,12 +571,19 @@ impl SbomStatus {
         status: String,
         cpe: Option<OwnedUri>,
         packages: Vec<SbomPackage>,
-        cvss3: Vec<cvss3::Model>,
+        score_models: Vec<advisory_vulnerability_score::Model>,
     ) -> Result<Self, Error> {
-        let average = Score::from_iter(cvss3.iter().map(Cvss3Base::from));
-        let scores = cvss3
+        let avg_score = Score::from_iter(
+            score_models
+                .iter()
+                .filter(|s| s.is_cvss3())
+                .map(|s| s.score as f64),
+        );
+
+        // Convert all scores (all versions) to Score model
+        let scores = score_models
             .into_iter()
-            .filter_map(|cvss3| crate::common::model::Score::try_from(cvss3).ok())
+            .map(crate::common::model::Score::from)
             .collect();
 
         Ok(Self {
@@ -579,9 +593,9 @@ impl SbomStatus {
             ),
             context: cpe.as_ref().map(|e| StatusContext::Cpe(e.to_string())),
             #[allow(deprecated)]
-            average_severity: average.severity(),
+            average_severity: avg_score.severity(),
             #[allow(deprecated)]
-            average_score: average.value(),
+            average_score: avg_score.value(),
             status,
             packages,
             scores,
