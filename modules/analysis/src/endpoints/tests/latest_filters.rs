@@ -1,5 +1,6 @@
 use super::req::*;
 use crate::test::{Join, caller};
+use jsonpath_rust::JsonPath;
 use rstest::*;
 use serde_json::{Value, json};
 use std::cmp;
@@ -889,7 +890,6 @@ async fn resolve_rh_variant_latest_filter_tc_2719(
 }
 
 #[test_context(TrustifyContext)]
-#[rstest]
 #[test_log::test(actix_web::test)]
 async fn test_tc3518(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
@@ -906,14 +906,36 @@ async fn test_tc3518(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .req(Req {
             latest: true,
             what: What::Id("cpe:/a:redhat:enterprise_linux:9::appstream"),
-            descendants: Some(1),
+            descendants: Some(10),
             ..Req::default()
         })
         .await?;
 
     log::debug!("{:#?}", response["items"][0]["published"]);
-    assert_eq!(response["items"][0]["published"], "2025-11-17 17:22:07+00");
-    assert_eq!(response["total"], 1);
+
+    let published: Vec<&str> = response
+        .query("$..published")
+        .expect("jsonpath query failed")
+        .into_iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+
+    assert_eq!(
+        published.as_slice(),
+        &[
+            "2025-11-17 17:22:07+00",
+            "2025-11-17 17:22:07+00",
+            "2025-11-17 17:22:07+00",
+            "2025-11-17 16:38:55+00",
+            "2025-11-17 16:38:55+00",
+            "2025-11-17 16:38:55+00",
+            "2025-11-17 16:38:55+00",
+            "2025-11-17 16:38:55+00",
+            "2025-11-17 16:38:55+00",
+            "2025-11-17 16:38:55+00",
+            "2025-11-17 16:38:55+00"
+        ]
+    );
 
     ctx.ingest_documents(
         "spdx/rh/latest/TC-2719/".join(&["mariadb-binary.json", "mariadb-product.json"][..]),
@@ -923,14 +945,34 @@ async fn test_tc3518(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .req(Req {
             latest: true,
             what: What::Id("cpe:/a:redhat:enterprise_linux:9::appstream"),
-            descendants: Some(1),
+            descendants: Some(10),
             ..Req::default()
         })
         .await?;
 
-    log::debug!("{:#?}", response["items"][0]["published"]);
-    assert_eq!(response["items"][0]["published"], "2025-12-22 17:55:59+00");
-    assert_eq!(response["total"], 1);
+    let published: Vec<&str> = response
+        .query("$..published")
+        .expect("jsonpath query failed")
+        .into_iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+
+    assert_eq!(
+        published.as_slice(),
+        &[
+            "2025-12-22 17:55:59+00",
+            "2025-12-22 17:55:59+00",
+            "2025-12-22 17:55:59+00",
+            "2025-11-17 17:21:45+00",
+            "2025-11-17 17:21:45+00",
+            "2025-11-17 17:21:45+00",
+            "2025-11-17 17:21:45+00",
+            "2025-11-17 17:21:45+00",
+            "2025-11-17 17:21:45+00",
+            "2025-11-17 17:21:45+00",
+            "2025-11-17 17:21:45+00",
+        ]
+    );
 
     Ok(())
 }
