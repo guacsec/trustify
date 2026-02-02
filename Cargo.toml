@@ -21,7 +21,7 @@ members = [
     "test-context",
     "trustd",
     "xtask",
-    "tools/trustify-cli"
+    "etc/trustify-cli"
 ]
 
 [workspace.package]
