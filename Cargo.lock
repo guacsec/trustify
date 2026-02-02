@@ -2200,15 +2200,15 @@ dependencies = [
 
 [[package]]
 name = "cvss"
-version = "2.1.1"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4f643e062e9a8e26edea270945e05011c441ca6a56e9d9d4464c6b0be1352bd"
+checksum = "f7fb220d3ce1b565af39cee5b89e47fd8dd1dab162900ee4363c8ee4169ee8a2"
 
 [[package]]
 name = "cvss-rs"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac9b885fb8472719329455432c594b9344b6df6d9665aedb7f142193489bdcfd"
+checksum = "d39f0e764a4f9a7606f85c23e423437acb5a9bc70d491bf40d3b763df642c40c"
 dependencies = [
  "serde",
  "serde_json",
