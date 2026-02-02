@@ -1,13 +1,12 @@
 use crate::{
     config::AnalysisConfig,
     service::{AnalysisService, QueryOptions},
-    test::escape_q,
 };
 use rstest::rstest;
 use std::collections::HashSet;
 use test_context::test_context;
 use trustify_common::db::query::Query;
-use trustify_test_context::TrustifyContext;
+use trustify_test_context::{TrustifyContext, q::escape_q};
 
 /// Ensure that the DB logic and the in-memory logic are aligned
 #[test_context(TrustifyContext)]

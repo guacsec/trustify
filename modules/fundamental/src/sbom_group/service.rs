@@ -4,10 +4,11 @@ use crate::{
 };
 use itertools::izip;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult,
-    PaginatorTrait, Set, Statement, query::QueryFilter,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, PaginatorTrait,
+    QuerySelect, SelectGetableTuple, Selector, Set, Statement, query::QueryFilter,
 };
-use sea_query::{Expr, SimpleExpr};
+use sea_query::{ArrayType, Expr, SimpleExpr, Value};
+use std::collections::HashMap;
 use std::{borrow::Cow, iter::repeat};
 use trustify_common::{
     db::{
@@ -17,7 +18,7 @@ use trustify_common::{
     },
     model::{Paginated, PaginatedResults, Revisioned},
 };
-use trustify_entity::sbom_group;
+use trustify_entity::{sbom_group, sbom_group_assignment};
 use utoipa::IntoParams;
 use uuid::Uuid;
 
@@ -28,8 +29,10 @@ use uuid::Uuid;
 #[serde(rename_all = "camelCase")]
 pub struct ListOptions {
     /// return the total number of children
+    #[serde(default)]
     totals: bool,
     /// return the parent chain
+    #[serde(default)]
     parents: bool,
 }
 
@@ -96,16 +99,49 @@ impl SbomGroupService {
         Ok(PaginatedResults { items, total })
     }
 
-    async fn resolve_total_groups(
+    async fn resolve_totals(
         &self,
         ids: &[Uuid],
         db: &impl ConnectionTrait,
+        query: Selector<SelectGetableTuple<(Uuid, i64)>>,
     ) -> Result<Vec<u64>, Error> {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
 
-        todo!()
+        // execute query
+        let rows = query.all(db).await?;
+
+        // build lookup: parent_id -> count
+        let mut counts: HashMap<Uuid, u64> = HashMap::with_capacity(rows.len());
+        for row in rows {
+            counts.insert(row.0, row.1.max(0) as u64);
+        }
+
+        // return counts, aligned with `ids` order
+        Ok(ids
+            .iter()
+            .map(|id| counts.get(id).copied().unwrap_or(0))
+            .collect())
+    }
+
+    async fn resolve_total_groups(
+        &self,
+        ids: &[Uuid],
+        db: &impl ConnectionTrait,
+    ) -> Result<Vec<u64>, Error> {
+        self.resolve_totals(
+            ids,
+            db,
+            sbom_group::Entity::find()
+                .select_only()
+                .column(sbom_group::Column::Parent)
+                .expr(Expr::col(sbom_group::Column::Id).count())
+                .filter(sbom_group::Column::Parent.is_in(ids.to_vec()))
+                .group_by(sbom_group::Column::Parent)
+                .into_tuple(),
+        )
+        .await
     }
 
     async fn resolve_total_sboms(
@@ -113,11 +149,18 @@ impl SbomGroupService {
         ids: &[Uuid],
         db: &impl ConnectionTrait,
     ) -> Result<Vec<u64>, Error> {
-        if ids.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        todo!()
+        self.resolve_totals(
+            ids,
+            db,
+            sbom_group_assignment::Entity::find()
+                .select_only()
+                .column(sbom_group_assignment::Column::GroupId)
+                .expr(Expr::col(sbom_group_assignment::Column::SbomId).count())
+                .filter(sbom_group_assignment::Column::GroupId.is_in(ids.to_vec()))
+                .group_by(sbom_group_assignment::Column::GroupId)
+                .into_tuple::<(Uuid, i64)>(),
+        )
+        .await
     }
 
     async fn resolve_parents(
@@ -128,7 +171,63 @@ impl SbomGroupService {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
-        todo!()
+
+        let sql = r#"
+WITH RECURSIVE parents AS (
+    -- anchor: start at requested groups
+    SELECT
+        g.id AS root_id,
+        g.parent,
+        ARRAY[]::text[] AS names,
+        ARRAY[g.id]::uuid[] AS path
+    FROM sbom_group g
+    WHERE g.id = ANY($1::uuid[])
+
+    UNION ALL
+
+    -- recursive: follow parent pointer upwards, prepend parent's name,
+    -- and extend path; stop if we'd revisit a node (cycle protection)
+    SELECT
+        p.root_id,
+        g.parent,
+        g.name || p.names AS names,
+        p.path || p.parent AS path
+    FROM parents p
+    JOIN sbom_group g ON g.id = p.parent
+    WHERE p.parent IS NOT NULL
+      AND NOT (p.parent = ANY(p.path))
+)
+SELECT root_id, names
+FROM parents
+WHERE parent IS NULL
+   OR (parent IS NOT NULL AND parent = ANY(path))  -- ended due to cycle
+"#;
+
+        let ids_param: Vec<Value> = ids
+            .iter()
+            .copied()
+            .map(|id| Value::Uuid(Some(Box::new(id))))
+            .collect();
+
+        let stmt = Statement::from_sql_and_values(
+            db.get_database_backend(),
+            sql,
+            vec![Value::Array(ArrayType::Uuid, Some(Box::new(ids_param)))],
+        );
+
+        let rows = db.query_all(stmt).await?;
+
+        let mut map = HashMap::with_capacity(ids.len());
+        for row in rows {
+            let root_id: Uuid = row.try_get("", "root_id")?;
+            let names: Vec<String> = row.try_get("", "names")?;
+            map.insert(root_id, names);
+        }
+
+        Ok(ids
+            .iter()
+            .map(|id| map.get(id).cloned().unwrap_or_default())
+            .collect())
     }
 
     pub async fn create(

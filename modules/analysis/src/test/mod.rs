@@ -116,15 +116,6 @@ where
     f(ancestors.as_slice())
 }
 
-/// escape values for putting them into a `q` parameter
-pub fn escape_q(q: impl AsRef<str>) -> String {
-    let q = q.as_ref();
-
-    q.replace('\\', "\\\\")
-        .replace('&', "\\&")
-        .replace('=', "\\=")
-}
-
 pub(crate) trait Join: Sized {
     /// Turn a base prefix and an iterator of items into an iterator of base + item.
     fn join(self, other: impl IntoIterator<Item = impl Display>) -> impl Iterator<Item = String>;

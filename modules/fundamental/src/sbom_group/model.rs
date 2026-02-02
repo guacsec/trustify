@@ -71,10 +71,10 @@ impl DerefMut for GroupDetails {
 /// Mutable properties of a [`Group`].
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]
 pub struct GroupRequest {
+    pub name: String,
+
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
-
-    pub name: String,
 
     #[serde(default, skip_serializing_if = "Labels::is_empty")]
     pub labels: Labels,

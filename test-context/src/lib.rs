@@ -6,6 +6,7 @@ pub mod call;
 pub mod ctx;
 pub mod flame;
 pub mod migration;
+pub mod q;
 pub mod spdx;
 pub mod subset;
 

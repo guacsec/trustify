@@ -2,12 +2,11 @@ use super::req::*;
 use crate::test::{
     caller,
     data::{Phase, Set, Sources},
-    escape_q,
 };
 use rstest::*;
 use std::collections::HashMap;
 use test_context::test_context;
-use trustify_test_context::{IngestionResult, TrustifyContext};
+use trustify_test_context::{IngestionResult, TrustifyContext, q::escape_q};
 
 /// Perform tests based on a dataset and a request.
 ///
