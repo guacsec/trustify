@@ -29,7 +29,7 @@ use petgraph::{
     visit::{VisitMap, Visitable},
 };
 use sea_orm::{
-    ColumnTrait, EntityOrSelect, EntityTrait, PaginatorTrait, QueryFilter, QuerySelect,
+    ColumnTrait, EntityOrSelect, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
     RelationTrait, prelude::ConnectionTrait,
 };
 use sea_query::JoinType;
@@ -103,9 +103,15 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
     node_id: &str,
     connection: &C,
 ) -> Result<Option<ResolvedSbom>, Error> {
-    // we first lookup in sbom_external_node
+    // 1. Lookup in sbom_external_node.
+    // TIE-BREAKER: Join with Sbom to pick the latest published version of this node mapping.
     let Some(sbom_external_node) = sbom_external_node::Entity::find()
+        .join(
+            JoinType::InnerJoin,
+            sbom_external_node::Relation::Sbom.def(),
+        )
         .filter(sbom_external_node::Column::NodeId.eq(node_id))
+        .order_by_desc(trustify_entity::sbom::Column::Published)
         .one(connection)
         .await?
     else {
@@ -139,18 +145,18 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
                 DiscriminatorType::Sha256 => {
                     query = query.filter(source_document::Column::Sha256.eq(&discriminator_value))
                 }
-                _ => {
-                    return Ok(None);
-                }
+                _ => return Ok(None),
             };
 
-            Ok(match query.one(connection).await? {
-                Some(entity) => Some(ResolvedSbom {
+            // TIE-BREAKER: Order by published date to ensure we get the latest SPDX doc
+            Ok(query
+                .order_by_desc(sbom::Column::Published)
+                .one(connection)
+                .await?
+                .map(|entity| ResolvedSbom {
                     sbom_id: entity.sbom_id,
                     node_id: sbom_external_node.external_node_ref,
-                }),
-                _ => None,
-            })
+                }))
         }
         ExternalType::CycloneDx => {
             // For cyclonedx, sbom_external_node discriminator_type and discriminator_value are used
@@ -170,6 +176,7 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
 
             Ok(sbom::Entity::find()
                 .filter(sbom::Column::DocumentId.eq(external_doc_id))
+                .order_by_desc(sbom::Column::Published)
                 .one(connection)
                 .await?
                 .map(|entity| ResolvedSbom {
