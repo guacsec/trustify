@@ -208,7 +208,7 @@ postgresql_commands = { version = "0.20.0", default-features = false, features =
 # required due to https://github.com/KenDJohnson/cpe-rs/pull/15
 #cpe = { git = "https://github.com/ctron/cpe-rs", rev = "c3c05e637f6eff7dd4933c2f56d070ee2ddfb44b" }
 # required due to https://github.com/voteblake/csaf-rs/pull/29
-csaf = { git = "https://github.com/trustification/csaf-rs", branch = "main" }
+csaf = { git = "https://github.com/scm-rs/csaf-rs", branch = "main" }
 # required due to https://github.com/gcmurphy/osv/pull/58
 #osv = { git = "https://github.com/ctron/osv", branch = "feature/drop_deps_1" }
 

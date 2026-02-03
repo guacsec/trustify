@@ -2090,7 +2090,7 @@ dependencies = [
 [[package]]
 name = "csaf"
 version = "0.5.0"
-source = "git+https://github.com/trustification/csaf-rs?branch=main#63ac9e19d881cbf1808de38b6849635cda19931d"
+source = "git+https://github.com/scm-rs/csaf-rs?branch=main#63ac9e19d881cbf1808de38b6849635cda19931d"
 dependencies = [
  "chrono",
  "cpe",
