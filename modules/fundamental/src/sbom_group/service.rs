@@ -4,8 +4,8 @@ use crate::{
 };
 use itertools::izip;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, PaginatorTrait,
-    QuerySelect, SelectGetableTuple, Selector, Set, Statement, query::QueryFilter,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QuerySelect,
+    SelectGetableTuple, Selector, Set, Statement, query::QueryFilter,
 };
 use sea_query::{ArrayType, Expr, SimpleExpr, Value};
 use std::collections::HashMap;

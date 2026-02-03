@@ -710,6 +710,7 @@ async fn update_parent_to_root_create_conflict(ctx: &TrustifyContext) -> Result<
 struct Item {
     id: &'static [&'static str],
     name: &'static str,
+    labels: HashMap<&'static str, &'static str>,
     total_groups: Option<u64>,
     total_sboms: Option<u64>,
     parents: Option<&'static [&'static str]>,
@@ -720,24 +721,30 @@ impl Item {
         Self {
             id,
             name: id[id.len() - 1],
+            labels: HashMap::new(),
             total_groups: None,
             total_sboms: None,
             parents: None,
         }
+    }
+
+    pub fn label(mut self, key: &'static str, value: &'static str) -> Self {
+        self.labels.insert(key, value);
+        self
     }
 }
 
 #[test_context(TrustifyContext)]
 #[rstest]
 #[case::no_filter("",[
-    Item::new(&["A"]),
+    Item::new(&["A"]).label("product", "A"),
     Item::new(&["A", "A1"]),
     Item::new(&["A", "A1", "A1a"]),
     Item::new(&["A", "A1", "A1b"]),
     Item::new(&["A", "A2"]),
     Item::new(&["A", "A2", "A2a"]),
     Item::new(&["A", "A2", "A2b"]),
-    Item::new(&["B"]),
+    Item::new(&["B"]).label("product", "B"),
     Item::new(&["B", "B1"]),
     Item::new(&["B", "B1", "B1a"]),
     Item::new(&["B", "B1", "B1b"]),
@@ -747,13 +754,13 @@ impl Item {
 
 ])]
 #[case::name_eq("name=A",  [
-    Item::new(&["A"]),
+    Item::new(&["A"]).label("product", "A"),
 ])]
 #[case::name_eq_l2("name=A1",  [
     Item::new(&["A", "A1"]),
 ])]
 #[case::name_like("name~A",  [
-    Item::new(&["A"]),
+    Item::new(&["A"]).label("product", "A"),
     Item::new(&["A", "A1"]),
     Item::new(&["A", "A1", "A1a"]),
     Item::new(&["A", "A1", "A1b"]),
@@ -783,6 +790,7 @@ fn group_fixture_3_levels() -> Vec<Group> {
     vec![
         // level 1
         Group::new("A")
+            .labels(("product", "A"))
             // level 2
             .add(
                 Group::new("A1")
@@ -797,6 +805,7 @@ fn group_fixture_3_levels() -> Vec<Group> {
                     .add("A2b"),
             ),
         Group::new("B")
+            .labels(("product", "B"))
             // level 2
             .add(
                 Group::new("B1")
@@ -824,7 +833,10 @@ pub async fn list_groups_with_root(ctx: &TrustifyContext) -> Result<(), anyhow::
         app,
         ids,
         "parent=null",
-        [Item::new(&["A"]), Item::new(&["B"])],
+        [
+            Item::new(&["A"]).label("product", "A"),
+            Item::new(&["B"]).label("product", "B"),
+        ],
     )
     .await?;
 
@@ -838,7 +850,7 @@ pub async fn list_groups_with_parent(ctx: &TrustifyContext) -> Result<(), anyhow
 
     let ids = create_groups(&app, group_fixture_3_levels()).await?;
 
-    let parent = locate_id(&ids, &["A", "A1"]);
+    let parent = locate_id(&ids, ["A", "A1"]);
     run_list_test(
         app,
         ids,
@@ -934,7 +946,7 @@ fn into_actual(
                     id,
                     parent,
                     name: item.name.to_string(),
-                    labels: Labels::default(),
+                    labels: item.labels.into(),
                 },
                 number_of_groups: item.total_groups,
                 number_of_sboms: item.total_sboms,
@@ -965,6 +977,7 @@ impl Group {
         self
     }
 
+    /// Replace labels with current
     pub fn labels(mut self, labels: impl Into<Labels>) -> Self {
         self.labels = labels.into();
         self

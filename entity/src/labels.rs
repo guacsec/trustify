@@ -160,6 +160,12 @@ impl From<HashMap<String, String>> for Labels {
     }
 }
 
+impl From<HashMap<&str, &str>> for Labels {
+    fn from(value: HashMap<&str, &str>) -> Self {
+        Labels::from_iter(value)
+    }
+}
+
 impl<K, V> From<(K, V)> for Labels
 where
     K: AsRef<str>,
