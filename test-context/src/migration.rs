@@ -186,6 +186,16 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
         }
     }
 
+    if log::log_enabled!(log::Level::Info) {
+        log::info!(
+            "Candidate: {:?}",
+            candidates
+                .iter()
+                .map(|b| format!("{:?}", b.name()))
+                .collect::<Vec<_>>()
+        );
+    }
+
     // Find a candidate whose tip shares the most recent common ancestor with HEAD.
 
     let mut best_branch: Option<String> = None;
@@ -208,6 +218,7 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
         if t > best_time {
             best_time = t;
             best_branch = candidate.name().ok().flatten().map(String::from);
+            log::info!("New best branch: {best_branch:?}");
         }
     }
 
