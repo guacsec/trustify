@@ -359,6 +359,44 @@ async fn delete_nonexistent_group(ctx: &TrustifyContext) -> Result<(), anyhow::E
     Ok(())
 }
 
+/// Test deleting an SBOM group that has child groups.
+///
+/// Attempts to delete a parent group when it has children.
+/// This should return 409 Conflict because the group cannot be deleted
+/// while it still has child groups.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn delete_group_with_children(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    // Create a parent group
+    let parent: GroupResponse = Create::new("Parent Group").execute(&app).await?;
+
+    // Create a child group under the parent
+    let _child: GroupResponse = Create::new("Child Group")
+        .parent(Some(&parent.id))
+        .execute(&app)
+        .await?;
+
+    // Try to delete the parent group
+    let delete_response = app
+        .call_service(
+            TestRequest::delete()
+                .uri(&format!("/api/v2/group/sbom/{}", parent.id))
+                .insert_header((http::header::IF_MATCH, "*"))
+                .to_request(),
+        )
+        .await;
+
+    // Should return 409 Conflict because the group has children
+    assert_eq!(delete_response.status(), StatusCode::CONFLICT);
+
+    // Verify the parent group still exists
+    get_group_helper(&app, &parent.id).await?;
+
+    Ok(())
+}
+
 /// Test updating an SBOM group with various scenarios.
 #[test_context(TrustifyContext)]
 #[rstest]

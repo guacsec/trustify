@@ -135,6 +135,7 @@ async fn create(
         (status = 400, description = "The request was not valid"),
         (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "The user authenticated, but not authorized for this operation"),
+        (status = 409, description = "The group has child groups and cannot be deleted"),
         (status = 412, description = "The requested revision is not the current revision of the group"),
     )
 )]

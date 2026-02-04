@@ -270,6 +270,20 @@ WHERE parent IS NULL
         expected_revision: Option<&str>,
         db: &impl ConnectionTrait,
     ) -> Result<bool, Error> {
+        // Check if the group has any children (just need to know if at least one exists)
+        let has_children = sbom_group::Entity::find()
+            .filter(sbom_group::Column::Parent.into_expr().cast_as("text").eq(id))
+            .limit(1)
+            .one(db)
+            .await?
+            .is_some();
+
+        if has_children {
+            return Err(Error::Conflict(
+                "Cannot delete a group that has child groups".into(),
+            ));
+        }
+
         let delete = query_by_revision(id, expected_revision, sbom_group::Entity::delete_many());
         let result = delete.exec(db).await?;
 
