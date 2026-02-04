@@ -393,10 +393,6 @@ Extend existing endpoint to assign the newly uploaded SBOM to a list of groups (
 * We provide access to the described APIs
 * There should be no performance degradation of existing APIs
 
-## Open questions
-
-* Do we automatically delete groups recursively
-
 ## Future tasks
 
 * Build a UI on top of the API
