@@ -12,6 +12,7 @@ use actix_web::{
     post, put, web,
 };
 use sea_orm::TransactionTrait;
+use serde::Serialize;
 use serde_json::json;
 use trustify_auth::{
     CreateSbomGroup, DeleteSbomGroup, ReadSbomGroup, UpdateSbomGroup, authorizer::Require,
@@ -19,8 +20,9 @@ use trustify_auth::{
 use trustify_common::{
     db::{Database, query::Query},
     endpoints::extract_revision,
-    model::{Paginated, Revisioned},
+    model::{Paginated, PaginatedResults, Revisioned},
 };
+use utoipa::ToSchema;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
@@ -48,7 +50,10 @@ pub fn configure(
         Query,
     ),
     responses(
-        (status = 200, description = "Executed the SBOM group query"),
+        (
+            status = 200, description = "Executed the SBOM group query",
+            body = PaginatedResults<GroupDetails>,
+        ),
         (status = 400, description = "The request was not valid"),
         (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "The user authenticated, but not authorized for this operation"),
@@ -71,12 +76,24 @@ async fn list(
     Ok(HttpResponse::Ok().json(result))
 }
 
+#[derive(Serialize, ToSchema)]
+struct CreateResponse {
+    /// The ID of the newly created group
+    id: String,
+}
+
 #[utoipa::path(
     tag = "sbomGroup",
     operation_id = "createSbomGroup",
     request_body = GroupRequest,
     responses(
-        (status = 201, description = "Created the requested group"),
+        (
+            status = 201, description = "Created the requested group",
+            body = CreateResponse,
+            headers(
+                ("location" = String, description = "The relative URL to the created resource")
+            )
+        ),
         (status = 400, description = "The request was not valid"),
         (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "The user authenticated, but not authorized for this operation"),
@@ -110,8 +127,8 @@ async fn create(
     operation_id = "deleteSbomGroup",
     request_body = GroupRequest,
     params(
-        ("id", Query, description = "The ID of the group to delete"),
-        ("IfMatch", Header, description = "The revision of the group to delete"),
+        ("id", Path, description = "The ID of the group to delete"),
+        ("if-match" = Option<String>, Header, description = "The revision to delete"),
     ),
     responses(
         (status = 204, description = "The group was deleted or did not exist"),
@@ -144,8 +161,8 @@ async fn delete(
     operation_id = "updateSbomGroup",
     request_body = GroupRequest,
     params(
-        ("id", Query, description = "The ID of the group to update"),
-        ("IfMatch", Header, description = "The revision of the group to update"),
+        ("id", Path, description = "The ID of the group to update"),
+        ("if-match" = Option<String>, Header, description = "The revision to update"),
     ),
     responses(
         (status = 204, description = "The group was delete or did not exist"),
@@ -180,10 +197,16 @@ async fn update(
     tag = "sbomGroup",
     operation_id = "readSbomGroup",
     params(
-        ("id", Query, description = "The ID of the group to read"),
+        ("id", Path, description = "The ID of the group to read"),
     ),
     responses(
-        (status = 200, description = "The group was found and returned"),
+        (
+            status = 200, description = "The group was found and returned",
+            body = Revisioned<Group>,
+            headers(
+                ("etag" = String, description = "Revision ID")
+            )
+        ),
         (status = 400, description = "The request was not valid"),
         (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "The user authenticated, but not authorized for this operation"),

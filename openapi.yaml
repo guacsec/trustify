@@ -957,6 +957,10 @@ paths:
       responses:
         '200':
           description: Executed the SBOM group query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResults_GroupDetails'
         '400':
           description: The request was not valid
         '401':
@@ -977,6 +981,15 @@ paths:
       responses:
         '201':
           description: Created the requested group
+          headers:
+            location:
+              schema:
+                type: string
+              description: The relative URL to the created resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateResponse'
         '400':
           description: The request was not valid
         '401':
@@ -993,17 +1006,23 @@ paths:
       operationId: readSbomGroup
       parameters:
       - name: id
-        in: query
-        description: The ID of the group to read
-        required: true
-      - name: id
         in: path
+        description: The ID of the group to read
         required: true
         schema:
           type: string
       responses:
         '200':
           description: The group was found and returned
+          headers:
+            etag:
+              schema:
+                type: string
+              description: Revision ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Revisioned_Group'
         '400':
           description: The request was not valid
         '401':
@@ -1017,18 +1036,19 @@ paths:
       operationId: updateSbomGroup
       parameters:
       - name: id
-        in: query
-        description: The ID of the group to update
-        required: true
-      - name: IfMatch
-        in: header
-        description: The revision of the group to update
-        required: true
-      - name: id
         in: path
+        description: The ID of the group to update
         required: true
         schema:
           type: string
+      - name: if-match
+        in: header
+        description: The revision to update
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
       requestBody:
         content:
           application/json:
@@ -1055,18 +1075,19 @@ paths:
       operationId: deleteSbomGroup
       parameters:
       - name: id
-        in: query
-        description: The ID of the group to delete
-        required: true
-      - name: IfMatch
-        in: header
-        description: The revision of the group to delete
-        required: true
-      - name: id
         in: path
+        description: The ID of the group to delete
         required: true
         schema:
           type: string
+      - name: if-match
+        in: header
+        description: The revision to delete
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
       requestBody:
         content:
           application/json:
@@ -3883,6 +3904,14 @@ components:
     Cpe:
       type: string
       format: uri
+    CreateResponse:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          type: string
+          description: The ID of the newly created group
     CsafImporter:
       allOf:
       - $ref: '#/components/schemas/CommonImporter'
@@ -4009,6 +4038,62 @@ components:
       - advisory
       - sbom
       - unknown
+    Group:
+      type: object
+      required:
+      - id
+      - name
+      properties:
+        id:
+          type: string
+          description: The ID of the group
+        labels:
+          $ref: '#/components/schemas/Labels'
+          description: Additional group labels
+        name:
+          type: string
+          description: The name of the group, in the context of its parent
+        parent:
+          type:
+          - string
+          - 'null'
+          description: The parent of this group
+    GroupDetails:
+      allOf:
+      - $ref: '#/components/schemas/Group'
+      - type: object
+        properties:
+          number_of_groups:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            description: |-
+              The number of groups owned directly by this group
+
+              This information is only present when requested.
+            minimum: 0
+          number_of_sboms:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            description: |-
+              The number of SBOMs directly assigned to this group
+
+              This information is only present when requested.
+            minimum: 0
+          parents:
+            type:
+            - array
+            - 'null'
+            items:
+              type: string
+            description: |-
+              The path, of IDs, from the root to this group
+
+              This information is only present when requested.
+      description: Detailed group information, extends [`Group`]
     GroupRequest:
       type: object
       description: Mutable properties of a [`Group`].
@@ -4405,6 +4490,54 @@ components:
           items:
             allOf:
             - $ref: '#/components/schemas/BasePurlHead'
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+    PaginatedResults_GroupDetails:
+      type: object
+      required:
+      - items
+      - total
+      properties:
+        items:
+          type: array
+          items:
+            allOf:
+            - $ref: '#/components/schemas/Group'
+            - type: object
+              properties:
+                number_of_groups:
+                  type:
+                  - integer
+                  - 'null'
+                  format: int64
+                  description: |-
+                    The number of groups owned directly by this group
+
+                    This information is only present when requested.
+                  minimum: 0
+                number_of_sboms:
+                  type:
+                  - integer
+                  - 'null'
+                  format: int64
+                  description: |-
+                    The number of SBOMs directly assigned to this group
+
+                    This information is only present when requested.
+                  minimum: 0
+                parents:
+                  type:
+                  - array
+                  - 'null'
+                  items:
+                    type: string
+                  description: |-
+                    The path, of IDs, from the root to this group
+
+                    This information is only present when requested.
+            description: Detailed group information, extends [`Group`]
         total:
           type: integer
           format: int64
@@ -5123,6 +5256,43 @@ components:
           type: string
           format: date-time
           description: Start of the import run
+    Revisioned_Group:
+      type: object
+      description: |-
+        A struct wrapping an item with a revision.
+
+        If the revision should not be part of the payload, but e.g. an HTTP header (like `ETag`), this
+        struct can help carrying both pieces.
+      required:
+      - value
+      - revision
+      properties:
+        revision:
+          type: string
+          description: |-
+            The revision.
+
+            An opaque string that should have no meaning to the user, only to the backend.
+        value:
+          type: object
+          required:
+          - id
+          - name
+          properties:
+            id:
+              type: string
+              description: The ID of the group
+            labels:
+              $ref: '#/components/schemas/Labels'
+              description: Additional group labels
+            name:
+              type: string
+              description: The name of the group, in the context of its parent
+            parent:
+              type:
+              - string
+              - 'null'
+              description: The parent of this group
     Revisioned_Importer:
       type: object
       description: |-
