@@ -30,6 +30,8 @@ pub trait DatabaseErrors {
     fn is_duplicate(&self) -> bool;
     /// return `true` if the error means the connection is read-only
     fn is_read_only(&self) -> bool;
+    /// return `true` if the error is a foreign key constraint violation
+    fn is_foreign_key_violation(&self) -> bool;
 }
 
 impl DatabaseErrors for DbErr {
@@ -48,6 +50,16 @@ impl DatabaseErrors for DbErr {
             DbErr::Query(RuntimeErr::SqlxError(sqlx::error::Error::Database(err)))
             | DbErr::Exec(RuntimeErr::SqlxError(sqlx::error::Error::Database(err))) => {
                 err.code().as_deref() == Some("25006")
+            }
+            _ => false,
+        }
+    }
+
+    fn is_foreign_key_violation(&self) -> bool {
+        match self {
+            DbErr::Query(RuntimeErr::SqlxError(sqlx::error::Error::Database(err)))
+            | DbErr::Exec(RuntimeErr::SqlxError(sqlx::error::Error::Database(err))) => {
+                err.is_foreign_key_violation()
             }
             _ => false,
         }

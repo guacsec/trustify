@@ -18,7 +18,7 @@ use trustify_common::{
     },
     model::{Paginated, PaginatedResults, Revisioned},
 };
-use trustify_entity::{sbom_group, sbom_group_assignment};
+use trustify_entity::{sbom, sbom_group, sbom_group_assignment};
 use utoipa::IntoParams;
 use uuid::Uuid;
 
@@ -504,6 +504,99 @@ WHERE parent IS NULL
                 .collect::<Vec<_>>()
                 .join("\n");
             return Err(Error::bad_request("Invalid group name", Some(details)));
+        }
+
+        Ok(())
+    }
+
+    /// Read SBOM group assignments for a given SBOM
+    pub async fn read_assignments(
+        &self,
+        sbom_id: &str,
+        db: &impl ConnectionTrait,
+    ) -> Result<Option<Revisioned<Vec<String>>>, Error> {
+        let sbom_uuid = Uuid::parse_str(sbom_id)
+            .map_err(|_| Error::NotFound(sbom_id.to_string()))?;
+
+        let sbom = sbom::Entity::find()
+            .filter(sbom::Column::SbomId.eq(sbom_uuid))
+            .one(db)
+            .await?;
+
+        let Some(sbom_model) = sbom else {
+            return Ok(None);
+        };
+
+        let assignments = sbom_group_assignment::Entity::find()
+            .filter(sbom_group_assignment::Column::SbomId.eq(sbom_uuid))
+            .all(db)
+            .await?;
+
+        let group_ids = assignments
+            .into_iter()
+            .map(|a| a.group_id.to_string())
+            .collect();
+
+        Ok(Some(Revisioned {
+            value: group_ids,
+            revision: sbom_model.source_document_id.to_string(),
+        }))
+    }
+
+    /// Update SBOM group assignments for a given SBOM
+    pub async fn update_assignments(
+        &self,
+        sbom_id: &str,
+        revision: Option<&str>,
+        group_ids: Vec<String>,
+        db: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
+        let sbom_uuid = Uuid::parse_str(sbom_id)
+            .map_err(|_| Error::NotFound(sbom_id.to_string()))?;
+
+        let sbom = sbom::Entity::find()
+            .filter(sbom::Column::SbomId.eq(sbom_uuid))
+            .one(db)
+            .await?
+            .ok_or_else(|| Error::NotFound(sbom_id.to_string()))?;
+
+        if let Some(expected_revision) = revision {
+            if sbom.source_document_id.to_string() != expected_revision {
+                return Err(Error::RevisionNotFound);
+            }
+        }
+
+        let group_uuids: Result<Vec<_>, _> = group_ids
+            .iter()
+            .map(|id| Uuid::parse_str(id))
+            .collect();
+        let group_uuids = group_uuids
+            .map_err(|_| Error::BadRequest("One or more group IDs are invalid".into(), None))?;
+
+        sbom_group_assignment::Entity::delete_many()
+            .filter(sbom_group_assignment::Column::SbomId.eq(sbom_uuid))
+            .exec(db)
+            .await?;
+
+        if !group_uuids.is_empty() {
+            let assignments: Vec<_> = group_uuids
+                .into_iter()
+                .map(|group_uuid| sbom_group_assignment::ActiveModel {
+                    sbom_id: Set(sbom_uuid),
+                    group_id: Set(group_uuid),
+                })
+                .collect();
+
+            sbom_group_assignment::Entity::insert_many(assignments)
+                .exec(db)
+                .await
+                .map_err(|err| {
+                    if err.is_foreign_key_violation() {
+                        Error::BadRequest("One or more group IDs do not exist".into(), None)
+                    } else {
+                        err.into()
+                    }
+                })?;
         }
 
         Ok(())

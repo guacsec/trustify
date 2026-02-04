@@ -15,7 +15,8 @@ use sea_orm::TransactionTrait;
 use serde::Serialize;
 use serde_json::json;
 use trustify_auth::{
-    CreateSbomGroup, DeleteSbomGroup, ReadSbomGroup, UpdateSbomGroup, authorizer::Require,
+    CreateSbomGroup, DeleteSbomGroup, ReadSbom, ReadSbomGroup, UpdateSbom, UpdateSbomGroup,
+    authorizer::Require,
 };
 use trustify_common::{
     db::{Database, query::Query},
@@ -38,7 +39,9 @@ pub fn configure(
         .service(create)
         .service(read)
         .service(update)
-        .service(delete);
+        .service(delete)
+        .service(read_assignments)
+        .service(update_assignments);
 }
 
 #[utoipa::path(
@@ -231,4 +234,73 @@ async fn read(
             .json(value),
         None => HttpResponse::NotFound().finish(),
     })
+}
+
+#[utoipa::path(
+    tag = "sbomGroup",
+    operation_id = "readSbomGroupAssignments",
+    params(
+        ("id", Query, description = "The ID of the SBOM"),
+    ),
+    responses(
+        (status = 200, description = "The SBOM was found and assignments returned"),
+        (status = 400, description = "The request was not valid"),
+        (status = 401, description = "The user was not authenticated"),
+        (status = 403, description = "The user authenticated, but not authorized for this operation"),
+        (status = 404, description = "The SBOM was not found"),
+    )
+)]
+#[get("/v2/group/sbom-assignment/{id}")]
+/// Get SBOM group assignments
+async fn read_assignments(
+    service: web::Data<SbomGroupService>,
+    db: web::Data<Database>,
+    id: web::Path<String>,
+    _: Require<ReadSbom>,
+) -> Result<impl Responder, Error> {
+    let tx = db.begin_read().await?;
+    let assignments = service.read_assignments(&id, &tx).await?;
+    tx.rollback().await?;
+
+    Ok(match assignments {
+        Some(Revisioned { value, revision }) => HttpResponse::Ok()
+            .append_header((header::ETAG, ETag(EntityTag::new_strong(revision))))
+            .json(value),
+        None => HttpResponse::NotFound().finish(),
+    })
+}
+
+#[utoipa::path(
+    tag = "sbomGroup",
+    operation_id = "updateSbomGroupAssignments",
+    request_body = Vec<String>,
+    params(
+        ("id", Query, description = "The ID of the SBOM to update"),
+        ("IfMatch", Header, description = "The revision of the SBOM assignments"),
+    ),
+    responses(
+        (status = 204, description = "The SBOM assignments were updated"),
+        (status = 400, description = "The request was not valid"),
+        (status = 401, description = "The user was not authenticated"),
+        (status = 403, description = "The user authenticated, but not authorized for this operation"),
+        (status = 412, description = "The requested revision is not the current revision"),
+    )
+)]
+#[put("/v2/group/sbom-assignment/{id}")]
+/// Update SBOM group assignments
+async fn update_assignments(
+    service: web::Data<SbomGroupService>,
+    db: web::Data<Database>,
+    id: web::Path<String>,
+    web::Json(group_ids): web::Json<Vec<String>>,
+    web::Header(if_match): web::Header<IfMatch>,
+    _: Require<UpdateSbom>,
+) -> Result<impl Responder, Error> {
+    let revision = extract_revision(&if_match);
+
+    let tx = db.begin().await?;
+    service.update_assignments(&id, revision, group_ids, &tx).await?;
+    tx.commit().await?;
+
+    Ok(HttpResponse::NoContent().finish())
 }
