@@ -1176,6 +1176,8 @@ impl UpdateAssignments {
     }
 
     pub async fn execute(self, app: &impl CallService) -> anyhow::Result<()> {
+        let initial_etag = self.etag.clone();
+
         let request = TestRequest::put()
             .uri(&format!("/api/v2/group/sbom-assignment/{}", &self.sbom_id))
             .set_json(&self.group_ids);
@@ -1184,6 +1186,21 @@ impl UpdateAssignments {
 
         let response = app.call_service(request.to_request()).await;
         assert_eq!(response.status(), self.expected_status);
+
+        // Verify etag behavior based on success/failure
+        let assignments_after = read_assignments(app, &self.sbom_id).await?;
+
+        if self.expected_status.is_success() {
+            assert_ne!(
+                initial_etag, assignments_after.etag,
+                "etag should have changed after successful update"
+            );
+        } else {
+            assert_eq!(
+                initial_etag, assignments_after.etag,
+                "etag should not have changed after failed update"
+            );
+        }
 
         Ok(())
     }
