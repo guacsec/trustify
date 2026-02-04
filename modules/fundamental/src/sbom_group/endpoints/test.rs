@@ -850,7 +850,7 @@ pub async fn list_groups_with_parent(
 
     let parent = match parent.is_empty() {
         true => "null".to_string(),
-        false => locate_id(&ids, ["A", "A1"]),
+        false => locate_id(&ids, parent),
     };
 
     run_list_test(app, ids, &format!("parent={parent}"), expected).await?;
