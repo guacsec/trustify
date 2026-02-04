@@ -872,6 +872,19 @@ pub async fn list_groups_with_invalid_parent(ctx: &TrustifyContext) -> Result<()
     Ok(())
 }
 
+/// Test using a missing parent ID
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+pub async fn list_groups_with_missing_parent(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    let ids = create_groups(&app, group_fixture_3_levels()).await?;
+
+    run_list_test(app, ids, "parent=cc43ae38-d32d-49b8-9863-5e7f4409a133", []).await?;
+
+    Ok(())
+}
+
 /// Run a "list SBOM groups" test
 ///
 /// This takes in an ID-map from the [`create_groups`] function and expected items, which should
