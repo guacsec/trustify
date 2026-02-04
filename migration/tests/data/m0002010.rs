@@ -6,7 +6,7 @@ use test_context::test_context;
 use test_log::test;
 use trustify_test_context::{TrustifyMigrationContext, commit, ctx::DumpId};
 
-commit!(Commit("8c6ad23172e66a6c923dcc8f702e6125a8d48723"));
+commit!(Commit("6d3ea814b4b44fe16ea8f21724dda5abb0fc7932"));
 
 #[test_context(TrustifyMigrationContext<Commit>)]
 #[test(tokio::test)]
