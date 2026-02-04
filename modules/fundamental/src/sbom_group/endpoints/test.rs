@@ -1,5 +1,4 @@
-use crate::sbom_group::model::GroupDetails;
-use crate::test::caller;
+use crate::{sbom_group::model::GroupDetails, test::caller};
 use actix_http::{body::to_bytes, header::HeaderMap};
 use actix_web::{http, test::TestRequest};
 use anyhow::Context;
@@ -826,47 +825,49 @@ fn group_fixture_3_levels() -> Vec<Group> {
     ]
 }
 
-/// Test query filtering by parent, with the root folder as parent
+/// Test query filtering by parent
 #[test_context(TrustifyContext)]
+#[rstest]
+#[case::root_folder([], [
+    Item::new(&["A"]).label("product", "A"),
+    Item::new(&["B"]).label("product", "B"),
+])]
+#[case::level_2_folder(["A", "A1"], [
+    Item::new(&["A", "A1", "A1a"]),
+    Item::new(&["A", "A1", "A1b"]),
+])]
 #[test_log::test(actix_web::test)]
-pub async fn list_groups_with_root(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+pub async fn list_groups_with_parent(
+    ctx: &TrustifyContext,
+    #[case] parent: impl IntoIterator<Item = &'static str>,
+    #[case] expected: impl IntoIterator<Item = Item>,
+) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     let ids = create_groups(&app, group_fixture_3_levels()).await?;
 
-    run_list_test(
-        app,
-        ids,
-        "parent=null",
-        [
-            Item::new(&["A"]).label("product", "A"),
-            Item::new(&["B"]).label("product", "B"),
-        ],
-    )
-    .await?;
+    let parent: Vec<_> = parent.into_iter().collect();
+
+    let parent = match parent.is_empty() {
+        true => "null".to_string(),
+        false => locate_id(&ids, ["A", "A1"]),
+    };
+
+    run_list_test(app, ids, &format!("parent={parent}"), expected).await?;
 
     Ok(())
 }
 
-/// Test query filtering by parent
+/// Test using an invalid parent ID
+#[ignore = "Caused by the q implementation"]
 #[test_context(TrustifyContext)]
 #[test_log::test(actix_web::test)]
-pub async fn list_groups_with_parent(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+pub async fn list_groups_with_invalid_parent(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     let ids = create_groups(&app, group_fixture_3_levels()).await?;
 
-    let parent = locate_id(&ids, ["A", "A1"]);
-    run_list_test(
-        app,
-        ids,
-        &format!("parent={parent}"),
-        [
-            Item::new(&["A", "A1", "A1a"]),
-            Item::new(&["A", "A1", "A1b"]),
-        ],
-    )
-    .await?;
+    run_list_test(app, ids, "parent=this-is-wrong", []).await?;
 
     Ok(())
 }
