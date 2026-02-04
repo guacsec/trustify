@@ -135,7 +135,7 @@ impl Related<super::product_version::Entity> for Entity {
     }
 }
 
-impl Related<super::sbom_group::Entity> for crate::sbom_group::Entity {
+impl Related<super::sbom_group::Entity> for Entity {
     fn to() -> RelationDef {
         super::sbom_group_assignment::Relation::Group.def()
     }
