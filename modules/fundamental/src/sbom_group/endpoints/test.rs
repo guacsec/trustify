@@ -734,9 +734,11 @@ impl Item {
     }
 }
 
+/// tests for searching (q style) for folders
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::no_filter("",[
+// with an empty (get all) query filter
+#[case::no_filter("", [
     Item::new(&["A"]).label("product", "A"),
     Item::new(&["A", "A1"]),
     Item::new(&["A", "A1", "A1a"]),
@@ -751,15 +753,17 @@ impl Item {
     Item::new(&["B", "B2"]),
     Item::new(&["B", "B2", "B2a"]),
     Item::new(&["B", "B2", "B2b"]),
-
 ])]
-#[case::name_eq("name=A",  [
+// search for name equals "A", root level folder
+#[case::name_eq("name=A", [
     Item::new(&["A"]).label("product", "A"),
 ])]
-#[case::name_eq_l2("name=A1",  [
+// search for name equals "A1", level 2 folder
+#[case::name_eq_l2("name=A1", [
     Item::new(&["A", "A1"]),
 ])]
-#[case::name_like("name~A",  [
+// search for name contains "A"
+#[case::name_like("name~A", [
     Item::new(&["A"]).label("product", "A"),
     Item::new(&["A", "A1"]),
     Item::new(&["A", "A1", "A1a"]),
@@ -822,6 +826,7 @@ fn group_fixture_3_levels() -> Vec<Group> {
     ]
 }
 
+/// Test query filtering by parent, with the root folder as parent
 #[test_context(TrustifyContext)]
 #[test_log::test(actix_web::test)]
 pub async fn list_groups_with_root(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -843,6 +848,7 @@ pub async fn list_groups_with_root(ctx: &TrustifyContext) -> Result<(), anyhow::
     Ok(())
 }
 
+/// Test query filtering by parent
 #[test_context(TrustifyContext)]
 #[test_log::test(actix_web::test)]
 pub async fn list_groups_with_parent(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -865,6 +871,12 @@ pub async fn list_groups_with_parent(ctx: &TrustifyContext) -> Result<(), anyhow
     Ok(())
 }
 
+/// Run a "list SBOM groups" test
+///
+/// This takes in an ID-map from the [`create_groups`] function and expected items, which should
+/// be the result of the query.
+///
+/// *Note:* This function might already panic when assertions fail.
 async fn run_list_test(
     app: impl CallService,
     ids: HashMap<Vec<String>, String>,
@@ -901,6 +913,8 @@ async fn run_list_test(
 }
 
 /// Locate an ID from the ID set
+///
+/// *Note:* This function will panic when IDs cannot be found.
 fn locate_id(
     ids: &HashMap<Vec<String>, String>,
     id: impl IntoIterator<Item = impl ToString>,
