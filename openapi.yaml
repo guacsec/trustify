@@ -839,6 +839,251 @@ paths:
           description: Uploaded the dataset
         '400':
           description: The file could not be parsed as an dataset
+  /api/v2/group/sbom:
+    get:
+      tags:
+      - sbomGroup
+      summary: List SBOM groups
+      operationId: listSbomGroups
+      parameters:
+      - name: totals
+        in: query
+        description: return the total number of children
+        required: false
+        schema:
+          type: boolean
+      - name: parents
+        in: query
+        description: return the parent chain
+        required: false
+        schema:
+          type: boolean
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: no limit
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: q
+        in: query
+        description: |
+          EBNF grammar for the _q_ parameter:
+          ```text
+              q = ( values | filter ) { '&' q }
+              values = value { '|', values }
+              filter = field, operator, values
+              operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<"
+              value = (* any text but escape special characters with '\' *)
+              field = (* must match an entity attribute name *)
+          ```
+          Any values in a _q_ will result in a case-insensitive "full
+          text search", effectively producing an OR clause of LIKE
+          clauses for every string-ish field in the resource being
+          queried.
+
+          Examples:
+          - `foo` - any field containing 'foo'
+          - `foo|bar` - any field containing either 'foo' OR 'bar'
+          - `foo&bar` - some field contains 'foo' AND some field contains 'bar'
+
+          A _filter_ may also be used to constrain the results. The
+          filter's field name must correspond to one of the resource's
+          attributes. If it doesn't, an error will be returned
+          containing a list of the valid fields for that resource.
+
+          The value 'null' is treated specially for [Not]Equal filters:
+          it returns resources on which the field isn't set. Use the
+          LIKE operator, `~`, to match a literal "null" string. Omit the
+          value to match an empty string.
+
+          Examples:
+          - `name=foo` - entity's _name_ matches 'foo' exactly
+          - `name~foo` - entity's _name_ contains 'foo', case-insensitive
+          - `name~foo|bar` - entity's _name_ contains either 'foo' OR 'bar', case-insensitive
+          - `name=` - entity's _name_ is the empty string, ''
+          - `name=null` - entity's _name_ isn't set
+          - `published>3 days ago` - date values can be "human time"
+
+          Multiple full text searches and/or filters should be
+          '&'-delimited -- they are logically AND'd together.
+
+          - `red hat|fedora&labels:type=cve|osv&published>last wednesday 17:00`
+
+          Fields corresponding to JSON objects in the database may use a
+          ':' to delimit the column name and the object key,
+          e.g. `purl:qualifiers:type=pom`
+
+          Any operator or special character, e.g. '|', '&', within a
+          value should be escaped by prefixing it with a backslash.
+        required: false
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: |
+          EBNF grammar for the _sort_ parameter:
+          ```text
+              sort = field [ ':', order ] { ',' sort }
+              order = ( "asc" | "desc" )
+              field = (* must match the name of entity's attributes *)
+          ```
+          The optional _order_ should be one of "asc" or "desc". If
+          omitted, the order defaults to "asc".
+
+          Each _field_ name must correspond to one of the columns of the
+          table holding the entities being queried. Those corresponding
+          to JSON objects in the database may use a ':' to delimit the
+          column name and the object key,
+          e.g. `purl:qualifiers:type:desc`
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Executed the SBOM group query
+        '400':
+          description: The request was not valid
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+    post:
+      tags:
+      - sbomGroup
+      summary: Create a new SBOM group
+      operationId: createSbomGroup
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupRequest'
+        required: true
+      responses:
+        '201':
+          description: Created the requested group
+        '400':
+          description: The request was not valid
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '409':
+          description: The name of the group is not unique within the parent
+  /api/v2/group/sbom/{id}:
+    get:
+      tags:
+      - sbomGroup
+      summary: Read the SBOM group information
+      operationId: readSbomGroup
+      parameters:
+      - name: id
+        in: query
+        description: The ID of the group to read
+        required: true
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The group was found and returned
+        '400':
+          description: The request was not valid
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+    put:
+      tags:
+      - sbomGroup
+      summary: Update an SBOM group
+      operationId: updateSbomGroup
+      parameters:
+      - name: id
+        in: query
+        description: The ID of the group to update
+        required: true
+      - name: IfMatch
+        in: header
+        description: The revision of the group to update
+        required: true
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupRequest'
+        required: true
+      responses:
+        '204':
+          description: The group was delete or did not exist
+        '400':
+          description: The request was not valid
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '409':
+          description: Assigning the parent would create a cycle
+        '412':
+          description: The requested revision is not the current revision of the group
+    delete:
+      tags:
+      - sbomGroup
+      summary: Delete an SBOM group
+      operationId: deleteSbomGroup
+      parameters:
+      - name: id
+        in: query
+        description: The ID of the group to delete
+        required: true
+      - name: IfMatch
+        in: header
+        description: The revision of the group to delete
+        required: true
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupRequest'
+        required: true
+      responses:
+        '204':
+          description: The group was deleted or did not exist
+        '400':
+          description: The request was not valid
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '412':
+          description: The requested revision is not the current revision of the group
   /api/v2/importer:
     get:
       tags:
@@ -3764,6 +4009,20 @@ components:
       - advisory
       - sbom
       - unknown
+    GroupRequest:
+      type: object
+      description: Mutable properties of a [`Group`].
+      required:
+      - name
+      properties:
+        labels:
+          $ref: '#/components/schemas/Labels'
+        name:
+          type: string
+        parent:
+          type:
+          - string
+          - 'null'
     Id:
       type: string
       description: |-
