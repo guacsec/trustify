@@ -41,11 +41,11 @@ pub fn configure(
 
 #[utoipa::path(
     tag = "sbomGroup",
-    operation_id = "createSbomGroup",
-    request_body = GroupRequest,
+    operation_id = "listSbomGroups",
     params(
         ListOptions,
         Paginated,
+        Query,
     ),
     responses(
         (status = 200, description = "Executed the SBOM group query"),
