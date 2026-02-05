@@ -3,7 +3,6 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
     num::NonZeroU64,
 };
-use trustify_entity::{advisory, sbom};
 
 /// Information required for partitioning data
 #[derive(Debug, Copy, Clone)]
@@ -21,18 +20,10 @@ pub trait Partitionable {
     fn hashed_id(&self) -> u64;
 }
 
-impl Partitionable for sbom::Model {
+impl<H: Hash> Partitionable for H {
     fn hashed_id(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
-        self.sbom_id.hash(&mut hasher);
-        hasher.finish()
-    }
-}
-
-impl Partitionable for advisory::Model {
-    fn hashed_id(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        self.id.hash(&mut hasher);
+        self.hash(&mut hasher);
         hasher.finish()
     }
 }
@@ -54,11 +45,11 @@ impl Partition {
         }
     }
 
-    pub fn is_selected<D>(&self, document: &D::Model) -> bool
+    pub fn is_selected<D>(&self, id: &D::Id) -> bool
     where
         D: Document,
-        D::Model: Partitionable,
+        D::Id: Partitionable,
     {
-        document.hashed_id() % self.total == self.current
+        id.hashed_id() % self.total == self.current
     }
 }

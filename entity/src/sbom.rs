@@ -19,6 +19,8 @@ pub struct Model {
 
     pub source_document_id: Uuid,
 
+    pub revision: Uuid,
+
     pub labels: Labels,
 
     /// properties from the SBOM document

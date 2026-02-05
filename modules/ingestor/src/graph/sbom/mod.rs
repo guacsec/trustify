@@ -141,6 +141,7 @@ impl Graph {
             data_licenses: Set(data_licenses),
 
             properties: Set(properties),
+            revision: Set(Uuid::now_v7()),
         };
 
         let node_model = sbom_node::ActiveModel {

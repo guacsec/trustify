@@ -1,9 +1,11 @@
-use crate::data::{Advisory, MigrationTraitWithData, SchemaDataManager};
+use crate::data::{
+    MigrationTraitWithData, SchemaDataManager,
+    advisory::{Advisory, Id},
+};
 use sea_orm::{DatabaseTransaction, sea_query::extension::postgres::*};
 use sea_orm_migration::prelude::*;
 use strum::VariantNames;
 use trustify_common::db::create_enum_if_not_exists;
-use trustify_entity::advisory;
 use trustify_module_ingestor::{
     graph::cvss::ScoreCreator,
     service::advisory::{csaf, cve, osv},
@@ -95,30 +97,27 @@ impl MigrationTraitWithData for Migration {
             .await?;
 
         manager
-            .process(
-                self,
-                async |advisory: Advisory, model: advisory::Model, tx: &DatabaseTransaction| {
-                    let mut creator = ScoreCreator::new(model.id);
-                    match advisory {
-                        Advisory::Cve(advisory) => {
-                            cve::extract_scores(&advisory, &mut creator);
-                        }
-                        Advisory::Csaf(advisory) => {
-                            csaf::extract_scores(&advisory, &mut creator);
-                        }
-                        Advisory::Osv(advisory) => {
-                            osv::extract_scores(&advisory, &mut creator);
-                        }
-                        _ => {
-                            // we ignore others
-                        }
+            .process(self, async |advisory, id: Id, tx: &DatabaseTransaction| {
+                let mut creator = ScoreCreator::new(id.advisory);
+                match advisory {
+                    Advisory::Cve(advisory) => {
+                        cve::extract_scores(&advisory, &mut creator);
                     }
+                    Advisory::Csaf(advisory) => {
+                        csaf::extract_scores(&advisory, &mut creator);
+                    }
+                    Advisory::Osv(advisory) => {
+                        osv::extract_scores(&advisory, &mut creator);
+                    }
+                    _ => {
+                        // we ignore others
+                    }
+                }
 
-                    creator.create(tx).await?;
+                creator.create(tx).await?;
 
-                    Ok(())
-                },
-            )
+                Ok(())
+            })
             .await?;
 
         Ok(())

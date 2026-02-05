@@ -1145,19 +1145,24 @@ struct UpdateAssignments {
     sbom_id: String,
     group_ids: Vec<String>,
     if_match_type: IfMatchType,
-    etag: String,
+    etag: Option<String>,
     expected_status: StatusCode,
 }
 
 impl UpdateAssignments {
-    pub fn new(sbom_id: impl Into<String>, etag: impl Into<String>) -> Self {
+    pub fn new(sbom_id: impl Into<String>) -> Self {
         Self {
             sbom_id: sbom_id.into(),
             group_ids: vec![],
             if_match_type: IfMatchType::Correct,
-            etag: etag.into(),
+            etag: None,
             expected_status: StatusCode::NO_CONTENT,
         }
+    }
+
+    pub fn etag(mut self, etag: impl Into<String>) -> Self {
+        self.etag = Some(etag.into());
+        self
     }
 
     pub fn group_ids(mut self, group_ids: Vec<String>) -> Self {
@@ -1182,7 +1187,10 @@ impl UpdateAssignments {
             .uri(&format!("/api/v2/group/sbom-assignment/{}", &self.sbom_id))
             .set_json(&self.group_ids);
 
-        let request = add_if_match(request, self.if_match_type, &self.etag);
+        let request = match self.etag {
+            Some(etag) => add_if_match(request, self.if_match_type, &etag),
+            None => request,
+        };
 
         let response = app.call_service(request.to_request()).await;
         assert_eq!(response.status(), self.expected_status);
@@ -1190,16 +1198,18 @@ impl UpdateAssignments {
         // Verify etag behavior based on success/failure
         let assignments_after = read_assignments(app, &self.sbom_id).await?;
 
-        if self.expected_status.is_success() {
-            assert_ne!(
-                initial_etag, assignments_after.etag,
-                "etag should have changed after successful update"
-            );
-        } else {
-            assert_eq!(
-                initial_etag, assignments_after.etag,
-                "etag should not have changed after failed update"
-            );
+        if let Some(initial_etag) = initial_etag {
+            if self.expected_status.is_success() {
+                assert_ne!(
+                    initial_etag, assignments_after.etag,
+                    "etag should have changed after successful update"
+                );
+            } else {
+                assert_eq!(
+                    initial_etag, assignments_after.etag,
+                    "etag should not have changed after failed update"
+                );
+            }
         }
 
         Ok(())
@@ -1216,7 +1226,9 @@ async fn sbom_group_assignments(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let group2: GroupResponse = Create::new("Group 2").execute(&app).await?;
 
     // Ingest an SBOM
-    let sbom_result = ctx.ingest_document("zookeeper-3.9.2-cyclonedx.json").await?;
+    let sbom_result = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
     let sbom_id = sbom_result.id.to_string();
 
     // Read initial assignments (should be empty)
@@ -1224,7 +1236,8 @@ async fn sbom_group_assignments(ctx: &TrustifyContext) -> anyhow::Result<()> {
     assert_eq!(assignments.group_ids.len(), 0);
 
     // Update assignments to add both groups
-    UpdateAssignments::new(&sbom_id, &assignments.etag)
+    UpdateAssignments::new(&sbom_id)
+        .etag(&assignments.etag)
         .group_ids(vec![group1.id.clone(), group2.id.clone()])
         .execute(&app)
         .await?;
@@ -1236,7 +1249,8 @@ async fn sbom_group_assignments(ctx: &TrustifyContext) -> anyhow::Result<()> {
     assert!(assignments.group_ids.contains(&group2.id));
 
     // Update to remove one group
-    UpdateAssignments::new(&sbom_id, &assignments.etag)
+    UpdateAssignments::new(&sbom_id)
+        .etag(&assignments.etag)
         .group_ids(vec![group1.id.clone()])
         .execute(&app)
         .await?;
@@ -1247,7 +1261,8 @@ async fn sbom_group_assignments(ctx: &TrustifyContext) -> anyhow::Result<()> {
     assert_eq!(assignments.group_ids[0], group1.id);
 
     // Update to empty list
-    UpdateAssignments::new(&sbom_id, &assignments.etag)
+    UpdateAssignments::new(&sbom_id)
+        .etag(&assignments.etag)
         .group_ids(vec![])
         .execute(&app)
         .await?;
@@ -1283,18 +1298,20 @@ async fn sbom_group_assignments_invalid_group(ctx: &TrustifyContext) -> anyhow::
     let app = caller(ctx).await?;
 
     // Ingest an SBOM
-    let sbom_result = ctx.ingest_document("zookeeper-3.9.2-cyclonedx.json").await?;
+    let sbom_result = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
     let sbom_id = sbom_result.id.to_string();
 
     // Test invalid group ID format (400)
-    UpdateAssignments::new(&sbom_id, "*")
+    UpdateAssignments::new(&sbom_id)
         .group_ids(vec!["not-a-valid-uuid".to_string()])
         .expect_status(StatusCode::BAD_REQUEST)
         .execute(&app)
         .await?;
 
     // Test non-existent group ID (400)
-    UpdateAssignments::new(&sbom_id, "*")
+    UpdateAssignments::new(&sbom_id)
         .group_ids(vec!["00000000-0000-0000-0000-000000000000".to_string()])
         .expect_status(StatusCode::BAD_REQUEST)
         .execute(&app)
@@ -1317,12 +1334,15 @@ async fn sbom_group_assignments_if_match(
     let app = caller(ctx).await?;
 
     // Ingest an SBOM
-    let sbom_result = ctx.ingest_document("zookeeper-3.9.2-cyclonedx.json").await?;
+    let sbom_result = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
     let sbom_id = sbom_result.id.to_string();
 
     let assignments = read_assignments(&app, &sbom_id).await?;
 
-    UpdateAssignments::new(&sbom_id, &assignments.etag)
+    UpdateAssignments::new(&sbom_id)
+        .etag(&assignments.etag)
         .group_ids(vec![])
         .if_match(if_match_type)
         .expect_status(expected_status)

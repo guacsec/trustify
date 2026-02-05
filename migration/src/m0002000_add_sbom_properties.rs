@@ -1,11 +1,43 @@
-use crate::data::{MigrationTraitWithData, Sbom as SbomDoc, SchemaDataManager};
-use sea_orm::{ActiveModelTrait, DatabaseTransaction, IntoActiveModel, Set};
+use crate::data::{MigrationTraitWithData, SchemaDataManager, sbom::Sbom as SbomDoc};
+use sea_orm::{ActiveModelBehavior, ActiveModelTrait, DatabaseTransaction, Set};
 use sea_orm_migration::prelude::*;
 use trustify_common::advisory::cyclonedx::extract_properties_json;
-use trustify_entity::sbom;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
+
+mod legacy {
+    use sea_orm::entity::prelude::*;
+    use sea_orm::sqlx::types::time::OffsetDateTime;
+    use trustify_entity::labels::Labels;
+
+    #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+    #[sea_orm(table_name = "sbom")]
+    pub struct Model {
+        #[sea_orm(primary_key)]
+        pub sbom_id: Uuid,
+        pub node_id: String,
+
+        pub document_id: Option<String>,
+
+        pub published: Option<OffsetDateTime>,
+        pub authors: Vec<String>,
+        pub suppliers: Vec<String>,
+        pub data_licenses: Vec<String>,
+
+        pub source_document_id: Uuid,
+
+        pub labels: Labels,
+
+        /// properties from the SBOM document
+        pub properties: serde_json::Value,
+    }
+
+    #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+    pub enum Relation {}
+
+    impl ActiveModelBehavior for ActiveModel {}
+}
 
 #[async_trait::async_trait]
 impl MigrationTraitWithData for Migration {
@@ -36,8 +68,9 @@ impl MigrationTraitWithData for Migration {
         manager
             .process(
                 self,
-                async |sbom: SbomDoc, model: sbom::Model, tx: &DatabaseTransaction| {
-                    let mut model = model.into_active_model();
+                async |sbom: SbomDoc, id: crate::data::sbom::Id, tx: &DatabaseTransaction| {
+                    let mut model = legacy::ActiveModel::new();
+                    model.sbom_id = Set(id.sbom);
                     match sbom {
                         SbomDoc::CycloneDx(sbom) => {
                             model.properties = Set(extract_properties_json(&sbom));

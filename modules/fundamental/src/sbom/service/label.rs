@@ -6,6 +6,7 @@ use sea_orm::{
 use sea_query::Expr;
 use trustify_common::id::{Id, TrySelectForId};
 use trustify_entity::{labels::Labels, sbom};
+use uuid::Uuid;
 
 impl SbomService {
     /// Set the labels of an SBOM
@@ -59,6 +60,7 @@ impl SbomService {
         let labels = result.labels.clone();
         let mut result = result.into_active_model();
         result.labels = Set(mutator(labels).validate()?);
+        result.revision = Set(Uuid::now_v7());
 
         // store
 

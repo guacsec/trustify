@@ -1,8 +1,14 @@
 use super::Document;
 use bytes::Bytes;
-use sea_orm::prelude::*;
+use sea_orm::{FromQueryResult, QuerySelect, prelude::*};
 use trustify_entity::sbom;
 use trustify_module_storage::service::StorageBackend;
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, FromQueryResult)]
+pub struct Id {
+    pub sbom: Uuid,
+    pub source: Uuid,
+}
 
 #[allow(clippy::large_enum_variant)]
 pub enum Sbom {
@@ -21,17 +27,23 @@ impl From<Bytes> for Sbom {
 }
 
 impl Document for Sbom {
-    type Model = sbom::Model;
+    type Id = Id;
 
-    async fn all<C: ConnectionTrait>(tx: &C) -> Result<Vec<Self::Model>, DbErr> {
-        sbom::Entity::find().all(tx).await
+    async fn all<C: ConnectionTrait>(tx: &C) -> Result<Vec<Self::Id>, DbErr> {
+        sbom::Entity::find()
+            .select_only()
+            .column_as(sbom::Column::SourceDocumentId, "source")
+            .column_as(sbom::Column::SbomId, "sbom")
+            .into_model()
+            .all(tx)
+            .await
     }
 
-    async fn source<S, C>(model: &Self::Model, storage: &S, tx: &C) -> Result<Self, anyhow::Error>
+    async fn source<S, C>(id: &Self::Id, storage: &S, tx: &C) -> Result<Self, anyhow::Error>
     where
         S: StorageBackend + Send + Sync,
         C: ConnectionTrait,
     {
-        super::load(model.source_document_id, storage, tx).await
+        super::load(id.source, storage, tx).await
     }
 }

@@ -539,7 +539,7 @@ WHERE parent IS NULL
 
         Ok(Some(Revisioned {
             value: group_ids,
-            revision: sbom_model.source_document_id.to_string(),
+            revision: sbom_model.revision.to_string(),
         }))
     }
 
@@ -554,18 +554,6 @@ WHERE parent IS NULL
         let sbom_uuid = Uuid::parse_str(sbom_id)
             .map_err(|_| Error::NotFound(sbom_id.to_string()))?;
 
-        let sbom = sbom::Entity::find()
-            .filter(sbom::Column::SbomId.eq(sbom_uuid))
-            .one(db)
-            .await?
-            .ok_or_else(|| Error::NotFound(sbom_id.to_string()))?;
-
-        if let Some(expected_revision) = revision {
-            if sbom.source_document_id.to_string() != expected_revision {
-                return Err(Error::RevisionNotFound);
-            }
-        }
-
         let group_uuids: Result<Vec<_>, _> = group_ids
             .iter()
             .map(|id| Uuid::parse_str(id))
@@ -573,6 +561,39 @@ WHERE parent IS NULL
         let group_uuids = group_uuids
             .map_err(|_| Error::BadRequest("One or more group IDs are invalid".into(), None))?;
 
+        // Update the revision and check existence/revision in one operation
+        let new_revision = Uuid::now_v7();
+        let mut update = sbom::Entity::update_many()
+            .filter(sbom::Column::SbomId.eq(sbom_uuid))
+            .col_expr(sbom::Column::Revision, Expr::value(new_revision));
+
+        if let Some(expected_revision) = revision {
+            update = update.filter(
+                sbom::Column::Revision
+                    .into_expr()
+                    .cast_as("text")
+                    .eq(expected_revision),
+            );
+        }
+
+        let result = update.exec(db).await?;
+
+        if result.rows_affected == 0 {
+            // Check if the SBOM exists or if it was a revision mismatch
+            let exists = sbom::Entity::find()
+                .filter(sbom::Column::SbomId.eq(sbom_uuid))
+                .one(db)
+                .await?
+                .is_some();
+
+            if !exists {
+                return Err(Error::NotFound(sbom_id.to_string()));
+            } else {
+                return Err(Error::RevisionNotFound);
+            }
+        }
+
+        // Update assignments
         sbom_group_assignment::Entity::delete_many()
             .filter(sbom_group_assignment::Column::SbomId.eq(sbom_uuid))
             .exec(db)

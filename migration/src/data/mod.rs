@@ -27,26 +27,16 @@ pub trait Handler<D>: Send
 where
     D: Document,
 {
-    async fn call(
-        &self,
-        document: D,
-        model: D::Model,
-        tx: &DatabaseTransaction,
-    ) -> anyhow::Result<()>;
+    async fn call(&self, document: D, id: D::Id, tx: &DatabaseTransaction) -> anyhow::Result<()>;
 }
 
 impl<F, D> Handler<D> for F
 where
     D: Document,
-    for<'x> F: AsyncFn(D, D::Model, &'x DatabaseTransaction) -> anyhow::Result<()> + Send,
+    for<'x> F: AsyncFn(D, D::Id, &'x DatabaseTransaction) -> anyhow::Result<()> + Send,
 {
-    async fn call(
-        &self,
-        document: D,
-        model: D::Model,
-        tx: &DatabaseTransaction,
-    ) -> anyhow::Result<()> {
-        (self)(document, model, tx).await
+    async fn call(&self, document: D, id: D::Id, tx: &DatabaseTransaction) -> anyhow::Result<()> {
+        (self)(document, id, tx).await
     }
 }
 

@@ -1,13 +1,10 @@
-mod advisory;
+pub mod advisory;
+pub mod sbom;
 
-pub use advisory::*;
+use crate::data::Partitionable;
 use anyhow::{anyhow, bail};
 use bytes::{Bytes, BytesMut};
 use futures_util::TryStreamExt;
-mod sbom;
-pub use sbom::*;
-
-use crate::data::Partitionable;
 use sea_orm::{ConnectionTrait, DbErr, EntityTrait};
 use trustify_common::id::Id;
 use trustify_entity::source_document;
@@ -17,13 +14,13 @@ use uuid::Uuid;
 /// A document eligible for re-processing.
 #[allow(async_fn_in_trait)]
 pub trait Document: Sized + Send + Sync {
-    type Model: Partitionable + Send;
+    type Id: Partitionable + Send;
 
-    async fn all<C>(tx: &C) -> Result<Vec<Self::Model>, DbErr>
+    async fn all<C>(tx: &C) -> Result<Vec<Self::Id>, DbErr>
     where
         C: ConnectionTrait;
 
-    async fn source<S, C>(model: &Self::Model, storage: &S, tx: &C) -> Result<Self, anyhow::Error>
+    async fn source<S, C>(id: &Self::Id, storage: &S, tx: &C) -> Result<Self, anyhow::Error>
     where
         S: StorageBackend + Send + Sync,
         C: ConnectionTrait;
@@ -35,7 +32,7 @@ pub(crate) async fn load<D>(
     tx: &impl ConnectionTrait,
 ) -> anyhow::Result<D>
 where
-    D: Document + From<Bytes>,
+    D: From<Bytes>,
 {
     let source = source_document::Entity::find_by_id(id).one(tx).await?;
 
