@@ -3,11 +3,11 @@ use crate::{
     model::IngestResult,
     service::{Error, Warnings},
 };
-use sea_orm::TransactionTrait;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde_cyclonedx::cyclonedx::v_1_6::Component;
 use std::str::FromStr;
 use tracing::instrument;
-use trustify_common::{hashing::Digests, id::Id};
+use trustify_common::hashing::Digests;
 use trustify_entity::labels::Labels;
 
 pub struct CyclonedxLoader<'g> {
@@ -25,6 +25,7 @@ impl<'g> CyclonedxLoader<'g> {
         labels: Labels,
         buffer: &[u8],
         digests: &Digests,
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
         let warnings = Warnings::default();
 
@@ -38,8 +39,6 @@ impl<'g> CyclonedxLoader<'g> {
             cdx.version,
             cdx.serial_number,
         );
-
-        let tx = self.graph.db.begin().await?;
 
         let document_id = cdx
             .serial_number
@@ -56,21 +55,20 @@ impl<'g> CyclonedxLoader<'g> {
                 digests,
                 document_id.clone(),
                 cyclonedx::Information(&cdx),
-                &tx,
+                tx,
             )
             .await?
         {
             Outcome::Existed(sbom) => sbom,
             Outcome::Added(sbom) => {
-                sbom.ingest_cyclonedx(cdx, &warnings, &tx).await?;
-                tx.commit().await?;
+                sbom.ingest_cyclonedx(cdx, &warnings, tx).await?;
 
                 sbom
             }
         };
 
         Ok(IngestResult {
-            id: Id::Uuid(ctx.sbom.sbom_id),
+            id: ctx.sbom.sbom_id.to_string(),
             document_id,
             warnings: warnings.into(),
         })
@@ -141,16 +139,20 @@ mod test {
 
         let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
 
-        ingestor
-            .ingest(
-                &data,
-                Format::CycloneDX,
-                ("source", "test"),
-                None,
-                Cache::Skip,
-            )
-            .await
-            .expect("must ingest");
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::CycloneDX,
+                        ("source", "test"),
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
 
         Ok(())
     }
@@ -166,30 +168,38 @@ mod test {
 
         assert_eq!(0, sbom_ai::Entity::find().all(&ctx.db).await?.len());
 
-        ingestor
-            .ingest(
-                &data,
-                Format::CycloneDX,
-                [("type", "cyclonedx"), ("kind", "aibom")],
-                None,
-                Cache::Skip,
-            )
-            .await
-            .expect("must ingest");
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::CycloneDX,
+                        [("type", "cyclonedx"), ("kind", "aibom")],
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
 
         assert_eq!(1, sbom_ai::Entity::find().all(&ctx.db).await?.len());
 
         // ensure ingestion is idempotent
-        ingestor
-            .ingest(
-                &data,
-                Format::CycloneDX,
-                [("type", "cyclonedx"), ("kind", "aibom")],
-                None,
-                Cache::Skip,
-            )
-            .await
-            .expect("must ingest");
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::CycloneDX,
+                        [("type", "cyclonedx"), ("kind", "aibom")],
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
 
         assert_eq!(1, sbom_ai::Entity::find().all(&ctx.db).await?.len());
 
@@ -206,16 +216,20 @@ mod test {
 
         let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
 
-        ingestor
-            .ingest(
-                &data,
-                Format::CycloneDX,
-                [("type", "cyclonedx"), ("kind", "aibom")],
-                None,
-                Cache::Skip,
-            )
-            .await
-            .expect("must ingest");
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::CycloneDX,
+                        [("type", "cyclonedx"), ("kind", "aibom")],
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
 
         Ok(())
     }
@@ -231,16 +245,20 @@ mod test {
 
         assert_eq!(0, sbom_crypto::Entity::find().all(&ctx.db).await?.len());
 
-        ingestor
-            .ingest(
-                &data,
-                Format::CycloneDX,
-                [("type", "cyclonedx"), ("kind", "cbom")],
-                None,
-                Cache::Skip,
-            )
-            .await
-            .expect("must ingest");
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::CycloneDX,
+                        [("type", "cyclonedx"), ("kind", "cbom")],
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
 
         assert_eq!(1, sbom_crypto::Entity::find().all(&ctx.db).await?.len());
 

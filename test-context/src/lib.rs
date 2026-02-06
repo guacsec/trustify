@@ -29,7 +29,6 @@ use std::{
 };
 use tempfile::TempDir;
 use tokio_util::{bytes::Bytes, io::ReaderStream};
-use trustify_common::id::Id;
 use trustify_common::{db::Database, decompress::decompress_async, hashing::Digests};
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::{
@@ -160,6 +159,25 @@ $$;
 
     /// Ingest a document with a specific format and labels
     ///
+    /// Consumed raw bytes.
+    pub async fn ingest_bytes_as(
+        &self,
+        bytes: &[u8],
+        format: Format,
+        labels: impl Into<Labels> + Debug,
+    ) -> Result<IngestResult, anyhow::Error> {
+        Ok(self
+            .db
+            .transaction(async |tx| {
+                self.ingestor
+                    .ingest(bytes, format, labels, None, Cache::Skip, tx)
+                    .await
+            })
+            .await?)
+    }
+
+    /// Ingest a document with a specific format and labels
+    ///
     /// The path is relative to `<workspace>/etc/test-data`.
     pub async fn ingest_document_as(
         &self,
@@ -168,42 +186,24 @@ $$;
         labels: impl Into<Labels> + Debug,
     ) -> Result<IngestResult, anyhow::Error> {
         let bytes = document_bytes(path).await?;
-        Ok(self
-            .ingestor
-            .ingest(&bytes, format, labels, None, Cache::Skip)
-            .await?)
+
+        self.ingest_bytes_as(&bytes, format, labels).await
     }
 
     pub async fn ingest_read<R: Read>(&self, mut read: R) -> Result<IngestResult, anyhow::Error> {
         let mut bytes = Vec::new();
         read.read_to_end(&mut bytes)?;
 
-        Ok(self
-            .ingestor
-            .ingest(
-                &bytes,
-                Format::Unknown,
-                ("source", "TrustifyContext"),
-                None,
-                Cache::Skip,
-            )
-            .await?)
+        self.ingest_bytes_as(&bytes, Format::Unknown, ("source", "TrustifyContext"))
+            .await
     }
 
     /// Ingest a document by ingesting its JSON representation
     pub async fn ingest_json<S: Serialize>(&self, doc: S) -> Result<IngestResult, anyhow::Error> {
         let bytes = serde_json::to_vec(&doc)?;
 
-        Ok(self
-            .ingestor
-            .ingest(
-                &bytes,
-                Format::Unknown,
-                ("source", "TrustifyContext"),
-                None,
-                Cache::Skip,
-            )
-            .await?)
+        self.ingest_bytes_as(&bytes, Format::Unknown, ("source", "TrustifyContext"))
+            .await
     }
 
     pub fn absolute_path(&self, path: impl AsRef<Path>) -> anyhow::Result<PathBuf> {
@@ -251,7 +251,10 @@ $$;
         }
         dataset.finish()?;
 
-        Ok(self.ingestor.ingest_dataset(&data, (), 0).await?)
+        Ok(self
+            .db
+            .transaction(async |tx| self.ingestor.ingest_dataset(&data, (), 0, tx).await)
+            .await?)
     }
 
     pub(crate) fn teardown(&self) {
@@ -350,54 +353,32 @@ async fn terminate_connections(db: &Database) -> Result<(), DbErr> {
 
 pub trait IngestionResult: Sized {
     /// Collect all IDs from a result
-    fn collect_ids(self) -> impl Iterator<Item = Id>;
+    fn collect_ids(self) -> impl Iterator<Item = String>;
 
     /// Turn into an array of IDs
     ///
     /// **NOTE:** This will panic if the array size doesn't match the result set size
-    fn into_id<const N: usize>(self) -> [Id; N] {
+    fn into_id<const N: usize>(self) -> [String; N] {
         self.collect_ids()
             .collect::<Vec<_>>()
             .try_into()
             .expect("Unexpected number of results")
     }
 
-    /// Turn into an array of UUIDs, by extracting UUIDs from the IDs.
+    /// Turn into an array of UUIDs, by parsing UUIDs from the IDs.
     ///
     /// **NOTE:** This will panic if the array size doesn't match the result set size
     fn into_uuid<const N: usize>(self) -> [Uuid; N] {
         self.collect_ids()
-            .filter_map(|id| match id {
-                Id::Uuid(uuid) => Some(uuid),
-                _ => None,
-            })
+            .filter_map(|id| Uuid::parse_str(&id).ok())
             .collect::<Vec<_>>()
             .try_into()
             .expect("Unexpected number of results")
-    }
-
-    /// Same as [`Self::into_uuid`], but converting the UUIDs into strings.
-    ///
-    /// **NOTE:** This will panic if the array size doesn't match the result set size
-    fn into_uuid_str<const N: usize>(self) -> [String; N] {
-        Self::collect_uuid_str(self)
-            .try_into()
-            .expect("Unexpected number of results")
-    }
-
-    /// Collect all IDs which are UUIDs as strings.
-    fn collect_uuid_str(self) -> Vec<String> {
-        self.collect_ids()
-            .filter_map(|id| match id {
-                Id::Uuid(uuid) => Some(uuid.to_string()),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
     }
 }
 
 impl IngestionResult for Vec<IngestResult> {
-    fn collect_ids(self) -> impl Iterator<Item = Id> {
+    fn collect_ids(self) -> impl Iterator<Item = String> {
         self.into_iter().map(|r| r.id)
     }
 }

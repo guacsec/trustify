@@ -38,7 +38,7 @@ async fn simple(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let service = AdvisoryService::new(ctx.db.clone());
     service
-        .delete_advisory(r2.id.try_as_uid().expect("must be a UUID variant"), &ctx.db)
+        .delete_advisory(r2.id.parse().expect("must be a UUID variant"), &ctx.db)
         .await?;
 
     // now test, find only one, for either ignore or consider
@@ -78,7 +78,7 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let service = AdvisoryService::new(ctx.db.clone());
     service
-        .delete_advisory(r2.id.try_as_uid().expect("must be a UUID variant"), &ctx.db)
+        .delete_advisory(r2.id.parse().expect("must be a UUID variant"), &ctx.db)
         .await?;
 
     // check info

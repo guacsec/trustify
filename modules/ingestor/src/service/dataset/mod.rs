@@ -8,6 +8,7 @@ use crate::{
 use anyhow::anyhow;
 use bytes::Bytes;
 use sbom_walker::common::compression::{self, DecompressionOptions, Detector};
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use std::{
     collections::BTreeMap,
     io::{Cursor, Read},
@@ -34,8 +35,13 @@ impl<'g> DatasetLoader<'g> {
         }
     }
 
-    #[instrument(skip(self, buffer), err(level=tracing::Level::INFO))]
-    pub async fn load(&self, labels: Labels, buffer: &[u8]) -> Result<DatasetIngestResult, Error> {
+    #[instrument(skip(self, buffer, tx), err(level=tracing::Level::INFO))]
+    pub async fn load(
+        &self,
+        labels: Labels,
+        buffer: &[u8],
+        tx: &(impl ConnectionTrait + TransactionTrait),
+    ) -> Result<DatasetIngestResult, Error> {
         let warnings = Warnings::default();
         let mut results = BTreeMap::new();
 
@@ -108,7 +114,14 @@ impl<'g> DatasetLoader<'g> {
                         let result = Box::pin({
                             async move {
                                 format
-                                    .load(self.graph, labels, None, &Digests::digest(&data), &data)
+                                    .load(
+                                        self.graph,
+                                        labels,
+                                        None,
+                                        &Digests::digest(&data),
+                                        &data,
+                                        tx,
+                                    )
                                     .await
                             }
                         })

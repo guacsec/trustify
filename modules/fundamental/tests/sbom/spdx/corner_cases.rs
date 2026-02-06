@@ -9,8 +9,9 @@ use sea_orm::ConnectionTrait;
 use strum::VariantArray;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::id::Id;
 use trustify_common::model::Paginated;
-use trustify_common::{id::Id, purl::Purl};
+use trustify_common::purl::Purl;
 use trustify_entity::relationship::Relationship;
 use trustify_module_fundamental::{
     Config, configure,
@@ -44,7 +45,7 @@ async fn infinite_loop(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let result = ctx.ingest_document("spdx/loop.json").await?;
 
-    let Id::Uuid(id) = result.id else {
+    let Ok(id) = result.id.parse() else {
         bail!("must be an id")
     };
 
@@ -86,7 +87,7 @@ async fn infinite_loop(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn double_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let result = ctx.ingest_document("spdx/double-ref.json").await?;
 
-    let Id::Uuid(id) = result.id else {
+    let Ok(id) = result.id.parse() else {
         bail!("must be an id")
     };
     let sbom = ctx
@@ -122,7 +123,7 @@ async fn double_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn self_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let result = ctx.ingest_document("spdx/self.json").await?;
 
-    let Id::Uuid(id) = result.id else {
+    let Ok(id) = result.id.parse() else {
         bail!("must be an id")
     };
     let sbom = ctx
@@ -158,7 +159,7 @@ async fn self_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn self_ref_package(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let result = ctx.ingest_document("spdx/self-package.json").await?;
 
-    let Id::Uuid(id) = result.id else {
+    let Ok(id) = result.id.parse() else {
         bail!("must be an id")
     };
     let sbom = ctx
@@ -202,7 +203,7 @@ async fn self_ref_package(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn special_char(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let result = ctx.ingest_document("spdx/TC-1817-1.json").await?;
 
-    let Id::Uuid(id) = result.id else {
+    let Ok(id) = result.id.parse() else {
         bail!("must be an id")
     };
 
@@ -214,7 +215,7 @@ async fn special_char(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(packages.total, 105);
 
     let sbom = service
-        .fetch_sbom_summary(result.id, &ctx.db)
+        .fetch_sbom_summary(Id::Uuid(id), &ctx.db)
         .await
         .ok()
         .flatten()

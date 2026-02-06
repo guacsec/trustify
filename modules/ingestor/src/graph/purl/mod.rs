@@ -373,9 +373,7 @@ mod tests {
     use std::num::NonZeroU64;
     use std::str::FromStr;
 
-    use sea_orm::{
-        EntityTrait, IntoSimpleExpr, QueryFilter, QuerySelect, QueryTrait, TransactionTrait,
-    };
+    use sea_orm::{EntityTrait, IntoSimpleExpr, QueryFilter, QuerySelect, QueryTrait};
     use sea_query::{Expr, SimpleExpr};
     use serde_json::json;
     use test_context::test_context;
@@ -526,26 +524,24 @@ mod tests {
 
         let tx_system = system.clone();
 
-        ctx.db.transaction(|tx| {
-            Box::pin(async move {
-                let pkg1 = tx_system
-                    .ingest_qualified_package(
-                        &"pkg:oci/ubi9-container@sha256:2f168398c538b287fd705519b83cd5b604dc277ef3d9f479c28a2adb4d830a49?repository_url=registry.redhat.io/ubi9&tag=9.2-755.1697625012".try_into()?,
-                        tx,
-                    )
-                    .await?;
-
-                let pkg2 = tx_system
-                    .ingest_qualified_package(
+        ctx.db.transaction(async |tx| {
+            let pkg1 = tx_system
+                .ingest_qualified_package(
                     &"pkg:oci/ubi9-container@sha256:2f168398c538b287fd705519b83cd5b604dc277ef3d9f479c28a2adb4d830a49?repository_url=registry.redhat.io/ubi9&tag=9.2-755.1697625012".try_into()?,
-                        tx,
-                    )
-                    .await?;
+                    tx,
+                )
+                .await?;
 
-                assert_eq!(pkg1, pkg2);
+            let pkg2 = tx_system
+                .ingest_qualified_package(
+                &"pkg:oci/ubi9-container@sha256:2f168398c538b287fd705519b83cd5b604dc277ef3d9f479c28a2adb4d830a49?repository_url=registry.redhat.io/ubi9&tag=9.2-755.1697625012".try_into()?,
+                    tx,
+                )
+                .await?;
 
-                Ok::<(), Error>(())
-            })
+            assert_eq!(pkg1, pkg2);
+
+            Ok::<(), Error>(())
         }).await?;
 
         Ok(())

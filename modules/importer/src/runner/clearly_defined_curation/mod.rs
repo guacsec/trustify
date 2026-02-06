@@ -14,6 +14,7 @@ use parking_lot::Mutex;
 use std::{path::Path, path::PathBuf, sync::Arc};
 use tokio::runtime::Handle;
 use tracing::instrument;
+use trustify_common::db::Database;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::Cache;
 use trustify_module_ingestor::{
@@ -27,6 +28,7 @@ struct Context<C: RunContext + 'static> {
     labels: Labels,
     report: Arc<Mutex<ReportBuilder>>,
     ingestor: IngestorService,
+    db: Database,
 }
 
 impl<C: RunContext> Context<C> {
@@ -34,18 +36,23 @@ impl<C: RunContext> Context<C> {
         self.report.lock().tick();
 
         Handle::current().block_on(async {
-            self.ingestor
-                .ingest(
-                    &data,
-                    Format::ClearlyDefinedCuration,
-                    Labels::new()
-                        .add("source", &self.source)
-                        .add("importer", self.context.name())
-                        .add("file", path.to_string_lossy())
-                        .extend(self.labels.0.clone()),
-                    None,
-                    Cache::Skip,
-                )
+            self.db
+                .transaction(async |tx| {
+                    self.ingestor
+                        .ingest(
+                            &data,
+                            Format::ClearlyDefinedCuration,
+                            Labels::new()
+                                .add("source", &self.source)
+                                .add("importer", self.context.name())
+                                .add("file", path.to_string_lossy())
+                                .extend(self.labels.0.clone()),
+                            None,
+                            Cache::Skip,
+                            tx,
+                        )
+                        .await
+                })
                 .await
         })?;
 
@@ -116,6 +123,7 @@ impl super::ImportRunner {
                     labels: clearly_defined.common.labels,
                     report: report.clone(),
                     ingestor,
+                    db: self.db.clone(),
                 },
                 types: clearly_defined.types,
             },

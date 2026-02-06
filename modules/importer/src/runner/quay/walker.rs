@@ -17,6 +17,7 @@ use std::{collections::HashMap, future, sync::Arc};
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use tracing::instrument;
+use trustify_common::db::Database;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::{Cache, Format, IngestorService};
 
@@ -30,6 +31,7 @@ pub struct QuayWalker<C: RunContext> {
     continuation: LastModified,
     importer: QuayImporter,
     ingestor: IngestorService,
+    db: Database,
     report: Arc<Mutex<ReportBuilder>>,
     client: reqwest::Client,
     oci: oci::Client,
@@ -40,6 +42,7 @@ impl<C: RunContext> QuayWalker<C> {
     pub fn new(
         importer: QuayImporter,
         ingestor: IngestorService,
+        db: Database,
         report: Arc<Mutex<ReportBuilder>>,
         context: C,
     ) -> Result<Self, Error> {
@@ -55,6 +58,7 @@ impl<C: RunContext> QuayWalker<C> {
             continuation: LastModified(None),
             importer,
             ingestor,
+            db,
             report,
             client,
             oci,
@@ -117,18 +121,23 @@ impl<C: RunContext> QuayWalker<C> {
 
     async fn store(&self, file: impl std::fmt::Display, data: &[u8]) {
         let result = self
-            .ingestor
-            .ingest(
-                data,
-                Format::SBOM,
-                Labels::new()
-                    .add("source", &self.importer.source)
-                    .add("importer", "Quay")
-                    .add("file", file.to_string())
-                    .extend(self.importer.labels.0.clone()),
-                None,
-                Cache::Skip,
-            )
+            .db
+            .transaction(async |tx| {
+                self.ingestor
+                    .ingest(
+                        data,
+                        Format::SBOM,
+                        Labels::new()
+                            .add("source", &self.importer.source)
+                            .add("importer", "Quay")
+                            .add("file", file.to_string())
+                            .extend(self.importer.labels.0.clone()),
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
             .await;
         let mut report = self.report.lock().await;
         match &result {
@@ -325,6 +334,7 @@ mod test {
                 ..Default::default()
             },
             ctx.ingestor.clone(),
+            ctx.db.clone(),
             Arc::new(Mutex::new(ReportBuilder::new())),
             (),
         )?
@@ -384,6 +394,7 @@ mod test {
                 ..Default::default()
             },
             ctx.ingestor.clone(),
+            ctx.db.clone(),
             report.clone(),
             (),
         )?;
@@ -427,6 +438,7 @@ mod test {
                 ..Default::default()
             },
             ctx.ingestor.clone(),
+            ctx.db.clone(),
             report.clone(),
             (),
         )?;
@@ -449,6 +461,7 @@ mod test {
                 ..Default::default()
             },
             ctx.ingestor.clone(),
+            ctx.db.clone(),
             Arc::new(Mutex::new(ReportBuilder::new())),
             (),
         )?;

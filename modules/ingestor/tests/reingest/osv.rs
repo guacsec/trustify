@@ -4,10 +4,10 @@ use anyhow::bail;
 use std::future::Future;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::id::Id;
 use trustify_module_ingestor::model::IngestResult;
 use trustify_module_ingestor::service::Format;
 use trustify_test_context::TrustifyContext;
+use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
@@ -103,8 +103,8 @@ async fn assert_common(
     result: &IngestResult,
     expected_vuln_id: &str,
 ) -> anyhow::Result<()> {
-    let Id::Uuid(id) = result.id else {
-        bail!("must be an id")
+    let Ok(id) = Uuid::parse_str(&result.id) else {
+        bail!("must be a UUID")
     };
     let adv = ctx
         .graph

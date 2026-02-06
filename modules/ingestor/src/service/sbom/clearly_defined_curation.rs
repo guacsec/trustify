@@ -3,9 +3,9 @@ use crate::{
     model::IngestResult,
     service::Error,
 };
-use sea_orm::TransactionTrait;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use tracing::instrument;
-use trustify_common::{hashing::Digests, id::Id};
+use trustify_common::hashing::Digests;
 use trustify_entity::labels::Labels;
 
 pub struct ClearlyDefinedCurationLoader<'g> {
@@ -17,40 +17,31 @@ impl<'g> ClearlyDefinedCurationLoader<'g> {
         Self { graph }
     }
 
-    #[instrument(skip(self, curation), err(level=tracing::Level::INFO))]
+    #[instrument(skip(self, curation, tx), err(level=tracing::Level::INFO))]
     pub async fn load(
         &self,
         labels: Labels,
         curation: Curation,
         digests: &Digests,
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
-        let tx = self.graph.db.begin().await?;
-
         let sbom = match self
             .graph
-            .ingest_sbom(
-                labels,
-                digests,
-                Some(curation.document_id()),
-                &curation,
-                &tx,
-            )
+            .ingest_sbom(labels, digests, Some(curation.document_id()), &curation, tx)
             .await?
         {
             Outcome::Existed(sbom) => sbom,
             Outcome::Added(sbom) => {
-                sbom.ingest_clearly_defined_curation(curation, &tx)
+                sbom.ingest_clearly_defined_curation(curation, tx)
                     .await
                     .map_err(Error::Generic)?;
-
-                tx.commit().await?;
 
                 sbom
             }
         };
 
         Ok(IngestResult {
-            id: Id::Uuid(sbom.sbom.sbom_id),
+            id: sbom.sbom.sbom_id.to_string(),
             document_id: sbom.sbom.document_id,
             warnings: vec![],
         })
@@ -74,16 +65,20 @@ mod test {
 
         let data = document_bytes("clearly-defined/chrono.yaml").await?;
 
-        ingestor
-            .ingest(
-                &data,
-                Format::ClearlyDefinedCuration,
-                ("source", "test"),
-                None,
-                Cache::Skip,
-            )
-            .await
-            .expect("must ingest");
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::ClearlyDefinedCuration,
+                        ("source", "test"),
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
 
         Ok(())
     }

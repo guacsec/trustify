@@ -28,7 +28,6 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct Graph {
-    pub(crate) db: trustify_common::db::Database,
     pub(crate) db_context: Arc<Mutex<DbContext>>,
 }
 
@@ -41,9 +40,8 @@ pub enum Error<E: Send> {
 }
 
 impl Graph {
-    pub fn new(db: trustify_common::db::Database) -> Self {
+    pub fn new(_db: trustify_common::db::Database) -> Self {
         Self {
-            db,
             db_context: Arc::new(Mutex::new(DbContext::new())),
         }
     }

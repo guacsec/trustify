@@ -72,6 +72,7 @@ impl super::ImportRunner {
         let storage = storage::StorageVisitor {
             context,
             ingestor,
+            db: self.db.clone(),
             labels: common.labels,
             report: report.clone(),
         };

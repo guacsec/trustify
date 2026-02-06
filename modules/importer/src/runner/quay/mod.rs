@@ -30,7 +30,7 @@ impl super::ImportRunner {
         let report = Arc::new(Mutex::new(ReportBuilder::new()));
         let continuation = serde_json::from_value(continuation).unwrap_or_default();
 
-        let walker = QuayWalker::new(quay.clone(), ingestor, report.clone(), context)
+        let walker = QuayWalker::new(quay.clone(), ingestor, self.db.clone(), report.clone(), context)
             .map_err(|e| ScannerError::Critical(e.into()))?
             .continuation(continuation);
 

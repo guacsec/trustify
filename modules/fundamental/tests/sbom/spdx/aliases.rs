@@ -1,23 +1,19 @@
-use anyhow::bail;
 use itertools::Itertools;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::id::Id;
-use trustify_module_analysis::config::AnalysisConfig;
-use trustify_module_analysis::service::{AnalysisService, ComponentReference};
+use trustify_module_analysis::{
+    config::AnalysisConfig,
+    service::{AnalysisService, ComponentReference},
+};
 use trustify_test_context::TrustifyContext;
 
 /// A test to see that we can handle multiple CPEs and PURLs per package/component with SPDX.
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn cpe_purl(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let result = ctx
+    let _result = ctx
         .ingest_document("spdx/openssl-3.0.7-18.el9_2.spdx.alias.json")
         .await?;
-
-    let Id::Uuid(_id) = result.id else {
-        bail!("must be an id")
-    };
 
     let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
 

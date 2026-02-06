@@ -22,12 +22,12 @@ use cve::{
     Cve, Timestamp,
     common::{Description, Product, Status, VersionRange},
 };
-use sea_orm::TransactionTrait;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde_json::Value;
 use std::{collections::HashSet, fmt::Debug, str::FromStr};
 use time::OffsetDateTime;
 use tracing::instrument;
-use trustify_common::{hashing::Digests, id::Id};
+use trustify_common::hashing::Digests;
 use trustify_cvss::cvss3::{Cvss3Base, score::Score, severity::Severity};
 use trustify_entity::{labels::Labels, version_scheme::VersionScheme};
 
@@ -48,18 +48,17 @@ impl<'g> CveLoader<'g> {
         Self { graph }
     }
 
-    #[instrument(skip(self, cve), err(level=tracing::Level::INFO))]
+    #[instrument(skip(self, cve, tx), err(level=tracing::Level::INFO))]
     pub async fn load(
         &self,
         labels: impl Into<Labels> + Debug,
         cve: Cve,
         digests: &Digests,
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
         let warnings = Warnings::new();
         let id = cve.id();
         let labels = labels.into().add("type", "cve");
-
-        let tx = self.graph.db.begin().await?;
 
         let VulnerabilityDetails {
             org_name,
@@ -88,14 +87,14 @@ impl<'g> CveLoader<'g> {
         // Batch create vulnerability (single entry for CVE, but using creator for consistency)
         let mut vuln_creator = VulnerabilityCreator::new();
         vuln_creator.add(id, information.clone());
-        vuln_creator.create(&tx).await?;
+        vuln_creator.create(tx).await?;
 
         let entries = Self::build_descriptions(descriptions);
         let english_description = Self::find_best_description_for_title(descriptions);
 
         let advisory = self
             .graph
-            .ingest_advisory(id, labels, digests, advisory_info, &tx)
+            .ingest_advisory(id, labels, digests, advisory_info, tx)
             .await?;
 
         // Link the advisory to the backing vulnerability
@@ -111,19 +110,19 @@ impl<'g> CveLoader<'g> {
                     release_date,
                     cwes,
                 }),
-                &tx,
+                tx,
             )
             .await?;
 
         if !scores.is_empty() {
             for score in scores {
-                advisory_vuln.ingest_cvss3_score(score, &tx).await?;
+                advisory_vuln.ingest_cvss3_score(score, tx).await?;
             }
         }
 
         let mut score_creator = ScoreCreator::new(advisory.advisory.id);
         extract_scores(&cve, &mut score_creator);
-        score_creator.create(&tx).await?;
+        score_creator.create(tx).await?;
 
         // Initialize batch creator for efficient status ingestion
         let mut purl_status_creator = PurlStatusCreator::new();
@@ -192,19 +191,17 @@ impl<'g> CveLoader<'g> {
         }
 
         // Batch create base PURLs (without versions/qualifiers)
-        purl::batch_create_base_purls(base_purls, &tx).await?;
+        purl::batch_create_base_purls(base_purls, tx).await?;
 
         // Batch create statuses
-        purl_status_creator.create(&tx).await?;
+        purl_status_creator.create(tx).await?;
 
         // Manage vulnerability descriptions without needing to query the vulnerability
-        Graph::drop_vulnerability_descriptions_for_advisory(advisory.advisory.id, &tx).await?;
-        Graph::add_vulnerability_descriptions(id, advisory.advisory.id, entries, &tx).await?;
-
-        tx.commit().await?;
+        Graph::drop_vulnerability_descriptions_for_advisory(advisory.advisory.id, tx).await?;
+        Graph::add_vulnerability_descriptions(id, advisory.advisory.id, entries, tx).await?;
 
         Ok(IngestResult {
-            id: Id::Uuid(advisory.advisory.id),
+            id: advisory.advisory.id.to_string(),
             document_id: Some(id.to_string()),
             warnings: warnings.into(),
         })
@@ -421,8 +418,12 @@ mod test {
         assert!(loaded_advisory.is_none());
 
         let loader = CveLoader::new(&graph);
-        loader
-            .load(("file", "CVE-2024-28111.json"), cve, &digests)
+        ctx.db
+            .transaction(async |tx| {
+                loader
+                    .load(("file", "CVE-2024-28111.json"), cve, &digests, tx)
+                    .await
+            })
             .await?;
 
         let loaded_vulnerability = graph.get_vulnerability("CVE-2024-28111", &ctx.db).await?;
@@ -472,8 +473,12 @@ mod test {
         let (cve, digests): (Cve, _) = document("cve/CVE-2024-26308.json").await?;
 
         let loader = CveLoader::new(&graph);
-        loader
-            .load(("file", "CVE-2024-26308.json"), cve, &digests)
+        ctx.db
+            .transaction(async |tx| {
+                loader
+                    .load(("file", "CVE-2024-26308.json"), cve, &digests, tx)
+                    .await
+            })
             .await?;
 
         let purl = graph

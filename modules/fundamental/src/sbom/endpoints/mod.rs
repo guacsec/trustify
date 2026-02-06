@@ -6,6 +6,7 @@ mod test;
 
 pub use query::*;
 
+use crate::sbom_group::service::SbomGroupService;
 use crate::{
     Error,
     common::{LicenseRefMapping, service::delete_doc},
@@ -447,6 +448,13 @@ struct UploadQuery {
     #[serde(default)]
     #[param(inline)]
     cache: Cache,
+
+    /// Optional group IDs to assign the SBOM to after ingestion.
+    ///
+    /// If one or more group IDs are invalid, the upload will fail with 400 Bad Request
+    /// and the SBOM will not be ingested.
+    #[serde(default)]
+    group: Vec<String>,
 }
 
 const fn default_format() -> Format {
@@ -466,21 +474,40 @@ const fn default_format() -> Format {
     )
 )]
 #[post("/v2/sbom")]
+#[allow(clippy::too_many_arguments)]
 /// Upload a new SBOM
 pub async fn upload(
-    service: web::Data<IngestorService>,
+    ingestor: web::Data<IngestorService>,
+    sbom_group: web::Data<SbomGroupService>,
     config: web::Data<Config>,
+    db: web::Data<Database>,
     web::Query(UploadQuery {
         labels,
         format,
         cache,
+        group,
     }): web::Query<UploadQuery>,
     content_type: Option<web::Header<header::ContentType>>,
     bytes: web::Bytes,
     _: Require<CreateSbom>,
 ) -> Result<impl Responder, Error> {
     let bytes = decompress_async(bytes, content_type.map(|ct| ct.0), config.upload_limit).await??;
-    let result = service.ingest(&bytes, format, labels, None, cache).await?;
+
+    let result = db
+        .transaction(async |tx| {
+            let result = ingestor
+                .ingest(&bytes, format, labels, None, cache, tx)
+                .await
+                .map_err(Error::Ingestor)?;
+
+            sbom_group
+                .update_assignments(&result.id, None, group, tx)
+                .await?;
+
+            Ok::<_, Error>(result)
+        })
+        .await?;
+
     log::info!("Uploaded SBOM: {}", result.id);
     Ok(HttpResponse::Created().json(result))
 }

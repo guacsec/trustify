@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
-use trustify_common::{hashing::Digests, id::Id, model::PaginatedResults};
+use trustify_common::{hashing::Digests, model::PaginatedResults};
 use trustify_entity::{advisory_vulnerability_score, labels::Labels};
 use trustify_module_ingestor::{
     graph::{advisory::AdvisoryInformation, cvss::ScoreCreator},
@@ -365,7 +365,7 @@ async fn upload_default_csaf_format(ctx: &TrustifyContext) -> Result<(), anyhow:
 
     let result: IngestResult = app.call_and_read_body_json(request).await;
     log::debug!("{result:?}");
-    assert!(matches!(result.id, Id::Uuid(_)));
+
     assert_eq!(
         result.document_id,
         Some("https://www.redhat.com/#CVE-2023-33201".to_string())
@@ -407,7 +407,6 @@ async fn upload_default_csaf_format_multiple(ctx: &TrustifyContext) -> Result<()
 
         let result: IngestResult = app.call_and_read_body_json(request).await;
         log::debug!("{result:?}");
-        assert!(matches!(result.id, Id::Uuid(_)));
     }
 
     Ok(())
@@ -426,7 +425,6 @@ async fn upload_osv_format(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .to_request();
 
     let result: IngestResult = app.call_and_read_body_json(request).await;
-    assert!(matches!(result.id, Id::Uuid(_)));
     assert_eq!(result.document_id, Some("RUSTSEC-2021-0079".to_string()));
 
     Ok(())
@@ -445,7 +443,6 @@ async fn upload_cve_format(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .to_request();
 
     let result: IngestResult = app.call_and_read_body_json(request).await;
-    assert!(matches!(result.id, Id::Uuid(_)));
     assert_eq!(result.document_id, Some("CVE-2024-27088".to_string()));
 
     Ok(())
@@ -485,7 +482,6 @@ async fn upload_with_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 
     let result: IngestResult = app.call_and_read_body_json(request).await;
     log::debug!("{result:?}");
-    assert!(matches!(result.id, Id::Uuid(_)));
     assert_eq!(
         result.document_id,
         Some("https://www.redhat.com/#CVE-2023-33201".to_string())
@@ -494,7 +490,7 @@ async fn upload_with_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
     // now check the labels
 
     let request = TestRequest::get()
-        .uri(&format!("/api/v2/advisory/{}", result.id))
+        .uri(&format!("/api/v2/advisory/urn:uuid:{}", result.id))
         .to_request();
     let result: AdvisoryDetails = app.call_and_read_body_json(request).await;
 
@@ -534,7 +530,7 @@ async fn download_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn download_advisory_by_id(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
     let result = ctx.ingest_document(DOC).await?;
-    let uri = format!("/api/v2/advisory/{}/download", result.id);
+    let uri = format!("/api/v2/advisory/urn:uuid:{}/download", result.id);
     let request = TestRequest::get().uri(&uri).to_request();
     let doc: Value = app.call_and_read_body_json(request).await;
     assert_eq!(doc["document"]["tracking"]["id"], "CVE-2023-33201");
@@ -575,7 +571,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app
         .call_service(
             TestRequest::delete()
-                .uri(&format!("/api/v2/advisory/{}", doc.id))
+                .uri(&format!("/api/v2/advisory/urn:uuid:{}", doc.id))
                 .to_request(),
         )
         .await;
@@ -594,7 +590,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app
         .call_service(
             TestRequest::delete()
-                .uri(&format!("/api/v2/advisory/{}", doc.id))
+                .uri(&format!("/api/v2/advisory/urn:uuid:{}", doc.id))
                 .to_request(),
         )
         .await;
@@ -663,7 +659,7 @@ async fn advisory_with_null_severity(ctx: &TrustifyContext) -> Result<(), anyhow
         .await?
         .id
         .to_string();
-    let uri = format!("/api/v2/advisory/{id}");
+    let uri = format!("/api/v2/advisory/urn:uuid:{id}");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     tracing::debug!(test = "", "{response:#?}");

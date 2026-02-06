@@ -17,6 +17,7 @@ use sea_orm::{
     TransactionError, TransactionTrait, prelude::async_trait,
 };
 use sea_orm_migration::{IntoSchemaManagerConnection, SchemaManagerConnection};
+use std::fmt::Display;
 use std::{
     ops::{Deref, DerefMut},
     pin::Pin,
@@ -123,6 +124,26 @@ impl Database {
 
     pub fn into_connection(self) -> DatabaseConnection {
         self.db
+    }
+
+    #[instrument(skip_all, err(level=tracing::Level::INFO))]
+    pub async fn transaction<T, E, F>(&self, f: F) -> Result<T, E>
+    where
+        F: AsyncFnOnce(&DatabaseTransaction) -> Result<T, E>,
+        E: From<DbErr> + Display,
+    {
+        let tx = self.db.begin().await?;
+        match f(&tx).await {
+            Ok(result) => {
+                tx.commit().await?;
+                Ok(result)
+            }
+            Err(err) => {
+                log::debug!("Failed to run code: {err}");
+                tx.rollback().await?;
+                Err(err)
+            }
+        }
     }
 }
 

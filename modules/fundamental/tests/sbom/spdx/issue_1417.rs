@@ -1,9 +1,7 @@
 use anyhow::bail;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::db::query::Query;
-use trustify_common::id::Id;
-use trustify_common::model::Paginated;
+use trustify_common::{db::query::Query, model::Paginated};
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_test_context::TrustifyContext;
 
@@ -15,7 +13,7 @@ async fn multi_purls(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .ingest_document("spdx/issues/1417/ANSIBLE-AUTOMATION-PLATFORM-2.0-RHEL-8.json.xz")
         .await?;
 
-    let Id::Uuid(id) = result.id else {
+    let Ok(id) = result.id.parse() else {
         bail!("must be an id")
     };
 

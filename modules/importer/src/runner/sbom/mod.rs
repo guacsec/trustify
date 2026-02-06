@@ -75,6 +75,7 @@ impl super::ImportRunner {
             source,
             labels: common.labels,
             ingestor,
+            db: self.db.clone(),
             report: report.clone(),
             max_size: size_limit.map(|size| size.as_u64()),
         };

@@ -27,7 +27,7 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         .id
         .to_string();
 
-    let uri = format!("/api/v2/sbom/{id}/all-license-ids");
+    let uri = format!("/api/v2/sbom/urn:uuid:{id}/all-license-ids");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     let expected_result = json!([
@@ -361,7 +361,7 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         .id
         .to_string();
 
-    let uri = format!("/api/v2/sbom/{id}/all-license-ids");
+    let uri = format!("/api/v2/sbom/urn:uuid:{id}/all-license-ids");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     let expected_result = json!([
@@ -445,7 +445,7 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         .await?
         .id
         .to_string();
-    let uri = format!("/api/v2/sbom/{id}/all-license-ids");
+    let uri = format!("/api/v2/sbom/urn:uuid:{id}/all-license-ids");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     let expected_result = json!([
@@ -582,7 +582,10 @@ async fn get_packages_sbom_by_query(ctx: &TrustifyContext) -> Result<(), anyhow:
         .to_string();
 
     async fn query_value(app: &impl CallService, id: &str, q: &str) -> Value {
-        let uri = format!("/api/v2/sbom/{id}/packages?q={}", urlencoding::encode(q));
+        let uri = format!(
+            "/api/v2/sbom/urn:uuid:{id}/packages?q={}",
+            urlencoding::encode(q)
+        );
         let req = TestRequest::get().uri(&uri).to_request();
         app.call_and_read_body_json(req).await
     }
@@ -976,7 +979,7 @@ async fn license_export(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .id
         .to_string();
 
-    let uri = format!("/api/v2/sbom/{id}/license-export");
+    let uri = format!("/api/v2/sbom/urn:uuid:{id}/license-export");
     let req = TestRequest::get().uri(&uri).to_request();
     let response = app.call_service(req).await;
 
@@ -1013,7 +1016,6 @@ async fn upload(ctx: &TrustifyContext) -> anyhow::Result<()> {
     assert_eq!(response.status(), StatusCode::CREATED);
     let result: IngestResult = actix_web::test::read_body_json(response).await;
     log::debug!("ID: {result:?}");
-    assert!(matches!(result.id, Id::Uuid(_)));
 
     Ok(())
 }
@@ -1027,13 +1029,13 @@ async fn get_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?
         .id
         .to_string();
-    let uri = format!("/api/v2/sbom/{id}");
+    let uri = format!("/api/v2/sbom/urn:uuid:{id}");
     let req = TestRequest::get().uri(&uri).to_request();
     let sbom: Value = app.call_and_read_body_json(req).await;
     log::debug!("{sbom:#?}");
 
     // assert expected fields
-    assert_eq!(sbom["id"], id);
+    assert_eq!(sbom["id"], format!("urn:uuid:{id}"));
     assert_eq!(sbom["number_of_packages"], 1053);
 
     Ok(())
@@ -1050,7 +1052,7 @@ async fn filter_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .to_string();
 
     async fn query(app: &impl CallService, id: &str, q: &str) -> PaginatedResults<SbomPackage> {
-        let uri = format!("/api/v2/sbom/{id}/packages?q={}", encode(q));
+        let uri = format!("/api/v2/sbom/urn:uuid:{id}/packages?q={}", encode(q));
         let req = TestRequest::get().uri(&uri).to_request();
         app.call_and_read_body_json(req).await
     }
@@ -1136,7 +1138,7 @@ async fn delete_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app
         .call_service(
             TestRequest::delete()
-                .uri(&format!("/api/v2/sbom/{}", result.id.clone()))
+                .uri(&format!("/api/v2/sbom/urn:uuid:{}", result.id.clone()))
                 .to_request(),
         )
         .await;
@@ -1147,13 +1149,13 @@ async fn delete_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // We get the old sbom back when a delete succeeds
     let doc: Value = actix_web::test::read_body_json(response).await;
-    assert_eq!(doc["id"], result.id.to_string().as_ref());
+    assert_eq!(doc["id"], format!("urn:uuid:{}", result.id));
 
     // If we try again, we should get a 404 since it was deleted.
     let response = app
         .call_service(
             TestRequest::delete()
-                .uri(&format!("/api/v2/sbom/{}", result.id.clone()))
+                .uri(&format!("/api/v2/sbom/urn:uuid:{}", result.id.clone()))
                 .to_request(),
         )
         .await;
@@ -1175,11 +1177,11 @@ async fn download_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let id = result.id.to_string();
 
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/{id}"))
+        .uri(&format!("/api/v2/sbom/urn:uuid:{id}"))
         .to_request();
 
     let sbom = app.call_and_read_body_json::<SbomSummary>(req).await;
-    assert_eq!(Id::Uuid(sbom.head.id), result.id);
+    assert_eq!(sbom.head.id.to_string(), result.id);
 
     let doc = sbom.source_document;
 
@@ -1196,7 +1198,7 @@ async fn download_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Verify we can download by uuid
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/{id}/download"))
+        .uri(&format!("/api/v2/sbom/urn:uuid:{id}/download"))
         .to_request();
     let body = app.call_and_read_body(req).await;
     assert_eq!(bytes, body);
@@ -1220,7 +1222,7 @@ async fn get_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let v: Value = app
         .call_and_read_body_json(
             TestRequest::get()
-                .uri(&format!("/api/v2/sbom/{id}/advisory"))
+                .uri(&format!("/api/v2/sbom/urn:uuid:{id}/advisory"))
                 .to_request(),
         )
         .await;
@@ -1256,7 +1258,7 @@ async fn get_advisories_with_deprecated_filtering(
     let v: Value = app
         .call_and_read_body_json(
             TestRequest::get()
-                .uri(&format!("/api/v2/sbom/{id}/advisory"))
+                .uri(&format!("/api/v2/sbom/urn:uuid:{id}/advisory"))
                 .to_request(),
         )
         .await;
@@ -1275,7 +1277,7 @@ async fn get_advisories_with_deprecated_filtering(
     let v: Value = app
         .call_and_read_body_json(
             TestRequest::get()
-                .uri(&format!("/api/v2/sbom/{id}/advisory"))
+                .uri(&format!("/api/v2/sbom/urn:uuid:{id}/advisory"))
                 .to_request(),
         )
         .await;
@@ -1575,6 +1577,7 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // Now fetch the AIBOM we just uploaded by its id
     let id = result.id.to_string();
     let uri = format!("/api/v2/sbom/{id}");
+
     let req = TestRequest::get().uri(&uri).to_request();
     let sbom: Value = app.call_and_read_body_json(req).await;
     log::debug!("{sbom:#?}");
@@ -1595,8 +1598,9 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response: Value = app.call_and_read_body_json(req).await;
     log::info!("{:#}", json!(response));
     let expected_result = json!({
-    "items": [],
-    "total": 0 });
+      "items": [],
+      "total": 0
+    });
     assert!(expected_result.contains_subset(response.clone()));
     Ok(())
 }
@@ -1625,13 +1629,13 @@ async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     log::debug!("{sbom:#?}");
 
     // assert expected fields
-    assert_eq!(sbom["id"], id);
+    assert_eq!(sbom["id"], format!("urn:uuid:{id}"));
     assert_eq!(sbom["number_of_packages"], 1);
     let labels = sbom["labels"].as_object().unwrap();
     assert_eq!(labels["kind"], "aibom");
     assert_eq!(labels["type"], "cyclonedx");
 
-    let uri = format!("/api/v2/sbom/{id}/packages");
+    let uri = format!("/api/v2/sbom/urn:uuid:{id}/packages");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     log::info!("{:#}", json!(response));

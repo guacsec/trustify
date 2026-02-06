@@ -62,7 +62,7 @@ async fn test_circular_deps_cyclonedx_service<const N: usize>(
     let [sbom] = ctx
         .ingest_documents(["cyclonedx/loop.json"])
         .await?
-        .into_uuid_str();
+        .into_id();
 
     let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
 
@@ -108,10 +108,7 @@ async fn test_circular_deps_spdx_service<const N: usize>(
     #[case] direction: Direction,
     #[case] chain: [&str; N],
 ) -> Result<(), anyhow::Error> {
-    let [sbom] = ctx
-        .ingest_documents(["spdx/loop.json"])
-        .await?
-        .into_uuid_str();
+    let [sbom] = ctx.ingest_documents(["spdx/loop.json"]).await?.into_id();
 
     let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
 

@@ -6,8 +6,8 @@ pub mod weakness;
 mod format;
 pub use format::Format;
 
+use crate::graph::Graph;
 use crate::{
-    graph::Graph,
     model::IngestResult,
     service::dataset::{DatasetIngestResult, DatasetLoader},
 };
@@ -16,10 +16,11 @@ use anyhow::anyhow;
 use parking_lot::Mutex;
 use sbom_walker::report::ReportSink;
 use sea_orm::error::DbErr;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use std::{fmt::Debug, sync::Arc, time::Instant};
 use tokio::task::JoinError;
 use tracing::instrument;
-use trustify_common::{db::DatabaseErrors, error::ErrorInformation, id::Id, id::IdError};
+use trustify_common::{db::DatabaseErrors, error::ErrorInformation, id::IdError};
 use trustify_entity::labels::Labels;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::{StorageBackend, dispatch::DispatchBackend};
@@ -210,15 +211,7 @@ impl IngestorService {
         &self.storage
     }
 
-    pub fn graph(&self) -> &Graph {
-        &self.graph
-    }
-
-    pub fn db(&self) -> trustify_common::db::Database {
-        self.graph.db.clone()
-    }
-
-    #[instrument(skip_all, err)]
+    #[instrument(skip_all, ret(level=tracing::Level::INFO))]
     pub async fn ingest(
         &self,
         bytes: &[u8],
@@ -226,6 +219,7 @@ impl IngestorService {
         labels: impl Into<Labels> + Debug,
         issuer: Option<String>,
         cache: Cache,
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
         let start = Instant::now();
 
@@ -246,7 +240,14 @@ impl IngestorService {
             .map_err(|err| Error::Storage(anyhow!("{err}")))?;
 
         let result = fmt
-            .load(&self.graph, labels.into(), issuer, &result.digests, bytes)
+            .load(
+                &self.graph,
+                labels.into(),
+                issuer,
+                &result.digests,
+                bytes,
+                tx,
+            )
             .await?;
 
         if let Some(wait) = cache.into() {
@@ -265,15 +266,16 @@ impl IngestorService {
     }
 
     /// Ingest a dataset archive
-    #[instrument(skip(self, bytes), err(level=tracing::Level::INFO))]
+    #[instrument(skip(self, bytes, tx), err(level=tracing::Level::INFO))]
     pub async fn ingest_dataset(
         &self,
         bytes: &[u8],
         labels: impl Into<Labels> + Debug,
         limit: usize,
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<DatasetIngestResult, Error> {
-        let loader = DatasetLoader::new(self.graph(), self.storage(), limit);
-        loader.load(labels.into(), bytes).await
+        let loader = DatasetLoader::new(&self.graph, self.storage(), limit);
+        loader.load(labels.into(), bytes, tx).await
     }
 
     /// If appropriate, load result into analysis graph cache
@@ -289,12 +291,7 @@ impl IngestorService {
             return;
         };
 
-        let Id::Uuid(id) = result.id else {
-            // no ID in the result, strange, but skip
-            return;
-        };
-
-        match analysis.queue_load(id) {
+        match analysis.queue_load(&result.id) {
             Ok(r) if wait => {
                 // queued ok, await processing
                 if let Err(err) = r.await {
@@ -306,10 +303,7 @@ impl IngestorService {
             }
             Err(e) => {
                 // failed to queue
-                log::warn!(
-                    "Error queuing graph load for SBOM {}: {e}",
-                    result.id.value()
-                );
+                log::warn!("Error queuing graph load for SBOM {}: {e}", result.id);
             }
         }
     }

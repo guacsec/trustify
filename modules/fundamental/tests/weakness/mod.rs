@@ -7,7 +7,7 @@ use test_log::test;
 use trustify_common::{hashing::HashingRead, model::Paginated};
 use trustify_entity::labels::Labels;
 use trustify_module_fundamental::weakness::service::WeaknessService;
-use trustify_module_ingestor::{graph::Graph, service::weakness::CweCatalogLoader};
+use trustify_module_ingestor::service::weakness::CweCatalogLoader;
 use trustify_test_context::{TrustifyContext, document_read};
 use zip::ZipArchive;
 
@@ -16,8 +16,7 @@ use zip::ZipArchive;
 async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     const TOTAL_ITEMS_FOUND: u64 = 964;
 
-    let graph = Graph::new(ctx.db.clone());
-    let loader = CweCatalogLoader::new(&graph);
+    let loader = CweCatalogLoader::new();
     let service = WeaknessService::new(ctx.db.clone());
 
     // extract document from zip file
@@ -36,7 +35,9 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // load
 
     let doc = Document::parse(&xml)?;
-    loader.load(Labels::default(), &doc, &digests).await?;
+    ctx.db
+        .transaction(async |tx| loader.load(Labels::default(), &doc, &digests, tx).await)
+        .await?;
 
     // fetch data
 
@@ -71,7 +72,9 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // load again
 
     let doc = Document::parse(&xml)?;
-    loader.load(Labels::default(), &doc, &digests).await?;
+    ctx.db
+        .transaction(async |tx| loader.load(Labels::default(), &doc, &digests, tx).await)
+        .await?;
 
     // fetch data again
 

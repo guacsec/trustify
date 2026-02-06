@@ -11,7 +11,7 @@ async fn render_dot(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     let sbom = ctx.ingest_document("spdx/simple.json").await?;
-    let sbom = sbom.id.try_as_uid().unwrap();
+    let sbom = sbom.id;
 
     // Ensure child has an ancestor that includes it
     let uri = format!("/api/v2/analysis/sbom/{sbom}/render.dot");
@@ -54,7 +54,7 @@ async fn render_unsupported_ext(ctx: &TrustifyContext) -> Result<(), anyhow::Err
     let app = caller(ctx).await?;
 
     let sbom = ctx.ingest_document("spdx/simple.json").await?;
-    let sbom = sbom.id.try_as_uid().unwrap();
+    let sbom = sbom.id;
 
     // Ensure child has an ancestor that includes it
     let uri = format!("/api/v2/analysis/sbom/{sbom}/render.foo");

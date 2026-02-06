@@ -5,6 +5,7 @@ use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
 use trustify_common::db::query::Query;
+use trustify_common::id::Id;
 use trustify_common::model::Paginated;
 use trustify_common::purl::Purl;
 use trustify_module_fundamental::sbom::model::SbomExternalPackageReference;
@@ -56,13 +57,13 @@ async fn quarkus(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_ne!(result1.id, result2.id);
 
     let mut sbom1 = sbom
-        .fetch_sbom_details(result1.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result1.id)?, vec![], &ctx.db)
         .await?
         .expect("v1 must be found");
     log::info!("SBOM1: {sbom1:?}");
 
     let mut sbom2 = sbom
-        .fetch_sbom_details(result2.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result2.id)?, vec![], &ctx.db)
         .await?
         .expect("v2 must be found");
     log::info!("SBOM2: {sbom2:?}");
@@ -130,13 +131,13 @@ async fn nhc(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_ne!(result1.id, result2.id);
 
     let mut sbom1 = sbom
-        .fetch_sbom_details(result1.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result1.id)?, vec![], &ctx.db)
         .await?
         .expect("v1 must be found");
     log::info!("SBOM1: {sbom1:?}");
 
     let mut sbom2 = sbom
-        .fetch_sbom_details(result2.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result2.id)?, vec![], &ctx.db)
         .await?
         .expect("v2 must be found");
     log::info!("SBOM2: {sbom2:?}");
@@ -183,13 +184,13 @@ async fn nhc_same(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(result1.id, result2.id);
 
     let mut sbom1 = sbom
-        .fetch_sbom_details(result1.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result1.id)?, vec![], &ctx.db)
         .await?
         .expect("v1 must be found");
     log::info!("SBOM1: {sbom1:?}");
 
     let mut sbom2 = sbom
-        .fetch_sbom_details(result2.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result2.id)?, vec![], &ctx.db)
         .await?
         .expect("v2 must be found");
     log::info!("SBOM2: {sbom2:?}");
@@ -230,8 +231,19 @@ async fn nhc_same_content(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         &serde_json::to_vec(&json).map(Bytes::from)?
     };
     let result2 = ctx
-        .ingestor
-        .ingest(bytes, Format::SBOM, ("source", "test"), None, Cache::Skip)
+        .db
+        .transaction(async |tx| {
+            ctx.ingestor
+                .ingest(
+                    bytes,
+                    Format::SBOM,
+                    ("source", "test"),
+                    None,
+                    Cache::Skip,
+                    tx,
+                )
+                .await
+        })
         .await?;
 
     assert_eq!(
@@ -246,13 +258,13 @@ async fn nhc_same_content(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_ne!(result1.id, result2.id);
 
     let mut sbom1 = sbom
-        .fetch_sbom_details(result1.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result1.id)?, vec![], &ctx.db)
         .await?
         .expect("v1 must be found");
     log::info!("SBOM1: {sbom1:?}");
 
     let mut sbom2 = sbom
-        .fetch_sbom_details(result2.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result2.id)?, vec![], &ctx.db)
         .await?
         .expect("v2 must be found");
     log::info!("SBOM2: {sbom2:?}");
@@ -303,13 +315,13 @@ async fn syft_rerun(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_ne!(result1.id, result2.id);
 
     let mut sbom1 = sbom
-        .fetch_sbom_details(result1.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result1.id)?, vec![], &ctx.db)
         .await?
         .expect("v1 must be found");
     log::info!("SBOM1: {sbom1:?}");
 
     let mut sbom2 = sbom
-        .fetch_sbom_details(result2.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result2.id)?, vec![], &ctx.db)
         .await?
         .expect("v2 must be found");
     log::info!("SBOM2: {sbom2:?}");

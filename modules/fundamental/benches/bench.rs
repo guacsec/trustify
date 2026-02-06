@@ -33,14 +33,19 @@ pub(crate) mod trustify_benches {
 
                         let start = Instant::now();
                         black_box(
-                            ctx.ingestor
-                                .ingest(
-                                    &data,
-                                    Format::Advisory,
-                                    Labels::default(),
-                                    None,
-                                    Cache::Skip,
-                                )
+                            ctx.db
+                                .transaction(async |tx| {
+                                    ctx.ingestor
+                                        .ingest(
+                                            &data,
+                                            Format::Advisory,
+                                            Labels::default(),
+                                            None,
+                                            Cache::Skip,
+                                            tx,
+                                        )
+                                        .await
+                                })
                                 .await
                                 .expect("ingest ok"),
                         );

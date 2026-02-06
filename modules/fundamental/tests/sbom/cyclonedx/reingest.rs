@@ -4,7 +4,6 @@ use anyhow::bail;
 use sea_orm::EntityTrait;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::id::Id;
 use trustify_common::model::Paginated;
 use trustify_entity::sbom;
 use trustify_module_fundamental::sbom::service::SbomService;
@@ -15,7 +14,7 @@ use trustify_test_context::TrustifyContext;
 #[test(tokio::test)]
 async fn reingest(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     async fn assert(ctx: &TrustifyContext, result: IngestResult) -> anyhow::Result<()> {
-        let Id::Uuid(id) = result.id else {
+        let Ok(id) = result.id.parse() else {
             bail!("must be an id")
         };
         let sbom = ctx

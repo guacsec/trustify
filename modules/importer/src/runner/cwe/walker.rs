@@ -5,6 +5,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::bytes::Buf;
 use tracing::instrument;
+use trustify_common::db::Database;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::{Cache, Format, IngestorService};
 use zip::ZipArchive;
@@ -16,6 +17,7 @@ pub struct CweWalker {
     continuation: LastModified,
     source: String,
     ingestor: IngestorService,
+    db: Database,
     report: Arc<Mutex<ReportBuilder>>,
 }
 
@@ -23,12 +25,14 @@ impl CweWalker {
     pub fn new(
         source: impl Into<String>,
         ingestor: IngestorService,
+        db: Database,
         report: Arc<Mutex<ReportBuilder>>,
     ) -> Self {
         Self {
             continuation: LastModified(None),
             source: source.into(),
             ingestor,
+            db,
             report,
         }
     }
@@ -76,19 +80,25 @@ impl CweWalker {
             body.into()
         };
 
-        if let Err(err) = self
-            .ingestor
-            .ingest(
-                &content,
-                Format::CweCatalog,
-                Labels::new()
-                    .add("source", &self.source)
-                    .add("importer", "CWE Catalog"),
-                None,
-                Cache::Skip,
-            )
-            .await
-        {
+        let result = self
+            .db
+            .transaction(async |tx| {
+                self.ingestor
+                    .ingest(
+                        &content,
+                        Format::CweCatalog,
+                        Labels::new()
+                            .add("source", &self.source)
+                            .add("importer", "CWE Catalog"),
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await;
+
+        if let Err(err) = result {
             self.report
                 .lock()
                 .await

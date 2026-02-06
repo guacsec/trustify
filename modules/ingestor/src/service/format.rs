@@ -16,6 +16,7 @@ use csaf::Csaf;
 use cve::Cve;
 use jsn::{Format as JsnFormat, TokenReader, mask::*};
 use quick_xml::{Reader, events::Event};
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 use std::{io::Cursor, str::FromStr};
@@ -61,48 +62,49 @@ impl Format {
         issuer: Option<String>,
         digests: &Digests,
         buffer: &[u8],
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
         match self {
             Format::CSAF => {
                 // issuer is internal as publisher of the document.
                 let loader = CsafLoader::new(graph);
                 let csaf: Csaf = serde_json::from_slice(buffer)?;
-                loader.load(labels, csaf, digests).await
+                loader.load(labels, csaf, digests, tx).await
             }
             Format::OSV => {
                 // issuer is :shrug: sometimes we can tell, sometimes not :shrug:
                 let loader = OsvLoader::new(graph);
                 let osv = super::advisory::osv::parse(buffer)?;
-                loader.load(labels, osv, digests, issuer).await
+                loader.load(labels, osv, digests, issuer, tx).await
             }
             Format::CVE => {
                 // issuer is always CVE Project
                 let loader = CveLoader::new(graph);
                 let cve: Cve = serde_json::from_slice(buffer)?;
-                loader.load(labels, cve, digests).await
+                loader.load(labels, cve, digests, tx).await
             }
             Format::SPDX => {
                 let loader = SpdxLoader::new(graph);
                 let v: Value = serde_json::from_slice(buffer)?;
-                loader.load(labels, v, digests).await
+                loader.load(labels, v, digests, tx).await
             }
             Format::CycloneDX => {
                 let loader = CyclonedxLoader::new(graph);
-                loader.load(labels, buffer, digests).await
+                loader.load(labels, buffer, digests, tx).await
             }
             Format::ClearlyDefined => {
                 let loader = ClearlyDefinedLoader::new(graph);
                 let item: Value = serde_json::from_slice(buffer)?;
-                loader.load(labels, item, digests).await
+                loader.load(labels, item, digests, tx).await
             }
             Format::ClearlyDefinedCuration => {
                 let loader = ClearlyDefinedCurationLoader::new(graph);
                 let curation: Curation = serde_yml::from_slice(buffer)?;
-                loader.load(labels, curation, digests).await
+                loader.load(labels, curation, digests, tx).await
             }
             Format::CweCatalog => {
-                let loader = CweCatalogLoader::new(graph);
-                loader.load_bytes(labels, buffer, digests).await
+                let loader = CweCatalogLoader::new();
+                loader.load_bytes(labels, buffer, digests, tx).await
             }
             f => Err(Error::UnsupportedFormat(format!(
                 "Must resolve {f:?} to an actual format"

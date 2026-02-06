@@ -4,6 +4,7 @@ use std::io::Read;
 use tar::Archive;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::id::Id;
 use trustify_entity::sbom_package_license::LicenseCategory;
 use trustify_entity::{sbom_package, sbom_package_license};
 use trustify_module_fundamental::license::{
@@ -24,7 +25,9 @@ async fn test_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         result.clone().document_id.as_deref()
     );
     let license_service = LicenseService::new();
-    let license_result = license_service.license_export(result.id, &ctx.db).await?;
+    let license_result = license_service
+        .license_export(Id::parse_uuid(result.id)?, &ctx.db)
+        .await?;
 
     let sp: Vec<sbom_package::Model> = sbom_package::Entity::find().all(&ctx.db).await?;
 
@@ -51,7 +54,9 @@ async fn test_spdx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         result.clone().document_id.as_deref()
     );
     let license_service = LicenseService::new();
-    let license_result = license_service.license_export(result.id, &ctx.db).await?;
+    let license_result = license_service
+        .license_export(Id::parse_uuid(result.id)?, &ctx.db)
+        .await?;
 
     let sp: Vec<sbom_package::Model> = sbom_package::Entity::find().all(&ctx.db).await?;
 
@@ -120,7 +125,9 @@ async fn test_license_export_spdx(ctx: &TrustifyContext) -> Result<(), anyhow::E
         result.clone().document_id.as_deref()
     );
     let license_service = LicenseService::new();
-    let license_result = license_service.license_export(result.id, &ctx.db).await?;
+    let license_result = license_service
+        .license_export(Id::parse_uuid(result.id)?, &ctx.db)
+        .await?;
 
     let sbom_name_group_version = license_result
         .sbom_name_group_version
@@ -197,7 +204,9 @@ async fn test_license_export_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyh
         result.clone().document_id.as_deref()
     );
     let license_service = LicenseService::new();
-    let license_result = license_service.license_export(result.id, &ctx.db).await?;
+    let license_result = license_service
+        .license_export(Id::parse_uuid(result.id)?, &ctx.db)
+        .await?;
 
     let sbom_name_group_version = license_result
         .sbom_name_group_version

@@ -5,9 +5,9 @@ use std::time::Instant;
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
-use trustify_common::id::Id;
 use trustify_module_ingestor::model::IngestResult;
 use trustify_test_context::TrustifyContext;
+use uuid::Uuid;
 
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
@@ -15,13 +15,11 @@ use trustify_test_context::TrustifyContext;
 async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
     let start = Instant::now();
 
-    let result = ctx.ingest_document("csaf/cve-2023-33201.json").await?;
+    let _result = ctx.ingest_document("csaf/cve-2023-33201.json").await?;
 
     let ingest_time = start.elapsed();
 
     log::info!("ingest: {}", humantime::Duration::from(ingest_time));
-
-    assert!(matches!(result.id, Id::Uuid(_)));
 
     Ok(())
 }
@@ -31,8 +29,8 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
 #[instrument]
 async fn reingest(ctx: TrustifyContext) -> anyhow::Result<()> {
     async fn assert(ctx: &TrustifyContext, result: IngestResult) -> anyhow::Result<()> {
-        let Id::Uuid(id) = result.id else {
-            bail!("must be an id")
+        let Ok(id) = Uuid::parse_str(&result.id) else {
+            bail!("must be a UUID")
         };
         let adv = ctx
             .graph

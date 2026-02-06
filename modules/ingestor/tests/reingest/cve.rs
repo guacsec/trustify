@@ -5,16 +5,16 @@ use anyhow::bail;
 use test_context::test_context;
 use test_log::test;
 use time::macros::datetime;
-use trustify_common::id::Id;
 use trustify_module_ingestor::model::IngestResult;
 use trustify_test_context::TrustifyContext;
+use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn reingest(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     async fn assert(ctx: &TrustifyContext, result: IngestResult) -> anyhow::Result<()> {
-        let Id::Uuid(id) = result.id else {
-            bail!("must be an id")
+        let Ok(id) = Uuid::parse_str(&result.id) else {
+            bail!("must be a UUID")
         };
         let adv = ctx
             .graph

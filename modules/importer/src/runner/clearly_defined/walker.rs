@@ -7,6 +7,7 @@ use std::io::{BufRead, Read};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::bytes::Buf;
+use trustify_common::db::Database;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::{Cache, Format, IngestorService};
 
@@ -14,6 +15,7 @@ pub struct ClearlyDefinedWalker<P: Progress + Send + 'static> {
     continuation: ClearlyDefinedItemContinuation,
     source: String,
     ingestor: IngestorService,
+    db: Database,
     progress: P,
     report: Arc<Mutex<ReportBuilder>>,
     coordinates_seen_this_run: HashSet<String>,
@@ -24,6 +26,7 @@ impl<P: Progress + Send + 'static> ClearlyDefinedWalker<P> {
     pub fn new(
         source: impl Into<String>,
         ingestor: IngestorService,
+        db: Database,
         report: Arc<Mutex<ReportBuilder>>,
         progress: P,
     ) -> Self {
@@ -31,6 +34,7 @@ impl<P: Progress + Send + 'static> ClearlyDefinedWalker<P> {
             continuation: Default::default(),
             source: source.into(),
             ingestor,
+            db,
             progress,
             report,
             coordinates_seen_this_run: Default::default(),
@@ -106,17 +110,23 @@ impl<P: Progress + Send + 'static> ClearlyDefinedWalker<P> {
 
         let mut report = self.report.lock().await;
 
-        if let Err(err) = self
-            .ingestor
-            .ingest(
-                &body,
-                Format::ClearlyDefined,
-                Labels::default(),
-                Some("ClearlyDefined".to_string()),
-                Cache::Skip,
-            )
-            .await
-        {
+        let result = self
+            .db
+            .transaction(async |tx| {
+                self.ingestor
+                    .ingest(
+                        &body,
+                        Format::ClearlyDefined,
+                        Labels::default(),
+                        Some("ClearlyDefined".to_string()),
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await;
+
+        if let Err(err) = result {
             report.add_error(Phase::Upload, coordinate, err.to_string());
         }
 
@@ -197,6 +207,7 @@ mod test {
         let mut walker = ClearlyDefinedWalker::new(
             "https://clearlydefinedprod.blob.core.windows.net/changes-notifications/",
             ctx.ingestor.clone(),
+            ctx.db.clone(),
             Arc::new(Mutex::new(ReportBuilder::new())),
             (),
         );

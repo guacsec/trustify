@@ -229,8 +229,13 @@ impl GenerateDump {
                     .map_err(|err| anyhow!("{err}"))
                     .with_context(|| format!("failed to decompress: '{name}'"))?;
 
-                let result = service
-                    .ingest(&data, Format::Unknown, (), None, Cache::Skip)
+                let result = runner
+                    .db
+                    .transaction(async |tx| {
+                        service
+                            .ingest(&data, Format::Unknown, (), None, Cache::Skip, tx)
+                            .await
+                    })
                     .await?;
                 log::info!("  id: {}", result.id);
                 if !result.warnings.is_empty() {

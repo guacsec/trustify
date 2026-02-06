@@ -18,10 +18,11 @@ pub fn configure(
     storage: impl Into<DispatchBackend>,
     analysis: Option<AnalysisService>,
 ) {
-    let ingestor_service = IngestorService::new(Graph::new(db), storage, analysis);
+    let ingestor_service = IngestorService::new(Graph::new(db.clone()), storage, analysis);
 
     svc.app_data(web::Data::new(ingestor_service))
         .app_data(web::Data::new(config))
+        .app_data(web::Data::new(db))
         .service(upload_dataset);
 }
 
@@ -57,12 +58,18 @@ struct UploadParams {
 pub async fn upload_dataset(
     service: web::Data<IngestorService>,
     config: web::Data<Config>,
+    db: web::Data<Database>,
     web::Query(UploadParams { labels }): web::Query<UploadParams>,
     bytes: web::Bytes,
     _: Require<UploadDataset>,
 ) -> Result<impl Responder, Error> {
-    let result = service
-        .ingest_dataset(&bytes, labels, config.dataset_entry_limit)
+    let result = db
+        .transaction(async |tx| {
+            service
+                .ingest_dataset(&bytes, labels, config.dataset_entry_limit, tx)
+                .await
+        })
         .await?;
+
     Ok(HttpResponse::Created().json(result))
 }

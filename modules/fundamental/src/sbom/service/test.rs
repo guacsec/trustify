@@ -15,6 +15,7 @@ use trustify_common::{
 };
 use trustify_entity::labels::Labels;
 use trustify_test_context::TrustifyContext;
+use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
@@ -33,7 +34,7 @@ async fn sbom_details_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     let id_3_2_12 = results[3].id.clone();
 
     let details = service
-        .fetch_sbom_details(id_3_2_12, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(id_3_2_12)?, vec![], &ctx.db)
         .await?;
 
     assert!(details.is_some());
@@ -110,7 +111,7 @@ async fn sbom_set_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let service = SbomService::new(ctx.db.clone());
 
-    let id_3_2_12 = results[3].id.clone();
+    let id_3_2_12 = Id::parse_uuid(&results[3].id)?;
 
     let mut map = HashMap::new();
     map.insert("label_1".to_string(), "First Label".to_string());
@@ -121,7 +122,7 @@ async fn sbom_set_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?;
 
     let details = service
-        .fetch_sbom_details(id_3_2_12.clone(), vec![], &ctx.db)
+        .fetch_sbom_details(id_3_2_12, vec![], &ctx.db)
         .await?;
 
     assert!(details.is_some());
@@ -146,7 +147,7 @@ async fn sbom_update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 
     let service = SbomService::new(ctx.db.clone());
 
-    let id_3_2_12 = results[3].id.clone();
+    let id_3_2_12 = Id::parse_uuid(&results[3].id)?;
 
     let mut map = HashMap::new();
     map.insert("label_1".to_string(), "First Label".to_string());
@@ -166,7 +167,7 @@ async fn sbom_update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
         .await?;
 
     let details = service
-        .fetch_sbom_details(id_3_2_12.clone(), vec![], &ctx.db)
+        .fetch_sbom_details(id_3_2_12, vec![], &ctx.db)
         .await?;
     let details = details.unwrap();
     //update only alters values of pre-existing keys - it won't add in an entirely new key/value pair
@@ -359,12 +360,7 @@ async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<
     let service = SbomService::new(ctx.db.clone());
 
     // Ingest an SBOM with license information
-    let sbom_id = ctx
-        .ingest_document("spdx/mtv-2.6.json")
-        .await?
-        .id
-        .try_as_uid()
-        .unwrap();
+    let sbom_id = Uuid::parse_str(&ctx.ingest_document("spdx/mtv-2.6.json").await?.id).unwrap();
 
     // Test 1: No license filter - should return all packages
     let all_packages = service
@@ -501,11 +497,7 @@ async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), any
     let tx = ctx.db.begin().await?;
     let sbom_service = SbomService::new(ctx.db.clone());
     // delete the UBI SBOM
-    assert!(
-        sbom_service
-            .delete_sbom(ubi9_sbom.id.try_as_uid().unwrap(), &tx)
-            .await?
-    );
+    assert!(sbom_service.delete_sbom(ubi9_sbom.id.parse()?, &tx).await?);
     tx.commit().await?;
 
     // it should not leave behind orphaned purls
@@ -519,7 +511,7 @@ async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), any
     let tx = ctx.db.begin().await?;
     assert!(
         sbom_service
-            .delete_sbom(quarkus_sbom.id.try_as_uid().unwrap(), &tx)
+            .delete_sbom(quarkus_sbom.id.parse()?, &tx)
             .await?
     );
     tx.commit().await?;
@@ -574,7 +566,7 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
 
     // Delete one of the SBOMs
     let service = SbomService::new(ctx.db.clone());
-    let sbom_uuid = results[1].id.try_as_uid().expect("SBOM should have a UUID");
+    let sbom_uuid = results[1].id.parse().expect("SBOM should have a UUID");
     let tx = ctx.db.begin().await?;
     assert!(
         service.delete_sbom(sbom_uuid, &tx).await?,
@@ -611,7 +603,7 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
     assert_eq!(packages_deleted, 4, "Should have deleted 4 packages");
 
     // Delete the other SBOM
-    let sbom_uuid = results[2].id.try_as_uid().expect("SBOM should have a UUID");
+    let sbom_uuid = results[2].id.parse().expect("SBOM should have a UUID");
     let tx = ctx.db.begin().await?;
     assert!(
         service.delete_sbom(sbom_uuid, &tx).await?,
@@ -633,7 +625,7 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
     );
 
     // Delete the UBI SBOM, unrelated with other SBOMs and the advisory
-    let ubi_sbom_uuid = results[3].id.try_as_uid().expect("SBOM should have a UUID");
+    let ubi_sbom_uuid = results[3].id.parse().expect("SBOM should have a UUID");
     let tx = ctx.db.begin().await?;
     assert!(
         service.delete_sbom(ubi_sbom_uuid, &tx).await?,

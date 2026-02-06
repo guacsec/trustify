@@ -1,6 +1,7 @@
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
+use trustify_common::id::Id;
 use trustify_cvss::cvss3::severity::Severity;
 use trustify_module_fundamental::sbom::{model::details::SbomDetails, service::SbomService};
 use trustify_test_context::TrustifyContext;
@@ -77,7 +78,7 @@ async fn sbom_details_cyclonedx_osv(ctx: &TrustifyContext) -> Result<(), anyhow:
     );
 
     let sbom1 = sbom
-        .fetch_sbom_details(result1.id, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(result1.id)?, vec![], &ctx.db)
         .await?
         .expect("SBOM details must be found");
     log::info!("SBOM1: {sbom1:?}");

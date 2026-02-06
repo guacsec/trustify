@@ -113,8 +113,7 @@ async fn qualified_packages_filtering(ctx: &TrustifyContext) -> Result<(), anyho
     let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
     assert_eq!(3, response.items.len());
 
-    ctx.ingestor
-        .graph()
+    ctx.graph
         .ingest_qualified_package(
             &Purl::from_str("pkg:rpm/fedora/curl@7.50.3-1.fc25?arch=i386")?,
             &ctx.db,
@@ -131,8 +130,7 @@ async fn qualified_packages_filtering(ctx: &TrustifyContext) -> Result<(), anyho
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn package_with_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    ctx.ingestor
-        .graph()
+    ctx.graph
         .ingest_qualified_package(&Purl::from_str("pkg:cargo/hyper@0.14.1")?, &ctx.db)
         .await?;
 
@@ -173,8 +171,7 @@ async fn package_with_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
 async fn purl_component_queries(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let purl = Purl::from_str("pkg:rpm/fedora/curl@7.50.3-1.fc25?arch=i386&distro=fedora-25")?;
     let uuid = ctx
-        .ingestor
-        .graph()
+        .graph
         .ingest_qualified_package(&purl, &ctx.db)
         .await?
         .qualified_package
@@ -383,8 +380,7 @@ async fn get_recommendations_no_version(ctx: &TrustifyContext) -> Result<(), any
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_recommendations_dedup(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    ctx.ingestor
-        .graph()
+    ctx.graph
         .ingest_qualified_package(
             &Purl::from_str("pkg:cargo/hyper@0.14.1-redhat-00001")?,
             &ctx.db,
@@ -428,8 +424,7 @@ async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), a
     use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
     use trustify_entity::{purl_status, status};
 
-    ctx.ingestor
-        .graph()
+    ctx.graph
         .ingest_qualified_package(
             &Purl::from_str("pkg:cargo/hyper@0.14.1-redhat-00001")?,
             &ctx.db,

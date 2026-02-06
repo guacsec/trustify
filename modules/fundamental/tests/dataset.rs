@@ -37,9 +37,10 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
     // get a document
 
     let sbom = &result.files["spdx/quarkus-bom-2.13.8.Final-redhat-00004.json.bz2"];
-    assert!(matches!(sbom.id, Id::Uuid(_)));
 
-    let sbom_summary = service.fetch_sbom_summary(sbom.id.clone(), &ctx.db).await?;
+    let sbom_summary = service
+        .fetch_sbom_summary(Id::parse_uuid(&sbom.id)?, &ctx.db)
+        .await?;
     assert!(sbom_summary.is_some());
     let sbom_summary = sbom_summary.unwrap();
     assert_eq!(sbom_summary.head.name, "quarkus-bom");
@@ -61,7 +62,7 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
     assert_eq!(content.len(), 1174356);
 
     let sbom_details = service
-        .fetch_sbom_details(sbom.id.clone(), vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(&sbom.id)?, vec![], &ctx.db)
         .await?;
     assert!(sbom_details.is_some());
     let sbom_details = sbom_details.unwrap();
@@ -88,7 +89,7 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
     let ubi = &result.files["spdx/ubi8-8.8-1067.json.bz2"];
 
     let ubi_details = service
-        .fetch_sbom_details(ubi.id.clone(), vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(&ubi.id)?, vec![], &ctx.db)
         .await?;
     assert!(ubi_details.is_some());
     let ubi_details = ubi_details.unwrap();

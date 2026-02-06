@@ -27,7 +27,7 @@ async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .ingest_document("cyclonedx/openssl-3.0.7-18.el9_2.cdx_1.6_aliases.sbom.json")
         .await?;
 
-    let sbom_id = result.id.try_as_uid().expect("Must be a UID");
+    let sbom_id = result.id.parse().expect("Must be a UID");
 
     // fetch describes
 

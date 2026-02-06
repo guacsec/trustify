@@ -111,6 +111,13 @@ impl Id {
     {
         f(digest.encode_hex())
     }
+
+    /// Parse string as [`Uuid`] and return as [`Id::Uuid`] variant.
+    pub fn parse_uuid(uuid: impl AsRef<str>) -> Result<Self, IdError> {
+        Ok(Self::Uuid(
+            uuid.as_ref().parse().map_err(IdError::InvalidUuid)?,
+        ))
+    }
 }
 
 impl ToSchema for Id {

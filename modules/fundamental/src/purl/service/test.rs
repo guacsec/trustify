@@ -773,8 +773,7 @@ async fn statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ctx.ingest_documents(["osv/RUSTSEC-2021-0079.json", "cve/CVE-2021-32714.json"])
         .await?;
 
-    ctx.ingestor
-        .graph()
+    ctx.graph
         .ingest_qualified_package(&Purl::from_str("pkg:cargo/hyper@0.14.1")?, &ctx.db)
         .await?;
 

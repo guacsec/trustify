@@ -91,7 +91,7 @@ async fn container_evolve(
 
     // ingest, and create a map of sbom id -> file name
 
-    let sboms = ctx.ingest_documents(&docs).await?.collect_uuid_str();
+    let sboms = ctx.ingest_documents(&docs).await?.collect_ids();
     let sboms: HashMap<_, _> = sboms.into_iter().zip(docs).collect();
     log::info!("SBOMS: {sboms:#?}");
 

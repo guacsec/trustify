@@ -23,10 +23,10 @@ use crate::{
 };
 use osv::schema::{Ecosystem, Event, Range, RangeType, ReferenceType, SeverityType, Vulnerability};
 use sbom_walker::report::ReportSink;
-use sea_orm::TransactionTrait;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use std::{collections::HashSet, fmt::Debug, str::FromStr};
 use tracing::instrument;
-use trustify_common::{hashing::Digests, id::Id, purl::Purl, time::ChronoExt};
+use trustify_common::{hashing::Digests, purl::Purl, time::ChronoExt};
 use trustify_cvss::cvss3::Cvss3Base;
 use trustify_entity::{labels::Labels, version_scheme::VersionScheme};
 
@@ -39,21 +39,20 @@ impl<'g> OsvLoader<'g> {
         Self { graph }
     }
 
-    #[instrument(skip(self, osv), err(level=tracing::Level::INFO))]
+    #[instrument(skip(self, osv, tx), err(level=tracing::Level::INFO))]
     pub async fn load(
         &self,
         labels: impl Into<Labels> + Debug,
         osv: Vulnerability,
         digests: &Digests,
         issuer: Option<String>,
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
         let warnings = Warnings::new();
 
         let labels = labels.into().add("type", "osv");
 
         let issuer = issuer.or(detect_organization(&osv));
-
-        let tx = self.graph.db.begin().await?;
 
         let cve_ids: Vec<String> = osv
             .aliases
@@ -79,13 +78,11 @@ impl<'g> OsvLoader<'g> {
         };
         let advisory = self
             .graph
-            .ingest_advisory(&osv.id, labels, digests, information, &tx)
+            .ingest_advisory(&osv.id, labels, digests, information, tx)
             .await?;
 
         if let Some(withdrawn) = osv.withdrawn {
-            advisory
-                .set_withdrawn_at(withdrawn.into_time(), &tx)
-                .await?;
+            advisory.set_withdrawn_at(withdrawn.into_time(), tx).await?;
         }
 
         // Batch create all vulnerabilities
@@ -93,7 +90,7 @@ impl<'g> OsvLoader<'g> {
         for cve_id in &cve_ids {
             vuln_creator.add(cve_id, ());
         }
-        vuln_creator.create(&tx).await?;
+        vuln_creator.create(tx).await?;
 
         let mut purl_creator = PurlCreator::new();
         let mut purl_status_creator = PurlStatusCreator::new();
@@ -103,7 +100,7 @@ impl<'g> OsvLoader<'g> {
         extract_scores(&osv, &mut score_creator);
 
         for cve_id in extract_vulnerability_ids(&osv) {
-            self.graph.ingest_vulnerability(cve_id, (), &tx).await?;
+            self.graph.ingest_vulnerability(cve_id, (), tx).await?;
 
             let advisory_vuln = advisory
                 .link_to_vulnerability(
@@ -117,7 +114,7 @@ impl<'g> OsvLoader<'g> {
                         release_date: None,
                         cwes: None,
                     }),
-                    &tx,
+                    tx,
                 )
                 .await?;
 
@@ -125,7 +122,7 @@ impl<'g> OsvLoader<'g> {
                 if matches!(severity.severity_type, SeverityType::CVSSv3) {
                     match Cvss3Base::from_str(&severity.score) {
                         Ok(cvss3) => {
-                            advisory_vuln.ingest_cvss3_score(cvss3, &tx).await?;
+                            advisory_vuln.ingest_cvss3_score(cvss3, tx).await?;
                         }
                         Err(err) => {
                             let msg = format!("Unable to parse CVSS3: {err}");
@@ -316,18 +313,16 @@ impl<'g> OsvLoader<'g> {
             }
         }
 
-        purl_creator.create(&tx).await?;
-        score_creator.create(&tx).await?;
+        purl_creator.create(tx).await?;
+        score_creator.create(tx).await?;
 
         // Create base PURLs for range-based status entries
-        purl::batch_create_base_purls(base_purls, &tx).await?;
+        purl::batch_create_base_purls(base_purls, tx).await?;
 
-        purl_status_creator.create(&tx).await?;
-
-        tx.commit().await?;
+        purl_status_creator.create(tx).await?;
 
         Ok(IngestResult {
-            id: Id::Uuid(advisory.advisory.id),
+            id: advisory.advisory.id.to_string(),
             document_id: Some(osv.id),
             warnings: warnings.into(),
         })
@@ -602,8 +597,12 @@ mod test {
         assert!(loaded_advisory.is_none());
 
         let loader = OsvLoader::new(&graph);
-        loader
-            .load(("file", "RUSTSEC-2021-0079.json"), osv, &digests, None)
+        ctx.db
+            .transaction(async |tx| {
+                loader
+                    .load(("file", "RUSTSEC-2021-0079.json"), osv, &digests, None, tx)
+                    .await
+            })
             .await?;
 
         let loaded_vulnerability = graph.get_vulnerability("CVE-2021-32714", &ctx.db).await?;
@@ -693,8 +692,18 @@ mod test {
         assert!(loaded_advisory.is_none());
 
         let loader = OsvLoader::new(&graph);
-        loader
-            .load(("file", "GHSA-45c4-8wx5-qw6w.json"), osv, &digests, None)
+        ctx.db
+            .transaction(async |tx| {
+                loader
+                    .load(
+                        ("file", "GHSA-45c4-8wx5-qw6w.json"),
+                        osv,
+                        &digests,
+                        None,
+                        tx,
+                    )
+                    .await
+            })
             .await?;
         let loaded_vulnerability = graph.get_vulnerability("CVE-2023-37276", &ctx.db).await?;
         assert!(loaded_vulnerability.is_some());
@@ -739,8 +748,12 @@ mod test {
 
         // Load the OSV
         let loader = OsvLoader::new(&graph);
-        loader
-            .load(("test", "explicit-versions"), osv, &digests, None)
+        ctx.db
+            .transaction(async |tx| {
+                loader
+                    .load(("test", "explicit-versions"), osv, &digests, None, tx)
+                    .await
+            })
             .await?;
 
         // Verify that the advisory was created

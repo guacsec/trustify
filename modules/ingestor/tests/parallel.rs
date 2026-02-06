@@ -41,11 +41,15 @@ async fn sbom_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         let next = serde_json::to_vec(&spdx)?;
 
         let service = ctx.ingestor.clone();
+        let db = ctx.db.clone();
 
         tasks.push(async move {
-            service
-                .ingest(&next, Format::SPDX, (), None, Cache::Skip)
-                .await?;
+            db.transaction(async |tx| {
+                service
+                    .ingest(&next, Format::SPDX, (), None, Cache::Skip, tx)
+                    .await
+            })
+            .await?;
 
             Ok::<_, anyhow::Error>(())
         });
@@ -124,11 +128,15 @@ async fn csaf_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         let next = serde_json::to_vec(&next)?;
 
         let service = ctx.ingestor.clone();
+        let db = ctx.db.clone();
 
         tasks.push(async move {
-            service
-                .ingest(&next, Format::CSAF, (), None, Cache::Skip)
-                .await?;
+            db.transaction(async |tx| {
+                service
+                    .ingest(&next, Format::CSAF, (), None, Cache::Skip, tx)
+                    .await
+            })
+            .await?;
 
             Ok::<_, anyhow::Error>(())
         });
@@ -286,10 +294,14 @@ async fn advisories_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     data.iter().for_each(|advisory| {
         let next = advisory.clone();
         let service = ctx.ingestor.clone();
+        let db = ctx.db.clone();
         tasks.push(async move {
-            service
-                .ingest(&next, Format::Advisory, (), None, Cache::Skip)
-                .await?;
+            db.transaction(async |tx| {
+                service
+                    .ingest(&next, Format::Advisory, (), None, Cache::Skip, tx)
+                    .await
+            })
+            .await?;
             Ok::<_, anyhow::Error>(())
         });
     });
@@ -324,10 +336,14 @@ async fn sbom_advisories_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::E
     sbom_data.iter().for_each(|sbom| {
         let next = sbom.clone();
         let service = ctx.ingestor.clone();
+        let db = ctx.db.clone();
         sbom_tasks.push(async move {
-            service
-                .ingest(&next, Format::SBOM, (), None, Cache::Skip)
-                .await?;
+            db.transaction(async |tx| {
+                service
+                    .ingest(&next, Format::SBOM, (), None, Cache::Skip, tx)
+                    .await
+            })
+            .await?;
             Ok::<_, anyhow::Error>(())
         });
     });
@@ -337,10 +353,14 @@ async fn sbom_advisories_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::E
     advisory_data.iter().for_each(|advisory| {
         let next = advisory.clone();
         let service = ctx.ingestor.clone();
+        let db = ctx.db.clone();
         advisory_tasks.push(async move {
-            service
-                .ingest(&next, Format::Advisory, (), None, Cache::Skip)
-                .await?;
+            db.transaction(async |tx| {
+                service
+                    .ingest(&next, Format::Advisory, (), None, Cache::Skip, tx)
+                    .await
+            })
+            .await?;
             Ok::<_, anyhow::Error>(())
         });
     });

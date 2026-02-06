@@ -395,8 +395,17 @@ impl AnalysisService {
     }
 
     /// Queue an SBOM for loading into the cache
-    pub fn queue_load(&self, id: Uuid) -> Result<Queued, QueueError> {
+    pub fn queue_load(&self, id: &str) -> Result<Queued, QueueError> {
         let (tx, rx) = oneshot::channel();
+
+        let Ok(id) = Uuid::parse_str(id) else {
+            // If the ID is not a proper UUID, we will not find it. So we're taking a shortcut
+            // here as if the request was processed, with the situation that the entry was not
+            // found.
+            let _ = tx.send(());
+            return Ok(Queued { rx });
+        };
+
         self.tx
             .send(QueueEntry { id, tx })
             .map_err(|_| QueueError)?;

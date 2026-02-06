@@ -19,11 +19,11 @@ impl Api {
         let suffix = suffix.unwrap_or("");
         match self {
             Self::Advisory => format!(
-                "/api/v2/advisory/{}{suffix}",
+                "/api/v2/advisory/urn:uuid:{}{suffix}",
                 urlencoding::encode(&id.to_string())
             ),
             Self::Sbom => format!(
-                "/api/v2/sbom/{}{suffix}",
+                "/api/v2/sbom/urn:uuid:{}{suffix}",
                 urlencoding::encode(&id.to_string())
             ),
         }

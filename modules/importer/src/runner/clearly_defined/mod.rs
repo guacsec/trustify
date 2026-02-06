@@ -36,6 +36,7 @@ impl super::ImportRunner {
         let walker = ClearlyDefinedWalker::new(
             clearly_defined.source.clone(),
             ingestor,
+            self.db.clone(),
             report.clone(),
             progress,
         )

@@ -6,10 +6,10 @@ use crate::{
     model::IngestResult,
     service::{Error, Warnings},
 };
-use sea_orm::TransactionTrait;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use serde_json::Value;
 use tracing::instrument;
-use trustify_common::{hashing::Digests, id::Id, sbom::spdx::parse_spdx};
+use trustify_common::{hashing::Digests, sbom::spdx::parse_spdx};
 use trustify_entity::labels::Labels;
 
 pub struct SpdxLoader<'g> {
@@ -27,6 +27,7 @@ impl<'g> SpdxLoader<'g> {
         labels: Labels,
         json: Value,
         digests: &Digests,
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
         let warnings = Warnings::default();
 
@@ -36,8 +37,6 @@ impl<'g> SpdxLoader<'g> {
             "Storing: {}",
             spdx.document_creation_information.document_name
         );
-
-        let tx = self.graph.db.begin().await?;
 
         let labels = labels.add("type", "spdx");
 
@@ -53,20 +52,19 @@ impl<'g> SpdxLoader<'g> {
                 digests,
                 Some(document_id.clone()),
                 spdx::Information(&spdx),
-                &tx,
+                tx,
             )
             .await?
         {
             Outcome::Existed(sbom) => sbom,
             Outcome::Added(sbom) => {
-                sbom.ingest_spdx(spdx, &warnings, &tx).await?;
-                tx.commit().await?;
+                sbom.ingest_spdx(spdx, &warnings, tx).await?;
                 sbom
             }
         };
 
         Ok(IngestResult {
-            id: Id::Uuid(sbom.sbom.sbom_id),
+            id: sbom.sbom.sbom_id.to_string(),
             document_id: Some(document_id),
             warnings: warnings.into(),
         })
@@ -89,10 +87,20 @@ mod test {
 
         let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
 
-        ingestor
-            .ingest(&data, Format::SPDX, ("source", "test"), None, Cache::Skip)
-            .await
-            .expect("must ingest");
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::SPDX,
+                        ("source", "test"),
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
 
         Ok(())
     }

@@ -1,42 +1,48 @@
-use crate::{graph::Graph, model::IngestResult, service::Error};
+use crate::{model::IngestResult, service::Error};
 use hex::ToHex;
 use roxmltree::{Document, Node};
-use sea_orm::{EntityTrait, Iterable, Set, TransactionTrait};
+use sea_orm::{ConnectionTrait, EntityTrait, Iterable, Set, TransactionTrait};
 use sea_query::OnConflict;
 use std::str::from_utf8;
 use tracing::instrument;
-use trustify_common::{db::chunk::EntityChunkedIter, hashing::Digests, id::Id};
+use trustify_common::{db::chunk::EntityChunkedIter, hashing::Digests};
 use trustify_entity::{labels::Labels, weakness};
 
-pub struct CweCatalogLoader<'d> {
-    graph: &'d Graph,
+pub struct CweCatalogLoader {}
+
+impl Default for CweCatalogLoader {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
-impl<'d> CweCatalogLoader<'d> {
-    pub fn new(graph: &'d Graph) -> Self {
-        Self { graph }
+impl CweCatalogLoader {
+    pub fn new() -> Self {
+        Self {}
     }
 
-    #[instrument(skip(self, buffer), ret)]
+    #[instrument(skip(self, buffer, tx), ret)]
     pub async fn load_bytes(
         &self,
         labels: Labels,
         buffer: &[u8],
         digests: &Digests,
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
         let xml = from_utf8(buffer)?;
 
         let document = Document::parse(xml)?;
 
-        self.load(labels, &document, digests).await
+        self.load(labels, &document, digests, tx).await
     }
 
-    #[instrument(skip(self, doc), ret)]
+    #[instrument(skip(self, doc, tx), ret)]
     pub async fn load<'x>(
         &self,
         _labels: Labels,
         doc: &Document<'x>,
         digests: &Digests,
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
         let root = doc.root();
 
@@ -46,7 +52,6 @@ impl<'d> CweCatalogLoader<'d> {
             let mut batch = Vec::new();
 
             if let Some(weaknesses) = weaknesses {
-                let tx = self.graph.db.begin().await?;
                 for weakness in weaknesses.children() {
                     if weakness.is_element() {
                         let mut child_of = Vec::new();
@@ -130,16 +135,18 @@ impl<'d> CweCatalogLoader<'d> {
                                 .update_columns(weakness::Column::iter())
                                 .to_owned(),
                         )
-                        .exec(&tx)
+                        .exec(tx)
                         .await?;
                 }
-
-                tx.commit().await?;
             }
         }
 
         Ok(IngestResult {
-            id: Id::Sha512(digests.sha512.encode_hex()),
+            // Returning the digest as "id", this is far from optional, as a source_document with
+            // that ID doesn't exist. However, it's not worse than the situation before, where we
+            // returned an ID struct with the digest. This loader is just not aligned with the
+            // design.
+            id: digests.sha512.encode_hex(),
             document_id: Some("CWE".to_string()),
             warnings: vec![],
         })
@@ -186,7 +193,6 @@ fn gather_content_inner(node: &Node, dest: &mut String) {
 
 #[cfg(test)]
 mod test {
-    use crate::graph::Graph;
     use crate::service::weakness::CweCatalogLoader;
     use roxmltree::Document;
     use std::io::Read;
@@ -201,8 +207,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn test(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let graph = Graph::new(ctx.db.clone());
-        let loader = CweCatalogLoader::new(&graph);
+        let loader = CweCatalogLoader::new();
 
         let zip = document_read("cwec_latest.xml.zip")?;
 
@@ -217,8 +222,14 @@ mod test {
         let doc = Document::parse(&xml)?;
 
         // should work twice without error/conflict.
-        loader.load(Labels::default(), &doc, &digests).await?;
-        loader.load(Labels::default(), &doc, &digests).await?;
+
+        ctx.db
+            .transaction(async |tx| loader.load(Labels::default(), &doc, &digests, tx).await)
+            .await?;
+
+        ctx.db
+            .transaction(async |tx| loader.load(Labels::default(), &doc, &digests, tx).await)
+            .await?;
 
         Ok(())
     }

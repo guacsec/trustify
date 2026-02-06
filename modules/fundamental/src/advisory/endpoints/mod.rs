@@ -212,9 +212,13 @@ pub async fn upload(
     }): web::Query<UploadParams>,
     content_type: Option<web::Header<header::ContentType>>,
     bytes: web::Bytes,
+    db: web::Data<Database>,
     _: Require<CreateAdvisory>,
 ) -> Result<impl Responder, Error> {
     let bytes = decompress_async(bytes, content_type.map(|ct| ct.0), config.upload_limit).await??;
+
+    let tx = db.begin().await?;
+
     let result = service
         .ingest(
             &bytes,
@@ -222,9 +226,13 @@ pub async fn upload(
             labels,
             issuer,
             Cache::Skip, /* we only cache SBOMs */
+            &tx,
         )
         .await?;
     log::info!("Uploaded Advisory: {}", result.id);
+
+    tx.commit().await?;
+
     Ok(HttpResponse::Created().json(result))
 }
 

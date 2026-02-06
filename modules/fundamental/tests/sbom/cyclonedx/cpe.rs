@@ -14,7 +14,7 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let packages = service
         .describes_packages(
-            result.id.try_as_uid().expect("Must be a UID"),
+            result.id.parse().expect("Must be a UID"),
             Paginated::default(),
             &ctx.db,
         )
@@ -39,7 +39,7 @@ async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let packages = service
         .describes_packages(
-            result.id.try_as_uid().expect("Must be a UID"),
+            result.id.parse().expect("Must be a UID"),
             Paginated::default(),
             &ctx.db,
         )
@@ -64,7 +64,7 @@ async fn simple_comp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let packages = service
         .describes_packages(
-            result.id.try_as_uid().expect("Must be a UID"),
+            result.id.parse().expect("Must be a UID"),
             Paginated::default(),
             &ctx.db,
         )
@@ -80,7 +80,7 @@ async fn simple_comp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let packages = service
         .fetch_sbom_packages(
-            result.id.try_as_uid().expect("Must be a UID"),
+            result.id.parse().expect("Must be a UID"),
             Default::default(),
             Default::default(),
             &ctx.db,

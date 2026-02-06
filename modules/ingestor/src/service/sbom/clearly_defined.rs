@@ -4,14 +4,11 @@ use crate::{
     service::Error,
 };
 use anyhow::anyhow;
-use hex::ToHex;
 use jsonpath_rust::JsonPath;
-use sea_orm::{EntityTrait, TransactionTrait};
-use trustify_common::{
-    hashing::Digests,
-    id::{Id, TrySelectForId},
-};
-use trustify_entity::{labels::Labels, sbom};
+use sea_orm::{ConnectionTrait, TransactionTrait};
+use tracing::instrument;
+use trustify_common::hashing::Digests;
+use trustify_entity::labels::Labels;
 
 pub struct ClearlyDefinedLoader<'g> {
     graph: &'g Graph,
@@ -22,25 +19,14 @@ impl<'g> ClearlyDefinedLoader<'g> {
         Self { graph }
     }
 
+    #[instrument(skip(self, item, tx), ret(level=tracing::Level::INFO))]
     pub async fn load(
         &self,
         labels: Labels,
         item: serde_json::Value,
         digests: &Digests,
+        tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
-        if let Ok(Some(previously_found)) = sbom::Entity::find()
-            .try_filter(Id::Sha512(digests.sha512.encode_hex()))?
-            .one(&self.graph.db)
-            .await
-        {
-            // we already have ingested this document, skip to my lou.
-            return Ok(IngestResult {
-                id: Id::Uuid(previously_found.sbom_id),
-                document_id: previously_found.document_id,
-                warnings: vec![],
-            });
-        }
-
         let document_id = item
             .query("$._id")?
             .first()
@@ -51,8 +37,6 @@ impl<'g> ClearlyDefinedLoader<'g> {
             .and_then(|inner| inner.as_str());
 
         if let Some(document_id) = document_id {
-            let tx = self.graph.db.begin().await?;
-
             let sbom = match self
                 .graph
                 .ingest_sbom(
@@ -68,24 +52,22 @@ impl<'g> ClearlyDefinedLoader<'g> {
                         data_licenses: vec![],
                         properties: Default::default(),
                     },
-                    &tx,
+                    tx,
                 )
                 .await?
             {
                 Outcome::Existed(sbom) => sbom,
                 Outcome::Added(sbom) => {
                     if let Some(license) = license {
-                        sbom.ingest_purl_license_assertion(license, &tx).await?;
+                        sbom.ingest_purl_license_assertion(license, tx).await?;
                     }
-
-                    tx.commit().await?;
 
                     sbom
                 }
             };
 
             Ok(IngestResult {
-                id: Id::Uuid(sbom.sbom.sbom_id),
+                id: sbom.sbom.sbom_id.to_string(),
                 document_id: sbom.sbom.document_id,
                 warnings: vec![],
             })
@@ -169,16 +151,20 @@ mod test {
 
         let data = document_bytes("clearly-defined/aspnet.mvc-4.0.40804.json").await?;
 
-        ingestor
-            .ingest(
-                &data,
-                Format::ClearlyDefined,
-                ("source", "test"),
-                None,
-                Cache::Skip,
-            )
-            .await
-            .expect("must ingest");
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::ClearlyDefined,
+                        ("source", "test"),
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
 
         Ok(())
     }
