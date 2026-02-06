@@ -93,6 +93,14 @@ pub enum SbomCommands {
         /// Perform a dry run without actually deleting
         #[arg(long)]
         dry_run: bool,
+
+        /// Number of concurrent delete requests (default: 10)
+        #[arg(long, default_value = "10")]
+        concurrency: usize,
+
+        /// Limit the number of SBOMs to query and delete (default: 100)
+        #[arg(long, default_value = "100")]
+        limit: Option<u32>,
     },
     /// Manage duplicate SBOMs
     Duplicates {
@@ -137,16 +145,55 @@ impl SbomCommands {
                     }
                 }
             }
-            SbomCommands::Delete { id, query, dry_run } => {
-                println!(
-                    "SBOM delete command executed successfully!{}",
-                    if *dry_run { " (dry-run)" } else { "" }
-                );
+            SbomCommands::Delete {
+                id,
+                query,
+                dry_run,
+                concurrency,
+                limit,
+            } => {
                 if let Some(i) = id {
-                    println!("  ID: {}", i);
+                    match sbom_api::delete(&ctx.client, i).await {
+                        Ok(_) => println!("Deleted SBOM ID: {}", i),
+                        Err(e) => {
+                            eprintln!("Error deleting ID {}: {}", i, e);
+                            process::exit(1);
+                        }
+                    }
                 }
                 if let Some(q) = query {
-                    println!("  Query: {}", q);
+                    match sbom_api::delete_by_query(
+                        &ctx.client,
+                        Some(q.as_str()),
+                        *dry_run,
+                        *concurrency,
+                        *limit,
+                    )
+                    .await
+                    {
+                        Ok(result) => {
+                            if *dry_run {
+                                println!("[DRY-RUN] Would delete {} SBOM(s)", result.total);
+                            } else {
+                                let mut msg = format!("Deleted {} SBOM(s)", result.deleted);
+                                if result.skipped > 0 {
+                                    msg.push_str(&format!(
+                                        ", {} skipped (not found)",
+                                        result.skipped
+                                    ));
+                                }
+                                if result.failed > 0 {
+                                    msg.push_str(&format!(", {} failed", result.failed));
+                                }
+                                msg.push_str(&format!(" out of {} total", result.total));
+                                println!("{}", msg);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Error deleting SBOMs: {}", e);
+                            process::exit(1);
+                        }
+                    }
                 }
             }
         }

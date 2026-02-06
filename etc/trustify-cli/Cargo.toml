@@ -17,3 +17,8 @@ serde = { workspace = true , features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
+
+[dev-dependencies]
+mockall = { workspace = true }
+wiremock = { workspace = true }
+

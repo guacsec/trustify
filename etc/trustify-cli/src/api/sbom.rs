@@ -308,8 +308,67 @@ pub async fn delete(client: &ApiClient, id: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
+/// Delete all SBOMs by listing and deleting each one
+pub async fn delete_by_query(
+    client: &ApiClient,
+    query: Option<&str>,
+    dry_run: bool,
+    concurrency: usize,
+    limit: Option<u32>,
+) -> Result<DeleteResult, ApiError> {
+    let params = ListParams {
+        q: query.map(|s| s.to_string()),
+        limit,
+        offset: None,
+        sort: None,
+    };
+
+    let response = list(client, &params).await?;
+    let parsed: Value = serde_json::from_str(&response)
+        .map_err(|e| ApiError::InternalError(format!("Failed to parse response: {}", e)))?;
+
+    let items = parsed
+        .get("items")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| ApiError::InternalError("No items in response".to_string()))?;
+
+    let total = items.len() as u32;
+
+    let entries: Vec<DeleteEntry> = items
+        .iter()
+        .filter_map(|item| {
+            let id = item.get("id").and_then(|v| v.as_str())?;
+            let document_id = item
+                .get("document_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            Some(DeleteEntry {
+                id: id.to_string(),
+                document_id: document_id.to_string(),
+            })
+        })
+        .collect();
+
+    if dry_run {
+        for entry in &entries {
+            eprintln!(
+                "[DRY-RUN] Would delete: {} (document_id: {})",
+                entry.id, entry.document_id
+            );
+        }
+        return Ok(DeleteResult {
+            deleted: 0,
+            skipped: 0,
+            failed: 0,
+            total,
+        });
+    }
+
+    delete_list(client, entries, concurrency).await
+}
+
 /// Result of deleting duplicates
-pub struct DeleteDuplicatesResult {
+pub struct DeleteResult {
     pub deleted: u32,
     pub skipped: u32,
     pub failed: u32,
@@ -318,19 +377,13 @@ pub struct DeleteDuplicatesResult {
 
 /// Entry to delete with its document_id for logging
 #[derive(Clone)]
-struct DeleteEntry {
+pub struct DeleteEntry {
     id: String,
     document_id: String,
 }
 
-/// Delete duplicates from a file with progress bar
-pub async fn delete_duplicates(
-    client: &ApiClient,
-    input_file: &str,
-    concurrency: usize,
-    dry_run: bool,
-) -> Result<DeleteDuplicatesResult, ApiError> {
-    // Check if file exists
+/// Read delete entries from a file
+pub fn read_delete_entries_from_file(input_file: &str) -> Result<Vec<DeleteEntry>, ApiError> {
     let path = Path::new(input_file);
     if !path.exists() {
         return Err(ApiError::InternalError(format!(
@@ -339,7 +392,6 @@ pub async fn delete_duplicates(
         )));
     }
 
-    // Read and parse the file
     let file = File::open(path)
         .map_err(|e| ApiError::InternalError(format!("Failed to open input file: {}", e)))?;
     let reader = BufReader::new(file);
@@ -347,7 +399,6 @@ pub async fn delete_duplicates(
     let groups: Vec<DuplicateGroup> = serde_json::from_reader(reader)
         .map_err(|e| ApiError::InternalError(format!("Failed to parse input file: {}", e)))?;
 
-    // Collect all duplicate entries to delete
     let entries: Vec<DeleteEntry> = groups
         .iter()
         .flat_map(|group| {
@@ -358,29 +409,22 @@ pub async fn delete_duplicates(
         })
         .collect();
 
-    let total = entries.len() as u32;
+    Ok(entries)
+}
 
-    if dry_run {
-        for entry in &entries {
-            eprintln!(
-                "[DRY-RUN] Would delete: {} (document_id: {})",
-                entry.id, entry.document_id
-            );
-        }
-        return Ok(DeleteDuplicatesResult {
-            deleted: 0,
-            skipped: 0,
-            failed: 0,
-            total,
-        });
-    }
+/// Delete a list of entries with progress bar
+pub async fn delete_list(
+    client: &ApiClient,
+    entries: Vec<DeleteEntry>,
+    concurrency: usize,
+) -> Result<DeleteResult, ApiError> {
+    let total = entries.len() as u32;
 
     eprintln!(
         "Deleting {} duplicates with {} concurrent requests...\n",
         total, concurrency
     );
 
-    // Set up progress bar
     let progress = ProgressBar::new(total as u64);
     progress.set_style(
         ProgressStyle::default_bar()
@@ -405,7 +449,6 @@ pub async fn delete_duplicates(
                         deleted.fetch_add(1, Ordering::Relaxed);
                     }
                     Err(ApiError::NotFound(_)) => {
-                        // SBOM already deleted or doesn't exist - skip silently
                         skipped.fetch_add(1, Ordering::Relaxed);
                     }
                     Err(e) => {
@@ -423,10 +466,38 @@ pub async fn delete_duplicates(
 
     progress.finish_with_message("complete");
 
-    Ok(DeleteDuplicatesResult {
+    Ok(DeleteResult {
         deleted: deleted.load(Ordering::Relaxed),
         skipped: skipped.load(Ordering::Relaxed),
         failed: failed.load(Ordering::Relaxed),
         total,
     })
+}
+
+/// Delete duplicates from a file with progress bar
+pub async fn delete_duplicates(
+    client: &ApiClient,
+    input_file: &str,
+    concurrency: usize,
+    dry_run: bool,
+) -> Result<DeleteResult, ApiError> {
+    let entries = read_delete_entries_from_file(input_file)?;
+    let total = entries.len() as u32;
+
+    if dry_run {
+        for entry in &entries {
+            eprintln!(
+                "[DRY-RUN] Would delete: {} (document_id: {})",
+                entry.id, entry.document_id
+            );
+        }
+        return Ok(DeleteResult {
+            deleted: 0,
+            skipped: 0,
+            failed: 0,
+            total,
+        });
+    }
+
+    delete_list(client, entries, concurrency).await
 }
