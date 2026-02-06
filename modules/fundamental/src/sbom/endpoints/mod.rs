@@ -471,6 +471,7 @@ const fn default_format() -> Format {
     responses(
         (status = 201, description = "Upload an SBOM", body = IngestResult),
         (status = 400, description = "The file could not be parsed as an SBOM"),
+        (status = 400, description = "One or more group IDs are invalid or do not exist"),
     )
 )]
 #[post("/v2/sbom")]
