@@ -8,7 +8,7 @@ pub struct Group {
     /// The ID of the group
     pub id: String,
 
-    /// The parent of this group
+    /// The direct parent of this group
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
 
