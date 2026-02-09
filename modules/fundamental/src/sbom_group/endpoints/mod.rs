@@ -240,7 +240,7 @@ async fn read(
     tag = "sbomGroup",
     operation_id = "readSbomGroupAssignments",
     params(
-        ("id", Query, description = "The ID of the SBOM"),
+        ("id", Path, description = "The ID of the SBOM"),
     ),
     responses(
         (status = 200, description = "The SBOM was found and assignments returned"),
@@ -275,8 +275,8 @@ async fn read_assignments(
     operation_id = "updateSbomGroupAssignments",
     request_body = Vec<String>,
     params(
-        ("id", Query, description = "The ID of the SBOM to update"),
-        ("IfMatch", Header, description = "The revision of the SBOM assignments"),
+        ("id", Path, description = "The ID of the SBOM to update"),
+        ("if-match" = Option<String>, Header, description = "The revision of the SBOM assignments"),
     ),
     responses(
         (status = 204, description = "The SBOM assignments were updated"),

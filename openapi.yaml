@@ -998,6 +998,69 @@ paths:
           description: The user authenticated, but not authorized for this operation
         '409':
           description: The name of the group is not unique within the parent
+  /api/v2/group/sbom-assignment/{id}:
+    get:
+      tags:
+      - sbomGroup
+      summary: Get SBOM group assignments
+      operationId: readSbomGroupAssignments
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the SBOM
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: The SBOM was found and assignments returned
+        '400':
+          description: The request was not valid
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '404':
+          description: The SBOM was not found
+    put:
+      tags:
+      - sbomGroup
+      summary: Update SBOM group assignments
+      operationId: updateSbomGroupAssignments
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the SBOM to update
+        required: true
+        schema:
+          type: string
+      - name: if-match
+        in: header
+        description: The revision of the SBOM assignments
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+        required: true
+      responses:
+        '204':
+          description: The SBOM assignments were updated
+        '400':
+          description: The request was not valid
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '412':
+          description: The requested revision is not the current revision
   /api/v2/group/sbom/{id}:
     get:
       tags:
@@ -1103,6 +1166,8 @@ paths:
           description: The user was not authenticated
         '403':
           description: The user authenticated, but not authorized for this operation
+        '409':
+          description: The group has child groups and cannot be deleted
         '412':
           description: The requested revision is not the current revision of the group
   /api/v2/importer:
@@ -2376,6 +2441,18 @@ paths:
           - skip
           - queue
           - wait
+      - name: group
+        in: query
+        description: |-
+          Optional group IDs to assign the SBOM to after ingestion.
+
+          If one or more group IDs are invalid, the upload will fail with 400 Bad Request
+          and the SBOM will not be ingested.
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
       requestBody:
         content:
           application/octet-stream:
@@ -2394,7 +2471,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/IngestResult'
         '400':
-          description: The file could not be parsed as an SBOM
+          description: One or more group IDs are invalid or do not exist
   /api/v2/sbom-labels:
     get:
       tags:
@@ -4070,7 +4147,7 @@ components:
           type:
           - string
           - 'null'
-          description: The parent of this group
+          description: The direct parent of this group
     GroupDetails:
       allOf:
       - $ref: '#/components/schemas/Group'
@@ -5335,7 +5412,7 @@ components:
               type:
               - string
               - 'null'
-              description: The parent of this group
+              description: The direct parent of this group
     Revisioned_Importer:
       type: object
       description: |-

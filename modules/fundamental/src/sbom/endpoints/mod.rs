@@ -496,7 +496,7 @@ pub async fn upload(
 
     let result = db
         .transaction(async |tx| {
-            let result = ingestor
+            let mut result = ingestor
                 .ingest(&bytes, format, labels, None, cache, tx)
                 .await
                 .map_err(Error::Ingestor)?;
@@ -504,6 +504,12 @@ pub async fn upload(
             sbom_group
                 .update_assignments(&result.id, None, group, tx)
                 .await?;
+
+            // Rewrite ID to have the prefix: Although the field is "id" it always carried the ID,
+            // but with the `urn:uuid:` prefix. Which was used for "key" fields. Which accepted
+            // for than the actual ID. The while naming is flawed and confusing. But in order to
+            // keep the API stable, we need to return the ID with the prefix.
+            result.id = format!("urn:uuid:{}", result.id);
 
             Ok::<_, Error>(result)
         })
