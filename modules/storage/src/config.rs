@@ -128,3 +128,51 @@ pub struct S3Config {
     )]
     pub path_style: bool,
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use clap::Parser;
+    use rstest::rstest;
+
+    #[derive(Parser)]
+    struct Wrapper {
+        #[command(flatten)]
+        storage: StorageConfig,
+    }
+
+    #[rstest]
+    #[case::both_omitted(None, None, true)]
+    #[case::access_key_only(Some("my-access-key"), None, false)]
+    #[case::secret_key_only(None, Some("my-secret-key"), false)]
+    #[case::both_provided(Some("my-access-key"), Some("my-secret-key"), true)]
+    fn s3_credentials(
+        #[case] access_key: Option<&str>,
+        #[case] secret_key: Option<&str>,
+        #[case] expect_ok: bool,
+    ) {
+        let mut args = vec![
+            "test",
+            "--storage-strategy",
+            "s3",
+            "--s3-bucket",
+            "b",
+            "--s3-region",
+            "r",
+        ];
+        if let Some(ak) = access_key {
+            args.extend(["--s3-access-key", ak]);
+        }
+        if let Some(sk) = secret_key {
+            args.extend(["--s3-secret-key", sk]);
+        }
+
+        let result = Wrapper::try_parse_from(&args);
+
+        assert_eq!(result.is_ok(), expect_ok);
+        if let Ok(wrapper) = result {
+            assert_eq!(wrapper.storage.s3_config.access_key.as_deref(), access_key);
+            assert_eq!(wrapper.storage.s3_config.secret_key.as_deref(), secret_key);
+        }
+    }
+}
