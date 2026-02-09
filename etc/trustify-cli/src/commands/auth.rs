@@ -1,8 +1,8 @@
 use clap::Subcommand;
+use std::process::ExitCode;
 
 use crate::Context;
 use crate::api::auth::AuthCredentials;
-use std::process;
 
 #[derive(Subcommand)]
 pub enum AuthCommands {
@@ -11,22 +11,18 @@ pub enum AuthCommands {
 }
 
 impl AuthCommands {
-    pub async fn run(&self, ctx: &Context) {
+    pub async fn run(&self, ctx: &Context) -> anyhow::Result<ExitCode> {
         match self {
             AuthCommands::Token {} => match ctx.config.auth_credentials() {
                 Some((token_url, client_id, client_secret)) => {
                     let creds = AuthCredentials::new(token_url, client_id, client_secret);
-                    match creds.get_token().await {
-                        Ok(token) => println!("{}", token),
-                        Err(e) => {
-                            eprintln!("Error: {}", e);
-                            process::exit(1);
-                        }
-                    }
+                    let token = creds.get_token().await?;
+                    println!("{}", token);
+                    Ok(ExitCode::SUCCESS)
                 }
                 None => {
                     eprintln!("Error: SSO URL, client ID, and client secret are all required");
-                    process::exit(1);
+                    Err(anyhow::anyhow!("Missing authentication credentials"))
                 }
             },
         }

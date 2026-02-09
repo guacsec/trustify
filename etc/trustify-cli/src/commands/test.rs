@@ -1,6 +1,7 @@
 use crate::Context;
 use crate::commands::sbom::SbomCommands;
 use crate::utils;
+use std::process::ExitCode;
 use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -42,7 +43,8 @@ mod tests {
             limit: None,
         };
 
-        command.run(&ctx).await;
+        let result = command.run(&ctx).await;
+        assert!(result.is_ok());
     }
 
     #[tokio::test]
@@ -73,7 +75,9 @@ mod tests {
             limit: None,
         };
 
-        command.run(&ctx).await;
+        let result = command.run(&ctx).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ExitCode::SUCCESS);
     }
 
     #[tokio::test]
@@ -97,7 +101,9 @@ mod tests {
             limit: None,
         };
 
-        command.run(&ctx).await;
+        let result = command.run(&ctx).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ExitCode::SUCCESS);
     }
 
     #[tokio::test]
@@ -148,6 +154,8 @@ mod tests {
             limit: None,
         };
 
-        command.run(&ctx).await;
+        let result = command.run(&ctx).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), ExitCode::SUCCESS);
     }
 }

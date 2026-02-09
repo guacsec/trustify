@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 use std::path::Path;
-use std::process;
+use std::process::ExitCode;
 
 use clap::{Subcommand, ValueEnum};
 use serde_json::Value;
@@ -110,18 +110,14 @@ pub enum SbomCommands {
 }
 
 impl SbomCommands {
-    pub async fn run(&self, ctx: &Context) {
+    pub async fn run(&self, ctx: &Context) -> anyhow::Result<ExitCode> {
         match self {
-            SbomCommands::Duplicates { command } => {
-                command.run(ctx).await;
+            SbomCommands::Duplicates { command } => command.run(ctx).await,
+            SbomCommands::Get { id } => {
+                let json = sbom_api::get(&ctx.client, id).await?;
+                println!("{}", json);
+                Ok(ExitCode::SUCCESS)
             }
-            SbomCommands::Get { id } => match sbom_api::get(&ctx.client, id).await {
-                Ok(json) => println!("{}", json),
-                Err(e) => {
-                    eprintln!("Error: {}", e);
-                    process::exit(1);
-                }
-            },
             SbomCommands::List {
                 query,
                 limit,
@@ -135,15 +131,9 @@ impl SbomCommands {
                     offset: *offset,
                     sort: sort.clone(),
                 };
-                match sbom_api::list(&ctx.client, &params).await {
-                    Ok(json) => {
-                        format_list_output(&json, format);
-                    }
-                    Err(e) => {
-                        eprintln!("Error: {}", e);
-                        process::exit(1);
-                    }
-                }
+                let json = sbom_api::list(&ctx.client, &params).await?;
+                format_list_output(&json, format)?;
+                Ok(ExitCode::SUCCESS)
             }
             SbomCommands::Delete {
                 id,
@@ -153,55 +143,43 @@ impl SbomCommands {
                 limit,
             } => {
                 if let Some(i) = id {
-                    match sbom_api::delete(&ctx.client, i).await {
-                        Ok(_) => println!("Deleted SBOM ID: {}", i),
-                        Err(e) => {
-                            eprintln!("Error deleting ID {}: {}", i, e);
-                            process::exit(1);
-                        }
-                    }
+                    sbom_api::delete(&ctx.client, i).await?;
+                    println!("Deleted SBOM ID: {}", i);
                 }
                 if let Some(q) = query {
-                    match sbom_api::delete_by_query(
+                    let delete_result = sbom_api::delete_by_query(
                         &ctx.client,
                         Some(q.as_str()),
                         *dry_run,
                         *concurrency,
                         *limit,
                     )
-                    .await
-                    {
-                        Ok(result) => {
-                            if *dry_run {
-                                println!("[DRY-RUN] Would delete {} SBOM(s)", result.total);
-                            } else {
-                                let mut msg = format!("Deleted {} SBOM(s)", result.deleted);
-                                if result.skipped > 0 {
-                                    msg.push_str(&format!(
-                                        ", {} skipped (not found)",
-                                        result.skipped
-                                    ));
-                                }
-                                if result.failed > 0 {
-                                    msg.push_str(&format!(", {} failed", result.failed));
-                                }
-                                msg.push_str(&format!(" out of {} total", result.total));
-                                println!("{}", msg);
-                            }
+                    .await?;
+                    if *dry_run {
+                        println!("[DRY-RUN] Would delete {} SBOM(s)", delete_result.total);
+                    } else {
+                        let mut msg = format!("Deleted {} SBOM(s)", delete_result.deleted);
+                        if delete_result.skipped > 0 {
+                            msg.push_str(&format!(
+                                ", {} skipped (not found)",
+                                delete_result.skipped
+                            ));
                         }
-                        Err(e) => {
-                            eprintln!("Error deleting SBOMs: {}", e);
-                            process::exit(1);
+                        if delete_result.failed > 0 {
+                            msg.push_str(&format!(", {} failed", delete_result.failed));
                         }
+                        msg.push_str(&format!(" out of {} total", delete_result.total));
+                        println!("{}", msg);
                     }
                 }
+                Ok(ExitCode::SUCCESS)
             }
         }
     }
 }
 
 impl DuplicatesCommands {
-    pub async fn run(&self, ctx: &Context) {
+    pub async fn run(&self, ctx: &Context) -> anyhow::Result<ExitCode> {
         match self {
             DuplicatesCommands::Find {
                 batch_size,
@@ -217,7 +195,7 @@ impl DuplicatesCommands {
                 let final_output = check_output_file(output_path);
                 if final_output.is_none() {
                     eprintln!("Operation cancelled.");
-                    process::exit(0);
+                    return Ok(ExitCode::SUCCESS);
                 }
                 let final_output = final_output.unwrap_or("duplicates.json".to_string());
 
@@ -225,24 +203,17 @@ impl DuplicatesCommands {
                     batch_size: *batch_size,
                     concurrency: *concurrency,
                 };
-                match sbom_api::find_duplicates(&ctx.client, &params, &Some(final_output.clone()))
-                    .await
-                {
-                    Ok(groups) => {
-                        let total_duplicates: usize =
-                            groups.iter().map(|g| g.duplicates.len()).sum();
-                        println!(
-                            "Found {} document(s) with {} duplicate(s). Saved to {}",
-                            groups.len(),
-                            total_duplicates,
-                            final_output
-                        );
-                    }
-                    Err(e) => {
-                        eprintln!("Error: {}", e);
-                        process::exit(1);
-                    }
-                }
+                let groups =
+                    sbom_api::find_duplicates(&ctx.client, &params, &Some(final_output.clone()))
+                        .await?;
+                let total_duplicates: usize = groups.iter().map(|g| g.duplicates.len()).sum();
+                println!(
+                    "Found {} document(s) with {} duplicate(s). Saved to {}",
+                    groups.len(),
+                    total_duplicates,
+                    final_output
+                );
+                Ok(ExitCode::SUCCESS)
             }
             DuplicatesCommands::Delete {
                 input,
@@ -254,41 +225,35 @@ impl DuplicatesCommands {
                     .map(|s| s.as_str())
                     .unwrap_or("duplicates.json");
 
-                match sbom_api::delete_duplicates(&ctx.client, input_path, *concurrency, *dry_run)
-                    .await
-                {
-                    Ok(result) => {
-                        if *dry_run {
-                            println!("[DRY-RUN] Would delete {} duplicate(s)", result.total);
-                        } else {
-                            let mut msg = format!("Deleted {} duplicate(s)", result.deleted);
-                            if result.skipped > 0 {
-                                msg.push_str(&format!(", {} skipped (not found)", result.skipped));
-                            }
-                            if result.failed > 0 {
-                                msg.push_str(&format!(", {} failed", result.failed));
-                            }
-                            msg.push_str(&format!(" out of {} total", result.total));
-                            println!("{}", msg);
-                        }
+                let result =
+                    sbom_api::delete_duplicates(&ctx.client, input_path, *concurrency, *dry_run)
+                        .await?;
+                if *dry_run {
+                    println!("[DRY-RUN] Would delete {} duplicate(s)", result.total);
+                } else {
+                    let mut msg = format!("Deleted {} duplicate(s)", result.deleted);
+                    if result.skipped > 0 {
+                        msg.push_str(&format!(", {} skipped (not found)", result.skipped));
                     }
-                    Err(e) => {
-                        eprintln!("Error: {}", e);
-                        process::exit(1);
+                    if result.failed > 0 {
+                        msg.push_str(&format!(", {} failed", result.failed));
                     }
+                    msg.push_str(&format!(" out of {} total", result.total));
+                    println!("{}", msg);
                 }
+                Ok(ExitCode::SUCCESS)
             }
         }
     }
 }
 
 /// Format and print list output based on the specified format
-fn format_list_output(json: &str, format: &ListFormat) {
+fn format_list_output(json: &str, format: &ListFormat) -> anyhow::Result<ExitCode> {
     let parsed: Value = match serde_json::from_str(json) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("Error parsing response: {}", e);
-            process::exit(1);
+            return Err(e.into());
         }
     };
 
@@ -298,13 +263,14 @@ fn format_list_output(json: &str, format: &ListFormat) {
         None => {
             // If no items array, just print the raw JSON
             println!("{}", json);
-            return;
+            return Ok(ExitCode::SUCCESS);
         }
     };
 
     match format {
         ListFormat::Full => {
             println!("{}", json);
+            Ok(ExitCode::SUCCESS)
         }
         ListFormat::Id => {
             for item in items {
@@ -312,6 +278,7 @@ fn format_list_output(json: &str, format: &ListFormat) {
                     println!("{}", id);
                 }
             }
+            Ok(ExitCode::SUCCESS)
         }
         ListFormat::Name => {
             let result: Vec<Value> = items
@@ -325,6 +292,7 @@ fn format_list_output(json: &str, format: &ListFormat) {
                 })
                 .collect();
             println!("{}", serde_json::to_string(&result).unwrap_or_default());
+            Ok(ExitCode::SUCCESS)
         }
         ListFormat::Short => {
             let result: Vec<Value> = items
@@ -341,6 +309,7 @@ fn format_list_output(json: &str, format: &ListFormat) {
                 })
                 .collect();
             println!("{}", serde_json::to_string(&result).unwrap_or_default());
+            Ok(ExitCode::SUCCESS)
         }
     }
 }

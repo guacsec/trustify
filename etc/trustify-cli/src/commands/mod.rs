@@ -2,6 +2,7 @@ pub mod auth;
 pub mod sbom;
 
 use clap::Subcommand;
+use std::process::ExitCode;
 
 use crate::Context;
 pub use auth::AuthCommands;
@@ -26,7 +27,7 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn run(&self, ctx: &Context) {
+    pub async fn run(&self, ctx: &Context) -> anyhow::Result<ExitCode> {
         match self {
             Commands::Sbom { command } => command.run(ctx).await,
             Commands::Auth { command } => command.run(ctx).await,
