@@ -178,26 +178,26 @@ WITH RECURSIVE parents AS (
     SELECT
         g.id AS root_id,
         g.parent,
-        ARRAY[]::text[] AS names,
+        ARRAY[]::text[] AS parent_ids,
         ARRAY[g.id]::uuid[] AS path
     FROM sbom_group g
     WHERE g.id = ANY($1::uuid[])
 
     UNION ALL
 
-    -- recursive: follow parent pointer upwards, prepend parent's name,
+    -- recursive: follow parent pointer upwards, prepend parent's ID,
     -- and extend path; stop if we'd revisit a node (cycle protection)
     SELECT
         p.root_id,
         g.parent,
-        g.name || p.names AS names,
+        g.id::text || p.parent_ids AS parent_ids,
         p.path || p.parent AS path
     FROM parents p
     JOIN sbom_group g ON g.id = p.parent
     WHERE p.parent IS NOT NULL
       AND NOT (p.parent = ANY(p.path))
 )
-SELECT root_id, names
+SELECT root_id, parent_ids
 FROM parents
 WHERE parent IS NULL
    OR (parent IS NOT NULL AND parent = ANY(path))  -- ended due to cycle
@@ -220,8 +220,8 @@ WHERE parent IS NULL
         let mut map = HashMap::with_capacity(ids.len());
         for row in rows {
             let root_id: Uuid = row.try_get("", "root_id")?;
-            let names: Vec<String> = row.try_get("", "names")?;
-            map.insert(root_id, names);
+            let parent_ids: Vec<String> = row.try_get("", "parent_ids")?;
+            map.insert(root_id, parent_ids);
         }
 
         Ok(ids

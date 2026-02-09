@@ -1,6 +1,6 @@
 use crate::{
     sbom_group::{
-        endpoints::test::{Create, GroupResponse},
+        endpoints::test::{Create, GroupResponse, UpdateAssignments, read_assignments},
         model::GroupDetails,
     },
     test::caller,
@@ -39,6 +39,21 @@ impl Item {
 
     pub fn label(mut self, key: &'static str, value: &'static str) -> Self {
         self.labels.insert(key, value);
+        self
+    }
+
+    pub fn total_groups(mut self, n: u64) -> Self {
+        self.total_groups = Some(n);
+        self
+    }
+
+    pub fn total_sboms(mut self, n: u64) -> Self {
+        self.total_sboms = Some(n);
+        self
+    }
+
+    pub fn parents(mut self, parents: &'static [&'static str]) -> Self {
+        self.parents = Some(parents);
         self
     }
 }
@@ -93,7 +108,7 @@ pub async fn list_groups(
 
     let ids = create_groups(&app, group_fixture_3_levels()).await?;
 
-    run_list_test(app, ids, &q, expected_items).await?;
+    run_list_test(app, ids, &q, Default::default(), expected_items).await?;
 
     Ok(())
 }
@@ -163,7 +178,7 @@ pub async fn list_groups_with_parent(
         false => locate_id(&ids, parent),
     };
 
-    run_list_test(app, ids, &format!("parent={parent}"), expected).await?;
+    run_list_test(app, ids, &format!("parent={parent}"), Default::default(), expected).await?;
 
     Ok(())
 }
@@ -177,7 +192,7 @@ pub async fn list_groups_with_invalid_parent(ctx: &TrustifyContext) -> Result<()
 
     let ids = create_groups(&app, group_fixture_3_levels()).await?;
 
-    run_list_test(app, ids, "parent=this-is-wrong", []).await?;
+    run_list_test(app, ids, "parent=this-is-wrong", Default::default(), []).await?;
 
     Ok(())
 }
@@ -190,25 +205,38 @@ pub async fn list_groups_with_missing_parent(ctx: &TrustifyContext) -> Result<()
 
     let ids = create_groups(&app, group_fixture_3_levels()).await?;
 
-    run_list_test(app, ids, "parent=cc43ae38-d32d-49b8-9863-5e7f4409a133", []).await?;
+    run_list_test(app, ids, "parent=cc43ae38-d32d-49b8-9863-5e7f4409a133", Default::default(), []).await?;
 
     Ok(())
+}
+
+#[derive(Default)]
+struct ListTestOptions {
+    totals: bool,
+    parents: bool,
 }
 
 /// Run a "list SBOM groups" test
 ///
 /// This takes in an ID-map from the [`create_groups`] function and expected items, which should
-/// be the result of the query.
+/// be the result of the query. Additional [`ListTestOptions`] can be used to request totals and
+/// parent chain information.
 ///
 /// *Note:* This function might already panic when assertions fail.
 async fn run_list_test(
     app: impl CallService,
     ids: HashMap<Vec<String>, String>,
     q: &str,
+    options: ListTestOptions,
     expected_items: impl IntoIterator<Item = Item>,
 ) -> anyhow::Result<()> {
-    let uri = "/api/v2/group/sbom?".to_string();
-    let uri = format!("{uri}q={}&", urlencoding::encode(q));
+    let mut uri = format!("/api/v2/group/sbom?q={}&", urlencoding::encode(q));
+    if options.totals {
+        uri.push_str("totals=true&");
+    }
+    if options.parents {
+        uri.push_str("parents=true&");
+    }
 
     let request = TestRequest::get().uri(&uri);
 
@@ -267,15 +295,12 @@ fn into_actual(
                 None
             };
 
-            // Convert parents array to Vec<String> by looking up IDs for each path segment
+            // Convert parents array to Vec<String> of IDs by looking up each cumulative path
             let parents = item.parents.map(|parent_segments| {
                 parent_segments
                     .iter()
                     .enumerate()
-                    .map(|(i, _)| {
-                        // Build the cumulative path up to this segment
-                        locate_id(ids, &parent_segments[..=i])
-                    })
+                    .map(|(i, _)| locate_id(ids, &parent_segments[..=i]))
                     .collect()
             });
 
@@ -330,6 +355,155 @@ impl From<&str> for Group {
             labels: Labels::default(),
         }
     }
+}
+
+/// SBOM assignment descriptor used by [`setup_3_levels_with_sboms`].
+struct SbomAssignment {
+    sbom_path: &'static str,
+    groups: Vec<&'static [&'static str]>,
+}
+
+/// Set up the 3-level group fixture with SBOMs ingested and assigned.
+///
+/// Reuses [`group_fixture_3_levels`] and then ingests four SBOMs, assigning them to leaf groups.
+/// One SBOM (`spdx/simple.json`) is intentionally assigned to **two** groups (`A1a` and `B1a`)
+/// to verify multi-group assignment is counted correctly per group.
+///
+/// Assignments:
+///   - `zookeeper-3.9.2-cyclonedx.json` → A1a
+///   - `spdx/simple.json`               → A1a, B1a  (multi-group)
+///   - `spdx/mtv-2.6.json`              → A2a
+///   - `spdx/quarkus-bom-3.2.11.Final-redhat-00001.json` → B2b
+async fn setup_3_levels_with_sboms(
+    ctx: &TrustifyContext,
+    app: &impl CallService,
+) -> anyhow::Result<HashMap<Vec<String>, String>> {
+    let ids = create_groups(app, group_fixture_3_levels()).await?;
+
+    let assignments = vec![
+        SbomAssignment {
+            sbom_path: "zookeeper-3.9.2-cyclonedx.json",
+            groups: vec![&["A", "A1", "A1a"]],
+        },
+        SbomAssignment {
+            sbom_path: "spdx/simple.json",
+            groups: vec![&["A", "A1", "A1a"], &["B", "B1", "B1a"]],
+        },
+        SbomAssignment {
+            sbom_path: "spdx/mtv-2.6.json",
+            groups: vec![&["A", "A2", "A2a"]],
+        },
+        SbomAssignment {
+            sbom_path: "spdx/quarkus-bom-3.2.11.Final-redhat-00001.json",
+            groups: vec![&["B", "B2", "B2b"]],
+        },
+    ];
+
+    for assignment in assignments {
+        let sbom_result = ctx.ingest_document(assignment.sbom_path).await?;
+        let sbom_id = sbom_result.id.to_string();
+
+        let group_ids: Vec<String> = assignment
+            .groups
+            .iter()
+            .map(|path| locate_id(&ids, *path))
+            .collect();
+
+        let current = read_assignments(app, &sbom_id).await?;
+        UpdateAssignments::new(&sbom_id)
+            .etag(&current.etag)
+            .group_ids(group_ids)
+            .execute(app)
+            .await?;
+    }
+
+    Ok(ids)
+}
+
+/// Tests for listing groups with SBOM assignments, totals, and parent chains.
+///
+/// Uses [`setup_3_levels_with_sboms`], which assigns SBOMs to leaf groups with one SBOM
+/// (`simple.json`) assigned to two groups (`A1a` and `B1a`) to cover multi-group assignment.
+#[test_context(TrustifyContext)]
+#[rstest]
+// all groups, requesting totals only
+#[case::all_with_totals("", ListTestOptions { totals: true, parents: false }, [
+    Item::new(&["A"]).label("product", "A").total_groups(2).total_sboms(0),
+    Item::new(&["A", "A1"]).total_groups(2).total_sboms(0),
+    Item::new(&["A", "A1", "A1a"]).total_groups(0).total_sboms(2),
+    Item::new(&["A", "A1", "A1b"]).total_groups(0).total_sboms(0),
+    Item::new(&["A", "A2"]).total_groups(2).total_sboms(0),
+    Item::new(&["A", "A2", "A2a"]).total_groups(0).total_sboms(1),
+    Item::new(&["A", "A2", "A2b"]).total_groups(0).total_sboms(0),
+    Item::new(&["B"]).label("product", "B").total_groups(2).total_sboms(0),
+    Item::new(&["B", "B1"]).total_groups(2).total_sboms(0),
+    Item::new(&["B", "B1", "B1a"]).total_groups(0).total_sboms(1),
+    Item::new(&["B", "B1", "B1b"]).total_groups(0).total_sboms(0),
+    Item::new(&["B", "B2"]).total_groups(2).total_sboms(0),
+    Item::new(&["B", "B2", "B2a"]).total_groups(0).total_sboms(0),
+    Item::new(&["B", "B2", "B2b"]).total_groups(0).total_sboms(1),
+])]
+// all groups, requesting parent chain only
+#[case::all_with_parents("", ListTestOptions { totals: false, parents: true }, [
+    Item::new(&["A"]).label("product", "A").parents(&[]),
+    Item::new(&["A", "A1"]).parents(&["A"]),
+    Item::new(&["A", "A1", "A1a"]).parents(&["A", "A1"]),
+    Item::new(&["A", "A1", "A1b"]).parents(&["A", "A1"]),
+    Item::new(&["A", "A2"]).parents(&["A"]),
+    Item::new(&["A", "A2", "A2a"]).parents(&["A", "A2"]),
+    Item::new(&["A", "A2", "A2b"]).parents(&["A", "A2"]),
+    Item::new(&["B"]).label("product", "B").parents(&[]),
+    Item::new(&["B", "B1"]).parents(&["B"]),
+    Item::new(&["B", "B1", "B1a"]).parents(&["B", "B1"]),
+    Item::new(&["B", "B1", "B1b"]).parents(&["B", "B1"]),
+    Item::new(&["B", "B2"]).parents(&["B"]),
+    Item::new(&["B", "B2", "B2a"]).parents(&["B", "B2"]),
+    Item::new(&["B", "B2", "B2b"]).parents(&["B", "B2"]),
+])]
+// all groups, requesting both totals and parent chains
+#[case::all_with_totals_and_parents("", ListTestOptions { totals: true, parents: true }, [
+    Item::new(&["A"]).label("product", "A").total_groups(2).total_sboms(0).parents(&[]),
+    Item::new(&["A", "A1"]).total_groups(2).total_sboms(0).parents(&["A"]),
+    Item::new(&["A", "A1", "A1a"]).total_groups(0).total_sboms(2).parents(&["A", "A1"]),
+    Item::new(&["A", "A1", "A1b"]).total_groups(0).total_sboms(0).parents(&["A", "A1"]),
+    Item::new(&["A", "A2"]).total_groups(2).total_sboms(0).parents(&["A"]),
+    Item::new(&["A", "A2", "A2a"]).total_groups(0).total_sboms(1).parents(&["A", "A2"]),
+    Item::new(&["A", "A2", "A2b"]).total_groups(0).total_sboms(0).parents(&["A", "A2"]),
+    Item::new(&["B"]).label("product", "B").total_groups(2).total_sboms(0).parents(&[]),
+    Item::new(&["B", "B1"]).total_groups(2).total_sboms(0).parents(&["B"]),
+    Item::new(&["B", "B1", "B1a"]).total_groups(0).total_sboms(1).parents(&["B", "B1"]),
+    Item::new(&["B", "B1", "B1b"]).total_groups(0).total_sboms(0).parents(&["B", "B1"]),
+    Item::new(&["B", "B2"]).total_groups(2).total_sboms(0).parents(&["B"]),
+    Item::new(&["B", "B2", "B2a"]).total_groups(0).total_sboms(0).parents(&["B", "B2"]),
+    Item::new(&["B", "B2", "B2b"]).total_groups(0).total_sboms(1).parents(&["B", "B2"]),
+])]
+// filter to the leaf that has the multi-assigned SBOM
+#[case::multi_assigned_leaf("name=A1a", ListTestOptions { totals: true, parents: true }, [
+    Item::new(&["A", "A1", "A1a"]).total_groups(0).total_sboms(2).parents(&["A", "A1"]),
+])]
+// the other leaf sharing the same SBOM
+#[case::multi_assigned_other_leaf("name=B1a", ListTestOptions { totals: true, parents: true }, [
+    Item::new(&["B", "B1", "B1a"]).total_groups(0).total_sboms(1).parents(&["B", "B1"]),
+])]
+// root-level groups only, with totals
+#[case::root_groups_with_totals("parent=null", ListTestOptions { totals: true, parents: false }, [
+    Item::new(&["A"]).label("product", "A").total_groups(2).total_sboms(0),
+    Item::new(&["B"]).label("product", "B").total_groups(2).total_sboms(0),
+])]
+#[test_log::test(actix_web::test)]
+pub async fn list_groups_with_sboms(
+    ctx: &TrustifyContext,
+    #[case] q: &str,
+    #[case] options: ListTestOptions,
+    #[case] expected_items: impl IntoIterator<Item = Item>,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    let ids = setup_3_levels_with_sboms(ctx, &app).await?;
+
+    run_list_test(app, ids, q, options, expected_items).await?;
+
+    Ok(())
 }
 
 /// Create groups, with the provided structure, returning a map of name hierarchy to the ID.
