@@ -500,7 +500,7 @@ async fn setup_3_levels_with_sboms(
     Item::new(&["B", "B1", "B1a"]).total_groups(0).total_sboms(1).parents(&["B", "B1"]),
 ])]
 // root-level groups only, with totals
-#[case::root_groups_with_totals("parent=null", ListTestOptions { totals: true, parents: false }, [
+#[case::root_groups_with_totals("parent=\x00", ListTestOptions { totals: true, parents: false }, [
     Item::new(&["A"]).label("product", "A").total_groups(2).total_sboms(0),
     Item::new(&["B"]).label("product", "B").total_groups(2).total_sboms(0),
 ])]
