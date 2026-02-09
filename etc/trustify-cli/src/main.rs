@@ -2,6 +2,7 @@ mod api;
 mod cli;
 mod commands;
 mod config;
+mod utils;
 
 use std::process;
 
