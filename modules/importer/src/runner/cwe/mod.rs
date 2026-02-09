@@ -35,8 +35,13 @@ impl super::ImportRunner {
 
         // run the walker
 
-        let walker = CweWalker::new(cwe_catalog.source.clone(), ingestor, self.db.clone(), report.clone())
-            .continuation(continuation);
+        let walker = CweWalker::new(
+            cwe_catalog.source.clone(),
+            ingestor,
+            self.db.clone(),
+            report.clone(),
+        )
+        .continuation(continuation);
 
         match walker.run().await {
             Ok(continuation) => {

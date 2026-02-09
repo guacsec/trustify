@@ -178,7 +178,14 @@ pub async fn list_groups_with_parent(
         false => locate_id(&ids, parent),
     };
 
-    run_list_test(app, ids, &format!("parent={parent}"), Default::default(), expected).await?;
+    run_list_test(
+        app,
+        ids,
+        &format!("parent={parent}"),
+        Default::default(),
+        expected,
+    )
+    .await?;
 
     Ok(())
 }
@@ -205,7 +212,14 @@ pub async fn list_groups_with_missing_parent(ctx: &TrustifyContext) -> Result<()
 
     let ids = create_groups(&app, group_fixture_3_levels()).await?;
 
-    run_list_test(app, ids, "parent=cc43ae38-d32d-49b8-9863-5e7f4409a133", Default::default(), []).await?;
+    run_list_test(
+        app,
+        ids,
+        "parent=cc43ae38-d32d-49b8-9863-5e7f4409a133",
+        Default::default(),
+        [],
+    )
+    .await?;
 
     Ok(())
 }

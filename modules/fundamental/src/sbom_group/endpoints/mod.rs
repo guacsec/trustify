@@ -299,7 +299,9 @@ async fn update_assignments(
     let revision = extract_revision(&if_match);
 
     let tx = db.begin().await?;
-    service.update_assignments(&id, revision, group_ids, &tx).await?;
+    service
+        .update_assignments(&id, revision, group_ids, &tx)
+        .await?;
     tx.commit().await?;
 
     Ok(HttpResponse::NoContent().finish())

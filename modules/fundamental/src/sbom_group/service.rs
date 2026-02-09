@@ -272,7 +272,12 @@ WHERE parent IS NULL
     ) -> Result<bool, Error> {
         // Check if the group has any children (just need to know if at least one exists)
         let has_children = sbom_group::Entity::find()
-            .filter(sbom_group::Column::Parent.into_expr().cast_as("text").eq(id))
+            .filter(
+                sbom_group::Column::Parent
+                    .into_expr()
+                    .cast_as("text")
+                    .eq(id),
+            )
             .limit(1)
             .one(db)
             .await?
@@ -515,8 +520,8 @@ WHERE parent IS NULL
         sbom_id: &str,
         db: &impl ConnectionTrait,
     ) -> Result<Option<Revisioned<Vec<String>>>, Error> {
-        let sbom_uuid = Uuid::parse_str(sbom_id)
-            .map_err(|_| Error::NotFound(sbom_id.to_string()))?;
+        let sbom_uuid =
+            Uuid::parse_str(sbom_id).map_err(|_| Error::NotFound(sbom_id.to_string()))?;
 
         let sbom = sbom::Entity::find()
             .filter(sbom::Column::SbomId.eq(sbom_uuid))
@@ -551,13 +556,11 @@ WHERE parent IS NULL
         group_ids: Vec<String>,
         db: &impl ConnectionTrait,
     ) -> Result<(), Error> {
-        let sbom_uuid = Uuid::parse_str(sbom_id)
-            .map_err(|_| Error::NotFound(sbom_id.to_string()))?;
+        let sbom_uuid =
+            Uuid::parse_str(sbom_id).map_err(|_| Error::NotFound(sbom_id.to_string()))?;
 
-        let group_uuids: Result<Vec<_>, _> = group_ids
-            .iter()
-            .map(|id| Uuid::parse_str(id))
-            .collect();
+        let group_uuids: Result<Vec<_>, _> =
+            group_ids.iter().map(|id| Uuid::parse_str(id)).collect();
         let group_uuids = group_uuids
             .map_err(|_| Error::BadRequest("One or more group IDs are invalid".into(), None))?;
 
