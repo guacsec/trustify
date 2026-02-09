@@ -371,12 +371,6 @@ impl From<&str> for Group {
     }
 }
 
-/// SBOM assignment descriptor used by [`setup_3_levels_with_sboms`].
-struct SbomAssignment {
-    sbom_path: &'static str,
-    groups: Vec<&'static [&'static str]>,
-}
-
 /// Set up the 3-level group fixture with SBOMs ingested and assigned.
 ///
 /// Reuses [`group_fixture_3_levels`] and then ingests four SBOMs, assigning them to leaf groups.
@@ -393,6 +387,11 @@ async fn setup_3_levels_with_sboms(
     app: &impl CallService,
 ) -> anyhow::Result<HashMap<Vec<String>, String>> {
     let ids = create_groups(app, group_fixture_3_levels()).await?;
+
+    struct SbomAssignment {
+        sbom_path: &'static str,
+        groups: Vec<&'static [&'static str]>,
+    }
 
     let assignments = vec![
         SbomAssignment {
