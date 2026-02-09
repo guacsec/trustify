@@ -256,4 +256,9 @@ mod test {
         assert_eq!(raw, "\"sha256:123123\"");
         Ok(())
     }
+
+    #[test]
+    fn invalid() {
+        assert!(Id::parse_uuid("invalid").is_err());
+    }
 }
