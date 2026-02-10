@@ -20,8 +20,6 @@ pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
                     storage: storage.into(),
                     auth: None,
                     analysis,
-                    #[cfg(feature = "graphql")]
-                    with_graphql: true,
                 },
             );
         })

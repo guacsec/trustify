@@ -44,9 +44,6 @@ impl PartialSchema for Labels {
     }
 }
 
-#[cfg(feature = "async-graphql")]
-async_graphql::scalar!(Labels);
-
 impl Labels {
     pub fn new() -> Self {
         Self::default()

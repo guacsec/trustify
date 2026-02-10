@@ -10,7 +10,6 @@ members = [
     "migration",
     "modules/analysis",
     "modules/fundamental",
-    "modules/graphql",
     "modules/importer",
     "modules/ingestor",
     "modules/storage",
@@ -42,8 +41,6 @@ actix-web-httpauth = "0.8"
 actix-web-static-files = "4.0.1"
 anyhow = "1.0.72"
 async-compression = "0.4.13"
-async-graphql = "7.0.5"
-async-graphql-actix-web = "7.0.5"
 async-recursion = "1"
 async-trait = "0.1.74"
 aws-config = { version = "1.6.1", features = ["behavior-version-latest"] }
@@ -170,7 +167,6 @@ trustify-infrastructure = { path = "common/infrastructure" }
 trustify-migration = { path = "migration" }
 trustify-module-analysis = { path = "modules/analysis" }
 trustify-module-fundamental = { path = "modules/fundamental" }
-trustify-module-graphql = { path = "modules/graphql" }
 trustify-module-importer = { path = "modules/importer" }
 trustify-module-ingestor = { path = "modules/ingestor" }
 trustify-module-storage = { path = "modules/storage" }

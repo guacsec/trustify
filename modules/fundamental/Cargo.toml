@@ -6,10 +6,6 @@ publish.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
-[features]
-default = []
-graphql = [ "async-graphql" ]
-
 [dependencies]
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true}
@@ -53,8 +49,6 @@ uuid = { workspace = true }
 semver = { workspace = true }
 regex = { workspace = true }
 lenient_semver = { workspace = true }
-
-async-graphql = { workspace = true, features = ["uuid", "time"], optional = true }
 
 [dev-dependencies]
 actix-http = { workspace = true }

@@ -2,11 +2,6 @@ use crate::{advisory, product};
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[cfg_attr(feature = "async-graphql", derive(async_graphql::SimpleObject))]
-#[cfg_attr(
-    feature = "async-graphql",
-    graphql(concrete(name = "Organization", params()))
-)]
 #[sea_orm(table_name = "organization")]
 pub struct Model {
     #[sea_orm(primary_key)]
@@ -21,13 +16,13 @@ pub enum Relation {}
 
 impl Related<advisory::Entity> for Entity {
     fn to() -> RelationDef {
-        super::advisory::Relation::Issuer.def().rev()
+        advisory::Relation::Issuer.def().rev()
     }
 }
 
 impl Related<product::Entity> for Entity {
     fn to() -> RelationDef {
-        super::product::Relation::Vendor.def().rev()
+        product::Relation::Vendor.def().rev()
     }
 }
 

@@ -2,9 +2,10 @@ pub mod details;
 pub mod raw_sql;
 
 use super::service::SbomService;
-use crate::common::LicenseInfo;
 use crate::{
-    Error, common::LicenseRefMapping, purl::model::summary::purl::PurlSummary,
+    Error,
+    common::{LicenseInfo, LicenseRefMapping},
+    purl::model::summary::purl::PurlSummary,
     source_document::model::SourceDocument,
 };
 use sea_orm::{ConnectionTrait, ModelTrait, PaginatorTrait, prelude::Uuid};
@@ -109,11 +110,6 @@ impl SbomSummary {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, Default)]
-#[cfg_attr(feature = "async-graphql", derive(async_graphql::SimpleObject))]
-#[cfg_attr(
-    feature = "async-graphql",
-    graphql(concrete(name = "SbomPackage", params()))
-)]
 pub struct SbomPackage {
     /// The SBOM internal ID of a package
     pub id: String,
@@ -124,15 +120,12 @@ pub struct SbomPackage {
     /// An optional version for an SBOM package
     pub version: Option<String>,
     /// PURLs identifying the package
-    #[cfg_attr(feature = "async-graphql", graphql(skip))]
     pub purl: Vec<PurlSummary>,
     /// CPEs identifying the package
     pub cpe: Vec<String>,
     /// License info
-    #[cfg_attr(feature = "async-graphql", graphql(skip))]
     pub licenses: Vec<LicenseInfo>,
     /// LicenseRef mappings
-    #[cfg_attr(feature = "async-graphql", graphql(skip))]
     pub licenses_ref_mapping: Vec<LicenseRefMapping>,
 }
 

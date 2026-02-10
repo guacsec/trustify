@@ -6,9 +6,6 @@ publish.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
-[features]
-graphql = ["async-graphql"]
-
 [dependencies]
 trustify-common = { workspace = true }
 trustify-cvss = { workspace = true }
@@ -26,8 +23,6 @@ strum = { workspace = true, features = ["derive"] }
 time = { workspace = true }
 thiserror = { workspace = true }
 utoipa = { workspace = true }
-
-async-graphql = { workspace = true, features = ["uuid", "time"], optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

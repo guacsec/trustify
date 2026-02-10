@@ -4,8 +4,6 @@ use time::OffsetDateTime;
 use trustify_common::id::{Id, IdError, TryFilterForId};
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[cfg_attr(feature = "async-graphql", derive(async_graphql::SimpleObject))]
-#[cfg_attr(feature = "async-graphql", graphql(concrete(name = "Sbom", params())))]
 #[sea_orm(table_name = "sbom")]
 pub struct Model {
     #[sea_orm(primary_key)]
@@ -21,10 +19,6 @@ pub struct Model {
 
     pub source_document_id: Uuid,
 
-    #[cfg_attr(
-        feature = "async-graphql",
-        graphql(derived(owned, into = "HashMap<String,String>", with = "Labels::from"))
-    )]
     pub labels: Labels,
 
     /// properties from the SBOM document

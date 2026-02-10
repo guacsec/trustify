@@ -1,9 +1,6 @@
 #[cfg(feature = "garage-door")]
 use crate::embedded_oidc;
 
-#[cfg(feature = "graphql")]
-use actix_web::middleware;
-
 use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
 use bytesize::ByteSize;
@@ -41,11 +38,6 @@ pub struct Run {
     /// Inject example importer configurations during startup
     #[arg(long, env)]
     pub sample_data: bool,
-
-    #[cfg(feature = "graphql")]
-    /// Allows enabling the GraphQL endpoint
-    #[arg(long, env = "TRUSTD_WITH_GRAPHQL", default_value_t = false)]
-    pub with_graphql: bool,
 
     /// Enable the embedded OIDC server (WARNING: this is insecure and should only be used for demos)
     #[cfg(feature = "garage-door")]
@@ -170,8 +162,6 @@ struct InitData {
     #[cfg(feature = "garage-door")]
     embedded_oidc: Option<embedded_oidc::EmbeddedOidc>,
     ui: UI,
-    #[cfg(feature = "graphql")]
-    with_graphql: bool,
     config: ModuleConfig,
     analysis: AnalysisService,
 }
@@ -285,8 +275,6 @@ impl InitData {
             #[cfg(feature = "garage-door")]
             embedded_oidc,
             ui,
-            #[cfg(feature = "graphql")]
-            with_graphql: run.with_graphql,
         })
     }
 
@@ -310,8 +298,6 @@ impl InitData {
                             storage: self.storage.clone(),
                             auth: self.authenticator.clone(),
                             analysis: self.analysis.clone(),
-                            #[cfg(feature = "graphql")]
-                            with_graphql: self.with_graphql,
                         },
                     );
                 })
@@ -359,8 +345,6 @@ pub(crate) struct Config {
     pub(crate) storage: DispatchBackend,
     pub(crate) analysis: AnalysisService,
     pub(crate) auth: Option<Arc<Authenticator>>,
-    #[cfg(feature = "graphql")]
-    pub(crate) with_graphql: bool,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
@@ -375,9 +359,6 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         storage,
         auth,
         analysis,
-
-        #[cfg(feature = "graphql")]
-        with_graphql,
     } = config;
 
     let graph = Graph::new(db.clone());
@@ -386,25 +367,6 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
 
     let limit = ByteSize::gb(1).as_u64() as usize;
     svc.app_data(web::PayloadConfig::default().limit(limit));
-
-    // register GraphQL API and UI
-
-    #[cfg(feature = "graphql")]
-    if with_graphql {
-        svc.service(
-            utoipa_actix_web::scope("/graphql")
-                .map(|svc| {
-                    svc.wrap(middleware::NormalizePath::new(
-                        middleware::TrailingSlash::Always,
-                    ))
-                    .wrap(new_auth(auth.clone()))
-                })
-                .configure(|svc| {
-                    trustify_module_graphql::endpoints::configure(svc, db.clone());
-                    trustify_module_graphql::endpoints::configure_graphiql(svc);
-                }),
-        );
-    }
 
     // register REST API & UI
 
@@ -511,8 +473,6 @@ mod test {
                             storage: DispatchBackend::Filesystem(storage),
                             auth: None,
                             analysis,
-                            #[cfg(feature = "graphql")]
-                            with_graphql: true,
                         },
                     );
                 })
@@ -554,15 +514,6 @@ mod test {
         let body = call_and_read_body(&app, req).await;
         let text = std::str::from_utf8(&body)?;
         assert!(text.contains("<title>Swagger UI</title>"));
-
-        // GraphQL UI
-        #[cfg(feature = "graphql")]
-        {
-            let req = TestRequest::get().uri("/graphql").to_request();
-            let body = call_and_read_body(&app, req).await;
-            let text = std::str::from_utf8(&body)?;
-            assert!(text.contains("<title>GraphiQL IDE</title>"));
-        }
 
         // API
 
