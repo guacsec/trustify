@@ -291,7 +291,9 @@ fn format_list_output(json: &str, format: &ListFormat) -> anyhow::Result<ExitCod
                     })
                 })
                 .collect();
-            println!("{}", serde_json::to_string(&result).unwrap_or_default());
+            let json = serde_json::to_string(&result)
+                .map_err(|e| anyhow::anyhow!("Failed to serialize output: {}", e))?;
+            println!("{}", json);
             Ok(ExitCode::SUCCESS)
         }
         ListFormat::Short => {
@@ -308,7 +310,9 @@ fn format_list_output(json: &str, format: &ListFormat) -> anyhow::Result<ExitCod
                     })
                 })
                 .collect();
-            println!("{}", serde_json::to_string(&result).unwrap_or_default());
+            let json = serde_json::to_string(&result)
+                .map_err(|e| anyhow::anyhow!("Failed to serialize output: {}", e))?;
+            println!("{}", json);
             Ok(ExitCode::SUCCESS)
         }
     }

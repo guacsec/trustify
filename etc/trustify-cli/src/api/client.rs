@@ -18,7 +18,7 @@ pub enum ApiError {
     #[error("HTTP {0}: {1}")]
     HttpError(u16, String),
 
-    #[error("HTTP 404: Resource not found")]
+    #[error("HTTP 404: Resource not found {0}")]
     NotFound(String),
 
     #[error("HTTP 401: Please check your authentication credentials")]
@@ -43,7 +43,7 @@ pub enum ApiError {
 impl From<reqwest::Error> for ApiError {
     fn from(e: reqwest::Error) -> Self {
         if e.is_timeout() {
-            ApiError::Timeout(0) // 0 indicates network-level timeout (no HTTP response)
+            ApiError::Timeout(e.status().unwrap_or(StatusCode::REQUEST_TIMEOUT).as_u16()) // 0 indicates network-level timeout (no HTTP response)
         } else if e.is_connect() {
             ApiError::NetworkError(format!("Connection failed: {}", e))
         } else if e.is_request() {

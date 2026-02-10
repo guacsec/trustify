@@ -110,7 +110,7 @@ petgraph = { version = "0.8.0", features = ["serde-1"] }
 quick-xml = "0.39.0"
 rand = "0.10.0"
 regex = "1.10.3"
-reqwest = { version = "0.13.1", features = ["blocking", "form", "json", "query"] }
+reqwest = "0.13"
 ring = "0.17.8"
 roxmltree = "0.21.1"
 rstest = "0.26.1"
