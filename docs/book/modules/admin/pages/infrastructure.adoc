@@ -372,13 +372,6 @@ The Prerequisites for the Keycloak operator configuration are,
 
 [[_keycloak_postgres]]
 ===== Create PostgreSQL instance
-* Login to `registry.redhat.io` using podman or docker cli
-* Create Image pull secret for `registry.redhat.io` using the below command
-+
-[source,bash]
-----
-oc create secret generic docker-cred --from-file=.dockerconfigjson=$XDG_RUNTIME_DIR/containers/auth.json --type=kubernetes.io/dockerconfigjson
-----
 
 * Create PostgreSQL database instance for Keycloak persistent storage with the below `StatefulSet` and `Service`
 +
@@ -473,8 +466,8 @@ ${HOME}/acme.sh/acme.sh --issue \
 [source,bash]
 ----
 oc create secret tls keycloak-letsencrypt-tls \
-  --cert=${HOME}/.acme.sh/${KEYCLOAK_HOSTNAME}/fullchain.cer \
-  --key=${HOME}/.acme.sh/${KEYCLOAK_HOSTNAME}/${KEYCLOAK_HOSTNAME}.key \
+  --cert=${HOME}/.acme.sh/${KEYCLOAK_HOSTNAME}_ecc/fullchain.cer \
+  --key=${HOME}/.acme.sh/${KEYCLOAK_HOSTNAME}_ecc/${KEYCLOAK_HOSTNAME}.key \
   -n <Installation Namespace>
 ----
 
@@ -720,42 +713,161 @@ kcadm() {
 # Error handling helper
 die() {
   echo "$*" 1>&2
-  false
+  exit 1
 }
 
+# Usage function
+usage() {
+  cat <<EOF
+Usage: $0 [OPTIONS]
+
+Required options:
+  --kcadm-path PATH              Path to kcadm.sh script
+  --keycloak-url URL             Keycloak server URL
+  --keycloak-admin USER          Keycloak admin username
+  --keycloak-admin-password PWD  Keycloak admin password
+  --base-hostname HOSTNAME       Base application domain for redirect URIs
+  --init-data PATH               Directory containing client JSON files
+
+Optional options:
+  --namespace NAMESPACE          Namespace for the application (used in redirect URIs)
+  --sso-frontend-url URL         External URL for Keycloak (if different from internal)
+  --trusted-admin-username USER  RHTPA admin username (default: admin)
+  --trusted-admin-password PWD   RHTPA admin password (default: admin123456)
+  --cli-client-secret SECRET     CLI service account secret (auto-generated if not provided)
+  --testing-manager-secret SEC   Testing-manager service account secret (auto-generated if not provided)
+  --testing-user-secret SECRET   Testing-user service account secret (auto-generated if not provided)
+  --help                         Display this help message
+
+Example:
+  $0 --kcadm-path /path/to/kcadm.sh \\
+     --keycloak-url https://sso.example.com \\
+     --keycloak-admin admin \\
+     --keycloak-admin-password secret \\
+     --base-hostname apps.example.com \\
+     --namespace tpa \\
+     --init-data /path/to/client-json
+EOF
+  exit 0
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --kcadm-path)
+      KCADM_PATH="$2"
+      shift 2
+      ;;
+    --keycloak-url)
+      KEYCLOAK_URL="$2"
+      shift 2
+      ;;
+    --keycloak-admin)
+      KEYCLOAK_ADMIN="$2"
+      shift 2
+      ;;
+    --keycloak-admin-password)
+      KEYCLOAK_ADMIN_PASSWORD="$2"
+      shift 2
+      ;;
+    --base-hostname)
+      BASE_HOSTNAME="$2"
+      shift 2
+      ;;
+    --init-data)
+      INIT_DATA="$2"
+      shift 2
+      ;;
+    --namespace)
+      NAMESPACE="$2"
+      shift 2
+      ;;
+    --sso-frontend-url)
+      SSO_FRONTEND_URL="$2"
+      shift 2
+      ;;
+    --trusted-admin-username)
+      TRUSTED_ADMIN_USERNAME="$2"
+      shift 2
+      ;;
+    --trusted-admin-password)
+      TRUSTED_ADMIN_PASSWORD="$2"
+      shift 2
+      ;;
+    --cli-client-secret)
+      CLI_CLIENT_SECRET="$2"
+      shift 2
+      ;;
+    --testing-manager-secret)
+      TESTING_MANAGER_SECRET="$2"
+      shift 2
+      ;;
+    --testing-user-secret)
+      TESTING_USER_SECRET="$2"
+      shift 2
+      ;;
+    --help)
+      usage
+      ;;
+    *)
+      echo "Unknown option: $1"
+      usage
+      ;;
+  esac
+done
+
 # --- Configuration Variables ---
-# The path to your kcadm.sh script.
-KCADM_PATH="Path/to/kcadm.sh" # ---> 1
+# Set defaults for optional parameters
+REALM="${REALM:-trust}"
+TRUSTD_ROLE_NAME="${TRUSTD_ROLE_NAME:-trustd}"
+NAMESPACE="${NAMESPACE:-}"
+SSO_FRONTEND_URL="${SSO_FRONTEND_URL:-}"
+TRUSTED_ADMIN_USERNAME="${TRUSTED_ADMIN_USERNAME:-admin}"
+TRUSTED_ADMIN_PASSWORD="${TRUSTED_ADMIN_PASSWORD:-admin123456}"
+CLI_CLIENT_SECRET="${CLI_CLIENT_SECRET:-}"
+TESTING_MANAGER_SECRET="${TESTING_MANAGER_SECRET:-}"
+TESTING_USER_SECRET="${TESTING_USER_SECRET:-}"
 
-# Keycloak server connection details
-KEYCLOAK_URL="<Keycloak URL>" # ---> 2
-KEYCLOAK_ADMIN="<Keycloak admin username>" # ---> 3
-KEYCLOAK_ADMIN_PASSWORD="<Keycloak admin password>" # ---> 4
+# Validate required parameters
+if [[ -z "$KCADM_PATH" ]]; then
+  die "Error: --kcadm-path is required"
+fi
 
-# Realm settings
-REALM="trust"
+if [[ -z "$KEYCLOAK_URL" ]]; then
+  die "Error: --keycloak-url is required"
+fi
 
-# Optional: Set external frontend URL if Keycloak has an internal name
-SSO_FRONTEND_URL="" # ---> 5
+if [[ -z "$KEYCLOAK_ADMIN" ]]; then
+  die "Error: --keycloak-admin is required"
+fi
 
-# Role name
-TRUSTD_ROLE_NAME="trustd"
+if [[ -z "$KEYCLOAK_ADMIN_PASSWORD" ]]; then
+  die "Error: --keycloak-admin-password is required"
+fi
 
-# Base hostname for redirect URIs
-BASE_HOSTNAME="<your-app-domain>" # ---> 6
+if [[ -z "$BASE_HOSTNAME" ]]; then
+  die "Error: --base-hostname is required"
+fi
 
-# Admin username
-TRUSTED_ADMIN_USERNAME="admin" # ---> 7
-# Admin user password
-TRUSTED_ADMIN_PASSWORD="admin123456" # ---> 8
+if [[ -z "$INIT_DATA" ]]; then
+  die "Error: --init-data is required"
+fi
 
-# Directory containing client JSON files
-INIT_DATA="/path/to/client/json/" # ---> 9
+# Auto-generate secure secrets if not provided
+if [[ -z "$CLI_CLIENT_SECRET" ]]; then
+  CLI_CLIENT_SECRET=$(openssl rand -hex 32)
+  echo "Generated CLI_CLIENT_SECRET: $CLI_CLIENT_SECRET"
+fi
 
-# Client secrets for service accounts
-CLI_CLIENT_SECRET="<generate-secure-secret>" # ---> 10
-TESTING_MANAGER_SECRET="<generate-secure-secret>" # ---> 11
-TESTING_USER_SECRET="<generate-secure-secret>" # ---> 12
+if [[ -z "$TESTING_MANAGER_SECRET" ]]; then
+  TESTING_MANAGER_SECRET=$(openssl rand -hex 32)
+  echo "Generated TESTING_MANAGER_SECRET: $TESTING_MANAGER_SECRET"
+fi
+
+if [[ -z "$TESTING_USER_SECRET" ]]; then
+  TESTING_USER_SECRET=$(openssl rand -hex 32)
+  echo "Generated TESTING_USER_SECRET: $TESTING_USER_SECRET"
+fi
 
 # Exit on interrupt
 trap break INT
@@ -811,7 +923,7 @@ done
 # Create frontend client (public client)
 ID=$(kcadm get clients -r "$REALM" --query exact=true --query "clientId=frontend" --fields id --format csv --noquotes)
 CLIENT_OPTS=()
-CLIENT_OPTS+=(-s "redirectUris=[\"http://localhost:*\",\"https://rhtpa.${BASE_HOSTNAME}\",\"https://rhtpa.${BASE_HOSTNAME}/*\"]")
+CLIENT_OPTS+=(-s "redirectUris=[\"https://server-${NAMESPACE}.${BASE_HOSTNAME}\",\"https://server-${NAMESPACE}.${BASE_HOSTNAME}/*\"]")
 if [[ -n "$ID" ]]; then
   kcadm delete "clients/${ID}" -r "$REALM"
   kcadm create clients -r "$REALM" -f "${INIT_DATA}/client-frontend.json" "${CLIENT_OPTS[@]}"
@@ -866,20 +978,42 @@ echo Keycloak initialization complete
 </details>
 ++++
 +
-**References:**
+**Configuration:**
 +
-. _KCADM_PATH:_ Update the KCADM path from <<_keycloak_bin_download, downaloded>> directory
-. _KEYCLOAK_URL:_ Keycloak URL from <<_keycloak_usage_,operator>>
-. _KEYCLOAK_ADMIN:_ Keycloak ADMIN username from <<_keycloak_usage_,operator>>
-. _KEYCLOAK_ADMIN_PASSWORD:_ Keycloak ADMIN password from <<_keycloak_usage_,operator>>
-. _SSO_FRONTEND_URL:_ (Optional) External URL for Keycloak if different from internal URL. Leave empty if not needed
-. _BASE_HOSTNAME:_ Base application domain for redirect URIs (e.g., "tpa.apps.ocp.cluster.net")
-. _TRUSTED_ADMIN_USERNAME:_ RHTPA application admin username. By default `admin`
-. _TRUSTED_ADMIN_PASSWORD:_ RHTPA application admin password. By default `admin123456`
-. _INIT_DATA:_ Location of keycloak <<_keycloak_clients,clients>> json files
-. _CLI_CLIENT_SECRET:_ Secure secret for CLI service account client (generate with openssl rand -hex 32)
-. _TESTING_MANAGER_SECRET:_ Secure secret for testing-manager service account client
-. _TESTING_USER_SECRET:_ Secure secret for testing-user service account client
+The script accepts configuration via command line arguments. Run `./script.sh --help` to see all available options.
++
+**Required Parameters:**
++
+. _--kcadm-path:_ Path to kcadm.sh from <<_keycloak_bin_download, downloaded>> directory
+. _--keycloak-url:_ Keycloak URL from <<_keycloak_usage_,operator>>
+. _--keycloak-admin:_ Keycloak ADMIN username from <<_keycloak_usage_,operator>>
+. _--keycloak-admin-password:_ Keycloak ADMIN password from <<_keycloak_usage_,operator>>
+. _--base-hostname:_ Base application domain for redirect URIs (e.g., "tpa.apps.ocp.cluster.net")
+. _--init-data:_ Directory containing keycloak <<_keycloak_clients,clients>> json files
++
+**Optional Parameters:**
++
+. _--namespace:_ Namespace for the application (used in redirect URIs)
+. _--sso-frontend-url:_ External URL for Keycloak if different from internal URL
+. _--trusted-admin-username:_ RHTPA application admin username. Default: `admin`
+. _--trusted-admin-password:_ RHTPA application admin password. Default: `admin123456`
+. _--cli-client-secret:_ Secure secret for CLI service account client. Auto-generated if not provided
+. _--testing-manager-secret:_ Secure secret for testing-manager service account client. Auto-generated if not provided
+. _--testing-user-secret:_ Secure secret for testing-user service account client. Auto-generated if not provided
++
+**Example Usage:**
++
+[source, bash]
+----
+./keycloak-setup.sh \
+  --kcadm-path /path/to/kcadm.sh \
+  --keycloak-url https://sso-tpa.apps.ocp.cluster.net \
+  --keycloak-admin admin \
+  --keycloak-admin-password secret123 \
+  --base-hostname apps.ocp.cluster.net \
+  --namespace tpa \
+  --init-data /path/to/client-json
+----
 
 [NOTE]
 ====
