@@ -3,7 +3,7 @@ use garage_door::{
     issuer::{Client, Issuer, RedirectUrl},
     server::Server,
 };
-use rand::{Rng, distr::Alphanumeric};
+use rand::{RngExt, distr::Alphanumeric};
 use tokio::{sync::oneshot, task::JoinHandle};
 use trustify_auth::devmode::{
     CONFIDENTIAL_CLIENT_IDS, ISSUER_URL, PUBLIC_CLIENT_IDS, SSO_CLIENT_SECRET,

@@ -132,7 +132,7 @@ impl<R: AsyncRead + Unpin> AsyncRead for HashingRead<R> {
 #[cfg(test)]
 mod test {
     use super::HashingRead;
-    use rand::RngCore;
+    use rand::Rng;
     use ring::digest::{SHA256, SHA384, SHA512, digest};
     use std::io::Read;
 
