@@ -62,7 +62,7 @@ oidc:
     frontend: {}
     cli:
       clientSecret:
-        value: 5460cc91-4e20-4edd-881c-b15b169f8a79 # notsecret, replace
+        value: REPLACE_WITH_YOUR_CLIENT_SECRET # notsecret, replace
 ----
 
 === Collecting traces and metrics
@@ -403,7 +403,7 @@ spec:
             - name: POSTGRESQL_USER
               value: trustify
             - name: POSTGRESQL_PASSWORD
-              value: trustify1234
+              value: <your-secure-password>
             - name: POSTGRESQL_DATABASE
               value: trustify
       volumes:
@@ -475,7 +475,7 @@ oc create secret tls keycloak-letsencrypt-tls \
 +
 [source,bash]
 ----
-oc create secret generic keycloak-db-secret --from-literal=username=trustify --from-literal=password=trustify1234 -n <Installation Namespace>
+oc create secret generic keycloak-db-secret --from-literal=username=trustify --from-literal=password=<your-secure-password> -n <Installation Namespace>
 ----
 
 * Define the `Keycloak` Custom Resource (CR) that the Keycloak Operator will use to deploy and configure your Keycloak instance.
@@ -573,7 +573,7 @@ The script accepts configuration via command line arguments. Run `./keycloak-set
 . _--namespace:_ Namespace for the application (used in redirect URIs)
 . _--sso-frontend-url:_ External URL for Keycloak if different from internal URL
 . _--trusted-admin-username:_ RHTPA application admin username. Default: `admin`
-. _--trusted-admin-password:_ RHTPA application admin password. Default: `admin123456`
+. _--trusted-admin-password:_ RHTPA application admin password. Default: `<secure-password>` (auto-generated if not provided)
 . _--cli-client-secret:_ Secure secret for CLI service account client. Auto-generated if not provided
 . _--testing-manager-secret:_ Secure secret for testing-manager service account client. Auto-generated if not provided
 . _--testing-user-secret:_ Secure secret for testing-user service account client. Auto-generated if not provided
@@ -586,7 +586,7 @@ The script accepts configuration via command line arguments. Run `./keycloak-set
   --kcadm-path /path/to/kcadm.sh \
   --keycloak-url https://sso-tpa.apps.ocp.cluster.net \
   --keycloak-admin admin \
-  --keycloak-admin-password secret123 \
+  --keycloak-admin-password <your-admin-password> \
   --base-hostname apps.ocp.cluster.net \
   --namespace tpa \
   --init-data /path/to/keycloak-setup
@@ -1146,7 +1146,7 @@ spec:
             - name: MINIO_ROOT_USER
               value: "minioadmin"
             - name: MINIO_ROOT_PASSWORD
-              value: "minioadmin123"
+              value: "<your-secure-password>"
           ports:
             - containerPort: 9000
           volumeMounts:
@@ -1180,7 +1180,7 @@ Create a S3 object storage bucket in MinIO
 [source, bash]
 ----
 export AWS_ACCESS_KEY_ID=minioadmin
-export AWS_SECRET_ACCESS_KEY=minioadmin123
+export AWS_SECRET_ACCESS_KEY=<your-minio-password>
 aws s3 mb s3://<bucketname> --endpoint-url <minio_endpoint>
 ----
 

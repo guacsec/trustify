@@ -34,6 +34,7 @@ Optional options:
   --cli-client-secret SECRET     CLI service account secret (auto-generated if not provided)
   --testing-manager-secret SEC   Testing-manager service account secret (auto-generated if not provided)
   --testing-user-secret SECRET   Testing-user service account secret (auto-generated if not provided)
+  --show-secrets                 Display auto-generated secrets in stdout (insecure, for debugging only)
   --help                         Display this help message
 
 Example:
@@ -103,6 +104,10 @@ while [[ $# -gt 0 ]]; do
       TESTING_USER_SECRET="$2"
       shift 2
       ;;
+    --show-secrets)
+      SHOW_SECRETS=true
+      shift
+      ;;
     --help)
       usage
       ;;
@@ -124,6 +129,7 @@ TRUSTED_ADMIN_PASSWORD="${TRUSTED_ADMIN_PASSWORD:-admin123456}"
 CLI_CLIENT_SECRET="${CLI_CLIENT_SECRET:-}"
 TESTING_MANAGER_SECRET="${TESTING_MANAGER_SECRET:-}"
 TESTING_USER_SECRET="${TESTING_USER_SECRET:-}"
+SHOW_SECRETS="${SHOW_SECRETS:-false}"
 
 # Validate required parameters
 if [[ -z "$KCADM_PATH" ]]; then
@@ -150,24 +156,51 @@ if [[ -z "$INIT_DATA" ]]; then
   die "Error: --init-data is required"
 fi
 
+# Create secure output file for generated secrets
+SECRET_OUTPUT="/tmp/keycloak-secrets-$$.txt"
+
 # Auto-generate secure secrets if not provided
 if [[ -z "$CLI_CLIENT_SECRET" ]]; then
   CLI_CLIENT_SECRET=$(openssl rand -hex 32)
-  echo "Generated CLI_CLIENT_SECRET: $CLI_CLIENT_SECRET"
+  echo "CLI_CLIENT_SECRET=$CLI_CLIENT_SECRET" >> "$SECRET_OUTPUT"
+  if [[ "$SHOW_SECRETS" == "true" ]]; then
+    echo "Generated CLI_CLIENT_SECRET: $CLI_CLIENT_SECRET"
+  else
+    echo "Generated CLI_CLIENT_SECRET (saved securely)"
+  fi
 fi
 
 if [[ -z "$TESTING_MANAGER_SECRET" ]]; then
   TESTING_MANAGER_SECRET=$(openssl rand -hex 32)
-  echo "Generated TESTING_MANAGER_SECRET: $TESTING_MANAGER_SECRET"
+  echo "TESTING_MANAGER_SECRET=$TESTING_MANAGER_SECRET" >> "$SECRET_OUTPUT"
+  if [[ "$SHOW_SECRETS" == "true" ]]; then
+    echo "Generated TESTING_MANAGER_SECRET: $TESTING_MANAGER_SECRET"
+  else
+    echo "Generated TESTING_MANAGER_SECRET (saved securely)"
+  fi
 fi
 
 if [[ -z "$TESTING_USER_SECRET" ]]; then
   TESTING_USER_SECRET=$(openssl rand -hex 32)
-  echo "Generated TESTING_USER_SECRET: $TESTING_USER_SECRET"
+  echo "TESTING_USER_SECRET=$TESTING_USER_SECRET" >> "$SECRET_OUTPUT"
+  if [[ "$SHOW_SECRETS" == "true" ]]; then
+    echo "Generated TESTING_USER_SECRET: $TESTING_USER_SECRET"
+  else
+    echo "Generated TESTING_USER_SECRET (saved securely)"
+  fi
 fi
 
-# Exit on interrupt
-trap break INT
+# Secure the secrets file if any secrets were generated
+if [[ -f "$SECRET_OUTPUT" ]]; then
+  chmod 600 "$SECRET_OUTPUT"
+  echo ""
+  echo "⚠️  Auto-generated secrets have been saved to: $SECRET_OUTPUT"
+  echo "⚠️  Please store these securely and delete the file after retrieval."
+  echo ""
+fi
+
+# Exit cleanly on interrupt
+trap 'echo ""; echo "Script interrupted by user. Exiting..."; exit 130' INT
 
 while ! kcadm config credentials --server "$KEYCLOAK_URL" --realm master --user "$KEYCLOAK_ADMIN" --password "$KEYCLOAK_ADMIN_PASSWORD" &> /dev/null; do
   echo "Waiting for Keycloak to start up..."
