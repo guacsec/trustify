@@ -49,6 +49,7 @@ mod m0002070_alter_sbom_group_restrict_parent;
 mod m0002080_add_cargo_version_scheme;
 mod m0002090_vulnerability_id_sort_index;
 mod m0002100_analysis_perf_indexes;
+mod m0002110_license_query_performance;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -114,6 +115,7 @@ impl MigratorExt for Migrator {
             .normal(m0002080_add_cargo_version_scheme::Migration)
             .normal(m0002090_vulnerability_id_sort_index::Migration)
             .normal(m0002100_analysis_perf_indexes::Migration)
+            .normal(m0002110_license_query_performance::Migration)
     }
 }
 
