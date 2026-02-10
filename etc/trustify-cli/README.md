@@ -52,24 +52,13 @@ trustify sbom duplicates delete
 
 ```bash
 # Clone the repository
-git clone https://github.com/ruromero/trustify-cli.git
+git clone https://github.com/guacsec/trustify-cli.git
 cd trustify-cli
 
 # Build
 cargo build --release
 
 # The binary will be at ./target/release/trustify
-```
-
-### Using Docker
-
-```bash
-# Use your .env file with the container
-docker run --rm --env-file .env ghcr.io/ruromero/trustify-cli sbom list
-
-# For commands that write files, mount a volume
-docker run --rm --env-file .env -v $(pwd):/data \
-  ghcr.io/ruromero/trustify-cli sbom duplicates find --output /data/duplicates.json
 ```
 
 ## Configuration

@@ -8,9 +8,6 @@ use crate::Context;
 pub use auth::AuthCommands;
 pub use sbom::SbomCommands;
 
-#[cfg(test)]
-mod test;
-
 #[derive(Subcommand)]
 pub enum Commands {
     /// SBOM management commands
