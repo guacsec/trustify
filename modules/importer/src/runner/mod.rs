@@ -78,9 +78,7 @@ impl ImportRunner {
             return Ok(None);
         };
 
-        let result = working_dir
-            .join(r#type)
-            .join(urlencoding::encode(source).as_ref());
+        let result = working_dir.join(r#type).join(&*urlencoding::encode(source));
 
         tokio::fs::create_dir_all(&result).await?;
 

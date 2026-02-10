@@ -156,7 +156,7 @@ uuid = "1.7.0"
 walkdir = "2.5"
 walker-common = "0.15.0"
 wiremock = "0.6"
-zip = "6" # 7 pulls in a newer lzma-rust2 version, which fails due to https://github.com/hasenbanck/lzma-rust2/issues/86
+zip = "7"
 
 trustify-auth = { path = "common/auth", features = ["actix", "swagger"] }
 trustify-common = { path = "common" }
@@ -210,3 +210,6 @@ csaf = { git = "https://github.com/scm-rs/csaf-rs", branch = "main" }
 
 # required due to https://github.com/doubleopen-project/spdx-rs/pull/35
 spdx-rs = { git = "https://github.com/ctron/spdx-rs", branch = "feature/add_alias_2" }
+
+lzma-rust2 = { git = "https://github.com/ctron/lzma-rust2", rev = "589f1603f3c6bb57c75ca520a18a3660fa5e1325" } # drop when https://github.com/hasenbanck/lzma-rust2/pull/87 is merged and released
+utoipa = { git = "https://github.com/cfilipescu/utoipa", rev = "4faea27e72e314007eb65afdac9e867ffbf85afe" } # drop when https://github.com/juhaku/utoipa/pull/1519 is merged and released
