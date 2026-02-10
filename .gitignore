@@ -9,6 +9,10 @@
 
 *.cdx.json
 *.folded
+*-secret.*
+*.tar
+*.sql
+!migration/src/*/*.sql
 
 /flame*.svg
 /perf.data*

@@ -325,12 +325,26 @@ impl LicenseService {
             ),
         );
 
+        // Use NOT EXISTS instead of LEFT JOIN + IS NULL to find licenses without SBOMs.
+        // On large tables, LEFT JOIN scans all rows while NOT EXISTS
+        // uses a Nested Loop Anti Join with index-only scan.
+        let exists_subquery = sea_query::Query::select()
+            .expr(Expr::val(1))
+            .from(sbom_package_license::Entity)
+            .and_where(
+                Expr::col((
+                    sbom_package_license::Entity,
+                    sbom_package_license::Column::LicenseId,
+                ))
+                .equals((license::Entity, license::Column::Id)),
+            )
+            .to_owned();
+
         let default_licenses_with_no_sboms = license::Entity::find()
             .distinct()
             .select_only()
             .column(license::Column::Text)
-            .join(JoinType::LeftJoin, license::Relation::PackageLicense.def())
-            .filter(sbom_package_license::Column::SbomId.is_null())
+            .filter(Expr::exists(exists_subquery).not())
             .filtering_with(
                 search.clone(),
                 Columns::default()
