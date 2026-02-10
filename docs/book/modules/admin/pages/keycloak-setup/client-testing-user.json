@@ -1,0 +1,29 @@
+{
+  "clientId": "testing-user",
+  "clientAuthenticatorType": "client-secret",
+  "enabled": true,
+  "publicClient": false,
+  "implicitFlowEnabled": false,
+  "standardFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": true,
+  "fullScopeAllowed": true,
+  "defaultClientScopes": [
+	"basic",
+	"email",
+	"profile",
+	"roles",
+	"web-origins",
+	"read:document"
+  ],
+  "optionalClientScopes": [
+	"address",
+	"microprofile-jwt",
+	"offline_access",
+	"phone"
+  ],
+  "attributes": {
+	"access.token.lifespan": "300",
+	"post.logout.redirect.uris": "+"
+  }
+}
