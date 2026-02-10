@@ -2,6 +2,7 @@ pub mod sbom_license;
 
 use crate::{Error, purl::model::VersionedPurlHead, sbom::model::SbomHead};
 use serde::{Deserialize, Serialize};
+use spdx::License;
 use trustify_entity::license;
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -46,12 +47,18 @@ pub struct SpdxLicenseSummary {
 }
 
 impl SpdxLicenseSummary {
-    pub fn from_details(rows: &[&(&str, &str, u8)]) -> Vec<Self> {
+    pub fn from_details(rows: &[&License]) -> Vec<Self> {
         rows.iter()
-            .map(|(id, name, _flags)| Self {
-                id: id.to_string(),
-                name: name.to_string(),
-            })
+            .map(
+                |License {
+                     name: id,
+                     full_name: name,
+                     ..
+                 }| Self {
+                    id: id.to_string(),
+                    name: name.to_string(),
+                },
+            )
             .collect()
     }
 }

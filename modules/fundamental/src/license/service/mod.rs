@@ -20,6 +20,7 @@ use sea_query::{
     query,
 };
 use serde::{Deserialize, Serialize};
+use spdx::License;
 use trustify_common::{
     db::query::{Columns, Filtering, Query},
     id::{Id, TrySelectForId},
@@ -169,11 +170,17 @@ impl LicenseService {
     ) -> Result<PaginatedResults<SpdxLicenseSummary>, Error> {
         let all_matching = spdx::identifiers::LICENSES
             .iter()
-            .filter(|(identifier, name, _)| {
-                search.q.is_empty()
-                    || identifier.to_lowercase().contains(&search.q.to_lowercase())
-                    || name.to_lowercase().contains(&search.q.to_lowercase())
-            })
+            .filter(
+                |License {
+                     name: identifier,
+                     full_name: name,
+                     ..
+                 }| {
+                    search.q.is_empty()
+                        || identifier.to_lowercase().contains(&search.q.to_lowercase())
+                        || name.to_lowercase().contains(&search.q.to_lowercase())
+                },
+            )
             .collect::<Vec<_>>();
 
         if all_matching.len() < paginated.offset as usize {
@@ -199,18 +206,23 @@ impl LicenseService {
     }
 
     pub async fn get_spdx_license(&self, id: &str) -> Result<Option<SpdxLicenseDetails>, Error> {
-        if let Some((spdx_identifier, spdx_name, _)) = spdx::identifiers::LICENSES
+        if let Some(License {
+            name: spdx_identifier,
+            full_name: spdx_name,
+            ..
+        }) = spdx::identifiers::LICENSES.iter().find(
+            |License {
+                 name: identifier, ..
+             }| identifier.eq_ignore_ascii_case(id),
+        ) && let Some(text) = spdx::text::LICENSE_TEXTS
             .iter()
-            .find(|(identifier, _name, _flags)| identifier.eq_ignore_ascii_case(id))
-            && let Some(text) = spdx::text::LICENSE_TEXTS
-                .iter()
-                .find_map(|(identifier, text)| {
-                    if identifier.eq_ignore_ascii_case(spdx_identifier) {
-                        Some(text.to_string())
-                    } else {
-                        None
-                    }
-                })
+            .find_map(|(identifier, text)| {
+                if identifier.eq_ignore_ascii_case(spdx_identifier) {
+                    Some(text.to_string())
+                } else {
+                    None
+                }
+            })
         {
             return Ok(Some(SpdxLicenseDetails {
                 summary: SpdxLicenseSummary {
