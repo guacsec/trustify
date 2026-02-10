@@ -445,18 +445,38 @@ export APP_DOMAIN=-$NAMESPACE.$(kubectl -n openshift-ingress-operator get ingres
 
 The value in `APP_DOMAIN` can be used for keycloak `hostname`
 
-===== TLS certs and keys
-* Retrieve the default router's TLS key and certificate, which will be used as a trust anchor for Keycloak. Then, create a Kubernetes `Secret` from these files.
+===== TLS Certificates with Let's Encrypt
+* Install acme.sh if not already installed:
 +
 [source,bash]
 ----
-oc get secret -n openshift-ingress router-certs-default -o go-template='{{index .data "tls.key"}}' | base64 -d > tls.key
-oc get secret -n openshift-ingress router-certs-default -o go-template='{{index .data "tls.crt"}}' | base64 -d > tls.crt
-oc create secret tls my-tls-secret --cert=tls.crt --key=tls.key -n <Installation Namespace>
+curl https://get.acme.sh | sh -s email=<your-email@example.com>
+source ~/.bashrc
 ----
+
+* Issue a Let's Encrypt certificate for your Keycloak hostname:
 +
-[NOTE]
-For OCP V4.19, the secret name is `router-certs`
+[source,bash]
+----
+# Get the cluster domain
+export LE_WILDCARD=$(oc get ingresscontroller default -n openshift-ingress-operator -o jsonpath='{.status.domain}')
+export KEYCLOAK_HOSTNAME="sso-${NAMESPACE}.${LE_WILDCARD}"
+
+# Issue certificate using DNS validation (requires AWS Route53 credentials)
+${HOME}/acme.sh/acme.sh --issue \
+  -d ${KEYCLOAK_HOSTNAME} \
+  --dns dns_aws
+----
+
+* Create a Kubernetes TLS secret from the Let's Encrypt certificate:
++
+[source,bash]
+----
+oc create secret tls keycloak-letsencrypt-tls \
+  --cert=${HOME}/.acme.sh/${KEYCLOAK_HOSTNAME}/fullchain.cer \
+  --key=${HOME}/.acme.sh/${KEYCLOAK_HOSTNAME}/${KEYCLOAK_HOSTNAME}.key \
+  -n <Installation Namespace>
+----
 
 ==== Installation
 * Make sure the Red Hat Build of Keycloak Operator is installed. Refer - Deployment https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/26.2/html/operator_guide/installation-[guide]
@@ -492,7 +512,7 @@ spec:
     httpEnabled: true
     httpPort: 8180
     httpsPort: 8543
-    tlsSecret: my-tls-secret
+    tlsSecret: keycloak-letsencrypt-tls
   hostname:
     hostname: https://sso<Replace with$APP_DOAMIN> # APP_DOMAIN value --> 1
     strict: false
@@ -528,7 +548,7 @@ Complete the following steps to configure Keycloak for RHTPA
 
 [[_keycloak_clients]]
 ===== Keycloak Clients
- * Create two keycloak client json files `client-frontend.json` and `client-cli.json` with the below content
+ * Create keycloak client json files `client-frontend.json`, `client-cli.json`, `client-testing-manager.json`, and `client-testing-user.json` with the below content
  ** `client-frontend.json`
 +
 [source, json]
@@ -606,6 +626,77 @@ Complete the following steps to configure Keycloak for RHTPA
   }
 }
 ----
+ ** `client-testing-manager.json`
++
+[source, json]
+----
+{
+  "clientId": "testing-manager",
+  "clientAuthenticatorType": "client-secret",
+  "enabled": true,
+  "publicClient": false,
+  "implicitFlowEnabled": false,
+  "standardFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": true,
+  "fullScopeAllowed": true,
+  "defaultClientScopes": [
+	"basic",
+	"email",
+	"profile",
+	"roles",
+	"web-origins",
+	"create:document",
+	"read:document",
+	"update:document",
+	"delete:document"
+  ],
+  "optionalClientScopes": [
+	"address",
+	"microprofile-jwt",
+	"offline_access",
+	"phone"
+  ],
+  "attributes": {
+	"access.token.lifespan": "300",
+	"post.logout.redirect.uris": "+"
+  }
+}
+----
+ ** `client-testing-user.json`
++
+[source, json]
+----
+{
+  "clientId": "testing-user",
+  "clientAuthenticatorType": "client-secret",
+  "enabled": true,
+  "publicClient": false,
+  "implicitFlowEnabled": false,
+  "standardFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": true,
+  "fullScopeAllowed": true,
+  "defaultClientScopes": [
+	"basic",
+	"email",
+	"profile",
+	"roles",
+	"web-origins",
+	"read:document"
+  ],
+  "optionalClientScopes": [
+	"address",
+	"microprofile-jwt",
+	"offline_access",
+	"phone"
+  ],
+  "attributes": {
+	"access.token.lifespan": "300",
+	"post.logout.redirect.uris": "+"
+  }
+}
+----
 
 [[_keycloak_config_script]]
 ===== Create Realm, Roles, clients, client scopes and users
@@ -619,6 +710,19 @@ Complete the following steps to configure Keycloak for RHTPA
 ----
 #!/bin/bash
 
+# Helper function for kcadm
+kcadm() {
+  local cmd="$1"
+  shift
+  "$KCADM_PATH" "$cmd" "$@" --config /tmp/kcadm.config
+}
+
+# Error handling helper
+die() {
+  echo "$*" 1>&2
+  false
+}
+
 # --- Configuration Variables ---
 # The path to your kcadm.sh script.
 KCADM_PATH="Path/to/kcadm.sh" # ---> 1
@@ -631,23 +735,32 @@ KEYCLOAK_ADMIN_PASSWORD="<Keycloak admin password>" # ---> 4
 # Realm settings
 REALM="trust"
 
+# Optional: Set external frontend URL if Keycloak has an internal name
+SSO_FRONTEND_URL="" # ---> 5
+
 # Role name
 TRUSTD_ROLE_NAME="trustd"
 
+# Base hostname for redirect URIs
+BASE_HOSTNAME="<your-app-domain>" # ---> 6
+
 # Admin username
-TRUSTED_ADMIN_USERNAME="admin" # ---> 5
+TRUSTED_ADMIN_USERNAME="admin" # ---> 7
 # Admin user password
-TRUSTED_ADMIN_PASSWORD="admin123456" # ---> 6
+TRUSTED_ADMIN_PASSWORD="admin123456" # ---> 8
 
 # Directory containing client JSON files
-INIT_DATA="/path/to/client/json/" # ---> 7
+INIT_DATA="/path/to/client/json/" # ---> 9
 
-CLIENTS=("cli" "frontend")
+# Client secrets for service accounts
+CLI_CLIENT_SECRET="<generate-secure-secret>" # ---> 10
+TESTING_MANAGER_SECRET="<generate-secure-secret>" # ---> 11
+TESTING_USER_SECRET="<generate-secure-secret>" # ---> 12
 
 # Exit on interrupt
 trap break INT
 
-while ! "$KCADM_PATH" config credentials --server "$KEYCLOAK_URL" --realm master --user "$KEYCLOAK_ADMIN" --password "$KEYCLOAK_ADMIN_PASSWORD" &> /dev/null; do
+while ! kcadm config credentials --server "$KEYCLOAK_URL" --realm master --user "$KEYCLOAK_ADMIN" --password "$KEYCLOAK_ADMIN_PASSWORD" &> /dev/null; do
   echo "Waiting for Keycloak to start up..."
   sleep 5
 done
@@ -662,66 +775,90 @@ REALM_OPTS+=(-s registrationAllowed=true)
 REALM_OPTS+=(-s resetPasswordAllowed=true)
 REALM_OPTS+=(-s loginWithEmailAllowed=false)
 
-if "$KCADM_PATH" get "realms/${REALM}" &> /dev/null; then
+# if Keycloak has an internal name, set the external name here
+if [[ -n "$SSO_FRONTEND_URL" ]]; then
+  REALM_OPTS+=(-s "attributes.frontendUrl=${SSO_FRONTEND_URL}")
+fi
+
+if kcadm get "realms/${REALM}" &> /dev/null; then
   # exists -> update
-  "$KCADM_PATH" update "realms/${REALM}" "${REALM_OPTS[@]}"
+  kcadm update "realms/${REALM}" "${REALM_OPTS[@]}"
 else
   # need to create
-  "$KCADM_PATH" create realms -s "realm=${REALM}" "${REALM_OPTS[@]}"
+  kcadm create realms -s "realm=${REALM}" "${REALM_OPTS[@]}"
 fi
 
 # Create realm roles
-"$KCADM_PATH" create roles -r "$REALM" -s name="$TRUSTD_ROLE_NAME" || true
+kcadm create roles -r "$REALM" -s name="$TRUSTD_ROLE_NAME" || true
 # add TRUSTD_ROLE_NAME as default role
-"$KCADM_PATH" add-roles -r "$REALM" --rname "default-roles-${REALM}" --rolename "$TRUSTD_ROLE_NAME"
+kcadm add-roles -r "$REALM" --rname "default-roles-${REALM}" --rolename "$TRUSTD_ROLE_NAME"
 
-MANAGER_ID=$("$KCADM_PATH" get roles -r "$REALM" --fields id,name --format csv --noquotes | grep ",$TRUSTD_ROLE_NAME" | awk -F ',' '{print $1}')
+MANAGER_ID=$(kcadm get roles -r "$REALM" --fields id,name --format csv --noquotes | grep ",$TRUSTD_ROLE_NAME" | cut -d, -f1)
 
 # Create scopes
 # shellcheck disable=SC2043
 for i in read:document; do
-  "$KCADM_PATH" create client-scopes -r "$REALM" -s "name=$i" -s protocol=openid-connect || true
+  kcadm create client-scopes -r "$REALM" -s "name=$i" -s protocol=openid-connect || true
 done
 
 for i in create:document update:document delete:document; do
-  "$KCADM_PATH" create client-scopes -r "$REALM" -s "name=$i" -s protocol=openid-connect || true
-  ID=$("$KCADM_PATH" get client-scopes -r "$REALM" --fields id,name --format csv --noquotes | grep ",${i}" | awk -F ',' '{print $1}')
+  kcadm create client-scopes -r "$REALM" -s "name=$i" -s protocol=openid-connect || true
+  ID=$(kcadm get client-scopes -r "$REALM" --fields id,name --format csv --noquotes | grep ",${i}" | cut -d, -f1)
   # add all scopes to the TRUSTD_ROLE_NAME role
-  "$KCADM_PATH" create "client-scopes/${ID}/scope-mappings/realm" -r "$REALM" -b '[{"name":"$TRUSTD_ROLE_NAME", "id":"'"${MANAGER_ID}"'"}]' || true
+  kcadm create "client-scopes/${ID}/scope-mappings/realm" -r "$REALM" -b '[{"name":"'"$TRUSTD_ROLE_NAME"'", "id":"'"${MANAGER_ID}"'"}]' || true
 done
 
-# Create and configure the cli client
-for client in "${CLIENTS[@]}"; do
-	ID=$("$KCADM_PATH" get clients -r "$REALM" --query exact=true --query "clientId=${client}" --fields id --format csv --noquotes)
-	CLIENT_OPTS=()
-	if [[ -n "$ID" ]]; then
-	  # TODO: replace with update once https://github.com/keycloak/keycloak/issues/12484 is fixed
-	  "$KCADM_PATH" delete "clients/${ID}" -r "$REALM"
-	  "$KCADM_PATH" create clients -r "$REALM" -f "${INIT_DATA}/client-${client}.json" "${CLIENT_OPTS[@]}"
-	else
-	  "$KCADM_PATH" create clients -r "$REALM" -f "${INIT_DATA}/client-${client}.json" "${CLIENT_OPTS[@]}"
-	fi
-	# now set the client-secret
-	ID=$("$KCADM_PATH" get clients -r "$REALM" --query exact=true --query "clientId=${client}" --fields id --format csv --noquotes)
-	if [ "${client}" == "cli" ]; then
-	  "$KCADM_PATH" add-roles -r "$REALM" --uusername service-account-${client} --rolename "$TRUSTD_ROLE_NAME"
-	fi
+# Create frontend client (public client)
+ID=$(kcadm get clients -r "$REALM" --query exact=true --query "clientId=frontend" --fields id --format csv --noquotes)
+CLIENT_OPTS=()
+CLIENT_OPTS+=(-s "redirectUris=[\"http://localhost:*\",\"https://rhtpa.${BASE_HOSTNAME}\",\"https://rhtpa.${BASE_HOSTNAME}/*\"]")
+if [[ -n "$ID" ]]; then
+  kcadm delete "clients/${ID}" -r "$REALM"
+  kcadm create clients -r "$REALM" -f "${INIT_DATA}/client-frontend.json" "${CLIENT_OPTS[@]}"
+else
+  kcadm create clients -r "$REALM" -f "${INIT_DATA}/client-frontend.json" "${CLIENT_OPTS[@]}"
+fi
+
+# Create service account clients
+for client in cli testing-manager testing-user; do
+  ID=$(kcadm get clients -r "$REALM" --query exact=true --query "clientId=${client}" --fields id --format csv --noquotes)
+  CLIENT_OPTS=()
+  if [[ -n "$ID" ]]; then
+    kcadm delete "clients/${ID}" -r "$REALM"
+    kcadm create clients -r "$REALM" -f "${INIT_DATA}/client-${client}.json" "${CLIENT_OPTS[@]}"
+  else
+    kcadm create clients -r "$REALM" -f "${INIT_DATA}/client-${client}.json" "${CLIENT_OPTS[@]}"
+  fi
+  # now set the client-secret and roles
+  ID=$(kcadm get clients -r "$REALM" --query exact=true --query "clientId=${client}" --fields id --format csv --noquotes)
+  if [ "${client}" == "cli" ]; then
+    kcadm add-roles -r "$REALM" --uusername service-account-${client} --rolename "$TRUSTD_ROLE_NAME"
+    kcadm update "clients/${ID}" -r "$REALM" -s "secret=${CLI_CLIENT_SECRET}"
+  fi
+  if [ "${client}" == "testing-manager" ]; then
+    kcadm add-roles -r "$REALM" --uusername service-account-${client} --rolename "$TRUSTD_ROLE_NAME"
+    kcadm update "clients/${ID}" -r "$REALM" -s "secret=${TESTING_MANAGER_SECRET}"
+  fi
+  if [ "${client}" == "testing-user" ]; then
+    kcadm add-roles -r "$REALM" --uusername service-account-${client} --rolename "$TRUSTD_ROLE_NAME"
+    kcadm update "clients/${ID}" -r "$REALM" -s "secret=${TESTING_USER_SECRET}"
+  fi
 done
 # Create user
-ID=$("$KCADM_PATH" get users -r "$REALM" --query exact=true --query "username=$TRUSTED_ADMIN_USERNAME" --fields id --format csv --noquotes)
+ID=$(kcadm get users -r "$REALM" --query exact=true --query "username=$TRUSTED_ADMIN_USERNAME" --fields id --format csv --noquotes)
 # the next check might seem weird, but that's just Keycloak reporting a "user not found" in two different ways
 if [[ -n "$ID" && "$ID" != "[]" ]]; then
-  "$KCADM_PATH" update "users/$ID" -r "$REALM" -s enabled=true
+  kcadm update "users/$ID" -r "$REALM" -s enabled=true
 else
-  "$KCADM_PATH" create users -r "$REALM" -s "username=$TRUSTED_ADMIN_USERNAME" -s enabled=true -s email=test@example.com -s emailVerified=true -s firstName=Admin -s lastName=Admin
+  kcadm create users -r "$REALM" -s "username=$TRUSTED_ADMIN_USERNAME" -s enabled=true -s email=test@example.com -s emailVerified=true -s firstName=Admin -s lastName=Admin
 fi
 
 # set role
-"$KCADM_PATH" add-roles -r "$REALM" --uusername "$TRUSTED_ADMIN_USERNAME" --rolename "$TRUSTD_ROLE_NAME"
+kcadm add-roles -r "$REALM" --uusername "$TRUSTED_ADMIN_USERNAME" --rolename "$TRUSTD_ROLE_NAME"
 
 # set password
-ID=$("$KCADM_PATH" get users -r "$REALM" --query exact=true --query "username=$TRUSTED_ADMIN_USERNAME" --fields id --format csv --noquotes)
-"$KCADM_PATH" update "users/${ID}/reset-password" -r "$REALM" -s type=password -s "value=${TRUSTED_ADMIN_PASSWORD}" -s temporary=false -n
+ID=$(kcadm get users -r "$REALM" --query exact=true --query "username=$TRUSTED_ADMIN_USERNAME" --fields id --format csv --noquotes)
+kcadm update "users/${ID}/reset-password" -r "$REALM" -s type=password -s "value=${TRUSTED_ADMIN_PASSWORD}" -s temporary=false -n
 
 echo Keycloak initialization complete
 ----
@@ -735,28 +872,43 @@ echo Keycloak initialization complete
 . _KEYCLOAK_URL:_ Keycloak URL from <<_keycloak_usage_,operator>>
 . _KEYCLOAK_ADMIN:_ Keycloak ADMIN username from <<_keycloak_usage_,operator>>
 . _KEYCLOAK_ADMIN_PASSWORD:_ Keycloak ADMIN password from <<_keycloak_usage_,operator>>
+. _SSO_FRONTEND_URL:_ (Optional) External URL for Keycloak if different from internal URL. Leave empty if not needed
+. _BASE_HOSTNAME:_ Base application domain for redirect URIs (e.g., "tpa.apps.ocp.cluster.net")
 . _TRUSTED_ADMIN_USERNAME:_ RHTPA application admin username. By default `admin`
 . _TRUSTED_ADMIN_PASSWORD:_ RHTPA application admin password. By default `admin123456`
 . _INIT_DATA:_ Location of keycloak <<_keycloak_clients,clients>> json files
+. _CLI_CLIENT_SECRET:_ Secure secret for CLI service account client (generate with openssl rand -hex 32)
+. _TESTING_MANAGER_SECRET:_ Secure secret for testing-manager service account client
+. _TESTING_USER_SECRET:_ Secure secret for testing-user service account client
+
+[NOTE]
+====
+**TLS Certificate Requirements:**
+
+This script assumes Keycloak is using certificates from a publicly trusted Certificate Authority (CA) such as Let's Encrypt. If you are using self-signed certificates or certificates from an internal CA, you will need to add `--truststore` and `--trustpass` parameters to the `kcadm()` function with a Java truststore containing your CA certificates.
+====
 
 [[_frontend_redirect_uris]]
-===== Configure Frontend Redirect URIs
+===== Frontend Redirect URIs
 
- * Navigate Keycloak admin console. Go to the **Clients** section and select the `frontend` client imported in <<_client_import,Client Import>>.
- * Add the application URL to the **Valid Redirect URIs** field, Which is `https://server{appDomain}`. For example, `https://server-tpa.apps.ocp.cluster.net`
- 
 [NOTE]
- Failure to update this field will result in a redirect URI error during application login.
+The frontend client redirect URIs are now configured programmatically in the script using the BASE_HOSTNAME variable. If you need to add additional redirect URIs manually:
+
+ * Navigate to Keycloak admin console
+ * Go to the **Clients** section and select the `frontend` client
+ * Add additional URLs to the **Valid Redirect URIs** field as needed
 
 ==== Usage
 
 For the RHTPA installation, the following OIDC values are retrieved from your Keycloak configuration:
 
 * **issuerURL**: `_keycloakURL_/realms/_<Realm name>_`
-* **cli**: Retrieve the **Client Secret** from the Keycloak admin console by navigating to **Clients** -> **cli** -> **Credentials** tab.
+* **cli**: The client secret is set programmatically in the script using the CLI_CLIENT_SECRET variable
+* **testing-manager**: The client secret is set using the TESTING_MANAGER_SECRET variable
+* **testing-user**: The client secret is set using the TESTING_USER_SECRET variable
 * **frontend**: `empty object as {}`
 [NOTE]
-This means no secret or specific configuration is needed for the OIDC setup to install RHTPA.
+The frontend client is a public client and does not require a secret. Service account client secrets are configured via the script variables.
 
 [[rhodf_operator_installation]]
 === Red Hat OpenShift Data Foundation Operator Configuration
