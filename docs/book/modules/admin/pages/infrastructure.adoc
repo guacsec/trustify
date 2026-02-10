@@ -762,13 +762,13 @@ spec:
 +
 [source, bash]
 ----
-helm upgrade --install -n $NAMESPACE trustify openshift-helm-charts/redhat-trusted-profile-analyzer  --values PATH_TO_VALUES_FILE --set-string appDomain=$APP_DOMAIN --set tracing.enabled=true --set metrics.enabled=true --set-string collector.endpoint="grpc://dev-collector:4317"
+helm upgrade --install -n $NAMESPACE trustify openshift-helm-charts/redhat-trusted-profile-analyzer  --values PATH_TO_VALUES_FILE --set-string appDomain=$APP_DOMAIN --set tracing.enabled=true --set metrics.enabled=true --set-string collector.endpoint="http://dev-collector:4317"
 ----
 
 [[_verify_otel_collector]]
 ==== Verify OpenTelemetry Collector
 * Create the below job pointing to the otel collector endpoint to verify the tracing and metrics collection.
-+
+
 [source, yaml]
 ----
 apiVersion: batch/v1
@@ -777,7 +777,7 @@ metadata:
   name: telemetrygen
   namespace: <TPA Namespace>
   labels:
-    app: telmeetrygen
+    app: telmeterygen
 spec:
   ttlSecondsAfterFinished: 30
   template:
@@ -788,9 +788,12 @@ spec:
         image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.74.0
         args: [traces, --otlp-endpoint=dev-collector:4317, --otlp-insecure, --duration=240s, --rate=4]
 ----
+
+===== Verify Traces in UI
+
 * Go to Observe -> Traces in the OpenShift web console.
-* Select `<namespace>/simplest` from the `Tempo instance` dropdown and select `telemetrygen` from the `Filter by Service Name` dropdown.
-* The traces from the above job is captured and displayed in the Traces UI. The `--otlp-endpoint` points to the OpenTelemetry Collector service endpoint, Example `dev-collector:4317` referred for the `collector.endpoint` in the <<_otel_collector_usage, helm command>>.
+* Select `<namespace>/simplest` from the `Tempo instance` dropdown and select `telemetrygen` from the `Filter by Service Name` dropdown
+* The traces from the above job should be captured and displayed in the Traces UI.
 
 [[_tempo_tenant_configuration]]
 ==== Tempo Tenant Configuration
@@ -850,7 +853,7 @@ metadata:
 ----
 **References:**
 
-. _Namespace for the Service Account:_ To keep the permissions and access control simple, the Service Account is deployed in the same namespace as the RHTPA installation. example `trustify`.
+. _Namespace for the Service Account:_ Specify the service account namespace. example `trustify`.
 
 * Add the tenants to a cluster role with the write (create) permissions to write traces.
 +
@@ -1145,3 +1148,140 @@ spec:
 
 * After ServiceMonitor creation, Go to Observe -> Metrics in the OpenShift web console.
 * With the `collector.endpoint` pointing to the OTEL collector with <<_otel_collector_usage,helm installation>>, The metrics from the OTEL collector service displayed on the Metrics graph for RHTPA. Enter the expression `http_server_duration_seconds_bucket` in the query field and click on `Run Query` to display the metrics.
+
+==== Troubleshooting OpenTelemetry and Tempo Setup
+
+* **Verify endpoint bindings in collector config:**
++
+Ensure receivers have `endpoint: 0.0.0.0:<port>` configuration
++
+[source, bash]
+----
+oc get opentelemetrycollector dev -n <namespace> -o yaml | grep -A 5 "receivers:"
+----
+
+===== Traces Not Appearing in Tempo
+
+* **Verify RBAC permissions:**
++
+[source, bash]
+----
+oc auth can-i create tempo.grafana.com/dev --as=system:serviceaccount:tpa-otel:otel-collector
+----
++
+Expected output: `yes`
+
+* **Check TempoStack status:**
++
+[source, bash]
+----
+oc get tempostack -n <namespace>
+oc describe tempostack simplest -n <namespace>
+----
+
+* **Check TempoStack gateway logs:**
++
+[source, bash]
+----
+oc logs -n <namespace> -l app.kubernetes.io/component=gateway
+----
+
+* **Check collector logs for errors:**
++
+[source, bash]
+----
+oc logs -n <namespace> -l app.kubernetes.io/name=dev-collector --tail=100
+----
+
+===== S3 Storage Issues
+
+* **Verify S3 secret exists:**
++
+[source, bash]
+----
+oc get secret s3-secret -n <namespace>
+----
+
+* **Check S3 secret configuration:**
++
+[source, bash]
+----
+oc get secret s3-secret -n <namespace> -o yaml
+----
+
+* **Test S3 connectivity:**
++
+Use the AWS CLI verification steps from <<_verify_s3,Verify S3 Connection>> section:
++
+[source, bash]
+----
+export AWS_ACCESS_KEY_ID=$(oc get secret s3-secret -n <namespace> -o jsonpath='{.data.access_key_id}' | base64 -d)
+export AWS_SECRET_ACCESS_KEY=$(oc get secret s3-secret -n <namespace> -o jsonpath='{.data.access_key_secret}' | base64 -d)
+export S3_ENDPOINT=$(oc get secret s3-secret -n <namespace> -o jsonpath='{.data.endpoint}' | base64 -d)
+export AWS_CA_BUNDLE=<path to tls.crt>
+aws s3 ls --endpoint $S3_ENDPOINT
+----
+
+* **Check TempoStack compactor logs:**
++
+[source, bash]
+----
+oc logs -n <namespace> -l app.kubernetes.io/component=compactor
+----
+
+===== ServiceMonitor Not Collecting Metrics
+
+* **Verify User Workload Monitoring is enabled:**
++
+[source, bash]
+----
+oc get configmap cluster-monitoring-config -n openshift-monitoring -o yaml | grep enableUserWorkload
+----
++
+Should show: `enableUserWorkload: true`
+
+* **Check ServiceMonitor configuration:**
++
+[source, bash]
+----
+oc get servicemonitor -n <namespace>
+oc describe servicemonitor otel-collector-app-metrics -n <namespace>
+----
+
+* **Verify service labels match ServiceMonitor selector:**
++
+[source, bash]
+----
+oc get svc -n <namespace> --show-labels
+----
+
+* **Check Prometheus targets:**
++
+Go to Observe -> Metrics in the OpenShift web console and click on "Metrics targets" to verify the ServiceMonitor targets are being scraped.
+
+===== General Debugging Tips
+
+* **Check all pods are running:**
++
+[source, bash]
+----
+oc get pods -n <namespace>
+----
+
+* **View events in the namespace:**
++
+[source, bash]
+----
+oc get events -n <namespace> --sort-by='.lastTimestamp'
+----
+
+* **Check operator logs:**
++
+[source, bash]
+----
+# OpenTelemetry Operator logs
+oc logs -n openshift-opentelemetry-operator deployment/opentelemetry-operator-controller-manager
+
+# Tempo Operator logs
+oc logs -n openshift-tempo-operator deployment/tempo-operator-controller
+----
