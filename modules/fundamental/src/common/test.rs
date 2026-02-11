@@ -263,7 +263,7 @@ impl Group {
         }
     }
 
-    pub fn add(mut self, group: impl Into<Group>) -> Self {
+    pub fn group(mut self, group: impl Into<Group>) -> Self {
         self.children.push(group.into());
         self
     }
@@ -285,18 +285,18 @@ impl From<&str> for Group {
 }
 
 pub enum GroupRef {
-    ByName(&'static str),
+    ByName(&'static [&'static str]),
     ById(&'static str),
 }
 
 pub fn resolve_group_refs(
     ids: &HashMap<Vec<String>, String>,
-    refs: &[GroupRef],
+    refs: impl IntoIterator<Item = GroupRef>,
 ) -> String {
-    refs.iter()
+    refs.into_iter()
         .map(|r| {
             let resolved = match r {
-                GroupRef::ByName(name) => locate_id(ids, [*name]),
+                GroupRef::ByName(name) => locate_id(ids, name),
                 GroupRef::ById(id) => id.to_string(),
             };
             format!("group={resolved}")

@@ -117,32 +117,32 @@ fn group_fixture_3_levels() -> Vec<Group> {
         Group::new("A")
             .labels(("product", "A"))
             // level 2
-            .add(
+            .group(
                 Group::new("A1")
                     // level 3
-                    .add("A1a")
-                    .add("A1b"),
+                    .group("A1a")
+                    .group("A1b"),
             )
-            .add(
+            .group(
                 Group::new("A2")
                     // level 3
-                    .add("A2a")
-                    .add("A2b"),
+                    .group("A2a")
+                    .group("A2b"),
             ),
         Group::new("B")
             .labels(("product", "B"))
             // level 2
-            .add(
+            .group(
                 Group::new("B1")
                     // level 3
-                    .add("B1a")
-                    .add("B1b"),
+                    .group("B1a")
+                    .group("B1b"),
             )
-            .add(
+            .group(
                 Group::new("B2")
                     // level 3
-                    .add("B2a")
-                    .add("B2b"),
+                    .group("B2a")
+                    .group("B2b"),
             ),
     ]
 }

@@ -1,6 +1,7 @@
 use crate::{
     common::test::{
-        Group, GroupRef, UpdateAssignments, create_groups, locate_id, resolve_group_refs,
+        Group, GroupRef, UpdateAssignments, create_groups, locate_id, read_assignments,
+        resolve_group_refs,
     },
     sbom::model::{SbomPackage, SbomSummary},
     test::{caller, label::Api},
@@ -10,7 +11,7 @@ use actix_web::test::{TestRequest, read_body};
 use flate2::bufread::GzDecoder;
 use rstest::rstest;
 use serde_json::{Value, json};
-use std::{io::Read, str::FromStr};
+use std::{collections::HashMap, io::Read, str::FromStr};
 use test_context::test_context;
 use test_log::test;
 use trustify_common::{id::Id, model::PaginatedResults};
@@ -1025,6 +1026,73 @@ async fn upload(ctx: &TrustifyContext) -> anyhow::Result<()> {
 }
 
 #[test_context(TrustifyContext)]
+#[rstest]
+#[case::single_group([GroupRef::ByName(&["Group 1"])], StatusCode::CREATED, 1)]
+#[case::multiple_groups([GroupRef::ByName(&["Group 1"]), GroupRef::ByName(&["Group 2"])], StatusCode::CREATED, 2)]
+#[case::invalid_uuid([GroupRef::ById("not-a-uuid")], StatusCode::BAD_REQUEST, 0)]
+#[case::non_existent([GroupRef::ById("00000000-0000-0000-0000-000000000000")], StatusCode::BAD_REQUEST, 0)]
+#[test_log::test(actix_web::test)]
+async fn upload_with_groups(
+    ctx: &TrustifyContext,
+    #[case] groups: impl IntoIterator<Item = GroupRef>,
+    #[case] expected_status: StatusCode,
+    #[case] expected_assignments: usize,
+) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let groups = Vec::from_iter(groups);
+
+    let group_paths: Vec<&[&str]> = groups
+        .iter()
+        .filter_map(|g| match g {
+            GroupRef::ByName(n) => Some(*n),
+            _ => None,
+        })
+        .collect();
+
+    fn build_groups(paths: &[&[&str]]) -> Vec<Group> {
+        let mut map: HashMap<&str, Vec<&[&str]>> = HashMap::new();
+        for path in paths {
+            if let Some((&first, rest)) = path.split_first() {
+                if !rest.is_empty() {
+                    map.entry(first).or_default().push(rest);
+                } else {
+                    map.entry(first).or_default();
+                }
+            }
+        }
+        map.into_iter()
+            .map(|(name, children)| {
+                let mut g = Group::new(name);
+                g.children = build_groups(&children);
+                g
+            })
+            .collect()
+    }
+
+    let ids = create_groups(&app, build_groups(&group_paths)).await?;
+
+    let query = resolve_group_refs(&ids, groups);
+    let uri = format!("/api/v2/sbom?{query}");
+    let request = TestRequest::post()
+        .uri(&uri)
+        .set_payload(document_bytes("quarkus-bom-2.13.8.Final-redhat-00004.json").await?)
+        .to_request();
+
+    let response = app.call_service(request).await;
+    assert_eq!(response.status(), expected_status);
+
+    if expected_status == StatusCode::CREATED {
+        let result: IngestResult = actix_web::test::read_body_json(response).await;
+        let sbom_id = result.id.strip_prefix("urn:uuid:").unwrap();
+        let assignments = read_assignments(&app, sbom_id).await?;
+        assert_eq!(assignments.group_ids.len(), expected_assignments);
+    }
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
@@ -1693,17 +1761,17 @@ async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::no_filter(vec![], 3)]
-#[case::group1(vec![GroupRef::ByName("Group 1")], 2)]
-#[case::group2(vec![GroupRef::ByName("Group 2")], 1)]
-#[case::both_groups(vec![GroupRef::ByName("Group 1"), GroupRef::ByName("Group 2")], 2)]
-#[case::non_existent(vec![GroupRef::ById("00000000-0000-0000-0000-000000000000")], 0)]
-#[case::malformed(vec![GroupRef::ById("not-a-uuid")], 0)]
-#[case::malformed_and_group1(vec![GroupRef::ById("not-a-uuid"), GroupRef::ByName("Group 1")], 2)]
+#[case::no_filter([], 3)]
+#[case::group1([GroupRef::ByName(&["Group 1"])], 2)]
+#[case::group2([GroupRef::ByName(&["Group 2"])], 1)]
+#[case::both_groups([GroupRef::ByName(&["Group 1"]), GroupRef::ByName(&["Group 2"])], 2)]
+#[case::non_existent([GroupRef::ById("00000000-0000-0000-0000-000000000000")], 0)]
+#[case::malformed([GroupRef::ById("not-a-uuid")], 0)]
+#[case::malformed_and_group1([GroupRef::ById("not-a-uuid"), GroupRef::ByName(&["Group 1"])], 2)]
 #[test_log::test(actix_web::test)]
 async fn filter_sboms_by_group(
     ctx: &TrustifyContext,
-    #[case] groups: Vec<GroupRef>,
+    #[case] groups: impl IntoIterator<Item = GroupRef>,
     #[case] expected_total: u64,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
@@ -1718,12 +1786,12 @@ async fn filter_sboms_by_group(
         .await?;
     let _sbom3 = ctx.ingest_document("ubi9-9.2-755.1697625012.json").await?;
 
-    UpdateAssignments::new(&sbom1.id.to_string())
+    UpdateAssignments::new(&sbom1.id)
         .group_ids(vec![locate_id(&ids, ["Group 1"])])
         .execute(&app)
         .await?;
 
-    UpdateAssignments::new(&sbom2.id.to_string())
+    UpdateAssignments::new(&sbom2.id)
         .group_ids(vec![
             locate_id(&ids, ["Group 1"]),
             locate_id(&ids, ["Group 2"]),
@@ -1731,7 +1799,7 @@ async fn filter_sboms_by_group(
         .execute(&app)
         .await?;
 
-    let query = resolve_group_refs(&ids, &groups);
+    let query = resolve_group_refs(&ids, groups);
     let uri = format!("/api/v2/sbom?{query}");
     log::info!("URI: {uri}");
     let req = TestRequest::get().uri(&uri).to_request();
