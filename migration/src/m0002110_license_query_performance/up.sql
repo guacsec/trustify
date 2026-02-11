@@ -7,7 +7,7 @@ DECLARE
     mapping license_mapping;
 BEGIN
     IF license_text IS NULL
-       OR license_text !~ 'LicenseRef-'
+       OR POSITION('LicenseRef-' IN license_text) = 0
        OR license_mappings IS NULL
        OR array_length(license_mappings, 1) IS NULL THEN
         RETURN license_text;
@@ -15,7 +15,7 @@ BEGIN
 
     FOREACH mapping IN ARRAY license_mappings
     LOOP
-        IF result_text !~ 'LicenseRef-' THEN
+        IF POSITION('LicenseRef-' IN result_text) = 0 THEN
             EXIT;
         END IF;
         result_text := regexp_replace(result_text, '\m' || mapping.license_id || '\M', mapping.name, 'g');
