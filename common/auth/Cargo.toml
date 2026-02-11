@@ -12,7 +12,6 @@ trustify-common = { workspace = true }
 
 actix-http = { workspace = true, optional = true }
 actix-web = { workspace = true, optional = true }
-actix-web-extras = { workspace = true, optional = true }
 actix-web-httpauth = { workspace = true, optional = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -39,5 +38,5 @@ utoipa = { workspace = true, features = ["actix_extras"], optional = true }
 utoipa-swagger-ui = { workspace = true, features = ["actix-web"], optional = true }
 
 [features]
-actix = ["actix-web", "actix-http", "actix-web-httpauth", "actix-web-extras"]
+actix = ["actix-web", "actix-http", "actix-web-httpauth"]
 swagger = ["utoipa", "utoipa-swagger-ui", "actix"]

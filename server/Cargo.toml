@@ -27,17 +27,12 @@ clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 garage-door = { workspace = true, optional = true }
 log = { workspace = true }
-mime = { workspace =  true }
 rand = { workspace = true }
 serde = { workspace = true }
-humantime = { workspace = true }
 tokio = { workspace = true }
-tokio_schedule = { workspace = true }
 url = { workspace = true }
 utoipa = { workspace = true, features = ["actix_extras", "yaml"] }
 utoipa-actix-web = { workspace = true }
-utoipa-rapidoc = { workspace = true }
-utoipa-redoc = { workspace = true }
 
 [dev-dependencies]
 urlencoding = { workspace = true }

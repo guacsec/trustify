@@ -7856,16 +7856,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokio_schedule"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61c291c554da3518d6ef69c76ea35aabc78f736185a16b6017f6d1c224dac2e0"
-dependencies = [
- "chrono",
- "tokio",
-]
-
-[[package]]
 name = "toml_datetime"
 version = "0.7.5+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8088,7 +8078,6 @@ version = "0.5.0-alpha.1"
 dependencies = [
  "actix-http",
  "actix-web",
- "actix-web-extras",
  "actix-web-httpauth",
  "anyhow",
  "async-trait",
@@ -8352,7 +8341,6 @@ dependencies = [
  "actix-web",
  "anyhow",
  "async-trait",
- "base64 0.22.1",
  "bytes",
  "bytesize",
  "chrono",
@@ -8375,7 +8363,6 @@ dependencies = [
  "osv",
  "packageurl",
  "regex",
- "reqwest 0.13.2",
  "roxmltree",
  "rstest",
  "sanitize-filename",
@@ -8430,9 +8417,7 @@ dependencies = [
  "anyhow",
  "bytesize",
  "chrono",
- "csaf",
  "csaf-walker",
- "cve",
  "futures",
  "git2",
  "humantime",
@@ -8442,7 +8427,6 @@ dependencies = [
  "num-traits",
  "oci-client",
  "opentelemetry",
- "osv",
  "parking_lot",
  "regex",
  "reqwest 0.13.2",
@@ -8636,15 +8620,12 @@ dependencies = [
  "clap",
  "futures",
  "garage-door",
- "humantime",
  "log",
- "mime",
  "rand 0.10.0",
  "serde",
  "test-context",
  "test-log",
  "tokio",
- "tokio_schedule",
  "trustify-auth",
  "trustify-common",
  "trustify-db",
@@ -8661,8 +8642,6 @@ dependencies = [
  "urlencoding",
  "utoipa",
  "utoipa-actix-web",
- "utoipa-rapidoc",
- "utoipa-redoc",
 ]
 
 [[package]]
@@ -8943,18 +8922,6 @@ name = "utoipa-rapidoc"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5f8f5abd341cce16bb4f09a8bafc087d4884a004f25fb980e538d51d6501dab"
-dependencies = [
- "actix-web",
- "serde",
- "serde_json",
- "utoipa",
-]
-
-[[package]]
-name = "utoipa-redoc"
-version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6427547f6db7ec006cbbef95f7565952a16f362e298b416d2d497d9706fef72d"
 dependencies = [
  "actix-web",
  "serde",
