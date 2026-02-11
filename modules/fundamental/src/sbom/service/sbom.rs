@@ -51,9 +51,32 @@ use trustify_entity::{
     qualified_purl::{self, CanonicalPurl},
     relationship::Relationship,
     sbom::{self, SbomNodeLink},
-    sbom_node, sbom_package, sbom_package_cpe_ref, sbom_package_license, sbom_package_purl_ref,
-    source_document, status, versioned_purl, vulnerability,
+    sbom_group_assignment, sbom_node, sbom_package, sbom_package_cpe_ref, sbom_package_license,
+    sbom_package_purl_ref, source_document, status, versioned_purl, vulnerability,
 };
+
+#[derive(Clone, Debug, Default)]
+pub struct FetchOptions {
+    labels: Labels,
+    groups: Option<Vec<Uuid>>,
+}
+
+impl FetchOptions {
+    pub fn labels(mut self, labels: impl Into<Labels>) -> Self {
+        self.labels = labels.into();
+        self
+    }
+
+    pub fn groups(mut self, groups: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        self.groups = Some(
+            groups
+                .into_iter()
+                .filter_map(|s| Uuid::parse_str(s.as_ref()).ok())
+                .collect(),
+        );
+        self
+    }
+}
 
 impl SbomService {
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
@@ -183,16 +206,26 @@ impl SbomService {
         &self,
         search: Query,
         paginated: Paginated,
-        labels: impl Into<Labels>,
+        options: FetchOptions,
         connection: &C,
     ) -> Result<PaginatedResults<SbomSummary>, Error> {
-        let labels = labels.into();
-
-        let mut query = if labels.is_empty() {
+        let mut query = if options.labels.is_empty() {
             sbom::Entity::find()
         } else {
-            sbom::Entity::find().filter(Expr::col(sbom::Column::Labels).contains(labels))
+            sbom::Entity::find().filter(Expr::col(sbom::Column::Labels).contains(options.labels))
         };
+
+        if let Some(group_ids) = options.groups {
+            query = query.filter(
+                sbom::Column::SbomId.in_subquery(
+                    sbom_group_assignment::Entity::find()
+                        .select_only()
+                        .column(sbom_group_assignment::Column::SbomId)
+                        .filter(sbom_group_assignment::Column::GroupId.is_in(group_ids))
+                        .into_query(),
+                ),
+            );
+        }
 
         // Add license filtering if license query is present
         if let Some(license_query) = search
@@ -1026,7 +1059,7 @@ mod test {
             .fetch_sboms(
                 q("MySpAcE").sort("name,authors,published"),
                 Paginated::default(),
-                (),
+                Default::default(),
                 &ctx.db,
             )
             .await?;
@@ -1088,7 +1121,7 @@ mod test {
             .fetch_sboms(
                 Query::default(),
                 Paginated::default(),
-                ("ci", "job1"),
+                FetchOptions::default().labels(("ci", "job1")),
                 &ctx.db,
             )
             .await?;
@@ -1098,7 +1131,7 @@ mod test {
             .fetch_sboms(
                 Query::default(),
                 Paginated::default(),
-                ("ci", "job2"),
+                FetchOptions::default().labels(("ci", "job2")),
                 &ctx.db,
             )
             .await?;
@@ -1108,7 +1141,7 @@ mod test {
             .fetch_sboms(
                 Query::default(),
                 Paginated::default(),
-                ("ci", "job3"),
+                FetchOptions::default().labels(("ci", "job3")),
                 &ctx.db,
             )
             .await?;
@@ -1118,14 +1151,19 @@ mod test {
             .fetch_sboms(
                 Query::default(),
                 Paginated::default(),
-                ("foo", "bar"),
+                FetchOptions::default().labels(("foo", "bar")),
                 &ctx.db,
             )
             .await?;
         assert_eq!(0, fetched.total);
 
         let fetched = service
-            .fetch_sboms(Query::default(), Paginated::default(), (), &ctx.db)
+            .fetch_sboms(
+                Query::default(),
+                Paginated::default(),
+                Default::default(),
+                &ctx.db,
+            )
             .await?;
         assert_eq!(3, fetched.total);
 
@@ -1133,7 +1171,7 @@ mod test {
             .fetch_sboms(
                 Query::default(),
                 Paginated::default(),
-                [("ci", "job2"), ("team", "a")],
+                FetchOptions::default().labels([("ci", "job2"), ("team", "a")]),
                 &ctx.db,
             )
             .await?;

@@ -1,7 +1,5 @@
 use crate::{
-    sbom_group::endpoints::test::{
-        Create, GroupResponse, IfMatchType, UpdateAssignments, read_assignments,
-    },
+    common::test::{Create, GroupResponse, IfMatchType, UpdateAssignments, read_assignments},
     test::caller,
 };
 use actix_http::StatusCode;

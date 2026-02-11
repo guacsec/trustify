@@ -1,10 +1,14 @@
 use crate::{
+    common::test::{
+        Group, GroupRef, UpdateAssignments, create_groups, locate_id, resolve_group_refs,
+    },
     sbom::model::{SbomPackage, SbomSummary},
     test::{caller, label::Api},
 };
 use actix_http::StatusCode;
-use actix_web::test::TestRequest;
+use actix_web::test::{TestRequest, read_body};
 use flate2::bufread::GzDecoder;
+use rstest::rstest;
 use serde_json::{Value, json};
 use std::{io::Read, str::FromStr};
 use test_context::test_context;
@@ -1683,6 +1687,66 @@ async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         response["items"][0]["described_by"][0]["id"],
         "pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0"
     );
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::no_filter(vec![], 3)]
+#[case::group1(vec![GroupRef::ByName("Group 1")], 2)]
+#[case::group2(vec![GroupRef::ByName("Group 2")], 1)]
+#[case::both_groups(vec![GroupRef::ByName("Group 1"), GroupRef::ByName("Group 2")], 2)]
+#[case::non_existent(vec![GroupRef::ById("00000000-0000-0000-0000-000000000000")], 0)]
+#[case::malformed(vec![GroupRef::ById("not-a-uuid")], 0)]
+#[case::malformed_and_group1(vec![GroupRef::ById("not-a-uuid"), GroupRef::ByName("Group 1")], 2)]
+#[test_log::test(actix_web::test)]
+async fn filter_sboms_by_group(
+    ctx: &TrustifyContext,
+    #[case] groups: Vec<GroupRef>,
+    #[case] expected_total: u64,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    let ids = create_groups(&app, vec![Group::new("Group 1"), Group::new("Group 2")]).await?;
+
+    let sbom1 = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let sbom2 = ctx
+        .ingest_document("quarkus-bom-2.13.8.Final-redhat-00004.json")
+        .await?;
+    let _sbom3 = ctx.ingest_document("ubi9-9.2-755.1697625012.json").await?;
+
+    UpdateAssignments::new(&sbom1.id.to_string())
+        .group_ids(vec![locate_id(&ids, ["Group 1"])])
+        .execute(&app)
+        .await?;
+
+    UpdateAssignments::new(&sbom2.id.to_string())
+        .group_ids(vec![
+            locate_id(&ids, ["Group 1"]),
+            locate_id(&ids, ["Group 2"]),
+        ])
+        .execute(&app)
+        .await?;
+
+    let query = resolve_group_refs(&ids, &groups);
+    let uri = format!("/api/v2/sbom?{query}");
+    log::info!("URI: {uri}");
+    let req = TestRequest::get().uri(&uri).to_request();
+
+    let result = app.call_service(req).await;
+    let status = result.status();
+    let body = read_body(result).await;
+
+    log::info!("Body: {:?}", str::from_utf8(&body));
+
+    assert_eq!(StatusCode::OK, status);
+
+    let result: PaginatedResults<Value> = serde_json::from_slice(&body).unwrap();
+
+    assert_eq!(result.total, expected_total);
 
     Ok(())
 }

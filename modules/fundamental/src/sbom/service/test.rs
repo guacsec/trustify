@@ -34,7 +34,7 @@ async fn sbom_details_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     let id_3_2_12 = results[3].id.clone();
 
     let details = service
-        .fetch_sbom_details(Id::parse_uuid(id_3_2_12)?, vec![], &ctx.db)
+        .fetch_sbom_details(Id::parse_uuid(id_3_2_12)?, Default::default(), &ctx.db)
         .await?;
 
     assert!(details.is_some());
@@ -44,7 +44,11 @@ async fn sbom_details_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     log::debug!("{details:#?}");
 
     let details = service
-        .fetch_sbom_details(Id::Uuid(details.summary.head.id), vec![], &ctx.db)
+        .fetch_sbom_details(
+            Id::Uuid(details.summary.head.id),
+            Default::default(),
+            &ctx.db,
+        )
         .await?;
 
     assert!(details.is_some());
@@ -122,7 +126,7 @@ async fn sbom_set_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?;
 
     let details = service
-        .fetch_sbom_details(id_3_2_12, vec![], &ctx.db)
+        .fetch_sbom_details(id_3_2_12, Default::default(), &ctx.db)
         .await?;
 
     assert!(details.is_some());
@@ -167,7 +171,7 @@ async fn sbom_update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
         .await?;
 
     let details = service
-        .fetch_sbom_details(id_3_2_12, vec![], &ctx.db)
+        .fetch_sbom_details(id_3_2_12, Default::default(), &ctx.db)
         .await?;
     let details = details.unwrap();
     //update only alters values of pre-existing keys - it won't add in an entirely new key/value pair
@@ -194,7 +198,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
         .fetch_sboms(
             q("license=GPLv3+ and GPLv3+ with exceptions and GPLv2+ with exceptions and LGPLv2+ and BSD"),
             Paginated::default(),
-            (),
+            Default::default(),
             &ctx.db,
         )
         .await?;
@@ -209,7 +213,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
         .fetch_sboms(
             q("license~GPLv3+ with exceptions"),
             Paginated::default(),
-            (),
+            Default::default(),
             &ctx.db,
         )
         .await?;
@@ -221,7 +225,12 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 3: Filter by license found in single SBOMs
     let results = service
-        .fetch_sboms(q("license~OFL"), Paginated::default(), (), &ctx.db)
+        .fetch_sboms(
+            q("license~OFL"),
+            Paginated::default(),
+            Default::default(),
+            &ctx.db,
+        )
         .await?;
 
     log::debug!("OFL license filter results: {results:#?}");
@@ -231,7 +240,12 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 3b: Filter by license found in single SBOMs
     let results = service
-        .fetch_sboms(q("license=Apache 2.0"), Paginated::default(), (), &ctx.db)
+        .fetch_sboms(
+            q("license=Apache 2.0"),
+            Paginated::default(),
+            Default::default(),
+            &ctx.db,
+        )
         .await?;
 
     log::debug!("Apache 2.0 license filter results: {results:#?}");
@@ -247,7 +261,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
         .fetch_sboms(
             q("license=OFL|Apache 2.0"),
             Paginated::default(),
-            (),
+            Default::default(),
             &ctx.db,
         )
         .await?;
@@ -262,7 +276,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
         .fetch_sboms(
             q("license=NONEXISTENT_LICENSE"),
             Paginated::default(),
-            (),
+            Default::default(),
             &ctx.db,
         )
         .await?;
@@ -274,7 +288,12 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 6: Empty license query
     let results = service
-        .fetch_sboms(q("license="), Paginated::default(), (), &ctx.db)
+        .fetch_sboms(
+            q("license="),
+            Paginated::default(),
+            Default::default(),
+            &ctx.db,
+        )
         .await?;
 
     log::debug!("Empty license query results: {results:#?}");
@@ -287,7 +306,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
         .fetch_sboms(
             q("license~Apache&name~quay"),
             Paginated::default(),
-            (),
+            Default::default(),
             &ctx.db,
         )
         .await?;
@@ -309,7 +328,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
                 offset: 0,
                 limit: 1,
             },
-            (),
+            Default::default(),
             &ctx.db,
         )
         .await?;
@@ -332,7 +351,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
                 offset: 1,
                 limit: 1,
             },
-            (),
+            Default::default(),
             &ctx.db,
         )
         .await?;
@@ -344,7 +363,12 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 9: Verify that SBOMs without license filters still work
     let all_results = service
-        .fetch_sboms(Query::default(), Paginated::default(), (), &ctx.db)
+        .fetch_sboms(
+            Query::default(),
+            Paginated::default(),
+            Default::default(),
+            &ctx.db,
+        )
         .await?;
 
     log::debug!("All SBOMs results: {all_results:#?}");

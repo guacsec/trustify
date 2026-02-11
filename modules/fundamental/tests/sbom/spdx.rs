@@ -133,7 +133,12 @@ async fn ingest_spdx_broken_refs(ctx: &TrustifyContext) -> Result<(), anyhow::Er
     );
 
     let result = sbom
-        .fetch_sboms(Default::default(), Default::default(), (), &ctx.db)
+        .fetch_sboms(
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            &ctx.db,
+        )
         .await?;
 
     // there must be no traces, everything must be rolled back

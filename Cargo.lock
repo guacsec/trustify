@@ -6816,6 +6816,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_qs"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac22439301a0b6f45a037681518e3169e8db1db76080e2e9600a08d1027df037"
+dependencies = [
+ "actix-web",
+ "futures",
+ "itoa",
+ "percent-encoding",
+ "ryu",
+ "serde",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8359,6 +8373,7 @@ dependencies = [
  "serde",
  "serde-cyclonedx",
  "serde_json",
+ "serde_qs",
  "serde_yaml_ng",
  "sha2",
  "spdx",

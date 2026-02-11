@@ -1,6 +1,6 @@
-use super::{IfMatchType, Update};
+use super::{Update, get_group_helper};
 use crate::{
-    sbom_group::endpoints::test::{Create, GroupResponse, get_group_helper},
+    common::test::{Create, GroupResponse, IfMatchType},
     test::caller,
 };
 use actix_http::StatusCode;

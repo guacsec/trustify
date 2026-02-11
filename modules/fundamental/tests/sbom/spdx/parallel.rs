@@ -21,7 +21,12 @@ async fn ingest_10(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = SbomService::new(ctx.db.clone());
 
     let result = service
-        .fetch_sboms(Query::default(), Paginated::default(), (), &ctx.db)
+        .fetch_sboms(
+            Query::default(),
+            Paginated::default(),
+            Default::default(),
+            &ctx.db,
+        )
         .await?;
     assert_eq!(1, result.total);
 

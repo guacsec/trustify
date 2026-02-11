@@ -6,7 +6,6 @@ mod test;
 
 pub use query::*;
 
-use crate::sbom_group::service::SbomGroupService;
 use crate::{
     Error,
     common::{LicenseRefMapping, service::delete_doc},
@@ -20,13 +19,15 @@ use crate::{
             SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
             SbomSummary, Which, details::SbomAdvisory,
         },
-        service::SbomService,
+        service::{SbomService, sbom::FetchOptions},
     },
+    sbom_group::service::SbomGroupService,
 };
 use actix_web::{HttpResponse, Responder, delete, get, http::header, post, web};
 use config::Config;
 use futures_util::TryStreamExt;
 use sea_orm::{TransactionTrait, prelude::Uuid};
+use serde_qs::actix::QsQuery;
 use std::str::FromStr;
 use trustify_auth::{
     CreateSbom, DeleteSbom, Permission, ReadAdvisory, ReadSbom, all,
@@ -148,6 +149,14 @@ pub async fn get_license_export(
     }
 }
 
+#[derive(Clone, Debug, Default, serde::Deserialize, utoipa::IntoParams)]
+struct GroupFilterQuery {
+    /// Filter by group IDs. Only SBOMs assigned to any of the provided groups will be returned.
+    /// Can be specified multiple times. Malformed IDs are silently ignored.
+    #[serde(default)]
+    group: Vec<String>,
+}
+
 /// List SBOMs
 #[utoipa::path(
     tag = "sbom",
@@ -155,6 +164,7 @@ pub async fn get_license_export(
     params(
         Query,
         Paginated,
+        GroupFilterQuery,
     ),
     responses(
         (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary>),
@@ -166,13 +176,19 @@ pub async fn all(
     db: web::Data<Database>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
+    QsQuery(group_filter): QsQuery<GroupFilterQuery>,
     authorizer: web::Data<Authorizer>,
     user: UserInformation,
 ) -> actix_web::Result<impl Responder> {
     authorizer.require(&user, Permission::ReadSbom)?;
 
     let tx = db.begin_read().await?;
-    let result = fetch.fetch_sboms(search, paginated, (), &tx).await?;
+    let mut options = FetchOptions::default();
+    if !group_filter.group.is_empty() {
+        options = options.groups(group_filter.group);
+    }
+
+    let result = fetch.fetch_sboms(search, paginated, options, &tx).await?;
 
     Ok(HttpResponse::Ok().json(result))
 }
@@ -482,12 +498,12 @@ pub async fn upload(
     sbom_group: web::Data<SbomGroupService>,
     config: web::Data<Config>,
     db: web::Data<Database>,
-    web::Query(UploadQuery {
+    QsQuery(UploadQuery {
         labels,
         format,
         cache,
         group,
-    }): web::Query<UploadQuery>,
+    }): QsQuery<UploadQuery>,
     content_type: Option<web::Header<header::ContentType>>,
     bytes: web::Bytes,
     _: Require<CreateSbom>,

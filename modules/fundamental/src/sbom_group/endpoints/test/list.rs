@@ -1,8 +1,6 @@
 use crate::{
-    sbom_group::{
-        endpoints::test::{Create, GroupResponse, UpdateAssignments, read_assignments},
-        model::GroupDetails,
-    },
+    common::test::{Group, UpdateAssignments, create_groups, locate_id, read_assignments},
+    sbom_group::model::GroupDetails,
     test::caller,
 };
 use actix_http::body::to_bytes;
@@ -12,7 +10,6 @@ use serde_json::Value;
 use std::collections::HashMap;
 use test_context::test_context;
 use trustify_common::model::PaginatedResults;
-use trustify_entity::labels::Labels;
 use trustify_test_context::{TrustifyContext, call::CallService};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -278,19 +275,6 @@ async fn run_list_test(
     Ok(())
 }
 
-/// Locate an ID from the ID set
-///
-/// *Note:* This function will panic when IDs cannot be found.
-fn locate_id(
-    ids: &HashMap<Vec<String>, String>,
-    id: impl IntoIterator<Item = impl ToString>,
-) -> String {
-    let path: Vec<String> = id.into_iter().map(|s| s.to_string()).collect();
-    ids.get(&path)
-        .unwrap_or_else(|| panic!("ID not found for path: {:?}", path))
-        .clone()
-}
-
 /// Convert expected items into [`GroupDetails`] by resolving the IDs from the provided IDs set.
 fn into_actual(
     expected: impl IntoIterator<Item = Item>,
@@ -331,44 +315,6 @@ fn into_actual(
             }
         })
         .collect()
-}
-
-#[derive()]
-struct Group {
-    name: String,
-    labels: Labels,
-    children: Vec<Group>,
-}
-
-impl Group {
-    pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            labels: Default::default(),
-            children: Default::default(),
-        }
-    }
-
-    pub fn add(mut self, group: impl Into<Group>) -> Self {
-        self.children.push(group.into());
-        self
-    }
-
-    /// Replace labels with current
-    pub fn labels(mut self, labels: impl Into<Labels>) -> Self {
-        self.labels = labels.into();
-        self
-    }
-}
-
-impl From<&str> for Group {
-    fn from(value: &str) -> Self {
-        Self {
-            name: value.to_string(),
-            children: vec![],
-            labels: Labels::default(),
-        }
-    }
 }
 
 /// Set up the 3-level group fixture with SBOMs ingested and assigned.
@@ -515,52 +461,6 @@ pub async fn list_groups_with_sboms(
     let ids = setup_3_levels_with_sboms(ctx, &app).await?;
 
     run_list_test(app, ids, q, options, expected_items).await?;
-
-    Ok(())
-}
-
-/// Create groups, with the provided structure, returning a map of name hierarchy to the ID.
-async fn create_groups(
-    app: &impl CallService,
-    groups: Vec<Group>,
-) -> anyhow::Result<HashMap<Vec<String>, String>> {
-    let mut result = HashMap::new();
-
-    for group in groups {
-        create_group_recursive(app, group, None, vec![], &mut result).await?;
-    }
-
-    Ok(result)
-}
-
-/// Helper function to recursively create a group and its children
-async fn create_group_recursive(
-    app: &impl CallService,
-    group: Group,
-    parent_id: Option<&str>,
-    mut path: Vec<String>,
-    result: &mut HashMap<Vec<String>, String>,
-) -> anyhow::Result<()> {
-    // Add current group name to path
-    path.push(group.name.clone());
-
-    // Create the group
-    let created: GroupResponse = Create::new(&group.name)
-        .parent(parent_id)
-        .labels(group.labels)
-        .execute(app)
-        .await?;
-
-    // Store in result map (path -> ID)
-    result.insert(path.clone(), created.id.clone());
-
-    // Recursively create children
-    for child in group.children {
-        Box::pin(async {
-            create_group_recursive(app, child, Some(&created.id), path.clone(), result).await
-        })
-        .await?;
-    }
 
     Ok(())
 }

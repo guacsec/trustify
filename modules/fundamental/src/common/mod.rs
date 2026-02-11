@@ -8,6 +8,8 @@ use utoipa::ToSchema;
 pub mod license_filtering;
 pub mod model;
 pub mod service;
+#[cfg(test)]
+pub mod test;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, FromQueryResult)]
 pub struct LicenseRefMapping {

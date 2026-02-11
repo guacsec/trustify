@@ -32,6 +32,7 @@ sea-orm = { workspace = true }
 sea-query = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_qs = { workspace = true }
 spdx = { workspace = true, features = ["text"] }
 spdx-expression = { workspace = true }
 strum = { workspace = true }
