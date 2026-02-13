@@ -1557,3 +1557,114 @@ async fn all_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn packages_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let result = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let id = result.id.to_string();
+
+    // Fetch summary to get hashes
+    let req = TestRequest::get()
+        .uri(&format!("/api/v2/sbom/urn:uuid:{id}"))
+        .to_request();
+    let sbom: Value = app.call_and_read_body_json(req).await;
+    let sha256 = sbom["sha256"].as_str().unwrap();
+
+    // Fetch packages by UUID
+    let req = TestRequest::get()
+        .uri(&format!("/api/v2/sbom/urn:uuid:{id}/packages"))
+        .to_request();
+    let by_uuid: Value = app.call_and_read_body_json(req).await;
+
+    // Fetch packages by SHA-256
+    let req = TestRequest::get()
+        .uri(&format!("/api/v2/sbom/{sha256}/packages"))
+        .to_request();
+    let by_hash: Value = app.call_and_read_body_json(req).await;
+
+    // Results should match
+    assert_eq!(by_uuid["total"], by_hash["total"]);
+    assert!(by_uuid["total"].as_u64().unwrap() > 0);
+
+    // Non-existent hash -> 404
+    let req = TestRequest::get()
+        .uri("/api/v2/sbom/sha256:0000000000000000000000000000000000000000000000000000000000000000/packages")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Invalid identifier (no prefix) -> 400
+    let req = TestRequest::get()
+        .uri("/api/v2/sbom/not-an-id/packages")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+
+    // Unsupported prefix -> 400
+    let req = TestRequest::get()
+        .uri("/api/v2/sbom/sha123:abcd/packages")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let result = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let id = result.id.to_string();
+
+    // Fetch summary to get hashes
+    let req = TestRequest::get()
+        .uri(&format!("/api/v2/sbom/urn:uuid:{id}"))
+        .to_request();
+    let sbom: Value = app.call_and_read_body_json(req).await;
+    let sha256 = sbom["sha256"].as_str().unwrap();
+
+    // Fetch related by UUID
+    let req = TestRequest::get()
+        .uri(&format!("/api/v2/sbom/urn:uuid:{id}/related"))
+        .to_request();
+    let by_uuid: Value = app.call_and_read_body_json(req).await;
+
+    // Fetch related by SHA-256
+    let req = TestRequest::get()
+        .uri(&format!("/api/v2/sbom/{sha256}/related"))
+        .to_request();
+    let by_hash: Value = app.call_and_read_body_json(req).await;
+
+    // Results should match
+    assert_eq!(by_uuid["total"], by_hash["total"]);
+
+    // Non-existent hash -> 404
+    let req = TestRequest::get()
+        .uri("/api/v2/sbom/sha256:0000000000000000000000000000000000000000000000000000000000000000/related")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Invalid identifier (no prefix) -> 400
+    let req = TestRequest::get()
+        .uri("/api/v2/sbom/not-an-id/related")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+
+    // Unsupported prefix -> 400
+    let req = TestRequest::get()
+        .uri("/api/v2/sbom/sha123:abcd/related")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+
+    Ok(())
+}

@@ -2499,8 +2499,7 @@ paths:
         description: ID of the SBOM to get packages for
         required: true
         schema:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
       - name: q
         in: query
         description: |
@@ -2604,6 +2603,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedResults_SbomPackage'
+        '404':
+          description: The SBOM could not be found
   /api/v2/sbom/{id}/related:
     get:
       tags:
@@ -2616,8 +2617,7 @@ paths:
         description: ID of SBOM to search packages in
         required: true
         schema:
-          type: string
-          format: uuid
+          $ref: '#/components/schemas/Id'
       - name: reference
         in: query
         description: The Package to use as reference
@@ -2746,6 +2746,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedResults_SbomPackageRelation'
+        '404':
+          description: The SBOM could not be found
   /api/v2/sbom/{key}/download:
     get:
       tags:

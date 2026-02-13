@@ -25,7 +25,7 @@ use crate::{
 use actix_web::{HttpResponse, Responder, delete, get, http::header, post, web};
 use config::Config;
 use futures_util::TryStreamExt;
-use sea_orm::{TransactionTrait, prelude::Uuid};
+use sea_orm::TransactionTrait;
 use std::str::FromStr;
 use trustify_auth::{
     CreateSbom, DeleteSbom, Permission, ReadAdvisory, ReadSbom, all,
@@ -347,26 +347,33 @@ pub async fn delete(
     tag = "sbom",
     operation_id = "listPackages",
     params(
-        ("id", Path, description = "ID of the SBOM to get packages for"),
+        ("id" = Id, Path, description = "ID of the SBOM to get packages for"),
         Query,
         Paginated,
     ),
     responses(
         (status = 200, description = "Packages", body = PaginatedResults<SbomPackage>),
+        (status = 404, description = "The SBOM could not be found"),
     ),
 )]
 #[get("/v2/sbom/{id}/packages")]
 pub async fn packages(
     fetch: web::Data<SbomService>,
     db: web::Data<Database>,
-    id: web::Path<Uuid>,
+    id: web::Path<String>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
+    let id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin_read().await?;
+
+    let Some(sbom) = fetch.fetch_sbom_summary(id, &tx).await? else {
+        return Ok(HttpResponse::NotFound().finish());
+    };
+
     let result = fetch
-        .fetch_sbom_packages(id.into_inner(), search, paginated, &tx)
+        .fetch_sbom_packages(sbom.head.id, search, paginated, &tx)
         .await?;
 
     Ok(HttpResponse::Ok().json(result))
@@ -390,31 +397,36 @@ struct RelatedQuery {
     tag = "sbom",
     operation_id = "listRelatedPackages",
     params(
-        ("id", Path, description = "ID of SBOM to search packages in"),
+        ("id" = Id, Path, description = "ID of SBOM to search packages in"),
         RelatedQuery,
         Query,
         Paginated,
     ),
     responses(
         (status = 200, description = "Packages", body = PaginatedResults<SbomPackageRelation>),
+        (status = 404, description = "The SBOM could not be found"),
     ),
 )]
 #[get("/v2/sbom/{id}/related")]
 pub async fn related(
     fetch: web::Data<SbomService>,
     db: web::Data<Database>,
-    id: web::Path<Uuid>,
+    id: web::Path<String>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     web::Query(related): web::Query<RelatedQuery>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    let id = id.into_inner();
+    let id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin_read().await?;
+
+    let Some(sbom) = fetch.fetch_sbom_summary(id, &tx).await? else {
+        return Ok(HttpResponse::NotFound().finish());
+    };
 
     let result = fetch
         .fetch_related_packages(
-            id,
+            sbom.head.id,
             search,
             paginated,
             related.which,
