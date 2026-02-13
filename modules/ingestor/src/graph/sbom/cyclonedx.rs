@@ -442,11 +442,11 @@ impl ComponentCreator {
                         );
                     }
                     CryptographicAsset => {
-                        // TODO: store the crypto properties data
                         self.crypto.add(
                             node_id.clone(),
                             comp.name.to_string(),
                             comp.hashes.clone().into_iter().flatten(),
+                            comp.try_into()?,
                         );
                     }
                     _ => log::error!("Unsupported component type: '{ty}'"),

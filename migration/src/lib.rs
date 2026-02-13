@@ -42,6 +42,7 @@ mod m0002000_add_sbom_properties;
 mod m0002010_add_advisory_scores;
 mod m0002020_add_sbom_group;
 mod m0002030_create_ai;
+mod m0002040_create_crypto;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -100,6 +101,7 @@ impl MigratorExt for Migrator {
             .data(m0002010_add_advisory_scores::Migration)
             .normal(m0002020_add_sbom_group::Migration)
             .normal(m0002030_create_ai::Migration)
+            .normal(m0002040_create_crypto::Migration)
     }
 }
 

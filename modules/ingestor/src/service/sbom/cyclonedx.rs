@@ -129,6 +129,7 @@ mod test {
     use test_context::test_context;
     use test_log::test;
     use trustify_entity::sbom_ai;
+    use trustify_entity::sbom_crypto;
     use trustify_test_context::{TrustifyContext, document_bytes};
 
     #[test_context(TrustifyContext)]
@@ -228,6 +229,8 @@ mod test {
 
         let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
 
+        assert_eq!(0, sbom_crypto::Entity::find().all(&ctx.db).await?.len());
+
         ingestor
             .ingest(
                 &data,
@@ -238,6 +241,8 @@ mod test {
             )
             .await
             .expect("must ingest");
+
+        assert_eq!(1, sbom_crypto::Entity::find().all(&ctx.db).await?.len());
 
         Ok(())
     }
