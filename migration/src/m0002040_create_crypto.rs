@@ -35,6 +35,7 @@ impl MigrationTrait for Migration {
                     .col(
                         ColumnDef::new(SbomCrypto::Properties)
                             .json_binary()
+                            .not_null()
                             .default(serde_json::Value::Null),
                     )
                     .col(ColumnDef::new(SbomCrypto::Oid).string().null())
