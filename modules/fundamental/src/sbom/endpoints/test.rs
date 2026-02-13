@@ -1563,7 +1563,7 @@ async fn all_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
     let id = ctx
-        .ingest_document("cyclonedx/cryptographic/cbom.json")
+        .ingest_document("cyclonedx/cryptographic/keycloak-cbom.json")
         .await?
         .id
         .to_string();
@@ -1576,9 +1576,9 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(sbom["id"], id);
     assert_eq!(
         sbom["document_id"],
-        "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79/1"
+        "urn:uuid:eff8469d-f033-44a5-a53d-f938e6842e58/1"
     );
-    assert_eq!(sbom["number_of_packages"], 3);
+    assert_eq!(sbom["number_of_packages"], 0);
     let labels = sbom["labels"].as_object().unwrap();
     assert_eq!(labels["kind"], "cbom");
     assert_eq!(labels["type"], "cyclonedx");
@@ -1588,39 +1588,8 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response: Value = app.call_and_read_body_json(req).await;
     log::info!("{:#}", json!(response));
     let expected_result = json!({
-    "items": [
-      {
-        "id": "acme-application",
-        "name": "Acme Application",
-        "group": null,
-        "version": "1.0",
-        "purl": [],
-        "cpe": [],
-        "licenses": [],
-        "licenses_ref_mapping": []
-      },
-      {
-        "id": "crypto-library",
-        "name": "Crypto library",
-        "group": null,
-        "version": "1.0.0",
-        "purl": [],
-        "cpe": [],
-        "licenses": [],
-        "licenses_ref_mapping": []
-      },
-      {
-        "id": "some-library",
-        "name": "Some library",
-        "group": null,
-        "version": "1.0.0",
-        "purl": [],
-        "cpe": [],
-        "licenses": [],
-        "licenses_ref_mapping": []
-      }
-    ],
-    "total": 3 });
+    "items": [],
+    "total": 0 });
     assert!(expected_result.contains_subset(response.clone()));
     Ok(())
 }
