@@ -857,7 +857,7 @@ paths:
         description: return the parent chain
         required: false
         schema:
-          type: boolean
+          $ref: '#/components/schemas/ParentsMode'
       - name: offset
         in: query
         description: |-
@@ -960,7 +960,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedResults_GroupDetails'
+                $ref: '#/components/schemas/GroupListResult'
         '400':
           description: The request was not valid
         '401':
@@ -4201,42 +4201,22 @@ components:
           - string
           - 'null'
           description: The direct parent of this group
-    GroupDetails:
+    GroupListResult:
       allOf:
-      - $ref: '#/components/schemas/Group'
+      - $ref: '#/components/schemas/PaginatedResults_GroupDetails'
       - type: object
         properties:
-          number_of_groups:
-            type:
-            - integer
-            - 'null'
-            format: int64
-            description: |-
-              The number of groups owned directly by this group
-
-              This information is only present when requested.
-            minimum: 0
-          number_of_sboms:
-            type:
-            - integer
-            - 'null'
-            format: int64
-            description: |-
-              The number of SBOMs directly assigned to this group
-
-              This information is only present when requested.
-            minimum: 0
-          parents:
+          referenced:
             type:
             - array
             - 'null'
             items:
-              type: string
+              $ref: '#/components/schemas/Group'
             description: |-
-              The path, of IDs, from the root to this group
+              Groups referenced by parent chains but not present in the primary result set.
 
-              This information is only present when requested.
-      description: Detailed group information, extends [`Group`]
+              Only present when `parents=resolve` is requested.
+      description: Result of listing SBOM groups, with optional resolved parent references.
     GroupRequest:
       type: object
       description: Mutable properties of a [`Group`].

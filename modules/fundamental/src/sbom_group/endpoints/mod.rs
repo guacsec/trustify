@@ -21,7 +21,7 @@ use trustify_auth::{
 use trustify_common::{
     db::{Database, query::Query},
     endpoints::extract_revision,
-    model::{Paginated, PaginatedResults, Revisioned},
+    model::{Paginated, Revisioned},
 };
 use utoipa::ToSchema;
 
@@ -56,7 +56,7 @@ pub fn configure(
     responses(
         (
             status = 200, description = "Executed the SBOM group query",
-            body = PaginatedResults<GroupDetails>,
+            body = GroupListResult,
         ),
         (status = 400, description = "The request was not valid"),
         (status = 401, description = "The user was not authenticated"),

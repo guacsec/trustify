@@ -3791,6 +3791,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
+name = "isx"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1371ce1bd2235ac5c8206e49022ba9564e483e6181b6b2e3f5ca861bd34dedd5"
+dependencies = [
+ "isx-macros",
+]
+
+[[package]]
+name = "isx-macros"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "408a3d5808e4b2d94c073c5a3b57bbeb50b1afc50c0bd43572886d3f7dd64bae"
+dependencies = [
+ "quote",
+ "syn 2.0.114",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8354,6 +8373,7 @@ dependencies = [
  "futures-util",
  "hex",
  "humantime",
+ "isx",
  "itertools 0.14.0",
  "jsonpath-rust",
  "lenient_semver",

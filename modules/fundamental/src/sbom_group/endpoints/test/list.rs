@@ -1,6 +1,6 @@
 use crate::{
     common::test::{Group, UpdateAssignments, create_groups, locate_id, read_assignments},
-    sbom_group::model::GroupDetails,
+    sbom_group::model::{GroupDetails, GroupListResult},
     test::caller,
 };
 use actix_http::body::to_bytes;
@@ -9,7 +9,6 @@ use rstest::rstest;
 use serde_json::Value;
 use std::collections::HashMap;
 use test_context::test_context;
-use trustify_common::model::PaginatedResults;
 use trustify_test_context::{TrustifyContext, call::CallService};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -59,6 +58,31 @@ impl Item {
     pub fn parents(mut self, parents: &'static [&'static str]) -> Self {
         self.parents = Some(parents);
         self
+    }
+}
+
+trait ItemExt {
+    fn without_parents(self) -> impl IntoIterator<Item = Item>;
+    fn without_totals(self) -> impl IntoIterator<Item = Item>;
+}
+
+impl<T> ItemExt for T
+where
+    T: IntoIterator<Item = Item>,
+{
+    fn without_parents(self) -> impl IntoIterator<Item = Item> {
+        self.into_iter().map(|mut item| {
+            item.parents = None;
+            item
+        })
+    }
+
+    fn without_totals(self) -> impl IntoIterator<Item = Item> {
+        self.into_iter().map(|mut item| {
+            item.total_groups = None;
+            item.total_sboms = None;
+            item
+        })
     }
 }
 
@@ -112,7 +136,7 @@ pub async fn list_groups(
 
     let ids = create_groups(&app, group_fixture_3_levels()).await?;
 
-    run_list_test(app, ids, &q, Default::default(), expected_items).await?;
+    run_list_test(app, ids, &q, Default::default(), expected_items, None).await?;
 
     Ok(())
 }
@@ -189,6 +213,7 @@ pub async fn list_groups_with_parent(
         &format!("parent={parent}"),
         Default::default(),
         expected,
+        None,
     )
     .await?;
 
@@ -204,7 +229,15 @@ pub async fn list_groups_with_invalid_parent(ctx: &TrustifyContext) -> Result<()
 
     let ids = create_groups(&app, group_fixture_3_levels()).await?;
 
-    run_list_test(app, ids, "parent=this-is-wrong", Default::default(), []).await?;
+    run_list_test(
+        app,
+        ids,
+        "parent=this-is-wrong",
+        Default::default(),
+        [],
+        None,
+    )
+    .await?;
 
     Ok(())
 }
@@ -223,6 +256,7 @@ pub async fn list_groups_with_missing_parent(ctx: &TrustifyContext) -> Result<()
         "parent=cc43ae38-d32d-49b8-9863-5e7f4409a133",
         Default::default(),
         [],
+        None,
     )
     .await?;
 
@@ -232,7 +266,7 @@ pub async fn list_groups_with_missing_parent(ctx: &TrustifyContext) -> Result<()
 #[derive(Default)]
 struct ListTestOptions {
     totals: bool,
-    parents: bool,
+    parents: &'static str,
 }
 
 /// Run a "list SBOM groups" test
@@ -248,13 +282,14 @@ async fn run_list_test(
     q: &str,
     options: ListTestOptions,
     expected_items: impl IntoIterator<Item = Item>,
+    expected_referenced: Option<Vec<&'static [&'static str]>>,
 ) -> anyhow::Result<()> {
     let mut uri = format!("/api/v2/group/sbom?q={}&", urlencoding::encode(q));
     if options.totals {
         uri.push_str("totals=true&");
     }
-    if options.parents {
-        uri.push_str("parents=true&");
+    if !options.parents.is_empty() {
+        uri.push_str(&format!("parents={}&", options.parents));
     }
 
     let request = TestRequest::get().uri(&uri);
@@ -273,12 +308,28 @@ async fn run_list_test(
     assert!(body["total"].is_number());
     assert!(body["items"].is_array());
 
-    let response: PaginatedResults<GroupDetails> = serde_json::from_value(body)?;
+    let response: GroupListResult = serde_json::from_value(body)?;
 
     let expected_items = into_actual(expected_items, &ids);
 
-    assert_eq!(response.total, expected_items.len() as u64);
-    assert_eq!(response.items, expected_items);
+    assert_eq!(response.result.total, expected_items.len() as u64);
+    assert_eq!(response.result.items, expected_items);
+
+    // Assert referenced groups
+    match expected_referenced {
+        None => assert!(response.referenced.is_none(), "referenced should be absent"),
+        Some(expected_refs) => {
+            let referenced = response.referenced.expect("referenced should be present");
+            let mut actual_names: Vec<&str> = referenced.iter().map(|g| g.name.as_str()).collect();
+            actual_names.sort();
+            let mut expected_names: Vec<&str> = expected_refs
+                .iter()
+                .map(|path| path[path.len() - 1])
+                .collect();
+            expected_names.sort();
+            assert_eq!(actual_names, expected_names);
+        }
+    }
 
     Ok(())
 }
@@ -395,81 +446,129 @@ async fn setup_3_levels_with_sboms(
 #[test_context(TrustifyContext)]
 #[rstest]
 // all groups, requesting totals only
-#[case::all_with_totals("", ListTestOptions { totals: true, parents: false }, [
-    Item::new(&["A"]).description("Product A group").label("product", "A").total_groups(2).total_sboms(0),
-    Item::new(&["A", "A1"]).total_groups(2).total_sboms(0),
-    Item::new(&["A", "A1", "A1a"]).total_groups(0).total_sboms(2),
-    Item::new(&["A", "A1", "A1b"]).total_groups(0).total_sboms(0),
-    Item::new(&["A", "A2"]).total_groups(2).total_sboms(0),
-    Item::new(&["A", "A2", "A2a"]).total_groups(0).total_sboms(1),
-    Item::new(&["A", "A2", "A2b"]).total_groups(0).total_sboms(0),
-    Item::new(&["B"]).label("product", "B").total_groups(2).total_sboms(0),
-    Item::new(&["B", "B1"]).total_groups(2).total_sboms(0),
-    Item::new(&["B", "B1", "B1a"]).total_groups(0).total_sboms(1),
-    Item::new(&["B", "B1", "B1b"]).total_groups(0).total_sboms(0),
-    Item::new(&["B", "B2"]).total_groups(2).total_sboms(0),
-    Item::new(&["B", "B2", "B2a"]).total_groups(0).total_sboms(0),
-    Item::new(&["B", "B2", "B2b"]).total_groups(0).total_sboms(1),
-])]
+#[case::all_with_totals("", ListTestOptions { totals: true, ..Default::default() }, all_results().without_parents(), None)]
 // all groups, requesting parent chain only
-#[case::all_with_parents("", ListTestOptions { totals: false, parents: true }, [
-    Item::new(&["A"]).description("Product A group").label("product", "A").parents(&[]),
+#[case::all_with_parents("", ListTestOptions { parents: "id", ..Default::default() }, all_results().without_totals(), None)]
+// all groups, requesting both totals and parent chains
+#[case::all_with_totals_and_parents("", ListTestOptions { totals: true, parents: "id", ..Default::default() }, all_results(), None)]
+// filter to the leaf that has the multi-assigned SBOM
+#[case::multi_assigned_leaf("name=A1a", ListTestOptions { totals: true, parents: "id", ..Default::default() }, [
+    Item::new(&["A", "A1", "A1a"]).total_groups(0).total_sboms(2).parents(&["A", "A1"]),
+], None)]
+// the other leaf sharing the same SBOM
+#[case::multi_assigned_other_leaf("name=B1a", ListTestOptions { totals: true, parents: "id", ..Default::default() }, [
+    Item::new(&["B", "B1", "B1a"]).total_groups(0).total_sboms(1).parents(&["B", "B1"]),
+], None)]
+// root-level groups only, with totals
+#[case::root_groups_with_totals("parent=\x00", ListTestOptions { totals: true, ..Default::default() }, [
+    Item::new(&["A"]).description("Product A group").label("product", "A").total_groups(2).total_sboms(0),
+    Item::new(&["B"]).label("product", "B").total_groups(2).total_sboms(0),
+], None)]
+// parents=true is an alias for parents=id
+#[case::parents_alias_true("", ListTestOptions { parents: "true", ..Default::default() }, all_results().without_totals(), None)]
+// parents=false is an alias for parents=skip (no parents returned)
+#[case::parents_alias_false("", ListTestOptions { parents: "false", ..Default::default() }, all_results().without_parents().without_totals(), None)]
+// parents=skip explicitly (no parents returned)
+#[case::parents_skip("", ListTestOptions { parents: "skip", ..Default::default() }, all_results().without_parents().without_totals(), None)]
+// parents=resolve returns parents and referenced groups (all groups returned, so referenced is empty)
+#[case::parents_resolve_all("", ListTestOptions { parents: "resolve", ..Default::default() },
+    all_results().without_totals(),
+    Some(vec![])
+)]
+// parents=resolve with a filter: only leaf A1a returned, referenced should contain A and A1
+#[case::parents_resolve_filtered("name=A1a", ListTestOptions { parents: "resolve", ..Default::default() }, [
+    Item::new(&["A", "A1", "A1a"]).parents(&["A", "A1"]),
+],
+Some(vec![
+    &["A"] as &[&str],
+    &["A", "A1"]
+]))]
+// parents=resolve with a filter: two A1* returned, referenced should contain A
+#[case::parents_resolve_filtered_2("name~A1", ListTestOptions { parents: "resolve", ..Default::default() }, [
     Item::new(&["A", "A1"]).parents(&["A"]),
     Item::new(&["A", "A1", "A1a"]).parents(&["A", "A1"]),
     Item::new(&["A", "A1", "A1b"]).parents(&["A", "A1"]),
-    Item::new(&["A", "A2"]).parents(&["A"]),
-    Item::new(&["A", "A2", "A2a"]).parents(&["A", "A2"]),
-    Item::new(&["A", "A2", "A2b"]).parents(&["A", "A2"]),
-    Item::new(&["B"]).label("product", "B").parents(&[]),
-    Item::new(&["B", "B1"]).parents(&["B"]),
-    Item::new(&["B", "B1", "B1a"]).parents(&["B", "B1"]),
-    Item::new(&["B", "B1", "B1b"]).parents(&["B", "B1"]),
-    Item::new(&["B", "B2"]).parents(&["B"]),
-    Item::new(&["B", "B2", "B2a"]).parents(&["B", "B2"]),
-    Item::new(&["B", "B2", "B2b"]).parents(&["B", "B2"]),
-])]
-// all groups, requesting both totals and parent chains
-#[case::all_with_totals_and_parents("", ListTestOptions { totals: true, parents: true }, [
-    Item::new(&["A"]).description("Product A group").label("product", "A").total_groups(2).total_sboms(0).parents(&[]),
-    Item::new(&["A", "A1"]).total_groups(2).total_sboms(0).parents(&["A"]),
-    Item::new(&["A", "A1", "A1a"]).total_groups(0).total_sboms(2).parents(&["A", "A1"]),
-    Item::new(&["A", "A1", "A1b"]).total_groups(0).total_sboms(0).parents(&["A", "A1"]),
-    Item::new(&["A", "A2"]).total_groups(2).total_sboms(0).parents(&["A"]),
-    Item::new(&["A", "A2", "A2a"]).total_groups(0).total_sboms(1).parents(&["A", "A2"]),
-    Item::new(&["A", "A2", "A2b"]).total_groups(0).total_sboms(0).parents(&["A", "A2"]),
-    Item::new(&["B"]).label("product", "B").total_groups(2).total_sboms(0).parents(&[]),
-    Item::new(&["B", "B1"]).total_groups(2).total_sboms(0).parents(&["B"]),
-    Item::new(&["B", "B1", "B1a"]).total_groups(0).total_sboms(1).parents(&["B", "B1"]),
-    Item::new(&["B", "B1", "B1b"]).total_groups(0).total_sboms(0).parents(&["B", "B1"]),
-    Item::new(&["B", "B2"]).total_groups(2).total_sboms(0).parents(&["B"]),
-    Item::new(&["B", "B2", "B2a"]).total_groups(0).total_sboms(0).parents(&["B", "B2"]),
-    Item::new(&["B", "B2", "B2b"]).total_groups(0).total_sboms(1).parents(&["B", "B2"]),
-])]
-// filter to the leaf that has the multi-assigned SBOM
-#[case::multi_assigned_leaf("name=A1a", ListTestOptions { totals: true, parents: true }, [
-    Item::new(&["A", "A1", "A1a"]).total_groups(0).total_sboms(2).parents(&["A", "A1"]),
-])]
-// the other leaf sharing the same SBOM
-#[case::multi_assigned_other_leaf("name=B1a", ListTestOptions { totals: true, parents: true }, [
-    Item::new(&["B", "B1", "B1a"]).total_groups(0).total_sboms(1).parents(&["B", "B1"]),
-])]
-// root-level groups only, with totals
-#[case::root_groups_with_totals("parent=\x00", ListTestOptions { totals: true, parents: false }, [
-    Item::new(&["A"]).description("Product A group").label("product", "A").total_groups(2).total_sboms(0),
-    Item::new(&["B"]).label("product", "B").total_groups(2).total_sboms(0),
-])]
+],
+Some(vec![
+    &["A"] as &[&str],
+]))]
 #[test_log::test(actix_web::test)]
 pub async fn list_groups_with_sboms(
     ctx: &TrustifyContext,
     #[case] q: &str,
     #[case] options: ListTestOptions,
     #[case] expected_items: impl IntoIterator<Item = Item>,
+    #[case] expected_referenced: Option<Vec<&'static [&'static str]>>,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     let ids = setup_3_levels_with_sboms(ctx, &app).await?;
 
-    run_list_test(app, ids, q, options, expected_items).await?;
+    run_list_test(app, ids, q, options, expected_items, expected_referenced).await?;
 
     Ok(())
+}
+
+fn all_results() -> impl IntoIterator<Item = Item> {
+    [
+        Item::new(&["A"])
+            .description("Product A group")
+            .label("product", "A")
+            .total_groups(2)
+            .total_sboms(0)
+            .parents(&[]),
+        Item::new(&["A", "A1"])
+            .total_groups(2)
+            .total_sboms(0)
+            .parents(&["A"]),
+        Item::new(&["A", "A1", "A1a"])
+            .total_groups(0)
+            .total_sboms(2)
+            .parents(&["A", "A1"]),
+        Item::new(&["A", "A1", "A1b"])
+            .total_groups(0)
+            .total_sboms(0)
+            .parents(&["A", "A1"]),
+        Item::new(&["A", "A2"])
+            .total_groups(2)
+            .total_sboms(0)
+            .parents(&["A"]),
+        Item::new(&["A", "A2", "A2a"])
+            .total_groups(0)
+            .total_sboms(1)
+            .parents(&["A", "A2"]),
+        Item::new(&["A", "A2", "A2b"])
+            .total_groups(0)
+            .total_sboms(0)
+            .parents(&["A", "A2"]),
+        Item::new(&["B"])
+            .label("product", "B")
+            .total_groups(2)
+            .total_sboms(0)
+            .parents(&[]),
+        Item::new(&["B", "B1"])
+            .total_groups(2)
+            .total_sboms(0)
+            .parents(&["B"]),
+        Item::new(&["B", "B1", "B1a"])
+            .total_groups(0)
+            .total_sboms(1)
+            .parents(&["B", "B1"]),
+        Item::new(&["B", "B1", "B1b"])
+            .total_groups(0)
+            .total_sboms(0)
+            .parents(&["B", "B1"]),
+        Item::new(&["B", "B2"])
+            .total_groups(2)
+            .total_sboms(0)
+            .parents(&["B"]),
+        Item::new(&["B", "B2", "B2a"])
+            .total_groups(0)
+            .total_sboms(0)
+            .parents(&["B", "B2"]),
+        Item::new(&["B", "B2", "B2b"])
+            .total_groups(0)
+            .total_sboms(1)
+            .parents(&["B", "B2"]),
+    ]
 }

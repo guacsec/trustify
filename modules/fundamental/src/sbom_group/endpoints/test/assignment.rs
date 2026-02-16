@@ -159,10 +159,7 @@ async fn assert_assigned_groups(
     Ok(())
 }
 
-async fn call_bulk_assign(
-    app: &impl CallService,
-    body: impl serde::Serialize,
-) -> StatusCode {
+async fn call_bulk_assign(app: &impl CallService, body: impl serde::Serialize) -> StatusCode {
     app.call_service(
         TestRequest::put()
             .uri("/api/v2/group/sbom-assignment")

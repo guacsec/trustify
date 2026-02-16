@@ -1,7 +1,8 @@
 use crate::{
     Error,
-    sbom_group::model::{Group, GroupDetails, GroupRequest},
+    sbom_group::model::{Group, GroupDetails, GroupListResult, GroupRequest},
 };
+use isx::IsDefault;
 use itertools::izip;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QuerySelect,
@@ -19,7 +20,7 @@ use trustify_common::{
     model::{Paginated, PaginatedResults, Revisioned},
 };
 use trustify_entity::{sbom, sbom_group, sbom_group_assignment};
-use utoipa::IntoParams;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 /// Additional list options
@@ -32,8 +33,39 @@ pub struct ListOptions {
     #[serde(default)]
     totals: bool,
     /// return the parent chain
-    #[serde(default)]
-    parents: bool,
+    #[serde(default, skip_serializing_if = "ParentsMode::is_default")]
+    parents: ParentsMode,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    IsDefault,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum ParentsMode {
+    /// Skip returning IDs
+    #[default]
+    #[serde(alias = "false")]
+    Skip,
+    /// Return IDs
+    #[serde(alias = "true")]
+    Id,
+    /// Return IDs, and resolve into details
+    Resolve,
+}
+
+impl ParentsMode {
+    pub fn is_active(&self) -> bool {
+        matches!(self, ParentsMode::Id | ParentsMode::Resolve)
+    }
 }
 
 pub struct SbomGroupService {
@@ -53,7 +85,7 @@ impl SbomGroupService {
         paginated: Paginated,
         query: Query,
         db: &impl ConnectionTrait,
-    ) -> Result<PaginatedResults<GroupDetails>, Error> {
+    ) -> Result<GroupListResult, Error> {
         let ListOptions { totals, parents } = options;
 
         let query = sbom_group::Entity::find().filtering(query)?;
@@ -76,7 +108,7 @@ impl SbomGroupService {
             (Vec::with_capacity(0), Vec::with_capacity(0))
         };
 
-        let parents = if parents {
+        let parent_chains = if parents.is_active() {
             self.resolve_parents(&ids, db).await?
         } else {
             Vec::with_capacity(0)
@@ -86,7 +118,7 @@ impl SbomGroupService {
             result.items,
             total_groups.into_iter().map(Some).chain(repeat(None)),
             total_sboms.into_iter().map(Some).chain(repeat(None)),
-            parents.into_iter().map(Some).chain(repeat(None))
+            parent_chains.iter().cloned().map(Some).chain(repeat(None))
         ) {
             items.push(GroupDetails {
                 group: group.into(),
@@ -96,7 +128,38 @@ impl SbomGroupService {
             })
         }
 
-        Ok(PaginatedResults { items, total })
+        // Resolve referenced parent groups not in the primary result set
+        let referenced = if parents == ParentsMode::Resolve {
+            let item_ids: std::collections::HashSet<String> =
+                ids.iter().map(|id| id.to_string()).collect();
+
+            let referenced_ids: Vec<Uuid> = parent_chains
+                .iter()
+                .flatten()
+                .filter(|id| !item_ids.contains(*id))
+                .filter_map(|id| Uuid::parse_str(id).ok())
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect();
+
+            if referenced_ids.is_empty() {
+                Some(vec![])
+            } else {
+                let groups = sbom_group::Entity::find()
+                    .filter(sbom_group::Column::Id.is_in(referenced_ids))
+                    .all(db)
+                    .await?;
+
+                Some(groups.into_iter().map(Group::from).collect())
+            }
+        } else {
+            None
+        };
+
+        Ok(GroupListResult {
+            result: PaginatedResults { items, total },
+            referenced,
+        })
     }
 
     async fn resolve_totals(

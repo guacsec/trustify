@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
+use trustify_common::model::PaginatedResults;
 use trustify_entity::{labels::Labels, sbom_group};
 use utoipa::ToSchema;
 
@@ -89,6 +90,19 @@ pub struct GroupRequest {
 
     #[serde(default, skip_serializing_if = "Labels::is_empty")]
     pub labels: Labels,
+}
+
+/// Result of listing SBOM groups, with optional resolved parent references.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]
+pub struct GroupListResult {
+    #[serde(flatten)]
+    pub result: PaginatedResults<GroupDetails>,
+
+    /// Groups referenced by parent chains but not present in the primary result set.
+    ///
+    /// Only present when `parents=resolve` is requested.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub referenced: Option<Vec<Group>>,
 }
 
 /// Request to assign multiple SBOMs to the same set of groups.

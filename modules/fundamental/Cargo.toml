@@ -25,6 +25,7 @@ cpe = { workspace = true }
 csv = { workspace = true }
 flate2 ={ workspace = true }
 futures-util = { workspace = true }
+isx = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
 sanitize-filename = { workspace = true }
