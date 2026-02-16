@@ -2391,6 +2391,16 @@ paths:
           type: integer
           format: int64
           minimum: 0
+      - name: group
+        in: path
+        description: |-
+          Filter by group IDs. Only SBOMs assigned to any of the provided groups will be returned.
+          Can be specified multiple times. Malformed IDs are silently ignored.
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
       responses:
         '200':
           description: Matching SBOMs
@@ -2405,7 +2415,7 @@ paths:
       operationId: uploadSbom
       parameters:
       - name: labels
-        in: query
+        in: path
         description: |-
           Optional labels.
 
@@ -2414,9 +2424,9 @@ paths:
         schema:
           $ref: '#/components/schemas/Labels'
       - name: format
-        in: query
+        in: path
         description: The format of the uploaded document.
-        required: false
+        required: true
         schema:
           type: string
           enum:
@@ -2432,9 +2442,9 @@ paths:
           - sbom
           - unknown
       - name: cache
-        in: query
+        in: path
         description: Await loading the document into the analysis graph cache
-        required: false
+        required: true
         schema:
           type: string
           enum:
@@ -2442,13 +2452,13 @@ paths:
           - queue
           - wait
       - name: group
-        in: query
+        in: path
         description: |-
           Optional group IDs to assign the SBOM to after ingestion.
 
           If one or more group IDs are invalid, the upload will fail with 400 Bad Request
           and the SBOM will not be ingested.
-        required: false
+        required: true
         schema:
           type: array
           items:
