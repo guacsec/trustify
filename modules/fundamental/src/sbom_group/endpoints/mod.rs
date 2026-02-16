@@ -41,7 +41,8 @@ pub fn configure(
         .service(update)
         .service(delete)
         .service(read_assignments)
-        .service(update_assignments);
+        .service(update_assignments)
+        .service(bulk_update_assignments);
 }
 
 #[utoipa::path(
@@ -298,6 +299,35 @@ async fn update_assignments(
     db.transaction(async |tx| {
         service
             .update_assignments(&id, revision, group_ids, tx)
+            .await
+    })
+    .await?;
+
+    Ok(HttpResponse::NoContent().finish())
+}
+
+#[utoipa::path(
+    tag = "sbomGroup",
+    operation_id = "bulkUpdateSbomGroupAssignments",
+    request_body = BulkAssignmentRequest,
+    responses(
+        (status = 204, description = "The SBOM assignments were updated"),
+        (status = 400, description = "The request was not valid"),
+        (status = 401, description = "The user was not authenticated"),
+        (status = 403, description = "The user authenticated, but not authorized for this operation"),
+    )
+)]
+#[put("/v2/group/sbom-assignment")]
+/// Bulk update SBOM group assignments
+async fn bulk_update_assignments(
+    service: web::Data<SbomGroupService>,
+    db: web::Data<Database>,
+    web::Json(request): web::Json<BulkAssignmentRequest>,
+    _: Require<UpdateSbom>,
+) -> actix_web::Result<impl Responder> {
+    db.transaction(async |tx| {
+        service
+            .bulk_update_assignments(request.sbom_ids, request.group_ids, tx)
             .await
     })
     .await?;

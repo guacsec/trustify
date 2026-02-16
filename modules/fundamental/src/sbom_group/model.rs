@@ -90,3 +90,12 @@ pub struct GroupRequest {
     #[serde(default, skip_serializing_if = "Labels::is_empty")]
     pub labels: Labels,
 }
+
+/// Request to assign multiple SBOMs to the same set of groups.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]
+pub struct BulkAssignmentRequest {
+    /// The IDs of the SBOMs to update.
+    pub sbom_ids: Vec<String>,
+    /// The group IDs to assign to each SBOM (replaces existing assignments).
+    pub group_ids: Vec<String>,
+}

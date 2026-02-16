@@ -998,6 +998,27 @@ paths:
           description: The user authenticated, but not authorized for this operation
         '409':
           description: The name of the group is not unique within the parent
+  /api/v2/group/sbom-assignment:
+    put:
+      tags:
+      - sbomGroup
+      summary: Bulk update SBOM group assignments
+      operationId: bulkUpdateSbomGroupAssignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkAssignmentRequest'
+        required: true
+      responses:
+        '204':
+          description: The SBOM assignments were updated
+        '400':
+          description: The request was not valid
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
   /api/v2/group/sbom-assignment/{id}:
     get:
       tags:
@@ -3885,6 +3906,23 @@ components:
           type: string
     BinaryByteSize:
       type: string
+    BulkAssignmentRequest:
+      type: object
+      description: Request to assign multiple SBOMs to the same set of groups.
+      required:
+      - sbom_ids
+      - group_ids
+      properties:
+        group_ids:
+          type: array
+          items:
+            type: string
+          description: The group IDs to assign to each SBOM (replaces existing assignments).
+        sbom_ids:
+          type: array
+          items:
+            type: string
+          description: The IDs of the SBOMs to update.
     ByteSizeDef:
       type: string
     CacheStatusDetails:

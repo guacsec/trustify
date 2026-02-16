@@ -562,12 +562,94 @@ WHERE parent IS NULL
         let sbom_uuid =
             Uuid::parse_str(sbom_id).map_err(|_| Error::NotFound(sbom_id.to_string()))?;
 
-        let group_uuids: Result<Vec<_>, _> =
-            group_ids.iter().map(|id| Uuid::parse_str(id)).collect();
-        let group_uuids = group_uuids
-            .map_err(|_| Error::BadRequest("One or more group IDs are invalid".into(), None))?;
+        let group_uuids = parse_group_ids(&group_ids)?;
 
-        // Update the revision and check existence/revision in one operation
+        Self::bump_sbom_revision(sbom_uuid, revision, db).await?;
+        Self::replace_assignments(sbom_uuid, &group_uuids, db).await?;
+
+        Ok(())
+    }
+
+    /// Update SBOM group assignments for multiple SBOMs at once
+    pub async fn bulk_update_assignments(
+        &self,
+        sbom_ids: Vec<String>,
+        group_ids: Vec<String>,
+        db: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
+        if sbom_ids.is_empty() {
+            return Ok(());
+        }
+
+        let sbom_uuids: Vec<Uuid> = sbom_ids
+            .iter()
+            .map(|id| Uuid::parse_str(id))
+            .collect::<Result<_, _>>()
+            .map_err(|_| Error::BadRequest("One or more SBOM IDs are invalid".into(), None))?;
+
+        let group_uuids = parse_group_ids(&group_ids)?;
+
+        // Update revisions for all SBOMs and verify they all exist
+        let result = sbom::Entity::update_many()
+            .filter(sbom::Column::SbomId.is_in(sbom_uuids.clone()))
+            .col_expr(
+                sbom::Column::Revision,
+                SimpleExpr::FunctionCall(sea_query::Func::cust(sea_query::Alias::new(
+                    "gen_random_uuid",
+                ))),
+            )
+            .exec(db)
+            .await?;
+
+        if result.rows_affected != sbom_uuids.len() as u64 {
+            return Err(Error::BadRequest(
+                "One or more SBOM IDs do not exist".into(),
+                None,
+            ));
+        }
+
+        // Remove existing assignments for all SBOMs
+        sbom_group_assignment::Entity::delete_many()
+            .filter(sbom_group_assignment::Column::SbomId.is_in(sbom_uuids.clone()))
+            .exec(db)
+            .await?;
+
+        if group_uuids.is_empty() {
+            return Ok(());
+        }
+
+        // Insert new assignments (cartesian product of SBOMs × groups)
+        let assignments: Vec<_> = sbom_uuids
+            .iter()
+            .flat_map(|sbom_uuid| {
+                group_uuids
+                    .iter()
+                    .map(move |group_uuid| sbom_group_assignment::ActiveModel {
+                        sbom_id: Set(*sbom_uuid),
+                        group_id: Set(*group_uuid),
+                    })
+            })
+            .collect();
+
+        sbom_group_assignment::Entity::insert_many(assignments)
+            .exec(db)
+            .await
+            .map_err(|err| {
+                if err.is_foreign_key_violation() {
+                    Error::BadRequest("One or more group IDs do not exist".into(), None)
+                } else {
+                    err.into()
+                }
+            })?;
+
+        Ok(())
+    }
+
+    async fn bump_sbom_revision(
+        sbom_uuid: Uuid,
+        revision: Option<&str>,
+        db: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
         let new_revision = Uuid::now_v7();
         let mut update = sbom::Entity::update_many()
             .filter(sbom::Column::SbomId.eq(sbom_uuid))
@@ -585,7 +667,6 @@ WHERE parent IS NULL
         let result = update.exec(db).await?;
 
         if result.rows_affected == 0 {
-            // Check if the SBOM exists or if it was a revision mismatch
             let exists = sbom::Entity::find()
                 .filter(sbom::Column::SbomId.eq(sbom_uuid))
                 .one(db)
@@ -593,41 +674,58 @@ WHERE parent IS NULL
                 .is_some();
 
             return if !exists {
-                Err(Error::NotFound(sbom_id.to_string()))
+                Err(Error::NotFound(sbom_uuid.to_string()))
             } else {
                 Err(Error::RevisionNotFound)
             };
         }
 
-        // Update assignments
+        Ok(())
+    }
+
+    async fn replace_assignments(
+        sbom_uuid: Uuid,
+        group_uuids: &[Uuid],
+        db: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
         sbom_group_assignment::Entity::delete_many()
             .filter(sbom_group_assignment::Column::SbomId.eq(sbom_uuid))
             .exec(db)
             .await?;
 
-        if !group_uuids.is_empty() {
-            let assignments: Vec<_> = group_uuids
-                .into_iter()
-                .map(|group_uuid| sbom_group_assignment::ActiveModel {
-                    sbom_id: Set(sbom_uuid),
-                    group_id: Set(group_uuid),
-                })
-                .collect();
-
-            sbom_group_assignment::Entity::insert_many(assignments)
-                .exec(db)
-                .await
-                .map_err(|err| {
-                    if err.is_foreign_key_violation() {
-                        Error::BadRequest("One or more group IDs do not exist".into(), None)
-                    } else {
-                        err.into()
-                    }
-                })?;
+        if group_uuids.is_empty() {
+            return Ok(());
         }
+
+        let assignments: Vec<_> = group_uuids
+            .iter()
+            .map(|&group_uuid| sbom_group_assignment::ActiveModel {
+                sbom_id: Set(sbom_uuid),
+                group_id: Set(group_uuid),
+            })
+            .collect();
+
+        sbom_group_assignment::Entity::insert_many(assignments)
+            .exec(db)
+            .await
+            .map_err(|err| {
+                if err.is_foreign_key_violation() {
+                    Error::BadRequest("One or more group IDs do not exist".into(), None)
+                } else {
+                    err.into()
+                }
+            })?;
 
         Ok(())
     }
+}
+
+fn parse_group_ids(group_ids: &[String]) -> Result<Vec<Uuid>, Error> {
+    group_ids
+        .iter()
+        .map(|id| Uuid::parse_str(id))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| Error::BadRequest("One or more group IDs are invalid".into(), None))
 }
 
 /// Parse parent group string into UUID.
