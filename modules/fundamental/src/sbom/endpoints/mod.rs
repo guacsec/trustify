@@ -523,7 +523,7 @@ pub async fn upload(
 
             // Rewrite ID to have the prefix: Although the field is "id" it always carried the ID,
             // but with the `urn:uuid:` prefix. Which was used for "key" fields. Which accepted
-            // for than the actual ID. The while naming is flawed and confusing. But in order to
+            // for than the actual ID. The whole naming is flawed and confusing. But in order to
             // keep the API stable, we need to return the ID with the prefix.
             result.id = format!("urn:uuid:{}", result.id);
 

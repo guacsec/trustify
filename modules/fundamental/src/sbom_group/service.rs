@@ -589,11 +589,11 @@ WHERE parent IS NULL
                 .await?
                 .is_some();
 
-            if !exists {
-                return Err(Error::NotFound(sbom_id.to_string()));
+            return if !exists {
+                Err(Error::NotFound(sbom_id.to_string()))
             } else {
-                return Err(Error::RevisionNotFound);
-            }
+                Err(Error::RevisionNotFound)
+            };
         }
 
         // Update assignments
