@@ -9,6 +9,7 @@ pub struct Model {
 
     pub parent: Option<Uuid>,
     pub name: String,
+    pub description: Option<String>,
 
     pub revision: Uuid,
 

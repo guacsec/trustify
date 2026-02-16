@@ -15,20 +15,28 @@ use trustify_test_context::{TrustifyContext, call::CallService};
 /// Tests both successful creation with a valid name and failure cases with invalid inputs.
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case("foo", Default::default(), StatusCode::CREATED)]
-#[case("", Default::default(), StatusCode::BAD_REQUEST)]
-#[case("foo", Labels::new().add("foo", "bar"), StatusCode::CREATED)]
-#[case("foo", Labels::new().add("", "bar"), StatusCode::BAD_REQUEST)]
+#[case("foo", None, Default::default(), StatusCode::CREATED)]
+#[case("", None, Default::default(), StatusCode::BAD_REQUEST)]
+#[case("foo", None, Labels::new().add("foo", "bar"), StatusCode::CREATED)]
+#[case("foo", None, Labels::new().add("", "bar"), StatusCode::BAD_REQUEST)]
+#[case(
+    "foo-desc",
+    Some("A test group"),
+    Default::default(),
+    StatusCode::CREATED
+)]
 #[test_log::test(actix_web::test)]
 async fn create_group(
     ctx: &TrustifyContext,
     #[case] name: &str,
+    #[case] description: Option<&str>,
     #[case] labels: Labels,
     #[case] expected_status: StatusCode,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     let group: anyhow::Result<GroupResponse> = Create::new(name)
+        .description(description)
         .expect_status(expected_status)
         .labels(labels)
         .execute(&app)
@@ -37,11 +45,14 @@ async fn create_group(
     if expected_status.is_success() {
         let group = group.expect("Must have a result");
 
-        // check if the location is working
-
         let req = TestRequest::get().uri(&group.location.expect("must have location"));
         let read = app.call_and_read_body_json::<Value>(req.to_request()).await;
         assert_eq!(read["id"].as_str(), Some(group.id.as_str()));
+
+        match description {
+            Some(desc) => assert_eq!(read["description"].as_str(), Some(desc)),
+            None => assert!(read["description"].is_null()),
+        }
     }
 
     Ok(())

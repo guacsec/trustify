@@ -246,6 +246,7 @@ WHERE parent IS NULL
             id: Set(id),
             name: Set(group.name),
             parent: Set(parent),
+            description: Set(group.description),
             revision: Set(revision),
             labels: Set(group.labels.validate()?),
         };
@@ -329,6 +330,7 @@ WHERE parent IS NULL
             vec![
                 (sbom_group::Column::Name, group.name.into()),
                 (sbom_group::Column::Parent, parent.into()),
+                (sbom_group::Column::Description, group.description.into()),
                 (sbom_group::Column::Labels, group.labels.validate()?.into()),
             ],
             db,
@@ -455,6 +457,7 @@ WHERE parent IS NULL
             id: group.id.to_string(),
             name: group.name,
             parent: group.parent.map(|id| id.to_string()),
+            description: group.description,
             labels: group.labels,
         };
 

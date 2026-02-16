@@ -16,6 +16,7 @@ use trustify_test_context::{TrustifyContext, call::CallService};
 struct Item {
     id: &'static [&'static str],
     name: &'static str,
+    description: Option<&'static str>,
     labels: HashMap<&'static str, &'static str>,
     total_groups: Option<u64>,
     total_sboms: Option<u64>,
@@ -28,10 +29,16 @@ impl Item {
             id,
             name: id[id.len() - 1],
             labels: HashMap::new(),
+            description: None,
             total_groups: None,
             total_sboms: None,
             parents: None,
         }
+    }
+
+    pub fn description(mut self, description: &'static str) -> Self {
+        self.description = Some(description);
+        self
     }
 
     pub fn label(mut self, key: &'static str, value: &'static str) -> Self {
@@ -60,7 +67,7 @@ impl Item {
 #[rstest]
 // with an empty (get all) query filter
 #[case::no_filter("", [
-    Item::new(&["A"]).label("product", "A"),
+    Item::new(&["A"]).description("Product A group").label("product", "A"),
     Item::new(&["A", "A1"]),
     Item::new(&["A", "A1", "A1a"]),
     Item::new(&["A", "A1", "A1b"]),
@@ -77,7 +84,7 @@ impl Item {
 ])]
 // search for name equals "A", root level folder
 #[case::name_eq("name=A", [
-    Item::new(&["A"]).label("product", "A"),
+    Item::new(&["A"]).description("Product A group").label("product", "A"),
 ])]
 // search for name equals "A1", level 2 folder
 #[case::name_eq_l2("name=A1", [
@@ -85,7 +92,7 @@ impl Item {
 ])]
 // search for name contains "A"
 #[case::name_like("name~A", [
-    Item::new(&["A"]).label("product", "A"),
+    Item::new(&["A"]).description("Product A group").label("product", "A"),
     Item::new(&["A", "A1"]),
     Item::new(&["A", "A1", "A1a"]),
     Item::new(&["A", "A1", "A1b"]),
@@ -115,6 +122,7 @@ fn group_fixture_3_levels() -> Vec<Group> {
     vec![
         // level 1
         Group::new("A")
+            .description(Some("Product A group"))
             .labels(("product", "A"))
             // level 2
             .group(
@@ -151,7 +159,7 @@ fn group_fixture_3_levels() -> Vec<Group> {
 #[test_context(TrustifyContext)]
 #[rstest]
 #[case::root_folder([], [
-    Item::new(&["A"]).label("product", "A"),
+    Item::new(&["A"]).description("Product A group").label("product", "A"),
     Item::new(&["B"]).label("product", "B"),
 ])]
 #[case::level_2_folder(["A", "A1"], [
@@ -307,6 +315,7 @@ fn into_actual(
                     id,
                     parent,
                     name: item.name.to_string(),
+                    description: item.description.map(ToString::to_string),
                     labels: item.labels.into(),
                 },
                 number_of_groups: item.total_groups,
@@ -387,7 +396,7 @@ async fn setup_3_levels_with_sboms(
 #[rstest]
 // all groups, requesting totals only
 #[case::all_with_totals("", ListTestOptions { totals: true, parents: false }, [
-    Item::new(&["A"]).label("product", "A").total_groups(2).total_sboms(0),
+    Item::new(&["A"]).description("Product A group").label("product", "A").total_groups(2).total_sboms(0),
     Item::new(&["A", "A1"]).total_groups(2).total_sboms(0),
     Item::new(&["A", "A1", "A1a"]).total_groups(0).total_sboms(2),
     Item::new(&["A", "A1", "A1b"]).total_groups(0).total_sboms(0),
@@ -404,7 +413,7 @@ async fn setup_3_levels_with_sboms(
 ])]
 // all groups, requesting parent chain only
 #[case::all_with_parents("", ListTestOptions { totals: false, parents: true }, [
-    Item::new(&["A"]).label("product", "A").parents(&[]),
+    Item::new(&["A"]).description("Product A group").label("product", "A").parents(&[]),
     Item::new(&["A", "A1"]).parents(&["A"]),
     Item::new(&["A", "A1", "A1a"]).parents(&["A", "A1"]),
     Item::new(&["A", "A1", "A1b"]).parents(&["A", "A1"]),
@@ -421,7 +430,7 @@ async fn setup_3_levels_with_sboms(
 ])]
 // all groups, requesting both totals and parent chains
 #[case::all_with_totals_and_parents("", ListTestOptions { totals: true, parents: true }, [
-    Item::new(&["A"]).label("product", "A").total_groups(2).total_sboms(0).parents(&[]),
+    Item::new(&["A"]).description("Product A group").label("product", "A").total_groups(2).total_sboms(0).parents(&[]),
     Item::new(&["A", "A1"]).total_groups(2).total_sboms(0).parents(&["A"]),
     Item::new(&["A", "A1", "A1a"]).total_groups(0).total_sboms(2).parents(&["A", "A1"]),
     Item::new(&["A", "A1", "A1b"]).total_groups(0).total_sboms(0).parents(&["A", "A1"]),
@@ -446,7 +455,7 @@ async fn setup_3_levels_with_sboms(
 ])]
 // root-level groups only, with totals
 #[case::root_groups_with_totals("parent=\x00", ListTestOptions { totals: true, parents: false }, [
-    Item::new(&["A"]).label("product", "A").total_groups(2).total_sboms(0),
+    Item::new(&["A"]).description("Product A group").label("product", "A").total_groups(2).total_sboms(0),
     Item::new(&["B"]).label("product", "B").total_groups(2).total_sboms(0),
 ])]
 #[test_log::test(actix_web::test)]

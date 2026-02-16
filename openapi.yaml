@@ -4144,6 +4144,11 @@ components:
       - id
       - name
       properties:
+        description:
+          type:
+          - string
+          - 'null'
+          description: A user friendly description
         id:
           type: string
           description: The ID of the group
@@ -4200,14 +4205,21 @@ components:
       required:
       - name
       properties:
+        description:
+          type:
+          - string
+          - 'null'
+          description: A user provided description
         labels:
           $ref: '#/components/schemas/Labels'
         name:
           type: string
+          description: The name of the group.
         parent:
           type:
           - string
           - 'null'
+          description: The ID of the group's parent.
     Id:
       type: string
       description: |-
@@ -5409,6 +5421,11 @@ components:
           - id
           - name
           properties:
+            description:
+              type:
+              - string
+              - 'null'
+              description: A user friendly description
             id:
               type: string
               description: The ID of the group

@@ -15,6 +15,10 @@ pub struct Group {
     /// The name of the group, in the context of its parent
     pub name: String,
 
+    /// A user friendly description
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
     /// Additional group labels
     #[serde(default, skip_serializing_if = "Labels::is_empty")]
     pub labels: Labels,
@@ -26,6 +30,7 @@ impl From<sbom_group::Model> for Group {
             id: value.id.to_string(),
             parent: value.parent.map(|id| id.to_string()),
             name: value.name,
+            description: value.description,
             labels: value.labels,
         }
     }
@@ -71,10 +76,16 @@ impl DerefMut for GroupDetails {
 /// Mutable properties of a [`Group`].
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]
 pub struct GroupRequest {
+    /// The name of the group.
     pub name: String,
 
+    /// The ID of the group's parent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
+
+    /// A user provided description
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 
     #[serde(default, skip_serializing_if = "Labels::is_empty")]
     pub labels: Labels,

@@ -43,6 +43,12 @@ use trustify_test_context::TrustifyContext;
     IfMatchType::Correct,
     StatusCode::NO_CONTENT
 )]
+#[case::update_with_description( // Update with description
+    "Described Group",
+    None,
+    IfMatchType::Correct,
+    StatusCode::NO_CONTENT
+)]
 #[test_log::test(actix_web::test)]
 async fn update_group(
     ctx: &TrustifyContext,
@@ -244,6 +250,50 @@ async fn update_parent_to_root_create_conflict(ctx: &TrustifyContext) -> Result<
         .expect_status(StatusCode::CONFLICT)
         .execute(&app)
         .await?;
+
+    Ok(())
+}
+
+/// Test setting, changing, and clearing a group's description.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn update_group_description(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    let group: GroupResponse = Create::new("desc-test").execute(&app).await?;
+
+    let group = get_group_helper(&app, &group.id).await?;
+    assert!(group.body["description"].is_null());
+
+    Update::new(&group.id, "desc-test", &group.etag)
+        .description(Some("first description"))
+        .execute(&app)
+        .await?;
+
+    let group = get_group_helper(&app, &group.id).await?;
+    assert_eq!(
+        group.body["description"].as_str(),
+        Some("first description")
+    );
+
+    Update::new(&group.id, "desc-test", &group.etag)
+        .description(Some("updated description"))
+        .execute(&app)
+        .await?;
+
+    let group = get_group_helper(&app, &group.id).await?;
+    assert_eq!(
+        group.body["description"].as_str(),
+        Some("updated description")
+    );
+
+    Update::new(&group.id, "desc-test", &group.etag)
+        .description(None::<String>)
+        .execute(&app)
+        .await?;
+
+    let group = get_group_helper(&app, &group.id).await?;
+    assert!(group.body["description"].is_null());
 
     Ok(())
 }

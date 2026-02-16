@@ -72,6 +72,7 @@ impl FromCreateResponse for () {
 pub struct Create {
     name: String,
     parent: Option<String>,
+    description: Option<String>,
     labels: Labels,
     expected_status: StatusCode,
 }
@@ -82,12 +83,18 @@ impl Create {
             name: name.into(),
             labels: Default::default(),
             parent: None,
+            description: None,
             expected_status: StatusCode::CREATED,
         }
     }
 
     pub fn parent(mut self, parent: Option<&str>) -> Self {
         self.parent = parent.map(|s| s.to_string());
+        self
+    }
+
+    pub fn description(mut self, description: Option<impl Into<String>>) -> Self {
+        self.description = description.map(|s| s.into());
         self
     }
 
@@ -108,6 +115,9 @@ impl Create {
         let mut request_body = json!({"name": &self.name});
         if let Some(parent_id) = &self.parent {
             request_body["parent"] = json!(parent_id);
+        }
+        if let Some(description) = &self.description {
+            request_body["description"] = json!(description);
         }
         request_body["labels"] = serde_json::to_value(self.labels)?;
 
@@ -250,6 +260,7 @@ impl UpdateAssignments {
 
 pub struct Group {
     pub name: String,
+    pub description: Option<String>,
     pub labels: Labels,
     pub children: Vec<Group>,
 }
@@ -258,9 +269,15 @@ impl Group {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
+            description: None,
             labels: Default::default(),
             children: Default::default(),
         }
+    }
+
+    pub fn description(mut self, description: Option<impl Into<String>>) -> Self {
+        self.description = description.map(|s| s.into());
+        self
     }
 
     pub fn group(mut self, group: impl Into<Group>) -> Self {
@@ -278,6 +295,7 @@ impl From<&str> for Group {
     fn from(value: &str) -> Self {
         Self {
             name: value.to_string(),
+            description: None,
             children: vec![],
             labels: Labels::default(),
         }
@@ -339,6 +357,7 @@ async fn create_group_recursive(
 
     let created: GroupResponse = Create::new(&group.name)
         .parent(parent_id)
+        .description(group.description)
         .labels(group.labels)
         .execute(app)
         .await?;

@@ -16,6 +16,7 @@ struct Update {
     id: String,
     name: String,
     parent: Option<String>,
+    description: Option<Option<String>>,
     labels: Option<Labels>,
     if_match_type: IfMatchType,
     etag: String,
@@ -28,6 +29,7 @@ impl Update {
             id: id.into(),
             name: name.into(),
             parent: None,
+            description: None,
             labels: None,
             if_match_type: IfMatchType::Correct,
             etag: etag.into(),
@@ -37,6 +39,11 @@ impl Update {
 
     pub fn parent(mut self, parent: Option<&str>) -> Self {
         self.parent = parent.map(|s| s.to_string());
+        self
+    }
+
+    pub fn description(mut self, description: Option<impl Into<String>>) -> Self {
+        self.description = Some(description.map(|s| s.into()));
         self
     }
 
@@ -60,6 +67,9 @@ impl Update {
 
         if let Some(parent_id) = &self.parent {
             update_body["parent"] = json!(parent_id);
+        }
+        if let Some(description) = &self.description {
+            update_body["description"] = json!(description);
         }
         if let Some(labels) = &self.labels {
             update_body["labels"] = serde_json::to_value(labels)?;

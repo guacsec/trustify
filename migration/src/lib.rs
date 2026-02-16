@@ -44,6 +44,7 @@ mod m0002020_add_sbom_group;
 mod m0002030_create_ai;
 mod m0002040_create_crypto;
 mod m0002050_add_sbom_revision;
+mod m0002060_add_sbom_group_field;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -104,6 +105,7 @@ impl MigratorExt for Migrator {
             .normal(m0002030_create_ai::Migration)
             .normal(m0002040_create_crypto::Migration)
             .normal(m0002050_add_sbom_revision::Migration)
+            .normal(m0002060_add_sbom_group_field::Migration)
     }
 }
 
