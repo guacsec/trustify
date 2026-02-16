@@ -71,10 +71,9 @@ async fn list(
     web::Query(options): web::Query<ListOptions>,
     web::Query(query): web::Query<Query>,
     _: Require<ReadSbomGroup>,
-) -> Result<impl Responder, Error> {
+) -> actix_web::Result<impl Responder> {
     let tx = db.begin_read().await?;
     let result = service.list(options, pagination, query, &tx).await?;
-    tx.rollback().await?;
 
     Ok(HttpResponse::Ok().json(result))
 }
@@ -112,12 +111,12 @@ async fn create(
     web::Json(group): web::Json<GroupRequest>,
     _: Require<CreateSbomGroup>,
 ) -> Result<impl Responder, Error> {
-    let tx = db.begin().await?;
     let Revisioned {
         revision,
         value: id,
-    } = service.create(group, &tx).await?;
-    tx.commit().await?;
+    } = db
+        .transaction(async |tx| service.create(group, tx).await)
+        .await?;
 
     Ok(HttpResponse::Created()
         .append_header((header::LOCATION, format!("{}/{}", req.path(), id)))
@@ -223,10 +222,9 @@ async fn read(
     db: web::Data<Database>,
     id: web::Path<String>,
     _: Require<ReadSbomGroup>,
-) -> Result<impl Responder, Error> {
+) -> actix_web::Result<impl Responder> {
     let tx = db.begin_read().await?;
     let group = service.read(&id, &tx).await?;
-    tx.rollback().await?;
 
     Ok(match group {
         Some(Revisioned { value, revision }) => HttpResponse::Ok()
@@ -257,10 +255,9 @@ async fn read_assignments(
     db: web::Data<Database>,
     id: web::Path<String>,
     _: Require<ReadSbom>,
-) -> Result<impl Responder, Error> {
+) -> actix_web::Result<impl Responder> {
     let tx = db.begin_read().await?;
     let assignments = service.read_assignments(&id, &tx).await?;
-    tx.rollback().await?;
 
     Ok(match assignments {
         Some(Revisioned { value, revision }) => HttpResponse::Ok()
@@ -295,14 +292,15 @@ async fn update_assignments(
     web::Json(group_ids): web::Json<Vec<String>>,
     web::Header(if_match): web::Header<IfMatch>,
     _: Require<UpdateSbom>,
-) -> Result<impl Responder, Error> {
+) -> actix_web::Result<impl Responder> {
     let revision = extract_revision(&if_match);
 
-    let tx = db.begin().await?;
-    service
-        .update_assignments(&id, revision, group_ids, &tx)
-        .await?;
-    tx.commit().await?;
+    db.transaction(async |tx| {
+        service
+            .update_assignments(&id, revision, group_ids, tx)
+            .await
+    })
+    .await?;
 
     Ok(HttpResponse::NoContent().finish())
 }
