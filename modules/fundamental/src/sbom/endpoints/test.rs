@@ -1562,11 +1562,18 @@ async fn all_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test(actix_web::test)]
 async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
-    let id = ctx
-        .ingest_document("cyclonedx/cryptographic/keycloak-cbom.json")
-        .await?
-        .id
-        .to_string();
+
+    // First upload it via the normal SBOM endpoint
+    let request = TestRequest::post()
+        .uri("/api/v2/sbom")
+        .set_payload(document_bytes("cyclonedx/cryptographic/keycloak-cbom.json").await?)
+        .to_request();
+    let response = app.call_service(request).await;
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let result: IngestResult = actix_web::test::read_body_json(response).await;
+
+    // Now fetch the AIBOM we just uploaded by its id
+    let id = result.id.to_string();
     let uri = format!("/api/v2/sbom/{id}");
     let req = TestRequest::get().uri(&uri).to_request();
     let sbom: Value = app.call_and_read_body_json(req).await;
