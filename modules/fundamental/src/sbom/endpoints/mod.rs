@@ -517,9 +517,11 @@ pub async fn upload(
                 .await
                 .map_err(Error::Ingestor)?;
 
-            sbom_group
-                .update_assignments(&result.id, None, group, tx)
-                .await?;
+            if !group.is_empty() {
+                sbom_group
+                    .update_assignments(&result.id, None, group, tx)
+                    .await?;
+            }
 
             // Rewrite ID to have the prefix: Although the field is "id" it always carried the ID,
             // but with the `urn:uuid:` prefix. Which was used for "key" fields. Which accepted
