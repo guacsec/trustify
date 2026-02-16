@@ -449,7 +449,9 @@ mod test {
         let loader = CsafLoader::new(&graph);
 
         let (csaf, digests): (Csaf, _) = document("csaf/cve-2023-0044.json").await?;
-        loader.load(("source", "test"), csaf, &digests).await?;
+        loader
+            .load(("source", "test"), csaf, &digests, &ctx.db)
+            .await?;
 
         let loaded_vulnerability = graph.get_vulnerability("CVE-2023-0044", &ctx.db).await?;
         assert!(loaded_vulnerability.is_some());
@@ -536,7 +538,9 @@ mod test {
         let loader = CsafLoader::new(&graph);
 
         let (csaf, digests): (Csaf, _) = document("csaf/rhsa-2024_3666.json").await?;
-        loader.load(("source", "test"), csaf, &digests).await?;
+        loader
+            .load(("source", "test"), csaf, &digests, &ctx.db)
+            .await?;
 
         let loaded_advisory = graph
             .get_advisory_by_digest(&digests.sha256.encode_hex::<String>(), &ctx.db)
