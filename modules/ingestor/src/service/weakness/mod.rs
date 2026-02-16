@@ -8,17 +8,12 @@ use tracing::instrument;
 use trustify_common::{db::chunk::EntityChunkedIter, hashing::Digests};
 use trustify_entity::{labels::Labels, weakness};
 
+#[derive(Default)]
 pub struct CweCatalogLoader {}
-
-impl Default for CweCatalogLoader {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl CweCatalogLoader {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
     }
 
     #[instrument(skip(self, buffer, tx), ret)]
