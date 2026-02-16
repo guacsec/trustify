@@ -15,6 +15,7 @@ impl MigrationTrait for Migration {
                     .col(
                         ColumnDef::new(SbomAi::Properties)
                             .json_binary()
+                            .not_null()
                             .default(serde_json::Value::Null),
                     )
                     .primary_key(
