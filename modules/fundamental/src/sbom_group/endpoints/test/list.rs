@@ -450,13 +450,13 @@ async fn setup_3_levels_with_sboms(
 // all groups, requesting parent chain only
 #[case::all_with_parents("", ListTestOptions { parents: "id", ..Default::default() }, all_results().without_totals(), None)]
 // all groups, requesting both totals and parent chains
-#[case::all_with_totals_and_parents("", ListTestOptions { totals: true, parents: "id", ..Default::default() }, all_results(), None)]
+#[case::all_with_totals_and_parents("", ListTestOptions { totals: true, parents: "id" }, all_results(), None)]
 // filter to the leaf that has the multi-assigned SBOM
-#[case::multi_assigned_leaf("name=A1a", ListTestOptions { totals: true, parents: "id", ..Default::default() }, [
+#[case::multi_assigned_leaf("name=A1a", ListTestOptions { totals: true, parents: "id" }, [
     Item::new(&["A", "A1", "A1a"]).total_groups(0).total_sboms(2).parents(&["A", "A1"]),
 ], None)]
 // the other leaf sharing the same SBOM
-#[case::multi_assigned_other_leaf("name=B1a", ListTestOptions { totals: true, parents: "id", ..Default::default() }, [
+#[case::multi_assigned_other_leaf("name=B1a", ListTestOptions { totals: true, parents: "id" }, [
     Item::new(&["B", "B1", "B1a"]).total_groups(0).total_sboms(1).parents(&["B", "B1"]),
 ], None)]
 // root-level groups only, with totals
