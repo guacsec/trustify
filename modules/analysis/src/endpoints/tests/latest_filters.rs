@@ -976,3 +976,50 @@ async fn test_tc3518(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case( // cdx cpe search
+    Req { what: What::Id("cpe:/a:redhat:jboss_enterprise_application_platform_els:7.4::el8"),latest:true, ancestors: Some(10), ..Req::default() },
+    1)]
+#[case( // cdx purl search
+    Req { what: What::Q("purl~pkg:maven/aopalliance/aopalliance"), ancestors: Some(10), ..Req::default() },
+    1)]
+#[case( // cdx latest purl search
+    Req { what: What::Q("purl~pkg:maven/aopalliance/aopalliance"),latest:true, ancestors: Some(10), ..Req::default() },
+    1)]
+#[case( // cdx purl search
+    Req { what: What::Q("purl~pkg:maven/antlr/antlr"), ancestors: Some(10), ..Req::default() },
+    1)]
+#[case( // cdx latest purl search
+    Req { what: What::Q("purl~pkg:maven/antlr/antlr"),latest:true, ancestors: Some(10), ..Req::default() },
+    1)]
+#[test_log::test(actix_web::test)]
+async fn test_tc3624(
+    ctx: &TrustifyContext,
+    #[case] req: Req<'_>,
+    #[case] total: usize,
+    #[values(false, true)] prime_cache: bool,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    ctx.ingest_documents("cyclonedx/rh/latest_filters/TC-3624/".join([
+        "product.json",
+        "index.json",
+        "binary.json",
+    ]))
+    .await?;
+
+    if prime_cache {
+        let _response = app.req(Req::default()).await?;
+    }
+
+    let mut response = app.req(req).await?;
+
+    sort(&mut response["items"]);
+
+    log::info!("{response:#?}");
+    assert_eq!(total, response["total"]);
+
+    Ok(())
+}

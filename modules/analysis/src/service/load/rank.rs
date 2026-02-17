@@ -200,6 +200,10 @@ pub async fn find_node_ancestors<C: ConnectionTrait>(
         let parents = package_relates_to_package::Entity::find()
             .filter(package_relates_to_package::Column::SbomId.eq(sbom_id))
             .filter(package_relates_to_package::Column::RightNodeId.eq(&current_child_id))
+            // We are interested in retrieving information (ex. CPE) from top level sbom
+            // so we filter out the 'tippity top' upstream node which use AncestorOf
+            // relationship type.
+            .filter(package_relates_to_package::Column::Relationship.ne(Relationship::AncestorOf))
             .all(connection)
             .await?;
 
