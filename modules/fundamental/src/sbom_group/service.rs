@@ -34,6 +34,7 @@ pub struct ListOptions {
     totals: bool,
     /// return the parent chain
     #[serde(default, skip_serializing_if = "ParentsMode::is_default")]
+    #[param(inline)]
     parents: ParentsMode,
 }
 

@@ -857,7 +857,11 @@ paths:
         description: return the parent chain
         required: false
         schema:
-          $ref: '#/components/schemas/ParentsMode'
+          type: string
+          enum:
+          - skip
+          - id
+          - resolve
       - name: offset
         in: query
         description: |-
