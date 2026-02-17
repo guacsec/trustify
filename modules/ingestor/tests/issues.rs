@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 #![allow(clippy::expect_used)]
 
 use test_context::test_context;
