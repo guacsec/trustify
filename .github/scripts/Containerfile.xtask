@@ -20,7 +20,7 @@ LABEL \
     org.opencontainers.image.description="Trustify - xtask binary" \
     org.opencontainers.image.source="https://github.com/guacsec/trustify"
 
-RUN dnf install --nodocs -y zlib openssl krb5-libs libzstd lz4-libs libxml2 unzip
+RUN dnf install --nodocs -y zlib openssl krb5-libs libzstd lz4-libs libxml2 unzip xz
 
 COPY --from=builder /unpack/xtask /usr/local/bin
 
