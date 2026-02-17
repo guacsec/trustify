@@ -1,0 +1,192 @@
+{
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "services": [
+        {
+          "name": "SBOMer",
+          "version": "637e4529",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0",
+                "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "provider": {
+            "url": [
+              "https://www.redhat.com"
+            ],
+            "name": "Red Hat"
+          },
+          "externalReferences": [
+            {
+              "url": "https://github.com/project-ncl/sbomer",
+              "type": "website"
+            }
+          ]
+        }
+      ]
+    },
+    "supplier": {
+      "url": [
+        "https://www.redhat.com"
+      ],
+      "name": "Red Hat"
+    },
+    "component": {
+      "name": "jboss-eap-7/eap74-els-openjdk17-openshift-rhel8",
+      "purl": "pkg:oci/eap74-els-openjdk17-openshift-rhel8@sha256%3A0936205dec899d575494288b19aeda97d1e205c4f02af1aeefbe19073e30cb47",
+      "type": "container",
+      "description": "Image index manifest of pkg:oci/eap74-els-openjdk17-openshift-rhel8@sha256%3A0936205dec899d575494288b19aeda97d1e205c4f02af1aeefbe19073e30cb47"
+    },
+    "timestamp": "2026-02-02T03:58:57Z",
+    "properties": [
+      {
+        "name": "redhat:advisory_id",
+        "value": "158706"
+      }
+    ]
+  },
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "name": "jboss-eap-7/eap74-els-openjdk17-openshift-rhel8",
+      "purl": "pkg:oci/eap74-els-openjdk17-openshift-rhel8@sha256%3A0936205dec899d575494288b19aeda97d1e205c4f02af1aeefbe19073e30cb47",
+      "type": "container",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0936205dec899d575494288b19aeda97d1e205c4f02af1aeefbe19073e30cb47"
+        }
+      ],
+      "bom-ref": "jboss-eap-74-openjdk17-builder-openshift-rhel8-container_image-index",
+      "version": "sha256:0936205dec899d575494288b19aeda97d1e205c4f02af1aeefbe19073e30cb47",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/eap74-els-openjdk17-openshift-rhel8@sha256%3A0936205dec899d575494288b19aeda97d1e205c4f02af1aeefbe19073e30cb47"
+          },
+          {
+            "field": "purl",
+            "concludedValue": "pkg:oci/eap74-els-openjdk17-openshift-rhel8@sha256%3A0936205dec899d575494288b19aeda97d1e205c4f02af1aeefbe19073e30cb47"
+          }
+        ]
+      },
+      "pedigree": {
+        "variants": [
+          {
+            "name": "jboss-eap-7/eap74-els-openjdk17-openshift-rhel8",
+            "purl": "pkg:oci/eap74-els-openjdk17-openshift-rhel8@sha256%3A8ddcacd1f70665943117708888f063cf62934ccd96f3174859fa9fbc591b0a69?arch=amd64&os=linux&repository_url=registry.access.redhat.com%2Fjboss-eap-7%2Feap74-els-openjdk17-openshift-rhel8&tag=7.4.23-7.1769998824",
+            "type": "container",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "8ddcacd1f70665943117708888f063cf62934ccd96f3174859fa9fbc591b0a69"
+              }
+            ],
+            "bom-ref": "jboss-eap-74-openjdk17-builder-openshift-rhel8-container_amd64",
+            "version": "sha256:8ddcacd1f70665943117708888f063cf62934ccd96f3174859fa9fbc591b0a69",
+            "supplier": {
+              "url": [
+                "https://www.redhat.com"
+              ],
+              "name": "Red Hat"
+            },
+            "publisher": "Red Hat"
+          },
+          {
+            "name": "jboss-eap-7/eap74-els-openjdk17-openshift-rhel8",
+            "purl": "pkg:oci/eap74-els-openjdk17-openshift-rhel8@sha256%3A60d057eb992f50cedb527f174c0156c7b1b18464a270d6982c0ab5881ba1c9b2?arch=arm64&os=linux&repository_url=registry.access.redhat.com%2Fjboss-eap-7%2Feap74-els-openjdk17-openshift-rhel8&tag=7.4.23-7.1769998824",
+            "type": "container",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "60d057eb992f50cedb527f174c0156c7b1b18464a270d6982c0ab5881ba1c9b2"
+              }
+            ],
+            "bom-ref": "jboss-eap-74-openjdk17-builder-openshift-rhel8-container_arm64",
+            "version": "sha256:60d057eb992f50cedb527f174c0156c7b1b18464a270d6982c0ab5881ba1c9b2",
+            "supplier": {
+              "url": [
+                "https://www.redhat.com"
+              ],
+              "name": "Red Hat"
+            },
+            "publisher": "Red Hat"
+          },
+          {
+            "name": "jboss-eap-7/eap74-els-openjdk17-openshift-rhel8",
+            "purl": "pkg:oci/eap74-els-openjdk17-openshift-rhel8@sha256%3Ab1b9f71cd40814cb9d940eee13f94740323b28a1949e4e6b071c40875ca00306?arch=ppc64le&os=linux&repository_url=registry.access.redhat.com%2Fjboss-eap-7%2Feap74-els-openjdk17-openshift-rhel8&tag=7.4.23-7.1769998824",
+            "type": "container",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "b1b9f71cd40814cb9d940eee13f94740323b28a1949e4e6b071c40875ca00306"
+              }
+            ],
+            "bom-ref": "jboss-eap-74-openjdk17-builder-openshift-rhel8-container_ppc64le",
+            "version": "sha256:b1b9f71cd40814cb9d940eee13f94740323b28a1949e4e6b071c40875ca00306",
+            "supplier": {
+              "url": [
+                "https://www.redhat.com"
+              ],
+              "name": "Red Hat"
+            },
+            "publisher": "Red Hat"
+          },
+          {
+            "name": "jboss-eap-7/eap74-els-openjdk17-openshift-rhel8",
+            "purl": "pkg:oci/eap74-els-openjdk17-openshift-rhel8@sha256%3A08ed07544b8fd42d63802f0b64e352698cd676e6a969033baa420b6d9a19966f?arch=s390x&os=linux&repository_url=registry.access.redhat.com%2Fjboss-eap-7%2Feap74-els-openjdk17-openshift-rhel8&tag=7.4.23-7.1769998824",
+            "type": "container",
+            "hashes": [
+              {
+                "alg": "SHA-256",
+                "content": "08ed07544b8fd42d63802f0b64e352698cd676e6a969033baa420b6d9a19966f"
+              }
+            ],
+            "bom-ref": "jboss-eap-74-openjdk17-builder-openshift-rhel8-container_s390x",
+            "version": "sha256:08ed07544b8fd42d63802f0b64e352698cd676e6a969033baa420b6d9a19966f",
+            "supplier": {
+              "url": [
+                "https://www.redhat.com"
+              ],
+              "name": "Red Hat"
+            },
+            "publisher": "Red Hat"
+          }
+        ]
+      },
+      "supplier": {
+        "url": [
+          "https://www.redhat.com"
+        ],
+        "name": "Red Hat"
+      },
+      "publisher": "Red Hat",
+      "properties": [
+        {
+          "name": "sbomer:image:labels:com.redhat.component",
+          "value": "jboss-eap-74-openjdk17-builder-openshift-rhel8-container"
+        },
+        {
+          "name": "sbomer:image:labels:name",
+          "value": "jboss-eap-7/eap74-els-openjdk17-openshift-rhel8"
+        },
+        {
+          "name": "sbomer:image:labels:release",
+          "value": "7.1769998824"
+        },
+        {
+          "name": "sbomer:image:labels:version",
+          "value": "7.4.23"
+        }
+      ]
+    }
+  ],
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:bcccd3f4-1b82-3819-add4-2cfc2deef06b"
+}
