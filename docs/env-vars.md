@@ -51,7 +51,6 @@
 | `TRUSTD_S3_SECRET_KEY`                   | S3 secret key                                                                       |                                         |
 | `TRUSTD_STORAGE_FS_PATH`                 | Path for storage file system strategy                                               | `./.trustify/storage`                   |
 | `TRUSTD_STORAGE_STRATEGY`                | Specifies the storage strategy to use                                               | `File system`                           |
-| `TRUSTD_WITH_GRAPHQL`                    | Allows enabling the GraphQL endpoint                                                | `false`                                 |
 | `UI_CLIENT_ID`                           | Client ID used by the UI                                                            | `frontend`                              |
 | `UI_ISSUER_URL`                          | Issuer URL used by the UI                                                           | `http://localhost:8090/realms/trustify` |
 | `UI_SCOPE`                               | Scopes to request                                                                   | `openid`                                |
