@@ -156,7 +156,7 @@ uuid = "1.7.0"
 walkdir = "2.5"
 walker-common = "0.15.0"
 wiremock = "0.6"
-zip = "7"
+zip = "8"
 
 trustify-auth = { path = "common/auth", features = ["actix", "swagger"] }
 trustify-common = { path = "common" }
@@ -210,5 +210,3 @@ csaf = { git = "https://github.com/scm-rs/csaf-rs", branch = "main" }
 
 # required due to https://github.com/doubleopen-project/spdx-rs/pull/35
 spdx-rs = { git = "https://github.com/ctron/spdx-rs", branch = "feature/add_alias_2" }
-
-lzma-rust2 = { git = "https://github.com/hasenbanck/lzma-rust2", rev = "ce3f90a8de6b2cc994b2a49bceffba975d9596f3" } # drop when zip has upgraded
