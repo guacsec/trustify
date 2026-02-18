@@ -1701,13 +1701,13 @@ async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     log::debug!("{sbom:#?}");
 
     // assert expected fields
-    assert_eq!(sbom["id"], format!("urn:uuid:{id}"));
+    assert_eq!(sbom["id"], id);
     assert_eq!(sbom["number_of_packages"], 1);
     let labels = sbom["labels"].as_object().unwrap();
     assert_eq!(labels["kind"], "aibom");
     assert_eq!(labels["type"], "cyclonedx");
 
-    let uri = format!("/api/v2/sbom/urn:uuid:{id}/packages");
+    let uri = format!("/api/v2/sbom/{id}/packages");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     log::info!("{:#}", json!(response));
