@@ -9,8 +9,11 @@ use sea_orm::{
     SelectGetableTuple, Selector, Set, Statement, query::QueryFilter,
 };
 use sea_query::{ArrayType, Expr, SimpleExpr, Value};
-use std::collections::HashMap;
-use std::{borrow::Cow, iter::repeat};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    iter::repeat,
+};
 use trustify_common::{
     db::{
         DatabaseErrors,
@@ -645,7 +648,7 @@ WHERE parent IS NULL
             return Ok(());
         }
 
-        let sbom_uuids: Vec<Uuid> = sbom_ids
+        let sbom_uuids: HashSet<Uuid> = sbom_ids
             .iter()
             .map(|id| Uuid::parse_str(id))
             .collect::<Result<_, _>>()
@@ -784,12 +787,16 @@ WHERE parent IS NULL
     }
 }
 
+/// Parse and deduplicate group ID strings into UUIDs.
+///
+/// Duplicates are silently removed to avoid primary-key violations when inserting assignments.
 fn parse_group_ids(group_ids: &[String]) -> Result<Vec<Uuid>, Error> {
-    group_ids
+    let uuids: HashSet<Uuid> = group_ids
         .iter()
         .map(|id| Uuid::parse_str(id))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| Error::BadRequest("One or more group IDs are invalid".into(), None))
+        .collect::<Result<_, _>>()
+        .map_err(|_| Error::BadRequest("One or more group IDs are invalid".into(), None))?;
+    Ok(uuids.into_iter().collect())
 }
 
 /// Parse parent group string into UUID.

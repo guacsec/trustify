@@ -87,29 +87,54 @@ async fn sbom_group_assignments_not_found(ctx: &TrustifyContext) -> anyhow::Resu
 }
 
 #[test_context(TrustifyContext)]
+#[rstest]
+#[case::invalid_format("not-a-valid-uuid", StatusCode::BAD_REQUEST)]
+#[case::nonexistent("00000000-0000-0000-0000-000000000000", StatusCode::BAD_REQUEST)]
 #[test_log::test(actix_web::test)]
-async fn sbom_group_assignments_invalid_group(ctx: &TrustifyContext) -> anyhow::Result<()> {
+async fn sbom_group_assignments_invalid_group(
+    ctx: &TrustifyContext,
+    #[case] group_id: &str,
+    #[case] expected_status: StatusCode,
+) -> anyhow::Result<()> {
     let app = caller(ctx).await?;
 
-    // Ingest an SBOM
     let sbom_result = ctx
         .ingest_document("zookeeper-3.9.2-cyclonedx.json")
         .await?;
     let sbom_id = sbom_result.id.to_string();
 
-    // Test invalid group ID format (400)
     UpdateAssignments::new(&sbom_id)
-        .group_ids(vec!["not-a-valid-uuid".to_string()])
-        .expect_status(StatusCode::BAD_REQUEST)
+        .group_ids(vec![group_id.to_string()])
+        .expect_status(expected_status)
         .execute(&app)
         .await?;
 
-    // Test non-existent group ID (400)
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn sbom_group_assignments_duplicate_group(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let group: GroupResponse = Create::new("Group 1").execute(&app).await?;
+
+    let sbom_result = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let sbom_id = sbom_result.id.to_string();
+
+    let assignments = read_assignments(&app, &sbom_id).await?;
+
     UpdateAssignments::new(&sbom_id)
-        .group_ids(vec!["00000000-0000-0000-0000-000000000000".to_string()])
-        .expect_status(StatusCode::BAD_REQUEST)
+        .etag(&assignments.etag)
+        .group_ids(vec![group.id.clone(), group.id.clone()])
         .execute(&app)
         .await?;
+
+    let assignments = read_assignments(&app, &sbom_id).await?;
+    assert_eq!(assignments.group_ids.len(), 1);
+    assert_eq!(assignments.group_ids[0], group.id);
 
     Ok(())
 }
@@ -268,6 +293,78 @@ async fn bulk_sbom_group_assignments_empty(ctx: &TrustifyContext) -> anyhow::Res
     )
     .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn bulk_sbom_group_assignments_nonexistent_sbom(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let status = call_bulk_assign(
+        &app,
+        BulkAssignmentRequest {
+            sbom_ids: vec!["00000000-0000-0000-0000-000000000000".to_string()],
+            group_ids: vec![],
+        },
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn bulk_sbom_group_assignments_duplicate_sbom(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let group: GroupResponse = Create::new("Group 1").execute(&app).await?;
+
+    let sbom = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let sbom_id = sbom.id.to_string();
+
+    let status = call_bulk_assign(
+        &app,
+        BulkAssignmentRequest {
+            sbom_ids: vec![sbom_id.clone(), sbom_id.clone()],
+            group_ids: vec![group.id.clone()],
+        },
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    assert_assigned_groups(&app, &sbom_id, &[&group.id]).await?;
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn bulk_sbom_group_assignments_duplicate_group(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let group: GroupResponse = Create::new("Group 1").execute(&app).await?;
+
+    let sbom = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let sbom_id = sbom.id.to_string();
+
+    let status = call_bulk_assign(
+        &app,
+        BulkAssignmentRequest {
+            sbom_ids: vec![sbom_id.clone()],
+            group_ids: vec![group.id.clone(), group.id.clone()],
+        },
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    assert_assigned_groups(&app, &sbom_id, &[&group.id]).await?;
 
     Ok(())
 }
