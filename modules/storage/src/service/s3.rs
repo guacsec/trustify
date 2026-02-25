@@ -259,7 +259,7 @@ mod test {
     use super::*;
     use crate::service::{
         dispatch::DispatchBackend,
-        test::{test_read_not_found, test_store_read_and_delete},
+        test::{test_read_not_found, test_store_read_and_delete, test_store_read_and_delete_rng},
     };
     use rstest::rstest;
     use std::fmt::Write;
@@ -313,13 +313,26 @@ mod test {
 
     #[test(tokio::test)]
     #[rstest]
-    #[case(Compression::None)]
-    #[case(Compression::Zstd)]
+    #[case::none(Compression::None)]
+    #[case::zstd(Compression::Zstd)]
     #[cfg_attr(not(feature = "_test-s3"), ignore = "requires minio or s3")]
     async fn store_read_and_delete(#[case] compression: Compression) {
         let backend = backend(compression).await;
 
         test_store_read_and_delete(backend).await
+    }
+
+    #[test(tokio::test)]
+    #[rstest]
+    #[case::none(Compression::None)]
+    #[case::zstd(Compression::Zstd)]
+    #[cfg_attr(not(feature = "_test-s3"), ignore = "requires minio or s3")]
+    async fn store_read_and_delete_rng(#[case] compression: Compression) {
+        let backend = backend(compression).await;
+
+        test_store_read_and_delete_rng(backend).await;
+
+        log::info!("test finished: {compression}");
     }
 
     /// Ensure retrieving the information that the file does not exist works.
