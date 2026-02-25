@@ -43,10 +43,10 @@ anyhow = "1.0.72"
 async-compression = "0.4.13"
 async-recursion = "1"
 async-trait = "0.1.74"
-aws-config = { version = "1.6.1", features = ["behavior-version-latest"] }
-aws-sdk-s3 = { version = "1.83.0", features = ["behavior-version-latest"] }
-aws-smithy-http-client = { version = "1", features = ["rustls-aws-lc"] }
-aws-smithy-types = { version = "1" }
+aws-config = { version = "1.8.14", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.124.0", features = ["behavior-version-latest"] }
+aws-smithy-http-client = { version = "1.1.11", features = ["rustls-aws-lc"] }
+aws-smithy-types = { version = "1.4.5" }
 base64 = "0.22"
 biscuit = "0.7"
 build-info = "0.0.42"
