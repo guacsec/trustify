@@ -34,7 +34,7 @@ async fn test_store_read_and_delete_with_data<B: StorageBackend>(backend: &B, co
 
     let digest = timeout(Duration::from_mins(1), backend.store(content))
         .await
-        .expect(&format!("store timed out - size: {}", content.len()))
+        .unwrap_or_else(|_| panic!("store timed out - size: {}", content.len()))
         .expect("store must succeed");
 
     tracing::info!(size = content.len(), "stored");
@@ -51,7 +51,7 @@ async fn test_store_read_and_delete_with_data<B: StorageBackend>(backend: &B, co
         stream.try_collect::<BytesMut>().await.unwrap()
     })
     .await
-    .expect(&format!("read timed out - size: {}", content.len()));
+    .unwrap_or_else(|_| panic!("read timed out - size: {}", content.len()));
 
     tracing::info!(size = content.len(), "read");
 
