@@ -206,7 +206,7 @@ async fn update(
     responses(
         (
             status = 200, description = "The group was found and returned",
-            body = Revisioned<Group>,
+            body = Group,
             headers(
                 ("etag" = String, description = "Revision ID")
             )

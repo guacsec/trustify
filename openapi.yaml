@@ -1110,7 +1110,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Revisioned_Group'
+                $ref: '#/components/schemas/Group'
         '400':
           description: The request was not valid
         '401':
@@ -5420,48 +5420,6 @@ components:
           type: string
           format: date-time
           description: Start of the import run
-    Revisioned_Group:
-      type: object
-      description: |-
-        A struct wrapping an item with a revision.
-
-        If the revision should not be part of the payload, but e.g. an HTTP header (like `ETag`), this
-        struct can help carrying both pieces.
-      required:
-      - value
-      - revision
-      properties:
-        revision:
-          type: string
-          description: |-
-            The revision.
-
-            An opaque string that should have no meaning to the user, only to the backend.
-        value:
-          type: object
-          required:
-          - id
-          - name
-          properties:
-            description:
-              type:
-              - string
-              - 'null'
-              description: A user friendly description
-            id:
-              type: string
-              description: The ID of the group
-            labels:
-              $ref: '#/components/schemas/Labels'
-              description: Additional group labels
-            name:
-              type: string
-              description: The name of the group, in the context of its parent
-            parent:
-              type:
-              - string
-              - 'null'
-              description: The direct parent of this group
     Revisioned_Importer:
       type: object
       description: |-
