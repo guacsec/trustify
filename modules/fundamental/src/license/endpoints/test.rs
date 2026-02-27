@@ -316,6 +316,73 @@ async fn list_licenses_with_pagination(ctx: &TrustifyContext) -> Result<(), anyh
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
+async fn list_licenses_no_partial_license_ref_match(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    // Ingest an SPDX SBOM with overlapping LicenseRef- identifiers:
+    // LicenseRef-BSD ("BSD License") vs LicenseRef-BSD-with-advertising ("BSD with advertising License")
+    // LicenseRef-GPL ("GPL License") vs LicenseRef-GPLv2 ("GPLv2 License")
+    ctx.ingest_document("spdx/license-ref-overlap.json").await?;
+
+    let uri = "/api/v2/license?limit=1000";
+    let request = TestRequest::get().uri(uri).to_request();
+    let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
+
+    let license_names: Vec<String> = response.items.iter().map(|l| l.license.clone()).collect();
+
+    // The bug: LicenseRef-BSD matches within LicenseRef-BSD-with-advertising,
+    // producing "BSD License-with-advertising" instead of "BSD with advertising License"
+    assert!(
+        !license_names
+            .iter()
+            .any(|l| l.contains("BSD License-with-advertising")),
+        "Partial LicenseRef- match detected: 'BSD License-with-advertising' should not exist"
+    );
+
+    // Correct expansion of the full LicenseRef-BSD-with-advertising
+    assert!(
+        license_names
+            .iter()
+            .any(|l| l.contains("BSD with advertising License")),
+        "Expected 'BSD with advertising License' from LicenseRef-BSD-with-advertising expansion"
+    );
+
+    // Short ref LicenseRef-BSD still works on its own
+    assert!(
+        license_names.iter().any(|l| l == "BSD License"),
+        "Expected 'BSD License' from LicenseRef-BSD expansion"
+    );
+
+    // Both overlapping GPL refs expand correctly
+    assert!(
+        license_names
+            .iter()
+            .any(|l| l == "GPLv2 License OR GPL License"),
+        "Expected 'GPLv2 License OR GPL License' from overlapping GPL LicenseRef expansion, found: {:?}",
+        license_names
+            .iter()
+            .filter(|l| l.contains("GPL"))
+            .collect::<Vec<_>>()
+    );
+
+    // No raw LicenseRef- values should remain
+    let license_ref_found: Vec<&String> = license_names
+        .iter()
+        .filter(|l| l.contains("LicenseRef-"))
+        .collect();
+    assert!(
+        license_ref_found.is_empty(),
+        "No raw 'LicenseRef-' should remain but found: {:?}",
+        license_ref_found
+    );
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
 async fn list_licenses_sorting(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 

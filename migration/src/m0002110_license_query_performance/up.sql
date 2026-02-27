@@ -18,7 +18,7 @@ BEGIN
         IF POSITION('LicenseRef-' IN result_text) = 0 THEN
             EXIT;
         END IF;
-        result_text := regexp_replace(result_text, '\m' || mapping.license_id || '\M', mapping.name, 'g');
+        result_text := regexp_replace(result_text, '\m' || mapping.license_id || '(?![a-zA-Z0-9.\-])', mapping.name, 'g');
     END LOOP;
 
     RETURN result_text;
