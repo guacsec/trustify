@@ -2417,11 +2417,11 @@ paths:
           format: int64
           minimum: 0
       - name: group
-        in: path
+        in: query
         description: |-
           Filter by group IDs. Only SBOMs assigned to any of the provided groups will be returned.
           Can be specified multiple times. Malformed IDs are silently ignored.
-        required: true
+        required: false
         schema:
           type: array
           items:

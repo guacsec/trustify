@@ -150,6 +150,7 @@ pub async fn get_license_export(
 }
 
 #[derive(Clone, Debug, Default, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct GroupFilterQuery {
     /// Filter by group IDs. Only SBOMs assigned to any of the provided groups will be returned.
     /// Can be specified multiple times. Malformed IDs are silently ignored.
