@@ -14,13 +14,27 @@ RUN cd unpack && \
 
 RUN chmod a+x /unpack/xtask
 
-FROM registry.access.redhat.com/ubi9/ubi:latest
+FROM docker.io/library/ubuntu:24.04
 
 LABEL \
     org.opencontainers.image.description="Trustify - xtask binary" \
     org.opencontainers.image.source="https://github.com/guacsec/trustify"
 
-RUN dnf install --nodocs -y zlib openssl krb5-libs libzstd lz4-libs libxml2 unzip xz
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        ca-certificates \
+        zlib1g \
+        openssl \
+        libkrb5-3 \
+        libzstd1 \
+        liblz4-1 \
+        libxml2 \
+        unzip \
+        xz-utils \
+        squashfs-tools \
+        btrfs-progs \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /unpack/xtask /usr/local/bin
 
