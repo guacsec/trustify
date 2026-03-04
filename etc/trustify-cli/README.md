@@ -43,6 +43,8 @@ trustify sbom duplicates delete
   - [`sbom delete`](#sbom-delete)
   - [`sbom duplicates find`](#sbom-duplicates-find)
   - [`sbom duplicates delete`](#sbom-duplicates-delete)
+  - [`sbom prune`](#sbom-prune)
+
 - [API Reference](#api-reference)
 - [License](#license)
 
@@ -174,4 +176,56 @@ trustify sbom duplicates delete --dry-run       # Preview what will be deleted
 trustify sbom duplicates delete                 # Delete all duplicates
 trustify sbom duplicates delete -j 16           # Faster with 16 concurrent requests
 trustify sbom duplicates delete --input out.json # Use custom input file
+```
+
+---
+
+### `sbom prune`
+
+Prune SBOMs based on various criteria like age, labels, or keeping only the latest versions. Always preview with `--dry-run` first!
+
+```bash
+trustify sbom prune --dry-run                                # Preview what will be pruned
+trustify sbom prune --older-than 90                          # Delete SBOMs older than 90 days
+trustify sbom prune --published-before 2026-01-15T10:30:45Z  # Delete SBOMs published before thespecified date
+trustify sbom prune --label type=spdx --label importer=run   # Delete SBOMs with specific labels
+trustify sbom prune --keep-latest 5                          # Keep only 5 most recent per document ID
+trustify sbom prune --query "name=my-app"                    # Custom query filter
+trustify sbom prune --limit 1000                             # Limit results and increase concurrency
+trustify sbom prune --output results.json --quiet            # Save results to file, suppress output
+```
+
+**Output file format:**
+
+```json
+{
+  "deleted": [
+    {
+      "sbom_id": "urn:uuid:019c4a3f-dc4e-7383-8154-248b6fde0bf0",
+      "document_id": "https://security.access.redhat.com/data/sbom/v1/spdx/rhacs-4.9/2026-02-10/789b2d0e8ca41796396188ed277cfc486d11e01c0a38847031afed71ac629729"
+    }
+  ],
+  "deleted_total": 1,
+  "skipped": [
+    {
+      "sbom_id": "urn:uuid:019c4a3f-a277-7882-a7c0-46cc40e6d56d",
+      "document_id": "https://security.access.redhat.com/data/sbom/v1/spdx/rhcl-1/2026-02-10/03e360634a6e4c341c198cd526c16f2d2d5a87c24a4d47a224c6234976254272"
+    }
+  ],
+  "skipped_total": 1,
+  "failed": [
+    {
+      "sbom_id": "urn:uuid:019c4a37-0588-7623-bcea-c86b1c934e7f",
+      "document_id": "https://security.access.redhat.com/data/sbom/v1/spdx/rhel-9.7.z/2026-02-10/c581247cac636be448ba6a0a931f34a191e626f1d9251d30bb50364b5eee574d",
+      "error": "HTTP 408: Server timeout"
+    },
+    {
+      "sbom_id": "urn:uuid:019c4a38-4212-77b3-914e-ed1c897b32d1",
+      "document_id": "https://security.access.redhat.com/data/sbom/v1/spdx/rhel-9.6.z/2026-02-10/a149c656d9084b579939ebd4b30b71b3ca5b8ab28c0e39aea00703b274092ea1",
+      "error": "HTTP 408: Server timeout"
+    },
+  ],
+  "failed_total": 2,
+  "total": 4
+}
 ```

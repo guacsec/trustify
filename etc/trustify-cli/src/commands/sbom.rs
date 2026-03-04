@@ -1,12 +1,15 @@
-use std::io::{self, Write};
-use std::path::Path;
-use std::process::ExitCode;
+use std::{
+    io::{self, Write},
+    path::Path,
+    process::ExitCode,
+};
 
 use clap::{Subcommand, ValueEnum};
 use serde_json::Value;
 
 use crate::Context;
 use crate::api::sbom as sbom_api;
+use chrono::{DateTime, Local};
 
 /// Output format for SBOM list
 #[derive(Clone, Default, ValueEnum)]
@@ -20,6 +23,12 @@ pub enum ListFormat {
     /// Output complete JSON document
     #[default]
     Full,
+}
+
+#[derive(Clone, Default, ValueEnum)]
+pub enum OutputFormat {
+    #[default]
+    Json,
 }
 
 #[derive(Subcommand)]
@@ -107,6 +116,53 @@ pub enum SbomCommands {
         #[command(subcommand)]
         command: DuplicatesCommands,
     },
+
+    /// prune SBOMs
+    Prune {
+        /// Query filter for SBOMs to delete
+        #[arg(long)]
+        query: Option<String>,
+
+        /// Perform a dry run without actually deleting
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Number of concurrent delete requests (default: 10)
+        #[arg(long, default_value = "10")]
+        concurrency: usize,
+
+        /// Limit the number of SBOMs to query and delete (default: 100)
+        #[arg(long, default_value = "100")]
+        limit: Option<u32>,
+
+        /// Prune SBOMs published before a certain date (format: RFC 3339, e.g., 2024-01-15T10:30:45Z)
+        #[arg(long)]
+        published_before: Option<String>,
+
+        /// Prune SBOMs ingested before the given number of days
+        #[arg(long)]
+        older_than: Option<i64>,
+
+        /// Label to filter SBOMs to delete (can be specified multiple times)
+        #[arg(long)]
+        label: Vec<String>,
+
+        /// Keep N most recent SBOMs per document ID
+        #[arg(long)]
+        keep_latest: Option<u32>,
+
+        /// Output file type (default: json)
+        #[arg(long, default_value = "json")]
+        output_type: Option<OutputFormat>,
+
+        /// Output file path (default: sboms.json)
+        #[arg(long, default_value = "sboms.json")]
+        output: Option<String>,
+
+        /// Quiet mode
+        #[arg(long)]
+        quiet: bool,
+    },
 }
 
 impl SbomCommands {
@@ -158,20 +214,86 @@ impl SbomCommands {
                     if *dry_run {
                         println!("[DRY-RUN] Would delete {} SBOM(s)", delete_result.total);
                     } else {
-                        let mut msg = format!("Deleted {} SBOM(s)", delete_result.deleted);
-                        if delete_result.skipped > 0 {
+                        let mut msg = format!("Deleted {} SBOM(s)", delete_result.deleted_total);
+                        if delete_result.skipped_total > 0 {
                             msg.push_str(&format!(
                                 ", {} skipped (not found)",
-                                delete_result.skipped
+                                delete_result.skipped_total
                             ));
                         }
-                        if delete_result.failed > 0 {
-                            msg.push_str(&format!(", {} failed", delete_result.failed));
+                        if delete_result.failed_total > 0 {
+                            msg.push_str(&format!(", {} failed", delete_result.failed_total));
                         }
                         msg.push_str(&format!(" out of {} total", delete_result.total));
                         println!("{}", msg);
                     }
                 }
+                Ok(ExitCode::SUCCESS)
+            }
+            SbomCommands::Prune {
+                query,
+                dry_run,
+                concurrency,
+                limit,
+                published_before,
+                older_than,
+                label,
+                keep_latest,
+                output_type,
+                output,
+                quiet,
+            } => {
+                let published_before = if let Some(date_str) = published_before {
+                    Some(DateTime::parse_from_rfc3339(date_str)
+                        .map_err(|e| anyhow::anyhow!("Invalid date format for published_before: {}. Expected RFC 3339 format (e.g., 2024-01-15T10:30:45Z)", e))?
+                        .with_timezone(&Local))
+                } else {
+                    None
+                };
+
+                let params = sbom_api::PruneParams {
+                    q: query.clone(),
+                    limit: *limit,
+                    keep_latest: *keep_latest,
+                    published_before,
+                    older_than: *older_than,
+                    label: Some(label.clone()).filter(|l| !l.is_empty()),
+                    dry_run: *dry_run,
+                    concurrency: *concurrency,
+                };
+                let prune_result = sbom_api::prune(&ctx.client, &params).await?;
+                if *dry_run {
+                    println!("[DRY-RUN] Would prune {} SBOM(s)", prune_result.total);
+                } else {
+                    let mut msg = format!("Pruned {} SBOM(s)", prune_result.deleted_total);
+                    if !*quiet {
+                        if prune_result.skipped_total > 0 {
+                            msg.push_str(&format!(
+                                ", {} skipped (not found)",
+                                prune_result.skipped_total
+                            ));
+                        }
+                        if prune_result.failed_total > 0 {
+                            msg.push_str(&format!(", {} failed", prune_result.failed_total));
+                        }
+                    }
+                    msg.push_str(&format!(" out of {} total", prune_result.total));
+                    println!("{}", msg);
+                }
+
+                if let Some(output_path) = output {
+                    match output_type.as_ref() {
+                        Some(OutputFormat::Json) | None => {
+                            let json =
+                                serde_json::to_string_pretty(&prune_result).map_err(|e| {
+                                    anyhow::anyhow!("Failed to serialize result: {}", e)
+                                })?;
+                            std::fs::write(output_path, json)
+                                .map_err(|e| anyhow::anyhow!("Failed to write to file: {}", e))?;
+                        }
+                    }
+                }
+
                 Ok(ExitCode::SUCCESS)
             }
         }
@@ -231,12 +353,12 @@ impl DuplicatesCommands {
                 if *dry_run {
                     println!("[DRY-RUN] Would delete {} duplicate(s)", result.total);
                 } else {
-                    let mut msg = format!("Deleted {} duplicate(s)", result.deleted);
-                    if result.skipped > 0 {
-                        msg.push_str(&format!(", {} skipped (not found)", result.skipped));
+                    let mut msg = format!("Deleted {} duplicate(s)", result.deleted_total);
+                    if result.skipped_total > 0 {
+                        msg.push_str(&format!(", {} skipped (not found)", result.skipped_total));
                     }
-                    if result.failed > 0 {
-                        msg.push_str(&format!(", {} failed", result.failed));
+                    if result.failed_total > 0 {
+                        msg.push_str(&format!(", {} failed", result.failed_total));
                     }
                     msg.push_str(&format!(" out of {} total", result.total));
                     println!("{}", msg);

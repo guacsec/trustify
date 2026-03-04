@@ -8,8 +8,7 @@ use std::process::ExitCode;
 use anyhow::Result;
 use clap::Parser;
 
-use api::ApiClient;
-use api::auth::AuthCredentials;
+use api::{ApiClient, auth::AuthCredentials};
 use cli::Cli;
 
 /// Runtime context containing config and API client

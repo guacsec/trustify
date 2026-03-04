@@ -1,11 +1,9 @@
-use std::sync::Arc;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use indicatif::style::TemplateError;
 use reqwest::{Client, RequestBuilder, StatusCode};
 use thiserror::Error;
-use tokio::sync::RwLock;
-use tokio::time::sleep;
+use tokio::{sync::RwLock, time::sleep};
 
 const MAX_RETRIES: u32 = 3;
 const RETRY_DELAY_MS: u64 = 1000;
