@@ -1569,14 +1569,14 @@ async fn packages_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Fetch summary to get hashes
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/urn:uuid:{id}"))
+        .uri(&format!("/api/v2/sbom/{id}"))
         .to_request();
     let sbom: Value = app.call_and_read_body_json(req).await;
     let sha256 = sbom["sha256"].as_str().unwrap();
 
     // Fetch packages by UUID
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/urn:uuid:{id}/packages"))
+        .uri(&format!("/api/v2/sbom/{id}/packages"))
         .to_request();
     let by_uuid: Value = app.call_and_read_body_json(req).await;
 
@@ -1625,14 +1625,14 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Fetch summary to get hashes
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/urn:uuid:{id}"))
+        .uri(&format!("/api/v2/sbom/{id}"))
         .to_request();
     let sbom: Value = app.call_and_read_body_json(req).await;
     let sha256 = sbom["sha256"].as_str().unwrap();
 
     // Fetch related by UUID
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/urn:uuid:{id}/related"))
+        .uri(&format!("/api/v2/sbom/{id}/related"))
         .to_request();
     let by_uuid: Value = app.call_and_read_body_json(req).await;
 
