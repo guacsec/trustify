@@ -34,6 +34,7 @@ RUN apt-get update && \
         xz-utils \
         squashfs-tools \
         btrfs-progs \
+        tzdata \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /unpack/xtask /usr/local/bin
