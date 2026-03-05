@@ -18,6 +18,10 @@ pub struct Config {
     /// OAuth2 Client Secret
     #[arg(long = "client-secret", env = "TRUSTIFY_CLIENT_SECRET")]
     pub client_secret: Option<String>,
+
+    /// Disable authentication (no token required)
+    #[arg(long = "auth-disabled", env = "TRUSTIFY_AUTH_DISABLED")]
+    pub auth_disabled: bool,
 }
 
 impl Config {

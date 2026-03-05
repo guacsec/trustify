@@ -70,6 +70,8 @@ TRUSTIFY_URL=https://trustify.example.com
 TRUSTIFY_SSO_URL=https://sso.example.com/realms/trustify
 TRUSTIFY_CLIENT_ID=my-client
 TRUSTIFY_CLIENT_SECRET=my-secret
+# Or disable auth entirely for local testing:
+# TRUSTIFY_AUTH_DISABLED=true
 ```
 
 That's it! The CLI automatically loads credentials and handles OAuth2 token management.
@@ -85,6 +87,7 @@ That's it! The CLI automatically loads credentials and handles OAuth2 token mana
     --sso-url <SSO_URL>              SSO URL for authentication
     --client-id <CLIENT_ID>          OAuth2 Client ID
     --client-secret <CLIENT_SECRET>  OAuth2 Client Secret
+    --auth-disabled                  Disable authentication (no token required)
 -h, --help                           Print help
 -V, --version                        Print version
 ```

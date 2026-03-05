@@ -26,14 +26,15 @@ async fn main() -> Result<ExitCode> {
     let cli = Cli::parse();
 
     // Build auth credentials and get initial token if configured
-    let (token, auth_credentials) =
-        if let Some((sso_url, client_id, client_secret)) = cli.config.auth_credentials() {
-            let creds = AuthCredentials::new(sso_url, client_id, client_secret);
-            let token = creds.get_token().await?;
-            (Some(token), Some(creds))
-        } else {
-            (None, None)
-        };
+    let (token, auth_credentials) = if cli.config.auth_disabled {
+        (None, None)
+    } else if let Some((sso_url, client_id, client_secret)) = cli.config.auth_credentials() {
+        let creds = AuthCredentials::new(sso_url, client_id, client_secret);
+        let token = creds.get_token().await?;
+        (Some(token), Some(creds))
+    } else {
+        (None, None)
+    };
 
     // Create API client with auth credentials for token refresh
     let client = ApiClient::new(&cli.config.url, token, auth_credentials);
