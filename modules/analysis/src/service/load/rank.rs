@@ -82,7 +82,7 @@ where
     C: ConnectionTrait + Send,
 {
     if !visited.insert((sbom_id, node_id.clone())) {
-        log::warn!("cycle detected for SBOM {sbom_id} / {node_id}, skipping recursion");
+        log::debug!("cycle detected for SBOM {sbom_id} / {node_id}, skipping recursion");
         return Ok(vec![]);
     }
 
