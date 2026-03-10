@@ -1,0 +1,88 @@
+{
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "license-ref-overlap-test",
+  "documentNamespace": "https://example.org/test/license-ref-overlap",
+  "creationInfo": {
+    "created": "2024-01-01T00:00:00Z",
+    "creators": [
+      "Tool: test"
+    ],
+    "licenseListVersion": "3.19"
+  },
+  "hasExtractedLicensingInfos": [
+    {
+      "licenseId": "LicenseRef-BSD",
+      "extractedText": "BSD License text",
+      "name": "BSD License"
+    },
+    {
+      "licenseId": "LicenseRef-BSD-with-advertising",
+      "extractedText": "BSD with advertising License text",
+      "name": "BSD with advertising License"
+    },
+    {
+      "licenseId": "LicenseRef-GPL",
+      "extractedText": "GPL License text",
+      "name": "GPL License"
+    },
+    {
+      "licenseId": "LicenseRef-GPLv2",
+      "extractedText": "GPLv2 License text",
+      "name": "GPLv2 License"
+    }
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-bsd-advertising",
+      "name": "package-bsd-advertising",
+      "versionInfo": "1.0",
+      "downloadLocation": "https://example.org/package-bsd-advertising",
+      "filesAnalyzed": false,
+      "licenseConcluded": "LicenseRef-BSD-with-advertising",
+      "licenseDeclared": "LicenseRef-BSD-with-advertising",
+      "copyrightText": "NOASSERTION",
+      "supplier": "Organization: Test"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-bsd-only",
+      "name": "package-bsd-only",
+      "versionInfo": "1.0",
+      "downloadLocation": "https://example.org/package-bsd-only",
+      "filesAnalyzed": false,
+      "licenseConcluded": "LicenseRef-BSD",
+      "licenseDeclared": "LicenseRef-BSD",
+      "copyrightText": "NOASSERTION",
+      "supplier": "Organization: Test"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-gpl-overlap",
+      "name": "package-gpl-overlap",
+      "versionInfo": "1.0",
+      "downloadLocation": "https://example.org/package-gpl-overlap",
+      "filesAnalyzed": false,
+      "licenseConcluded": "LicenseRef-GPLv2 OR LicenseRef-GPL",
+      "licenseDeclared": "LicenseRef-GPLv2 OR LicenseRef-GPL",
+      "copyrightText": "NOASSERTION",
+      "supplier": "Organization: Test"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-bsd-advertising"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-bsd-only"
+    },
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-gpl-overlap"
+    }
+  ]
+}
