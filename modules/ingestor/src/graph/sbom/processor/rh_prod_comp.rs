@@ -38,7 +38,7 @@ impl super::Processor for RedHatProductComponentRelationships {
         self.document_node_id = document_node_id.to_string();
 
         for supplier in suppliers {
-            if SUPPLIERS.contains(supplier) {
+            if SUPPLIERS.iter().any(|s| s.eq_ignore_ascii_case(supplier)) {
                 self.active = true;
             }
         }
@@ -219,4 +219,52 @@ fn find_cpes(
         .filter_map(|cpe| cpes.find(*cpe))
         .map(|cpe| cpe.to_string())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graph::sbom::processor::{InitContext, Processor};
+
+    fn init_with_suppliers(suppliers: &[&str]) -> RedHatProductComponentRelationships {
+        let mut processor = RedHatProductComponentRelationships::new();
+        processor.init(InitContext {
+            suppliers,
+            document_node_id: "doc-node",
+        });
+        processor
+    }
+
+    #[test]
+    fn activates_for_exact_supplier() {
+        let p = init_with_suppliers(&["Red Hat"]);
+        assert!(p.active);
+    }
+
+    #[test]
+    fn activates_for_organization_supplier() {
+        let p = init_with_suppliers(&["Organization: Red Hat"]);
+        assert!(p.active);
+    }
+
+    #[test]
+    fn activates_case_insensitive() {
+        assert!(init_with_suppliers(&["red hat"]).active);
+        assert!(init_with_suppliers(&["RED HAT"]).active);
+        assert!(init_with_suppliers(&["Red hat"]).active);
+        assert!(init_with_suppliers(&["organization: red hat"]).active);
+        assert!(init_with_suppliers(&["ORGANIZATION: RED HAT"]).active);
+    }
+
+    #[test]
+    fn does_not_activate_for_other_supplier() {
+        let p = init_with_suppliers(&["SUSE"]);
+        assert!(!p.active);
+    }
+
+    #[test]
+    fn does_not_activate_for_empty_suppliers() {
+        let p = init_with_suppliers(&[]);
+        assert!(!p.active);
+    }
 }
