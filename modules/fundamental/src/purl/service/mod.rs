@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     Error,
-    common::license_filtering::{LICENSE, build_license_filtering_with_clause},
+    common::license_filtering::LICENSE,
     purl::model::{
         RecommendEntry, VulnerabilityStatus,
         details::{
@@ -14,11 +14,11 @@ use crate::{
 use itertools::Itertools;
 use regex::Regex;
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
-    QuerySelect, QueryTrait, RelationTrait, Statement, prelude::Uuid,
+    ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
+    QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
 };
 use sea_query::{
-    Alias, ColumnType, Condition, Expr, JoinType, Order, PgFunc, PostgresQueryBuilder,
+    ColumnType, JoinType, Order,
 };
 use tracing::instrument;
 use trustify_common::{
@@ -32,7 +32,8 @@ use trustify_common::{
 use trustify_entity::{
     base_purl, license,
     qualified_purl::{self, CanonicalPurl},
-    sbom_package, sbom_package_license, sbom_package_purl_ref, versioned_purl,
+    sbom_license_expanded, sbom_package, sbom_package_license, sbom_package_purl_ref,
+    versioned_purl,
 };
 use trustify_module_ingestor::common::Deprecation;
 
@@ -323,23 +324,27 @@ impl PurlService {
             .get_constraint_for_field(LICENSE)
             .map(|constraint| q(&format!("{constraint}")))
         {
-            #[derive(Debug, FromQueryResult)]
-            struct QualifiedPurlIdResult {
-                id: Uuid,
-            }
-
-            // Build the CTEs for license filtering
-            let with_clause = build_license_filtering_with_clause();
-
-            let mut statement = sbom_package_purl_ref::Entity::find()
-                .distinct()
+            // SPDX path: join through junction → dictionary
+            let spdx_subquery = sbom_package_purl_ref::Entity::find()
                 .select_only()
-                .column_as(sbom_package_purl_ref::Column::QualifiedPurlId, "id")
+                .distinct()
+                .column(sbom_package_purl_ref::Column::QualifiedPurlId)
                 .join(
-                    JoinType::Join,
+                    JoinType::InnerJoin,
                     sbom_package_purl_ref::Relation::Package.def(),
                 )
-                .join(JoinType::Join, sbom_package::Relation::PackageLicense.def())
+                .join(
+                    JoinType::InnerJoin,
+                    sbom_package::Relation::PackageLicense.def(),
+                )
+                .join(
+                    JoinType::InnerJoin,
+                    sbom_package_license::Relation::SbomLicenseExpanded.def(),
+                )
+                .join(
+                    JoinType::InnerJoin,
+                    sbom_license_expanded::Relation::ExpandedLicense.def(),
+                )
                 .filtering_with(
                     license_query.clone(),
                     Columns::default()
@@ -350,52 +355,22 @@ impl PurlService {
                         }),
                 )?
                 .into_query();
-            let x = statement
-                .join(
-                    JoinType::Join,
-                    Alias::new("expanded"),
-                    Condition::all()
-                        .add(
-                            Expr::col((
-                                sbom_package_license::Entity,
-                                sbom_package_license::Column::SbomId,
-                            ))
-                            .equals((Alias::new("expanded"), Alias::new("sbom_id"))),
-                        )
-                        .add(
-                            Expr::col((
-                                sbom_package_license::Entity,
-                                sbom_package_license::Column::LicenseId,
-                            ))
-                            .equals((Alias::new("expanded"), Alias::new("license_id"))),
-                        ),
-                )
-                .to_owned();
-            let main_query = x.with(with_clause);
-            let (sql, values) = main_query.build(PostgresQueryBuilder);
-            let qualified_purl_ids_filtered_by_license: Vec<Uuid> =
-                QualifiedPurlIdResult::find_by_statement(Statement::from_sql_and_values(
-                    DbBackend::Postgres,
-                    sql,
-                    values,
-                ))
-                .all(connection)
-                .await?
-                .into_iter()
-                .map(|r| r.id)
-                .collect();
 
+            // CycloneDX path: direct text match
             let cyclonedx_subquery = sbom_package_purl_ref::Entity::find()
-                .distinct()
                 .select_only()
+                .distinct()
                 .column(sbom_package_purl_ref::Column::QualifiedPurlId)
                 .join(
-                    JoinType::Join,
+                    JoinType::InnerJoin,
                     sbom_package_purl_ref::Relation::Package.def(),
                 )
-                .join(JoinType::Join, sbom_package::Relation::PackageLicense.def())
                 .join(
-                    JoinType::Join,
+                    JoinType::InnerJoin,
+                    sbom_package::Relation::PackageLicense.def(),
+                )
+                .join(
+                    JoinType::InnerJoin,
                     sbom_package_license::Relation::License.def(),
                 )
                 .filtering_with(
@@ -409,14 +384,12 @@ impl PurlService {
                 )?
                 .into_query();
 
-            // Combine SPDX and CycloneDX results
-            let combined_condition = Condition::any()
-                .add(
-                    Expr::col((qualified_purl::Entity, qualified_purl::Column::Id))
-                        .eq(PgFunc::any(qualified_purl_ids_filtered_by_license)),
-                )
-                .add(qualified_purl::Column::Id.in_subquery(cyclonedx_subquery));
-            select = select.filter(combined_condition);
+            // Apply as subquery filter
+            select = select.filter(
+                qualified_purl::Column::Id
+                    .in_subquery(spdx_subquery)
+                    .or(qualified_purl::Column::Id.in_subquery(cyclonedx_subquery)),
+            );
         }
 
         let limiter = select.limiting(connection, paginated.offset, paginated.limit);

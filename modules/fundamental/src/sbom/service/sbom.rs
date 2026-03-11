@@ -1,13 +1,7 @@
 use super::SbomService;
 use crate::{
     Error,
-    common::{
-        LicenseRefMapping,
-        license_filtering::{
-            LICENSE, apply_license_filtering, build_license_filtering_with_clause,
-            create_sbom_package_license_filtering_base_query, get_case_license_text_sbom_id,
-        },
-    },
+    common::license_filtering::LICENSE,
     sbom::model::{
         SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
         SbomSummary, Which, details::SbomDetails,
@@ -15,12 +9,12 @@ use crate::{
 };
 use futures_util::{StreamExt, TryStreamExt, stream};
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbBackend, DbErr, EntityTrait, FromJsonQueryResult,
+    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromJsonQueryResult,
     FromQueryResult, IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait,
     RelationTrait, Select, SelectColumns, Statement, StreamTrait, prelude::Uuid,
 };
 use sea_query::{
-    Alias, ColumnType, Condition, Expr, JoinType, PgFunc, PostgresQueryBuilder,
+    ColumnType, Expr, JoinType,
     extension::postgres::PgExpr,
 };
 use serde::{Deserialize, Serialize};
@@ -51,8 +45,9 @@ use trustify_entity::{
     qualified_purl::{self, CanonicalPurl},
     relationship::Relationship,
     sbom::{self, SbomNodeLink},
-    sbom_group_assignment, sbom_node, sbom_package, sbom_package_cpe_ref, sbom_package_license,
-    sbom_package_purl_ref, source_document, status, versioned_purl, vulnerability,
+    sbom_group_assignment, sbom_license_expanded, sbom_node, sbom_package, sbom_package_cpe_ref,
+    sbom_package_license, sbom_package_purl_ref, source_document, status, versioned_purl,
+    vulnerability,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -232,21 +227,14 @@ impl SbomService {
             .get_constraint_for_field(LICENSE)
             .map(|constraint| q(&format!("{constraint}")))
         {
-            #[derive(Debug, FromQueryResult)]
-            struct QualifiedPurlIdResult {
-                id: Uuid,
-            }
-
-            // Build the CTEs for license filtering
-            let with_clause = build_license_filtering_with_clause();
-
-            let mut statement = sbom_package_license::Entity::find()
-                .distinct()
+            // SPDX path: join through junction → dictionary
+            let spdx_subquery = sbom_license_expanded::Entity::find()
                 .select_only()
-                .column_as(sbom_package_license::Column::SbomId, "id")
+                .distinct()
+                .column(sbom_license_expanded::Column::SbomId)
                 .join(
-                    JoinType::Join,
-                    sbom_package_license::Relation::License.def(),
+                    JoinType::InnerJoin,
+                    sbom_license_expanded::Relation::ExpandedLicense.def(),
                 )
                 .filtering_with(
                     license_query.clone(),
@@ -258,46 +246,14 @@ impl SbomService {
                         }),
                 )?
                 .into_query();
-            let x = statement
-                .join(
-                    JoinType::Join,
-                    Alias::new("expanded"),
-                    Condition::all()
-                        .add(
-                            Expr::col((
-                                sbom_package_license::Entity,
-                                sbom_package_license::Column::SbomId,
-                            ))
-                            .equals((Alias::new("expanded"), Alias::new("sbom_id"))),
-                        )
-                        .add(
-                            Expr::col((
-                                sbom_package_license::Entity,
-                                sbom_package_license::Column::LicenseId,
-                            ))
-                            .equals((Alias::new("expanded"), Alias::new("license_id"))),
-                        ),
-                )
-                .to_owned();
-            let main_query = x.with(with_clause);
-            let (sql, values) = main_query.build(PostgresQueryBuilder);
-            let qualified_purl_ids_filtered_by_license: Vec<Uuid> =
-                QualifiedPurlIdResult::find_by_statement(Statement::from_sql_and_values(
-                    DbBackend::Postgres,
-                    sql,
-                    values,
-                ))
-                .all(connection)
-                .await?
-                .into_iter()
-                .map(|r| r.id)
-                .collect();
 
+            // CycloneDX path: direct text match
             let cyclonedx_subquery = sbom_package_license::Entity::find()
                 .select_only()
+                .distinct()
                 .column(sbom_package_license::Column::SbomId)
                 .join(
-                    JoinType::Join,
+                    JoinType::InnerJoin,
                     sbom_package_license::Relation::License.def(),
                 )
                 .filtering_with(
@@ -311,14 +267,12 @@ impl SbomService {
                 )?
                 .into_query();
 
-            // Combine SPDX and CycloneDX results
-            let combined_condition = Condition::any()
-                .add(
-                    Expr::col((sbom::Entity, sbom::Column::SbomId))
-                        .eq(PgFunc::any(qualified_purl_ids_filtered_by_license)),
-                )
-                .add(sbom::Column::SbomId.in_subquery(cyclonedx_subquery));
-            query = query.filter(combined_condition);
+            // Apply as subquery filter
+            query = query.filter(
+                sbom::Column::SbomId
+                    .in_subquery(spdx_subquery)
+                    .or(sbom::Column::SbomId.in_subquery(cyclonedx_subquery)),
+            );
         }
 
         let limiter = query
@@ -381,14 +335,6 @@ impl SbomService {
 
         query = join_licenses(query);
 
-        // Add license filtering if license query is present
-        query = apply_license_filtering(
-            query,
-            &search,
-            || create_sbom_package_license_filtering_base_query(sbom_id),
-            sbom_package::Column::NodeId,
-        )?;
-
         query = join_purls_and_cpes(query)
             .filtering_with(
                 search,
@@ -400,11 +346,14 @@ impl SbomService {
                     .add_columns(sbom_package_license::Entity)
                     .add_columns(license::Entity)
                     .add_columns(sbom_package_purl_ref::Entity)
-                    .translator(|field, _operator, _value| {
+                    .add_column("expanded_license.expanded_text", ColumnType::Text)
+                    .add_column("license.text", ColumnType::Text)
+                    .translator(|field, operator, value| {
                         match field {
-                            // Add an empty condition (effectively TRUE) to the main SQL query
-                            // since the real filtering by license happens in the license subqueries above
-                            LICENSE => Some("".to_string()),
+                            // Filter on both SPDX (expanded_text) and CycloneDX (text) licenses
+                            LICENSE => Some(format!(
+                                "(expanded_license.expanded_text{operator}{value} OR license.text{operator}{value})"
+                            )),
                             _ => None,
                         }
                     }),
@@ -427,7 +376,7 @@ impl SbomService {
             .fetch()
             .await?
             .into_iter()
-            .map(|row| package_from_row(row, BTreeMap::new()))
+            .map(|row| package_from_row(row))
             .collect();
 
         Ok(PaginatedResults { items, total })
@@ -689,14 +638,12 @@ impl SbomService {
 
         // execute
 
-        let licensing_infos = Self::get_licensing_infos(db, sbom_id).await?;
-
         let r: R::Output<PackageCatcher> = R::get(options, db, query).await?;
 
         Ok(r.flat_map_all(|row| {
             Some(SbomPackageRelation {
                 relationship: row.relationship?,
-                package: package_from_row(row, licensing_infos.clone()),
+                package: package_from_row(row),
             })
         }))
     }
@@ -802,9 +749,9 @@ where
             Expr::cust_with_exprs(
                 "coalesce(json_agg(distinct jsonb_build_object('license_name', $1, 'license_type', $2)) filter (where $3), '[]'::json)",
                 [
-                    get_case_license_text_sbom_id(),
+                    Expr::cust("COALESCE(expanded_license.expanded_text, license.text)").into_simple_expr(),
                     sbom_package_license::Column::LicenseType.into_simple_expr(),
-                    license::Column::Text.is_not_null().into_simple_expr(),
+                    Expr::cust("license.text IS NOT NULL").into_simple_expr(),
                 ],
             ),
             "licenses",
@@ -812,10 +759,19 @@ where
         .join(
             JoinType::LeftJoin,
             sbom_package::Relation::PackageLicense.def(),
-        ).join(
-        JoinType::LeftJoin,
-        sbom_package_license::Relation::License.def(),
-    )
+        )
+        .join(
+            JoinType::LeftJoin,
+            sbom_package_license::Relation::SbomLicenseExpanded.def(),
+        )
+        .join(
+            JoinType::LeftJoin,
+            sbom_license_expanded::Relation::ExpandedLicense.def(),
+        )
+        .join(
+            JoinType::LeftJoin,
+            sbom_package_license::Relation::License.def(),
+        )
 }
 
 #[derive(FromQueryResult)]
@@ -839,7 +795,7 @@ pub struct LicenseBasicInfo {
 }
 
 /// Convert values from a "package row" into an SBOM package
-fn package_from_row(row: PackageCatcher, licensing_infos: BTreeMap<String, String>) -> SbomPackage {
+fn package_from_row(row: PackageCatcher) -> SbomPackage {
     let purl = row
         .purls
         .into_iter()
@@ -876,32 +832,9 @@ fn package_from_row(row: PackageCatcher, licensing_infos: BTreeMap<String, Strin
         .map(|cpe| cpe.to_string())
         .collect();
 
-    let mut licenses_ref_mapping = vec![];
-    let licenses = row
-        .licenses
-        .into_iter()
-        .map(|license| {
-            // if the license contains a LicenseRef, its mapping must be added to the licenses_ref_mapping
-            if let Ok(parsed) = spdx_expression::SpdxExpression::parse(&license.license_name) {
-                parsed
-                    .licenses()
-                    .into_iter()
-                    .filter(|license| license.license_ref)
-                    .for_each(|license| {
-                        let license_id = license.to_string();
-                        let license_name = licensing_infos
-                            .get(&license_id)
-                            .cloned()
-                            .unwrap_or_default();
-                        licenses_ref_mapping.push(LicenseRefMapping {
-                            license_id,
-                            license_name,
-                        });
-                    });
-            };
-            license.into()
-        })
-        .collect();
+    // License names are now pre-expanded via JOIN with expanded_license table
+    // No need to build licenses_ref_mapping manually
+    let licenses = row.licenses.into_iter().map(|license| license.into()).collect();
 
     SbomPackage {
         id: row.id,
@@ -911,7 +844,7 @@ fn package_from_row(row: PackageCatcher, licensing_infos: BTreeMap<String, Strin
         purl,
         cpe,
         licenses,
-        licenses_ref_mapping,
+        licenses_ref_mapping: vec![], // No longer needed - licenses are pre-expanded
     }
 }
 

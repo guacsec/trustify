@@ -50,6 +50,7 @@ mod m0002080_add_cargo_version_scheme;
 mod m0002090_vulnerability_id_sort_index;
 mod m0002100_analysis_perf_indexes;
 mod m0002110_license_query_performance;
+mod m0002120_normalize_expanded_license;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -116,6 +117,7 @@ impl MigratorExt for Migrator {
             .normal(m0002090_vulnerability_id_sort_index::Migration)
             .normal(m0002100_analysis_perf_indexes::Migration)
             .normal(m0002110_license_query_performance::Migration)
+            .normal(m0002120_normalize_expanded_license::Migration)
     }
 }
 

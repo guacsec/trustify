@@ -1,9 +1,6 @@
 use crate::{
     Error,
-    common::{
-        LicenseRefMapping, license_filtering,
-        license_filtering::{LICENSE, build_license_filtering_with_clause},
-    },
+    common::{LicenseRefMapping, license_filtering::LICENSE},
     license::model::{
         SpdxLicenseDetails, SpdxLicenseSummary,
         sbom_license::{
@@ -13,11 +10,10 @@ use crate::{
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult, QueryFilter,
-    QuerySelect, QueryTrait, RelationTrait, Statement,
+    QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
 };
 use sea_query::{
-    Alias, ColumnType, Condition, Expr, JoinType, Order::Asc, PostgresQueryBuilder, UnionType,
-    query,
+    ColumnType, Condition, Expr, JoinType, PostgresQueryBuilder, UnionType,
 };
 use serde::{Deserialize, Serialize};
 use spdx::License;
@@ -27,8 +23,8 @@ use trustify_common::{
     model::{Paginated, PaginatedResults},
 };
 use trustify_entity::{
-    license, licensing_infos, qualified_purl, sbom, sbom_node, sbom_package, sbom_package_cpe_ref,
-    sbom_package_license, sbom_package_purl_ref,
+    expanded_license, license, licensing_infos, qualified_purl, sbom, sbom_license_expanded,
+    sbom_node, sbom_package, sbom_package_cpe_ref, sbom_package_license, sbom_package_purl_ref,
 };
 use utoipa::ToSchema;
 
@@ -247,36 +243,37 @@ impl LicenseService {
             .one(connection)
             .await?;
 
-        const EXPANDED_LICENSE: &str = "expanded_license";
-        const LICENSE_NAME: &str = "license_name";
         match sbom {
             Some(sbom) => {
-                let expand_license_expression = sbom_package_license::Entity::find()
+                let licenses = sbom_package_license::Entity::find()
                     .select_only()
                     .distinct()
                     .column_as(
-                        license_filtering::get_case_license_text_sbom_id(),
-                        EXPANDED_LICENSE,
+                        Expr::cust("COALESCE(expanded_license.expanded_text, license.text)"),
+                        "license_name",
+                    )
+                    .column_as(
+                        Expr::cust("COALESCE(expanded_license.expanded_text, license.text)"),
+                        "license_id",
+                    )
+                    .filter(sbom_package_license::Column::SbomId.eq(sbom.sbom_id))
+                    .join(
+                        JoinType::LeftJoin,
+                        sbom_package_license::Relation::SbomLicenseExpanded.def(),
                     )
                     .join(
-                        JoinType::Join,
+                        JoinType::LeftJoin,
+                        sbom_license_expanded::Relation::ExpandedLicense.def(),
+                    )
+                    .join(
+                        JoinType::LeftJoin,
                         sbom_package_license::Relation::License.def(),
                     )
-                    .filter(sbom_package_license::Column::SbomId.eq(sbom.sbom_id));
-                let (sql, values) = query::Query::select()
-                    // reported twice to keep compatibility with LicenseRefMapping currently
-                    // exposed in the involved endpoint.
-                    .expr_as(Expr::col(Alias::new(EXPANDED_LICENSE)), LICENSE_NAME)
-                    .expr_as(Expr::col(Alias::new(EXPANDED_LICENSE)), "license_id")
-                    .from_subquery(expand_license_expression.into_query(), "expanded_licenses")
-                    .order_by(LICENSE_NAME, Asc)
-                    .build(PostgresQueryBuilder);
-                let result: Vec<LicenseRefMapping> = LicenseRefMapping::find_by_statement(
-                    Statement::from_sql_and_values(connection.get_database_backend(), sql, values),
-                )
-                .all(connection)
-                .await?;
-                Ok(Some(result))
+                    .order_by_asc(Expr::cust("COALESCE(expanded_license.expanded_text, license.text)"))
+                    .into_model::<LicenseRefMapping>()
+                    .all(connection)
+                    .await?;
+                Ok(Some(licenses))
             }
             None => Ok(None),
         }
@@ -288,134 +285,69 @@ impl LicenseService {
         paginated: Paginated,
         connection: &C,
     ) -> Result<PaginatedResults<LicenseText>, Error> {
-        // Build the CTEs for license filtering
-        let with_clause = build_license_filtering_with_clause();
-
         const LICENSE_TEXT: &str = "text";
-        const EXPANDED_LICENSE: &str = "expanded_text";
-        // Let's build a Select<Entity> in order to, further down, use filtering_with function
-        let mut base_query = sbom::Entity::find()
-            .distinct()
-            .select_only()
-            .expr_as(Expr::col(EXPANDED_LICENSE), LICENSE_TEXT);
-        // Basically the sorting and the querying can not be applied at the same time because
-        // they work against different target columns that causes issue
-        // when a full-text search query is executed because it would be applied also to
-        // "sort" column in a phase when it won't be available yet in the query.
-        let Query { ref q, ref sort } = search;
-        // add query condition
-        if !q.is_empty() {
-            base_query = base_query.filtering_with(
-                trustify_common::db::query::q(&q.to_string()),
-                Columns::default()
-                    .add_column(EXPANDED_LICENSE, ColumnType::Text)
-                    .translator(|field, operator, value| match (field, operator) {
-                        (LICENSE, _) => Some(format!("{EXPANDED_LICENSE}{operator}{value}")),
-                        _ => None,
-                    }),
-            )?;
-        }
-        // add sorting condition
-        if !sort.is_empty() {
-            base_query = base_query.filtering_with(
-                trustify_common::db::query::q("").sort(sort),
-                Columns::default()
-                    .add_column(LICENSE_TEXT, ColumnType::Text)
-                    .translator(|field, operator, _value| match (field, operator) {
-                        (LICENSE, "asc" | "desc") => Some(format!("{}:{operator}", LICENSE_TEXT)),
-                        _ => None,
-                    }),
-            )?;
-        }
-        let mut statement = base_query.into_query().to_owned();
-        let mut license_texts = statement.join(
-            JoinType::Join,
-            Alias::new("expanded"),
-            Condition::all().add(
-                Expr::col((sbom::Entity, sbom::Column::SbomId))
-                    .equals((Alias::new("expanded"), Alias::new("sbom_id"))),
-            ),
-        );
 
-        // Use NOT EXISTS instead of LEFT JOIN + IS NULL to find licenses without SBOMs.
-        // On large tables, LEFT JOIN scans all rows while NOT EXISTS
-        // uses a Nested Loop Anti Join with index-only scan.
-        let exists_subquery = sea_query::Query::select()
-            .expr(Expr::val(1))
-            .from(sbom_package_license::Entity)
-            .and_where(
-                Expr::col((
-                    sbom_package_license::Entity,
-                    sbom_package_license::Column::LicenseId,
-                ))
-                .equals((license::Entity, license::Column::Id)),
-            )
-            .to_owned();
-
-        let default_licenses_with_no_sboms = license::Entity::find()
-            .distinct()
+        // Build query for SPDX licenses (from expanded_license dictionary)
+        let mut spdx_query = expanded_license::Entity::find()
             .select_only()
-            .column(license::Column::Text)
-            .filter(Expr::exists(exists_subquery).not())
-            .filtering_with(
-                search.clone(),
-                Columns::default()
-                    .add_column(license::Column::Text, ColumnType::Text)
-                    .translator(|field, operator, value| match (field, operator) {
-                        (LICENSE, "asc" | "desc") => Some(format!("{}:{operator}", LICENSE_TEXT)),
-                        (LICENSE, _) => Some(format!("{}{operator}{value}", LICENSE_TEXT)),
-                        _ => None,
-                    }),
-            )?
+            .distinct()
+            .column_as(expanded_license::Column::ExpandedText, LICENSE_TEXT);
+
+        // Build query for non-SBOM licenses (CycloneDX or unused)
+        let mut non_sbom_query = license::Entity::find()
+            .select_only()
+            .distinct()
+            .column_as(license::Column::Text, LICENSE_TEXT)
+            .join(JoinType::LeftJoin, license::Relation::PackageLicense.def())
+            .filter(sbom_package_license::Column::SbomId.is_null());
+
+        // Apply filtering to both queries
+        let columns = Columns::default()
+            .add_column(LICENSE_TEXT, ColumnType::Text)
+            .translator(|field, operator, value| match (field, operator) {
+                (LICENSE, "asc" | "desc") => Some(format!("{}:{operator}", LICENSE_TEXT)),
+                (LICENSE, _) => Some(format!("{}{operator}{value}", LICENSE_TEXT)),
+                _ => None,
+            });
+
+        spdx_query = spdx_query.filtering_with(search.clone(), columns.clone())?;
+        non_sbom_query = non_sbom_query.filtering_with(search, columns)?;
+
+        // Union the two queries
+        let mut union_query = spdx_query
             .into_query()
+            .union(UnionType::Distinct, non_sbom_query.into_query())
             .to_owned();
 
-        license_texts =
-            license_texts.union(UnionType::Distinct, default_licenses_with_no_sboms.clone());
-
-        let license_texts_count = sea_query::Query::select()
+        // Count total results
+        let count_query = sea_query::Query::select()
             .expr_as(Expr::cust("count(*)"), "num_items")
-            .from_subquery(license_texts.clone(), "subquery")
+            .from_subquery(union_query.clone(), "subquery")
             .to_owned();
-        let (sql_count, values) = license_texts_count
-            .clone()
-            .with(with_clause.clone())
-            .build(PostgresQueryBuilder);
-        // the standard approach for counting can not be used because it doesn't work with CTE
-        // since the generated query starts with:
-        // SELECT COUNT(*) AS num_items FROM (SELECT licensing_infos_mappings"
-        // which is not SQL syntactically correct
-        // let selector_raw = LicenseText::find_by_statement(Statement::from_sql_and_values(
-        //     DatabaseBackend::Postgres,
-        //     sql_count.clone(),
-        //     values.clone(),
-        // ));
-        // let total = selector_raw.count(connection).await?;
-        let selector_raw = Statement::from_sql_and_values(
-            DatabaseBackend::Postgres,
-            sql_count.clone(),
-            values.clone(),
-        );
 
         #[derive(Debug, Default, Clone, Serialize, Deserialize, ToSchema, FromQueryResult)]
         struct Count {
-            // It should be u64 but PostgreSQL doesn't support it
-            // https://www.sea-ql.org/SeaORM/docs/1.1.x/generate-entity/column-types/#type-mappings
             num_items: i64,
         }
-        let total = Count::find_by_statement(selector_raw)
-            .one(connection)
-            .await?
-            .unwrap_or(Count { num_items: 0 })
-            .num_items as u64;
 
-        let select_paginated = license_texts
+        let (sql_count, values) = count_query.build(PostgresQueryBuilder);
+        let total = Count::find_by_statement(Statement::from_sql_and_values(
+            DatabaseBackend::Postgres,
+            sql_count,
+            values,
+        ))
+        .one(connection)
+        .await?
+        .unwrap_or(Count { num_items: 0 })
+        .num_items as u64;
+
+        // Apply pagination
+        union_query = union_query
             .offset(paginated.offset)
             .limit(paginated.limit)
             .to_owned();
-        let (sql, values) = select_paginated
-            .with(with_clause)
-            .build(PostgresQueryBuilder);
+
+        let (sql, values) = union_query.build(PostgresQueryBuilder);
         let items = LicenseText::find_by_statement(Statement::from_sql_and_values(
             DatabaseBackend::Postgres,
             sql,
@@ -423,6 +355,7 @@ impl LicenseService {
         ))
         .all(connection)
         .await?;
+
         Ok(PaginatedResults { total, items })
     }
 }

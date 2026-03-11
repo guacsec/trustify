@@ -1,5 +1,6 @@
 mod checksum;
 mod cryptographic_asset;
+mod expanded_license;
 mod external;
 mod file;
 mod license;
@@ -11,6 +12,7 @@ mod relationship;
 
 pub use checksum::*;
 pub use cryptographic_asset::*;
+pub use expanded_license::*;
 pub use external::*;
 pub use file::*;
 pub use license::*;
