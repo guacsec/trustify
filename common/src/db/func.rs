@@ -77,28 +77,6 @@ impl UpdateDeprecatedAdvisory {
     }
 }
 
-/// The function expanding the license replacing all 'LicenseRef-' instances
-/// with the actual license they refer to.
-pub struct ExpandLicenseExpression;
-
-impl Iden for ExpandLicenseExpression {
-    #[allow(clippy::unwrap_used)]
-    fn unquoted(&self, s: &mut dyn Write) {
-        write!(s, "expand_license_expression").unwrap()
-    }
-}
-
-/// The function returns the final license, no matter if it's coming from a CycloneDx of SPDX
-/// license data stored in the DB.
-pub struct CaseLicenseTextSbomId;
-
-impl Iden for CaseLicenseTextSbomId {
-    #[allow(clippy::unwrap_used)]
-    fn unquoted(&self, s: &mut dyn Write) {
-        write!(s, "case_license_text_sbom_id").unwrap()
-    }
-}
-
 #[derive(Iden)]
 pub enum CustomFunc {
     #[iden = "expand_license_expression_with_mappings"]
