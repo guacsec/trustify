@@ -73,4 +73,10 @@ impl Related<super::license::Entity> for Entity {
     }
 }
 
+impl Related<super::sbom_license_expanded::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::SbomLicenseExpanded.def()
+    }
+}
+
 impl ActiveModelBehavior for ActiveModel {}

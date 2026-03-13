@@ -177,14 +177,22 @@ async fn test_cyclonedx_uses_raw_license_text(ctx: &TrustifyContext) -> Result<(
     ctx.ingest_document("zookeeper-3.9.2-cyclonedx.json")
         .await?;
 
-    // GREEN: Verify expanded_license table is NOT used for CycloneDX
+    // GREEN: Verify CycloneDX DOES populate expanded_license (with raw text, not expanded)
+    // CycloneDX licenses don't have LicenseRef patterns, so expanded_text = raw license.text
     let expanded_count = expanded_license::Entity::find().count(&ctx.db).await?;
-    assert_eq!(
-        expanded_count, 0,
-        "CycloneDX should not populate expanded_license"
+    assert!(
+        expanded_count > 0,
+        "CycloneDX should populate expanded_license with raw license text"
     );
 
-    // REFACTOR: But licenses() should still return CycloneDX licenses via license.text
+    // Verify sbom_license_expanded junction is populated
+    let junction_count = sbom_license_expanded::Entity::find().count(&ctx.db).await?;
+    assert!(
+        junction_count > 0,
+        "CycloneDX should populate sbom_license_expanded junction table"
+    );
+
+    // REFACTOR: licenses() should return CycloneDX licenses via expanded_license path
     let result = service
         .licenses(
             Query::default(),
@@ -495,6 +503,67 @@ async fn test_license_pagination_with_count(ctx: &TrustifyContext) -> Result<(),
             "Pages should not contain duplicate licenses"
         );
     }
+
+    Ok(())
+}
+
+/// Test that pre-loaded SPDX dictionary entries appear in license listing
+/// Verifies: LEFT JOIN on sbom_package_license allows pre-loaded licenses to be visible
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_preloaded_licenses_visible(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = LicenseService::new();
+
+    // Baseline: Get initial license count (includes pre-loaded SPDX dictionary)
+    let before = service
+        .licenses(Query::default(), Paginated::default(), &ctx.db)
+        .await?;
+
+    // Pre-loaded licenses should be visible even before any SBOM ingestion
+    assert!(
+        before.total > 0,
+        "Pre-loaded SPDX dictionary entries should be visible"
+    );
+
+    Ok(())
+}
+
+/// Test that unknown sort order defaults to ASC with warning
+/// Verifies: Unknown sort directions default to ASC (defensive programming)
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_unknown_sort_order_defaults_asc(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = LicenseService::new();
+
+    ctx.ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
+        .await?;
+
+    // Use invalid sort order "invalid"
+    let result = service
+        .licenses(
+            Query {
+                q: String::new(),
+                sort: "license:invalid".to_string(),
+            },
+            Paginated {
+                offset: 0,
+                limit: 100,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Should still return results (defaulted to ASC)
+    assert!(result.total > 0, "Should return results with invalid sort");
+
+    // Results should be sorted alphabetically (ASC fallback)
+    let licenses: Vec<String> = result.items.iter().map(|l| l.license.clone()).collect();
+    let mut sorted = licenses.clone();
+    sorted.sort();
+    assert_eq!(
+        licenses, sorted,
+        "Should default to ASC sort with unknown direction"
+    );
 
     Ok(())
 }

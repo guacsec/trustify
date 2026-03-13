@@ -38,6 +38,8 @@ LEFT JOIN (
     FROM licensing_infos
     GROUP BY sbom_id
 ) lim ON lim.sbom_id = uls.sbom_id
+-- Filter at SBOM level (not per-license-id) since SBOMs are immutable once ingested.
+-- If ANY license from an SBOM has been backfilled, all have been backfilled.
 WHERE NOT EXISTS (
     SELECT 1 FROM sbom_license_expanded sle
     WHERE sle.sbom_id = uls.sbom_id
@@ -45,25 +47,33 @@ WHERE NOT EXISTS (
 ON CONFLICT (md5(expanded_text)) DO NOTHING;
 
 -- Backfill Step 2: Insert junction rows
-INSERT INTO sbom_license_expanded (sbom_id, license_id, expanded_license_id)
-SELECT DISTINCT spl.sbom_id, spl.license_id, el.id
-FROM sbom_package_license spl
-JOIN license l ON l.id = spl.license_id
-LEFT JOIN (
-    SELECT array_agg(ROW(license_id, name)::license_mapping) AS license_mapping, sbom_id
-    FROM licensing_infos
-    GROUP BY sbom_id
-) lim ON lim.sbom_id = spl.sbom_id
-JOIN expanded_license el ON md5(el.expanded_text) = md5(
-    expand_license_expression_with_mappings(
-        l.text,
-        COALESCE(lim.license_mapping, ARRAY[]::license_mapping[])
+-- Use a CTE (license_expansions) to call expand_license_expression_with_mappings() only once per
+-- (sbom_id, license_id) pair; the result is then joined against the already-populated
+-- expanded_license dictionary by md5 hash, avoiding a second expensive function call.
+WITH license_expansions AS (
+    SELECT DISTINCT
+        spl.sbom_id,
+        spl.license_id,
+        expand_license_expression_with_mappings(
+            l.text,
+            COALESCE(lim.license_mapping, ARRAY[]::license_mapping[])
+        ) AS expanded_text
+    FROM sbom_package_license spl
+    JOIN license l ON l.id = spl.license_id
+    LEFT JOIN (
+        SELECT array_agg(ROW(license_id, name)::license_mapping) AS license_mapping, sbom_id
+        FROM licensing_infos
+        GROUP BY sbom_id
+    ) lim ON lim.sbom_id = spl.sbom_id
+    WHERE NOT EXISTS (
+        SELECT 1 FROM sbom_license_expanded sle
+        WHERE sle.sbom_id = spl.sbom_id AND sle.license_id = spl.license_id
     )
 )
-WHERE NOT EXISTS (
-    SELECT 1 FROM sbom_license_expanded sle
-    WHERE sle.sbom_id = spl.sbom_id AND sle.license_id = spl.license_id
-)
+INSERT INTO sbom_license_expanded (sbom_id, license_id, expanded_license_id)
+SELECT ne.sbom_id, ne.license_id, el.id
+FROM license_expansions ne
+JOIN expanded_license el ON md5(el.expanded_text) = md5(ne.expanded_text)
 ON CONFLICT (sbom_id, license_id) DO UPDATE
 SET expanded_license_id = EXCLUDED.expanded_license_id;
 
