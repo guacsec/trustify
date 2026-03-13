@@ -19,7 +19,7 @@ use sea_query::{
 use serde::{Deserialize, Serialize};
 use spdx::License;
 use trustify_common::{
-    db::query::{Filtering, Query, IntoColumns},
+    db::query::{Filtering, IntoColumns, Query},
     id::{Id, TrySelectForId},
     model::{Paginated, PaginatedResults},
 };
@@ -312,10 +312,7 @@ impl LicenseService {
             .select_only()
             .distinct()
             .column_as(license::Column::Text, LICENSE_TEXT)
-            .join(
-                JoinType::LeftJoin,
-                license::Relation::PackageLicense.def(),
-            )
+            .join(JoinType::LeftJoin, license::Relation::PackageLicense.def())
             .join(
                 JoinType::LeftJoin,
                 sbom_license_expanded::Relation::License.def().rev(),
@@ -328,12 +325,13 @@ impl LicenseService {
             sort: String::new(), // Don't sort individual queries before UNION
         };
 
-        let spdx_columns = expanded_license::Entity
-            .columns()
-            .translator(|field, operator, value| match field {
-                LICENSE => Some(format!("expanded_text{operator}{value}")),
-                _ => None,
-            });
+        let spdx_columns =
+            expanded_license::Entity
+                .columns()
+                .translator(|field, operator, value| match field {
+                    LICENSE => Some(format!("expanded_text{operator}{value}")),
+                    _ => None,
+                });
 
         let non_sbom_columns = license::Entity
             .columns()
@@ -377,13 +375,25 @@ impl LicenseService {
                 };
 
                 match order {
-                    "asc" => union_query = union_query.order_by(Alias::new(column), Order::Asc).to_owned(),
-                    "desc" => union_query = union_query.order_by(Alias::new(column), Order::Desc).to_owned(),
+                    "asc" => {
+                        union_query = union_query
+                            .order_by(Alias::new(column), Order::Asc)
+                            .to_owned()
+                    }
+                    "desc" => {
+                        union_query = union_query
+                            .order_by(Alias::new(column), Order::Desc)
+                            .to_owned()
+                    }
                     _ => {
                         // Unknown order direction: fall back to ascending rather than silently
                         // dropping the sort clause.
-                        log::warn!("Unknown sort order '{order}' for column '{column}', defaulting to ASC");
-                        union_query = union_query.order_by(Alias::new(column), Order::Asc).to_owned();
+                        log::warn!(
+                            "Unknown sort order '{order}' for column '{column}', defaulting to ASC"
+                        );
+                        union_query = union_query
+                            .order_by(Alias::new(column), Order::Asc)
+                            .to_owned();
                     }
                 }
             }
