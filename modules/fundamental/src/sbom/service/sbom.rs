@@ -9,12 +9,12 @@ use crate::{
 };
 use futures_util::{StreamExt, TryStreamExt, stream};
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromJsonQueryResult,
-    FromQueryResult, IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait,
-    RelationTrait, Select, SelectColumns, Statement, StreamTrait, prelude::Uuid,
+    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromJsonQueryResult, FromQueryResult,
+    IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
+    Select, SelectColumns, Statement, StreamTrait, prelude::Uuid,
 };
 use sea_query::{
-    ColumnType, Expr, JoinType,
+    ColumnType, Expr, Func, JoinType,
     extension::postgres::PgExpr,
 };
 use serde::{Deserialize, Serialize};
@@ -40,6 +40,7 @@ use trustify_common::{
 use trustify_entity::{
     advisory, advisory_vulnerability, base_purl,
     cpe::{self, CpeDto},
+    expanded_license,
     labels::Labels,
     license, licensing_infos, organization, package_relates_to_package,
     qualified_purl::{self, CanonicalPurl},
@@ -749,9 +750,12 @@ where
             Expr::cust_with_exprs(
                 "coalesce(json_agg(distinct jsonb_build_object('license_name', $1, 'license_type', $2)) filter (where $3), '[]'::json)",
                 [
-                    Expr::cust("COALESCE(expanded_license.expanded_text, license.text)").into_simple_expr(),
+                    Func::coalesce([
+                        Expr::col((expanded_license::Entity, expanded_license::Column::ExpandedText)).into_simple_expr(),
+                        Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
+                    ]).into(),
                     sbom_package_license::Column::LicenseType.into_simple_expr(),
-                    Expr::cust("license.text IS NOT NULL").into_simple_expr(),
+                    Expr::col((license::Entity, license::Column::Text)).is_not_null(),
                 ],
             ),
             "licenses",

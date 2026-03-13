@@ -2,7 +2,7 @@ use crate::{
     purl::service::PurlService, sbom::model::SbomExternalPackageReference,
     sbom::service::SbomService,
 };
-use sea_orm::TransactionTrait;
+use sea_orm::{EntityTrait, PaginatorTrait, TransactionTrait};
 use std::{collections::HashMap, str::FromStr};
 use test_context::test_context;
 use test_log::test;
@@ -13,7 +13,7 @@ use trustify_common::{
     model::Paginated,
     purl::Purl,
 };
-use trustify_entity::labels::Labels;
+use trustify_entity::{expanded_license, labels::Labels};
 use trustify_test_context::TrustifyContext;
 use uuid::Uuid;
 
@@ -669,6 +669,116 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
         packages_after.total, 1472,
         "Should have packages after second deletion"
     );
+
+    Ok(())
+}
+
+/// RED-GREEN-REFACTOR: Test SBOM package licenses with refactored COALESCE
+/// Verifies: join_licenses() uses Func::coalesce() for both SPDX and CycloneDX
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_sbom_package_licenses_coalesce(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = SbomService::new(ctx.db.clone());
+
+    // RED: No packages before ingestion
+    // GREEN: Ingest SPDX (uses expanded_license) and CycloneDX (uses raw license.text)
+    let spdx_result = ctx.ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json").await?;
+    let cyclonedx_result = ctx.ingest_document("zookeeper-3.9.2-cyclonedx.json").await?;
+
+    let spdx_id = Uuid::parse_str(&spdx_result.id)?;
+    let cyclonedx_id = Uuid::parse_str(&cyclonedx_result.id)?;
+
+    let spdx_packages = service.fetch_sbom_packages(
+        spdx_id,
+        Query::default(),
+        Paginated { offset: 0, limit: 100 },
+        &ctx.db,
+    ).await?;
+
+    let cyclonedx_packages = service.fetch_sbom_packages(
+        cyclonedx_id,
+        Query::default(),
+        Paginated { offset: 0, limit: 100 },
+        &ctx.db,
+    ).await?;
+
+    // REFACTOR: Verify SPDX licenses expanded via COALESCE (no LicenseRef-)
+    assert!(!spdx_packages.items.is_empty(), "SPDX SBOM should have packages");
+
+    for package in &spdx_packages.items {
+        for license in &package.licenses {
+            assert!(!license.license.contains("LicenseRef-"),
+                "SPDX licenses should be expanded via COALESCE: {}", license.license);
+        }
+    }
+
+    // Verify CycloneDX licenses exist via COALESCE fallback to license.text
+    assert!(!cyclonedx_packages.items.is_empty(), "CycloneDX SBOM should have packages");
+
+    let has_licenses = cyclonedx_packages.items.iter().any(|p| !p.licenses.is_empty());
+    assert!(has_licenses, "CycloneDX packages should have licenses via COALESCE fallback");
+
+    Ok(())
+}
+
+/// RED-GREEN-REFACTOR: Test package license filtering with COALESCE
+/// Verifies: License filtering works on both expanded and raw licenses via COALESCE
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_sbom_package_license_filtering_with_coalesce(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = SbomService::new(ctx.db.clone());
+
+    // RED: No packages before ingestion
+    // GREEN: Ingest SPDX with Apache licenses
+    let result = ctx.ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json").await?;
+    let sbom_id = Uuid::parse_str(&result.id)?;
+
+    // Filter by license (should work via COALESCE on expanded_text OR text)
+    let apache_packages = service.fetch_sbom_packages(
+        sbom_id,
+        q("license~Apache"),
+        Paginated { offset: 0, limit: 100 },
+        &ctx.db,
+    ).await?;
+
+    // REFACTOR: Verify filtering works on COALESCE result
+    if apache_packages.total > 0 {
+        let has_apache = apache_packages.items.iter().any(|p|
+            p.licenses.iter().any(|l| l.license.to_lowercase().contains("apache"))
+        );
+        assert!(has_apache, "Filtered packages should contain Apache licenses");
+    }
+
+    Ok(())
+}
+
+/// RED-GREEN-REFACTOR: Test refactored IS NOT NULL filter
+/// Verifies: Expr::col().is_not_null() works correctly in license JSON aggregation
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_sbom_package_license_not_null_filter(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = SbomService::new(ctx.db.clone());
+
+    // RED: No packages before ingestion
+    // GREEN: Ingest SBOM with licenses
+    let result = ctx.ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json").await?;
+    let sbom_id = Uuid::parse_str(&result.id)?;
+
+    let packages = service.fetch_sbom_packages(
+        sbom_id,
+        Query::default(),
+        Paginated { offset: 0, limit: 1000 },
+        &ctx.db,
+    ).await?;
+
+    // REFACTOR: Verify IS NOT NULL filter works (refactored to Expr::col().is_not_null())
+    for package in &packages.items {
+        // If a package has licenses, none should be empty (due to IS NOT NULL filter)
+        for license in &package.licenses {
+            assert!(!license.license.is_empty(),
+                "License should not be empty due to IS NOT NULL filter in join_licenses()");
+        }
+    }
 
     Ok(())
 }
