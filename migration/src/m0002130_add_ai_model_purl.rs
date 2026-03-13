@@ -13,7 +13,7 @@ impl MigrationTrait for Migration {
                     .add_column(
                         ColumnDef::new(SbomAi::QualifiedPurlId)
                             .uuid()
-                            .not_null()
+                            .null()
                             .to_owned(),
                     )
                     .to_owned(),

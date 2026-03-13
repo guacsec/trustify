@@ -8,7 +8,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub node_id: String,
     pub properties: serde_json::Value,
-    pub qualified_purl_id: Uuid,
+    pub qualified_purl_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

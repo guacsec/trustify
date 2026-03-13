@@ -61,15 +61,9 @@ impl MachineLearningModelCreator {
         C: Into<Checksum>,
     {
         self.nodes.add(node_id.clone(), name, checksums);
-
-        let uuid = match purl {
-            Some(ref s) => match Purl::from_str(s) {
-                Ok(purl) => purl.qualifier_uuid(),
-                Err(_) => Uuid::nil(),
-            },
-            None => Uuid::nil(),
-        };
-
+        let uuid = purl
+            .and_then(|s| Purl::from_str(&s).ok())
+            .map(|p| p.qualifier_uuid());
         self.models.push(sbom_ai::ActiveModel {
             sbom_id: Set(self.sbom_id),
             node_id: Set(node_id),

@@ -447,8 +447,8 @@ impl SbomService {
             .select_only()
             .column_as(sbom_ai::Column::NodeId, "id")
             .column(sbom_node::Column::Name)
-            .column(sbom_ai::Column::Properties)
             .column(qualified_purl::Column::Purl)
+            .column(sbom_ai::Column::Properties)
             .join(JoinType::LeftJoin, sbom_ai::Relation::Node.def())
             .join(JoinType::LeftJoin, sbom_ai::Relation::Purl.def())
             .filtering_with(

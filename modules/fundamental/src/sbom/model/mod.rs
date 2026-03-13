@@ -123,11 +123,10 @@ impl SbomModel {
     pub fn stringify_purl(self) -> SbomModel {
         if self.purl.is_object() {
             let mut result = self.clone();
-            let purl = match serde_json::from_value::<CanonicalPurl>(self.purl) {
+            result.purl = match serde_json::from_value::<CanonicalPurl>(self.purl.clone()) {
                 Ok(cp) => serde_json::Value::String(Purl::from(cp).to_string()),
-                Err(_) => serde_json::Value::Null,
+                _ => self.purl,
             };
-            result.purl = purl;
             result
         } else {
             self
