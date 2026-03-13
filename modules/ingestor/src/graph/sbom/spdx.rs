@@ -358,7 +358,9 @@ impl SbomContext {
         relationships.create(db).await?;
 
         // Populate expanded license tables
-        ExpandedLicenseCreator::new(self.sbom.sbom_id).create(db).await?;
+        ExpandedLicenseCreator::new(self.sbom.sbom_id)
+            .create(db)
+            .await?;
 
         // done
 
