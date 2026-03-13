@@ -9,9 +9,9 @@ use crate::{
     vulnerability::model::VulnerabilityHead,
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, IntoSimpleExpr,
-    LoaderTrait, ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait,
-    RelationTrait, Select, SelectColumns,
+    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, IntoSimpleExpr, LoaderTrait,
+    ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
+    Select, SelectColumns,
 };
 use sea_query::{Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -112,7 +112,11 @@ impl PurlDetails {
             .select_only()
             .column_as(
                 Into::<SimpleExpr>::into(Func::coalesce([
-                    Expr::col((expanded_license::Entity, expanded_license::Column::ExpandedText)).into_simple_expr(),
+                    Expr::col((
+                        expanded_license::Entity,
+                        expanded_license::Column::ExpandedText,
+                    ))
+                    .into_simple_expr(),
                     Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
                 ])),
                 "license_name",

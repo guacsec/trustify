@@ -17,9 +17,7 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
     QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
 };
-use sea_query::{
-    ColumnType, JoinType, Order,
-};
+use sea_query::{ColumnType, JoinType, Order};
 use tracing::instrument;
 use trustify_common::{
     db::{

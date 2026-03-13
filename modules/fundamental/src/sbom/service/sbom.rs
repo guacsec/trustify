@@ -13,10 +13,7 @@ use sea_orm::{
     IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
     Select, SelectColumns, Statement, StreamTrait, prelude::Uuid,
 };
-use sea_query::{
-    ColumnType, Expr, Func, JoinType,
-    extension::postgres::PgExpr,
-};
+use sea_query::{ColumnType, Expr, Func, JoinType, extension::postgres::PgExpr};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -377,7 +374,7 @@ impl SbomService {
             .fetch()
             .await?
             .into_iter()
-            .map(|row| package_from_row(row))
+            .map(package_from_row)
             .collect();
 
         Ok(PaginatedResults { items, total })
@@ -838,7 +835,11 @@ fn package_from_row(row: PackageCatcher) -> SbomPackage {
 
     // License names are now pre-expanded via JOIN with expanded_license table
     // No need to build licenses_ref_mapping manually
-    let licenses = row.licenses.into_iter().map(|license| license.into()).collect();
+    let licenses = row
+        .licenses
+        .into_iter()
+        .map(|license| license.into())
+        .collect();
 
     SbomPackage {
         id: row.id,

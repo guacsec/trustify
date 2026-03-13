@@ -254,14 +254,22 @@ impl LicenseService {
                     .distinct()
                     .column_as(
                         Into::<SimpleExpr>::into(Func::coalesce([
-                            Expr::col((expanded_license::Entity, expanded_license::Column::ExpandedText)).into_simple_expr(),
+                            Expr::col((
+                                expanded_license::Entity,
+                                expanded_license::Column::ExpandedText,
+                            ))
+                            .into_simple_expr(),
                             Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
                         ])),
                         "license_name",
                     )
                     .column_as(
                         Into::<SimpleExpr>::into(Func::coalesce([
-                            Expr::col((expanded_license::Entity, expanded_license::Column::ExpandedText)).into_simple_expr(),
+                            Expr::col((
+                                expanded_license::Entity,
+                                expanded_license::Column::ExpandedText,
+                            ))
+                            .into_simple_expr(),
                             Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
                         ])),
                         "license_id",
@@ -280,7 +288,11 @@ impl LicenseService {
                         sbom_package_license::Relation::License.def(),
                     )
                     .order_by_asc(Into::<SimpleExpr>::into(Func::coalesce([
-                        Expr::col((expanded_license::Entity, expanded_license::Column::ExpandedText)).into_simple_expr(),
+                        Expr::col((
+                            expanded_license::Entity,
+                            expanded_license::Column::ExpandedText,
+                        ))
+                        .into_simple_expr(),
                         Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
                     ])))
                     .into_model::<LicenseRefMapping>()
