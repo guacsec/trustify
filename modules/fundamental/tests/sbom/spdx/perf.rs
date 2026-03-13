@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use super::*;
 use test_context::test_context;
 use test_log::test;

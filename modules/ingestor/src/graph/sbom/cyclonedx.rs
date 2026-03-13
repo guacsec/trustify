@@ -4,10 +4,10 @@ use crate::{
         product::ProductInformation,
         purl::creator::PurlCreator,
         sbom::{
-            CryptographicAssetCreator, CycloneDx as CycloneDxProcessor, ExpandedLicenseCreator,
-            LicenseCreator, LicenseInfo, MachineLearningModelCreator, NodeInfoParam,
-            PackageCreator, PackageLicensenInfo, PackageReference, References, RelationshipCreator,
-            SbomContext, SbomInformation,
+            CryptographicAssetCreator, CycloneDx as CycloneDxProcessor,
+            ExpandedLicenseCreator, LicenseCreator, LicenseInfo,
+            MachineLearningModelCreator, NodeInfoParam, PackageCreator, PackageLicensenInfo,
+            PackageReference, References, RelationshipCreator, SbomContext, SbomInformation,
             processor::{
                 InitContext, PostContext, Processor, RedHatProductComponentRelationships,
                 RunProcessors,

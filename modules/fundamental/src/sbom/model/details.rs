@@ -448,6 +448,7 @@ pub struct SbomAdvisory {
 }
 
 impl SbomAdvisory {
+    #[allow(deprecated)]
     #[instrument(skip_all, err(level=tracing::Level::INFO))]
     pub async fn from_models<C: ConnectionTrait>(
         statuses: Vec<QueryCatcher>,

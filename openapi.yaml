@@ -4914,7 +4914,13 @@ components:
                 type: array
                 items:
                   $ref: '#/components/schemas/LicenseRefMapping'
-                description: LicenseRef mappings
+                description: |-
+                  LicenseRef mappings
+
+                  **Deprecated**: Licenses are now pre-expanded at ingestion time via `expanded_license` /
+                  `sbom_license_expanded` tables. This field is always empty and will be removed in a future
+                  release.
+                deprecated: true
               name:
                 type: string
                 description: The name of the package in the SBOM
@@ -5568,7 +5574,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LicenseRefMapping'
-          description: LicenseRef mappings
+          description: |-
+            LicenseRef mappings
+
+            **Deprecated**: Licenses are now pre-expanded at ingestion time via `expanded_license` /
+            `sbom_license_expanded` tables. This field is always empty and will be removed in a future
+            release.
+          deprecated: true
         name:
           type: string
           description: The name of the package in the SBOM

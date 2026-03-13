@@ -13,13 +13,13 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
 };
 use sea_query::{
-    Asterisk, ColumnType, Condition, Expr, Func, JoinType, PostgresQueryBuilder, SimpleExpr,
+    Alias, Asterisk, Condition, Expr, Func, JoinType, Order, PostgresQueryBuilder, SimpleExpr,
     UnionType,
 };
 use serde::{Deserialize, Serialize};
 use spdx::License;
 use trustify_common::{
-    db::query::{Columns, Filtering, Query},
+    db::query::{Filtering, Query, IntoColumns},
     id::{Id, TrySelectForId},
     model::{Paginated, PaginatedResults},
 };
@@ -249,31 +249,22 @@ impl LicenseService {
 
         match sbom {
             Some(sbom) => {
+                // Build the COALESCE expression once: prefer pre-expanded text, fall back to raw
+                // license text. Reused for both SELECT columns and ORDER BY to avoid repetition.
+                let coalesce_expr = Into::<SimpleExpr>::into(Func::coalesce([
+                    Expr::col((
+                        expanded_license::Entity,
+                        expanded_license::Column::ExpandedText,
+                    ))
+                    .into_simple_expr(),
+                    Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
+                ]));
+
                 let licenses = sbom_package_license::Entity::find()
                     .select_only()
                     .distinct()
-                    .column_as(
-                        Into::<SimpleExpr>::into(Func::coalesce([
-                            Expr::col((
-                                expanded_license::Entity,
-                                expanded_license::Column::ExpandedText,
-                            ))
-                            .into_simple_expr(),
-                            Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
-                        ])),
-                        "license_name",
-                    )
-                    .column_as(
-                        Into::<SimpleExpr>::into(Func::coalesce([
-                            Expr::col((
-                                expanded_license::Entity,
-                                expanded_license::Column::ExpandedText,
-                            ))
-                            .into_simple_expr(),
-                            Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
-                        ])),
-                        "license_id",
-                    )
+                    .column_as(coalesce_expr.clone(), "license_name")
+                    .column_as(coalesce_expr.clone(), "license_id")
                     .filter(sbom_package_license::Column::SbomId.eq(sbom.sbom_id))
                     .join(
                         JoinType::LeftJoin,
@@ -287,14 +278,7 @@ impl LicenseService {
                         JoinType::LeftJoin,
                         sbom_package_license::Relation::License.def(),
                     )
-                    .order_by_asc(Into::<SimpleExpr>::into(Func::coalesce([
-                        Expr::col((
-                            expanded_license::Entity,
-                            expanded_license::Column::ExpandedText,
-                        ))
-                        .into_simple_expr(),
-                        Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
-                    ])))
+                    .order_by_asc(coalesce_expr)
                     .into_model::<LicenseRefMapping>()
                     .all(connection)
                     .await?;
@@ -318,31 +302,92 @@ impl LicenseService {
             .distinct()
             .column_as(expanded_license::Column::ExpandedText, LICENSE_TEXT);
 
-        // Build query for non-SBOM licenses (CycloneDX or unused)
+        // Build query for non-expanded licenses: includes both
+        //   (a) pre-loaded SPDX dictionary entries with no SBOM connection yet, AND
+        //   (b) CycloneDX licenses that exist in sbom_package_license but were never expanded.
+        // A LEFT JOIN on sbom_package_license (instead of INNER JOIN) ensures pre-loaded licenses
+        // with no SBOM attachment are included. Then filtering for sbom_license_expanded IS NULL
+        // removes SPDX licenses that have already been expanded (they appear in spdx_query instead).
         let mut non_sbom_query = license::Entity::find()
             .select_only()
             .distinct()
             .column_as(license::Column::Text, LICENSE_TEXT)
-            .join(JoinType::LeftJoin, license::Relation::PackageLicense.def())
-            .filter(sbom_package_license::Column::SbomId.is_null());
+            .join(
+                JoinType::LeftJoin,
+                license::Relation::PackageLicense.def(),
+            )
+            .join(
+                JoinType::LeftJoin,
+                sbom_license_expanded::Relation::License.def().rev(),
+            )
+            .filter(sbom_license_expanded::Column::LicenseId.is_null());
 
-        // Apply filtering to both queries
-        let columns = Columns::default()
-            .add_column(LICENSE_TEXT, ColumnType::Text)
-            .translator(|field, operator, value| match (field, operator) {
-                (LICENSE, "asc" | "desc") => Some(format!("{}:{operator}", LICENSE_TEXT)),
-                (LICENSE, _) => Some(format!("{}{operator}{value}", LICENSE_TEXT)),
+        // Apply filtering to both queries (without sorting - that's applied to the UNION result)
+        let filter_only = Query {
+            q: search.q.clone(),
+            sort: String::new(), // Don't sort individual queries before UNION
+        };
+
+        let spdx_columns = expanded_license::Entity
+            .columns()
+            .translator(|field, operator, value| match field {
+                LICENSE => Some(format!("expanded_text{operator}{value}")),
                 _ => None,
             });
 
-        spdx_query = spdx_query.filtering_with(search.clone(), columns.clone())?;
-        non_sbom_query = non_sbom_query.filtering_with(search, columns)?;
+        let non_sbom_columns = license::Entity
+            .columns()
+            .translator(|field, operator, value| match field {
+                LICENSE => Some(format!("text{operator}{value}")),
+                _ => None,
+            });
+
+        spdx_query = spdx_query.filtering_with(filter_only.clone(), spdx_columns)?;
+        non_sbom_query = non_sbom_query.filtering_with(filter_only, non_sbom_columns)?;
 
         // Union the two queries
         let mut union_query = spdx_query
             .into_query()
             .union(UnionType::Distinct, non_sbom_query.into_query())
             .to_owned();
+
+        // Apply sorting to the UNION result using the alias.
+        // Default to ascending alphabetical order by license text when no sort is specified.
+        if search.sort.is_empty() {
+            union_query = union_query
+                .order_by(Alias::new(LICENSE_TEXT), Order::Asc)
+                .to_owned();
+        } else {
+            for part in search.sort.split(',') {
+                let part = part.trim();
+                if part.is_empty() {
+                    continue;
+                }
+                let (field, order) = if let Some((f, o)) = part.split_once(':') {
+                    (f.trim(), o.trim())
+                } else {
+                    (part, "asc")
+                };
+
+                // Map "license" field to "text" alias
+                let column = if field == LICENSE {
+                    LICENSE_TEXT
+                } else {
+                    field
+                };
+
+                match order {
+                    "asc" => union_query = union_query.order_by(Alias::new(column), Order::Asc).to_owned(),
+                    "desc" => union_query = union_query.order_by(Alias::new(column), Order::Desc).to_owned(),
+                    _ => {
+                        // Unknown order direction: fall back to ascending rather than silently
+                        // dropping the sort clause.
+                        log::warn!("Unknown sort order '{order}' for column '{column}', defaulting to ASC");
+                        union_query = union_query.order_by(Alias::new(column), Order::Asc).to_owned();
+                    }
+                }
+            }
+        }
 
         // Count total results
         let count_query = sea_query::Query::select()

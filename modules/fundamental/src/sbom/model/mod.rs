@@ -126,6 +126,11 @@ pub struct SbomPackage {
     /// License info
     pub licenses: Vec<LicenseInfo>,
     /// LicenseRef mappings
+    ///
+    /// **Deprecated**: Licenses are now pre-expanded at ingestion time via `expanded_license` /
+    /// `sbom_license_expanded` tables. This field is always empty and will be removed in a future
+    /// release.
+    #[deprecated(note = "Licenses are pre-expanded; this field is always empty")]
     pub licenses_ref_mapping: Vec<LicenseRefMapping>,
 }
 
