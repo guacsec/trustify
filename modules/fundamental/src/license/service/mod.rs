@@ -9,11 +9,12 @@ use crate::{
     },
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult, QueryFilter,
-    QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
+    ColumnTrait, ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult, IntoSimpleExpr,
+    QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
 };
 use sea_query::{
-    ColumnType, Condition, Expr, JoinType, PostgresQueryBuilder, UnionType,
+    Asterisk, ColumnType, Condition, Expr, Func, JoinType, PostgresQueryBuilder, SimpleExpr,
+    UnionType,
 };
 use serde::{Deserialize, Serialize};
 use trustify_common::{
@@ -28,6 +29,9 @@ use trustify_entity::{
 use utoipa::ToSchema;
 
 pub mod license_export;
+
+#[cfg(test)]
+mod test;
 
 pub struct LicenseService {}
 
@@ -237,11 +241,17 @@ impl LicenseService {
                     .select_only()
                     .distinct()
                     .column_as(
-                        Expr::cust("COALESCE(expanded_license.expanded_text, license.text)"),
+                        Into::<SimpleExpr>::into(Func::coalesce([
+                            Expr::col((expanded_license::Entity, expanded_license::Column::ExpandedText)).into_simple_expr(),
+                            Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
+                        ])),
                         "license_name",
                     )
                     .column_as(
-                        Expr::cust("COALESCE(expanded_license.expanded_text, license.text)"),
+                        Into::<SimpleExpr>::into(Func::coalesce([
+                            Expr::col((expanded_license::Entity, expanded_license::Column::ExpandedText)).into_simple_expr(),
+                            Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
+                        ])),
                         "license_id",
                     )
                     .filter(sbom_package_license::Column::SbomId.eq(sbom.sbom_id))
@@ -257,7 +267,10 @@ impl LicenseService {
                         JoinType::LeftJoin,
                         sbom_package_license::Relation::License.def(),
                     )
-                    .order_by_asc(Expr::cust("COALESCE(expanded_license.expanded_text, license.text)"))
+                    .order_by_asc(Into::<SimpleExpr>::into(Func::coalesce([
+                        Expr::col((expanded_license::Entity, expanded_license::Column::ExpandedText)).into_simple_expr(),
+                        Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
+                    ])))
                     .into_model::<LicenseRefMapping>()
                     .all(connection)
                     .await?;
@@ -309,7 +322,7 @@ impl LicenseService {
 
         // Count total results
         let count_query = sea_query::Query::select()
-            .expr_as(Expr::cust("count(*)"), "num_items")
+            .expr_as(Func::count(Expr::col(Asterisk)), "num_items")
             .from_subquery(union_query.clone(), "subquery")
             .to_owned();
 

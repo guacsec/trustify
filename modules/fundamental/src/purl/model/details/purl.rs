@@ -7,9 +7,9 @@ use crate::{
     vulnerability::model::VulnerabilityHead,
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, Iterable, LoaderTrait,
-    ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
-    Select, SelectColumns,
+    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, IntoSimpleExpr,
+    LoaderTrait, ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait,
+    RelationTrait, Select, SelectColumns,
 };
 use sea_query::{Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -22,10 +22,10 @@ use trustify_common::{
 };
 use trustify_cvss::cvss3::{Cvss3Base, score::Score, severity::Severity};
 use trustify_entity::{
-    advisory, base_purl, cpe, cvss3, license, organization, product, product_status,
-    product_version, product_version_range, purl_status, qualified_purl, sbom, sbom_license_expanded,
-    sbom_package, sbom_package_license, sbom_package_purl_ref, status, version_range,
-    versioned_purl, vulnerability,
+    advisory, base_purl, cpe, cvss3, expanded_license, license, organization, product,
+    product_status, product_version, product_version_range, purl_status, qualified_purl, sbom,
+    sbom_license_expanded, sbom_package, sbom_package_license, sbom_package_purl_ref, status,
+    version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::{Deprecation, DeprecationForExt};
 use utoipa::ToSchema;
@@ -110,7 +110,10 @@ impl PurlDetails {
             .distinct()
             .select_only()
             .column_as(
-                Expr::cust("COALESCE(expanded_license.expanded_text, license.text)"),
+                Into::<SimpleExpr>::into(Func::coalesce([
+                    Expr::col((expanded_license::Entity, expanded_license::Column::ExpandedText)).into_simple_expr(),
+                    Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
+                ])),
                 "license_name",
             )
             .select_column(sbom_package_license::Column::LicenseType)
