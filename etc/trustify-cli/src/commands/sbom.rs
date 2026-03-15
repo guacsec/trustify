@@ -9,6 +9,7 @@ use serde_json::Value;
 
 use crate::Context;
 use crate::api::sbom as sbom_api;
+use crate::common::{ListParams, PruneParams};
 use chrono::{DateTime, Local};
 
 /// Output format for SBOM list
@@ -181,7 +182,7 @@ impl SbomCommands {
                 sort,
                 format,
             } => {
-                let params = sbom_api::ListParams {
+                let params = ListParams {
                     q: query.clone(),
                     limit: *limit,
                     offset: *offset,
@@ -251,7 +252,7 @@ impl SbomCommands {
                     None
                 };
 
-                let params = sbom_api::PruneParams {
+                let params = PruneParams {
                     q: query.clone(),
                     limit: *limit,
                     keep_latest: *keep_latest,

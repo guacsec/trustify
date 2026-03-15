@@ -6,11 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use chrono::{DateTime, Duration, Local};
-use futures::{
-    future::join_all,
-    stream::{self, StreamExt},
-};
+use futures::future::join_all;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use log;
 use serde::{Deserialize, Serialize};
@@ -18,44 +14,16 @@ use serde_json::Value;
 use tokio::sync::Mutex;
 
 use super::client::{ApiClient, ApiError};
+use crate::common::{
+    DeleteEntry, DeleteResult, ListParams, PruneParams, build_prune_query, delete_entries,
+    new_delete_result,
+};
 
 const SBOM_PATH: &str = "/v2/sbom";
-
-/// Query parameters for listing SBOMs
-#[derive(Default, Serialize)]
-pub struct ListParams {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub q: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub offset: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sort: Option<String>,
-}
 
 /// Parameters for find duplicates
 pub struct FindDuplicatesParams {
     pub batch_size: u32,
-    pub concurrency: usize,
-}
-
-/// Parameters for pruning SBOMs
-#[derive(Default, Serialize)]
-pub struct PruneParams {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub q: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub published_before: Option<DateTime<Local>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub older_than: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub label: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keep_latest: Option<u32>,
-    pub dry_run: bool,
     pub concurrency: usize,
 }
 
@@ -368,7 +336,7 @@ pub async fn delete_by_query(
                 .unwrap_or("unknown");
             Some(DeleteEntry {
                 id: id.to_string(),
-                document_id: document_id.to_string(),
+                identifier: document_id.to_string(),
             })
         })
         .collect();
@@ -377,18 +345,10 @@ pub async fn delete_by_query(
         for entry in &entries {
             eprintln!(
                 "[DRY-RUN] Would delete: {} (document_id: {})",
-                entry.id, entry.document_id
+                entry.id, entry.identifier
             );
         }
-        return Ok(DeleteResult {
-            deleted: vec![],
-            deleted_total: 0,
-            skipped: vec![],
-            skipped_total: 0,
-            failed: vec![],
-            failed_total: 0,
-            total,
-        });
+        return Ok(new_delete_result(total));
     }
 
     delete_list(client, entries, concurrency).await
@@ -396,33 +356,7 @@ pub async fn delete_by_query(
 
 /// Prune SBOMs based on the given parameters
 pub async fn prune(client: &ApiClient, params: &PruneParams) -> Result<DeleteResult, ApiError> {
-    // Build query parameters for listing SBOMs to prune
-    let mut query = params.q.as_deref().unwrap_or("").to_string();
-    if let Some(d) = params.published_before.as_ref() {
-        query.push_str(&format!("&published<{}", d.to_rfc3339()));
-    }
-
-    if let Some(older_than) = params.older_than {
-        let older_than_time = Local::now() - Duration::days(older_than);
-        query.push_str(&format!("&ingested<{}", older_than_time.to_rfc3339()));
-    }
-
-    if let Some(labels) = &params.label {
-        for l in labels.iter() {
-            query.push_str(&format!("&labels:{}", l));
-        }
-    }
-
-    let (offset, sort) = match params.keep_latest {
-        Some(v) => (Some(v), Some("ingested:desc".to_string())),
-        None => (None, None),
-    };
-    let list_params = ListParams {
-        q: Some(query),
-        limit: params.limit,
-        offset,
-        sort,
-    };
+    let (_query, list_params) = build_prune_query(params);
 
     log::info!(
         "Pruning SBOMs with query: {}, offset: {:?}, sort: {:?}",
@@ -454,67 +388,18 @@ pub async fn prune(client: &ApiClient, params: &PruneParams) -> Result<DeleteRes
                 .unwrap_or("unknown");
             Some(DeleteEntry {
                 id: id.to_string(),
-                document_id: document_id.to_string(),
+                identifier: document_id.to_string(),
             })
         })
         .collect();
 
     // If dry run, just return the count without deleting
     if params.dry_run {
-        return Ok(DeleteResult {
-            deleted: vec![],
-            deleted_total: 0,
-            skipped: vec![],
-            skipped_total: 0,
-            failed: vec![],
-            failed_total: 0,
-            total,
-        });
+        return Ok(new_delete_result(total));
     }
 
     // Perform the actual deletion
     delete_list(client, entries, params.concurrency).await
-}
-
-#[derive(Debug, Clone, Serialize)]
-/// Result of deleting SBOMs
-pub struct DeleteResult {
-    pub deleted: Vec<DeletedResult>,
-    pub deleted_total: u32,
-    pub skipped: Vec<SkippedResult>,
-    pub skipped_total: u32,
-    pub failed: Vec<FailedResult>,
-    pub failed_total: u32,
-    pub total: u32,
-}
-
-#[derive(Debug, Clone, Serialize)]
-/// Successfully deleted SBOM
-pub struct DeletedResult {
-    pub sbom_id: String,
-    pub document_id: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-/// Skipped SBOM (not found)
-pub struct SkippedResult {
-    pub sbom_id: String,
-    pub document_id: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-/// Failed to delete SBOM
-pub struct FailedResult {
-    pub sbom_id: String,
-    pub document_id: String,
-    pub error: String,
-}
-
-/// Entry to delete with its document_id for logging
-#[derive(Clone)]
-pub struct DeleteEntry {
-    id: String,
-    document_id: String,
 }
 
 /// Read delete entries from a file
@@ -539,7 +424,7 @@ pub fn read_delete_entries_from_file(input_file: &str) -> Result<Vec<DeleteEntry
         .flat_map(|group| {
             group.duplicates.iter().map(|id| DeleteEntry {
                 id: id.clone(),
-                document_id: group.document_id.clone(),
+                identifier: group.document_id.clone(),
             })
         })
         .collect();
@@ -553,80 +438,7 @@ pub async fn delete_list(
     entries: Vec<DeleteEntry>,
     concurrency: usize,
 ) -> Result<DeleteResult, ApiError> {
-    let total = entries.len() as u32;
-
-    eprintln!(
-        "Deleting {} sboms with {} concurrent requests...\n",
-        total, concurrency
-    );
-
-    let progress = ProgressBar::new(total as u64);
-    progress.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")?
-            .progress_chars("█▓░"),
-    );
-
-    let deleted = Arc::new(Mutex::new(Vec::new()));
-    let skipped = Arc::new(Mutex::new(Vec::new()));
-    let failed = Arc::new(Mutex::new(Vec::new()));
-
-    stream::iter(entries)
-        .for_each_concurrent(concurrency, |entry| {
-            let client = client.clone();
-            let deleted = Arc::clone(&deleted);
-            let skipped = Arc::clone(&skipped);
-            let failed = Arc::clone(&failed);
-            let progress = progress.clone();
-            async move {
-                match delete(&client, &entry.id).await {
-                    Ok(_) => {
-                        let mut deleted_list = deleted.lock().await;
-                        deleted_list.push(DeletedResult {
-                            sbom_id: entry.id.clone(),
-                            document_id: entry.document_id.clone(),
-                        });
-                    }
-                    Err(ApiError::NotFound(_)) => {
-                        let mut skipped_list = skipped.lock().await;
-                        skipped_list.push(SkippedResult {
-                            sbom_id: entry.id.clone(),
-                            document_id: entry.document_id.clone(),
-                        });
-                    }
-                    Err(e) => {
-                        let mut failed_list = failed.lock().await;
-                        failed_list.push(FailedResult {
-                            sbom_id: entry.id.clone(),
-                            document_id: entry.document_id.clone(),
-                            error: e.to_string(),
-                        });
-                        progress.println(format!(
-                            "Failed to delete {} (document_id: {}): {}",
-                            entry.id, entry.document_id, e
-                        ));
-                    }
-                }
-                progress.inc(1);
-            }
-        })
-        .await;
-
-    progress.finish_with_message("complete");
-
-    let deleted_list = deleted.lock().await;
-    let skipped_list = skipped.lock().await;
-    let failed_list = failed.lock().await;
-
-    Ok(DeleteResult {
-        deleted: deleted_list.clone(),
-        deleted_total: deleted_list.len() as u32,
-        skipped: skipped_list.clone(),
-        skipped_total: skipped_list.len() as u32,
-        failed: failed_list.clone(),
-        failed_total: failed_list.len() as u32,
-        total,
-    })
+    delete_entries(client, SBOM_PATH, entries, concurrency).await
 }
 
 /// Delete duplicates from a file with progress bar
@@ -643,18 +455,10 @@ pub async fn delete_duplicates(
         for entry in &entries {
             eprintln!(
                 "[DRY-RUN] Would delete: {} (document_id: {})",
-                entry.id, entry.document_id
+                entry.id, entry.identifier
             );
         }
-        return Ok(DeleteResult {
-            deleted: vec![],
-            deleted_total: 0,
-            skipped: vec![],
-            skipped_total: 0,
-            failed: vec![],
-            failed_total: 0,
-            total,
-        });
+        return Ok(new_delete_result(total));
     }
 
     delete_list(client, entries, concurrency).await
