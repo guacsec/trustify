@@ -44,6 +44,8 @@ trustify sbom duplicates delete
   - [`sbom duplicates find`](#sbom-duplicates-find)
   - [`sbom duplicates delete`](#sbom-duplicates-delete)
   - [`sbom prune`](#sbom-prune)
+  - [`advisory list`](#advisory-list)
+  - [`advisory prune`](#advisory-prune)
 
 - [API Reference](#api-reference)
 - [License](#license)
@@ -227,5 +229,64 @@ trustify sbom prune --output results.json --quiet            # Save results to f
   ],
   "failed_total": 2,
   "total": 4
+}
+```
+
+---
+
+### `advisory list`
+
+List advisories with filtering, pagination, and output formatting.
+
+```bash
+trustify advisory list                              # Full JSON
+trustify advisory list --query "title=CVE-2024-1234"      # Filter by advisory title
+trustify advisory list --limit 10 --offset 20       # Pagination
+```
+
+---
+
+### `advisory prune`
+
+Prune advisories based on various criteria like age or labels. Always preview with `--dry-run` first!
+
+```bash
+trustify advisory prune --dry-run                                # Preview what will be pruned
+trustify advisory prune --older-than 90                          # Delete advisories older than 90 days
+trustify advisory prune --published-before 2026-01-15T10:30:45Z  # Delete advisories published before the specified date
+trustify advisory prune --label type=csaf --label importer=run   # Delete advisories with specific labels
+trustify advisory prune --keep-latest 5                          # Keep only 5 most recent per identifier
+trustify advisory prune --query "title=CVE-2024-1234"                       # Custom query filter
+trustify advisory prune --limit 1000                             # Limit results and increase concurrency
+trustify advisory prune --output results.json --quiet            # Save results to file, suppress output
+```
+
+**Output file format:**
+
+```json
+{
+  "deleted": [
+    {
+      "id": "urn:uuid:7f774d1f-bd19-425c-aa7d-1e35e6d527dc",
+      "identifier": "CVE-2019-7589"
+    }
+  ],
+  "deleted_total": 1,
+  "skipped": [
+    {
+      "id": "urn:uuid:3ab23f78-4bf0-44a7-9f1e-2e2bd672643a",
+      "identifier": "CVE-2019-7304"
+    }
+  ],
+  "skipped_total": 1,
+  "failed": [
+    {
+      "id": "urn:uuid:abc123",
+      "identifier": "CVE-2024-1234",
+      "error": "HTTP 408: Server timeout"
+    }
+  ],
+  "failed_total": 1,
+  "total": 3
 }
 ```
