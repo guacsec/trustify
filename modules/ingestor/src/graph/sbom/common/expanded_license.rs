@@ -33,7 +33,7 @@ LEFT JOIN (
     GROUP BY sbom_id
 ) lim ON lim.sbom_id = spl.sbom_id
 WHERE spl.sbom_id = $1
-ON CONFLICT (md5(expanded_text)) DO NOTHING
+ON CONFLICT (text_hash) DO NOTHING
             "#,
             [self.sbom_id.into()],
         ))
@@ -64,7 +64,7 @@ WITH license_expansions AS (
 INSERT INTO sbom_license_expanded (sbom_id, license_id, expanded_license_id)
 SELECT le.sbom_id, le.license_id, el.id
 FROM license_expansions le
-JOIN expanded_license el ON md5(el.expanded_text) = md5(le.expanded_text)
+JOIN expanded_license el ON el.text_hash = md5(le.expanded_text)
 ON CONFLICT (sbom_id, license_id) DO UPDATE
 SET expanded_license_id = EXCLUDED.expanded_license_id
             "#,
