@@ -1,4 +1,4 @@
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 
 #[cfg(feature = "garage-door")]
 mod embedded_oidc;

@@ -1,4 +1,4 @@
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 #![allow(clippy::expect_used)]
 
 pub mod app;

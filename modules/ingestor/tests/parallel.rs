@@ -1,3 +1,4 @@
+#![recursion_limit = "512"]
 //! Testing parallel operations
 #![recursion_limit = "512"]
 use bytes::Bytes;

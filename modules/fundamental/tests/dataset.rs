@@ -1,4 +1,4 @@
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 #![allow(clippy::unwrap_used)]
 
 use bytes::BytesMut;
