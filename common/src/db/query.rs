@@ -232,14 +232,12 @@ pub struct Constraint {
 
 impl fmt::Display for Constraint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}{}{}",
-            self.field.as_deref().unwrap_or(""),
-            self.op
-                .map_or("".to_string(), |operator| operator.to_string()),
-            self.value.join("|")
-        )
+        let value = self.value.join("|");
+        match (&self.field, &self.op) {
+            (Some(field), Some(op)) => write!(f, "{field}{op}{value}"),
+            (None, None) => write!(f, "{value}"),
+            _ => write!(f, "<invalid constraint>"),
+        }
     }
 }
 
@@ -265,9 +263,8 @@ impl Constraint {
 pub(crate) mod tests {
     use super::*;
     use sea_orm::{EntityTrait, QueryOrder, QuerySelect, QueryTrait};
-    use test_log::test;
 
-    #[test(tokio::test)]
+    #[test_log::test(tokio::test)]
     async fn happy_path() -> Result<(), anyhow::Error> {
         let stmt = advisory::Entity::find()
             .select_only()
@@ -281,6 +278,18 @@ pub(crate) mod tests {
             r#"SELECT "advisory"."id" FROM "advisory" WHERE (("advisory"."location" ILIKE '%foo%') OR ("advisory"."title" ILIKE '%foo%') OR (array_to_string("advisory"."authors", '|') ILIKE '%foo%')) AND "advisory"."published" > '2024-04-20' ORDER BY "advisory"."location" ASC, "advisory"."title" DESC, "advisory"."id" DESC"#
         );
         Ok(())
+    }
+
+    #[test_log::test(rstest::rstest)]
+    #[case("f=x", vec!["f=x"])]
+    #[case("f=x|y", vec!["f=x|y"])]
+    #[case("x", vec!["x"])]
+    #[case("x|y", vec!["x|y"])]
+    #[case("x|y&f>x", vec!["x|y", "f>x"])]
+    #[case("x!=\0&foo", vec!["x!=\0", "foo"])]
+    fn parsing(#[case] input: &str, #[case] expected: Vec<&str>) {
+        let constraints: Vec<_> = q(input).parse().iter().map(ToString::to_string).collect();
+        assert_eq!(expected, constraints)
     }
 
     /////////////////////////////////////////////////////////////////////////
