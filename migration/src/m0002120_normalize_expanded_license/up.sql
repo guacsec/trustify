@@ -1,12 +1,14 @@
 -- Create dictionary table for unique expanded license texts
 CREATE TABLE IF NOT EXISTS expanded_license (
     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    expanded_text TEXT NOT NULL
+    expanded_text TEXT NOT NULL,
+    text_hash TEXT GENERATED ALWAYS AS (md5(expanded_text)) STORED
 );
 
--- MD5 hash index for deduplication (handles long texts >2.7KB that exceed B-tree limits)
+-- Unique constraint on the generated hash column for deduplication
+-- (handles long texts >2.7KB that exceed B-tree limits)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_expanded_license_text_hash
-ON expanded_license (md5(expanded_text));
+ON expanded_license (text_hash);
 
 -- Create junction table mapping (sbom_id, license_id) → expanded_license_id
 CREATE TABLE IF NOT EXISTS sbom_license_expanded (
@@ -14,6 +16,8 @@ CREATE TABLE IF NOT EXISTS sbom_license_expanded (
     license_id UUID NOT NULL,
     expanded_license_id INTEGER NOT NULL,
     PRIMARY KEY (sbom_id, license_id),
+    FOREIGN KEY (sbom_id) REFERENCES sbom(sbom_id) ON DELETE CASCADE,
+    FOREIGN KEY (license_id) REFERENCES license(id) ON DELETE CASCADE,
     FOREIGN KEY (expanded_license_id) REFERENCES expanded_license(id) ON DELETE CASCADE
 );
 
@@ -44,7 +48,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM sbom_license_expanded sle
     WHERE sle.sbom_id = uls.sbom_id
 )
-ON CONFLICT (md5(expanded_text)) DO NOTHING;
+ON CONFLICT (text_hash) DO NOTHING;
 
 -- Backfill Step 2: Insert junction rows
 -- Use a CTE (license_expansions) to call expand_license_expression_with_mappings() only once per
@@ -73,7 +77,7 @@ WITH license_expansions AS (
 INSERT INTO sbom_license_expanded (sbom_id, license_id, expanded_license_id)
 SELECT ne.sbom_id, ne.license_id, el.id
 FROM license_expansions ne
-JOIN expanded_license el ON md5(el.expanded_text) = md5(ne.expanded_text)
+JOIN expanded_license el ON el.text_hash = md5(ne.expanded_text)
 ON CONFLICT (sbom_id, license_id) DO UPDATE
 SET expanded_license_id = EXCLUDED.expanded_license_id;
 

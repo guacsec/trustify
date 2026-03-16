@@ -780,17 +780,19 @@ async fn test_sbom_package_license_filtering_with_coalesce(
         .await?;
 
     // REFACTOR: Verify filtering works on COALESCE result
-    if apache_packages.total > 0 {
-        let has_apache = apache_packages.items.iter().any(|p| {
-            p.licenses
-                .iter()
-                .any(|l| l.license_name.to_lowercase().contains("apache"))
-        });
-        assert!(
-            has_apache,
-            "Filtered packages should contain Apache licenses"
-        );
-    }
+    assert!(
+        apache_packages.total > 0,
+        "Expected at least one package to match Apache filter"
+    );
+    let has_apache = apache_packages.items.iter().any(|p| {
+        p.licenses
+            .iter()
+            .any(|l| l.license_name.to_lowercase().contains("apache"))
+    });
+    assert!(
+        has_apache,
+        "Filtered packages should contain Apache licenses"
+    );
 
     Ok(())
 }
