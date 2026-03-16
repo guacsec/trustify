@@ -2056,9 +2056,9 @@ checksum = "f7fb220d3ce1b565af39cee5b89e47fd8dd1dab162900ee4363c8ee4169ee8a2"
 
 [[package]]
 name = "cvss-rs"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d39f0e764a4f9a7606f85c23e423437acb5a9bc70d491bf40d3b763df642c40c"
+checksum = "77ad2a244caaabb9274bf7f54e3f01a67e593bbe63797132436ee76394517f60"
 dependencies = [
  "serde",
  "serde_json",
