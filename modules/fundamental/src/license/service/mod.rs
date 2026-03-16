@@ -13,13 +13,12 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
 };
 use sea_query::{
-    Alias, Asterisk, Condition, Expr, Func, JoinType, Order, PostgresQueryBuilder, SimpleExpr,
-    UnionType,
+    Asterisk, Condition, Expr, Func, JoinType, PostgresQueryBuilder, SimpleExpr, UnionType,
 };
 use serde::{Deserialize, Serialize};
 use spdx::License;
 use trustify_common::{
-    db::query::{Filtering, IntoColumns, Query},
+    db::query::{Columns, Filtering, IntoColumns, Query, q},
     id::{Id, TrySelectForId},
     model::{Paginated, PaginatedResults},
 };
@@ -344,60 +343,17 @@ impl LicenseService {
         non_sbom_query = non_sbom_query.filtering_with(filter_only, non_sbom_columns)?;
 
         // Union the two queries
-        let mut union_query = spdx_query
-            .into_query()
-            .union(UnionType::Distinct, non_sbom_query.into_query())
-            .to_owned();
+        QueryTrait::query(&mut spdx_query).union(UnionType::Distinct, non_sbom_query.into_query());
+        // Add an expression for the license field and use it as the default sort
+        let expr = SimpleExpr::Custom(LICENSE_TEXT.into());
+        spdx_query = spdx_query
+            .filtering_with(
+                q("").sort(&search.sort),
+                Columns::default().add_expr("license", expr.clone(), sea_orm::ColumnType::Text),
+            )?
+            .order_by_asc(expr);
 
-        // Apply sorting to the UNION result using the alias.
-        // Default to ascending alphabetical order by license text when no sort is specified.
-        if search.sort.is_empty() {
-            union_query = union_query
-                .order_by(Alias::new(LICENSE_TEXT), Order::Asc)
-                .to_owned();
-        } else {
-            for part in search.sort.split(',') {
-                let part = part.trim();
-                if part.is_empty() {
-                    continue;
-                }
-                let (field, order) = if let Some((f, o)) = part.split_once(':') {
-                    (f.trim(), o.trim())
-                } else {
-                    (part, "asc")
-                };
-
-                // Map "license" field to "text" alias
-                let column = if field == LICENSE {
-                    LICENSE_TEXT
-                } else {
-                    field
-                };
-
-                match order {
-                    "asc" => {
-                        union_query = union_query
-                            .order_by(Alias::new(column), Order::Asc)
-                            .to_owned()
-                    }
-                    "desc" => {
-                        union_query = union_query
-                            .order_by(Alias::new(column), Order::Desc)
-                            .to_owned()
-                    }
-                    _ => {
-                        // Unknown order direction: fall back to ascending rather than silently
-                        // dropping the sort clause.
-                        log::warn!(
-                            "Unknown sort order '{order}' for column '{column}', defaulting to ASC"
-                        );
-                        union_query = union_query
-                            .order_by(Alias::new(column), Order::Asc)
-                            .to_owned();
-                    }
-                }
-            }
-        }
+        let mut union_query = spdx_query.into_query();
 
         // Count total results
         let count_query = sea_query::Query::select()
