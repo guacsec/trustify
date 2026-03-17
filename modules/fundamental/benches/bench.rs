@@ -1,3 +1,4 @@
+#![recursion_limit = "512"]
 use std::time::Duration;
 
 use criterion::{Criterion, criterion_group, criterion_main};
