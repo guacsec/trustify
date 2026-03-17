@@ -6,7 +6,7 @@ use crate::{
         sbom::{
             CycloneDx as CycloneDxProcessor, LicenseCreator, LicenseInfo, NodeInfoParam,
             PackageCreator, PackageLicensenInfo, PackageReference, References, RelationshipCreator,
-            SbomContext, SbomInformation,
+            SbomContext, SbomInformation, populate_expanded_license,
             processor::{
                 InitContext, PostContext, Processor, RedHatProductComponentRelationships,
                 RunProcessors,
@@ -339,6 +339,9 @@ impl<'a> Creator<'a> {
         cpes.create(db).await?;
         packages.create(db).await?;
         relationships.create(db).await?;
+
+        // Populate expanded license tables
+        populate_expanded_license(self.sbom_id, db).await?;
 
         // done
 

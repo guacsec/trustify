@@ -1,6 +1,6 @@
 -- Create dictionary table for unique expanded license texts
 CREATE TABLE IF NOT EXISTS expanded_license (
-    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     expanded_text TEXT NOT NULL,
     text_hash TEXT GENERATED ALWAYS AS (md5(expanded_text)) STORED
 );
@@ -14,7 +14,7 @@ ON expanded_license (text_hash);
 CREATE TABLE IF NOT EXISTS sbom_license_expanded (
     sbom_id UUID NOT NULL,
     license_id UUID NOT NULL,
-    expanded_license_id INTEGER NOT NULL,
+    expanded_license_id UUID NOT NULL,
     PRIMARY KEY (sbom_id, license_id),
     FOREIGN KEY (sbom_id) REFERENCES sbom(sbom_id) ON DELETE CASCADE,
     FOREIGN KEY (license_id) REFERENCES license(id) ON DELETE CASCADE,
