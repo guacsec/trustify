@@ -45,13 +45,13 @@ jobs:
             microsoft-edge-stable
           df -h
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: Swatinem/rust-cache@v2
         with:
           key: tarpaulin
 
       - name: Cache Theseus Postgresql Installation
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.theseus/postgresql
           key: ${{ runner.os }}-theseus-postgresql-${{ hashFiles('**/Cargo.lock') }}

@@ -13,11 +13,11 @@ jobs:
     runs-on: ubuntu-24.04
     if: ${{ github.repository_owner == 'guacsec' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: trustify
       - name: Checkout trustify-ui
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: guacsec/trustify-ui
           path: trustify-ui

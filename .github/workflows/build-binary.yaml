@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Create vendor archive
         run: |
@@ -24,7 +24,7 @@ jobs:
           tar caf vendor.tar.xz vendor
 
       - name: Upload vendor archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vendor
           path: |
@@ -78,7 +78,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup | Cache
         uses: Swatinem/rust-cache@v2
@@ -226,14 +226,14 @@ jobs:
           done
 
       - name: Upload binary (trustd)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trustd${{ matrix.edition }}-${{ matrix.target }}
           path: upload/trustd*
           if-no-files-found: error
 
       - name: Upload binary (xtask)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xtask${{ matrix.edition }}-${{ matrix.target }}
           path: upload/xtask*
