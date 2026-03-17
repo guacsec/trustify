@@ -4,9 +4,9 @@ use crate::{
         product::ProductInformation,
         purl::creator::PurlCreator,
         sbom::{
-            ExpandedLicenseCreator, FileCreator, LicenseCreator, LicenseInfo, LicensingInfo,
-            LicensingInfoCreator, NodeInfoParam, PackageCreator, PackageLicensenInfo,
-            PackageReference, References, RelationshipCreator, SbomContext, SbomInformation, Spdx,
+            FileCreator, LicenseCreator, LicenseInfo, LicensingInfo, LicensingInfoCreator,
+            NodeInfoParam, PackageCreator, PackageLicensenInfo, PackageReference, References,
+            RelationshipCreator, SbomContext, SbomInformation, Spdx, populate_expanded_license,
             processor::{
                 InitContext, PostContext, Processor, RedHatProductComponentRelationships,
                 RunProcessors,
@@ -359,9 +359,7 @@ impl SbomContext {
         relationships.create(db).await?;
 
         // Populate expanded license tables
-        ExpandedLicenseCreator::new(self.sbom.sbom_id)
-            .create(db)
-            .await?;
+        populate_expanded_license(self.sbom.sbom_id, db).await?;
 
         // done
 

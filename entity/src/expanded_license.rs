@@ -4,7 +4,7 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "expanded_license")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub id: i32,
+    pub id: Uuid,
     pub expanded_text: String,
     pub text_hash: String,
 }

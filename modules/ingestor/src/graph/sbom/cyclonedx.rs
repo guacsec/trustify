@@ -4,10 +4,10 @@ use crate::{
         product::ProductInformation,
         purl::creator::PurlCreator,
         sbom::{
-            CryptographicAssetCreator, CycloneDx as CycloneDxProcessor, ExpandedLicenseCreator,
-            LicenseCreator, LicenseInfo, MachineLearningModelCreator, NodeInfoParam,
-            PackageCreator, PackageLicensenInfo, PackageReference, References, RelationshipCreator,
-            SbomContext, SbomInformation,
+            CryptographicAssetCreator, CycloneDx as CycloneDxProcessor, LicenseCreator,
+            LicenseInfo, MachineLearningModelCreator, NodeInfoParam, PackageCreator,
+            PackageLicensenInfo, PackageReference, References, RelationshipCreator, SbomContext,
+            SbomInformation, populate_expanded_license,
             processor::{
                 InitContext, PostContext, Processor, RedHatProductComponentRelationships,
                 RunProcessors,
@@ -587,7 +587,7 @@ impl ComponentCreator {
         self.relationships.create(db).await?;
 
         // Populate expanded license tables
-        ExpandedLicenseCreator::new(self.sbom_id).create(db).await?;
+        populate_expanded_license(self.sbom_id, db).await?;
 
         Ok(())
     }

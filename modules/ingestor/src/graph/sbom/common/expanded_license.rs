@@ -1,25 +1,24 @@
 use sea_orm::{ConnectionTrait, DbErr, Statement};
 use uuid::Uuid;
 
-/// Creator for populating expanded_license and sbom_license_expanded tables during ingestion
-pub struct ExpandedLicenseCreator {
+/// Populates expanded_license and sbom_license_expanded tables during SBOM ingestion
+///
+/// This function uses raw SQL because the query involves:
+/// - PostgreSQL composite type `license_mapping` constructed with `ROW(...)`
+/// - Array aggregation `array_agg()` over composite types
+/// - Custom PL/pgSQL function `expand_license_expression_with_mappings()`
+/// - Complex CTEs and subquery joins
+///
+/// While SeaORM could express this via custom expressions, it would be significantly
+/// more verbose and harder to maintain than the raw SQL.
+pub async fn populate_expanded_license(
     sbom_id: Uuid,
-}
-
-impl ExpandedLicenseCreator {
-    pub fn new(sbom_id: Uuid) -> Self {
-        Self { sbom_id }
-    }
-
-    /// Populates expanded_license and sbom_license_expanded tables
-    ///
-    /// Uses inline SQL to leverage expand_license_expression_with_mappings() PL/pgSQL function
-    /// which cannot be called via SeaORM due to custom composite type parameters.
-    pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
-        // Step 1: Insert into expanded_license dictionary
-        db.execute(Statement::from_sql_and_values(
-            db.get_database_backend(),
-            r#"
+    db: &impl ConnectionTrait,
+) -> Result<(), DbErr> {
+    // Step 1: Insert into expanded_license dictionary
+    db.execute(Statement::from_sql_and_values(
+        db.get_database_backend(),
+        r#"
 INSERT INTO expanded_license (expanded_text)
 SELECT DISTINCT expand_license_expression_with_mappings(
     l.text,
@@ -35,15 +34,15 @@ LEFT JOIN (
 WHERE spl.sbom_id = $1
 ON CONFLICT (text_hash) DO NOTHING
             "#,
-            [self.sbom_id.into()],
-        ))
-        .await?;
+        [sbom_id.into()],
+    ))
+    .await?;
 
-        // Step 2: Insert into sbom_license_expanded junction table
-        // Use CTE to call expand_license_expression_with_mappings() only once per (sbom_id, license_id)
-        db.execute(Statement::from_sql_and_values(
-            db.get_database_backend(),
-            r#"
+    // Step 2: Insert into sbom_license_expanded junction table
+    // Use CTE to call expand_license_expression_with_mappings() only once per (sbom_id, license_id)
+    db.execute(Statement::from_sql_and_values(
+        db.get_database_backend(),
+        r#"
 WITH license_expansions AS (
     SELECT DISTINCT
         spl.sbom_id,
@@ -68,10 +67,9 @@ JOIN expanded_license el ON el.text_hash = md5(le.expanded_text)
 ON CONFLICT (sbom_id, license_id) DO UPDATE
 SET expanded_license_id = EXCLUDED.expanded_license_id
             "#,
-            [self.sbom_id.into()],
-        ))
-        .await?;
+        [sbom_id.into()],
+    ))
+    .await?;
 
-        Ok(())
-    }
+    Ok(())
 }
