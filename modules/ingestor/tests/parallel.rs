@@ -1,6 +1,4 @@
 #![recursion_limit = "512"]
-//! Testing parallel operations
-#![recursion_limit = "512"]
 use bytes::Bytes;
 use csaf::Csaf;
 use serde_json::Value;

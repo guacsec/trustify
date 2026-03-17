@@ -1,7 +1,9 @@
 use crate::{
     Error,
     advisory::model::AdvisoryHead,
-    common::{LicenseInfo, LicenseRefMapping, model::Score},
+    common::{
+        LicenseInfo, LicenseRefMapping, license_filtering::license_text_coalesce, model::Score,
+    },
     purl::model::{
         BasePurlHead, PurlHead, VersionedPurlHead, details::version_range::VersionRange,
     },
@@ -9,9 +11,9 @@ use crate::{
     vulnerability::model::VulnerabilityHead,
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, IntoSimpleExpr, LoaderTrait,
-    ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
-    Select, SelectColumns,
+    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, LoaderTrait, ModelTrait,
+    QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait, Select,
+    SelectColumns,
 };
 use sea_query::{Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -24,10 +26,10 @@ use trustify_common::{
 };
 use trustify_cvss::cvss3::{score::Score as Cvss3Score, severity::Severity};
 use trustify_entity::{
-    advisory, advisory_vulnerability_score, base_purl, cpe, expanded_license, license,
-    organization, product, product_status, product_version, product_version_range, purl_status,
-    qualified_purl, sbom, sbom_license_expanded, sbom_package, sbom_package_license,
-    sbom_package_purl_ref, status, version_range, versioned_purl, vulnerability,
+    advisory, advisory_vulnerability_score, base_purl, cpe, license, organization, product,
+    product_status, product_version, product_version_range, purl_status, qualified_purl, sbom,
+    sbom_license_expanded, sbom_package, sbom_package_license, sbom_package_purl_ref, status,
+    version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::{Deprecation, DeprecationForExt};
 use utoipa::ToSchema;
@@ -110,17 +112,7 @@ impl PurlDetails {
         let licenses: Vec<LicenseInfo> = sbom_package_purl_ref::Entity::find()
             .distinct()
             .select_only()
-            .column_as(
-                Into::<SimpleExpr>::into(Func::coalesce([
-                    Expr::col((
-                        expanded_license::Entity,
-                        expanded_license::Column::ExpandedText,
-                    ))
-                    .into_simple_expr(),
-                    Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
-                ])),
-                "license_name",
-            )
+            .column_as(license_text_coalesce(), "license_name")
             .select_column(sbom_package_license::Column::LicenseType)
             .filter(sbom_package_purl_ref::Column::QualifiedPurlId.eq(qualified_package.id))
             .join(

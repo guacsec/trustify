@@ -1,7 +1,7 @@
 use super::SbomService;
 use crate::{
     Error,
-    common::license_filtering::LICENSE,
+    common::license_filtering::{LICENSE, license_text_coalesce},
     sbom::model::{
         SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
         SbomSummary, Which, details::SbomDetails,
@@ -13,7 +13,7 @@ use sea_orm::{
     IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
     Select, SelectColumns, Statement, StreamTrait, prelude::Uuid,
 };
-use sea_query::{ColumnType, Expr, Func, JoinType, extension::postgres::PgExpr};
+use sea_query::{ColumnType, Expr, JoinType, extension::postgres::PgExpr};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
@@ -33,7 +33,6 @@ use trustify_common::{
 use trustify_entity::{
     advisory, advisory_vulnerability, base_purl,
     cpe::{self, CpeDto},
-    expanded_license,
     labels::Labels,
     license, organization, package_relates_to_package,
     qualified_purl::{self, CanonicalPurl},
@@ -784,10 +783,7 @@ where
             Expr::cust_with_exprs(
                 "coalesce(json_agg(distinct jsonb_build_object('license_name', $1, 'license_type', $2)) filter (where $3), '[]'::json)",
                 [
-                    Func::coalesce([
-                        Expr::col((expanded_license::Entity, expanded_license::Column::ExpandedText)).into_simple_expr(),
-                        Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
-                    ]).into(),
+                    license_text_coalesce(),
                     sbom_package_license::Column::LicenseType.into_simple_expr(),
                     Expr::col((license::Entity, license::Column::Text)).is_not_null(),
                 ],

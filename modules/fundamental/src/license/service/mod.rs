@@ -1,6 +1,9 @@
 use crate::{
     Error,
-    common::{LicenseRefMapping, license_filtering::LICENSE},
+    common::{
+        LicenseRefMapping,
+        license_filtering::{LICENSE, license_text_coalesce},
+    },
     license::model::{
         SpdxLicenseDetails, SpdxLicenseSummary,
         sbom_license::{
@@ -9,8 +12,8 @@ use crate::{
     },
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult, IntoSimpleExpr,
-    QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
+    ColumnTrait, ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult, QueryFilter,
+    QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
 };
 use sea_query::{
     Asterisk, Condition, Expr, Func, JoinType, PostgresQueryBuilder, SimpleExpr, UnionType,
@@ -250,14 +253,7 @@ impl LicenseService {
             Some(sbom) => {
                 // Build the COALESCE expression once: prefer pre-expanded text, fall back to raw
                 // license text. Reused for both SELECT columns and ORDER BY to avoid repetition.
-                let coalesce_expr = Into::<SimpleExpr>::into(Func::coalesce([
-                    Expr::col((
-                        expanded_license::Entity,
-                        expanded_license::Column::ExpandedText,
-                    ))
-                    .into_simple_expr(),
-                    Expr::col((license::Entity, license::Column::Text)).into_simple_expr(),
-                ]));
+                let coalesce_expr = license_text_coalesce();
 
                 let licenses = sbom_package_license::Entity::find()
                     .select_only()
