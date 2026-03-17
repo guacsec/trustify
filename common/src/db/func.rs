@@ -77,6 +77,12 @@ impl UpdateDeprecatedAdvisory {
     }
 }
 
+// NOTE: This enum is currently unused. The `expand_license_expression_with_mappings`
+// PostgreSQL function is invoked via raw SQL in `populate_expanded_license()` due to
+// its use of complex PostgreSQL features (composite types, array aggregation over
+// `license_mapping`, and complex CTEs). This enum is preserved for potential future
+// refactoring to SeaQuery/SeaORM query builders, though such migration may not be
+// feasible given the function's complexity and the performance benefits of raw SQL.
 #[derive(Iden)]
 pub enum CustomFunc {
     #[iden = "expand_license_expression_with_mappings"]

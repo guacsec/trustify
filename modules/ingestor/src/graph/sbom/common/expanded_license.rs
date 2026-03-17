@@ -3,11 +3,16 @@ use uuid::Uuid;
 
 /// Populates expanded_license and sbom_license_expanded tables during SBOM ingestion
 ///
-/// This function uses raw SQL because the query involves:
+/// This function uses a single SQL statement with CTEs to:
+/// 1. Call expand_license_expression_with_mappings() once per license
+/// 2. Insert distinct expanded texts into the expanded_license dictionary
+/// 3. Populate the sbom_license_expanded junction table
+///
+/// Raw SQL is used because the query involves:
 /// - PostgreSQL composite type `license_mapping` constructed with `ROW(...)`
 /// - Array aggregation `array_agg()` over composite types
 /// - Custom PL/pgSQL function `expand_license_expression_with_mappings()`
-/// - Complex CTEs and subquery joins
+/// - Complex CTEs with multiple insert operations
 ///
 /// While SeaORM could express this via custom expressions, it would be significantly
 /// more verbose and harder to maintain than the raw SQL.
