@@ -134,11 +134,11 @@ impl<'a> From<Information<'a>> for SbomInformation {
 
 impl SbomContext {
     #[instrument(skip(connection, sbom, warnings), err(level=tracing::Level::INFO))]
-    pub async fn ingest_cyclonedx<C: ConnectionTrait + sea_orm::TransactionTrait>(
+    pub async fn ingest_cyclonedx(
         &self,
         mut sbom: Box<CycloneDx>,
         warnings: &dyn ReportSink,
-        connection: &C,
+        connection: &impl ConnectionTrait,
     ) -> Result<(), Error> {
         // pre-flight checks
 
@@ -283,7 +283,7 @@ impl<'a> Creator<'a> {
     #[instrument(skip(self, db, processors), err(level=tracing::Level::INFO))]
     pub async fn create(
         self,
-        db: &(impl ConnectionTrait + sea_orm::TransactionTrait),
+        db: &impl ConnectionTrait,
         processors: &mut [Box<dyn Processor>],
     ) -> Result<(), Error> {
         let mut purls = PurlCreator::new();

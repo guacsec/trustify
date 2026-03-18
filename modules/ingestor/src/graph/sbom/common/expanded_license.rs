@@ -1,9 +1,9 @@
-use sea_orm::{ConnectionTrait, DbErr, Statement, TransactionTrait};
+use sea_orm::{ConnectionTrait, DbErr, Statement};
 use uuid::Uuid;
 
 /// Populates expanded_license and sbom_license_expanded tables during SBOM ingestion
 ///
-/// This function uses two SQL statements within a transaction to:
+/// This function uses two SQL statements to:
 /// 1. Call expand_license_expression_with_mappings() once per license
 /// 2. Insert distinct expanded texts into the expanded_license dictionary
 /// 3. Populate the sbom_license_expanded junction table
@@ -17,22 +17,20 @@ use uuid::Uuid;
 /// While SeaORM could express this via custom expressions, it would be significantly
 /// more verbose and harder to maintain than the raw SQL.
 ///
-/// **Transaction safety**: Both dictionary and junction table inserts run in a single
-/// transaction to prevent partial state if the second insert fails.
+/// **Transaction safety**: This function expects to be called within a transaction
+/// (as it always is during SBOM ingestion). Both SQL statements will be atomic
+/// within the caller's transaction.
 ///
 /// **Note on SQL duplication**: Similar SQL appears in migration m0002120 for backfilling
 /// existing data. The migration processes ALL SBOMs at once, while this function runs
 /// per-SBOM during ingestion. Keep both in sync when updating license expansion logic.
 pub async fn populate_expanded_license(
     sbom_id: Uuid,
-    db: &(impl ConnectionTrait + TransactionTrait),
+    db: &impl ConnectionTrait,
 ) -> Result<(), DbErr> {
-    // Begin transaction to ensure atomicity between dictionary and junction table inserts
-    let txn = db.begin().await?;
-
     // Step 1: Insert into expanded_license dictionary
-    txn.execute(Statement::from_sql_and_values(
-        txn.get_database_backend(),
+    db.execute(Statement::from_sql_and_values(
+        db.get_database_backend(),
         r#"
 INSERT INTO expanded_license (expanded_text)
 SELECT DISTINCT expand_license_expression_with_mappings(
@@ -55,8 +53,8 @@ ON CONFLICT (text_hash) DO NOTHING
 
     // Step 2: Insert into sbom_license_expanded junction table
     // Use CTE to call expand_license_expression_with_mappings() only once per (sbom_id, license_id)
-    txn.execute(Statement::from_sql_and_values(
-        txn.get_database_backend(),
+    db.execute(Statement::from_sql_and_values(
+        db.get_database_backend(),
         r#"
 WITH license_expansions AS (
     SELECT DISTINCT
@@ -85,9 +83,6 @@ SET expanded_license_id = EXCLUDED.expanded_license_id
         [sbom_id.into()],
     ))
     .await?;
-
-    // Commit transaction - both inserts succeed or both roll back
-    txn.commit().await?;
 
     Ok(())
 }
