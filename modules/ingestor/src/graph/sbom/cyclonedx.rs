@@ -21,7 +21,7 @@ use sbom_walker::{
     model::sbom::serde_cyclonedx::Sbom,
     report::{ReportSink, check},
 };
-use sea_orm::{ConnectionTrait, TransactionTrait};
+use sea_orm::ConnectionTrait;
 use serde_cyclonedx::cyclonedx::v_1_6::{
     Component, ComponentEvidenceIdentity, CycloneDx, LicenseChoiceUrl, OrganizationalContact,
 };
@@ -138,15 +138,12 @@ impl<'a> From<Information<'a>> for SbomInformation {
 
 impl SbomContext {
     #[instrument(skip(connection, sbom, warnings), err(level=tracing::Level::INFO))]
-    pub async fn ingest_cyclonedx<C>(
+    pub async fn ingest_cyclonedx(
         &self,
         mut sbom: Box<CycloneDx>,
         warnings: &dyn ReportSink,
-        connection: &C,
-    ) -> Result<(), Error>
-    where
-        C: ConnectionTrait + TransactionTrait,
-    {
+        connection: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
         // pre-flight checks
 
         check::serde_cyclonedx::all(warnings, &Sbom::V1_6(Cow::Borrowed(&sbom)));
@@ -288,10 +285,11 @@ impl<'a> Creator<'a> {
     }
 
     #[instrument(skip(self, db, processors), err(level=tracing::Level::INFO))]
-    pub async fn create<C>(self, db: &C, processors: &mut [Box<dyn Processor>]) -> Result<(), Error>
-    where
-        C: ConnectionTrait + TransactionTrait,
-    {
+    pub async fn create(
+        self,
+        db: &impl ConnectionTrait,
+        processors: &mut [Box<dyn Processor>],
+    ) -> Result<(), Error> {
         let mut creator = ComponentCreator::new(self.sbom_id, self.components.len());
 
         for comp in self.components {
@@ -578,10 +576,7 @@ impl ComponentCreator {
     // order matters to prevent cross-table deadlocks when running
     // concurrent SBOM ingestions. All SBOM loaders must use the same
     // table insertion order.
-    async fn create<C>(self, db: &C) -> Result<(), Error>
-    where
-        C: ConnectionTrait + TransactionTrait,
-    {
+    async fn create(self, db: &impl ConnectionTrait) -> Result<(), Error> {
         self.licenses.create(db).await?;
         self.purls.create(db).await?;
         self.cpes.create(db).await?;

@@ -28,10 +28,10 @@ use uuid::Uuid;
 ///
 /// Both use the same core logic (expand_license_expression_with_mappings + md5 hash
 /// matching) but optimize for their different use cases.
-pub async fn populate_expanded_license<C>(sbom_id: Uuid, db: &C) -> Result<(), DbErr>
-where
-    C: ConnectionTrait,
-{
+pub async fn populate_expanded_license(
+    sbom_id: Uuid,
+    db: &impl ConnectionTrait,
+) -> Result<(), DbErr> {
     // Step 1: Insert into expanded_license dictionary
     db.execute(Statement::from_sql_and_values(
         db.get_database_backend(),
