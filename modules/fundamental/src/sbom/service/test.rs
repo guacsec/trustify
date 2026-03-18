@@ -673,8 +673,14 @@ async fn test_sbom_package_licenses_coalesce(ctx: &TrustifyContext) -> Result<()
         .ingest_document("zookeeper-3.9.2-cyclonedx.json")
         .await?;
 
-    let spdx_id = Uuid::parse_str(&spdx_result.id)?;
-    let cyclonedx_id = Uuid::parse_str(&cyclonedx_result.id)?;
+    let spdx_id = spdx_result
+        .id
+        .try_as_uid()
+        .ok_or_else(|| anyhow::anyhow!("Expected UUID ID"))?;
+    let cyclonedx_id = cyclonedx_result
+        .id
+        .try_as_uid()
+        .ok_or_else(|| anyhow::anyhow!("Expected UUID ID"))?;
 
     let spdx_packages = service
         .fetch_sbom_packages(
@@ -748,7 +754,10 @@ async fn test_sbom_package_license_filtering_with_coalesce(
     let result = ctx
         .ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
         .await?;
-    let sbom_id = Uuid::parse_str(&result.id)?;
+    let sbom_id = result
+        .id
+        .try_as_uid()
+        .ok_or_else(|| anyhow::anyhow!("Expected UUID ID"))?;
 
     // Filter by license (should work via COALESCE on expanded_text OR text)
     let apache_packages = service
@@ -795,7 +804,10 @@ async fn test_sbom_package_license_not_null_filter(
     let result = ctx
         .ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
         .await?;
-    let sbom_id = Uuid::parse_str(&result.id)?;
+    let sbom_id = result
+        .id
+        .try_as_uid()
+        .ok_or_else(|| anyhow::anyhow!("Expected UUID ID"))?;
 
     let packages = service
         .fetch_sbom_packages(

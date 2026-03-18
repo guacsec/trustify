@@ -5,7 +5,6 @@ use test_log::test;
 use trustify_common::{db::query::Query, id::Id, model::Paginated};
 use trustify_entity::{expanded_license, sbom_license_expanded};
 use trustify_test_context::TrustifyContext;
-use uuid::Uuid;
 
 /// RED-GREEN-REFACTOR: Test licenses() UNION query
 /// Verifies: expanded_license.expanded_text UNION license.text for CycloneDX
@@ -74,7 +73,10 @@ async fn test_get_all_license_info_coalesce(ctx: &TrustifyContext) -> Result<(),
     let result = ctx
         .ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
         .await?;
-    let sbom_id = Uuid::parse_str(&result.id)?;
+    let sbom_id = result
+        .id
+        .try_as_uid()
+        .ok_or_else(|| anyhow::anyhow!("Expected UUID ID"))?;
 
     // GREEN: Get license info
     let info = service
@@ -119,7 +121,10 @@ async fn test_junction_table_mapping_integrity(ctx: &TrustifyContext) -> Result<
     let result = ctx
         .ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
         .await?;
-    let sbom_id = Uuid::parse_str(&result.id)?;
+    let sbom_id = result
+        .id
+        .try_as_uid()
+        .ok_or_else(|| anyhow::anyhow!("Expected UUID ID"))?;
 
     // REFACTOR: Verify every junction entry references valid expanded_license
     let entries = sbom_license_expanded::Entity::find()
@@ -227,7 +232,10 @@ async fn test_coalesce_refactoring_correctness(ctx: &TrustifyContext) -> Result<
     let spdx_result = ctx
         .ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
         .await?;
-    let sbom_id = Uuid::parse_str(&spdx_result.id)?;
+    let sbom_id = spdx_result
+        .id
+        .try_as_uid()
+        .ok_or_else(|| anyhow::anyhow!("Expected UUID ID"))?;
 
     let info = service
         .get_all_license_info(Id::Uuid(sbom_id), &ctx.db)
