@@ -16,10 +16,22 @@ use uuid::Uuid;
 ///
 /// While SeaORM could express this via custom expressions, it would be significantly
 /// more verbose and harder to maintain than the raw SQL.
-pub async fn populate_expanded_license(
-    sbom_id: Uuid,
-    db: &impl ConnectionTrait,
-) -> Result<(), DbErr> {
+///
+/// # Differences from Migration Backfill
+///
+/// The migration in m0002120_normalize_expanded_license/up.sql performs a similar
+/// operation but with key differences:
+/// - Migration: Pre-deduplicates by (text, sbom_id) and uses WHERE NOT EXISTS to skip
+///   already-backfilled SBOMs. Optimized for one-time bulk processing.
+/// - Ingestion: Filters by specific sbom_id parameter for single-SBOM processing.
+///   Uses ON CONFLICT for idempotent re-ingestion of the same SBOM.
+///
+/// Both use the same core logic (expand_license_expression_with_mappings + md5 hash
+/// matching) but optimize for their different use cases.
+pub async fn populate_expanded_license<C>(sbom_id: Uuid, db: &C) -> Result<(), DbErr>
+where
+    C: ConnectionTrait,
+{
     // Step 1: Insert into expanded_license dictionary
     db.execute(Statement::from_sql_and_values(
         db.get_database_backend(),

@@ -297,22 +297,29 @@ impl LicenseService {
             .distinct()
             .column_as(expanded_license::Column::ExpandedText, LICENSE_TEXT);
 
-        // Build query for non-expanded licenses: includes both
+        // Build query for licenses not yet linked to any SBOM: includes both
         //   (a) pre-loaded SPDX dictionary entries with no SBOM connection yet, AND
-        //   (b) CycloneDX licenses that exist in sbom_package_license but were never expanded.
-        // A LEFT JOIN on sbom_package_license (instead of INNER JOIN) ensures pre-loaded licenses
-        // with no SBOM attachment are included. Then filtering for sbom_license_expanded IS NULL
-        // removes SPDX licenses that have already been expanded (they appear in spdx_query instead).
+        //   (b) licenses from older SBOMs ingested before license expansion was implemented.
+        // Use NOT EXISTS instead of LEFT JOIN + IS NULL to find licenses without SBOMs.
+        // On large tables, LEFT JOIN scans all rows while NOT EXISTS
+        // uses a Nested Loop Anti Join with index-only scan.
+        let exists_subquery = sea_query::Query::select()
+            .expr(Expr::val(1))
+            .from(sbom_license_expanded::Entity)
+            .and_where(
+                Expr::col((
+                    sbom_license_expanded::Entity,
+                    sbom_license_expanded::Column::LicenseId,
+                ))
+                .equals((license::Entity, license::Column::Id)),
+            )
+            .to_owned();
+
         let mut non_sbom_query = license::Entity::find()
             .select_only()
             .distinct()
             .column_as(license::Column::Text, LICENSE_TEXT)
-            .join(JoinType::LeftJoin, license::Relation::PackageLicense.def())
-            .join(
-                JoinType::LeftJoin,
-                sbom_license_expanded::Relation::License.def().rev(),
-            )
-            .filter(sbom_license_expanded::Column::LicenseId.is_null());
+            .filter(Expr::exists(exists_subquery).not());
 
         // Apply filtering to both queries (without sorting - that's applied to the UNION result)
         let filter_only = Query {

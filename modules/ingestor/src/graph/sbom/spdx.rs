@@ -16,7 +16,7 @@ use crate::{
     service::Error,
 };
 use sbom_walker::report::{ReportSink, check};
-use sea_orm::ConnectionTrait;
+use sea_orm::{ConnectionTrait, TransactionTrait};
 use spdx_rs::models::{RelationshipType, SPDX};
 use std::collections::HashSet;
 use std::str::FromStr;
@@ -103,12 +103,15 @@ impl<'a> From<Information<'a>> for SbomInformation {
 
 impl SbomContext {
     #[instrument(skip(db, sbom_data, warnings), ret(level=tracing::Level::DEBUG))]
-    pub async fn ingest_spdx<C: ConnectionTrait>(
+    pub async fn ingest_spdx<C>(
         &self,
         sbom_data: SPDX,
         warnings: &dyn ReportSink,
         db: &C,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Error>
+    where
+        C: ConnectionTrait + TransactionTrait,
+    {
         // pre-flight checks
 
         check::spdx::all(warnings, &sbom_data);
