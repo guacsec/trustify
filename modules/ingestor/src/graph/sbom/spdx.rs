@@ -102,7 +102,7 @@ impl<'a> From<Information<'a>> for SbomInformation {
 
 impl SbomContext {
     #[instrument(skip(db, sbom_data, warnings), ret(level=tracing::Level::DEBUG))]
-    pub async fn ingest_spdx<C: ConnectionTrait>(
+    pub async fn ingest_spdx<C: ConnectionTrait + sea_orm::TransactionTrait>(
         &self,
         sbom_data: SPDX,
         warnings: &dyn ReportSink,

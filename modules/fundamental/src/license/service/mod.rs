@@ -285,9 +285,9 @@ impl LicenseService {
             .distinct()
             .column_as(expanded_license::Column::ExpandedText, LICENSE_TEXT);
 
-        // Build query for non-expanded licenses: includes both
+        // Build query for licenses not yet linked to any SBOM: includes both
         //   (a) pre-loaded SPDX dictionary entries with no SBOM connection yet, AND
-        //   (b) CycloneDX licenses that exist in sbom_package_license but were never expanded.
+        //   (b) licenses from older SBOMs ingested before license expansion was implemented.
         // Use NOT EXISTS instead of LEFT JOIN + IS NULL to find licenses without SBOMs.
         // On large tables, LEFT JOIN scans all rows while NOT EXISTS
         // uses a Nested Loop Anti Join with index-only scan.
