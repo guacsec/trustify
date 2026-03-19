@@ -16,7 +16,7 @@ use crate::{
     authenticator::claims::ValidatedAccessToken, authenticator::config::AuthenticatorConfig,
 };
 use anyhow::anyhow;
-use biscuit::jws::Compact;
+use biscuit::{SingleOrMultiple, jws::Compact};
 use claims::AccessTokenClaims;
 use config::AuthenticatorClientConfig;
 use error::AuthenticationError;
@@ -215,7 +215,10 @@ pub struct AuthenticatorClient {
 impl AuthenticatorClient {
     /// Convert from a set of (verified!) access token claims into a [`ValidatedAccessToken`] struct.
     pub fn convert_token(&self, access_token: AccessTokenClaims) -> ValidatedAccessToken {
-        let mut permissions = Self::map_scopes(&access_token.scope, &self.scope_mappings);
+        // Combine scopes from both 'scope' and 'scp' claims
+        // Azure Entra ID uses 'scp', while other providers use 'scope'
+        let scopes = Self::extract_scopes(&access_token);
+        let mut permissions = Self::map_scopes(&scopes, &self.scope_mappings);
         permissions.extend(self.additional_permissions.clone());
         let groups = self
             .group_selector
@@ -228,6 +231,20 @@ impl AuthenticatorClient {
         ValidatedAccessToken {
             access_token,
             permissions,
+        }
+    }
+
+    /// Extract scopes from both 'scope' and 'scp' claims
+    fn extract_scopes(access_token: &AccessTokenClaims) -> String {
+        let scp_part = access_token.scp.as_ref().map(|scp| match scp {
+            SingleOrMultiple::Single(s) => s.clone(),
+            SingleOrMultiple::Multiple(list) => list.join(" "),
+        });
+
+        match (access_token.scope.is_empty(), scp_part) {
+            (true, Some(scp)) => scp,
+            (false, Some(scp)) => format!("{} {}", access_token.scope, scp),
+            (_, None) => access_token.scope.clone(),
         }
     }
 
@@ -281,6 +298,7 @@ impl Deref for AuthenticatorClient {
 #[cfg(test)]
 mod test {
     use super::*;
+    use biscuit::SingleOrMultiple;
 
     fn assert_scope_mapping(scopes: &str, mappings: &[(&str, &[&str])], expected: &[&str]) {
         let mappings = mappings
@@ -336,5 +354,91 @@ mod test {
         let selector = parse_json_path(PATH).unwrap();
         let groups = AuthenticatorClient::extract_groups(&value, &selector);
         assert_eq!(&groups, &["manager", "reader"]);
+    }
+
+    #[test]
+    fn test_extract_scopes_from_scope_claim() {
+        let claims = AccessTokenClaims {
+            azp: None,
+            sub: "user123".to_string(),
+            iss: "https://example.com".parse().unwrap(),
+            aud: None,
+            exp: 0,
+            iat: 0,
+            auth_time: None,
+            extended_claims: Value::Object(Default::default()),
+            scope: "read:document create:document".to_string(),
+            scp: None,
+        };
+
+        let scopes = AuthenticatorClient::extract_scopes(&claims);
+        assert_eq!(scopes, "read:document create:document");
+    }
+
+    #[test]
+    fn test_extract_scopes_from_scp_claim_single() {
+        let claims = AccessTokenClaims {
+            azp: None,
+            sub: "user123".to_string(),
+            iss: "https://example.com".parse().unwrap(),
+            aud: None,
+            exp: 0,
+            iat: 0,
+            auth_time: None,
+            extended_claims: Value::Object(Default::default()),
+            scope: "".to_string(),
+            scp: Some(SingleOrMultiple::Single("read:document".to_string())),
+        };
+
+        let scopes = AuthenticatorClient::extract_scopes(&claims);
+        assert_eq!(scopes, "read:document");
+    }
+
+    #[test]
+    fn test_extract_scopes_from_scp_claim_multiple() {
+        let claims = AccessTokenClaims {
+            azp: None,
+            sub: "user123".to_string(),
+            iss: "https://example.com".parse().unwrap(),
+            aud: None,
+            exp: 0,
+            iat: 0,
+            auth_time: None,
+            extended_claims: Value::Object(Default::default()),
+            scope: "".to_string(),
+            scp: Some(SingleOrMultiple::Multiple(vec![
+                "api://app/read:document".to_string(),
+                "api://app/create:document".to_string(),
+            ])),
+        };
+
+        let scopes = AuthenticatorClient::extract_scopes(&claims);
+        assert_eq!(scopes, "api://app/read:document api://app/create:document");
+    }
+
+    // Combine scopes from both claims (additive, not fallback)
+    #[test]
+    fn test_extract_scopes_from_both_claims() {
+        let claims = AccessTokenClaims {
+            azp: None,
+            sub: "user123".to_string(),
+            iss: "https://example.com".parse().unwrap(),
+            aud: None,
+            exp: 0,
+            iat: 0,
+            auth_time: None,
+            extended_claims: Value::Object(Default::default()),
+            scope: "openid profile".to_string(),
+            scp: Some(SingleOrMultiple::Multiple(vec![
+                "api://app/read:document".to_string(),
+                "api://app/create:document".to_string(),
+            ])),
+        };
+
+        let scopes = AuthenticatorClient::extract_scopes(&claims);
+        assert_eq!(
+            scopes,
+            "openid profile api://app/read:document api://app/create:document"
+        );
     }
 }

@@ -27,6 +27,11 @@ pub struct AccessTokenClaims {
 
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub scope: String,
+
+    /// Azure Entra ID uses 'scp' instead of 'scope'
+    /// This can be either a single string or an array of strings
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scp: Option<SingleOrMultiple<String>>,
 }
 
 impl CompactJson for AccessTokenClaims {}
