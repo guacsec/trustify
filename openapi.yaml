@@ -5133,8 +5133,14 @@ components:
                 type: string
                 description: The name of the model in the SBOM
               properties:
+                type: object
                 description: The properties associated with the model
+                additionalProperties:
+                  type: string
+                propertyNames:
+                  type: string
               purl:
+                type: string
                 description: The model's PURL
         total:
           type: integer
@@ -5905,8 +5911,14 @@ components:
           type: string
           description: The name of the model in the SBOM
         properties:
+          type: object
           description: The properties associated with the model
+          additionalProperties:
+            type: string
+          propertyNames:
+            type: string
         purl:
+          type: string
           description: The model's PURL
     SbomPackage:
       type: object

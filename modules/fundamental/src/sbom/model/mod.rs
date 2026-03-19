@@ -114,8 +114,10 @@ pub struct SbomModel {
     /// The name of the model in the SBOM
     pub name: String,
     /// The model's PURL
+    #[schema(value_type=String)]
     pub purl: serde_json::Value,
     /// The properties associated with the model
+    #[schema(value_type=Map<String,String>)]
     pub properties: serde_json::Value,
 }
 
