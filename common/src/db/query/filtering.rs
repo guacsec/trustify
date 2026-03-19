@@ -1,7 +1,7 @@
 // SeaORM impls
 
 use super::{Columns, Error, IntoColumns, Query, Sort};
-use sea_orm::{EntityTrait, QueryFilter, QueryOrder, Select, SelectTwo};
+use sea_orm::{EntityTrait, QueryFilter, QueryOrder, Select, SelectThree, SelectTwo};
 
 /// Pass a Query instance for filtering
 pub trait Filtering<T: EntityTrait> {
@@ -48,6 +48,23 @@ where
         self.filtering_with(
             search,
             Columns::from_entity::<E>().add_columns(Columns::from_entity::<F>()),
+        )
+    }
+}
+
+/// SeaORM SelectThree
+impl<E, F, G> Filtering<E> for SelectThree<E, F, G>
+where
+    E: EntityTrait,
+    F: EntityTrait,
+    G: EntityTrait,
+{
+    fn filtering(self, search: Query) -> Result<Self, Error> {
+        self.filtering_with(
+            search,
+            Columns::from_entity::<E>()
+                .add_columns(Columns::from_entity::<F>())
+                .add_columns(Columns::from_entity::<G>()),
         )
     }
 }

@@ -37,7 +37,7 @@ use trustify_entity::{
     license, organization, package_relates_to_package,
     qualified_purl::{self, CanonicalPurl},
     relationship::Relationship,
-    sbom::{self, SbomNodeLink},
+    sbom::{self},
     sbom_group_assignment, sbom_license_expanded, sbom_node, sbom_package, sbom_package_cpe_ref,
     sbom_package_license, sbom_package_purl_ref, source_document, status, versioned_purl,
     vulnerability,
@@ -67,20 +67,21 @@ impl FetchOptions {
 }
 
 impl SbomService {
+    /// Fetch an SBOM, its node, and source document
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
-    async fn fetch_sbom<C: ConnectionTrait>(
+    pub async fn fetch_sbom<C: ConnectionTrait>(
         &self,
         id: Id,
         connection: &C,
-    ) -> Result<Option<(sbom::Model, Option<sbom_node::Model>)>, Error> {
+    ) -> Result<Option<(sbom::Model, sbom_node::Model, source_document::Model)>, Error> {
         let select = sbom::Entity::find()
-            .join(JoinType::LeftJoin, sbom::Relation::SourceDocument.def())
+            .find_also_linked(sbom::SbomNodeLink)
+            .find_also_related(source_document::Entity)
             .try_filter(id)?;
 
-        Ok(select
-            .find_also_linked(SbomNodeLink)
-            .one(connection)
-            .await?)
+        let map = |(sbom, node, source_document)| Some((sbom, node?, source_document?));
+
+        Ok(select.one(connection).await?.and_then(map))
     }
 
     /// fetch one sbom
@@ -108,7 +109,7 @@ impl SbomService {
         connection: &C,
     ) -> Result<Option<SbomSummary>, Error> {
         Ok(match self.fetch_sbom(id, connection).await? {
-            Some(row) => SbomSummary::from_entity(row, self, connection).await?,
+            Some(row) => Some(SbomSummary::from_entity(row, self, connection).await?),
             None => None,
         })
     }
@@ -269,8 +270,8 @@ impl SbomService {
         }
 
         let limiter = query
-            .join(JoinType::Join, sbom::Relation::SourceDocument.def())
-            .find_also_linked(SbomNodeLink)
+            .find_also_linked(sbom::SbomNodeLink)
+            .find_also_related(source_document::Entity)
             .filtering_with(
                 search,
                 Columns::from_entity::<sbom::Entity>()
@@ -292,11 +293,14 @@ impl SbomService {
         let total = limiter.total().await?;
         let sboms = limiter.fetch().await?;
 
-        let items = stream::iter(sboms.into_iter())
-            .then(|row| async { SbomSummary::from_entity(row, self, connection).await })
-            .try_filter_map(futures_util::future::ok)
-            .try_collect()
-            .await?;
+        let items = stream::iter(
+            sboms
+                .into_iter()
+                .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?))),
+        )
+        .then(|row| async { SbomSummary::from_entity(row, self, connection).await })
+        .try_collect()
+        .await?;
 
         Ok(PaginatedResults { total, items })
     }
@@ -559,12 +563,15 @@ impl SbomService {
                 .filter(sbom_package_cpe_ref::Column::CpeId.eq(cpe.uuid())),
         };
 
-        let query = select.find_also_linked(SbomNodeLink).filtering_with(
-            query,
-            Columns::from_entity::<sbom::Entity>()
-                .add_columns(sbom_node::Entity)
-                .alias("sbom_node", "r0"),
-        )?;
+        let query = select
+            .find_also_linked(sbom::SbomNodeLink)
+            .find_also_related(source_document::Entity)
+            .filtering_with(
+                query,
+                Columns::from_entity::<sbom::Entity>()
+                    .add_columns(sbom_node::Entity)
+                    .alias("sbom_node", "r0"),
+            )?;
 
         // limit and execute
 
@@ -575,11 +582,14 @@ impl SbomService {
 
         // collect results
 
-        let items = stream::iter(sboms.into_iter())
-            .then(|row| async { SbomSummary::from_entity(row, self, connection).await })
-            .try_filter_map(futures_util::future::ok)
-            .try_collect()
-            .await?;
+        let items = stream::iter(
+            sboms
+                .into_iter()
+                .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?))),
+        )
+        .then(|row| async { SbomSummary::from_entity(row, self, connection).await })
+        .try_collect()
+        .await?;
 
         Ok(PaginatedResults { items, total })
     }

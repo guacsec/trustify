@@ -4,7 +4,8 @@ use crate::{
 };
 use sea_orm::{
     ConnectionTrait, DbErr, EntityTrait, FromQueryResult, Paginator, PaginatorTrait, QuerySelect,
-    Select, SelectModel, SelectTwo, SelectTwoModel, Selector, SelectorTrait,
+    Select, SelectModel, SelectThree, SelectThreeModel, SelectTwo, SelectTwoModel, Selector,
+    SelectorTrait,
 };
 use std::num::NonZeroU64;
 use tracing::instrument;
@@ -187,6 +188,39 @@ where
 {
     type FetchSelector = SelectTwoModel<M1, M2>;
     type CountSelector = SelectTwoModel<M1, M2>;
+
+    fn limiting(
+        self,
+        db: &'db C,
+        offset: u64,
+        limit: u64,
+    ) -> Limiter<'db, C, Self::FetchSelector, Self::CountSelector> {
+        let selector = self
+            .clone()
+            .limit(NonZeroU64::new(limit).map(|limit| limit.get()))
+            .offset(NonZeroU64::new(offset).map(|offset| offset.get()))
+            .into_model();
+
+        Limiter {
+            db,
+            paginator: self.paginate(db, 1),
+            selector,
+        }
+    }
+}
+
+impl<'db, C, M1, M2, M3, E1, E2, E3> LimiterTrait<'db, C> for SelectThree<E1, E2, E3>
+where
+    C: ConnectionTrait,
+    E1: EntityTrait<Model = M1>,
+    E2: EntityTrait<Model = M2>,
+    E3: EntityTrait<Model = M3>,
+    M1: FromQueryResult + Sized + Send + Sync + 'db,
+    M2: FromQueryResult + Sized + Send + Sync + 'db,
+    M3: FromQueryResult + Sized + Send + Sync + 'db,
+{
+    type FetchSelector = SelectThreeModel<M1, M2, M3>;
+    type CountSelector = SelectThreeModel<M1, M2, M3>;
 
     fn limiting(
         self,

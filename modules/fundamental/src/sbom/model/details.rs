@@ -25,8 +25,8 @@ use trustify_common::{db::VersionMatches, memo::Memo};
 use trustify_cvss::cvss3::{score::Score, severity::Severity};
 use trustify_entity::{
     advisory, advisory_vulnerability, advisory_vulnerability_score, base_purl, cpe, organization,
-    purl_status, qualified_purl, sbom, sbom_node, sbom_package, sbom_package_purl_ref, status,
-    version_range, versioned_purl, vulnerability,
+    purl_status, qualified_purl, sbom, sbom_node, sbom_package, sbom_package_purl_ref,
+    source_document, status, version_range, versioned_purl, vulnerability,
 };
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -75,7 +75,7 @@ impl SbomDetails {
     /// turn an (sbom, sbom_node) row into an [`SbomDetails`], if possible
     #[instrument(skip(service, tx), err(level=tracing::Level::INFO))]
     pub async fn from_entity<C>(
-        (sbom, node): (sbom::Model, Option<sbom_node::Model>),
+        (sbom, node, source_document): (sbom::Model, sbom_node::Model, source_document::Model),
         service: &SbomService,
         tx: &C,
         statuses: Vec<String>,
@@ -83,10 +83,8 @@ impl SbomDetails {
     where
         C: ConnectionTrait,
     {
-        let summary = match SbomSummary::from_entity((sbom.clone(), node), service, tx).await? {
-            Some(summary) => summary,
-            None => return Ok(None),
-        };
+        let summary =
+            SbomSummary::from_entity((sbom.clone(), node, source_document), service, tx).await?;
 
         let mut query = sbom
             .find_related(sbom_package::Entity)

@@ -28,8 +28,8 @@ use trustify_cvss::cvss3::{score::Score as Cvss3Score, severity::Severity};
 use trustify_entity::{
     advisory, advisory_vulnerability_score, base_purl, cpe, license, organization, product,
     product_status, product_version, product_version_range, purl_status, qualified_purl, sbom,
-    sbom_license_expanded, sbom_package, sbom_package_license, sbom_package_purl_ref, status,
-    version_range, versioned_purl, vulnerability,
+    sbom_license_expanded, sbom_node, sbom_package, sbom_package_license, sbom_package_purl_ref,
+    status, version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::{Deprecation, DeprecationForExt};
 use utoipa::ToSchema;
@@ -455,7 +455,7 @@ impl PurlLicenseSummary {
             let entry = summaries.entry(row.sbom.sbom_id);
             if let Entry::Vacant(entry) = entry {
                 let summary = PurlLicenseSummary {
-                    sbom: SbomHead::from_entity(&row.sbom, None, tx).await?,
+                    sbom: SbomHead::from_entity(&row.sbom, &row.sbom_node, tx).await?,
                     licenses: vec![],
                 };
 
@@ -476,6 +476,7 @@ impl PurlLicenseSummary {
 #[derive(Debug)]
 pub struct LicenseCatcher {
     sbom: sbom::Model,
+    sbom_node: sbom_node::Model,
     license: license::Model,
 }
 
@@ -483,6 +484,7 @@ impl FromQueryResult for LicenseCatcher {
     fn from_query_result(res: &QueryResult, _pre: &str) -> Result<Self, DbErr> {
         Ok(Self {
             sbom: Self::from_query_result_multi_model(res, "", sbom::Entity)?,
+            sbom_node: Self::from_query_result_multi_model(res, "", sbom_node::Entity)?,
             license: Self::from_query_result_multi_model(res, "", license::Entity)?,
         })
     }
@@ -492,6 +494,7 @@ impl FromQueryResultMultiModel for LicenseCatcher {
     fn try_into_multi_model<E: EntityTrait>(select: Select<E>) -> Result<Select<E>, DbErr> {
         select
             .try_model_columns(sbom::Entity)?
+            .try_model_columns(sbom_node::Entity)?
             .try_model_columns(license::Entity)
     }
 }

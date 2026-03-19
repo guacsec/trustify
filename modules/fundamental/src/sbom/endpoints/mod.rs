@@ -22,6 +22,7 @@ use crate::{
         service::{SbomService, sbom::FetchOptions},
     },
     sbom_group::service::SbomGroupService,
+    source_document::model::SourceDocument,
 };
 use actix_web::{HttpResponse, Responder, delete, get, http::header, post, web};
 use config::Config;
@@ -330,7 +331,7 @@ all!(GetSbomAdvisories -> ReadSbom, ReadAdvisory);
         ("id" = Id, Path),
     ),
     responses(
-        (status = 200, description = "Matching SBOM", body = SbomSummary),
+        (status = 204, description = "Matching SBOM as deleted"),
         (status = 404, description = "The SBOM could not be found"),
     ),
 )]
@@ -345,15 +346,17 @@ pub async fn delete(
     let tx = db.begin().await?;
 
     let id = Id::from_str(&id)?;
-    match service.fetch_sbom_summary(id, &tx).await? {
-        Some(v) => match service.delete_sbom(v.head.id, &tx).await? {
+    match service.fetch_sbom(id, &tx).await? {
+        Some((v, _, source_document)) => match service.delete_sbom(v.sbom_id, &tx).await? {
             false => Ok(HttpResponse::NotFound().finish()),
             true => {
                 tx.commit().await?;
-                if let Err(e) = delete_doc(&v.source_document, i.storage()).await {
+                if let Err(e) =
+                    delete_doc(&SourceDocument::from_entity(&source_document), i.storage()).await
+                {
                     log::warn!("Ignoring {e}");
                 }
-                Ok(HttpResponse::Ok().json(v))
+                Ok(HttpResponse::NoContent().finish())
             }
         },
         None => Ok(HttpResponse::NotFound().finish()),
@@ -386,12 +389,12 @@ pub async fn packages(
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin_read().await?;
 
-    let Some(sbom) = fetch.fetch_sbom_summary(id, &tx).await? else {
+    let Some((sbom, _, _)) = fetch.fetch_sbom(id, &tx).await? else {
         return Ok(HttpResponse::NotFound().finish());
     };
 
     let result = fetch
-        .fetch_sbom_packages(sbom.head.id, search, paginated, &tx)
+        .fetch_sbom_packages(sbom.sbom_id, search, paginated, &tx)
         .await?;
 
     Ok(HttpResponse::Ok().json(result))
@@ -438,13 +441,13 @@ pub async fn related(
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin_read().await?;
 
-    let Some(sbom) = fetch.fetch_sbom_summary(id, &tx).await? else {
+    let Some((sbom, _, _)) = fetch.fetch_sbom(id, &tx).await? else {
         return Ok(HttpResponse::NotFound().finish());
     };
 
     let result = fetch
         .fetch_related_packages(
-            sbom.head.id,
+            sbom.sbom_id,
             search,
             paginated,
             related.which,

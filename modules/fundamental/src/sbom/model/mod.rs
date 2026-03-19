@@ -53,7 +53,7 @@ impl SbomHead {
     )]
     pub async fn from_entity<C: ConnectionTrait>(
         sbom: &sbom::Model,
-        sbom_node: Option<sbom_node::Model>,
+        sbom_node: &sbom_node::Model,
         db: &C,
     ) -> Result<Self, Error> {
         let number_of_packages = sbom.find_related(sbom_package::Entity).count(db).await?;
@@ -64,7 +64,7 @@ impl SbomHead {
             published: sbom.published,
             authors: sbom.authors.clone(),
             suppliers: sbom.suppliers.clone(),
-            name: sbom_node.map(|node| node.name).unwrap_or("".to_string()),
+            name: sbom_node.name.clone(),
             data_licenses: sbom.data_licenses.clone(),
             number_of_packages,
         })
@@ -85,26 +85,17 @@ pub struct SbomSummary {
 impl SbomSummary {
     #[instrument(skip(service, db), err(level=tracing::Level::INFO))]
     pub async fn from_entity<C: ConnectionTrait>(
-        (sbom, node): (sbom::Model, Option<sbom_node::Model>),
+        (sbom, node, source_document): (sbom::Model, sbom_node::Model, source_document::Model),
         service: &SbomService,
         db: &C,
-    ) -> Result<Option<SbomSummary>, Error> {
+    ) -> Result<SbomSummary, Error> {
         // TODO: consider improving the n-select issues here
         let described_by = service.describes_packages(sbom.sbom_id, (), db).await?;
 
-        let source_document = sbom
-            .find_related(source_document::Entity)
-            .one(db)
-            .await?
-            .ok_or_else(|| Error::NotFound("Missing source document".to_string()))?;
-
-        Ok(match node {
-            Some(_) => Some(SbomSummary {
-                head: SbomHead::from_entity(&sbom, node, db).await?,
-                source_document: SourceDocument::from_entity(&source_document),
-                described_by,
-            }),
-            None => None,
+        Ok(SbomSummary {
+            head: SbomHead::from_entity(&sbom, &node, db).await?,
+            source_document: SourceDocument::from_entity(&source_document),
+            described_by,
         })
     }
 }

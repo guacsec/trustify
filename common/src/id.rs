@@ -1,7 +1,7 @@
 use crate::purl::PurlErr;
 use hex::ToHex;
 use ring::digest::Digest;
-use sea_orm::{EntityTrait, QueryFilter, Select, UpdateMany};
+use sea_orm::{EntityTrait, QueryFilter, Select, SelectThree, SelectTwo, UpdateMany};
 use sea_query::Condition;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -59,6 +59,27 @@ pub trait TrySelectForId: Sized {
 impl<E> TrySelectForId for Select<E>
 where
     E: EntityTrait + TryFilterForId,
+{
+    fn try_filter(self, id: Id) -> Result<Self, IdError> {
+        Ok(self.filter(E::try_filter(id)?))
+    }
+}
+
+impl<E, F> TrySelectForId for SelectTwo<E, F>
+where
+    E: EntityTrait + TryFilterForId,
+    F: EntityTrait,
+{
+    fn try_filter(self, id: Id) -> Result<Self, IdError> {
+        Ok(self.filter(E::try_filter(id)?))
+    }
+}
+
+impl<E, F, G> TrySelectForId for SelectThree<E, F, G>
+where
+    E: EntityTrait + TryFilterForId,
+    F: EntityTrait,
+    G: EntityTrait,
 {
     fn try_filter(self, id: Id) -> Result<Self, IdError> {
         Ok(self.filter(E::try_filter(id)?))
