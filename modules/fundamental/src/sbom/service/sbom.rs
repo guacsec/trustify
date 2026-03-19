@@ -4,7 +4,7 @@ use crate::{
     common::license_filtering::{LICENSE, license_text_coalesce},
     sbom::model::{
         SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
-        SbomSummary, Which, details::SbomDetails,
+        SbomPackageSummary, SbomSummary, Which, details::SbomDetails,
     },
 };
 use futures_util::{StreamExt, TryStreamExt, stream};
@@ -17,7 +17,7 @@ use sea_query::{ColumnType, Expr, JoinType, extension::postgres::PgExpr};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
-use tracing::instrument;
+use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
     cpe::Cpe,
     db::{
@@ -191,13 +191,17 @@ impl SbomService {
     }
 
     /// fetch all SBOMs
-    pub async fn fetch_sboms<C: ConnectionTrait>(
+    pub async fn fetch_sboms<C, P>(
         &self,
         search: Query,
         paginated: Paginated,
         options: FetchOptions,
         connection: &C,
-    ) -> Result<PaginatedResults<SbomSummary>, Error> {
+    ) -> Result<PaginatedResults<SbomSummary<P>>, Error>
+    where
+        C: ConnectionTrait,
+        P: IntoPackage,
+    {
         let mut query = if options.labels.is_empty() {
             sbom::Entity::find()
         } else {
@@ -300,6 +304,7 @@ impl SbomService {
         )
         .then(|row| async { SbomSummary::from_entity(row, self, connection).await })
         .try_collect()
+        .instrument(info_span!("from_entity"))
         .await?;
 
         Ok(PaginatedResults { total, items })
@@ -431,7 +436,7 @@ impl SbomService {
             .fetch()
             .await?
             .into_iter()
-            .map(package_from_row)
+            .map(SbomPackage::from_row)
             .collect();
 
         Ok(PaginatedResults { items, total })
@@ -439,15 +444,16 @@ impl SbomService {
 
     /// Get all packages describing the SBOM.
     #[instrument(skip(self, db), err(level=tracing::Level::INFO))]
-    pub async fn describes_packages<C, R>(
+    pub async fn describes_packages<C, R, P>(
         &self,
         sbom_id: Uuid,
         paginated: R,
         db: &C,
-    ) -> Result<R::Output<SbomPackage>, Error>
+    ) -> Result<R::Output<P>, Error>
     where
         C: ConnectionTrait,
         R: Resulting,
+        P: IntoPackage,
     {
         self.fetch_related_packages(
             sbom_id,
@@ -597,7 +603,7 @@ impl SbomService {
     /// Fetch all related packages in the context of an SBOM.
     #[allow(clippy::too_many_arguments)]
     #[instrument(skip(self, db), err(level=tracing::Level::INFO))]
-    pub async fn fetch_related_packages<C, R>(
+    pub async fn fetch_related_packages<C, R, P>(
         &self,
         sbom_id: Uuid,
         search: Query,
@@ -606,10 +612,11 @@ impl SbomService {
         reference: impl Into<SbomNodeReference<'_>> + Debug,
         relationship: Option<Relationship>,
         db: &C,
-    ) -> Result<R::Output<SbomPackageRelation>, Error>
+    ) -> Result<R::Output<SbomPackageRelation<P>>, Error>
     where
         C: ConnectionTrait,
         R: Resulting,
+        P: IntoPackage,
     {
         // which way
 
@@ -632,30 +639,18 @@ impl SbomService {
             .filter(package_relates_to_package::Column::SbomId.eq(sbom_id))
             .select_only()
             .select_column_as(sbom_node::Column::NodeId, "id")
-            .group_by(sbom_node::Column::NodeId)
             .select_column_as(sbom_node::Column::Name, "name")
-            .group_by(sbom_node::Column::Name)
             .select_column_as(
                 package_relates_to_package::Column::Relationship,
                 "relationship",
             )
-            .group_by(package_relates_to_package::Column::Relationship)
             .select_column_as(sbom_package::Column::Group, "group")
-            .group_by(sbom_package::Column::Group)
             .select_column_as(sbom_package::Column::Version, "version")
-            .group_by(sbom_package::Column::Version)
             // join the other side
             .join(JoinType::Join, join.def())
-            .join(JoinType::Join, sbom_node::Relation::Package.def())
-            .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
-            .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def());
+            .join(JoinType::Join, sbom_node::Relation::Package.def());
 
-        // collect licenses
-        query = join_licenses(query);
-
-        // collect PURLs and CPEs
-
-        query = join_purls_and_cpes(query);
+        query = P::build_query(query);
 
         // filter for reference
 
@@ -666,6 +661,11 @@ impl SbomService {
             }
             SbomNodeReference::Package(node_id) => {
                 // package - set node id filter
+                let Ok(node_id) = Uuid::parse_str(node_id) else {
+                    // if we can't parse the UUID, then we can be sure such an item doesn't
+                    // exist in our database, we return "nothing"
+                    return Ok(R::Output::default());
+                };
                 query.filter(filter.eq(node_id))
             }
         };
@@ -682,12 +682,19 @@ impl SbomService {
 
         // execute
 
-        let r: R::Output<PackageCatcher> = R::get(options, db, query).await?;
+        #[derive(FromQueryResult)]
+        struct Row<P: FromQueryResult> {
+            relationship: Relationship,
+            #[sea_orm(nested)]
+            package: P,
+        }
+
+        let r: R::Output<Row<P::Row>> = R::get(options, db, query).await?;
 
         Ok(r.flat_map_all(|row| {
             Some(SbomPackageRelation {
-                relationship: row.relationship?,
-                package: package_from_row(row),
+                relationship: row.relationship,
+                package: P::from_row(row.package),
             })
         }))
     }
@@ -718,12 +725,132 @@ impl SbomService {
 
         let result: HashMap<_, _> = result
             .into_iter()
-            .map(|r| (r.package.id.clone(), r.package))
+            .map(|r: SbomPackageRelation<SbomPackage>| (r.package.id.clone(), r.package))
             .collect();
 
         // take the de-duplicated values and return them
 
         Ok(result.into_values().collect())
+    }
+}
+
+pub trait IntoPackage: Sized {
+    type Row: FromQueryResult + Send + Sync + 'static;
+
+    fn build_query(
+        query: Select<package_relates_to_package::Entity>,
+    ) -> Select<package_relates_to_package::Entity>;
+
+    fn from_row(row: Self::Row) -> Self;
+}
+
+impl IntoPackage for SbomPackageSummary {
+    type Row = PackageCatcherBase;
+
+    fn build_query(
+        query: Select<package_relates_to_package::Entity>,
+    ) -> Select<package_relates_to_package::Entity> {
+        query
+    }
+
+    fn from_row(row: Self::Row) -> Self {
+        Self {
+            id: row.id,
+            name: row.name,
+            group: row.group,
+            version: row.version,
+        }
+    }
+}
+
+impl IntoPackage for SbomPackage {
+    type Row = PackageCatcher;
+
+    fn build_query(
+        mut query: Select<package_relates_to_package::Entity>,
+    ) -> Select<package_relates_to_package::Entity> {
+        // we're joining more, so we need to group now
+
+        query = query
+            .group_by(sbom_node::Column::NodeId)
+            .group_by(sbom_node::Column::Name)
+            .group_by(package_relates_to_package::Column::Relationship)
+            .group_by(sbom_package::Column::Group)
+            .group_by(sbom_package::Column::Version);
+
+        // join ref tables
+
+        query = query
+            .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
+            .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def());
+
+        // collect licenses
+
+        query = join_licenses(query);
+
+        // collect PURLs and CPEs
+
+        query = join_purls_and_cpes(query);
+
+        query
+    }
+
+    fn from_row(row: Self::Row) -> Self {
+        let purl = row
+            .purls
+            .into_iter()
+            .flat_map(|purl| {
+                serde_json::from_value::<CanonicalPurl>(purl)
+                    .inspect_err(|err| {
+                        log::warn!("Failed to deserialize PURL: {err}");
+                    })
+                    .ok()
+            })
+            .map(|purl| Purl::from(purl).into())
+            .collect();
+
+        let cpe = row
+            .cpes
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(|cpe| {
+                serde_json::from_value::<CpeDto>(cpe.clone())
+                    .inspect_err(|err| {
+                        log::warn!("Failed to deserialize CPE: {err}");
+                    })
+                    .ok()
+            })
+            .flat_map(|cpe| {
+                log::debug!("CPE: {cpe:?}");
+                Cpe::try_from(cpe)
+                    .inspect_err(|err| {
+                        log::warn!("Failed to build CPE: {err}");
+                    })
+                    .ok()
+            })
+            .map(|cpe| cpe.to_string())
+            .collect();
+
+        // License names are now pre-expanded via JOIN with expanded_license table
+        // No need to build licenses_ref_mapping manually
+        let licenses = row
+            .licenses
+            .into_iter()
+            .map(|license| license.into())
+            .collect();
+
+        SbomPackage {
+            id: row.base.id,
+            name: row.base.name,
+            group: row.base.group,
+            version: row.base.version,
+            purl,
+            cpe,
+            licenses,
+            #[allow(deprecated)]
+            licenses_ref_mapping: vec![], // No longer needed - licenses are pre-expanded
+        }
     }
 }
 
@@ -819,82 +946,28 @@ where
 }
 
 #[derive(FromQueryResult)]
-struct PackageCatcher {
+pub struct PackageCatcher {
+    #[sea_orm(nested)]
+    base: PackageCatcherBase,
+
+    purls: Vec<Value>,
+    cpes: Value,
+
+    licenses: Vec<LicenseBasicInfo>,
+}
+
+#[derive(FromQueryResult)]
+pub struct PackageCatcherBase {
     id: String,
     name: String,
     group: Option<String>,
     version: Option<String>,
-    purls: Vec<Value>,
-    cpes: Value,
-    /// The field is optional as the struct is re-used between queries which use this column and
-    /// some that don't.
-    relationship: Option<Relationship>,
-    licenses: Vec<LicenseBasicInfo>,
 }
 
 #[derive(Serialize, Deserialize, FromJsonQueryResult)]
 pub struct LicenseBasicInfo {
     pub license_name: String,
     pub license_type: i32,
-}
-
-/// Convert values from a "package row" into an SBOM package
-#[allow(deprecated)]
-fn package_from_row(row: PackageCatcher) -> SbomPackage {
-    let purl = row
-        .purls
-        .into_iter()
-        .flat_map(|purl| {
-            serde_json::from_value::<CanonicalPurl>(purl)
-                .inspect_err(|err| {
-                    log::warn!("Failed to deserialize PURL: {err}");
-                })
-                .ok()
-        })
-        .map(|purl| Purl::from(purl).into())
-        .collect();
-
-    let cpe = row
-        .cpes
-        .as_array()
-        .into_iter()
-        .flatten()
-        .flat_map(|cpe| {
-            serde_json::from_value::<CpeDto>(cpe.clone())
-                .inspect_err(|err| {
-                    log::warn!("Failed to deserialize CPE: {err}");
-                })
-                .ok()
-        })
-        .flat_map(|cpe| {
-            log::debug!("CPE: {cpe:?}");
-            Cpe::try_from(cpe)
-                .inspect_err(|err| {
-                    log::warn!("Failed to build CPE: {err}");
-                })
-                .ok()
-        })
-        .map(|cpe| cpe.to_string())
-        .collect();
-
-    // License names are now pre-expanded via JOIN with expanded_license table
-    // No need to build licenses_ref_mapping manually
-    let licenses = row
-        .licenses
-        .into_iter()
-        .map(|license| license.into())
-        .collect();
-
-    SbomPackage {
-        id: row.id,
-        name: row.name,
-        group: row.group,
-        version: row.version,
-        purl,
-        cpe,
-        licenses,
-        licenses_ref_mapping: vec![], // No longer needed - licenses are pre-expanded
-    }
 }
 
 #[derive(Debug)]
@@ -1038,7 +1111,7 @@ mod test {
         let fetch = SbomService::new(ctx.db.clone());
 
         let fetched = fetch
-            .fetch_sboms(
+            .fetch_sboms::<_, SbomPackage>(
                 q("MySpAcE").sort("name,authors,published"),
                 Paginated::default(),
                 Default::default(),
@@ -1100,7 +1173,7 @@ mod test {
         let service = SbomService::new(ctx.db.clone());
 
         let fetched = service
-            .fetch_sboms(
+            .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
                 Paginated::default(),
                 FetchOptions::default().labels(("ci", "job1")),
@@ -1110,7 +1183,7 @@ mod test {
         assert_eq!(1, fetched.total);
 
         let fetched = service
-            .fetch_sboms(
+            .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
                 Paginated::default(),
                 FetchOptions::default().labels(("ci", "job2")),
@@ -1120,7 +1193,7 @@ mod test {
         assert_eq!(2, fetched.total);
 
         let fetched = service
-            .fetch_sboms(
+            .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
                 Paginated::default(),
                 FetchOptions::default().labels(("ci", "job3")),
@@ -1130,7 +1203,7 @@ mod test {
         assert_eq!(0, fetched.total);
 
         let fetched = service
-            .fetch_sboms(
+            .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
                 Paginated::default(),
                 FetchOptions::default().labels(("foo", "bar")),
@@ -1140,7 +1213,7 @@ mod test {
         assert_eq!(0, fetched.total);
 
         let fetched = service
-            .fetch_sboms(
+            .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
                 Paginated::default(),
                 Default::default(),
@@ -1150,7 +1223,7 @@ mod test {
         assert_eq!(3, fetched.total);
 
         let fetched = service
-            .fetch_sboms(
+            .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
                 Paginated::default(),
                 FetchOptions::default().labels([("ci", "job2"), ("team", "a")]),

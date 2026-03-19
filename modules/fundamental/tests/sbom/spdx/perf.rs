@@ -18,7 +18,11 @@ async fn ingest_spdx_medium(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
         "openshift-container-storage-4.8.z.json.xz",
         |WithContext { service, sbom, .. }| async move {
             let described = service
-                .describes_packages(sbom.sbom.sbom_id, Paginated::default(), &ctx.db)
+                .describes_packages::<_, _, SbomPackage>(
+                    sbom.sbom.sbom_id,
+                    Paginated::default(),
+                    &ctx.db,
+                )
                 .await?;
 
             log::debug!("{described:#?}");
@@ -76,7 +80,11 @@ async fn ingest_spdx_large(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         "openshift-4.13.json.xz",
         |WithContext { service, sbom, .. }| async move {
             let described = service
-                .describes_packages(sbom.sbom.sbom_id, Paginated::default(), &ctx.db)
+                .describes_packages::<_, _, SbomPackage>(
+                    sbom.sbom.sbom_id,
+                    Paginated::default(),
+                    &ctx.db,
+                )
                 .await?;
             log::debug!("{described:#?}");
             assert_eq!(1, described.items.len());
@@ -100,7 +108,11 @@ async fn ingest_spdx_medium_cpes(ctx: &TrustifyContext) -> Result<(), anyhow::Er
         "rhel-br-9.2.0.json.xz",
         |WithContext { service, sbom, .. }| async move {
             let described = service
-                .describes_packages(sbom.sbom.sbom_id, Paginated::default(), &ctx.db)
+                .describes_packages::<_, _, SbomPackage>(
+                    sbom.sbom.sbom_id,
+                    Paginated::default(),
+                    &ctx.db,
+                )
                 .await?;
 
             log::debug!("{described:#?}");

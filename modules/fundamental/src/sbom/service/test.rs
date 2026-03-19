@@ -1,3 +1,4 @@
+use crate::sbom::model::SbomPackage;
 use crate::{
     purl::service::PurlService, sbom::model::SbomExternalPackageReference,
     sbom::service::SbomService,
@@ -195,7 +196,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 1: Filter by specific license found in SPDX documents
     let results = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             q("license=GPLv3+ and GPLv3+ with exceptions and GPLv2+ with exceptions and LGPLv2+ and BSD"),
             Paginated::default(),
             Default::default(),
@@ -210,7 +211,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 2: Filter by partial license match
     let results = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             q("license~GPLv3+ with exceptions"),
             Paginated::default(),
             Default::default(),
@@ -225,7 +226,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 3: Filter by license found in single SBOMs
     let results = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             q("license~OFL"),
             Paginated::default(),
             Default::default(),
@@ -240,7 +241,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 3b: Filter by license found in single SBOMs
     let results = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             q("license=Apache 2.0"),
             Paginated::default(),
             Default::default(),
@@ -258,7 +259,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 4: Test OR operation for multiple licenses
     let results = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             q("license=OFL|Apache 2.0"),
             Paginated::default(),
             Default::default(),
@@ -273,7 +274,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 5: Negative test - license that doesn't exist
     let results = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             q("license=NONEXISTENT_LICENSE"),
             Paginated::default(),
             Default::default(),
@@ -288,7 +289,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 6: Empty license query
     let results = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             q("license="),
             Paginated::default(),
             Default::default(),
@@ -303,7 +304,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 7: Combine license filter with other filters (should work together)
     let results = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             q("license~Apache&name~quay"),
             Paginated::default(),
             Default::default(),
@@ -322,7 +323,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 8: Pagination with license filtering
     let results = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             q("license~GPL").sort("name:desc"),
             Paginated {
                 offset: 0,
@@ -345,7 +346,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 8b: Pagination with license filtering and offset > 0
     let results_offset = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             q("license~GPL").sort("name:desc"),
             Paginated {
                 offset: 1,
@@ -363,7 +364,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test 9: Verify that SBOMs without license filters still work
     let all_results = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             Query::default(),
             Paginated::default(),
             Default::default(),

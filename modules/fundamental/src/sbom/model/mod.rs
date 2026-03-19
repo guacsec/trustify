@@ -6,12 +6,14 @@ use crate::{
     Error,
     common::{LicenseInfo, LicenseRefMapping},
     purl::model::summary::purl::PurlSummary,
+    sbom::service::sbom::IntoPackage,
     source_document::model::SourceDocument,
 };
 use sea_orm::{ConnectionTrait, ModelTrait, PaginatorTrait, prelude::Uuid};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
-use tracing::instrument;
+use tracing::{info_span, instrument};
+use tracing_futures::Instrument;
 use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::{
     labels::Labels, relationship::Relationship, sbom, sbom_node, sbom_package, source_document,
@@ -56,7 +58,11 @@ impl SbomHead {
         sbom_node: &sbom_node::Model,
         db: &C,
     ) -> Result<Self, Error> {
-        let number_of_packages = sbom.find_related(sbom_package::Entity).count(db).await?;
+        let number_of_packages = sbom
+            .find_related(sbom_package::Entity)
+            .count(db)
+            .instrument(info_span!("counting packages"))
+            .await?;
         Ok(Self {
             id: sbom.sbom_id,
             document_id: sbom.document_id.clone(),
@@ -72,23 +78,23 @@ impl SbomHead {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
-pub struct SbomSummary {
+pub struct SbomSummary<P: IntoPackage = SbomPackage> {
     #[serde(flatten)]
     pub head: SbomHead,
 
     #[serde(flatten)]
     pub source_document: SourceDocument,
 
-    pub described_by: Vec<SbomPackage>,
+    pub described_by: Vec<P>,
 }
 
-impl SbomSummary {
+impl<P: IntoPackage> SbomSummary<P> {
     #[instrument(skip(service, db), err(level=tracing::Level::INFO))]
     pub async fn from_entity<C: ConnectionTrait>(
         (sbom, node, source_document): (sbom::Model, sbom_node::Model, source_document::Model),
         service: &SbomService,
         db: &C,
-    ) -> Result<SbomSummary, Error> {
+    ) -> Result<Self, Error> {
         // TODO: consider improving the n-select issues here
         let described_by = service.describes_packages(sbom.sbom_id, (), db).await?;
 
@@ -123,6 +129,18 @@ pub struct SbomPackage {
     /// release.
     #[deprecated(note = "Licenses are pre-expanded; this field is always empty")]
     pub licenses_ref_mapping: Vec<LicenseRefMapping>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, Default)]
+pub struct SbomPackageSummary {
+    /// The SBOM internal ID of a package
+    pub id: String,
+    /// The name of the package in the SBOM
+    pub name: String,
+    /// An optional group/namespace for an SBOM package
+    pub group: Option<String>,
+    /// An optional version for an SBOM package
+    pub version: Option<String>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -171,9 +189,9 @@ impl<'a> From<&'a SbomPackage> for SbomNodeReference<'a> {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
-pub struct SbomPackageRelation {
+pub struct SbomPackageRelation<P: IntoPackage> {
     pub relationship: Relationship,
-    pub package: SbomPackage,
+    pub package: P,
 }
 
 #[derive(Clone, Eq, PartialEq, Default, Debug, serde::Deserialize, utoipa::ToSchema)]

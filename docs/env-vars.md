@@ -48,6 +48,7 @@
 | `TRUSTD_S3_BUCKET`                       | S3 bucket name                                                                      |                                         |
 | `TRUSTD_S3_REGION`                       | S3 region name                                                                      |                                         |
 | `TRUSTD_S3_SECRET_KEY`                   | S3 secret key                                                                       |                                         |
+| `TRUSTD_SLOW_SQL_THRESHOLD`              | Override threshold for slow SQL statements (humantime)                              | `1m`                                    |
 | `TRUSTD_STORAGE_FS_PATH`                 | Path for storage file system strategy                                               | `./.trustify/storage`                   |
 | `TRUSTD_STORAGE_STRATEGY`                | Specifies the storage strategy to use                                               | `File system`                           |
 | `UI_CLIENT_ID`                           | Client ID used by the UI                                                            | `frontend`                              |

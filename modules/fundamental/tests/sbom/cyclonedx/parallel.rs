@@ -2,6 +2,7 @@ use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
 use trustify_common::{db::query::Query, model::Paginated};
+use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_test_context::TrustifyContext;
 
@@ -23,7 +24,7 @@ async fn ingest_10(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = SbomService::new(ctx.db.clone());
 
     let result = service
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             Query::default(),
             Paginated::default(),
             Default::default(),

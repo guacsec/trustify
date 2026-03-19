@@ -13,6 +13,7 @@ use trustify_common::id::Id;
 use trustify_common::model::Paginated;
 use trustify_common::purl::Purl;
 use trustify_entity::relationship::Relationship;
+use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_module_fundamental::{
     Config, configure,
     sbom::{model::SbomNodeReference, service::SbomService},
@@ -66,7 +67,7 @@ async fn infinite_loop(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(packages.len(), 3);
 
     let packages = service
-        .describes_packages(id, Paginated::default(), &ctx.db)
+        .describes_packages::<_, _, SbomPackage>(id, Paginated::default(), &ctx.db)
         .await?;
 
     assert_eq!(packages.total, 1);

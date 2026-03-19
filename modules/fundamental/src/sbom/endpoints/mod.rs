@@ -59,7 +59,8 @@ pub fn configure(
         .app_data(web::Data::new(db))
         .app_data(web::Data::new(sbom_service))
         .app_data(web::Data::new(Config { upload_limit }))
-        .service(all)
+        .service(v2::all)
+        .service(v3::all)
         .service(all_related)
         .service(count_related)
         .service(get)
@@ -159,40 +160,89 @@ struct GroupFilterQuery {
     group: Vec<String>,
 }
 
-/// List SBOMs
-#[utoipa::path(
-    tag = "sbom",
-    operation_id = "listSboms",
-    params(
-        Query,
-        Paginated,
-        GroupFilterQuery,
-    ),
-    responses(
+mod v2 {
+    use super::*;
+
+    /// List SBOMs
+    #[utoipa::path(
+        tag = "sbom",
+        operation_id = "listSboms",
+        params(
+            Query,
+            Paginated,
+            GroupFilterQuery,
+        ),
+        responses(
         (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary>),
-    ),
-)]
-#[get("/v2/sbom")]
-pub async fn all(
-    fetch: web::Data<SbomService>,
-    db: web::Data<Database>,
-    web::Query(search): web::Query<Query>,
-    web::Query(paginated): web::Query<Paginated>,
-    QsQuery(group_filter): QsQuery<GroupFilterQuery>,
-    authorizer: web::Data<Authorizer>,
-    user: UserInformation,
-) -> actix_web::Result<impl Responder> {
-    authorizer.require(&user, Permission::ReadSbom)?;
+        ),
+    )]
+    #[get("/v2/sbom")]
+    pub async fn all(
+        fetch: web::Data<SbomService>,
+        db: web::Data<Database>,
+        web::Query(search): web::Query<Query>,
+        web::Query(paginated): web::Query<Paginated>,
+        QsQuery(group_filter): QsQuery<GroupFilterQuery>,
+        authorizer: web::Data<Authorizer>,
+        user: UserInformation,
+    ) -> actix_web::Result<impl Responder> {
+        authorizer.require(&user, Permission::ReadSbom)?;
 
-    let tx = db.begin_read().await?;
-    let mut options = FetchOptions::default();
-    if !group_filter.group.is_empty() {
-        options = options.groups(group_filter.group);
+        let tx = db.begin_read().await?;
+        let mut options = FetchOptions::default();
+        if !group_filter.group.is_empty() {
+            options = options.groups(group_filter.group);
+        }
+
+        let result = fetch
+            .fetch_sboms::<_, SbomPackage>(search, paginated, options, &tx)
+            .await?;
+
+        Ok(HttpResponse::Ok().json(result))
     }
+}
 
-    let result = fetch.fetch_sboms(search, paginated, options, &tx).await?;
+mod v3 {
+    use super::*;
+    use crate::sbom::model::SbomPackageSummary;
 
-    Ok(HttpResponse::Ok().json(result))
+    /// List SBOMs
+    #[utoipa::path(
+        tag = "sbom",
+        operation_id = "listSboms",
+        params(
+            Query,
+            Paginated,
+            GroupFilterQuery,
+        ),
+        responses(
+        (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomPackageSummary>),
+        ),
+    )]
+    #[get("/v3/sbom")]
+    pub async fn all(
+        fetch: web::Data<SbomService>,
+        db: web::Data<Database>,
+        web::Query(search): web::Query<Query>,
+        web::Query(paginated): web::Query<Paginated>,
+        QsQuery(group_filter): QsQuery<GroupFilterQuery>,
+        authorizer: web::Data<Authorizer>,
+        user: UserInformation,
+    ) -> actix_web::Result<impl Responder> {
+        authorizer.require(&user, Permission::ReadSbom)?;
+
+        let tx = db.begin_read().await?;
+        let mut options = FetchOptions::default();
+        if !group_filter.group.is_empty() {
+            options = options.groups(group_filter.group);
+        }
+
+        let result = fetch
+            .fetch_sboms::<_, SbomPackageSummary>(search, paginated, options, &tx)
+            .await?;
+
+        Ok(HttpResponse::Ok().json(result))
+    }
 }
 
 /// Find all SBOMs containing the provided package.
@@ -424,7 +474,7 @@ struct RelatedQuery {
         Paginated,
     ),
     responses(
-        (status = 200, description = "Packages", body = PaginatedResults<SbomPackageRelation>),
+        (status = 200, description = "Packages", body = PaginatedResults<SbomPackageRelation<SbomPackage>>),
         (status = 404, description = "The SBOM could not be found"),
     ),
 )]
@@ -445,7 +495,7 @@ pub async fn related(
         return Ok(HttpResponse::NotFound().finish());
     };
 
-    let result = fetch
+    let result: PaginatedResults<SbomPackageRelation<SbomPackage>> = fetch
         .fetch_related_packages(
             sbom.sbom_id,
             search,

@@ -78,6 +78,15 @@ pub struct PaginatedResults<R> {
     pub total: u64,
 }
 
+impl<T> Default for PaginatedResults<T> {
+    fn default() -> Self {
+        Self {
+            items: vec![],
+            total: 0,
+        }
+    }
+}
+
 impl<R> PaginatedResults<R> {
     /// Create a new paginated result
     pub async fn new<C, S1, S2>(

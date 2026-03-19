@@ -1,6 +1,7 @@
 use test_context::test_context;
 use test_log::test;
 use trustify_common::model::Paginated;
+use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_test_context::TrustifyContext;
 
@@ -13,7 +14,7 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = SbomService::new(ctx.db.clone());
 
     let packages = service
-        .describes_packages(
+        .describes_packages::<_, _, SbomPackage>(
             result.id.parse().expect("Must be a UID"),
             Paginated::default(),
             &ctx.db,
@@ -38,7 +39,7 @@ async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = SbomService::new(ctx.db.clone());
 
     let packages = service
-        .describes_packages(
+        .describes_packages::<_, _, SbomPackage>(
             result.id.parse().expect("Must be a UID"),
             Paginated::default(),
             &ctx.db,
@@ -63,7 +64,7 @@ async fn simple_comp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = SbomService::new(ctx.db.clone());
 
     let packages = service
-        .describes_packages(
+        .describes_packages::<_, _, SbomPackage>(
             result.id.parse().expect("Must be a UID"),
             Paginated::default(),
             &ctx.db,

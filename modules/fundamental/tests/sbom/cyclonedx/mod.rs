@@ -11,6 +11,7 @@ use test_context::test_context;
 use test_log::test;
 use trustify_common::{model::Paginated, purl::Purl};
 use trustify_module_fundamental::purl::model::{PurlHead, summary::purl::PurlSummary};
+use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_test_context::TrustifyContext;
 
 #[test_context(TrustifyContext)]
@@ -21,7 +22,7 @@ async fn test_parse_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyhow::Error
         "zookeeper-3.9.2-cyclonedx.json",
         async move |WithContext { service, sbom, .. }| {
             let described = service
-                .describes_packages(sbom.sbom.sbom_id, Paginated::default(), &ctx.db)
+                .describes_packages::<_, _, SbomPackage>(sbom.sbom.sbom_id, Paginated::default(), &ctx.db)
                 .await?;
 
             assert_eq!(1, described.items.len());
@@ -95,7 +96,11 @@ async fn parse_cyclonedx_1dot6(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         "cyclonedx/simple_1dot6.json",
         async move |WithContext { service, sbom, .. }| {
             let described = service
-                .describes_packages(sbom.sbom.sbom_id, Paginated::default(), &ctx.db)
+                .describes_packages::<_, _, SbomPackage>(
+                    sbom.sbom.sbom_id,
+                    Paginated::default(),
+                    &ctx.db,
+                )
                 .await?;
 
             assert_eq!(1, described.items.len());

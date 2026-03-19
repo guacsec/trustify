@@ -66,7 +66,7 @@ impl FromQueryResult for IdSet {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SbomDetails {
     #[serde(flatten)]
-    pub summary: SbomSummary,
+    pub summary: SbomSummary<SbomPackage>,
 
     pub advisories: Vec<SbomAdvisory>,
 }

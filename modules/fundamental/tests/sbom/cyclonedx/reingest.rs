@@ -6,6 +6,7 @@ use test_context::test_context;
 use test_log::test;
 use trustify_common::model::Paginated;
 use trustify_entity::sbom;
+use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_module_ingestor::model::IngestResult;
 use trustify_test_context::TrustifyContext;
@@ -26,7 +27,11 @@ async fn reingest(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         let service = SbomService::new(ctx.db.clone());
 
         let packages = service
-            .describes_packages(sbom.sbom.sbom_id, Paginated::default(), &ctx.db)
+            .describes_packages::<_, _, SbomPackage>(
+                sbom.sbom.sbom_id,
+                Paginated::default(),
+                &ctx.db,
+            )
             .await?;
 
         // check components by name

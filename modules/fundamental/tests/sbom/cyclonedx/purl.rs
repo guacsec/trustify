@@ -3,7 +3,7 @@ use test_context::test_context;
 use test_log::test;
 use trustify_common::model::Paginated;
 use trustify_entity::relationship::Relationship;
-use trustify_module_fundamental::sbom::model::{SbomNodeReference, Which};
+use trustify_module_fundamental::sbom::model::{SbomNodeReference, SbomPackage, Which};
 use trustify_module_fundamental::{
     purl::model::summary::purl::PurlSummary, sbom::service::SbomService,
 };
@@ -32,7 +32,7 @@ async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // fetch describes
 
     let packages = service
-        .describes_packages(sbom_id, Paginated::default(), &ctx.db)
+        .describes_packages::<_, _, SbomPackage>(sbom_id, Paginated::default(), &ctx.db)
         .await?;
 
     assert_eq!(packages.total, 1);
@@ -51,7 +51,7 @@ async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // now check component
 
     let result = service
-        .fetch_related_packages(
+        .fetch_related_packages::<_, _, SbomPackage>(
             sbom_id,
             Default::default(),
             Paginated::default(),

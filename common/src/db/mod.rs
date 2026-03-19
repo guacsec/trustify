@@ -21,6 +21,7 @@ use std::{
     fmt::Display,
     ops::{Deref, DerefMut},
     pin::Pin,
+    str::FromStr,
     time::Duration,
 };
 use tracing::instrument;
@@ -87,7 +88,15 @@ impl Database {
         let mut opt = ConnectOptions::new(url);
         opt.max_connections(database.max_conn);
         opt.min_connections(database.min_conn);
+
         opt.sqlx_logging_level(log::LevelFilter::Trace);
+        if let Some(threshold) = std::env::var("TRUSTD_SLOW_SQL_THRESHOLD")
+            .ok()
+            .and_then(|s| humantime::Duration::from_str(&s).ok())
+        {
+            opt.sqlx_logging(true);
+            opt.sqlx_slow_statements_logging_settings(log::LevelFilter::Warn, *threshold);
+        }
 
         opt.connect_timeout(Duration::from_secs(database.connect_timeout));
         opt.acquire_timeout(Duration::from_secs(database.acquire_timeout));

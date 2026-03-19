@@ -17,6 +17,7 @@ use tracing::instrument;
 use trustify_common::model::Paginated;
 use trustify_common::{id::Id, purl::Purl, sbom::spdx::parse_spdx};
 use trustify_entity::relationship::Relationship;
+use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_module_fundamental::{
     purl::model::{PurlHead, summary::purl::PurlSummary},
     sbom::{model::Which, service::SbomService},
@@ -32,7 +33,7 @@ async fn parse_spdx_quarkus(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
         "quarkus/v1/quarkus-bom-2.13.8.Final-redhat-00004.json",
         |WithContext { service, sbom, .. }| async move {
             let described = service
-                .describes_packages(sbom.sbom.sbom_id, Paginated::default(), &ctx.db)
+                .describes_packages::<_, _, SbomPackage>(sbom.sbom.sbom_id, Paginated::default(), &ctx.db)
                 .await?;
             log::debug!("{described:#?}");
             assert_eq!(1, described.items.len());
@@ -88,14 +89,18 @@ async fn test_parse_spdx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         "ubi9-9.2-755.1697625012.json",
         |WithContext { service, sbom, .. }| async move {
             let described = service
-                .describes_packages(sbom.sbom.sbom_id, Paginated::default(), &ctx.db)
+                .describes_packages::<_, _, SbomPackage>(
+                    sbom.sbom.sbom_id,
+                    Paginated::default(),
+                    &ctx.db,
+                )
                 .await?;
 
             assert_eq!(1, described.total);
             let first = &described.items[0];
 
             let contains = service
-                .fetch_related_packages(
+                .fetch_related_packages::<_, _, SbomPackage>(
                     sbom.sbom.sbom_id,
                     Default::default(),
                     Paginated::default(),
@@ -133,7 +138,7 @@ async fn ingest_spdx_broken_refs(ctx: &TrustifyContext) -> Result<(), anyhow::Er
     );
 
     let result = sbom
-        .fetch_sboms(
+        .fetch_sboms::<_, SbomPackage>(
             Default::default(),
             Default::default(),
             Default::default(),
