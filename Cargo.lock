@@ -8261,6 +8261,7 @@ dependencies = [
  "log",
  "openid 0.18.3",
  "reqwest",
+ "rstest",
  "schemars 1.2.1",
  "serde",
  "serde_json",

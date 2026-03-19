@@ -37,6 +37,9 @@ url = { workspace = true }
 utoipa = { workspace = true, features = ["actix_extras"], optional = true }
 utoipa-swagger-ui = { workspace = true, features = ["actix-web"], optional = true }
 
+[dev-dependencies]
+rstest = { workspace = true }
+
 [features]
 actix = ["actix-web", "actix-http", "actix-web-httpauth", "actix-web-extras"]
 swagger = ["utoipa", "utoipa-swagger-ui", "actix"]

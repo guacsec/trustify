@@ -44,6 +44,7 @@ impl AuthenticatorConfig {
                     additional_permissions: Default::default(),
                     required_audience: None,
                     group_selector: None,
+                    scope_selector: default_scope_selector(),
                     group_mappings: Default::default(),
                     tls_insecure: false,
                     tls_ca_certificates: Default::default(),
@@ -132,6 +133,10 @@ pub struct AuthenticatorClientConfig {
     #[serde(default)]
     pub group_selector: Option<String>,
 
+    /// JSON path extracting scopes from the access token (default: $['scope','scp'])
+    #[serde(default = "default_scope_selector")]
+    pub scope_selector: String,
+
     /// Mapping table for groups returned found through the `groups_selector` to permissions.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub group_mappings: HashMap<String, Vec<String>>,
@@ -143,6 +148,12 @@ pub struct AuthenticatorClientConfig {
     /// Add additional certificates as trust anchor for contacting the issuer
     #[serde(default)]
     pub tls_ca_certificates: Vec<PathBuf>,
+}
+
+pub const DEFAULT_SCOPE_SELECTOR: &str = "$['scope','scp']";
+
+fn default_scope_selector() -> String {
+    DEFAULT_SCOPE_SELECTOR.to_string()
 }
 
 impl SingleAuthenticatorClientConfig {
@@ -157,6 +168,7 @@ impl SingleAuthenticatorClientConfig {
                 required_audience: self.required_audience.clone(),
                 scope_mappings: default_scope_mappings(),
                 group_selector: None,
+                scope_selector: default_scope_selector(),
                 group_mappings: Default::default(),
                 additional_permissions: Default::default(),
             })
