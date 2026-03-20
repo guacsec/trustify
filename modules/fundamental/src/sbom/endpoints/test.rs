@@ -1216,12 +1216,8 @@ async fn delete_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await;
 
     log::debug!("Code: {}", response.status());
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert!(storage.retrieve(key).await?.is_none());
-
-    // We get the old sbom back when a delete succeeds
-    let doc: Value = actix_web::test::read_body_json(response).await;
-    assert_eq!(doc["id"], format!("urn:uuid:{}", result.id));
 
     // If we try again, we should get a 404 since it was deleted.
     let response = app
