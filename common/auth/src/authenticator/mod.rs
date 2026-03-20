@@ -225,15 +225,16 @@ pub struct AuthenticatorClient {
 impl AuthenticatorClient {
     /// Convert from a set of (verified!) access token claims into a [`ValidatedAccessToken`] struct.
     pub fn convert_token(&self, access_token: AccessTokenClaims) -> ValidatedAccessToken {
+        let extra_values = &access_token.extended_claims;
         let mut permissions = Self::map_items(
-            Self::extract_scopes(&access_token.extended_claims, &self.scope_selector),
+            Self::extract_scopes(extra_values, &self.scope_selector),
             &self.scope_mappings,
         );
         permissions.extend(self.additional_permissions.clone());
         let groups = self
             .group_selector
             .as_ref()
-            .map(|selector| Self::extract_groups(&access_token.extended_claims, selector))
+            .map(|selector| Self::extract_groups(extra_values, selector))
             .unwrap_or_default();
 
         permissions.extend(Self::map_items(groups, &self.group_mappings));
@@ -246,24 +247,24 @@ impl AuthenticatorClient {
 
     /// Extract scopes from the value/access token
     fn extract_scopes(value: &Value, selector: &JpQuery) -> Vec<String> {
-        js_path_process(selector, value)
-            .ok()
-            .into_iter()
-            .flatten()
-            .flat_map(|qr| match qr.val() {
-                Value::String(s) => s
-                    .split_ascii_whitespace()
-                    .map(|s| s.to_string())
-                    .collect::<Vec<_>>(),
-                Value::Array(arr) => arr
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .flat_map(|s| s.split_ascii_whitespace())
-                    .map(|s| s.to_string())
-                    .collect(),
-                _ => vec![],
-            })
-            .collect()
+        let mut result = Vec::new();
+        for qr in js_path_process(selector, value).ok().into_iter().flatten() {
+            match qr.val() {
+                Value::String(s) => {
+                    result.extend(s.split_ascii_whitespace().map(str::to_string));
+                }
+                Value::Array(arr) => {
+                    result.extend(
+                        arr.iter()
+                            .filter_map(|v| v.as_str())
+                            .flat_map(|s| s.split_ascii_whitespace())
+                            .map(str::to_string),
+                    );
+                }
+                _ => {}
+            }
+        }
+        result
     }
 
     /// Extract the groups from the value/access token
