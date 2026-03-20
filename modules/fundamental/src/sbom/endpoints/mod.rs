@@ -177,6 +177,7 @@ mod v2 {
         ),
     )]
     #[get("/v2/sbom")]
+    #[deprecated = "Use the v3 version of this API"]
     pub async fn all(
         fetch: web::Data<SbomService>,
         db: web::Data<Database>,
