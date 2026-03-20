@@ -8,7 +8,7 @@ use std::fmt::Debug;
 /// A
 #[allow(async_fn_in_trait)]
 pub trait Resulting: Sized + Debug {
-    type Output<T>: Sized + Mappable<T> + Default;
+    type Output<T>: Sized + Mappable<T>;
 
     async fn get<C, E, EM, M>(self, db: &C, query: Select<E>) -> Result<Self::Output<M>, DbErr>
     where

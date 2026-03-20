@@ -661,11 +661,6 @@ impl SbomService {
             }
             SbomNodeReference::Package(node_id) => {
                 // package - set node id filter
-                let Ok(node_id) = Uuid::parse_str(node_id) else {
-                    // if we can't parse the UUID, then we can be sure such an item doesn't
-                    // exist in our database, we return "nothing"
-                    return Ok(R::Output::default());
-                };
                 query.filter(filter.eq(node_id))
             }
         };
