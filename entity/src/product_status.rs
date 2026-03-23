@@ -11,6 +11,7 @@ pub struct Model {
     pub package: Option<String>,
     pub product_version_range_id: Uuid,
     pub context_cpe_id: Option<Uuid>,
+    pub csaf_product_ids: Option<Vec<String>>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

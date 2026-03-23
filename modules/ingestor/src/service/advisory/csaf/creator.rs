@@ -121,6 +121,15 @@ impl<'a> StatusCreator<'a> {
         let mut product_to_status_uuids: HashMap<ProductStatus, ProductIdStatusMapping> =
             HashMap::new();
 
+        // Build reverse map: (ProductStatus) -> Vec<csaf_product_id>
+        let mut product_to_csaf_ids: HashMap<ProductStatus, Vec<String>> = HashMap::new();
+        for (csaf_id, product) in &self.product_id_to_product {
+            product_to_csaf_ids
+                .entry(product.clone())
+                .or_default()
+                .push(csaf_id.clone());
+        }
+
         // Batch create all organizations to prevent race conditions and deadlocks
         let mut org_creator = OrganizationCreator::new();
         let mut vendor_names = HashSet::new();
@@ -203,12 +212,16 @@ impl<'a> StatusCreator<'a> {
                         .collect()
                 };
 
+                // Find the CSAF product_id(s) that resolved to this product
+                let csaf_product_ids = product_to_csaf_ids.get(&product).cloned();
+
                 for package in packages {
                     let product_status = crate::graph::advisory::product_status::ProductStatus {
                         cpe: product.cpe.clone(),
                         package,
                         status: status_id,
                         product_version_range_id: range.uuid(),
+                        csaf_product_ids: csaf_product_ids.clone(),
                     };
 
                     let product_status_uuid =

@@ -315,7 +315,7 @@ impl PurlAdvisory {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct PurlStatus {
     pub vulnerability: VulnerabilityHead,
     pub advisory: AdvisoryHead,

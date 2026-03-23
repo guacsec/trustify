@@ -58,6 +58,7 @@ pub struct ProductStatus {
     pub package: Option<String>,
     pub status: Uuid,
     pub product_version_range_id: Uuid,
+    pub csaf_product_ids: Option<Vec<String>>,
 }
 
 impl ProductStatus {
@@ -74,6 +75,7 @@ impl ProductStatus {
             package: Set(self.package),
             context_cpe_id: Set(self.cpe.as_ref().map(Cpe::uuid)),
             product_version_range_id: Set(self.product_version_range_id),
+            csaf_product_ids: Set(self.csaf_product_ids),
         }
     }
 
