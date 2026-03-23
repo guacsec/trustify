@@ -2318,7 +2318,7 @@ paths:
       tags:
       - sbom
       summary: List SBOMs
-      operationId: listSboms
+      operationId: v2/listSboms
       parameters:
       - name: q
         in: query

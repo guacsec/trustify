@@ -83,11 +83,11 @@ const CONTENT_TYPE_GZIP: &str = "application/gzip";
     tag = "sbom",
     operation_id = "listAllLicenseIds",
     params(
-    ("id", Path, description = "ID of the SBOM to get the license IDs for"),
+        ("id", Path, description = "ID of the SBOM to get the license IDs for"),
     ),
     responses(
-    (status = 200, description = "fetch all unique license id and license info id", body = Vec<LicenseRefMapping>),
-    (status = 400, description = "Invalid UUID format."),
+        (status = 200, description = "fetch all unique license id and license info id", body = Vec<LicenseRefMapping>),
+        (status = 400, description = "Invalid UUID format."),
     ),
 )]
 #[get("/v2/sbom/{id}/all-license-ids")]
@@ -161,19 +161,20 @@ struct GroupFilterQuery {
 }
 
 mod v2 {
+    #![allow(deprecated)]
     use super::*;
 
     /// List SBOMs
     #[utoipa::path(
         tag = "sbom",
-        operation_id = "listSboms",
+        operation_id = "v2/listSboms",
         params(
             Query,
             Paginated,
             GroupFilterQuery,
         ),
         responses(
-        (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary>),
+            (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary>),
         ),
     )]
     #[get("/v2/sbom")]
@@ -217,7 +218,7 @@ mod v3 {
             GroupFilterQuery,
         ),
         responses(
-        (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomPackageSummary>),
+            (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomPackageSummary>),
         ),
     )]
     #[get("/v3/sbom")]
