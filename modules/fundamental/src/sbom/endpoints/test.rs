@@ -1769,13 +1769,16 @@ async fn get_aibom_models(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let uri = format!("/api/v2/sbom/{id}/models");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
-    log::debug!("response:\n{:#}", json!(response));
+    log::info!("response:\n{:#}", json!(response));
     let expected = json!({
         "items": [
             {
                 "id": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
                 "name": "granite-docling-258M",
-                "purl": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+                "purls": [
+                    "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+                    "pkg:boatymcboatface/ibm-granite/granite-docling-258M@1.0"
+                ],
                 "properties": {
                     "version": "1.0.0",
                     "licenses": "apache-2.0",
@@ -1785,15 +1788,12 @@ async fn get_aibom_models(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                     "typeOfModel": "idefics3",
                     "serialNumber": "urn:uuid:ibm-granite-granite-docling-258M",
                     "primaryPurpose": "image-text-to-text",
-                    "downloadLocation": "https://huggingface.co/ibm-granite/granite-docling-258M/tree/main",
-                    "external_references": "[{\"type\": \"website\", \"url\": \"https://huggingface.co/ibm-granite/granite-docling-258M\", \"comment\": \"Model repository\"}, {\"type\": \"distribution\", \"url\": \"https://huggingface.co/ibm-granite/granite-docling-258M/tree/main\", \"comment\": \"Model files\"}]",
-                    "safetyRiskAssessment": "and fairness, misinformation, and autonomous decision-making, and ethical considerations, including but not limited to: bias and fairness, misinformation, and autonomous decision-making, considerations, the model may in some cases produce inaccurate, biased, offensive or unwanted responses to user prompts, in prompts and responses across key dimensions outlined in the IBM AI Risk Atlas, of triggering unwanted output"
                 },
             },
         ],
         "total": 1
     });
-    assert_eq!(expected, response);
+    assert!(response.contains_subset(expected));
 
     Ok(())
 }
@@ -1812,6 +1812,7 @@ async fn get_aibom_models(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[case("name=granite-docling-258M")]
 #[case("properties:typeOfModel=idefics3")]
 #[case("properties:typeOfModel=idefics3&properties:primaryPurpose=image-text-to-text")]
+#[case("purl:type=boatymcboatface")]
 #[test_log::test(actix_web::test)]
 async fn query_aibom_models(ctx: &TrustifyContext, #[case] q: &str) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;

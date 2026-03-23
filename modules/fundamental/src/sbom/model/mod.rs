@@ -114,25 +114,31 @@ pub struct SbomModel {
     /// The name of the model in the SBOM
     pub name: String,
     /// The model's PURL
-    #[schema(value_type=String)]
-    pub purl: serde_json::Value,
+    #[schema(value_type=Vec<String>)]
+    pub purls: Vec<serde_json::Value>,
     /// The properties associated with the model
     #[schema(value_type=Map<String,String>)]
     pub properties: serde_json::Value,
 }
 
 impl SbomModel {
-    pub fn stringify_purl(self) -> SbomModel {
-        if self.purl.is_object() {
-            let mut result = self.clone();
-            result.purl = match serde_json::from_value::<CanonicalPurl>(self.purl.clone()) {
-                Ok(cp) => serde_json::Value::String(Purl::from(cp).to_string()),
-                _ => self.purl,
-            };
-            result
-        } else {
-            self
-        }
+    pub fn stringify_purls(self) -> SbomModel {
+        let mut result = self.clone();
+        result.purls = self
+            .purls
+            .iter()
+            .filter_map(|p| {
+                if p.is_object() {
+                    match serde_json::from_value::<CanonicalPurl>(p.clone()) {
+                        Ok(cp) => Some(serde_json::Value::String(Purl::from(cp).to_string())),
+                        _ => None,
+                    }
+                } else {
+                    Some(p.clone())
+                }
+            })
+            .collect();
+        result
     }
 }
 

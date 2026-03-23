@@ -5123,7 +5123,7 @@ components:
             required:
             - id
             - name
-            - purl
+            - purls
             - properties
             properties:
               id:
@@ -5139,8 +5139,10 @@ components:
                   type: string
                 propertyNames:
                   type: string
-              purl:
-                type: string
+              purls:
+                type: array
+                items:
+                  type: string
                 description: The model's PURL
         total:
           type: integer
@@ -5901,7 +5903,7 @@ components:
       required:
       - id
       - name
-      - purl
+      - purls
       - properties
       properties:
         id:
@@ -5917,8 +5919,10 @@ components:
             type: string
           propertyNames:
             type: string
-        purl:
-          type: string
+        purls:
+          type: array
+          items:
+            type: string
           description: The model's PURL
     SbomPackage:
       type: object

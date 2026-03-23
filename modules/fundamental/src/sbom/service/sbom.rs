@@ -442,30 +442,31 @@ impl SbomService {
         paginated: Paginated,
         connection: &C,
     ) -> Result<PaginatedResults<SbomModel>, Error> {
-        let query = sbom_ai::Entity::find()
-            .filter(sbom_ai::Column::SbomId.eq(sbom_id))
-            .select_only()
-            .column_as(sbom_ai::Column::NodeId, "id")
-            .column(sbom_node::Column::Name)
-            .column(qualified_purl::Column::Purl)
-            .column(sbom_ai::Column::Properties)
-            .join(JoinType::LeftJoin, sbom_ai::Relation::Node.def())
-            .join(JoinType::LeftJoin, sbom_ai::Relation::Purl.def())
-            .join(
-                JoinType::LeftJoin,
-                sbom_package_purl_ref::Relation::Purl.def(),
-            )
-            .filtering_with(
-                search,
-                Columns::from_entity::<sbom_ai::Entity>()
-                    .add_columns(sbom_node::Entity)
-                    .add_columns(qualified_purl::Entity)
-                    .translator(|f, op, v| match f {
-                        "purl:type" => Some(format!("purl:ty{op}{v}")),
-                        "purl" => Purl::translate(op, v),
-                        _ => None,
-                    }),
-            )?;
+        let query = join_purls_and_cpes(
+            sbom_ai::Entity::find()
+                .filter(sbom_ai::Column::SbomId.eq(sbom_id))
+                .select_only()
+                .column_as(sbom_ai::Column::NodeId, "id")
+                .group_by(sbom_ai::Column::NodeId)
+                .column(sbom_node::Column::Name)
+                .group_by(sbom_node::Column::Name)
+                .column(sbom_ai::Column::Properties)
+                .group_by(sbom_ai::Column::Properties)
+                .join(JoinType::LeftJoin, sbom_ai::Relation::Node.def())
+                .join(JoinType::LeftJoin, sbom_ai::Relation::Purl.def())
+                .join(JoinType::LeftJoin, sbom_ai::Relation::Cpe.def())
+                .filtering_with(
+                    search,
+                    Columns::from_entity::<sbom_ai::Entity>()
+                        .add_columns(sbom_node::Entity)
+                        .add_columns(qualified_purl::Entity)
+                        .translator(|f, op, v| match f {
+                            "purl:type" => Some(format!("purl:ty{op}{v}")),
+                            "purl" => Purl::translate(op, v),
+                            _ => None,
+                        }),
+                )?,
+        );
 
         let limiter = limit_selector::<'_, _, _, _, SbomModel>(
             connection,
@@ -479,7 +480,7 @@ impl SbomService {
             .fetch()
             .await?
             .into_iter()
-            .map(SbomModel::stringify_purl)
+            .map(SbomModel::stringify_purls)
             .collect();
 
         Ok(PaginatedResults { items, total })

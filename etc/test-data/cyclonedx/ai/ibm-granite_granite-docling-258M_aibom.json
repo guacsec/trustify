@@ -100,6 +100,14 @@
       "name": "granite-docling-258M",
       "publisher": "ibm-granite",
       "purl": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "concludedValue": "pkg:boatymcboatface/ibm-granite/granite-docling-258M@1.0"
+          }
+        ]
+      },
       "supplier": {
         "name": "ibm-granite",
         "url": [
