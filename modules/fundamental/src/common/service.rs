@@ -2,9 +2,10 @@ use crate::{Error, common::LicenseRefMapping, source_document::model::SourceDocu
 use sea_orm::{ConnectionTrait, DbBackend, FromQueryResult, PaginatorTrait, Statement};
 use spdx_expression;
 use std::collections::BTreeMap;
+use tracing::instrument;
 use trustify_module_storage::service::{StorageBackend, StorageKey, dispatch::DispatchBackend};
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum DocumentType {
     Advisory,
     Sbom,
@@ -13,6 +14,7 @@ pub enum DocumentType {
 /// Fetch all unique key/value labels matching the `filter_text` for all the `r#type` entities, i.e. `DocumentType::Advisory` or `DocumentType::Sbom`
 ///
 /// If limit=0 then all data will be fetched
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
 pub async fn fetch_labels<C: ConnectionTrait>(
     r#type: DocumentType,
     filter_text: String,
