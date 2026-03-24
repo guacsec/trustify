@@ -43,6 +43,7 @@ impl PurlService {
         Self {}
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn purl_types<C: ConnectionTrait>(
         &self,
         connection: &C,
@@ -68,6 +69,7 @@ impl PurlService {
         TypeSummary::from_names(&ecosystems, connection).await
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn base_purls_by_type<C: ConnectionTrait>(
         &self,
         r#type: &str,
@@ -88,6 +90,7 @@ impl PurlService {
         })
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn base_purl<C: ConnectionTrait>(
         &self,
         r#type: &str,
@@ -114,6 +117,7 @@ impl PurlService {
         }
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn versioned_purl<C: ConnectionTrait>(
         &self,
         r#type: &str,
@@ -145,6 +149,7 @@ impl PurlService {
         }
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn base_purl_by_uuid<C: ConnectionTrait>(
         &self,
         base_purl_uuid: &Uuid,
@@ -162,6 +167,7 @@ impl PurlService {
         }
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn base_purl_by_purl<C: ConnectionTrait>(
         &self,
         purl: &Purl,
@@ -186,6 +192,7 @@ impl PurlService {
         }
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn versioned_purl_by_uuid<C: ConnectionTrait>(
         &self,
         purl_version_uuid: &Uuid,
@@ -203,6 +210,7 @@ impl PurlService {
         }
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn versioned_purl_by_purl<C: ConnectionTrait>(
         &self,
         purl: &Purl,
@@ -237,6 +245,7 @@ impl PurlService {
         }
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn purl_by_purl<C: ConnectionTrait>(
         &self,
         purl: &Purl,
@@ -294,7 +303,7 @@ impl PurlService {
         })
     }
 
-    #[instrument(skip(self, connection), err)]
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn purls<C: ConnectionTrait>(
         &self,
         query: Query,
