@@ -17,7 +17,7 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
     QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
 };
-use sea_query::{ColumnType, JoinType, Order};
+use sea_query::{ColumnType, JoinType, Order, UnionType};
 use tracing::instrument;
 use trustify_common::{
     db::{
@@ -331,19 +331,23 @@ impl PurlService {
             .get_constraint_for_field(LICENSE)
             .map(|constraint| q(&format!("{constraint}")))
         {
-            // SPDX path: join through junction → dictionary
-            let spdx_subquery = sbom_package_purl_ref::Entity::find()
-                .select_only()
-                .distinct()
-                .column(sbom_package_purl_ref::Column::QualifiedPurlId)
-                .join(
-                    JoinType::InnerJoin,
-                    sbom_package_purl_ref::Relation::Package.def(),
-                )
-                .join(
-                    JoinType::InnerJoin,
-                    sbom_package::Relation::PackageLicense.def(),
-                )
+            let base = || {
+                sbom_package_purl_ref::Entity::find()
+                    .select_only()
+                    .distinct()
+                    .column(sbom_package_purl_ref::Column::QualifiedPurlId)
+                    .join(
+                        JoinType::InnerJoin,
+                        sbom_package_purl_ref::Relation::Package.def(),
+                    )
+                    .join(
+                        JoinType::InnerJoin,
+                        sbom_package::Relation::PackageLicense.def(),
+                    )
+            };
+
+            // Apply as subquery filter using UNION to allow index lookups instead of a full table scan
+            let mut spdx_select = base()
                 .join(
                     JoinType::InnerJoin,
                     sbom_package_license::Relation::SbomLicenseExpanded.def(),
@@ -360,22 +364,9 @@ impl PurlService {
                             LICENSE => Some(format!("expanded_text{operator}{value}")),
                             _ => None,
                         }),
-                )?
-                .into_query();
+                )?;
 
-            // CycloneDX path: direct text match
-            let cyclonedx_subquery = sbom_package_purl_ref::Entity::find()
-                .select_only()
-                .distinct()
-                .column(sbom_package_purl_ref::Column::QualifiedPurlId)
-                .join(
-                    JoinType::InnerJoin,
-                    sbom_package_purl_ref::Relation::Package.def(),
-                )
-                .join(
-                    JoinType::InnerJoin,
-                    sbom_package::Relation::PackageLicense.def(),
-                )
+            let cyclonedx_select = base()
                 .join(
                     JoinType::InnerJoin,
                     sbom_package_license::Relation::License.def(),
@@ -388,19 +379,16 @@ impl PurlService {
                             LICENSE => Some(format!("text{operator}{value}")),
                             _ => None,
                         }),
-                )?
-                .into_query();
+                )?;
 
-            // Apply as subquery filter
-            select = select.filter(
-                qualified_purl::Column::Id
-                    .in_subquery(spdx_subquery)
-                    .or(qualified_purl::Column::Id.in_subquery(cyclonedx_subquery)),
-            );
+            QueryTrait::query(&mut spdx_select)
+                .union(UnionType::Distinct, cyclonedx_select.into_query());
+
+            select =
+                select.filter(qualified_purl::Column::Id.in_subquery(spdx_select.into_query()));
         }
 
         let limiter = select.limiting(connection, paginated.offset, paginated.limit);
-
         let total = limiter.total().await?;
 
         Ok(PaginatedResults {
