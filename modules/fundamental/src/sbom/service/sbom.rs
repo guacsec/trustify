@@ -13,7 +13,7 @@ use sea_orm::{
     IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
     Select, SelectColumns, Statement, StreamTrait, prelude::Uuid,
 };
-use sea_query::{ColumnType, Expr, JoinType, extension::postgres::PgExpr};
+use sea_query::{ColumnType, Expr, JoinType, UnionType, extension::postgres::PgExpr};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
@@ -226,7 +226,7 @@ impl SbomService {
             .map(|constraint| q(&format!("{constraint}")))
         {
             // SPDX path: join through junction → dictionary
-            let spdx_subquery = sbom_license_expanded::Entity::find()
+            let mut spdx_select = sbom_license_expanded::Entity::find()
                 .select_only()
                 .distinct()
                 .column(sbom_license_expanded::Column::SbomId)
@@ -242,11 +242,10 @@ impl SbomService {
                             LICENSE => Some(format!("expanded_text{operator}{value}")),
                             _ => None,
                         }),
-                )?
-                .into_query();
+                )?;
 
             // CycloneDX path: direct text match
-            let cyclonedx_subquery = sbom_package_license::Entity::find()
+            let cyclonedx_select = sbom_package_license::Entity::find()
                 .select_only()
                 .distinct()
                 .column(sbom_package_license::Column::SbomId)
@@ -262,14 +261,12 @@ impl SbomService {
                             LICENSE => Some(format!("text{operator}{value}")),
                             _ => None,
                         }),
-                )?
-                .into_query();
+                )?;
 
-            // Apply as subquery filter
+            QueryTrait::query(&mut spdx_select)
+                .union(UnionType::Distinct, cyclonedx_select.into_query());
             query = query.filter(
-                sbom::Column::SbomId
-                    .in_subquery(spdx_subquery)
-                    .or(sbom::Column::SbomId.in_subquery(cyclonedx_subquery)),
+                sbom::Column::SbomId.in_subquery(spdx_select.into_query()),
             );
         }
 
@@ -346,7 +343,7 @@ impl SbomService {
             .map(|constraint| q(&format!("{constraint}")))
         {
             // SPDX path: match via expanded_license dictionary
-            let spdx_pkg_subquery = sbom_package_license::Entity::find()
+            let mut spdx_pkg_select = sbom_package_license::Entity::find()
                 .select_only()
                 .distinct()
                 .column(sbom_package_license::Column::NodeId)
@@ -367,11 +364,10 @@ impl SbomService {
                             LICENSE => Some(format!("expanded_text{operator}{value}")),
                             _ => None,
                         }),
-                )?
-                .into_query();
+                )?;
 
             // CycloneDX path: match raw license text directly
-            let cdx_pkg_subquery = sbom_package_license::Entity::find()
+            let cdx_pkg_select = sbom_package_license::Entity::find()
                 .select_only()
                 .distinct()
                 .column(sbom_package_license::Column::NodeId)
@@ -388,13 +384,12 @@ impl SbomService {
                             LICENSE => Some(format!("text{operator}{value}")),
                             _ => None,
                         }),
-                )?
-                .into_query();
+                )?;
 
+            QueryTrait::query(&mut spdx_pkg_select)
+                .union(UnionType::Distinct, cdx_pkg_select.into_query());
             query = query.filter(
-                sbom_package::Column::NodeId
-                    .in_subquery(spdx_pkg_subquery)
-                    .or(sbom_package::Column::NodeId.in_subquery(cdx_pkg_subquery)),
+                sbom_package::Column::NodeId.in_subquery(spdx_pkg_select.into_query()),
             );
         }
 
