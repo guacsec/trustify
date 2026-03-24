@@ -122,23 +122,20 @@ pub struct SbomModel {
 }
 
 impl SbomModel {
-    pub fn stringify_purls(self) -> SbomModel {
-        let mut result = self.clone();
-        result.purls = self
+    pub fn stringify_purls(mut self) -> SbomModel {
+        use serde_json::{Value, from_value};
+        self.purls = self
             .purls
-            .iter()
-            .filter_map(|p| {
-                if p.is_object() {
-                    match serde_json::from_value::<CanonicalPurl>(p.clone()) {
-                        Ok(cp) => Some(serde_json::Value::String(Purl::from(cp).to_string())),
-                        _ => None,
-                    }
-                } else {
-                    Some(p.clone())
-                }
+            .into_iter()
+            .filter_map(|p| match p {
+                Value::Object(_) => match from_value::<CanonicalPurl>(p) {
+                    Ok(cp) => Some(Value::String(Purl::from(cp).to_string())),
+                    _ => None,
+                },
+                _ => Some(p),
             })
             .collect();
-        result
+        self
     }
 }
 

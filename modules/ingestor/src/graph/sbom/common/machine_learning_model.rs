@@ -65,7 +65,7 @@ impl MachineLearningModelCreator {
         I: IntoIterator<Item = C>,
         C: Into<Checksum>,
     {
-        self.refs.add(node_id.clone(), refs);
+        self.refs.add(&node_id, refs);
         self.nodes.add(node_id.clone(), name, checksums);
         self.models.push(sbom_ai::ActiveModel {
             sbom_id: Set(self.sbom_id),

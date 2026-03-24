@@ -33,20 +33,21 @@ impl ReferenceCreator {
         }
     }
 
-    pub fn add<'a>(&mut self, node_id: String, refs: impl Iterator<Item = &'a PackageReference>) {
+    pub fn add<'a>(&mut self, node_id: &str, refs: impl Iterator<Item = &'a PackageReference>) {
+        let node_id_value = Set(node_id.to_string());
         for reference in refs {
             match reference {
                 PackageReference::Cpe(cpe) => {
                     self.cpe_refs.push(sbom_package_cpe_ref::ActiveModel {
                         sbom_id: Set(self.sbom_id),
-                        node_id: Set(node_id.clone()),
+                        node_id: node_id_value.clone(),
                         cpe_id: Set(*cpe),
                     });
                 }
                 PackageReference::Purl(purl) => {
                     self.purl_refs.push(sbom_package_purl_ref::ActiveModel {
                         sbom_id: Set(self.sbom_id),
-                        node_id: Set(node_id.clone()),
+                        node_id: node_id_value.clone(),
                         qualified_purl_id: Set(purl.qualifier_uuid()),
                     });
                 }

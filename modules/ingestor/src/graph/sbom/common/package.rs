@@ -62,7 +62,7 @@ impl PackageCreator {
         I: IntoIterator<Item = C>,
         C: Into<Checksum>,
     {
-        self.refs.add(node_info.node_id.clone(), refs);
+        self.refs.add(&node_info.node_id, refs);
         self.nodes
             .add(node_info.node_id.clone(), node_info.name, checksums);
 
