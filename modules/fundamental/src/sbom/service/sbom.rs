@@ -265,9 +265,7 @@ impl SbomService {
 
             QueryTrait::query(&mut spdx_select)
                 .union(UnionType::Distinct, cyclonedx_select.into_query());
-            query = query.filter(
-                sbom::Column::SbomId.in_subquery(spdx_select.into_query()),
-            );
+            query = query.filter(sbom::Column::SbomId.in_subquery(spdx_select.into_query()));
         }
 
         let limiter = query
@@ -388,9 +386,8 @@ impl SbomService {
 
             QueryTrait::query(&mut spdx_pkg_select)
                 .union(UnionType::Distinct, cdx_pkg_select.into_query());
-            query = query.filter(
-                sbom_package::Column::NodeId.in_subquery(spdx_pkg_select.into_query()),
-            );
+            query = query
+                .filter(sbom_package::Column::NodeId.in_subquery(spdx_pkg_select.into_query()));
         }
 
         query = join_purls_and_cpes(query)
