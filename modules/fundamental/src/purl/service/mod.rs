@@ -34,6 +34,69 @@ use trustify_entity::{
 };
 use trustify_module_ingestor::common::Deprecation;
 
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct PurlKey {
+    ty: String,
+    namespace: Option<String>,
+    name: String,
+}
+
+impl PurlKey {
+    fn from_purl(purl: &Purl) -> Self {
+        Self {
+            ty: purl.ty.clone(),
+            namespace: purl.namespace.clone(),
+            name: purl.name.clone(),
+        }
+    }
+
+    fn from_base_purl(bp: &base_purl::Model) -> Self {
+        Self {
+            ty: bp.r#type.clone(),
+            namespace: bp.namespace.clone(),
+            name: bp.name.clone(),
+        }
+    }
+
+    fn as_condition(&self) -> Condition {
+        let mut cond = Condition::all()
+            .add(base_purl::Column::Type.eq(&self.ty))
+            .add(base_purl::Column::Name.eq(&self.name));
+        if let Some(ns) = &self.namespace {
+            cond = cond.add(base_purl::Column::Namespace.eq(ns));
+        } else {
+            cond = cond.add(base_purl::Column::Namespace.is_null());
+        }
+        cond
+    }
+}
+
+struct InputPurl {
+    purl_string: String,
+    key: PurlKey,
+    input_version: semver::Version,
+}
+
+impl InputPurl {
+    fn try_from_purl(purl: &Purl) -> Option<Self> {
+        let input_version_str = purl.version.as_ref()?;
+        let input_version = lenient_semver::parse(input_version_str)
+            .inspect_err(|_| {
+                log::debug!(
+                    "input purl {} version {:?} failed to parse",
+                    purl,
+                    input_version_str
+                );
+            })
+            .ok()?;
+        Some(Self {
+            purl_string: purl.to_string(),
+            key: PurlKey::from_purl(purl),
+            input_version,
+        })
+    }
+}
+
 #[derive(Default)]
 pub struct PurlService {}
 
@@ -404,74 +467,13 @@ impl PurlService {
     ) -> Result<HashMap<String, Vec<RecommendEntry>>, Error> {
         let mut recommendations = HashMap::new();
 
-        #[allow(clippy::unwrap_used)]
-        let pattern = Regex::new("redhat-[0-9]+$").unwrap();
-
-        #[derive(Clone, PartialEq, Eq, Hash)]
-        struct PurlKey {
-            ty: String,
-            namespace: Option<String>,
-            name: String,
-        }
-
-        struct InputPurl {
-            purl_string: String,
-            key: PurlKey,
-            input_version: semver::Version,
-        }
-
-        let mut input_purls: Vec<InputPurl> = Vec::new();
-        for purl in purls {
-            let Some(ref input_version_str) = purl.version else {
-                continue;
-            };
-            let Ok(input_version) = lenient_semver::parse(input_version_str) else {
-                log::debug!(
-                    "input purl {} version {:?} failed to parse",
-                    purl,
-                    input_version_str
-                );
-                continue;
-            };
-
-            input_purls.push(InputPurl {
-                purl_string: purl.to_string(),
-                key: PurlKey {
-                    ty: purl.ty.clone(),
-                    namespace: purl.namespace.clone(),
-                    name: purl.name.clone(),
-                },
-                input_version,
-            });
-        }
-
+        let input_purls: Vec<InputPurl> =
+            purls.iter().filter_map(InputPurl::try_from_purl).collect();
         if input_purls.is_empty() {
             return Ok(recommendations);
         }
 
-        // Bulk query: find all base_purls matching any input PURL's (type, namespace, name)
-        let mut base_condition = Condition::any();
-        let mut seen_keys: HashSet<PurlKey> = HashSet::new();
-        for ip in &input_purls {
-            if !seen_keys.insert(ip.key.clone()) {
-                continue;
-            }
-            let mut cond = Condition::all()
-                .add(base_purl::Column::Type.eq(&ip.key.ty))
-                .add(base_purl::Column::Name.eq(&ip.key.name));
-            if let Some(ns) = &ip.key.namespace {
-                cond = cond.add(base_purl::Column::Namespace.eq(ns));
-            } else {
-                cond = cond.add(base_purl::Column::Namespace.is_null());
-            }
-            base_condition = base_condition.add(cond);
-        }
-
-        let base_purls: Vec<base_purl::Model> = base_purl::Entity::find()
-            .filter(base_condition)
-            .all(connection)
-            .await?;
-
+        let base_purls = Self::fetch_base_purls(&input_purls, connection).await?;
         if base_purls.is_empty() {
             for ip in &input_purls {
                 recommendations.insert(ip.purl_string.clone(), Vec::new());
@@ -481,36 +483,14 @@ impl PurlService {
 
         let base_purl_map: HashMap<PurlKey, &base_purl::Model> = base_purls
             .iter()
-            .map(|bp| {
-                let key = PurlKey {
-                    ty: bp.r#type.clone(),
-                    namespace: bp.namespace.clone(),
-                    name: bp.name.clone(),
-                };
-                (key, bp)
-            })
+            .map(|bp| (PurlKey::from_base_purl(bp), bp))
             .collect();
 
-        // Bulk query: get all versioned_purls for matching base_purls
-        let base_purl_ids: Vec<Uuid> = base_purls.iter().map(|bp| bp.id).collect();
-        let all_versioned: Vec<versioned_purl::Model> = versioned_purl::Entity::find()
-            .filter(versioned_purl::Column::BasePurlId.is_in(base_purl_ids))
-            .all(connection)
-            .await?;
+        let versioned_by_base =
+            Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
-        let mut versioned_by_base: HashMap<Uuid, Vec<&versioned_purl::Model>> = HashMap::new();
-        for vp in &all_versioned {
-            versioned_by_base
-                .entry(vp.base_purl_id)
-                .or_default()
-                .push(vp);
-        }
-
-        struct Winner<'a> {
-            purl_string: String,
-            versioned_purl: &'a versioned_purl::Model,
-        }
-        let mut winners: Vec<Winner> = Vec::new();
+        #[allow(clippy::unwrap_used)]
+        let pattern = Regex::new("redhat-[0-9]+$").unwrap();
 
         for ip in &input_purls {
             let Some(base) = base_purl_map.get(&ip.key) else {
@@ -518,85 +498,130 @@ impl PurlService {
                 continue;
             };
 
-            let highest_patch = versioned_by_base
-                .get(&base.id)
-                .into_iter()
-                .flatten()
-                .filter(|vp| pattern.is_match(&vp.version))
-                .filter_map(|vp| {
-                    lenient_semver::parse(&vp.version)
-                        .inspect_err(|_| {
-                            log::debug!("purl version {:?} failed to parse", vp.version);
-                        })
-                        .ok()
-                        .map(|v| (*vp, v))
-                })
-                .filter(|(_, version)| {
-                    version.major == ip.input_version.major
-                        && version.minor == ip.input_version.minor
-                        && version.patch == ip.input_version.patch
-                })
-                .max_by(|(_, a), (_, b)| a.pre.cmp(&b.pre))
-                .map(|(vp, _)| vp);
+            let highest = Self::find_highest_redhat_patch(
+                &pattern,
+                &ip.input_version,
+                versioned_by_base.get(&base.id),
+            );
 
-            if let Some(winner_vp) = highest_patch {
-                winners.push(Winner {
-                    purl_string: ip.purl_string.clone(),
-                    versioned_purl: winner_vp,
-                });
+            if let Some(winner_vp) = highest {
+                let entry = self.build_recommend_entry(winner_vp, connection).await?;
+                recommendations.insert(ip.purl_string.clone(), vec![entry]);
             } else {
                 recommendations.insert(ip.purl_string.clone(), Vec::new());
             }
         }
 
-        if winners.is_empty() {
-            return Ok(recommendations);
-        }
+        Ok(recommendations)
+    }
 
-        for winner in &winners {
-            if let Some(purl_details) = self
-                .versioned_purl_by_uuid(&winner.versioned_purl.id, connection)
-                .await?
-            {
-                let package_str = purl_details
-                    .purls
-                    .first()
-                    .map(|p| p.purl.to_string())
-                    .unwrap_or_else(|| {
-                        Purl {
-                            ty: purl_details.head.purl.ty.clone(),
-                            namespace: purl_details.head.purl.namespace.clone(),
-                            name: purl_details.head.purl.name.clone(),
-                            version: purl_details.head.purl.version.clone(),
-                            qualifiers: Default::default(),
-                        }
-                        .to_string()
-                    });
-
-                let vulnerabilities: Vec<VulnerabilityStatus> = purl_details
-                    .advisories
-                    .iter()
-                    .flat_map(|advisory| &advisory.status)
-                    .unique_by(|status| &status.vulnerability.identifier)
-                    .map(|status| VulnerabilityStatus {
-                        id: status.vulnerability.identifier.clone(),
-                        status: Some(status.into()),
-                        justification: None,
-                        remediations: status.remediations.clone(),
-                    })
-                    .collect();
-
-                recommendations.insert(
-                    winner.purl_string.clone(),
-                    vec![RecommendEntry {
-                        package: package_str,
-                        vulnerabilities,
-                    }],
-                );
+    async fn fetch_base_purls<C: ConnectionTrait>(
+        input_purls: &[InputPurl],
+        connection: &C,
+    ) -> Result<Vec<base_purl::Model>, Error> {
+        let mut condition = Condition::any();
+        let mut seen_keys: HashSet<PurlKey> = HashSet::new();
+        for ip in input_purls {
+            if seen_keys.insert(ip.key.clone()) {
+                condition = condition.add(ip.key.as_condition());
             }
         }
+        Ok(base_purl::Entity::find()
+            .filter(condition)
+            .all(connection)
+            .await?)
+    }
 
-        Ok(recommendations)
+    async fn fetch_versioned_purls_by_base<C: ConnectionTrait>(
+        base_purls: &[base_purl::Model],
+        connection: &C,
+    ) -> Result<HashMap<Uuid, Vec<versioned_purl::Model>>, Error> {
+        let base_purl_ids: Vec<Uuid> = base_purls.iter().map(|bp| bp.id).collect();
+        let all_versioned: Vec<versioned_purl::Model> = versioned_purl::Entity::find()
+            .filter(versioned_purl::Column::BasePurlId.is_in(base_purl_ids))
+            .all(connection)
+            .await?;
+
+        let mut by_base: HashMap<Uuid, Vec<versioned_purl::Model>> = HashMap::new();
+        for vp in all_versioned {
+            by_base.entry(vp.base_purl_id).or_default().push(vp);
+        }
+        Ok(by_base)
+    }
+
+    fn find_highest_redhat_patch<'a>(
+        pattern: &Regex,
+        input_version: &semver::Version,
+        versioned_purls: Option<&'a Vec<versioned_purl::Model>>,
+    ) -> Option<&'a versioned_purl::Model> {
+        versioned_purls?
+            .iter()
+            .filter(|vp| pattern.is_match(&vp.version))
+            .filter_map(|vp| {
+                lenient_semver::parse(&vp.version)
+                    .inspect_err(|_| {
+                        log::debug!("purl version {:?} failed to parse", vp.version);
+                    })
+                    .ok()
+                    .map(|v| (vp, v))
+            })
+            .filter(|(_, version)| {
+                version.major == input_version.major
+                    && version.minor == input_version.minor
+                    && version.patch == input_version.patch
+            })
+            .max_by(|(_, a), (_, b)| a.pre.cmp(&b.pre))
+            .map(|(vp, _)| vp)
+    }
+
+    async fn build_recommend_entry<C: ConnectionTrait>(
+        &self,
+        versioned_purl: &versioned_purl::Model,
+        connection: &C,
+    ) -> Result<RecommendEntry, Error> {
+        let purl_details = self
+            .versioned_purl_by_uuid(&versioned_purl.id, connection)
+            .await?;
+
+        let Some(purl_details) = purl_details else {
+            return Ok(RecommendEntry {
+                package: String::new(),
+                vulnerabilities: Vec::new(),
+            });
+        };
+
+        let package = purl_details
+            .purls
+            .first()
+            .map(|p| p.purl.to_string())
+            .unwrap_or_else(|| {
+                Purl {
+                    ty: purl_details.head.purl.ty.clone(),
+                    namespace: purl_details.head.purl.namespace.clone(),
+                    name: purl_details.head.purl.name.clone(),
+                    version: purl_details.head.purl.version.clone(),
+                    qualifiers: Default::default(),
+                }
+                .to_string()
+            });
+
+        let vulnerabilities = purl_details
+            .advisories
+            .iter()
+            .flat_map(|advisory| &advisory.status)
+            .unique_by(|status| &status.vulnerability.identifier)
+            .map(|status| VulnerabilityStatus {
+                id: status.vulnerability.identifier.clone(),
+                status: Some(status.into()),
+                justification: None,
+                remediations: status.remediations.clone(),
+            })
+            .collect();
+
+        Ok(RecommendEntry {
+            package,
+            vulnerabilities,
+        })
     }
 }
 
