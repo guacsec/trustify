@@ -555,15 +555,6 @@ pub struct SbomStatus {
 }
 
 impl SbomStatus {
-    #[instrument(
-        skip(
-            advisory_vulnerability,
-            vulnerability,
-            packages,
-            score_models
-        ),
-        err(level=tracing::Level::INFO)
-    )]
     pub fn new(
         advisory_vulnerability: &advisory_vulnerability::Model,
         vulnerability: &vulnerability::Model,
