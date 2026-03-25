@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     Error,
@@ -14,7 +14,7 @@ use crate::{
 use itertools::Itertools;
 use regex::Regex;
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
+    ColumnTrait, Condition, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
     QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
 };
 use sea_query::{ColumnType, JoinType, Order, UnionType};
@@ -407,12 +407,16 @@ impl PurlService {
         #[allow(clippy::unwrap_used)]
         let pattern = Regex::new("redhat-[0-9]+$").unwrap();
 
-        // Phase 1: Parse all input PURLs and build lookup keys
-        struct InputPurl {
-            purl_string: String,
+        #[derive(Clone, PartialEq, Eq, Hash)]
+        struct PurlKey {
             ty: String,
             namespace: Option<String>,
             name: String,
+        }
+
+        struct InputPurl {
+            purl_string: String,
+            key: PurlKey,
             input_version: semver::Version,
         }
 
@@ -432,9 +436,11 @@ impl PurlService {
 
             input_purls.push(InputPurl {
                 purl_string: purl.to_string(),
-                ty: purl.ty.clone(),
-                namespace: purl.namespace.clone(),
-                name: purl.name.clone(),
+                key: PurlKey {
+                    ty: purl.ty.clone(),
+                    namespace: purl.namespace.clone(),
+                    name: purl.name.clone(),
+                },
                 input_version,
             });
         }
@@ -443,23 +449,17 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        // Phase 2: Bulk query — find all base_purls matching any input PURL's (type, namespace, name)
+        // Bulk query: find all base_purls matching any input PURL's (type, namespace, name)
         let mut base_condition = Condition::any();
-        let mut seen_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut seen_keys: HashSet<PurlKey> = HashSet::new();
         for ip in &input_purls {
-            let key = format!(
-                "{}|{}|{}",
-                ip.ty,
-                ip.namespace.as_deref().unwrap_or(""),
-                ip.name
-            );
-            if !seen_keys.insert(key) {
+            if !seen_keys.insert(ip.key.clone()) {
                 continue;
             }
             let mut cond = Condition::all()
-                .add(base_purl::Column::Type.eq(&ip.ty))
-                .add(base_purl::Column::Name.eq(&ip.name));
-            if let Some(ns) = &ip.namespace {
+                .add(base_purl::Column::Type.eq(&ip.key.ty))
+                .add(base_purl::Column::Name.eq(&ip.key.name));
+            if let Some(ns) = &ip.key.namespace {
                 cond = cond.add(base_purl::Column::Namespace.eq(ns));
             } else {
                 cond = cond.add(base_purl::Column::Namespace.is_null());
@@ -479,28 +479,25 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        // Build base_purl lookup: key -> base_purl model
-        let base_purl_map: HashMap<String, &base_purl::Model> = base_purls
+        let base_purl_map: HashMap<PurlKey, &base_purl::Model> = base_purls
             .iter()
             .map(|bp| {
-                let key = format!(
-                    "{}|{}|{}",
-                    bp.r#type,
-                    bp.namespace.as_deref().unwrap_or(""),
-                    bp.name
-                );
+                let key = PurlKey {
+                    ty: bp.r#type.clone(),
+                    namespace: bp.namespace.clone(),
+                    name: bp.name.clone(),
+                };
                 (key, bp)
             })
             .collect();
 
-        // Phase 3: Bulk query — get all versioned_purls for matching base_purls
+        // Bulk query: get all versioned_purls for matching base_purls
         let base_purl_ids: Vec<Uuid> = base_purls.iter().map(|bp| bp.id).collect();
         let all_versioned: Vec<versioned_purl::Model> = versioned_purl::Entity::find()
             .filter(versioned_purl::Column::BasePurlId.is_in(base_purl_ids))
             .all(connection)
             .await?;
 
-        // Group versioned_purls by base_purl_id
         let mut versioned_by_base: HashMap<Uuid, Vec<&versioned_purl::Model>> = HashMap::new();
         for vp in &all_versioned {
             versioned_by_base
@@ -509,23 +506,14 @@ impl PurlService {
                 .push(vp);
         }
 
-        // Phase 4: For each input PURL, find the highest redhat patch version
         struct Winner<'a> {
             purl_string: String,
             versioned_purl: &'a versioned_purl::Model,
-            #[allow(dead_code)]
-            base: &'a base_purl::Model,
         }
         let mut winners: Vec<Winner> = Vec::new();
 
         for ip in &input_purls {
-            let key = format!(
-                "{}|{}|{}",
-                ip.ty,
-                ip.namespace.as_deref().unwrap_or(""),
-                ip.name
-            );
-            let Some(base) = base_purl_map.get(&key) else {
+            let Some(base) = base_purl_map.get(&ip.key) else {
                 recommendations.insert(ip.purl_string.clone(), Vec::new());
                 continue;
             };
@@ -555,7 +543,6 @@ impl PurlService {
                 winners.push(Winner {
                     purl_string: ip.purl_string.clone(),
                     versioned_purl: winner_vp,
-                    base,
                 });
             } else {
                 recommendations.insert(ip.purl_string.clone(), Vec::new());
@@ -566,8 +553,6 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        // Phase 5: Fetch vulnerability details for each winner
-        // Use versioned_purl_by_uuid to get full details including qualified_purl with qualifiers
         for winner in &winners {
             if let Some(purl_details) = self
                 .versioned_purl_by_uuid(&winner.versioned_purl.id, connection)
@@ -582,7 +567,7 @@ impl PurlService {
                             ty: purl_details.head.purl.ty.clone(),
                             namespace: purl_details.head.purl.namespace.clone(),
                             name: purl_details.head.purl.name.clone(),
-                            version: Some(purl_details.head.purl.version.clone().unwrap_or_default()),
+                            version: purl_details.head.purl.version.clone(),
                             qualifiers: Default::default(),
                         }
                         .to_string()
