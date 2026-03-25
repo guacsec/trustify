@@ -407,15 +407,17 @@ impl PurlService {
         #[allow(clippy::unwrap_used)]
         let pattern = Regex::new("redhat-[0-9]+$").unwrap();
 
-        for purl in purls {
-            let query = match purl.to_string().split_once('@') {
-                Some((p, _)) => format!("purl~{p}"),
-                None => format!("purl~{purl}"),
-            };
-            let summaries = self
-                .purls(q(&query), Default::default(), connection)
-                .await?;
+        // Phase 1: Parse all input PURLs and build lookup keys
+        struct InputPurl {
+            purl_string: String,
+            ty: String,
+            namespace: Option<String>,
+            name: String,
+            input_version: semver::Version,
+        }
 
+        let mut input_purls: Vec<InputPurl> = Vec::new();
+        for purl in purls {
             let Some(ref input_version_str) = purl.version else {
                 continue;
             };
@@ -428,68 +430,185 @@ impl PurlService {
                 continue;
             };
 
-            let highest_patch = summaries
-                .items
-                .into_iter()
-                .fold(
-                    None,
-                    |acc: Option<(PurlSummary, semver::Version)>, summary: PurlSummary| {
-                        summary
-                            .head
-                            .purl
-                            .version
-                            .as_ref()
-                            .filter(|version| pattern.is_match(version))
-                            .and_then(|version| {
-                                lenient_semver::parse(version)
-                                    .inspect_err(|_| {
-                                        log::debug!(
-                                            "purl {} version {:?} failed to parse",
-                                            summary.head.purl,
-                                            summary.head.purl.version
-                                        )
-                                    })
-                                    .ok()
-                            })
-                            .filter(|version| {
-                                version.major == input_version.major
-                                    && version.minor == input_version.minor
-                                    && version.patch == input_version.patch
-                            })
-                            .and_then(|version| match &acc {
-                                Some((_, v)) if version.pre > v.pre => Some((summary, version)),
-                                None => Some((summary, version)),
-                                _ => None,
-                            })
-                            .or(acc)
-                    },
-                )
-                .map(|(summary, _)| summary);
+            input_purls.push(InputPurl {
+                purl_string: purl.to_string(),
+                ty: purl.ty.clone(),
+                namespace: purl.namespace.clone(),
+                name: purl.name.clone(),
+                input_version,
+            });
+        }
 
-            let mut recommended_purls = Vec::new();
-            if let Some(highest) = highest_patch
-                && let Some(purl_details) = self
-                    .versioned_purl_by_uuid(&highest.head.purl.version_uuid(), connection)
-                    .await?
-            {
-                recommended_purls.push(RecommendEntry {
-                    package: highest.head.purl.to_string(),
-                    vulnerabilities: purl_details
-                        .advisories
-                        .iter()
-                        .flat_map(|advisory| &advisory.status)
-                        .unique_by(|status| &status.vulnerability.identifier)
-                        .map(|status| VulnerabilityStatus {
-                            id: status.vulnerability.identifier.clone(),
-                            status: Some(status.into()),
-                            justification: None,
-                            remediations: status.remediations.clone(),
-                        })
-                        .collect(),
-                });
+        if input_purls.is_empty() {
+            return Ok(recommendations);
+        }
+
+        // Phase 2: Bulk query — find all base_purls matching any input PURL's (type, namespace, name)
+        let mut base_condition = Condition::any();
+        let mut seen_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for ip in &input_purls {
+            let key = format!(
+                "{}|{}|{}",
+                ip.ty,
+                ip.namespace.as_deref().unwrap_or(""),
+                ip.name
+            );
+            if !seen_keys.insert(key) {
+                continue;
             }
+            let mut cond = Condition::all()
+                .add(base_purl::Column::Type.eq(&ip.ty))
+                .add(base_purl::Column::Name.eq(&ip.name));
+            if let Some(ns) = &ip.namespace {
+                cond = cond.add(base_purl::Column::Namespace.eq(ns));
+            } else {
+                cond = cond.add(base_purl::Column::Namespace.is_null());
+            }
+            base_condition = base_condition.add(cond);
+        }
 
-            recommendations.insert(purl.to_string(), recommended_purls);
+        let base_purls: Vec<base_purl::Model> = base_purl::Entity::find()
+            .filter(base_condition)
+            .all(connection)
+            .await?;
+
+        if base_purls.is_empty() {
+            for ip in &input_purls {
+                recommendations.insert(ip.purl_string.clone(), Vec::new());
+            }
+            return Ok(recommendations);
+        }
+
+        // Build base_purl lookup: key -> base_purl model
+        let base_purl_map: HashMap<String, &base_purl::Model> = base_purls
+            .iter()
+            .map(|bp| {
+                let key = format!(
+                    "{}|{}|{}",
+                    bp.r#type,
+                    bp.namespace.as_deref().unwrap_or(""),
+                    bp.name
+                );
+                (key, bp)
+            })
+            .collect();
+
+        // Phase 3: Bulk query — get all versioned_purls for matching base_purls
+        let base_purl_ids: Vec<Uuid> = base_purls.iter().map(|bp| bp.id).collect();
+        let all_versioned: Vec<versioned_purl::Model> = versioned_purl::Entity::find()
+            .filter(versioned_purl::Column::BasePurlId.is_in(base_purl_ids))
+            .all(connection)
+            .await?;
+
+        // Group versioned_purls by base_purl_id
+        let mut versioned_by_base: HashMap<Uuid, Vec<&versioned_purl::Model>> = HashMap::new();
+        for vp in &all_versioned {
+            versioned_by_base
+                .entry(vp.base_purl_id)
+                .or_default()
+                .push(vp);
+        }
+
+        // Phase 4: For each input PURL, find the highest redhat patch version
+        struct Winner<'a> {
+            purl_string: String,
+            versioned_purl: &'a versioned_purl::Model,
+            #[allow(dead_code)]
+            base: &'a base_purl::Model,
+        }
+        let mut winners: Vec<Winner> = Vec::new();
+
+        for ip in &input_purls {
+            let key = format!(
+                "{}|{}|{}",
+                ip.ty,
+                ip.namespace.as_deref().unwrap_or(""),
+                ip.name
+            );
+            let Some(base) = base_purl_map.get(&key) else {
+                recommendations.insert(ip.purl_string.clone(), Vec::new());
+                continue;
+            };
+
+            let highest_patch = versioned_by_base
+                .get(&base.id)
+                .into_iter()
+                .flatten()
+                .filter(|vp| pattern.is_match(&vp.version))
+                .filter_map(|vp| {
+                    lenient_semver::parse(&vp.version)
+                        .inspect_err(|_| {
+                            log::debug!("purl version {:?} failed to parse", vp.version);
+                        })
+                        .ok()
+                        .map(|v| (*vp, v))
+                })
+                .filter(|(_, version)| {
+                    version.major == ip.input_version.major
+                        && version.minor == ip.input_version.minor
+                        && version.patch == ip.input_version.patch
+                })
+                .max_by(|(_, a), (_, b)| a.pre.cmp(&b.pre))
+                .map(|(vp, _)| vp);
+
+            if let Some(winner_vp) = highest_patch {
+                winners.push(Winner {
+                    purl_string: ip.purl_string.clone(),
+                    versioned_purl: winner_vp,
+                    base,
+                });
+            } else {
+                recommendations.insert(ip.purl_string.clone(), Vec::new());
+            }
+        }
+
+        if winners.is_empty() {
+            return Ok(recommendations);
+        }
+
+        // Phase 5: Fetch vulnerability details for each winner
+        // Use versioned_purl_by_uuid to get full details including qualified_purl with qualifiers
+        for winner in &winners {
+            if let Some(purl_details) = self
+                .versioned_purl_by_uuid(&winner.versioned_purl.id, connection)
+                .await?
+            {
+                let package_str = purl_details
+                    .purls
+                    .first()
+                    .map(|p| p.purl.to_string())
+                    .unwrap_or_else(|| {
+                        Purl {
+                            ty: purl_details.head.purl.ty.clone(),
+                            namespace: purl_details.head.purl.namespace.clone(),
+                            name: purl_details.head.purl.name.clone(),
+                            version: Some(purl_details.head.purl.version.clone().unwrap_or_default()),
+                            qualifiers: Default::default(),
+                        }
+                        .to_string()
+                    });
+
+                let vulnerabilities: Vec<VulnerabilityStatus> = purl_details
+                    .advisories
+                    .iter()
+                    .flat_map(|advisory| &advisory.status)
+                    .unique_by(|status| &status.vulnerability.identifier)
+                    .map(|status| VulnerabilityStatus {
+                        id: status.vulnerability.identifier.clone(),
+                        status: Some(status.into()),
+                        justification: None,
+                        remediations: status.remediations.clone(),
+                    })
+                    .collect();
+
+                recommendations.insert(
+                    winner.purl_string.clone(),
+                    vec![RecommendEntry {
+                        package: package_str,
+                        vulnerabilities,
+                    }],
+                );
+            }
         }
 
         Ok(recommendations)
