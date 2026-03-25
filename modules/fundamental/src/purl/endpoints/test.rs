@@ -479,3 +479,119 @@ async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), a
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_unknown_purl(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_documents(["cve/CVE-2022-45787.json"]).await?;
+
+    let app = caller(ctx).await?;
+    let recommendations: Value = app
+        .call_and_read_body_json(
+            TestRequest::post()
+                .uri("/api/v2/purl/recommend")
+                .set_json(json!({"purls": ["pkg:maven/com.example/nonexistent@1.0.0"]}))
+                .to_request(),
+        )
+        .await;
+
+    let recs = recommendations["recommendations"].as_object().unwrap();
+    assert_eq!(recs.len(), 1);
+    assert_eq!(
+        recs["pkg:maven/com.example/nonexistent@1.0.0"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.graph
+        .ingest_qualified_package(
+            &Purl::from_str("pkg:cargo/serde@1.0.0-redhat-00001")?,
+            &ctx.db,
+        )
+        .await?;
+
+    let app = caller(ctx).await?;
+    let recommendations: Value = app
+        .call_and_read_body_json(
+            TestRequest::post()
+                .uri("/api/v2/purl/recommend")
+                .set_json(json!({"purls": ["pkg:cargo/serde@1.0.0"]}))
+                .to_request(),
+        )
+        .await;
+
+    let recs = recommendations["recommendations"].as_object().unwrap();
+    assert_eq!(recs.len(), 1);
+    assert_eq!(recs["pkg:cargo/serde@1.0.0"].as_array().unwrap().len(), 1);
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_invalid_version(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_documents(["cve/CVE-2022-45787.json"]).await?;
+
+    let app = caller(ctx).await?;
+    let recommendations: Value = app
+        .call_and_read_body_json(
+            TestRequest::post()
+                .uri("/api/v2/purl/recommend")
+                .set_json(json!({"purls": ["pkg:maven/jakarta.el/jakarta.el-api@not-a-version"]}))
+                .to_request(),
+        )
+        .await;
+
+    let recs = recommendations["recommendations"].as_object().unwrap();
+    assert_eq!(recs.len(), 0);
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_mixed(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_documents(["cve/CVE-2022-45787.json"]).await?;
+
+    let app = caller(ctx).await?;
+    let recommendations: Value = app
+        .call_and_read_body_json(
+            TestRequest::post()
+                .uri("/api/v2/purl/recommend")
+                .set_json(json!({"purls": [
+                    "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+                    "pkg:maven/com.example/nonexistent@1.0.0",
+                    "pkg:maven/jakarta.el/jakarta.el-api"
+                ]}))
+                .to_request(),
+        )
+        .await;
+
+    let recs = recommendations["recommendations"].as_object().unwrap();
+    // Known PURL with version + unknown PURL = 2 entries (no-version PURL is skipped)
+    assert_eq!(recs.len(), 2);
+    assert_eq!(
+        recs["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        recs["pkg:maven/com.example/nonexistent@1.0.0"]
+            .as_array()
+            .unwrap()
+            .len(),
+        0
+    );
+
+    Ok(())
+}
