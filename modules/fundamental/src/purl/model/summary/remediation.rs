@@ -5,10 +5,13 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq)]
 pub struct RemediationSummary {
+    #[serde(skip_serializing)]
     pub id: Uuid,
     pub category: RemediationCategory,
     pub details: Option<String>,
     pub url: Option<String>,
+    /// For internal use only. May be removed at any point and should not be used.
+    #[schema(deprecated)]
     pub data: serde_json::Value,
 }
 

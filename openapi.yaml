@@ -5374,20 +5374,18 @@ components:
     RemediationSummary:
       type: object
       required:
-      - id
       - category
       - data
       properties:
         category:
           $ref: '#/components/schemas/RemediationCategory'
-        data: {}
+        data:
+          description: For internal use only. May be removed at any point and should not be used.
+          deprecated: true
         details:
           type:
           - string
           - 'null'
-        id:
-          type: string
-          format: uuid
         url:
           type:
           - string
