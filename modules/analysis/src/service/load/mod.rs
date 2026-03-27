@@ -29,7 +29,7 @@ use std::{
 };
 use time::OffsetDateTime;
 use tokio::sync::oneshot;
-use tracing::{Level, instrument};
+use tracing::{Instrument, Level, info_span, instrument};
 use trustify_common::{
     cpe::Cpe as TrustifyCpe,
     db::query::{Columns, Filtering, IntoColumns},
@@ -497,6 +497,7 @@ impl InnerService {
                 // there is an operation in progress, await and return
 
                 return rx
+                    .instrument(info_span!("waiting for first loading"))
                     .await
                     // error awaiting
                     .map_err(|_| Error::Internal("failed to await loading operation".into()))?

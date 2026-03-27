@@ -20,6 +20,7 @@ use sea_query::{
 };
 use serde::{Deserialize, Serialize};
 use spdx::License;
+use tracing::instrument;
 use trustify_common::{
     db::query::{Columns, Filtering, IntoColumns, Query, q},
     id::{Id, TrySelectForId},
@@ -61,6 +62,7 @@ impl LicenseService {
         Self {}
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn license_export<C: ConnectionTrait>(
         &self,
         id: Id,
@@ -165,6 +167,7 @@ impl LicenseService {
         })
     }
 
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn list_spdx_licenses(
         &self,
         search: Query,
@@ -207,6 +210,7 @@ impl LicenseService {
         }
     }
 
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn get_spdx_license(&self, id: &str) -> Result<Option<SpdxLicenseDetails>, Error> {
         if let Some(License {
             name: spdx_identifier,
@@ -237,6 +241,7 @@ impl LicenseService {
         Ok(None)
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn get_all_license_info<C: ConnectionTrait>(
         &self,
         id: Id,
@@ -283,6 +288,7 @@ impl LicenseService {
         }
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn licenses<C: ConnectionTrait>(
         &self,
         search: Query,

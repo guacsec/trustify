@@ -12,6 +12,7 @@ pub enum Renderer {
 }
 
 impl AnalysisService {
+    #[instrument(skip_all)]
     pub fn render(&self, graph: &PackageGraph, renderer: Renderer) -> Option<(String, String)> {
         match renderer {
             Renderer::Graphviz => self.walk(graph, graphviz::Renderer::new()),
