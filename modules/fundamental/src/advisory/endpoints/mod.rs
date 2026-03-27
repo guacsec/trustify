@@ -240,7 +240,7 @@ pub async fn upload(
     tag = "advisory",
     operation_id = "downloadAdvisory",
     params(
-        ("key" = Id, Path),
+        ("key" = Id, Path, description = "Identifier of the advisory, either `urn:uuid:<uuid>` or a digest e.g. `sha256:<hex>`"),
     ),
     responses(
         (status = 200, description = "Download a an advisory", body = inline(BinaryData)),

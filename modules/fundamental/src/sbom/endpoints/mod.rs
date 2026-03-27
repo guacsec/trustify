@@ -610,7 +610,7 @@ pub async fn upload(
     tag = "sbom",
     operation_id = "downloadSbom",
     params(
-        ("key" = Id, Path),
+        ("key" = Id, Path, description = "Identifier of the SBOM, either `urn:uuid:<uuid>` or a digest e.g. `sha256:<hex>`"),
     ),
     responses(
         (status = 200, description = "Download a an SBOM", body = inline(BinaryData)),

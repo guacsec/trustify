@@ -21,7 +21,7 @@ use trustify_common::{
     operation_id = "getBasePurl",
     tag = "purl",
     params(
-        ("key" = String, Path, description = "opaque identifier for a base PURL, or a URL-encoded pURL itself")
+        ("key" = String, Path, description = "opaque identifier for a base PURL, or a URL-encoded full pURL starting with `pkg:` (e.g. `pkg:golang/k8s.io%2Fapiserver`)")
     ),
     responses(
         (status = 200, description = "Details for the versionless base PURL", body = BasePurlDetails),

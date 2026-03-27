@@ -291,6 +291,7 @@ paths:
       parameters:
       - name: key
         in: path
+        description: Identifier of the advisory, either `urn:uuid:<uuid>` or a digest e.g. `sha256:<hex>`
         required: true
         schema:
           $ref: '#/components/schemas/Id'
@@ -2256,7 +2257,7 @@ paths:
       parameters:
       - name: key
         in: path
-        description: opaque identifier for a base PURL, or a URL-encoded pURL itself
+        description: opaque identifier for a base PURL, or a URL-encoded full pURL starting with `pkg:` (e.g. `pkg:golang/k8s.io%2Fapiserver`)
         required: true
         schema:
           type: string
@@ -3132,6 +3133,7 @@ paths:
       parameters:
       - name: key
         in: path
+        description: Identifier of the SBOM, either `urn:uuid:<uuid>` or a digest e.g. `sha256:<hex>`
         required: true
         schema:
           $ref: '#/components/schemas/Id'
