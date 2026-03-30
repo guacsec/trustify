@@ -541,9 +541,15 @@ impl SbomAdvisory {
 pub struct SbomStatus {
     #[serde(flatten)]
     pub vulnerability: VulnerabilityHead,
-    #[deprecated(since = "0.4.0", note = "Please use `scores` instead")]
+    #[deprecated(
+        note = "Average scores are deprecated, use the new scores array",
+        since = "0.5.0"
+    )]
     pub average_severity: Severity,
-    #[deprecated(since = "0.4.0", note = "Please use `scores` instead")]
+    #[deprecated(
+        note = "Average scores are deprecated, use the new scores array",
+        since = "0.5.0"
+    )]
     pub average_score: f64,
     pub status: String,
     pub context: Option<StatusContext>,

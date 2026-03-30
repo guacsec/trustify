@@ -24,12 +24,18 @@ pub struct AdvisoryDetails {
 
     /// Average (arithmetic mean) severity of the advisory aggregated from *all* related vulnerability assertions.
     #[schema(required)]
-    #[deprecated]
+    #[deprecated(
+        note = "Average scores are deprecated, use the new scores array",
+        since = "0.5.0"
+    )]
     pub average_severity: Option<Severity>,
 
     /// Average (arithmetic mean) score of the advisory aggregated from *all* related vulnerability assertions.
     #[schema(required)]
-    #[deprecated]
+    #[deprecated(
+        note = "Average scores are deprecated, use the new scores array",
+        since = "0.5.0"
+    )]
     pub average_score: Option<f64>,
 }
 
@@ -62,7 +68,9 @@ impl AdvisoryDetails {
             .await?,
             source_document: SourceDocument::from_entity(&advisory.source_document),
             vulnerabilities,
+            #[allow(deprecated)]
             average_severity: None,
+            #[allow(deprecated)]
             average_score: None,
         })
     }
