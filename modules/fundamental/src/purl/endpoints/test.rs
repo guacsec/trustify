@@ -530,7 +530,16 @@ async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), a
 
     let recs = recommendations["recommendations"].as_object().unwrap();
     assert_eq!(recs.len(), 1);
-    assert_eq!(recs["pkg:cargo/serde@1.0.0"].as_array().unwrap().len(), 1);
+
+    let rec_list = recs["pkg:cargo/serde@1.0.0"]
+        .as_array()
+        .expect("recommendations for input purl must be an array");
+    assert_eq!(rec_list.len(), 1);
+
+    let recommended_purl = rec_list[0]["package"]
+        .as_str()
+        .expect("recommendation must contain a 'package' field");
+    assert_eq!(recommended_purl, "pkg:cargo/serde@1.0.0-redhat-00001");
 
     Ok(())
 }
