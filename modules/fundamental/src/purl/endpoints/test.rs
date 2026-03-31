@@ -604,3 +604,114 @@ async fn get_recommendations_mixed(ctx: &TrustifyContext) -> Result<(), anyhow::
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_fallback_package_str(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Ingest a versioned_purl WITHOUT a qualified_purl to exercise the fallback
+    // package string construction path
+    let base = ctx
+        .graph
+        .ingest_package(&Purl::from_str("pkg:cargo/tokio")?, &ctx.db)
+        .await?;
+    base.ingest_package_version(
+        &Purl::from_str("pkg:cargo/tokio@1.0.0-redhat-00001")?,
+        &ctx.db,
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+    let recommendations: Value = app
+        .call_and_read_body_json(
+            TestRequest::post()
+                .uri("/api/v2/purl/recommend")
+                .set_json(json!({"purls": ["pkg:cargo/tokio@1.0.0"]}))
+                .to_request(),
+        )
+        .await;
+
+    let recs = recommendations["recommendations"].as_object().unwrap();
+    assert_eq!(recs.len(), 1);
+
+    let rec_list = recs["pkg:cargo/tokio@1.0.0"].as_array().unwrap();
+    assert_eq!(rec_list.len(), 1);
+
+    // Without a qualified_purl, the fallback constructs the package string
+    // from base_purl fields + versioned_purl version
+    let package = rec_list[0]["package"].as_str().unwrap();
+    assert_eq!(package, "pkg:cargo/tokio@1.0.0-redhat-00001");
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_fixed_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+    use trustify_entity::{purl_status, status};
+
+    ctx.graph
+        .ingest_qualified_package(
+            &Purl::from_str("pkg:cargo/hyper@0.14.1-redhat-00001")?,
+            &ctx.db,
+        )
+        .await?;
+
+    ctx.ingest_documents(["osv/RUSTSEC-2021-0079.json"]).await?;
+
+    // Override the status to "fixed" to exercise that VexStatus match arm
+    let fixed_status = status::Entity::find()
+        .filter(status::Column::Slug.eq("fixed"))
+        .one(&ctx.db)
+        .await?;
+
+    let status_id = if let Some(s) = fixed_status {
+        s.id
+    } else {
+        let id = Uuid::new_v4();
+        let new_status = status::ActiveModel {
+            id: Set(id),
+            slug: Set("fixed".to_string()),
+            name: Set("Fixed".to_string()),
+            description: Set(Some("Vulnerability has been fixed".to_string())),
+        };
+        status::Entity::insert(new_status).exec(&ctx.db).await?;
+        id
+    };
+
+    let purl_statuses = purl_status::Entity::find()
+        .filter(purl_status::Column::VulnerabilityId.eq("CVE-2021-32714"))
+        .all(&ctx.db)
+        .await?;
+
+    for ps in purl_statuses {
+        let mut active: purl_status::ActiveModel = ps.into();
+        active.status_id = Set(status_id);
+        active.update(&ctx.db).await?;
+    }
+
+    let app = caller(ctx).await?;
+    let recommendations: Value = app
+        .call_and_read_body_json(
+            TestRequest::post()
+                .uri("/api/v2/purl/recommend")
+                .set_json(json!({"purls": ["pkg:cargo/hyper@0.14.1"]}))
+                .to_request(),
+        )
+        .await;
+
+    let entry =
+        &recommendations["recommendations"].as_object().unwrap()["pkg:cargo/hyper@0.14.1"][0];
+    let vuln = entry["vulnerabilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["id"].as_str().unwrap() == "CVE-2021-32714")
+        .unwrap();
+
+    assert_eq!(vuln["status"], "Fixed");
+
+    Ok(())
+}
