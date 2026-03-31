@@ -14,10 +14,10 @@ use crate::{
 use itertools::Itertools;
 use regex::Regex;
 use sea_orm::{
-    ColumnTrait, Condition, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
-    QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
+    ColumnTrait, Condition, ConnectionTrait, EntityTrait, FromQueryResult, LoaderTrait, QueryFilter,
+    QueryOrder, QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
 };
-use sea_query::{ColumnType, JoinType, Order, UnionType};
+use sea_query::{Asterisk, ColumnType, Expr, Func, JoinType, Order, SimpleExpr, UnionType};
 use tracing::instrument;
 use trustify_common::{
     db::{
@@ -28,9 +28,11 @@ use trustify_common::{
     purl::{Purl, PurlErr},
 };
 use trustify_entity::{
-    base_purl, license,
+    advisory, base_purl, license, organization, purl_status,
     qualified_purl::{self, CanonicalPurl},
-    sbom_license_expanded, sbom_node, sbom_node_purl_ref, sbom_package_license, versioned_purl,
+    remediation, remediation_purl_status, sbom_license_expanded, sbom_node,
+    sbom_node_purl_ref, sbom_package_license, status, version_range, versioned_purl,
+    vulnerability,
 };
 use trustify_module_ingestor::common::Deprecation;
 
@@ -490,6 +492,13 @@ impl PurlService {
         #[allow(clippy::unwrap_used)]
         let pattern = Regex::new("redhat-[0-9]+$").unwrap();
 
+        struct Winner<'a> {
+            purl_string: String,
+            versioned_purl: &'a versioned_purl::Model,
+            base: &'a base_purl::Model,
+        }
+        let mut winners: Vec<Winner> = Vec::new();
+
         for ip in &input_purls {
             let key = PurlKey::from_purl(&ip.purl);
             let Some(base) = base_purl_map.get(&key) else {
@@ -504,11 +513,170 @@ impl PurlService {
             );
 
             if let Some(winner_vp) = highest {
-                let entry = self.build_recommend_entry(winner_vp, connection).await?;
-                recommendations.insert(ip.purl.to_string(), vec![entry]);
+                winners.push(Winner {
+                    purl_string: ip.purl.to_string(),
+                    versioned_purl: winner_vp,
+                    base,
+                });
             } else {
                 recommendations.insert(ip.purl.to_string(), Vec::new());
             }
+        }
+
+        if winners.is_empty() {
+            return Ok(recommendations);
+        }
+
+        // Batch fetch purl_status for ALL winners in a single query
+        let winner_base_ids: Vec<Uuid> = winners.iter().map(|w| w.base.id).unique().collect();
+
+        let all_statuses: Vec<purl_status::Model> = purl_status::Entity::find()
+            .columns([
+                version_range::Column::Id,
+                version_range::Column::LowVersion,
+                version_range::Column::LowInclusive,
+                version_range::Column::HighVersion,
+                version_range::Column::HighInclusive,
+            ])
+            .left_join(base_purl::Entity)
+            .join(
+                JoinType::LeftJoin,
+                base_purl::Relation::VersionedPurls.def(),
+            )
+            .left_join(version_range::Entity)
+            .filter(purl_status::Column::BasePurlId.is_in(winner_base_ids))
+            .filter(SimpleExpr::FunctionCall(
+                Func::cust(trustify_common::db::VersionMatches)
+                    .arg(Expr::col(versioned_purl::Column::Version))
+                    .arg(Expr::col((version_range::Entity, Asterisk))),
+            ))
+            .all(connection)
+            .await?;
+
+        // Batch load all related entities
+        let vulns = all_statuses
+            .load_one(vulnerability::Entity, connection)
+            .await?;
+        let advisories_loaded = all_statuses
+            .load_one(advisory::Entity, connection)
+            .await?;
+        let advisory_models: Vec<advisory::Model> = advisories_loaded
+            .iter()
+            .filter_map(|opt| opt.as_ref().cloned())
+            .collect();
+        let _organizations = advisory_models
+            .load_one(organization::Entity, connection)
+            .await?;
+        let status_models = all_statuses
+            .load_one(status::Entity, connection)
+            .await?;
+        let status_slug_map: HashMap<Uuid, String> = all_statuses
+            .iter()
+            .zip(status_models.iter())
+            .map(|(ps, st)| {
+                (
+                    ps.status_id,
+                    st.as_ref()
+                        .map(|s| s.slug.clone())
+                        .unwrap_or_else(|| "unknown".to_string()),
+                )
+            })
+            .collect();
+        let remediations = all_statuses
+            .load_many_to_many(
+                remediation::Entity,
+                remediation_purl_status::Entity,
+                connection,
+            )
+            .await?;
+
+        // Group status info by base_purl_id
+        struct StatusInfo {
+            vuln_id: String,
+            status_slug: String,
+            remediations: Vec<remediation::Model>,
+        }
+
+        let mut statuses_by_base: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
+        for (i, ps) in all_statuses.iter().enumerate() {
+            if let (Some(v), Some(_a)) = (&vulns[i], &advisories_loaded[i]) {
+                let slug = status_slug_map
+                    .get(&ps.status_id)
+                    .cloned()
+                    .unwrap_or_else(|| "unknown".to_string());
+                statuses_by_base
+                    .entry(ps.base_purl_id)
+                    .or_default()
+                    .push(StatusInfo {
+                        vuln_id: v.id.clone(),
+                        status_slug: slug,
+                        remediations: remediations[i].clone(),
+                    });
+            }
+        }
+
+        // Batch fetch qualified PURLs for all winners to get full PURL strings with qualifiers
+        let winner_vp_ids: Vec<Uuid> = winners.iter().map(|w| w.versioned_purl.id).collect();
+        let qualified_purls: Vec<qualified_purl::Model> = qualified_purl::Entity::find()
+            .filter(qualified_purl::Column::VersionedPurlId.is_in(winner_vp_ids))
+            .all(connection)
+            .await?;
+        let mut qualified_by_vp: HashMap<Uuid, &qualified_purl::Model> = HashMap::new();
+        for qp in &qualified_purls {
+            qualified_by_vp.entry(qp.versioned_purl_id).or_insert(qp);
+        }
+
+        // Assemble recommendations from batched data
+        for winner in &winners {
+            let package_str = qualified_by_vp
+                .get(&winner.versioned_purl.id)
+                .map(|qp| Purl::from(qp.purl.clone()).to_string())
+                .unwrap_or_else(|| {
+                    Purl {
+                        ty: winner.base.r#type.clone(),
+                        namespace: winner.base.namespace.clone(),
+                        name: winner.base.name.clone(),
+                        version: Some(winner.versioned_purl.version.clone()),
+                        qualifiers: Default::default(),
+                    }
+                    .to_string()
+                });
+
+            let mut seen_vuln_ids = HashSet::new();
+            let vulnerabilities: Vec<VulnerabilityStatus> = statuses_by_base
+                .get(&winner.base.id)
+                .into_iter()
+                .flatten()
+                .filter(|info| seen_vuln_ids.insert(info.vuln_id.clone()))
+                .map(|info| {
+                    use crate::purl::model::VexStatus;
+                    let vex_status = match info.status_slug.as_str() {
+                        "affected" => VexStatus::Affected,
+                        "fixed" => VexStatus::Fixed,
+                        "not_affected" => VexStatus::NotAffected,
+                        "under_investigation" => VexStatus::UnderInvestigation,
+                        "recommended" => VexStatus::Recommended,
+                        other => VexStatus::Other(other.to_string()),
+                    };
+                    VulnerabilityStatus {
+                        id: info.vuln_id.clone(),
+                        status: Some(vex_status),
+                        justification: None,
+                        remediations:
+                            crate::purl::model::summary::remediation::RemediationSummary::from_entities(
+                                &info.remediations,
+                            ),
+                    }
+                })
+                .collect();
+
+            recommendations.insert(
+                winner.purl_string.clone(),
+                vec![RecommendEntry {
+                    package: package_str,
+                    vulnerabilities,
+                }],
+            );
         }
 
         Ok(recommendations)
@@ -574,55 +742,6 @@ impl PurlService {
             .map(|(vp, _)| vp)
     }
 
-    async fn build_recommend_entry<C: ConnectionTrait>(
-        &self,
-        versioned_purl: &versioned_purl::Model,
-        connection: &C,
-    ) -> Result<RecommendEntry, Error> {
-        let purl_details = self
-            .versioned_purl_by_uuid(&versioned_purl.id, connection)
-            .await?;
-
-        let Some(purl_details) = purl_details else {
-            return Ok(RecommendEntry {
-                package: String::new(),
-                vulnerabilities: Vec::new(),
-            });
-        };
-
-        let package = purl_details
-            .purls
-            .first()
-            .map(|p| p.purl.to_string())
-            .unwrap_or_else(|| {
-                Purl {
-                    ty: purl_details.head.purl.ty.clone(),
-                    namespace: purl_details.head.purl.namespace.clone(),
-                    name: purl_details.head.purl.name.clone(),
-                    version: purl_details.head.purl.version.clone(),
-                    qualifiers: Default::default(),
-                }
-                .to_string()
-            });
-
-        let vulnerabilities = purl_details
-            .advisories
-            .iter()
-            .flat_map(|advisory| &advisory.status)
-            .unique_by(|status| &status.vulnerability.identifier)
-            .map(|status| VulnerabilityStatus {
-                id: status.vulnerability.identifier.clone(),
-                status: Some(status.into()),
-                justification: None,
-                remediations: status.remediations.clone(),
-            })
-            .collect();
-
-        Ok(RecommendEntry {
-            package,
-            vulnerabilities,
-        })
-    }
 }
 
 #[cfg(test)]
