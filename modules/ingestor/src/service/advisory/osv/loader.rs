@@ -1,4 +1,3 @@
-use crate::service::advisory::osv::extract_vulnerability_ids;
 use crate::{
     graph::{
         Graph,
@@ -18,16 +17,16 @@ use crate::{
     model::IngestResult,
     service::{
         Error, Warnings,
-        advisory::osv::{extract_scores, prefix::get_well_known_prefixes, translate},
+        advisory::osv::{
+            extract_scores, extract_vulnerability_ids, prefix::get_well_known_prefixes, translate,
+        },
     },
 };
-use osv::schema::{Ecosystem, Event, Range, RangeType, ReferenceType, SeverityType, Vulnerability};
-use sbom_walker::report::ReportSink;
+use osv::schema::{Ecosystem, Event, Range, RangeType, ReferenceType, Vulnerability};
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use std::{collections::HashSet, fmt::Debug, str::FromStr};
 use tracing::instrument;
 use trustify_common::{hashing::Digests, purl::Purl, time::ChronoExt};
-use trustify_cvss::cvss3::Cvss3Base;
 use trustify_entity::{labels::Labels, version_scheme::VersionScheme};
 
 pub struct OsvLoader<'g> {
@@ -117,20 +116,6 @@ impl<'g> OsvLoader<'g> {
                     tx,
                 )
                 .await?;
-
-            for severity in osv.severity.iter().flatten() {
-                if matches!(severity.severity_type, SeverityType::CVSSv3) {
-                    match Cvss3Base::from_str(&severity.score) {
-                        Ok(cvss3) => {
-                            advisory_vuln.ingest_cvss3_score(cvss3, tx).await?;
-                        }
-                        Err(err) => {
-                            let msg = format!("Unable to parse CVSS3: {err}");
-                            warnings.error(msg)
-                        }
-                    }
-                }
-            }
 
             for affected in osv.affected.iter().flatten() {
                 // we only process it when we have a package
@@ -579,8 +564,13 @@ fn events_to_range(events: &[Event]) -> (Option<String>, Option<(String, bool)>)
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::graph::Graph;
-    use crate::service::advisory::osv::loader::OsvLoader;
+    use crate::{
+        graph::Graph,
+        service::advisory::{
+            osv::loader::OsvLoader,
+            test::{AssertScore, assert_scores},
+        },
+    };
     use hex::ToHex;
     use osv::schema::Vulnerability;
     use rstest::rstest;
@@ -588,7 +578,8 @@ mod test {
     use test_context::test_context;
     use test_log::test;
     use trustify_entity::{
-        advisory_vulnerability_score, purl_status, version_range, version_scheme,
+        advisory_vulnerability_score::{ScoreType, Severity},
+        purl_status, version_range,
     };
     use trustify_test_context::{TrustifyContext, document};
 
@@ -633,21 +624,6 @@ mod test {
         assert_eq!(1, loaded_advisory_vulnerabilities.len());
         let _loaded_advisory_vulnerability = &loaded_advisory_vulnerabilities[0];
 
-        let advisory_vuln = loaded_advisory
-            .get_vulnerability("CVE-2021-32714", &ctx.db)
-            .await?;
-        assert!(advisory_vuln.is_some());
-
-        let advisory_vuln = advisory_vuln.unwrap();
-        let scores = advisory_vuln.cvss3_scores(&ctx.db).await?;
-        assert_eq!(1, scores.len());
-
-        let score = scores[0];
-        assert_eq!(
-            score.to_string(),
-            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H"
-        );
-
         assert!(
             loaded_advisory
                 .get_vulnerability("CVE-8675309", &ctx.db)
@@ -655,34 +631,18 @@ mod test {
                 .is_none()
         );
 
-        // Verify the advisory_vulnerability_score table has the calculated score
-        let new_scores = advisory_vulnerability_score::Entity::find()
-            .filter(
-                advisory_vulnerability_score::Column::AdvisoryId.eq(loaded_advisory.advisory.id),
-            )
-            .all(&ctx.db)
-            .await?;
-        assert_eq!(1, new_scores.len());
-        let new_score = &new_scores[0];
-        assert_eq!(new_score.vulnerability_id, "CVE-2021-32714");
-        assert_eq!(
-            new_score.r#type,
-            advisory_vulnerability_score::ScoreType::V3_1
-        );
-        assert_eq!(
-            new_score.vector,
-            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H"
-        );
-        // Score should be 9.1 (calculated from the CVSS vector metrics)
-        assert!(
-            (new_score.score - 9.1_f32).abs() < 0.1,
-            "Expected score ~9.1, got {}",
-            new_score.score
-        );
-        assert_eq!(
-            new_score.severity,
-            advisory_vulnerability_score::Severity::Critical
-        );
+        assert_scores(
+            &ctx.db,
+            loaded_advisory.advisory.id,
+            [AssertScore {
+                vulnerability_id: "CVE-2021-32714",
+                r#type: ScoreType::V3_1,
+                severity: Severity::Critical,
+                vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H",
+                score: 9.1,
+            }],
+        )
+        .await?;
 
         Ok(())
     }
@@ -753,7 +713,7 @@ mod test {
         }"#;
 
         let osv: Vulnerability = serde_json::from_str(osv_content)?;
-        let digests = trustify_common::hashing::Digests::digest(osv_content.as_bytes());
+        let digests = Digests::digest(osv_content.as_bytes());
 
         let db = &ctx.db;
         let graph = Graph::new(db.clone());
@@ -841,10 +801,7 @@ mod test {
                 .await?
                 .unwrap();
 
-            assert_eq!(
-                version_scheme::VersionScheme::Cargo,
-                range.version_scheme_id
-            );
+            assert_eq!(VersionScheme::Cargo, range.version_scheme_id);
 
             ranges.push(range);
         }

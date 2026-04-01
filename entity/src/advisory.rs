@@ -1,4 +1,4 @@
-use crate::{advisory_vulnerability, cvss3, labels::Labels, organization, vulnerability};
+use crate::{advisory_vulnerability, labels::Labels, organization, vulnerability};
 use sea_orm::{Condition, entity::prelude::*, sea_query::IntoCondition};
 use time::OffsetDateTime;
 use trustify_common::id::{Id, IdError, TryFilterForId};
@@ -38,9 +38,6 @@ pub enum Relation {
         to = "super::organization::Column::Id")]
     Issuer,
 
-    #[sea_orm(has_many = "super::cvss3::Entity")]
-    Cvss3,
-
     #[sea_orm(has_many = "super::advisory_vulnerability::Entity")]
     AdvisoryVulnerability,
 }
@@ -70,12 +67,6 @@ impl Related<vulnerability::Entity> for Entity {
 impl Related<advisory_vulnerability::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::AdvisoryVulnerability.def()
-    }
-}
-
-impl Related<cvss3::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Cvss3.def()
     }
 }
 

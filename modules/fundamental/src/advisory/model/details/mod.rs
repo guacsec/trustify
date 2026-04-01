@@ -7,7 +7,6 @@ use advisory_vulnerability::AdvisoryVulnerabilitySummary;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QuerySelect};
 use serde::{Deserialize, Serialize};
 use trustify_common::memo::Memo;
-use trustify_cvss::cvss3::severity::Severity;
 use trustify_entity::{self as entity};
 use utoipa::ToSchema;
 
@@ -21,22 +20,6 @@ pub struct AdvisoryDetails {
 
     /// Vulnerabilities addressed within this advisory.
     pub vulnerabilities: Vec<AdvisoryVulnerabilitySummary>,
-
-    /// Average (arithmetic mean) severity of the advisory aggregated from *all* related vulnerability assertions.
-    #[schema(required)]
-    #[deprecated(
-        note = "Average scores are deprecated, use the new scores array",
-        since = "0.5.0"
-    )]
-    pub average_severity: Option<Severity>,
-
-    /// Average (arithmetic mean) score of the advisory aggregated from *all* related vulnerability assertions.
-    #[schema(required)]
-    #[deprecated(
-        note = "Average scores are deprecated, use the new scores array",
-        since = "0.5.0"
-    )]
-    pub average_score: Option<f64>,
 }
 
 impl AdvisoryDetails {
@@ -68,10 +51,6 @@ impl AdvisoryDetails {
             .await?,
             source_document: SourceDocument::from_entity(&advisory.source_document),
             vulnerabilities,
-            #[allow(deprecated)]
-            average_severity: None,
-            #[allow(deprecated)]
-            average_score: None,
         })
     }
 }

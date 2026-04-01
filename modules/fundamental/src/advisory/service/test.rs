@@ -6,10 +6,7 @@ use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
 use trustify_common::{db::query::q, hashing::Digests, model::Paginated, purl::Purl};
-use trustify_cvss::cvss3::{
-    AttackComplexity, AttackVector, Availability, Confidentiality, Cvss3Base, Integrity,
-    PrivilegesRequired, Scope, UserInteraction,
-};
+use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
 use trustify_entity::labels::Labels;
 use trustify_entity::version_scheme::VersionScheme;
 use trustify_module_ingestor::graph::Outcome;
@@ -17,6 +14,7 @@ use trustify_module_ingestor::graph::advisory::{
     AdvisoryContext, AdvisoryInformation,
     version::{VersionInfo, VersionSpec},
 };
+use trustify_module_ingestor::graph::cvss::{ScoreCreator, ScoreInformation};
 use trustify_test_context::TrustifyContext;
 
 pub async fn ingest_sample_advisory<'a>(
@@ -51,22 +49,15 @@ pub async fn ingest_and_link_advisory(ctx: &TrustifyContext) -> Result<(), anyho
         .link_to_vulnerability("CVE-123", None, &ctx.db)
         .await?;
 
-    advisory_vuln
-        .ingest_cvss3_score(
-            Cvss3Base {
-                minor_version: 0,
-                av: AttackVector::Network,
-                ac: AttackComplexity::Low,
-                pr: PrivilegesRequired::None,
-                ui: UserInteraction::None,
-                s: Scope::Unchanged,
-                c: Confidentiality::None,
-                i: Integrity::High,
-                a: Availability::High,
-            },
-            &ctx.db,
-        )
-        .await?;
+    let mut creator = ScoreCreator::new(advisory_vuln.advisory.advisory.id);
+    creator.add(ScoreInformation {
+        vulnerability_id: "CVE-123".to_string(),
+        r#type: ScoreType::V3_0,
+        vector: "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H".to_string(),
+        score: 9.1,
+        severity: Severity::Critical,
+    });
+    creator.create(&ctx.db).await?;
     Ok(())
 }
 
@@ -96,22 +87,15 @@ async fn single_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let advisory_vuln: trustify_module_ingestor::graph::advisory::advisory_vulnerability::AdvisoryVulnerabilityContext<'_> = advisory
         .link_to_vulnerability("CVE-123", None,&ctx.db)
         .await?;
-    advisory_vuln
-        .ingest_cvss3_score(
-            Cvss3Base {
-                minor_version: 0,
-                av: AttackVector::Network,
-                ac: AttackComplexity::Low,
-                pr: PrivilegesRequired::None,
-                ui: UserInteraction::None,
-                s: Scope::Unchanged,
-                c: Confidentiality::None,
-                i: Integrity::High,
-                a: Availability::High,
-            },
-            &ctx.db,
-        )
-        .await?;
+    let mut creator = ScoreCreator::new(advisory_vuln.advisory.advisory.id);
+    creator.add(ScoreInformation {
+        vulnerability_id: "CVE-123".to_string(),
+        r#type: ScoreType::V3_0,
+        vector: "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H".to_string(),
+        score: 9.1,
+        severity: Severity::Critical,
+    });
+    creator.create(&ctx.db).await?;
 
     advisory_vuln
         .ingest_package_status(
@@ -158,7 +142,6 @@ async fn single_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 sha512,
                 ..
             },
-            average_severity: None,
                 ..
             })
         if sha256 == jenny256.to_string() && sha384 == jenny384.to_string() && sha512 == jenny512.to_string()));
@@ -168,13 +151,12 @@ async fn single_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             fetched,
             Some(AdvisoryDetails {
                 head: AdvisoryHead { .. },
-            source_document: SourceDocument {
-                sha256,
-                sha384,
-                sha512,
-                ..
-            },
-            average_severity: None,
+                source_document: SourceDocument {
+                    sha256,
+                    sha384,
+                    sha512,
+                    ..
+                },
                 ..
             })
         if sha256 == jenny256.to_string() && sha384 == jenny384.to_string() && sha512 == jenny512.to_string()));
@@ -192,22 +174,15 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let advisory_vuln = advisory
         .link_to_vulnerability("CVE-123", None, &ctx.db)
         .await?;
-    advisory_vuln
-        .ingest_cvss3_score(
-            Cvss3Base {
-                minor_version: 0,
-                av: AttackVector::Network,
-                ac: AttackComplexity::Low,
-                pr: PrivilegesRequired::None,
-                ui: UserInteraction::None,
-                s: Scope::Unchanged,
-                c: Confidentiality::None,
-                i: Integrity::High,
-                a: Availability::High,
-            },
-            &ctx.db,
-        )
-        .await?;
+    let mut creator = ScoreCreator::new(advisory_vuln.advisory.advisory.id);
+    creator.add(ScoreInformation {
+        vulnerability_id: "CVE-123".to_string(),
+        r#type: ScoreType::V3_0,
+        vector: "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H".to_string(),
+        score: 9.1,
+        severity: Severity::Critical,
+    });
+    creator.create(&ctx.db).await?;
 
     advisory_vuln
         .ingest_package_status(
@@ -257,22 +232,15 @@ async fn set_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
     let advisory_vuln = advisory
         .link_to_vulnerability("CVE-123", None, &ctx.db)
         .await?;
-    advisory_vuln
-        .ingest_cvss3_score(
-            Cvss3Base {
-                minor_version: 0,
-                av: AttackVector::Network,
-                ac: AttackComplexity::Low,
-                pr: PrivilegesRequired::None,
-                ui: UserInteraction::None,
-                s: Scope::Unchanged,
-                c: Confidentiality::None,
-                i: Integrity::High,
-                a: Availability::High,
-            },
-            &ctx.db,
-        )
-        .await?;
+    let mut creator = ScoreCreator::new(advisory_vuln.advisory.advisory.id);
+    creator.add(ScoreInformation {
+        vulnerability_id: "CVE-123".to_string(),
+        r#type: ScoreType::V3_0,
+        vector: "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H".to_string(),
+        score: 9.1,
+        severity: Severity::Critical,
+    });
+    creator.create(&ctx.db).await?;
 
     advisory_vuln
         .ingest_package_status(
@@ -340,22 +308,15 @@ async fn update_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     let advisory_vuln = advisory
         .link_to_vulnerability("CVE-123", None, &ctx.db)
         .await?;
-    advisory_vuln
-        .ingest_cvss3_score(
-            Cvss3Base {
-                minor_version: 0,
-                av: AttackVector::Network,
-                ac: AttackComplexity::Low,
-                pr: PrivilegesRequired::None,
-                ui: UserInteraction::None,
-                s: Scope::Unchanged,
-                c: Confidentiality::None,
-                i: Integrity::High,
-                a: Availability::High,
-            },
-            &ctx.db,
-        )
-        .await?;
+    let mut creator = ScoreCreator::new(advisory_vuln.advisory.advisory.id);
+    creator.add(ScoreInformation {
+        vulnerability_id: "CVE-123".to_string(),
+        r#type: ScoreType::V3_0,
+        vector: "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H".to_string(),
+        score: 9.1,
+        severity: Severity::Critical,
+    });
+    creator.create(&ctx.db).await?;
 
     advisory_vuln
         .ingest_package_status(

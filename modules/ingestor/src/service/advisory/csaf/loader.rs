@@ -1,5 +1,3 @@
-use crate::graph::cvss::ScoreCreator;
-use crate::service::advisory::csaf::extract_scores;
 use crate::{
     graph::{
         Graph,
@@ -7,28 +5,26 @@ use crate::{
             AdvisoryContext, AdvisoryInformation, AdvisoryVulnerabilityInformation,
             advisory_vulnerability::AdvisoryVulnerabilityContext,
         },
+        cvss::ScoreCreator,
         vulnerability::creator::VulnerabilityCreator,
     },
     model::IngestResult,
     service::{
         Error, Warnings,
-        advisory::csaf::{RemediationCreator, StatusCreator, util::gen_identifier},
+        advisory::csaf::{RemediationCreator, StatusCreator, extract_scores, util::gen_identifier},
     },
 };
 use csaf::{
     Csaf,
     vulnerability::{ProductStatus, Remediation, Vulnerability},
 };
-use cvss::v3::CvssV3;
 use hex::ToHex;
-use sbom_walker::report::ReportSink;
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use semver::Version;
 use std::{fmt::Debug, str::FromStr};
 use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::hashing::Digests;
-use trustify_cvss::cvss3::Cvss3Base;
 use trustify_entity::labels::Labels;
 
 struct Information<'a>(&'a Csaf);
@@ -125,7 +121,7 @@ impl<'g> CsafLoader<'g> {
 
         // Then process each vulnerability for linking and product status
         for vuln in csaf.vulnerabilities.iter().flatten() {
-            self.ingest_vulnerability(&csaf, &advisory, vuln, &warnings, tx)
+            self.ingest_vulnerability(&csaf, &advisory, vuln, tx)
                 .await?;
         }
 
@@ -151,7 +147,6 @@ impl<'g> CsafLoader<'g> {
         csaf: &Csaf,
         advisory: &AdvisoryContext<'_>,
         vulnerability: &Vulnerability,
-        report: &dyn ReportSink,
         connection: &C,
     ) -> Result<(), Error> {
         let Some(cve_id) = &vulnerability.cve else {
@@ -188,31 +183,6 @@ impl<'g> CsafLoader<'g> {
                 connection,
             )
             .await?;
-        }
-
-        for score in vulnerability.scores.iter().flatten() {
-            if let Some(cvss_v3) = &score.cvss_v3 {
-                match serde_json::from_value::<CvssV3>(cvss_v3.clone()) {
-                    Ok(cvss) => match Cvss3Base::from_str(&cvss.vector_string) {
-                        Ok(cvss3) => {
-                            log::debug!("{cvss3:?}");
-                            advisory_vulnerability
-                                .ingest_cvss3_score(cvss3, connection)
-                                .await?;
-                        }
-                        Err(err) => {
-                            let msg = format!("Unable to parse CVSS3: {err:#?}");
-                            log::info!("{msg}");
-                            report.error(msg);
-                        }
-                    },
-                    Err(err) => {
-                        let msg = format!("Unable to deserialize CVSS3 JSON: {err:#?}");
-                        log::info!("{msg}");
-                        report.error(msg);
-                    }
-                }
-            }
         }
 
         Ok(())
@@ -266,11 +236,14 @@ impl<'g> CsafLoader<'g> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::{
+        graph::Graph,
+        service::advisory::test::{AssertScore, assert_scores},
+    };
     use hex::ToHex;
-
-    use crate::graph::Graph;
     use test_context::test_context;
     use test_log::test;
+    use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
     use trustify_test_context::{TrustifyContext, document};
 
     #[test_context(TrustifyContext)]
@@ -334,20 +307,18 @@ mod test {
         //     if version == "0.14.10"
         // ));
 
-        let advisory_vuln = loaded_advisory
-            .get_vulnerability("CVE-2023-20862", &ctx.db)
-            .await?;
-        assert!(advisory_vuln.is_some());
-
-        let advisory_vuln = advisory_vuln.unwrap();
-        let scores = advisory_vuln.cvss3_scores(&ctx.db).await?;
-        assert_eq!(1, scores.len());
-
-        let score = scores[0];
-        assert_eq!(
-            score.to_string(),
-            "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:L"
-        );
+        assert_scores(
+            &ctx.db,
+            loaded_advisory.advisory.id,
+            [AssertScore {
+                vulnerability_id: "CVE-2023-20862",
+                r#type: ScoreType::V3_1,
+                severity: Severity::Medium,
+                vector: "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:L",
+                score: 6.3,
+            }],
+        )
+        .await?;
 
         Ok(())
     }
@@ -378,20 +349,27 @@ mod test {
         let loaded_advisory_vulnerabilities = loaded_advisory.vulnerabilities(&ctx.db).await?;
         assert_eq!(2, loaded_advisory_vulnerabilities.len());
 
-        let advisory_vuln = loaded_advisory
-            .get_vulnerability("CVE-2024-23672", &ctx.db)
-            .await?;
-        assert!(advisory_vuln.is_some());
-
-        let advisory_vuln = advisory_vuln.unwrap();
-        let scores = advisory_vuln.cvss3_scores(&ctx.db).await?;
-        assert_eq!(1, scores.len());
-
-        let score = scores[0];
-        assert_eq!(
-            score.to_string(),
-            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
-        );
+        assert_scores(
+            &ctx.db,
+            loaded_advisory.advisory.id,
+            [
+                AssertScore {
+                    vulnerability_id: "CVE-2024-23672",
+                    r#type: ScoreType::V3_1,
+                    severity: Severity::High,
+                    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                    score: 7.5,
+                },
+                AssertScore {
+                    vulnerability_id: "CVE-2024-24549",
+                    r#type: ScoreType::V3_1,
+                    severity: Severity::High,
+                    vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+                    score: 7.5,
+                },
+            ],
+        )
+        .await?;
 
         Ok(())
     }
@@ -421,20 +399,18 @@ mod test {
         let loaded_advisory_vulnerabilities = loaded_advisory.vulnerabilities(&ctx.db).await?;
         assert_eq!(1, loaded_advisory_vulnerabilities.len());
 
-        let advisory_vuln = loaded_advisory
-            .get_vulnerability("CVE-2023-0044", &ctx.db)
-            .await?;
-        assert!(advisory_vuln.is_some());
-
-        let advisory_vuln = advisory_vuln.unwrap();
-        let scores = advisory_vuln.cvss3_scores(&ctx.db).await?;
-        assert_eq!(1, scores.len());
-
-        let score = scores[0];
-        assert_eq!(
-            score.to_string(),
-            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
-        );
+        assert_scores(
+            &ctx.db,
+            loaded_advisory.advisory.id,
+            [AssertScore {
+                vulnerability_id: "CVE-2023-0044",
+                r#type: ScoreType::V3_1,
+                severity: Severity::Medium,
+                vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+                score: 5.3,
+            }],
+        )
+        .await?;
 
         Ok(())
     }

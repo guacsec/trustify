@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use trustify_cvss::cvss3::severity::Severity;
-use trustify_entity::{advisory_vulnerability_score, cvss3};
+use trustify_entity::advisory_vulnerability_score;
 use utoipa::{
     PartialSchema, ToSchema,
     openapi::{
@@ -66,25 +66,6 @@ pub struct Score {
     pub severity: Severity,
 }
 
-impl TryFrom<cvss3::Model> for Score {
-    type Error = ();
-
-    fn try_from(row: cvss3::Model) -> Result<Self, Self::Error> {
-        // map to V3* type
-        let r#type = match row.minor_version {
-            0 => ScoreType::V3,
-            1 => ScoreType::V3_1,
-            _ => return Err(()),
-        };
-
-        Ok(Score {
-            r#type,
-            value: row.score,
-            severity: row.score.into(),
-        })
-    }
-}
-
 impl From<advisory_vulnerability_score::Model> for Score {
     fn from(model: advisory_vulnerability_score::Model) -> Self {
         let r#type = match model.r#type {
@@ -110,6 +91,29 @@ impl From<advisory_vulnerability_score::Model> for Score {
             r#type,
             value,
             severity,
+        }
+    }
+}
+
+/// A CVSS score combined with its raw vector string, for contexts where clients need both
+/// the pre-parsed numeric values and the original vector for display or re-parsing.
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema, PartialEq)]
+pub struct ScoredVector {
+    /// The score type, value, and derived severity.
+    #[serde(flatten)]
+    pub score: Score,
+    /// The raw CVSS vector string (e.g. `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`).
+    pub vector: String,
+}
+
+impl From<advisory_vulnerability_score::Model> for ScoredVector {
+    /// Converts a DB score row into a `ScoredVector`, rounding the numeric score and
+    /// mapping enum variants from entity types to model types.
+    fn from(model: advisory_vulnerability_score::Model) -> Self {
+        let vector = model.vector.clone();
+        ScoredVector {
+            score: Score::from(model),
+            vector,
         }
     }
 }

@@ -36,6 +36,10 @@ impl From<&cve::published::Metric> for CvssMetric {
     }
 }
 
+/// Extracts all CVSS scores from a CVE record and registers them with the given [`ScoreCreator`].
+///
+/// Processes metrics from both CNA and ADP containers. All parseable CVSS scores (v2, v3, v4)
+/// are added, keyed by the CVE identifier. Rejected CVEs are skipped entirely.
 pub fn extract_scores(cve: &Cve, creator: &mut ScoreCreator) {
     let Cve::Published(published) = cve else {
         return;
