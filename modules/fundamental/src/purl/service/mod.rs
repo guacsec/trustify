@@ -486,7 +486,7 @@ impl PurlService {
     ) -> Result<HashMap<String, Vec<RecommendEntry>>, Error> {
         let mut recommendations = HashMap::new();
 
-        let input_purls: Vec<InputPurl> =
+        let input_purls: Vec<_> =
             purls.iter().filter_map(InputPurl::try_from_purl).collect();
         if input_purls.is_empty() {
             return Ok(recommendations);
@@ -500,7 +500,7 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        let base_purl_map: HashMap<PurlKey, &base_purl::Model> = base_purls
+        let base_purl_map: HashMap<_, _> = base_purls
             .iter()
             .map(|bp| (PurlKey::from_base_purl(bp), bp))
             .collect();
@@ -542,8 +542,8 @@ impl PurlService {
         }
 
         // Batch fetch vulnerability statuses and qualified PURLs for all winners
-        let winner_base_ids: Vec<Uuid> = winners.iter().map(|w| w.base.id).unique().collect();
-        let winner_vp_ids: Vec<Uuid> = winners.iter().map(|w| w.versioned_purl.id).collect();
+        let winner_base_ids: Vec<_> = winners.iter().map(|w| w.base.id).unique().collect();
+        let winner_vp_ids: Vec<_> = winners.iter().map(|w| w.versioned_purl.id).collect();
 
         let statuses_by_base =
             Self::fetch_vulnerability_statuses(&winner_base_ids, &winner_vp_ids, connection)
@@ -565,7 +565,7 @@ impl PurlService {
         winner_vp_ids: &[Uuid],
         connection: &C,
     ) -> Result<HashMap<Uuid, Vec<StatusInfo>>, Error> {
-        let all_statuses: Vec<purl_status::Model> = purl_status::Entity::find()
+        let all_statuses: Vec<_> = purl_status::Entity::find()
             .columns([
                 version_range::Column::Id,
                 version_range::Column::LowVersion,
@@ -593,7 +593,7 @@ impl PurlService {
             .load_one(vulnerability::Entity, connection)
             .await?;
         let advisories_loaded = all_statuses.load_one(advisory::Entity, connection).await?;
-        let advisory_models: Vec<advisory::Model> = advisories_loaded
+        let advisory_models: Vec<_> = advisories_loaded
             .iter()
             .filter_map(|opt| opt.as_ref().cloned())
             .collect();
@@ -601,7 +601,7 @@ impl PurlService {
             .load_one(organization::Entity, connection)
             .await?;
         let status_models = all_statuses.load_one(status::Entity, connection).await?;
-        let status_slug_map: HashMap<Uuid, String> = all_statuses
+        let status_slug_map: HashMap<_, _> = all_statuses
             .iter()
             .zip(status_models.iter())
             .map(|(ps, st)| {
@@ -647,11 +647,11 @@ impl PurlService {
         winner_vp_ids: &[Uuid],
         connection: &C,
     ) -> Result<HashMap<Uuid, qualified_purl::Model>, Error> {
-        let qualified_purls: Vec<qualified_purl::Model> = qualified_purl::Entity::find()
+        let qualified_purls: Vec<_> = qualified_purl::Entity::find()
             .filter(qualified_purl::Column::VersionedPurlId.is_in(winner_vp_ids.iter().copied()))
             .all(connection)
             .await?;
-        let mut by_vp: HashMap<Uuid, qualified_purl::Model> = HashMap::new();
+        let mut by_vp: HashMap<_, _> = HashMap::new();
         for qp in qualified_purls {
             by_vp.entry(qp.versioned_purl_id).or_insert(qp);
         }
@@ -679,7 +679,7 @@ impl PurlService {
             });
 
         let mut seen_vuln_ids = HashSet::new();
-        let vulnerabilities: Vec<VulnerabilityStatus> = statuses_by_base
+        let vulnerabilities: Vec<_> = statuses_by_base
             .get(&winner.base.id)
             .into_iter()
             .flatten()
@@ -732,13 +732,13 @@ impl PurlService {
         base_purls: &[base_purl::Model],
         connection: &C,
     ) -> Result<HashMap<Uuid, Vec<versioned_purl::Model>>, Error> {
-        let base_purl_ids: Vec<Uuid> = base_purls.iter().map(|bp| bp.id).collect();
-        let all_versioned: Vec<versioned_purl::Model> = versioned_purl::Entity::find()
+        let base_purl_ids: Vec<_> = base_purls.iter().map(|bp| bp.id).collect();
+        let all_versioned: Vec<_> = versioned_purl::Entity::find()
             .filter(versioned_purl::Column::BasePurlId.is_in(base_purl_ids))
             .all(connection)
             .await?;
 
-        let mut by_base: HashMap<Uuid, Vec<versioned_purl::Model>> = HashMap::new();
+        let mut by_base: HashMap<_, Vec<_>> = HashMap::new();
         for vp in all_versioned {
             by_base.entry(vp.base_purl_id).or_default().push(vp);
         }
