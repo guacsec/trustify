@@ -486,8 +486,7 @@ impl PurlService {
     ) -> Result<HashMap<String, Vec<RecommendEntry>>, Error> {
         let mut recommendations = HashMap::with_capacity(purls.len());
 
-        let input_purls: Vec<_> =
-            purls.iter().filter_map(InputPurl::try_from_purl).collect();
+        let input_purls: Vec<_> = purls.iter().filter_map(InputPurl::try_from_purl).collect();
         if input_purls.is_empty() {
             return Ok(recommendations);
         }
