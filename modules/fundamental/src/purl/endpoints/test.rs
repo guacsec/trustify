@@ -495,14 +495,9 @@ async fn get_recommendations_unknown_purl(ctx: &TrustifyContext) -> Result<(), a
         )
         .await;
 
-    let recs = recommendations["recommendations"].as_object().unwrap();
-    assert_eq!(recs.len(), 1);
     assert_eq!(
-        recs["pkg:maven/com.example/nonexistent@1.0.0"]
-            .as_array()
-            .unwrap()
-            .len(),
-        0
+        recommendations["recommendations"],
+        json!({"pkg:maven/com.example/nonexistent@1.0.0": []})
     );
 
     Ok(())
@@ -528,18 +523,15 @@ async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), a
         )
         .await;
 
-    let recs = recommendations["recommendations"].as_object().unwrap();
-    assert_eq!(recs.len(), 1);
-
-    let rec_list = recs["pkg:cargo/serde@1.0.0"]
-        .as_array()
-        .expect("recommendations for input purl must be an array");
-    assert_eq!(rec_list.len(), 1);
-
-    let recommended_purl = rec_list[0]["package"]
-        .as_str()
-        .expect("recommendation must contain a 'package' field");
-    assert_eq!(recommended_purl, "pkg:cargo/serde@1.0.0-redhat-00001");
+    assert_eq!(
+        recommendations["recommendations"],
+        json!({
+            "pkg:cargo/serde@1.0.0": [{
+                "package": "pkg:cargo/serde@1.0.0-redhat-00001",
+                "vulnerabilities": []
+            }]
+        })
+    );
 
     Ok(())
 }
@@ -559,8 +551,7 @@ async fn get_recommendations_invalid_version(ctx: &TrustifyContext) -> Result<()
         )
         .await;
 
-    let recs = recommendations["recommendations"].as_object().unwrap();
-    assert_eq!(recs.len(), 0);
+    assert_eq!(recommendations["recommendations"], json!({}));
 
     Ok(())
 }
@@ -584,22 +575,18 @@ async fn get_recommendations_mixed(ctx: &TrustifyContext) -> Result<(), anyhow::
         )
         .await;
 
-    let recs = recommendations["recommendations"].as_object().unwrap();
-    // Known PURL with version + unknown PURL = 2 entries (no-version PURL is skipped)
-    assert_eq!(recs.len(), 2);
+    let entry = &recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"];
     assert_eq!(
-        recs["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"]
-            .as_array()
-            .unwrap()
-            .len(),
-        1
+        entry[0]["package"],
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002?repository_url=https://maven.repository.redhat.com/ga/&type=jar"
     );
     assert_eq!(
-        recs["pkg:maven/com.example/nonexistent@1.0.0"]
-            .as_array()
-            .unwrap()
-            .len(),
-        0
+        entry[0]["vulnerabilities"],
+        json!([{"id": "CVE-2022-45787", "status": "NotAffected", "remediations": []}])
+    );
+    assert_eq!(
+        recommendations["recommendations"]["pkg:maven/com.example/nonexistent@1.0.0"],
+        json!([])
     );
 
     Ok(())
