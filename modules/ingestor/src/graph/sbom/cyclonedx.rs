@@ -412,10 +412,10 @@ impl ComponentCreator {
         match ComponentType::from_str(&comp.type_) {
             Ok(ty) => {
                 use ComponentType::*;
+                const EMPTY: Vec<PackageReference> = vec![];
                 match ty {
                     // We treat all these types as "packages"
                     Application | Framework | Library | Container | OperatingSystem => {
-                        const EMPTY: Vec<PackageReference> = vec![];
                         self.packages.add(
                             NodeInfoParam {
                                 node_id: node_id.clone(),
@@ -439,7 +439,7 @@ impl ComponentCreator {
                         self.models.add(
                             node_id.clone(),
                             comp.name.to_string(),
-                            comp.purl.clone(),
+                            self.refs.get(&node_id).unwrap_or(&EMPTY).iter(),
                             comp.hashes.clone().into_iter().flatten(),
                             comp.into(),
                         );

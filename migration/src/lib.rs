@@ -55,6 +55,7 @@ mod m0002130_add_csaf_product_id;
 mod m0002140_p2p_right_index;
 mod m0002150_fix_advisory_labels_index;
 mod m0002130_add_ai_model_purl;
+mod m0002130_fix_ref_fk;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -126,6 +127,7 @@ impl MigratorExt for Migrator {
             .normal(m0002140_p2p_right_index::Migration)
             .normal(m0002150_fix_advisory_labels_index::Migration)
             .normal(m0002130_add_ai_model_purl::Migration)
+            .normal(m0002130_fix_ref_fk::Migration)
     }
 }
 

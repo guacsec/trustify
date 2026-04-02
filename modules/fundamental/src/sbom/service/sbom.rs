@@ -451,6 +451,10 @@ impl SbomService {
             .column(sbom_ai::Column::Properties)
             .join(JoinType::LeftJoin, sbom_ai::Relation::Node.def())
             .join(JoinType::LeftJoin, sbom_ai::Relation::Purl.def())
+            .join(
+                JoinType::LeftJoin,
+                sbom_package_purl_ref::Relation::Purl.def(),
+            )
             .filtering_with(
                 search,
                 Columns::from_entity::<sbom_ai::Entity>()

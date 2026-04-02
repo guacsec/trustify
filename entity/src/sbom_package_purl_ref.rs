@@ -1,6 +1,8 @@
 use sea_orm::entity::prelude::*;
 
-/// An external PURL reference of an SBOM package
+/// An external PURL reference of an SBOM package. Technically, this
+/// should be called sbom_NODE_purl_ref because it relates things
+/// other than packages to purls, e.g. AI models
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "sbom_package_purl_ref")]
 pub struct Model {

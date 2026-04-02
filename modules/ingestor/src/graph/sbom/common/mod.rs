@@ -8,6 +8,7 @@ mod licensing_info;
 mod machine_learning_model;
 mod node;
 mod package;
+mod reference;
 mod relationship;
 
 pub use checksum::*;
@@ -19,4 +20,5 @@ pub use license::*;
 pub use licensing_info::*;
 pub use machine_learning_model::*;
 pub use package::*;
+pub use reference::*;
 pub use relationship::*;

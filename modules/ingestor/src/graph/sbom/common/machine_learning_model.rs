@@ -1,13 +1,15 @@
-use std::str::FromStr;
-
-use crate::graph::sbom::{Checksum, ReferenceSource, common::node::NodeCreator};
+use crate::graph::sbom::{
+    Checksum, ReferenceSource, common::node::NodeCreator, common::reference::ReferenceCreator,
+};
 use sea_orm::{ConnectionTrait, DbErr, EntityTrait, Set};
 use sea_query::OnConflict;
 use serde_cyclonedx::cyclonedx::v_1_6::Component;
 use serde_json::{Map, Value};
-use trustify_common::{db::chunk::EntityChunkedIter, purl::Purl};
+use trustify_common::db::chunk::EntityChunkedIter;
 use trustify_entity::sbom_ai;
 use uuid::Uuid;
+
+use super::PackageReference;
 
 pub struct ModelCard {
     pub properties: Value,
@@ -29,6 +31,7 @@ impl From<&Component> for ModelCard {
 pub struct MachineLearningModelCreator {
     sbom_id: Uuid,
     nodes: NodeCreator,
+    refs: ReferenceCreator,
     models: Vec<sbom_ai::ActiveModel>,
 }
 
@@ -37,6 +40,7 @@ impl MachineLearningModelCreator {
         Self {
             sbom_id,
             nodes: NodeCreator::new(sbom_id),
+            refs: ReferenceCreator::new(sbom_id),
             models: Vec::new(),
         }
     }
@@ -45,35 +49,34 @@ impl MachineLearningModelCreator {
         Self {
             sbom_id,
             nodes: NodeCreator::with_capacity(sbom_id, capacity),
+            refs: ReferenceCreator::with_capacity(sbom_id, capacity),
             models: Vec::with_capacity(capacity),
         }
     }
 
-    pub fn add<I, C>(
+    pub fn add<'a, I, C>(
         &mut self,
         node_id: String,
         name: String,
-        purl: Option<String>,
+        refs: impl Iterator<Item = &'a PackageReference>,
         checksums: I,
         model_card: ModelCard,
     ) where
         I: IntoIterator<Item = C>,
         C: Into<Checksum>,
     {
+        self.refs.add(node_id.clone(), refs);
         self.nodes.add(node_id.clone(), name, checksums);
-        let uuid = purl
-            .and_then(|s| Purl::from_str(&s).ok())
-            .map(|p| p.qualifier_uuid());
         self.models.push(sbom_ai::ActiveModel {
             sbom_id: Set(self.sbom_id),
             node_id: Set(node_id),
             properties: Set(model_card.properties),
-            qualified_purl_id: Set(uuid),
         });
     }
 
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
         self.nodes.create(db).await?;
+        self.refs.create(db).await?;
 
         for batch in &self.models.into_iter().chunked() {
             sbom_ai::Entity::insert_many(batch)

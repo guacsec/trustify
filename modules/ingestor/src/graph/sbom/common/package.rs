@@ -4,20 +4,18 @@ use sea_orm::{ActiveValue::Set, ConnectionTrait, DbErr, EntityTrait};
 use sea_query::OnConflict;
 use tracing::instrument;
 use trustify_common::db::chunk::EntityChunkedIter;
-use trustify_common::purl::Purl;
-use trustify_entity::{
-    sbom_package, sbom_package_cpe_ref, sbom_package_license,
-    sbom_package_license::LicenseCategory, sbom_package_purl_ref,
-};
+use trustify_entity::{sbom_package, sbom_package_license, sbom_package_license::LicenseCategory};
 use uuid::Uuid;
+
+use super::PackageReference;
+use super::reference::ReferenceCreator;
 
 // Creator of packages and relationships.
 pub struct PackageCreator {
     sbom_id: Uuid,
     pub(crate) nodes: NodeCreator,
+    pub(crate) refs: ReferenceCreator,
     pub(crate) packages: Vec<sbom_package::ActiveModel>,
-    pub(crate) purl_refs: Vec<sbom_package_purl_ref::ActiveModel>,
-    pub(crate) cpe_refs: Vec<sbom_package_cpe_ref::ActiveModel>,
     pub(crate) sbom_package_licenses: Vec<sbom_package_license::ActiveModel>,
 }
 
@@ -34,19 +32,13 @@ pub struct PackageLicensenInfo {
     pub license_type: LicenseCategory,
 }
 
-pub enum PackageReference {
-    Purl(Purl),
-    Cpe(Uuid),
-}
-
 impl PackageCreator {
     pub fn new(sbom_id: Uuid) -> Self {
         Self {
             sbom_id,
             nodes: NodeCreator::new(sbom_id),
+            refs: ReferenceCreator::new(sbom_id),
             packages: Vec::new(),
-            purl_refs: Vec::new(),
-            cpe_refs: Vec::new(),
             sbom_package_licenses: Vec::new(),
         }
     }
@@ -55,9 +47,8 @@ impl PackageCreator {
         Self {
             sbom_id,
             nodes: NodeCreator::with_capacity(sbom_id, capacity_packages),
+            refs: ReferenceCreator::with_capacity(sbom_id, capacity_packages),
             packages: Vec::with_capacity(capacity_packages),
-            purl_refs: Vec::with_capacity(capacity_packages),
-            cpe_refs: Vec::new(), // most packages won't have a CPE, so we start with a low number
             sbom_package_licenses: Vec::with_capacity(capacity_packages),
         }
     }
@@ -71,25 +62,7 @@ impl PackageCreator {
         I: IntoIterator<Item = C>,
         C: Into<Checksum>,
     {
-        for r#ref in refs {
-            match r#ref {
-                PackageReference::Cpe(cpe) => {
-                    self.cpe_refs.push(sbom_package_cpe_ref::ActiveModel {
-                        sbom_id: Set(self.sbom_id),
-                        node_id: Set(node_info.node_id.clone()),
-                        cpe_id: Set(*cpe),
-                    });
-                }
-                PackageReference::Purl(purl) => {
-                    self.purl_refs.push(sbom_package_purl_ref::ActiveModel {
-                        sbom_id: Set(self.sbom_id),
-                        node_id: Set(node_info.node_id.clone()),
-                        qualified_purl_id: Set(purl.qualifier_uuid()),
-                    });
-                }
-            }
-        }
-
+        self.refs.add(node_info.node_id.clone(), refs);
         self.nodes
             .add(node_info.node_id.clone(), node_info.name, checksums);
 
@@ -115,13 +88,12 @@ impl PackageCreator {
         skip_all,
         fields(
             num_packages=self.packages.len(),
-            num_purl_refs=self.purl_refs.len(),
-            num_cpe_refs=self.cpe_refs.len(),
         ),
         err(level=tracing::Level::INFO)
     )]
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
         self.nodes.create(db).await?;
+        self.refs.create(db).await?;
 
         for batch in &self.packages.into_iter().chunked() {
             sbom_package::Entity::insert_many(batch)
@@ -129,38 +101,6 @@ impl PackageCreator {
                     OnConflict::columns([
                         sbom_package::Column::SbomId,
                         sbom_package::Column::NodeId,
-                    ])
-                    .do_nothing()
-                    .to_owned(),
-                )
-                .do_nothing()
-                .exec(db)
-                .await?;
-        }
-
-        for batch in &self.purl_refs.into_iter().chunked() {
-            sbom_package_purl_ref::Entity::insert_many(batch)
-                .on_conflict(
-                    OnConflict::columns([
-                        sbom_package_purl_ref::Column::SbomId,
-                        sbom_package_purl_ref::Column::NodeId,
-                        sbom_package_purl_ref::Column::QualifiedPurlId,
-                    ])
-                    .do_nothing()
-                    .to_owned(),
-                )
-                .do_nothing()
-                .exec(db)
-                .await?;
-        }
-
-        for batch in &self.cpe_refs.into_iter().chunked() {
-            sbom_package_cpe_ref::Entity::insert_many(batch)
-                .on_conflict(
-                    OnConflict::columns([
-                        sbom_package_cpe_ref::Column::SbomId,
-                        sbom_package_cpe_ref::Column::NodeId,
-                        sbom_package_cpe_ref::Column::CpeId,
                     ])
                     .do_nothing()
                     .to_owned(),

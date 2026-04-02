@@ -69,7 +69,7 @@ impl super::Processor for RedHatProductComponentRelationships {
                 is_relevant(
                     &self.document_node_id,
                     cpes,
-                    &packages.cpe_refs,
+                    &packages.refs.cpe_refs,
                     package,
                     relationships,
                 )
