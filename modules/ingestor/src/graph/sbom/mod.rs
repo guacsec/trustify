@@ -34,8 +34,7 @@ use tracing::instrument;
 use trustify_common::{cpe::Cpe, hashing::Digests, purl::Purl, sbom::SbomLocator};
 use trustify_entity::{
     self as entity, labels::Labels, license, relationship::Relationship, sbom, sbom_node,
-    sbom_package, sbom_package_cpe_ref, sbom_package_license, sbom_package_purl_ref,
-    source_document,
+    sbom_node_cpe_ref, sbom_node_purl_ref, sbom_package_license, source_document,
 };
 
 #[derive(Clone, Default)]
@@ -274,22 +273,16 @@ impl Graph {
 
     fn query_by_purl(package: QualifiedPackageContext) -> Select<sbom::Entity> {
         sbom::Entity::find()
-            .join_rev(JoinType::Join, sbom_package::Relation::Sbom.def())
-            .join_rev(
-                JoinType::Join,
-                sbom_package_purl_ref::Relation::Package.def(),
-            )
-            .filter(sbom_package_purl_ref::Column::QualifiedPurlId.eq(package.qualified_package.id))
+            .join_rev(JoinType::Join, sbom_node::Relation::Sbom.def())
+            .join_rev(JoinType::Join, sbom_node_purl_ref::Relation::Node.def())
+            .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(package.qualified_package.id))
     }
 
     fn query_by_cpe(cpe: CpeContext) -> Select<sbom::Entity> {
         sbom::Entity::find()
-            .join_rev(JoinType::Join, sbom_package::Relation::Sbom.def())
-            .join_rev(
-                JoinType::Join,
-                sbom_package_cpe_ref::Relation::Package.def(),
-            )
-            .filter(sbom_package_cpe_ref::Column::CpeId.eq(cpe.cpe.id))
+            .join_rev(JoinType::Join, sbom_node::Relation::Sbom.def())
+            .join_rev(JoinType::Join, sbom_node_cpe_ref::Relation::Node.def())
+            .filter(sbom_node_cpe_ref::Column::CpeId.eq(cpe.cpe.id))
     }
 
     async fn locate_sbom_by_purl<C: ConnectionTrait>(

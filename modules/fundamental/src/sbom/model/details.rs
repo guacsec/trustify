@@ -25,7 +25,7 @@ use trustify_common::{db::VersionMatches, memo::Memo};
 use trustify_cvss::cvss3::{score::Score, severity::Severity};
 use trustify_entity::{
     advisory, advisory_vulnerability, advisory_vulnerability_score, base_purl, cpe, organization,
-    purl_status, qualified_purl, sbom, sbom_node, sbom_package, sbom_package_purl_ref,
+    purl_status, qualified_purl, sbom, sbom_node, sbom_node_purl_ref, sbom_package,
     source_document, status, version_range, versioned_purl, vulnerability,
 };
 use utoipa::ToSchema;
@@ -104,11 +104,8 @@ impl SbomDetails {
             .column_as(cpe::Column::Id, "cpe_id")
             .column_as(organization::Column::Id, "organization_id")
             .join(JoinType::Join, sbom_package::Relation::Node.def())
-            .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
-            .join(
-                JoinType::LeftJoin,
-                sbom_package_purl_ref::Relation::Purl.def(),
-            )
+            .join(JoinType::LeftJoin, sbom_node::Relation::Purl.def())
+            .join(JoinType::LeftJoin, sbom_node_purl_ref::Relation::Purl.def())
             .join(
                 JoinType::LeftJoin,
                 qualified_purl::Relation::VersionedPurl.def(),

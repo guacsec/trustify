@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use tracing::instrument;
 use trustify_entity::{
     package_relates_to_package, relationship::Relationship, sbom_external_node::ExternalType,
-    sbom_package, sbom_package_cpe_ref,
+    sbom_node_cpe_ref, sbom_package,
 };
 
 #[derive(Default, Debug)]
@@ -144,7 +144,7 @@ impl super::Processor for RedHatProductComponentRelationships {
 fn is_relevant(
     document_node_id: &str,
     cpes: &CpeCreator,
-    cpes_refs: &[sbom_package_cpe_ref::ActiveModel],
+    cpes_refs: &[sbom_node_cpe_ref::ActiveModel],
     package: &sbom_package::ActiveModel,
     relationships: &[package_relates_to_package::ActiveModel],
 ) -> Option<String> {
@@ -207,7 +207,7 @@ fn is_relevant(
 
 fn find_cpes(
     cpes: &CpeCreator,
-    cpes_refs: &[sbom_package_cpe_ref::ActiveModel],
+    cpes_refs: &[sbom_node_cpe_ref::ActiveModel],
     node_id: &str,
 ) -> Vec<String> {
     cpes_refs

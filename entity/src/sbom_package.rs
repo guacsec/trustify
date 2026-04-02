@@ -21,31 +21,6 @@ pub enum Relation {
         to = "super::sbom::Column::SbomId"
     )]
     Sbom,
-    #[sea_orm(
-        belongs_to = "super::sbom_package_purl_ref::Entity",
-        from = "(Column::SbomId, Column::NodeId)",
-        to = "(super::sbom_package_purl_ref::Column::SbomId, super::sbom_package_purl_ref::Column::NodeId)"
-    )]
-    Purl,
-    #[sea_orm(
-        belongs_to = "super::sbom_package_cpe_ref::Entity",
-        from = "(Column::SbomId, Column::NodeId)",
-        to = "(super::sbom_package_cpe_ref::Column::SbomId, super::sbom_package_cpe_ref::Column::NodeId)"
-    )]
-    Cpe,
-
-    #[sea_orm(
-        belongs_to = "super::sbom_package_license::Entity",
-        from = "(Column::SbomId, Column::NodeId)",
-        to = "(super::sbom_package_license::Column::SbomId, super::sbom_package_license::Column::NodeId)"
-    )]
-    PackageLicense,
-}
-
-impl Related<super::sbom_package_license::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::PackageLicense.def()
-    }
 }
 
 impl Related<super::sbom_node::Entity> for Entity {
@@ -57,18 +32,6 @@ impl Related<super::sbom_node::Entity> for Entity {
 impl Related<super::sbom::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Sbom.def()
-    }
-}
-
-impl Related<super::sbom_package_purl_ref::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Purl.def()
-    }
-}
-
-impl Related<super::sbom_package_cpe_ref::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Cpe.def()
     }
 }
 

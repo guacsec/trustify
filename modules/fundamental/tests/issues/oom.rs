@@ -22,7 +22,7 @@ async fn fetch(ctx: &TrustifyContext) -> anyhow::Result<()> {
     select
         e.sha256
     from
-        sbom_package_purl_ref a
+        sbom_node_purl_ref a
             join qualified_purl b on b.id = a.qualified_purl_id
             join versioned_purl c on c.id = b.versioned_purl_id
             join sbom d on d.sbom_id = a.sbom_id

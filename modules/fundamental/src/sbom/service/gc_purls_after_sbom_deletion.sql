@@ -10,7 +10,7 @@ WITH
         WHERE NOT EXISTS (
             -- Check if still referenced by other SBOMs
             -- The deleted SBOM's references are already removed by previously executed CASCADE
-            SELECT 1 FROM sbom_package_purl_ref sppr
+            SELECT 1 FROM sbom_node_purl_ref sppr
             WHERE sppr.qualified_purl_id = sq.id
         )
         AND NOT EXISTS (

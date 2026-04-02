@@ -16,7 +16,7 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
         ),
         sbom_cpes AS (
             SELECT cpe_id, node_id
-            FROM sbom_package_cpe_ref
+            FROM sbom_node_cpe_ref
             WHERE sbom_id = $1
               AND node_id IN (SELECT right_node_id FROM related_nodes)
         ),
@@ -39,7 +39,7 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
         SELECT id FROM generalized_cpes
     ) OR (
         SELECT cpe_id
-        FROM sbom_package_cpe_ref
+        FROM sbom_node_cpe_ref
         WHERE sbom_id = $1
         AND node_id IN (
             SELECT DISTINCT right_node_id
@@ -64,7 +64,7 @@ pub fn product_advisory_info_sql() -> String {
         ),
         sbom_cpes AS (
             SELECT cpe_id, node_id
-            FROM sbom_package_cpe_ref
+            FROM sbom_node_cpe_ref
             WHERE sbom_id = $1
               AND node_id IN (SELECT right_node_id FROM related_nodes)
         ),
@@ -96,7 +96,7 @@ pub fn product_advisory_info_sql() -> String {
                 bp.namespace,
                 spr.sbom_id,
                 spr.node_id
-            FROM sbom_package_purl_ref spr
+            FROM sbom_node_purl_ref spr
             JOIN qualified_purl qp ON spr.qualified_purl_id = qp.id
             JOIN versioned_purl vp ON qp.versioned_purl_id = vp.id
             JOIN base_purl bp ON vp.base_purl_id = bp.id

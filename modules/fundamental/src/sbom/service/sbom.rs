@@ -37,8 +37,8 @@ use trustify_entity::{
     license, organization, package_relates_to_package,
     qualified_purl::{self, CanonicalPurl},
     relationship::Relationship,
-    sbom, sbom_ai, sbom_group_assignment, sbom_license_expanded, sbom_node, sbom_package,
-    sbom_package_cpe_ref, sbom_package_license, sbom_package_purl_ref, source_document, status,
+    sbom, sbom_ai, sbom_group_assignment, sbom_license_expanded, sbom_node, sbom_node_cpe_ref,
+    sbom_node_purl_ref, sbom_package, sbom_package_license, source_document, status,
     versioned_purl, vulnerability,
 };
 
@@ -121,12 +121,12 @@ impl SbomService {
         connection: &C,
     ) -> Result<bool, Error> {
         // IMPORTANT: Capture qualified_purl IDs before CASCADE deletion.
-        // After SBOM deletion, CASCADE removes sbom_package_purl_ref entries,
+        // After SBOM deletion, CASCADE removes sbom_node_purl_ref entries,
         // then GC uses the captured IDs to clean up orphaned PURLs.
-        let qualified_purl_ids: Vec<Uuid> = sbom_package_purl_ref::Entity::find()
+        let qualified_purl_ids: Vec<Uuid> = sbom_node_purl_ref::Entity::find()
             .select_only()
-            .column(sbom_package_purl_ref::Column::QualifiedPurlId)
-            .filter(sbom_package_purl_ref::Column::SbomId.eq(id))
+            .column(sbom_node_purl_ref::Column::QualifiedPurlId)
+            .filter(sbom_node_purl_ref::Column::SbomId.eq(id))
             .into_tuple()
             .all(connection)
             .await?;
@@ -137,7 +137,7 @@ impl SbomService {
             id
         );
 
-        // Delete the SBOM - CASCADE will properly delete sbom_package and sbom_package_purl_ref
+        // Delete the SBOM - CASCADE will properly delete sbom_package and sbom_node_purl_ref
         let stmt = Statement::from_sql_and_values(
             connection.get_database_backend(),
             r#"DELETE FROM sbom WHERE sbom_id=$1 RETURNING source_document_id"#,
@@ -326,8 +326,8 @@ impl SbomService {
             .group_by(sbom_package::Column::Version)
             .column_as(sbom_node::Column::Name, "name")
             .group_by(sbom_node::Column::Name)
-            .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
-            .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def());
+            .join(JoinType::LeftJoin, sbom_node::Relation::Purl.def())
+            .join(JoinType::LeftJoin, sbom_node::Relation::Cpe.def());
 
         query = join_licenses(query);
 
@@ -396,10 +396,10 @@ impl SbomService {
                     .columns()
                     .add_columns(sbom_node::Entity)
                     .add_columns(base_purl::Entity)
-                    .add_columns(sbom_package_cpe_ref::Entity)
+                    .add_columns(sbom_node_cpe_ref::Entity)
                     .add_columns(sbom_package_license::Entity)
                     .add_columns(license::Entity)
-                    .add_columns(sbom_package_purl_ref::Entity)
+                    .add_columns(sbom_node_purl_ref::Entity)
                     .translator(|field, _operator, _value| {
                         match field {
                             // License filtering is handled via subqueries above; return an empty
@@ -544,13 +544,13 @@ impl SbomService {
 
         counts_map.extend(
             sbom::Entity::find()
-                .join(JoinType::Join, sbom::Relation::Packages.def())
-                .join(JoinType::Join, sbom_package::Relation::Cpe.def())
-                .filter(sbom_package_cpe_ref::Column::CpeId.is_in(cpes))
-                .group_by(sbom_package_cpe_ref::Column::CpeId)
+                .join(JoinType::Join, sbom::Relation::Node.def())
+                .join(JoinType::Join, sbom_node::Relation::Cpe.def())
+                .filter(sbom_node_cpe_ref::Column::CpeId.is_in(cpes))
+                .group_by(sbom_node_cpe_ref::Column::CpeId)
                 .select_only()
-                .column(sbom_package_cpe_ref::Column::CpeId)
-                .column_as(sbom_package::Column::SbomId.count(), "count")
+                .column(sbom_node_cpe_ref::Column::CpeId)
+                .column_as(sbom_node::Column::SbomId.count(), "count")
                 .into_tuple::<(Uuid, i64)>()
                 .all(connection)
                 .await?
@@ -568,13 +568,13 @@ impl SbomService {
 
         counts_map.extend(
             sbom::Entity::find()
-                .join(JoinType::Join, sbom::Relation::Packages.def())
-                .join(JoinType::Join, sbom_package::Relation::Purl.def())
-                .filter(sbom_package_purl_ref::Column::QualifiedPurlId.is_in(purls))
-                .group_by(sbom_package_purl_ref::Column::QualifiedPurlId)
+                .join(JoinType::Join, sbom::Relation::Node.def())
+                .join(JoinType::Join, sbom_node::Relation::Purl.def())
+                .filter(sbom_node_purl_ref::Column::QualifiedPurlId.is_in(purls))
+                .group_by(sbom_node_purl_ref::Column::QualifiedPurlId)
                 .select_only()
-                .column(sbom_package_purl_ref::Column::QualifiedPurlId)
-                .column_as(sbom_package::Column::SbomId.count(), "count")
+                .column(sbom_node_purl_ref::Column::QualifiedPurlId)
+                .column_as(sbom_node::Column::SbomId.count(), "count")
                 .into_tuple::<(Uuid, i64)>()
                 .all(connection)
                 .await?
@@ -602,15 +602,15 @@ impl SbomService {
         query: Query,
         connection: &C,
     ) -> Result<PaginatedResults<SbomSummary>, Error> {
-        let select = sbom::Entity::find().join(JoinType::Join, sbom::Relation::Packages.def());
+        let select = sbom::Entity::find().join(JoinType::Join, sbom::Relation::Node.def());
 
         let select = match package_ref {
             SbomExternalPackageReference::Purl(purl) => select
-                .join(JoinType::Join, sbom_package::Relation::Purl.def())
-                .filter(sbom_package_purl_ref::Column::QualifiedPurlId.eq(purl.qualifier_uuid())),
+                .join(JoinType::Join, sbom_node::Relation::Purl.def())
+                .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(purl.qualifier_uuid())),
             SbomExternalPackageReference::Cpe(cpe) => select
-                .join(JoinType::Join, sbom_package::Relation::Cpe.def())
-                .filter(sbom_package_cpe_ref::Column::CpeId.eq(cpe.uuid())),
+                .join(JoinType::Join, sbom_node::Relation::Cpe.def())
+                .filter(sbom_node_cpe_ref::Column::CpeId.eq(cpe.uuid())),
         };
 
         let query = select
@@ -820,8 +820,8 @@ impl IntoPackage for SbomPackage {
         // join ref tables
 
         query = query
-            .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
-            .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def());
+            .join(JoinType::LeftJoin, sbom_node::Relation::Purl.def())
+            .join(JoinType::LeftJoin, sbom_node::Relation::Cpe.def());
 
         // collect licenses
 
@@ -895,8 +895,8 @@ impl IntoPackage for SbomPackage {
 
 /// Join CPE and PURL information.
 ///
-/// Given a select over something which already joins sbom_package_purl_ref and
-/// sbom_package_cpe_ref, this adds joins to fetch the data for PURLs and CPEs so that it can be
+/// Given a select over something which already joins sbom_node_purl_ref and
+/// sbom_node_cpe_ref, this adds joins to fetch the data for PURLs and CPEs so that it can be
 /// built using [`package_from_row`].
 ///
 /// This will add the columns `purls` and `cpes` to the selected output.
@@ -905,10 +905,7 @@ where
     E: EntityTrait,
 {
     query
-        .join(
-            JoinType::LeftJoin,
-            sbom_package_purl_ref::Relation::Purl.def(),
-        )
+        .join(JoinType::LeftJoin, sbom_node_purl_ref::Relation::Purl.def())
         .join(
             JoinType::LeftJoin,
             qualified_purl::Relation::VersionedPurl.def(),
@@ -920,24 +917,21 @@ where
                 "coalesce(array_agg(distinct $1) filter (where $2), '{}')",
                 [
                     qualified_purl::Column::Purl.into_simple_expr(),
-                    sbom_package_purl_ref::Column::QualifiedPurlId
+                    sbom_node_purl_ref::Column::QualifiedPurlId
                         .is_not_null()
                         .into_simple_expr(),
                 ],
             ),
             "purls",
         )
-        .join(
-            JoinType::LeftJoin,
-            sbom_package_cpe_ref::Relation::Cpe.def(),
-        )
+        .join(JoinType::LeftJoin, sbom_node_cpe_ref::Relation::Cpe.def())
         // aggregate the cpes
         .select_column_as(
             Expr::cust_with_exprs(
                 "to_json(coalesce(array_agg(distinct $1) filter (where $2), '{}'))",
                 [
                     Expr::col(cpe::Entity).into_simple_expr(),
-                    sbom_package_cpe_ref::Column::CpeId.is_not_null(),
+                    sbom_node_cpe_ref::Column::CpeId.is_not_null(),
                 ],
             ),
             "cpes",
@@ -968,7 +962,7 @@ where
         )
         .join(
             JoinType::LeftJoin,
-            sbom_package::Relation::PackageLicense.def(),
+            sbom_node::Relation::PackageLicense.def(),
         )
         .join(
             JoinType::LeftJoin,

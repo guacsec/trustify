@@ -61,9 +61,9 @@ impl Linked for SbomPurlsLink {
 
     fn link(&self) -> Vec<LinkDef> {
         vec![
-            Relation::Packages.def(),
-            super::sbom_package::Relation::Purl.def(),
-            super::sbom_package_purl_ref::Relation::Purl.def(),
+            Relation::SbomNode.def(),
+            super::sbom_node::Relation::Purl.def(),
+            super::sbom_node_purl_ref::Relation::Purl.def(),
         ]
     }
 }
@@ -76,9 +76,9 @@ impl Linked for SbomVersionedPurlsLink {
 
     fn link(&self) -> Vec<LinkDef> {
         vec![
-            Relation::Packages.def(),
-            super::sbom_package::Relation::Purl.def(),
-            super::sbom_package_purl_ref::Relation::Purl.def(),
+            Relation::SbomNode.def(),
+            super::sbom_node::Relation::Purl.def(),
+            super::sbom_node_purl_ref::Relation::Purl.def(),
             super::qualified_purl::Relation::VersionedPurl.def(),
         ]
     }

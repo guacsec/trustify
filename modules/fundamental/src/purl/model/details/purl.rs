@@ -28,8 +28,8 @@ use trustify_cvss::cvss3::{score::Score as Cvss3Score, severity::Severity};
 use trustify_entity::{
     advisory, advisory_vulnerability_score, base_purl, cpe, license, organization, product,
     product_status, product_version, product_version_range, purl_status, qualified_purl, sbom,
-    sbom_license_expanded, sbom_node, sbom_package, sbom_package_license, sbom_package_purl_ref,
-    status, version_range, versioned_purl, vulnerability,
+    sbom_license_expanded, sbom_node, sbom_node_purl_ref, sbom_package_license, status,
+    version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::{Deprecation, DeprecationForExt};
 use utoipa::ToSchema;
@@ -109,17 +109,14 @@ impl PurlDetails {
         )
         .await?;
 
-        let licenses: Vec<LicenseInfo> = sbom_package_purl_ref::Entity::find()
+        let licenses: Vec<LicenseInfo> = sbom_node_purl_ref::Entity::find()
             .distinct()
             .select_only()
             .column_as(license_text_coalesce(), "license_name")
             .select_column(sbom_package_license::Column::LicenseType)
-            .filter(sbom_package_purl_ref::Column::QualifiedPurlId.eq(qualified_package.id))
-            .join(
-                JoinType::Join,
-                sbom_package_purl_ref::Relation::Package.def(),
-            )
-            .join(JoinType::Join, sbom_package::Relation::PackageLicense.def())
+            .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(qualified_package.id))
+            .join(JoinType::Join, sbom_node_purl_ref::Relation::Node.def())
+            .join(JoinType::Join, sbom_node::Relation::PackageLicense.def())
             .join(
                 JoinType::LeftJoin,
                 sbom_package_license::Relation::SbomLicenseExpanded.def(),
@@ -163,9 +160,10 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
 ) -> Result<Vec<ProductStatusCatcher>, Error> {
     // Subquery to get all SBOM IDs for the given purl
     let sbom_ids_query = sbom::Entity::find()
+        .join(JoinType::Join, sbom::Relation::Node.def())
         .join(JoinType::Join, sbom::Relation::Packages.def())
-        .join(JoinType::Join, sbom_package::Relation::Purl.def())
-        .filter(sbom_package_purl_ref::Column::QualifiedPurlId.eq(qualified_package_id))
+        .join(JoinType::Join, sbom_node::Relation::Purl.def())
+        .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(qualified_package_id))
         .select_only()
         .column(sbom::Column::SbomId)
         .into_query();

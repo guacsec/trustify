@@ -2,7 +2,7 @@ use sea_orm::{ActiveValue::Set, ConnectionTrait, DbErr, EntityTrait};
 use sea_query::OnConflict;
 use tracing::instrument;
 use trustify_common::{db::chunk::EntityChunkedIter, purl::Purl};
-use trustify_entity::{sbom_package_cpe_ref, sbom_package_purl_ref};
+use trustify_entity::{sbom_node_cpe_ref, sbom_node_purl_ref};
 use uuid::Uuid;
 
 pub enum PackageReference {
@@ -12,8 +12,8 @@ pub enum PackageReference {
 
 pub struct ReferenceCreator {
     sbom_id: Uuid,
-    pub(crate) purl_refs: Vec<sbom_package_purl_ref::ActiveModel>,
-    pub(crate) cpe_refs: Vec<sbom_package_cpe_ref::ActiveModel>,
+    pub(crate) purl_refs: Vec<sbom_node_purl_ref::ActiveModel>,
+    pub(crate) cpe_refs: Vec<sbom_node_cpe_ref::ActiveModel>,
 }
 
 impl ReferenceCreator {
@@ -38,14 +38,14 @@ impl ReferenceCreator {
         for reference in refs {
             match reference {
                 PackageReference::Cpe(cpe) => {
-                    self.cpe_refs.push(sbom_package_cpe_ref::ActiveModel {
+                    self.cpe_refs.push(sbom_node_cpe_ref::ActiveModel {
                         sbom_id: Set(self.sbom_id),
                         node_id: node_id_value.clone(),
                         cpe_id: Set(*cpe),
                     });
                 }
                 PackageReference::Purl(purl) => {
-                    self.purl_refs.push(sbom_package_purl_ref::ActiveModel {
+                    self.purl_refs.push(sbom_node_purl_ref::ActiveModel {
                         sbom_id: Set(self.sbom_id),
                         node_id: node_id_value.clone(),
                         qualified_purl_id: Set(purl.qualifier_uuid()),
@@ -65,12 +65,12 @@ impl ReferenceCreator {
     )]
     pub async fn create(self, db: &impl ConnectionTrait) -> Result<(), DbErr> {
         for batch in &self.purl_refs.into_iter().chunked() {
-            sbom_package_purl_ref::Entity::insert_many(batch)
+            sbom_node_purl_ref::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([
-                        sbom_package_purl_ref::Column::SbomId,
-                        sbom_package_purl_ref::Column::NodeId,
-                        sbom_package_purl_ref::Column::QualifiedPurlId,
+                        sbom_node_purl_ref::Column::SbomId,
+                        sbom_node_purl_ref::Column::NodeId,
+                        sbom_node_purl_ref::Column::QualifiedPurlId,
                     ])
                     .do_nothing()
                     .to_owned(),
@@ -81,12 +81,12 @@ impl ReferenceCreator {
         }
 
         for batch in &self.cpe_refs.into_iter().chunked() {
-            sbom_package_cpe_ref::Entity::insert_many(batch)
+            sbom_node_cpe_ref::Entity::insert_many(batch)
                 .on_conflict(
                     OnConflict::columns([
-                        sbom_package_cpe_ref::Column::SbomId,
-                        sbom_package_cpe_ref::Column::NodeId,
-                        sbom_package_cpe_ref::Column::CpeId,
+                        sbom_node_cpe_ref::Column::SbomId,
+                        sbom_node_cpe_ref::Column::NodeId,
+                        sbom_node_cpe_ref::Column::CpeId,
                     ])
                     .do_nothing()
                     .to_owned(),

@@ -14,7 +14,7 @@ Trustify maintains a normalized three-tier PURL (Package URL) hierarchy in the d
 2. **`versioned_purl`**: References a `base_purl` and adds version information (e.g., `@3.2.11.Final`)
 3. **`qualified_purl`**: References a `versioned_purl` and adds qualifiers like architecture, distro, etc.
 
-When SBOMs are ingested, they create references to packages via the `sbom_package_purl_ref` join table. When SBOMs are deleted, these references are removed via database CASCADE constraints, potentially leaving orphaned PURL records that no SBOM references.
+When SBOMs are ingested, they create references to packages via the `sbom_node_purl_ref` join table. When SBOMs are deleted, these references are removed via database CASCADE constraints, potentially leaving orphaned PURL records that no SBOM references.
 
 Additionally, security advisories create entries in the `purl_status` table that reference `base_purl_id` to track which packages have known vulnerabilities. These advisory references represent critical security information that must be preserved.
 
@@ -28,7 +28,7 @@ The challenge is determining which orphaned PURLs should be deleted during SBOM 
 
 ### Technical Constraints
 
-* **Transaction ordering**: GC must execute BEFORE the SBOM delete statement, as SBOM deletion triggers CASCADE deletes on `sbom_package_purl_ref` which the GC query relies on
+* **Transaction ordering**: GC must execute BEFORE the SBOM delete statement, as SBOM deletion triggers CASCADE deletes on `sbom_node_purl_ref` which the GC query relies on
 * **Foreign key relationships**: The database enforces CASCADE constraints from `base_purl` → `versioned_purl` → `qualified_purl`
 * **Advisory preservation**: Any `base_purl` referenced in `purl_status` must be preserved along with ALL its versions and qualifiers
 
@@ -38,7 +38,7 @@ Implement a **conservative garbage collection approach** that preserves all vers
 
 The GC process:
 
-1. Identifies `qualified_purl` records that will become orphaned after SBOM deletion by checking `sbom_package_purl_ref`
+1. Identifies `qualified_purl` records that will become orphaned after SBOM deletion by checking `sbom_node_purl_ref`
 2. Traces from `qualified_purl` → `versioned_purl` → `base_purl` to identify the base package
 3. **Conservatively excludes** ANY `base_purl` that has entries in `purl_status` (advisory references)
 4. Deletes only the `qualified_purl` records that are orphaned AND whose base package has no advisory references

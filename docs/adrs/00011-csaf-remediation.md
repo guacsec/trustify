@@ -276,7 +276,7 @@ The junction tables (`remediation_purl_status`, `remediation_product_status`) en
 ### Positive
 
 - Users receive actionable remediation guidance alongside vulnerability status
-- Follows Trustify's existing junction table pattern (e.g., `sbom_package_purl_ref`)
+- Follows Trustify's existing junction table pattern (e.g., `sbom_node_purl_ref`)
 - Maintains proper data integrity with FK constraints and CASCADE delete
 - Enables querying remediations independently ("all vendor_fix remediations")
 - Supports multiple remediations per package (vendor_fix + workaround)

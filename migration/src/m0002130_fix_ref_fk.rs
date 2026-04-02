@@ -16,12 +16,20 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
+            .rename_table(
+                Table::rename()
+                    .table(SbomPackagePurlRef::Table, SbomNodePurlRef::Table)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
             .create_foreign_key(
                 ForeignKey::create()
-                    .name(Keys::SbomPackagePurlRefSbomIdNodeIdFkey.to_string())
+                    .name(Keys::SbomNodePurlRefSbomIdNodeIdFkey.to_string())
                     .from(
-                        SbomPackagePurlRef::Table,
-                        (SbomPackagePurlRef::SbomId, SbomPackagePurlRef::NodeId),
+                        SbomNodePurlRef::Table,
+                        (SbomNodePurlRef::SbomId, SbomNodePurlRef::NodeId),
                     )
                     .to(SbomNode::Table, (SbomNode::SbomId, SbomNode::NodeId))
                     .on_delete(ForeignKeyAction::Cascade)
@@ -39,18 +47,32 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
+            .rename_table(
+                Table::rename()
+                    .table(SbomPackageCpeRef::Table, SbomNodeCpeRef::Table)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
             .create_foreign_key(
                 ForeignKey::create()
-                    .name(Keys::SbomPackageCpeRefSbomIdNodeIdFkey.to_string())
+                    .name(Keys::SbomNodeCpeRefSbomIdNodeIdFkey.to_string())
                     .from(
-                        SbomPackageCpeRef::Table,
-                        (SbomPackageCpeRef::SbomId, SbomPackageCpeRef::NodeId),
+                        SbomNodeCpeRef::Table,
+                        (SbomNodeCpeRef::SbomId, SbomNodeCpeRef::NodeId),
                     )
                     .to(SbomNode::Table, (SbomNode::SbomId, SbomNode::NodeId))
                     .on_delete(ForeignKeyAction::Cascade)
                     .to_owned(),
             )
             .await?;
+
+        manager
+            .get_connection()
+            .execute_unprepared(include_str!("m0002130_fix_ref_fk/up.sql"))
+            .await
+            .map(|_| ())?;
 
         Ok(())
     }
@@ -59,8 +81,16 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(SbomPackagePurlRef::Table)
-                    .drop_foreign_key(Keys::SbomPackagePurlRefSbomIdNodeIdFkey)
+                    .table(SbomNodePurlRef::Table)
+                    .drop_foreign_key(Keys::SbomNodePurlRefSbomIdNodeIdFkey)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .rename_table(
+                Table::rename()
+                    .table(SbomNodePurlRef::Table, SbomPackagePurlRef::Table)
                     .to_owned(),
             )
             .await?;
@@ -85,8 +115,16 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(SbomPackageCpeRef::Table)
-                    .drop_foreign_key(Keys::SbomPackageCpeRefSbomIdNodeIdFkey)
+                    .table(SbomNodeCpeRef::Table)
+                    .drop_foreign_key(Keys::SbomNodeCpeRefSbomIdNodeIdFkey)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .rename_table(
+                Table::rename()
+                    .table(SbomNodeCpeRef::Table, SbomPackageCpeRef::Table)
                     .to_owned(),
             )
             .await?;
@@ -107,6 +145,12 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
+
+        manager
+            .get_connection()
+            .execute_unprepared(include_str!("m0002130_fix_ref_fk/down.sql"))
+            .await
+            .map(|_| ())?;
 
         Ok(())
     }
@@ -121,6 +165,20 @@ enum SbomPackagePurlRef {
 
 #[derive(DeriveIden)]
 enum SbomPackageCpeRef {
+    Table,
+    SbomId,
+    NodeId,
+}
+
+#[derive(DeriveIden)]
+enum SbomNodePurlRef {
+    Table,
+    SbomId,
+    NodeId,
+}
+
+#[derive(DeriveIden)]
+enum SbomNodeCpeRef {
     Table,
     SbomId,
     NodeId,
@@ -145,4 +203,6 @@ enum SbomPackage {
 pub enum Keys {
     SbomPackagePurlRefSbomIdNodeIdFkey,
     SbomPackageCpeRefSbomIdNodeIdFkey,
+    SbomNodePurlRefSbomIdNodeIdFkey,
+    SbomNodeCpeRefSbomIdNodeIdFkey,
 }

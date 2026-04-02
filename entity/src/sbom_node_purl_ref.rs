@@ -1,10 +1,8 @@
 use sea_orm::entity::prelude::*;
 
-/// An external PURL reference of an SBOM package. Technically, this
-/// should be called sbom_NODE_purl_ref because it relates things
-/// other than packages to purls, e.g. AI models
+/// An external PURL reference of an SBOM node.
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
-#[sea_orm(table_name = "sbom_package_purl_ref")]
+#[sea_orm(table_name = "sbom_node_purl_ref")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub sbom_id: Uuid,
@@ -24,8 +22,8 @@ pub enum Relation {
         to = "super::sbom::Column::SbomId"
     )]
     Sbom,
-    #[sea_orm(has_many = "super::sbom_package::Entity")]
-    Package,
+    #[sea_orm(has_many = "super::sbom_node::Entity")]
+    Node,
     #[sea_orm(has_one = "super::qualified_purl::Entity")]
     Purl,
 }
@@ -42,9 +40,9 @@ impl Related<super::qualified_purl::Entity> for Entity {
     }
 }
 
-impl Related<super::sbom_package::Entity> for Entity {
+impl Related<super::sbom_node::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Package.def()
+        Relation::Node.def()
     }
 }
 

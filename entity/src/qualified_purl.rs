@@ -65,11 +65,11 @@ pub enum Relation {
     )]
     VersionedPurl,
     #[sea_orm(
-        belongs_to = "super::sbom_package_purl_ref::Entity",
+        belongs_to = "super::sbom_node_purl_ref::Entity",
         from = "Column::Id",
-        to = "super::sbom_package_purl_ref::Column::QualifiedPurlId"
+        to = "super::sbom_node_purl_ref::Column::QualifiedPurlId"
     )]
-    SbomPackage,
+    SbomNode,
 }
 
 impl Related<super::versioned_purl::Entity> for Entity {
@@ -78,9 +78,9 @@ impl Related<super::versioned_purl::Entity> for Entity {
     }
 }
 
-impl Related<super::sbom_package_purl_ref::Entity> for Entity {
+impl Related<super::sbom_node_purl_ref::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::SbomPackage.def()
+        Relation::SbomNode.def()
     }
 }
 

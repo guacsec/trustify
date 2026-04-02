@@ -28,7 +28,7 @@ use trustify_common::{
 };
 use trustify_entity::{
     expanded_license, license, licensing_infos, qualified_purl, sbom, sbom_license_expanded,
-    sbom_node, sbom_package, sbom_package_cpe_ref, sbom_package_license, sbom_package_purl_ref,
+    sbom_node, sbom_node_cpe_ref, sbom_node_purl_ref, sbom_package, sbom_package_license,
 };
 use utoipa::ToSchema;
 
@@ -84,7 +84,7 @@ impl LicenseService {
             .join(JoinType::InnerJoin, sbom_package::Relation::Node.def())
             .join(
                 JoinType::LeftJoin,
-                sbom_package::Relation::PackageLicense.def(),
+                sbom_node::Relation::PackageLicense.def(),
             )
             .join(
                 JoinType::InnerJoin,
@@ -104,24 +104,24 @@ impl LicenseService {
 
         let mut sbom_package_list = Vec::new();
         for spl in package_license {
-            let result_purl: Vec<Purl> = sbom_package_purl_ref::Entity::find()
-                .join(JoinType::Join, sbom_package_purl_ref::Relation::Purl.def())
+            let result_purl: Vec<Purl> = sbom_node_purl_ref::Entity::find()
+                .join(JoinType::Join, sbom_node_purl_ref::Relation::Purl.def())
                 .filter(
                     Condition::all()
-                        .add(sbom_package_purl_ref::Column::NodeId.eq(spl.node_id.clone()))
-                        .add(sbom_package_purl_ref::Column::SbomId.eq(spl.sbom_id)),
+                        .add(sbom_node_purl_ref::Column::NodeId.eq(spl.node_id.clone()))
+                        .add(sbom_node_purl_ref::Column::SbomId.eq(spl.sbom_id)),
                 )
                 .select_only()
                 .column_as(qualified_purl::Column::Purl, "purl")
                 .into_model::<Purl>()
                 .all(connection)
                 .await?;
-            let result_cpe: Vec<trustify_entity::cpe::Model> = sbom_package_cpe_ref::Entity::find()
-                .join(JoinType::Join, sbom_package_cpe_ref::Relation::Cpe.def())
+            let result_cpe: Vec<trustify_entity::cpe::Model> = sbom_node_cpe_ref::Entity::find()
+                .join(JoinType::Join, sbom_node_cpe_ref::Relation::Cpe.def())
                 .filter(
                     Condition::all()
-                        .add(sbom_package_cpe_ref::Column::NodeId.eq(spl.node_id.clone()))
-                        .add(sbom_package_cpe_ref::Column::SbomId.eq(spl.sbom_id)),
+                        .add(sbom_node_cpe_ref::Column::NodeId.eq(spl.node_id.clone()))
+                        .add(sbom_node_cpe_ref::Column::SbomId.eq(spl.sbom_id)),
                 )
                 .select_only()
                 .column_as(trustify_entity::cpe::Column::Id, "id")

@@ -23,11 +23,11 @@ impl_try_into_cpe!(Model);
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "super::sbom_package_cpe_ref::Entity",
+        belongs_to = "super::sbom_node_cpe_ref::Entity",
         from = "Column::Id",
-        to = "super::sbom_package_cpe_ref::Column::CpeId"
+        to = "super::sbom_node_cpe_ref::Column::CpeId"
     )]
-    SbomPackage,
+    SbomNode,
     #[sea_orm(
         belongs_to = "super::product::Entity",
         from = "Column::Product",
@@ -42,9 +42,9 @@ pub enum Relation {
     ProductStatus,
 }
 
-impl Related<super::sbom_package_cpe_ref::Entity> for Entity {
+impl Related<super::sbom_node_cpe_ref::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::SbomPackage.def()
+        Relation::SbomNode.def()
     }
 }
 

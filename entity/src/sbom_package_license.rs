@@ -23,8 +23,8 @@ pub enum Relation {
         to = "super::sbom::Column::SbomId"
     )]
     Sbom,
-    #[sea_orm(has_many = "super::sbom_package::Entity")]
-    Package,
+    #[sea_orm(has_many = "super::sbom_node::Entity")]
+    Node,
     #[sea_orm(has_one = "super::license::Entity")]
     License,
     #[sea_orm(
@@ -61,9 +61,9 @@ impl Related<super::sbom::Entity> for Entity {
     }
 }
 
-impl Related<super::sbom_package::Entity> for Entity {
+impl Related<super::sbom_node::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Package.def()
+        Relation::Node.def()
     }
 }
 

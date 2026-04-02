@@ -30,8 +30,7 @@ use trustify_common::{
 use trustify_entity::{
     base_purl, license,
     qualified_purl::{self, CanonicalPurl},
-    sbom_license_expanded, sbom_package, sbom_package_license, sbom_package_purl_ref,
-    versioned_purl,
+    sbom_license_expanded, sbom_node, sbom_node_purl_ref, sbom_package_license, versioned_purl,
 };
 use trustify_module_ingestor::common::Deprecation;
 
@@ -332,17 +331,17 @@ impl PurlService {
             .map(|constraint| q(&format!("{constraint}")))
         {
             let base = || {
-                sbom_package_purl_ref::Entity::find()
+                sbom_node_purl_ref::Entity::find()
                     .select_only()
                     .distinct()
-                    .column(sbom_package_purl_ref::Column::QualifiedPurlId)
+                    .column(sbom_node_purl_ref::Column::QualifiedPurlId)
                     .join(
                         JoinType::InnerJoin,
-                        sbom_package_purl_ref::Relation::Package.def(),
+                        sbom_node_purl_ref::Relation::Node.def(),
                     )
                     .join(
                         JoinType::InnerJoin,
-                        sbom_package::Relation::PackageLicense.def(),
+                        sbom_node::Relation::PackageLicense.def(),
                     )
             };
 

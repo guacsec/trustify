@@ -42,7 +42,7 @@ use trustify_entity::{
     relationship::Relationship,
     sbom,
     sbom_external_node::ExternalType,
-    sbom_node, sbom_package, sbom_package_cpe_ref, sbom_package_purl_ref,
+    sbom_node, sbom_node_cpe_ref, sbom_node_purl_ref,
 };
 use uuid::Uuid;
 
@@ -143,9 +143,9 @@ purl_ref AS (
         node_id,
         array_agg(qualified_purl.purl) AS purls
     FROM
-        sbom_package_purl_ref
+        sbom_node_purl_ref
     LEFT JOIN
-        qualified_purl ON (sbom_package_purl_ref.qualified_purl_id = qualified_purl.id)
+        qualified_purl ON (sbom_node_purl_ref.qualified_purl_id = qualified_purl.id)
     GROUP BY
         sbom_id,
         node_id
@@ -156,9 +156,9 @@ cpe_ref AS (
         node_id,
         array_agg(row_to_json(cpe)) AS cpes
     FROM
-        sbom_package_cpe_ref
+        sbom_node_cpe_ref
     LEFT JOIN
-        cpe ON (sbom_package_cpe_ref.cpe_id = cpe.id)
+        cpe ON (sbom_node_cpe_ref.cpe_id = cpe.id)
     GROUP BY
         sbom_id,
         node_id
@@ -298,32 +298,26 @@ impl InnerService {
                 .into_query(),
             GraphQuery::Component(ComponentReference::Purl(purl)) => sbom_node::Entity::find()
                 .join(JoinType::Join, sbom_node::Relation::Package.def())
-                .join(JoinType::Join, sbom_package::Relation::Purl.def())
-                .filter(sbom_package_purl_ref::Column::QualifiedPurlId.eq(purl.qualifier_uuid()))
+                .join(JoinType::Join, sbom_node::Relation::Purl.def())
+                .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(purl.qualifier_uuid()))
                 .select_only()
                 .distinct()
                 .column(sbom_node::Column::SbomId)
                 .into_query(),
             GraphQuery::Component(ComponentReference::Cpe(cpe)) => sbom_node::Entity::find()
                 .join(JoinType::Join, sbom_node::Relation::Package.def())
-                .join(JoinType::Join, sbom_package::Relation::Cpe.def())
-                .filter(sbom_package_cpe_ref::Column::CpeId.eq(cpe.uuid()))
+                .join(JoinType::Join, sbom_node::Relation::Cpe.def())
+                .filter(sbom_node_cpe_ref::Column::CpeId.eq(cpe.uuid()))
                 .select_only()
                 .column(sbom_node::Column::SbomId)
                 .distinct()
                 .into_query(),
             GraphQuery::Query(query) => sbom_node::Entity::find()
                 .join(JoinType::Join, sbom_node::Relation::Package.def())
-                .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
-                .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
-                .join(
-                    JoinType::LeftJoin,
-                    sbom_package_cpe_ref::Relation::Cpe.def(),
-                )
-                .join(
-                    JoinType::LeftJoin,
-                    sbom_package_purl_ref::Relation::Purl.def(),
-                )
+                .join(JoinType::LeftJoin, sbom_node::Relation::Purl.def())
+                .join(JoinType::LeftJoin, sbom_node::Relation::Cpe.def())
+                .join(JoinType::LeftJoin, sbom_node_cpe_ref::Relation::Cpe.def())
+                .join(JoinType::LeftJoin, sbom_node_purl_ref::Relation::Purl.def())
                 .select_only()
                 .column(sbom_node::Column::SbomId)
                 .filtering_with(query.clone(), q_columns())?
@@ -366,10 +360,8 @@ impl InnerService {
                 false,
                 select()
                     .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
-                    .join(JoinType::InnerJoin, sbom_package::Relation::Purl.def())
-                    .filter(
-                        sbom_package_purl_ref::Column::QualifiedPurlId.eq(purl.qualifier_uuid()),
-                    )
+                    .join(JoinType::InnerJoin, sbom_node::Relation::Purl.def())
+                    .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(purl.qualifier_uuid()))
                     .into_model()
                     .all(connection)
                     .await?,
@@ -378,8 +370,8 @@ impl InnerService {
                 true,
                 select()
                     .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
-                    .join(JoinType::InnerJoin, sbom_package::Relation::Cpe.def())
-                    .filter(sbom_package_cpe_ref::Column::CpeId.eq(cpe.uuid()))
+                    .join(JoinType::InnerJoin, sbom_node::Relation::Cpe.def())
+                    .filter(sbom_node_cpe_ref::Column::CpeId.eq(cpe.uuid()))
                     .into_model()
                     .all(connection)
                     .await?,
@@ -390,17 +382,11 @@ impl InnerService {
                     // required for purl and cpe refs
                     .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
                     // required for querying purls
-                    .join(JoinType::LeftJoin, sbom_package::Relation::Purl.def())
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_package_purl_ref::Relation::Purl.def(),
-                    )
+                    .join(JoinType::LeftJoin, sbom_node::Relation::Purl.def())
+                    .join(JoinType::LeftJoin, sbom_node_purl_ref::Relation::Purl.def())
                     // required for querying CPEs
-                    .join(JoinType::LeftJoin, sbom_package::Relation::Cpe.def())
-                    .join(
-                        JoinType::LeftJoin,
-                        sbom_package_cpe_ref::Relation::Cpe.def(),
-                    )
+                    .join(JoinType::LeftJoin, sbom_node::Relation::Cpe.def())
+                    .join(JoinType::LeftJoin, sbom_node_cpe_ref::Relation::Cpe.def())
                     .filtering_with(query.clone(), q_columns())?
                     .into_model()
                     .all(connection)

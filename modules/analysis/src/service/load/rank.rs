@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 use tracing::{Instrument, instrument};
 use trustify_entity::{
     package_relates_to_package, relationship::Relationship, sbom, sbom_external_node, sbom_node,
-    sbom_package_cpe_ref,
+    sbom_node_cpe_ref,
 };
 use uuid::Uuid;
 
@@ -115,7 +115,7 @@ where
 ///
 /// This means: all CPEs of all nodes which have the SBOM's node ID on the right side of a "describes" relationship
 ///
-/// This function queries the `sbom_package_cpe_ref` linking table to find all CPEs tied
+/// This function queries the `sbom_node_cpe_ref` linking table to find all CPEs tied
 /// to the given `sbom_id`. It includes validation joins to ensure the SBOM exists and
 /// properly contains a "Describes" relationship (indicating a valid root package structure).
 ///
@@ -135,12 +135,12 @@ async fn describing_cpes(
     connection: &(impl ConnectionTrait + Send),
     sbom_id: Uuid,
 ) -> Result<Vec<Uuid>, Error> {
-    Ok(sbom_package_cpe_ref::Entity::find()
+    Ok(sbom_node_cpe_ref::Entity::find()
         .distinct()
         .select_only()
-        .column(sbom_package_cpe_ref::Column::CpeId)
-        .filter(sbom_package_cpe_ref::Column::SbomId.eq(sbom_id))
-        .join(JoinType::Join, sbom_package_cpe_ref::Relation::Sbom.def())
+        .column(sbom_node_cpe_ref::Column::CpeId)
+        .filter(sbom_node_cpe_ref::Column::SbomId.eq(sbom_id))
+        .join(JoinType::Join, sbom_node_cpe_ref::Relation::Sbom.def())
         .join(
             JoinType::Join,
             sbom::Relation::PackageRelatesToPackages.def(),
