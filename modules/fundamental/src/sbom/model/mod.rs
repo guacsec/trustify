@@ -16,8 +16,7 @@ use tracing::{info_span, instrument};
 use tracing_futures::Instrument;
 use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::{
-    labels::Labels, qualified_purl::CanonicalPurl, relationship::Relationship, sbom, sbom_node,
-    sbom_package, source_document,
+    labels::Labels, relationship::Relationship, sbom, sbom_node, sbom_package, source_document,
 };
 use utoipa::ToSchema;
 
@@ -107,35 +106,39 @@ impl<P: IntoPackage> SbomSummary<P> {
     }
 }
 
-#[derive(FromQueryResult, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[derive(FromQueryResult)]
+pub struct ModelCatcher {
+    pub id: String,
+    pub name: String,
+    pub purls: Vec<serde_json::Value>,
+    pub properties: serde_json::Value,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
 pub struct SbomModel {
     /// The internal ID of a model
     pub id: String,
     /// The name of the model in the SBOM
     pub name: String,
     /// The model's PURL
-    #[schema(value_type=Vec<String>)]
-    pub purls: Vec<serde_json::Value>,
+    pub purls: Vec<PurlSummary>,
     /// The properties associated with the model
-    #[schema(value_type=Map<String,String>)]
-    pub properties: serde_json::Value,
+    pub properties: serde_json::Map<String, serde_json::Value>,
 }
 
 impl SbomModel {
-    pub fn stringify_purls(mut self) -> SbomModel {
-        use serde_json::{Value, from_value};
-        self.purls = self
-            .purls
-            .into_iter()
-            .filter_map(|p| match p {
-                Value::Object(_) => match from_value::<CanonicalPurl>(p) {
-                    Ok(cp) => Some(Value::String(Purl::from(cp).to_string())),
-                    _ => None,
-                },
-                _ => Some(p),
-            })
-            .collect();
-        self
+    pub fn from_row(row: ModelCatcher) -> Self {
+        let purls = PurlSummary::from_values(row.purls);
+        let properties = match row.properties {
+            serde_json::Value::Object(m) => m,
+            _ => serde_json::Map::new(),
+        };
+        Self {
+            id: row.id,
+            name: row.name,
+            purls,
+            properties,
+        }
     }
 }
 

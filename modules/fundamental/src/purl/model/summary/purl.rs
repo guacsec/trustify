@@ -2,7 +2,7 @@ use crate::purl::model::{BasePurlHead, PurlHead, VersionedPurlHead};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use trustify_common::purl::Purl;
-use trustify_entity::qualified_purl;
+use trustify_entity::qualified_purl::{self, CanonicalPurl};
 use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, ToSchema, Hash)]
@@ -50,5 +50,19 @@ impl PurlSummary {
 
     pub fn from_entity(purl: &qualified_purl::Model) -> Self {
         Purl::from(purl.purl.clone()).into()
+    }
+
+    pub fn from_values(values: Vec<serde_json::Value>) -> Vec<Self> {
+        values
+            .into_iter()
+            .flat_map(|purl| {
+                serde_json::from_value::<CanonicalPurl>(purl)
+                    .inspect_err(|err| {
+                        log::warn!("Failed to deserialize PURL: {err}");
+                    })
+                    .ok()
+            })
+            .map(|purl| Purl::from(purl).into())
+            .collect()
     }
 }

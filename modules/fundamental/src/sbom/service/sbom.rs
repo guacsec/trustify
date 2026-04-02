@@ -2,8 +2,9 @@ use super::SbomService;
 use crate::{
     Error,
     common::license_filtering::{LICENSE, license_text_coalesce},
+    purl::model::summary::purl::PurlSummary,
     sbom::model::{
-        SbomExternalPackageReference, SbomModel, SbomNodeReference, SbomPackage,
+        ModelCatcher, SbomExternalPackageReference, SbomModel, SbomNodeReference, SbomPackage,
         SbomPackageRelation, SbomPackageSummary, SbomSummary, Which, details::SbomDetails,
     },
 };
@@ -34,8 +35,7 @@ use trustify_entity::{
     advisory, advisory_vulnerability, base_purl,
     cpe::{self, CpeDto},
     labels::Labels,
-    license, organization, package_relates_to_package,
-    qualified_purl::{self, CanonicalPurl},
+    license, organization, package_relates_to_package, qualified_purl,
     relationship::Relationship,
     sbom, sbom_ai, sbom_group_assignment, sbom_license_expanded, sbom_node, sbom_node_cpe_ref,
     sbom_node_purl_ref, sbom_package, sbom_package_license, source_document, status,
@@ -468,7 +468,7 @@ impl SbomService {
                 )?,
         );
 
-        let limiter = limit_selector::<'_, _, _, _, SbomModel>(
+        let limiter = limit_selector::<'_, _, _, _, ModelCatcher>(
             connection,
             query,
             paginated.offset,
@@ -480,7 +480,7 @@ impl SbomService {
             .fetch()
             .await?
             .into_iter()
-            .map(SbomModel::stringify_purls)
+            .map(SbomModel::from_row)
             .collect();
 
         Ok(PaginatedResults { items, total })
@@ -835,18 +835,7 @@ impl IntoPackage for SbomPackage {
     }
 
     fn from_row(row: Self::Row) -> Self {
-        let purl = row
-            .purls
-            .into_iter()
-            .flat_map(|purl| {
-                serde_json::from_value::<CanonicalPurl>(purl)
-                    .inspect_err(|err| {
-                        log::warn!("Failed to deserialize PURL: {err}");
-                    })
-                    .ok()
-            })
-            .map(|purl| Purl::from(purl).into())
-            .collect();
+        let purl = PurlSummary::from_values(row.purls);
 
         let cpe = row
             .cpes

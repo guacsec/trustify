@@ -1776,8 +1776,12 @@ async fn get_aibom_models(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 "id": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
                 "name": "granite-docling-258M",
                 "purls": [
-                    "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
-                    "pkg:boatymcboatface/ibm-granite/granite-docling-258M@1.0"
+                    {
+                        "purl": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+                    },
+                    {
+                        "purl": "pkg:boatymcboatface/ibm-granite/granite-docling-258M@1.0",
+                    }
                 ],
                 "properties": {
                     "version": "1.0.0",

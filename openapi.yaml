@@ -5135,14 +5135,13 @@ components:
               properties:
                 type: object
                 description: The properties associated with the model
-                additionalProperties:
-                  type: string
+                additionalProperties: {}
                 propertyNames:
                   type: string
               purls:
                 type: array
                 items:
-                  type: string
+                  $ref: '#/components/schemas/PurlSummary'
                 description: The model's PURL
         total:
           type: integer
@@ -5915,14 +5914,13 @@ components:
         properties:
           type: object
           description: The properties associated with the model
-          additionalProperties:
-            type: string
+          additionalProperties: {}
           propertyNames:
             type: string
         purls:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/PurlSummary'
           description: The model's PURL
     SbomPackage:
       type: object
