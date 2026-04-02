@@ -2,7 +2,7 @@ use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
 use trustify_common::id::Id;
-use trustify_cvss::cvss3::severity::Severity;
+use trustify_module_fundamental::common::model::Severity;
 use trustify_module_fundamental::sbom::{model::details::SbomDetails, service::SbomService};
 use trustify_test_context::TrustifyContext;
 
@@ -176,10 +176,6 @@ fn check_advisory(
     assert_eq!(
         vulnerability_id,
         advisory.status[0].vulnerability.identifier
-    );
-    assert_eq!(
-        severity, advisory.status[0].average_severity,
-        "advisory={advisory_id}, vulnerability={vulnerability_id}"
     );
     assert_eq!("affected", advisory.status[0].status);
 }

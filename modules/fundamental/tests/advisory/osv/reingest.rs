@@ -3,7 +3,6 @@ use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
 use trustify_common::purl::Purl;
-use trustify_cvss::cvss3::severity::Severity;
 use trustify_entity::labels::Labels;
 use trustify_module_fundamental::{
     advisory::model::AdvisoryHead,
@@ -142,10 +141,6 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 identifier: "CVE-2020-5238".to_string(),
                 ..Default::default()
             },
-            #[allow(deprecated)]
-            average_severity: Severity::None,
-            #[allow(deprecated)]
-            average_score: 0f64,
             scores: vec![],
             status: "affected".to_string(),
             context: None,
@@ -186,10 +181,6 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 identifier: "CVE-2020-5238".to_string(),
                 ..Default::default()
             },
-            #[allow(deprecated)]
-            average_severity: Severity::None,
-            #[allow(deprecated)]
-            average_score: 0f64,
             scores: vec![],
             status: "affected".to_string(),
             context: None,

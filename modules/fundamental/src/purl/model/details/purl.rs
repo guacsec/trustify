@@ -2,7 +2,8 @@ use crate::{
     Error,
     advisory::model::AdvisoryHead,
     common::{
-        LicenseInfo, LicenseRefMapping, license_filtering::license_text_coalesce, model::Score,
+        LicenseInfo, LicenseRefMapping, license_filtering::license_text_coalesce,
+        model::ScoredVector,
     },
     purl::model::{
         BasePurlHead, PurlHead, VersionedPurlHead, details::version_range::VersionRange,
@@ -24,7 +25,6 @@ use trustify_common::{
     memo::Memo,
     purl::Purl,
 };
-use trustify_cvss::cvss3::{score::Score as Cvss3Score, severity::Severity};
 use trustify_entity::{
     advisory, advisory_vulnerability_score, base_purl, cpe, license, organization, product,
     product_status, product_version, product_version_range, purl_status, qualified_purl, sbom,
@@ -319,11 +319,7 @@ pub struct PurlStatus {
     pub vulnerability: VulnerabilityHead,
     pub advisory: AdvisoryHead,
     /// All CVSS scores associated with the vulnerability
-    pub scores: Vec<Score>,
-    #[deprecated(since = "0.5.0", note = "Please use `scores` instead")]
-    pub average_severity: Severity,
-    #[deprecated(since = "0.5.0", note = "Please use `scores` instead")]
-    pub average_score: f64,
+    pub scores: Vec<ScoredVector>,
     pub status: String,
     #[schema(required)]
     pub context: Option<StatusContext>,
@@ -351,13 +347,8 @@ impl PurlStatus {
             .find_related(advisory_vulnerability_score::Entity)
             .all(tx)
             .await?;
-        let average_score = Cvss3Score::from_iter(
-            score_models
-                .iter()
-                .filter(|s| s.is_cvss3())
-                .map(|s| s.score as f64),
-        );
-        let all_scores: Vec<Score> = score_models.into_iter().map(Score::from).collect();
+
+        let all_scores = score_models.into_iter().map(ScoredVector::from).collect();
         let issuer = Memo::Provided(advisory.find_related(organization::Entity).one(tx).await?);
 
         Ok(Self {
@@ -368,10 +359,6 @@ impl PurlStatus {
             )
             .await?,
             advisory: AdvisoryHead::from_advisory(advisory, issuer, tx).await?,
-            #[allow(deprecated)]
-            average_severity: average_score.severity(),
-            #[allow(deprecated)]
-            average_score: average_score.value(),
             scores: all_scores,
             status,
             context: cpe.map(StatusContext::Cpe),
@@ -380,29 +367,23 @@ impl PurlStatus {
     }
 
     pub fn from_head(
-        vuln_head: VulnerabilityHead,
-        advisory_head: AdvisoryHead,
+        vulnerability: VulnerabilityHead,
+        advisory: AdvisoryHead,
         status: String,
         version_range: Option<VersionRange>,
         cpe: Option<String>,
         score_models: &[advisory_vulnerability_score::Model],
     ) -> Result<Self, Error> {
-        let average_score = Cvss3Score::from_iter(
-            score_models
-                .iter()
-                .filter(|s| s.is_cvss3())
-                .map(|s| s.score as f64),
-        );
-        let all_scores: Vec<Score> = score_models.iter().cloned().map(Score::from).collect();
+        let scores = score_models
+            .iter()
+            .cloned()
+            .map(ScoredVector::from)
+            .collect();
 
         Ok(Self {
-            vulnerability: vuln_head,
-            advisory: advisory_head,
-            #[allow(deprecated)]
-            average_severity: average_score.severity(),
-            #[allow(deprecated)]
-            average_score: average_score.value(),
-            scores: all_scores,
+            vulnerability,
+            advisory,
+            scores,
             status,
             context: cpe.map(StatusContext::Cpe),
             version_range,

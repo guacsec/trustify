@@ -166,8 +166,11 @@ async fn package_with_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
 
     assert_eq!(uuid, Uuid::parse_str(response["uuid"].as_str().unwrap())?);
     assert_eq!(
-        "high",
-        response["advisories"][0]["status"][0]["average_severity"]
+        response["advisories"][0]["status"][0]["scores"],
+        json!([
+            {"type": "3.1", "value": 9.1, "severity": "critical", "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:H"},
+            {"type": "3.1", "value": 5.9, "severity": "medium",   "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"},
+        ])
     );
     assert_eq!(
         "CVE-2021-32714",

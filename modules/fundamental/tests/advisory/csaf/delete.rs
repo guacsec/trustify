@@ -5,10 +5,10 @@ use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
 use trustify_common::purl::Purl;
-use trustify_cvss::cvss3::severity::Severity;
 use trustify_entity::labels::Labels;
 use trustify_module_fundamental::advisory::model::AdvisoryHead;
 use trustify_module_fundamental::common::model::{Score, ScoreType};
+use trustify_module_fundamental::common::model::{ScoredVector, Severity};
 use trustify_module_fundamental::organization::model::{OrganizationHead, OrganizationSummary};
 use trustify_module_fundamental::purl::model::details::version_range::VersionRange;
 use trustify_module_fundamental::{
@@ -152,14 +152,13 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 identifier: "CVE-2023-33201".to_string(),
                 ..Default::default()
             },
-            #[allow(deprecated)]
-            average_severity: Severity::Medium,
-            #[allow(deprecated)]
-            average_score: 5.3f64,
-            scores: vec![Score {
-                severity: Severity::Medium,
-                value: 5.3,
-                r#type: ScoreType::V3_1,
+            scores: vec![ScoredVector {
+                score: Score {
+                    severity: Severity::Medium,
+                    value: 5.3,
+                    r#type: ScoreType::V3_1,
+                },
+                vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N".to_string()
             }],
             status: "affected".to_string(),
             context: Some(StatusContext::Cpe(

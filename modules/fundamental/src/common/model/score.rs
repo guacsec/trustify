@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use trustify_cvss::cvss3::severity::Severity;
-use trustify_entity::advisory_vulnerability_score;
+use trustify_entity::{advisory_vulnerability_score as entity_score, advisory_vulnerability_score};
 use utoipa::{
     PartialSchema, ToSchema,
     openapi::{
@@ -56,6 +55,125 @@ impl PartialSchema for ScoreType {
 
 impl ToSchema for ScoreType {}
 
+impl From<entity_score::ScoreType> for ScoreType {
+    fn from(value: entity_score::ScoreType) -> Self {
+        match value {
+            entity_score::ScoreType::V2_0 => Self::V2,
+            entity_score::ScoreType::V3_0 => Self::V3,
+            entity_score::ScoreType::V3_1 => Self::V3_1,
+            entity_score::ScoreType::V4_0 => Self::V4,
+        }
+    }
+}
+
+impl From<ScoreType> for entity_score::ScoreType {
+    fn from(value: ScoreType) -> Self {
+        match value {
+            ScoreType::V2 => Self::V2_0,
+            ScoreType::V3 => Self::V3_0,
+            ScoreType::V3_1 => Self::V3_1,
+            ScoreType::V4 => Self::V4_0,
+        }
+    }
+}
+
+/// Severity rating derived from a CVSS score value.
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, Eq, PartialEq, strum::VariantArray)]
+pub enum Severity {
+    /// No impact (score = 0.0)
+    #[serde(rename = "none")]
+    None,
+    /// Low severity (score 0.1–3.9)
+    #[serde(rename = "low")]
+    Low,
+    /// Medium severity (score 4.0–6.9)
+    #[serde(rename = "medium")]
+    Medium,
+    /// High severity (score 7.0–8.9)
+    #[serde(rename = "high")]
+    High,
+    /// Critical severity (score 9.0–10.0)
+    #[serde(rename = "critical")]
+    Critical,
+}
+
+impl From<(ScoreType, f64)> for Severity {
+    /// Converts a (ScoreType, numeric score) pair to a Severity rating.
+    ///
+    /// Uses version-specific thresholds per CVSS specifications:
+    /// - v2.0: Low (0.0–3.9), Medium (4.0–6.9), High (7.0–10.0)
+    /// - v3.x/v4.0: None (0.0), Low (0.1–3.9), Medium (4.0–6.9), High (7.0–8.9), Critical (9.0–10.0)
+    fn from((r#type, score): (ScoreType, f64)) -> Self {
+        match r#type {
+            ScoreType::V2 => match score {
+                s if s < 4.0 => Self::Low,
+                s if s < 7.0 => Self::Medium,
+                _ => Self::High,
+            },
+            ScoreType::V3 | ScoreType::V3_1 | ScoreType::V4 => match score {
+                s if s <= 0.0 => Self::None,
+                s if s < 4.0 => Self::Low,
+                s if s < 7.0 => Self::Medium,
+                s if s < 9.0 => Self::High,
+                _ => Self::Critical,
+            },
+        }
+    }
+}
+
+impl PartialSchema for Severity {
+    fn schema() -> RefOr<Schema> {
+        Schema::Object(
+            ObjectBuilder::new()
+                .schema_type(SchemaType::Type(Type::String))
+                .description(Some("Severity rating derived from a CVSS score value."))
+                .enum_values(Some(["none", "low", "medium", "high", "critical"]))
+                .extensions(Some(
+                    ExtensionsBuilder::new()
+                        .add(
+                            "x-enum-descriptions",
+                            json!([
+                                "No impact (score = 0.0)",
+                                "Low severity (score 0.1–3.9)",
+                                "Medium severity (score 4.0–6.9)",
+                                "High severity (score 7.0–8.9)",
+                                "Critical severity (score 9.0–10.0)",
+                            ]),
+                        )
+                        .build(),
+                ))
+                .build(),
+        )
+        .into()
+    }
+}
+
+impl ToSchema for Severity {}
+
+impl From<advisory_vulnerability_score::Severity> for Severity {
+    fn from(value: entity_score::Severity) -> Self {
+        match value {
+            advisory_vulnerability_score::Severity::None => Self::None,
+            advisory_vulnerability_score::Severity::Low => Self::Low,
+            advisory_vulnerability_score::Severity::Medium => Self::Medium,
+            advisory_vulnerability_score::Severity::High => Self::High,
+            advisory_vulnerability_score::Severity::Critical => Self::Critical,
+        }
+    }
+}
+
+impl From<Severity> for advisory_vulnerability_score::Severity {
+    fn from(value: Severity) -> Self {
+        match value {
+            Severity::None => Self::None,
+            Severity::Low => Self::Low,
+            Severity::Medium => Self::Medium,
+            Severity::High => Self::High,
+            Severity::Critical => Self::Critical,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct Score {
     /// The score type
@@ -77,10 +195,10 @@ pub struct ScoredVector {
     pub vector: String,
 }
 
-impl From<advisory_vulnerability_score::Model> for ScoredVector {
+impl From<entity_score::Model> for ScoredVector {
     /// Converts a DB score model into a `ScoredVector`, preserving both the parsed score
     /// fields and the original vector string.
-    fn from(model: advisory_vulnerability_score::Model) -> Self {
+    fn from(model: entity_score::Model) -> Self {
         Self {
             vector: model.vector.clone(),
             score: Score::from(model),
@@ -88,31 +206,15 @@ impl From<advisory_vulnerability_score::Model> for ScoredVector {
     }
 }
 
-impl From<advisory_vulnerability_score::Model> for Score {
-    fn from(model: advisory_vulnerability_score::Model) -> Self {
-        let r#type = match model.r#type {
-            advisory_vulnerability_score::ScoreType::V2_0 => ScoreType::V2,
-            advisory_vulnerability_score::ScoreType::V3_0 => ScoreType::V3,
-            advisory_vulnerability_score::ScoreType::V3_1 => ScoreType::V3_1,
-            advisory_vulnerability_score::ScoreType::V4_0 => ScoreType::V4,
-        };
-
-        let severity = match model.severity {
-            advisory_vulnerability_score::Severity::None => Severity::None,
-            advisory_vulnerability_score::Severity::Low => Severity::Low,
-            advisory_vulnerability_score::Severity::Medium => Severity::Medium,
-            advisory_vulnerability_score::Severity::High => Severity::High,
-            advisory_vulnerability_score::Severity::Critical => Severity::Critical,
-        };
-
-        // Round to 1 decimal place to avoid f32->f64 precision artifacts
-        // CVSS scores are typically displayed with 1 decimal precision
+impl From<entity_score::Model> for Score {
+    /// Converts a DB score model into a `Score`, mapping entity types to API types and
+    /// rounding the value to one decimal place to avoid f32→f64 precision artifacts.
+    fn from(model: entity_score::Model) -> Self {
         let value = (model.score as f64 * 10.0).round() / 10.0;
-
         Score {
-            r#type,
+            r#type: ScoreType::from(model.r#type),
             value,
-            severity,
+            severity: Severity::from(model.severity),
         }
     }
 }
@@ -121,6 +223,7 @@ impl From<advisory_vulnerability_score::Model> for Score {
 #[cfg(test)]
 mod test {
     use super::*;
+    use rstest::rstest;
     use strum::VariantArray;
 
     #[test]
@@ -163,5 +266,42 @@ mod test {
                 })
                 .collect::<Vec<_>>()
         );
+    }
+
+    #[rstest]
+    // v2.0: negative and zero map to Low (no None in v2.0)
+    #[case::v2_negative(ScoreType::V2, -1.0, Severity::Low)]
+    #[case::v2_zero(ScoreType::V2, 0.0, Severity::Low)]
+    #[case::v2_low(ScoreType::V2, 3.9, Severity::Low)]
+    #[case::v2_medium_boundary(ScoreType::V2, 4.0, Severity::Medium)]
+    #[case::v2_medium(ScoreType::V2, 6.9, Severity::Medium)]
+    #[case::v2_high_boundary(ScoreType::V2, 7.0, Severity::High)]
+    #[case::v2_high(ScoreType::V2, 10.0, Severity::High)]
+    // v3.0
+    #[case::v3_0_negative(ScoreType::V3, -1.0, Severity::None)]
+    #[case::v3_0_zero(ScoreType::V3, 0.0, Severity::None)]
+    #[case::v3_0_low(ScoreType::V3, 3.9, Severity::Low)]
+    #[case::v3_0_medium_boundary(ScoreType::V3, 4.0, Severity::Medium)]
+    #[case::v3_0_medium(ScoreType::V3, 6.9, Severity::Medium)]
+    #[case::v3_0_high_boundary(ScoreType::V3, 7.0, Severity::High)]
+    #[case::v3_0_high(ScoreType::V3, 8.9, Severity::High)]
+    #[case::v3_0_critical_boundary(ScoreType::V3, 9.0, Severity::Critical)]
+    #[case::v3_0_critical(ScoreType::V3, 10.0, Severity::Critical)]
+    // v3.1
+    #[case::v3_1_negative(ScoreType::V3_1, -1.0, Severity::None)]
+    #[case::v3_1_zero(ScoreType::V3_1, 0.0, Severity::None)]
+    #[case::v3_1_low(ScoreType::V3_1, 0.1, Severity::Low)]
+    #[case::v3_1_critical(ScoreType::V3_1, 9.0, Severity::Critical)]
+    // v4.0
+    #[case::v4_negative(ScoreType::V4, -1.0, Severity::None)]
+    #[case::v4_zero(ScoreType::V4, 0.0, Severity::None)]
+    #[case::v4_low(ScoreType::V4, 0.1, Severity::Low)]
+    #[case::v4_critical(ScoreType::V4, 9.0, Severity::Critical)]
+    fn severity_from_score(
+        #[case] score_type: ScoreType,
+        #[case] score: f64,
+        #[case] expected: Severity,
+    ) {
+        assert_eq!(Severity::from((score_type, score)), expected);
     }
 }

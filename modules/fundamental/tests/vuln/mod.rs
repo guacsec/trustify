@@ -77,8 +77,7 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 "released": null,
                 "cwes": ["CWE-327"]
             },
-            "average_severity": "medium",
-            "average_score": 5.3,
+            "scores": [{"type": "3.1", "value": 5.3, "severity": "medium", "vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N"}],
             "status": "affected",
             "context": null,
             "version_range": {
@@ -100,8 +99,7 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 "released": null,
                 "cwes": ["CWE-327"]
             },
-            "average_severity": "medium",
-            "average_score": 5.3,
+            "scores": [{"type": "3.1", "value": 5.3, "severity": "medium", "vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N"}],
             "status": "affected",
             "context": null,
             "version_range": {

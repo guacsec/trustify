@@ -2,6 +2,7 @@ use super::SbomSummary;
 use crate::{
     Error,
     advisory::model::AdvisoryHead,
+    common::model::ScoredVector,
     purl::model::{details::purl::StatusContext, summary::purl::PurlSummary},
     sbom::{
         model::{SbomPackage, raw_sql},
@@ -22,7 +23,6 @@ use std::{
 };
 use tracing::instrument;
 use trustify_common::{db::VersionMatches, memo::Memo};
-use trustify_cvss::cvss3::{score::Score, severity::Severity};
 use trustify_entity::{
     advisory, advisory_vulnerability, advisory_vulnerability_score, base_purl, cpe, organization,
     purl_status, qualified_purl, sbom, sbom_node, sbom_node_purl_ref, sbom_package,
@@ -541,20 +541,10 @@ impl SbomAdvisory {
 pub struct SbomStatus {
     #[serde(flatten)]
     pub vulnerability: VulnerabilityHead,
-    #[deprecated(
-        note = "Average scores are deprecated, use the new scores array",
-        since = "0.5.0"
-    )]
-    pub average_severity: Severity,
-    #[deprecated(
-        note = "Average scores are deprecated, use the new scores array",
-        since = "0.5.0"
-    )]
-    pub average_score: f64,
     pub status: String,
     pub context: Option<StatusContext>,
     pub packages: Vec<SbomPackage>,
-    pub scores: Vec<crate::common::model::Score>,
+    pub scores: Vec<ScoredVector>,
 }
 
 impl SbomStatus {
@@ -566,18 +556,8 @@ impl SbomStatus {
         packages: Vec<SbomPackage>,
         score_models: Vec<advisory_vulnerability_score::Model>,
     ) -> Result<Self, Error> {
-        let avg_score = Score::from_iter(
-            score_models
-                .iter()
-                .filter(|s| s.is_cvss3())
-                .map(|s| s.score as f64),
-        );
-
-        // Convert all scores (all versions) to Score model
-        let scores = score_models
-            .into_iter()
-            .map(crate::common::model::Score::from)
-            .collect();
+        // Convert all scores (all versions) to ScoredVector model
+        let scores = score_models.into_iter().map(ScoredVector::from).collect();
 
         Ok(Self {
             vulnerability: VulnerabilityHead::from_advisory_vulnerability_entity(
@@ -585,10 +565,6 @@ impl SbomStatus {
                 vulnerability,
             ),
             context: cpe.as_ref().map(|e| StatusContext::Cpe(e.to_string())),
-            #[allow(deprecated)]
-            average_severity: avg_score.severity(),
-            #[allow(deprecated)]
-            average_score: avg_score.value(),
             status,
             packages,
             scores,

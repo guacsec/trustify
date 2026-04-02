@@ -1299,10 +1299,10 @@ async fn get_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // assert expected fields
     assert_eq!(v[0]["identifier"], "https://www.redhat.com/#CVE-2023-0044");
-    assert_eq!(v[0]["status"][0]["average_severity"], "medium");
-    assert_eq!(v[0]["status"][0]["scores"][0]["type"], "3.1");
-    assert_eq!(v[0]["status"][0]["scores"][0]["value"], 5.3);
-    assert_eq!(v[0]["status"][0]["scores"][0]["severity"], "medium");
+    assert_eq!(
+        v[0]["status"][0]["scores"],
+        json!([{"type": "3.1", "value": 5.3, "severity": "medium", "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"}])
+    );
 
     Ok(())
 }
@@ -1336,7 +1336,6 @@ async fn get_advisories_with_deprecated_filtering(
     // assert expected fields
     assert_eq!(v.as_array().unwrap().len(), 1);
     assert_eq!(v[0]["identifier"], "CVE-2024-26308");
-    assert_eq!(v[0]["status"][0]["average_severity"], "none");
     assert!(v[0]["status"][0]["scores"].as_array().unwrap().is_empty());
 
     ctx.ingest_documents(["cve/CVE-2024-26308-updated.json"])
@@ -1354,10 +1353,10 @@ async fn get_advisories_with_deprecated_filtering(
     assert_eq!(v.as_array().unwrap().len(), 1);
     assert_eq!(v[0]["identifier"], "CVE-2024-26308");
     // The updated version has CVSS scores, unlike the original
-    assert_eq!(v[0]["status"][0]["average_severity"], "medium");
-    assert_eq!(v[0]["status"][0]["scores"][0]["type"], "3.1");
-    assert_eq!(v[0]["status"][0]["scores"][0]["value"], 5.5);
-    assert_eq!(v[0]["status"][0]["scores"][0]["severity"], "medium");
+    assert_eq!(
+        v[0]["status"][0]["scores"],
+        json!([{"type": "3.1", "value": 5.5, "severity": "medium", "vector": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H"}])
+    );
 
     Ok(())
 }
