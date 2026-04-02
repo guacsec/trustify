@@ -5,6 +5,7 @@ mod query;
 mod test;
 
 pub use query::*;
+use uuid::Uuid;
 
 use crate::{
     Error,
@@ -16,8 +17,8 @@ use crate::{
     },
     sbom::{
         model::{
-            SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
-            SbomSummary, Which, details::SbomAdvisory,
+            SbomExternalPackageReference, SbomModel, SbomNodeReference, SbomPackage,
+            SbomPackageRelation, SbomSummary, Which, details::SbomAdvisory,
         },
         service::{SbomService, sbom::FetchOptions},
     },
@@ -67,6 +68,7 @@ pub fn configure(
         .service(get_sbom_advisories)
         .service(delete)
         .service(packages)
+        .service(models)
         .service(related)
         .service(upload)
         .service(download)
@@ -447,6 +449,36 @@ pub async fn packages(
 
     let result = fetch
         .fetch_sbom_packages(sbom.sbom_id, search, paginated, &tx)
+        .await?;
+
+    Ok(HttpResponse::Ok().json(result))
+}
+
+/// Search for AI models associated with an SBOM
+#[utoipa::path(
+    tag = "sbom",
+    operation_id = "listModels",
+    params(
+        ("id", Path, description = "ID of the SBOM to get models for"),
+        Query,
+        Paginated,
+    ),
+    responses(
+        (status = 200, description = "AI Models", body = PaginatedResults<SbomModel>),
+    ),
+)]
+#[get("/v2/sbom/{id}/models")]
+pub async fn models(
+    fetch: web::Data<SbomService>,
+    db: web::Data<Database>,
+    id: web::Path<Uuid>,
+    web::Query(search): web::Query<Query>,
+    web::Query(paginated): web::Query<Paginated>,
+    _: Require<ReadSbom>,
+) -> actix_web::Result<impl Responder> {
+    let tx = db.begin_read().await?;
+    let result = fetch
+        .fetch_sbom_models(id.into_inner(), search, paginated, &tx)
         .await?;
 
     Ok(HttpResponse::Ok().json(result))

@@ -8,6 +8,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub node_id: String,
     pub properties: serde_json::Value,
+    pub qualified_purl_id: Uuid,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -20,11 +21,7 @@ pub enum Relation {
         to = "super::sbom::Column::SbomId"
     )]
     Sbom,
-    #[sea_orm(
-        belongs_to = "super::sbom_package_purl_ref::Entity",
-        from = "(Column::SbomId, Column::NodeId)",
-        to = "(super::sbom_package_purl_ref::Column::SbomId, super::sbom_package_purl_ref::Column::NodeId)"
-    )]
+    #[sea_orm(has_one = "super::qualified_purl::Entity")]
     Purl,
 }
 
@@ -40,7 +37,7 @@ impl Related<super::sbom::Entity> for Entity {
     }
 }
 
-impl Related<super::sbom_package_purl_ref::Entity> for Entity {
+impl Related<super::qualified_purl::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Purl.def()
     }

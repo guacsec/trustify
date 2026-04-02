@@ -9,14 +9,15 @@ use crate::{
     sbom::service::sbom::IntoPackage,
     source_document::model::SourceDocument,
 };
-use sea_orm::{ConnectionTrait, ModelTrait, PaginatorTrait, prelude::Uuid};
+use sea_orm::{ConnectionTrait, FromQueryResult, ModelTrait, PaginatorTrait, prelude::Uuid};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tracing::{info_span, instrument};
 use tracing_futures::Instrument;
 use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::{
-    labels::Labels, relationship::Relationship, sbom, sbom_node, sbom_package, source_document,
+    labels::Labels, qualified_purl::CanonicalPurl, relationship::Relationship, sbom, sbom_node,
+    sbom_package, source_document,
 };
 use utoipa::ToSchema;
 
@@ -103,6 +104,34 @@ impl<P: IntoPackage> SbomSummary<P> {
             source_document: SourceDocument::from_entity(&source_document),
             described_by,
         })
+    }
+}
+
+#[derive(FromQueryResult, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+pub struct SbomModel {
+    /// The internal ID of a model
+    pub id: String,
+    /// The name of the model in the SBOM
+    pub name: String,
+    /// The model's PURL
+    pub purl: serde_json::Value,
+    /// The properties associated with the model
+    pub properties: serde_json::Value,
+}
+
+impl SbomModel {
+    pub fn stringify_purl(self) -> SbomModel {
+        if self.purl.is_object() {
+            let mut result = self.clone();
+            let purl = match serde_json::from_value::<CanonicalPurl>(self.purl) {
+                Ok(cp) => serde_json::Value::String(Purl::from(cp).to_string()),
+                Err(_) => serde_json::Value::Null,
+            };
+            result.purl = purl;
+            result
+        } else {
+            self
+        }
     }
 }
 

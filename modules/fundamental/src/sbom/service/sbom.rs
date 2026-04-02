@@ -3,8 +3,8 @@ use crate::{
     Error,
     common::license_filtering::{LICENSE, license_text_coalesce},
     sbom::model::{
-        SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
-        SbomPackageSummary, SbomSummary, Which, details::SbomDetails,
+        SbomExternalPackageReference, SbomModel, SbomNodeReference, SbomPackage,
+        SbomPackageRelation, SbomPackageSummary, SbomSummary, Which, details::SbomDetails,
     },
 };
 use futures_util::{StreamExt, TryStreamExt, stream};
@@ -37,10 +37,9 @@ use trustify_entity::{
     license, organization, package_relates_to_package,
     qualified_purl::{self, CanonicalPurl},
     relationship::Relationship,
-    sbom::{self},
-    sbom_group_assignment, sbom_license_expanded, sbom_node, sbom_package, sbom_package_cpe_ref,
-    sbom_package_license, sbom_package_purl_ref, source_document, status, versioned_purl,
-    vulnerability,
+    sbom, sbom_ai, sbom_group_assignment, sbom_license_expanded, sbom_node, sbom_package,
+    sbom_package_cpe_ref, sbom_package_license, sbom_package_purl_ref, source_document, status,
+    versioned_purl, vulnerability,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -429,6 +428,54 @@ impl SbomService {
             .await?
             .into_iter()
             .map(SbomPackage::from_row)
+            .collect();
+
+        Ok(PaginatedResults { items, total })
+    }
+
+    /// Fetch AI models associated with an SBOM.
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
+    pub async fn fetch_sbom_models<C: ConnectionTrait>(
+        &self,
+        sbom_id: Uuid,
+        search: Query,
+        paginated: Paginated,
+        connection: &C,
+    ) -> Result<PaginatedResults<SbomModel>, Error> {
+        let query = sbom_ai::Entity::find()
+            .filter(sbom_ai::Column::SbomId.eq(sbom_id))
+            .select_only()
+            .column_as(sbom_ai::Column::NodeId, "id")
+            .column(sbom_node::Column::Name)
+            .column(sbom_ai::Column::Properties)
+            .column(qualified_purl::Column::Purl)
+            .join(JoinType::LeftJoin, sbom_ai::Relation::Node.def())
+            .join(JoinType::LeftJoin, sbom_ai::Relation::Purl.def())
+            .filtering_with(
+                search,
+                Columns::from_entity::<sbom_ai::Entity>()
+                    .add_columns(sbom_node::Entity)
+                    .add_columns(qualified_purl::Entity)
+                    .translator(|f, op, v| match f {
+                        "purl:type" => Some(format!("purl:ty{op}{v}")),
+                        "purl" => Purl::translate(op, v),
+                        _ => None,
+                    }),
+            )?;
+
+        let limiter = limit_selector::<'_, _, _, _, SbomModel>(
+            connection,
+            query,
+            paginated.offset,
+            paginated.limit,
+        );
+
+        let total = limiter.total().await?;
+        let items = limiter
+            .fetch()
+            .await?
+            .into_iter()
+            .map(SbomModel::stringify_purl)
             .collect();
 
         Ok(PaginatedResults { items, total })

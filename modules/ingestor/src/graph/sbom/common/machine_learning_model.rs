@@ -1,9 +1,11 @@
+use std::str::FromStr;
+
 use crate::graph::sbom::{Checksum, ReferenceSource, common::node::NodeCreator};
 use sea_orm::{ConnectionTrait, DbErr, EntityTrait, Set};
 use sea_query::OnConflict;
 use serde_cyclonedx::cyclonedx::v_1_6::Component;
 use serde_json::{Map, Value};
-use trustify_common::db::chunk::EntityChunkedIter;
+use trustify_common::{db::chunk::EntityChunkedIter, purl::Purl};
 use trustify_entity::sbom_ai;
 use uuid::Uuid;
 
@@ -47,16 +49,32 @@ impl MachineLearningModelCreator {
         }
     }
 
-    pub fn add<I, C>(&mut self, node_id: String, name: String, checksums: I, model_card: ModelCard)
-    where
+    pub fn add<I, C>(
+        &mut self,
+        node_id: String,
+        name: String,
+        purl: Option<String>,
+        checksums: I,
+        model_card: ModelCard,
+    ) where
         I: IntoIterator<Item = C>,
         C: Into<Checksum>,
     {
         self.nodes.add(node_id.clone(), name, checksums);
+
+        let uuid = match purl {
+            Some(ref s) => match Purl::from_str(s) {
+                Ok(purl) => purl.qualifier_uuid(),
+                Err(_) => Uuid::nil(),
+            },
+            None => Uuid::nil(),
+        };
+
         self.models.push(sbom_ai::ActiveModel {
             sbom_id: Set(self.sbom_id),
             node_id: Set(node_id),
             properties: Set(model_card.properties),
+            qualified_purl_id: Set(uuid),
         });
     }
 

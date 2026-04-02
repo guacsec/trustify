@@ -1675,7 +1675,7 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+async fn get_aibom_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     // First upload it via the normal SBOM endpoint
@@ -1751,6 +1751,82 @@ async fn get_aibom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         response["items"][0]["described_by"][0]["id"],
         "pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0"
     );
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_aibom_models(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    let id = ctx
+        .ingest_document("cyclonedx/ai/ibm-granite_granite-docling-258M_aibom.json")
+        .await?
+        .id
+        .to_string();
+
+    let uri = format!("/api/v2/sbom/{id}/models");
+    let req = TestRequest::get().uri(&uri).to_request();
+    let response: Value = app.call_and_read_body_json(req).await;
+    log::debug!("response:\n{:#}", json!(response));
+    let expected = json!({
+        "items": [
+            {
+                "id": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+                "name": "granite-docling-258M",
+                "purl": "pkg:huggingface/ibm-granite/granite-docling-258M@1.0",
+                "properties": {
+                    "version": "1.0.0",
+                    "licenses": "apache-2.0",
+                    "bomFormat": "CycloneDX",
+                    "suppliedBy": "ibm-granite",
+                    "specVersion": "1.6",
+                    "typeOfModel": "idefics3",
+                    "serialNumber": "urn:uuid:ibm-granite-granite-docling-258M",
+                    "primaryPurpose": "image-text-to-text",
+                    "downloadLocation": "https://huggingface.co/ibm-granite/granite-docling-258M/tree/main",
+                    "external_references": "[{\"type\": \"website\", \"url\": \"https://huggingface.co/ibm-granite/granite-docling-258M\", \"comment\": \"Model repository\"}, {\"type\": \"distribution\", \"url\": \"https://huggingface.co/ibm-granite/granite-docling-258M/tree/main\", \"comment\": \"Model files\"}]",
+                    "safetyRiskAssessment": "and fairness, misinformation, and autonomous decision-making, and ethical considerations, including but not limited to: bias and fairness, misinformation, and autonomous decision-making, considerations, the model may in some cases produce inaccurate, biased, offensive or unwanted responses to user prompts, in prompts and responses across key dimensions outlined in the IBM AI Risk Atlas, of triggering unwanted output"
+                },
+            },
+        ],
+        "total": 1
+    });
+    assert_eq!(expected, response);
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case("hugging")]
+#[case("granite")]
+#[case("pkg:huggingface/ibm-granite")]
+#[case("pkg:huggingface/ibm-granite/granite-docling-258M")]
+#[case("pkg:huggingface/ibm-granite/granite-docling-258M@1.0")]
+#[case("purl=pkg:huggingface/ibm-granite/granite-docling-258M@1.0")]
+#[case("purl~granite")]
+#[case("purl:namespace=ibm-granite&purl:version=1.0&purl:type=huggingface")]
+#[case("name~granite")]
+#[case("name=granite-docling-258M")]
+#[case("properties:typeOfModel=idefics3")]
+#[case("properties:typeOfModel=idefics3&properties:primaryPurpose=image-text-to-text")]
+#[test_log::test(actix_web::test)]
+async fn query_aibom_models(ctx: &TrustifyContext, #[case] q: &str) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    let id = ctx
+        .ingest_document("cyclonedx/ai/ibm-granite_granite-docling-258M_aibom.json")
+        .await?
+        .id
+        .to_string();
+
+    let uri = format!("/api/v2/sbom/{id}/models?q={}", encode(q));
+    let req = TestRequest::get().uri(&uri).to_request();
+    let response: Value = app.call_and_read_body_json(req).await;
+
+    assert_eq!(response["total"].as_i64(), Some(1), "q: {q}");
 
     Ok(())
 }
