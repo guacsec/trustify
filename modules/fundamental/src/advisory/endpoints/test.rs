@@ -175,13 +175,15 @@ async fn one_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         [&json!("Red Hat Product Security")]
     );
 
-    let cvss3_scores = response.query("$.vulnerabilities[*].cvss3_scores.*")?;
+    let scores = response.query("$.vulnerabilities[*].scores[*]")?;
 
-    log::debug!("{cvss3_scores:#?}");
+    log::debug!("{scores:#?}");
 
     assert_eq!(
-        cvss3_scores,
-        [&json!("CVSS:3.0/AV:N/AC:L/PR:H/UI:N/S:C/C:H/I:N/A:N")]
+        scores,
+        [
+            &json!({"type": "3.0", "value": 6.8, "severity": "medium", "vector": "CVSS:3.0/AV:N/AC:L/PR:H/UI:N/S:C/C:H/I:N/A:N"})
+        ]
     );
 
     let uri = format!("/api/v2/advisory/urn:uuid:{}", advisory1.advisory.id);
@@ -269,13 +271,15 @@ async fn one_advisory_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Error
         [&json!("Red Hat Product Security")]
     );
 
-    let cvss3_scores = response.query("$.vulnerabilities[*].cvss3_scores.*")?;
+    let scores = response.query("$.vulnerabilities[*].scores[*]")?;
 
-    log::debug!("{cvss3_scores:#?}");
+    log::debug!("{scores:#?}");
 
     assert_eq!(
-        cvss3_scores,
-        [&json!("CVSS:3.0/AV:N/AC:L/PR:H/UI:N/S:C/C:H/I:N/A:N")]
+        scores,
+        [
+            &json!({"type": "3.0", "value": 6.8, "severity": "medium", "vector": "CVSS:3.0/AV:N/AC:L/PR:H/UI:N/S:C/C:H/I:N/A:N"})
+        ]
     );
 
     Ok(())

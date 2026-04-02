@@ -23,7 +23,6 @@ pub struct AdvisoryDetails {
 }
 
 impl AdvisoryDetails {
-    #[allow(deprecated)]
     pub async fn from_entity<C: ConnectionTrait>(
         advisory: &AdvisoryCatcher,
         tx: &C,

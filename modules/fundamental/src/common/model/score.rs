@@ -66,6 +66,28 @@ pub struct Score {
     pub severity: Severity,
 }
 
+/// A CVSS score combined with its raw vector string, for contexts where clients need both
+/// the pre-parsed numeric values and the original vector for display or re-parsing.
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema, PartialEq)]
+pub struct ScoredVector {
+    /// The score type, value, and derived severity.
+    #[serde(flatten)]
+    pub score: Score,
+    /// The raw CVSS vector string (e.g. `CVSS:3.1/AV:N/AC:L/...`).
+    pub vector: String,
+}
+
+impl From<advisory_vulnerability_score::Model> for ScoredVector {
+    /// Converts a DB score model into a `ScoredVector`, preserving both the parsed score
+    /// fields and the original vector string.
+    fn from(model: advisory_vulnerability_score::Model) -> Self {
+        Self {
+            vector: model.vector.clone(),
+            score: Score::from(model),
+        }
+    }
+}
+
 impl From<advisory_vulnerability_score::Model> for Score {
     fn from(model: advisory_vulnerability_score::Model) -> Self {
         let r#type = match model.r#type {
@@ -95,28 +117,6 @@ impl From<advisory_vulnerability_score::Model> for Score {
     }
 }
 
-/// A CVSS score combined with its raw vector string, for contexts where clients need both
-/// the pre-parsed numeric values and the original vector for display or re-parsing.
-#[derive(Clone, Serialize, Deserialize, Debug, ToSchema, PartialEq)]
-pub struct ScoredVector {
-    /// The score type, value, and derived severity.
-    #[serde(flatten)]
-    pub score: Score,
-    /// The raw CVSS vector string (e.g. `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`).
-    pub vector: String,
-}
-
-impl From<advisory_vulnerability_score::Model> for ScoredVector {
-    /// Converts a DB score row into a `ScoredVector`, rounding the numeric score and
-    /// mapping enum variants from entity types to model types.
-    fn from(model: advisory_vulnerability_score::Model) -> Self {
-        let vector = model.vector.clone();
-        ScoredVector {
-            score: Score::from(model),
-            vector,
-        }
-    }
-}
 
 #[cfg(test)]
 mod test {
