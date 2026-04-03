@@ -1804,21 +1804,35 @@ async fn get_aibom_models(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case("hugging")]
-#[case("granite")]
-#[case("pkg:huggingface/ibm-granite")]
-#[case("pkg:huggingface/ibm-granite/granite-docling-258M")]
-#[case("pkg:huggingface/ibm-granite/granite-docling-258M@1.0")]
-#[case("purl=pkg:huggingface/ibm-granite/granite-docling-258M@1.0")]
-#[case("purl~granite")]
-#[case("purl:namespace=ibm-granite&purl:version=1.0&purl:type=huggingface")]
-#[case("name~granite")]
-#[case("name=granite-docling-258M")]
-#[case("properties:typeOfModel=idefics3")]
-#[case("properties:typeOfModel=idefics3&properties:primaryPurpose=image-text-to-text")]
-#[case("purl:type=boatymcboatface")]
+#[case("hugging", 1)]
+#[case("granite", 1)]
+#[case("pkg:huggingface/ibm-granite", 1)]
+#[case("pkg:huggingface/ibm-granite/granite-docling-258M", 1)]
+#[case("pkg:huggingface/ibm-granite/granite-docling-258M@1.0", 1)]
+#[case("purl=pkg:huggingface/ibm-granite/granite-docling-258M@1.0", 1)]
+#[case("purl~granite", 1)]
+#[case("purl:namespace=ibm-granite&purl:version=1.0&purl:type=huggingface", 1)]
+#[case("name~granite", 1)]
+#[case("name=granite-docling-258M", 1)]
+#[case("properties:typeOfModel=idefics3", 1)]
+#[case(
+    "properties:typeOfModel=idefics3&properties:primaryPurpose=image-text-to-text",
+    1
+)]
+#[case("purl:type=boatymcboatface", 1)]
+// negative / no-match queries
+#[case("name=non-existent-model-name", 0)]
+#[case("purl:type=does-not-exist", 0)]
+#[case(
+    "properties:typeOfModel=idefics3&properties:primaryPurpose=text-to-image",
+    0
+)]
 #[test_log::test(actix_web::test)]
-async fn query_aibom_models(ctx: &TrustifyContext, #[case] q: &str) -> Result<(), anyhow::Error> {
+async fn query_aibom_models(
+    ctx: &TrustifyContext,
+    #[case] q: &str,
+    #[case] count: i64,
+) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
     let id = ctx
@@ -1831,7 +1845,7 @@ async fn query_aibom_models(ctx: &TrustifyContext, #[case] q: &str) -> Result<()
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
 
-    assert_eq!(response["total"].as_i64(), Some(1), "q: {q}");
+    assert_eq!(response["total"].as_i64(), Some(count), "q: {q}");
 
     Ok(())
 }

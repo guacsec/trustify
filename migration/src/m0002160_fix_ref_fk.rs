@@ -70,7 +70,7 @@ impl MigrationTrait for Migration {
 
         manager
             .get_connection()
-            .execute_unprepared(include_str!("m0002130_fix_ref_fk/up.sql"))
+            .execute_unprepared(include_str!("m0002160_fix_ref_fk/up.sql"))
             .await
             .map(|_| ())?;
 
@@ -148,7 +148,7 @@ impl MigrationTrait for Migration {
 
         manager
             .get_connection()
-            .execute_unprepared(include_str!("m0002130_fix_ref_fk/down.sql"))
+            .execute_unprepared(include_str!("m0002160_fix_ref_fk/down.sql"))
             .await
             .map(|_| ())?;
 
