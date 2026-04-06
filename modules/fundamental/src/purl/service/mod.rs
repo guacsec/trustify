@@ -24,6 +24,7 @@ use sea_query::{Asterisk, ColumnType, Expr, Func, JoinType, Order, SimpleExpr, U
 use tracing::instrument;
 use trustify_common::{
     db::{
+        chunk::chunked_with,
         limiter::LimiterTrait,
         query::{Columns, Filtering, IntoColumns, Query, q},
     },
@@ -38,10 +39,6 @@ use trustify_entity::{
     vulnerability,
 };
 use trustify_module_ingestor::common::Deprecation;
-
-/// Maximum number of items per IN-clause chunk to stay well under Postgres's 65,535 bind
-/// parameter limit. Conservative value that works for all query shapes in this module.
-const QUERY_BATCH_SIZE: usize = 10_000;
 
 /// Composite key identifying a base PURL by type, namespace, and name (without version).
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -574,7 +571,9 @@ impl PurlService {
     ) -> Result<HashMap<Uuid, Vec<StatusInfo>>, Error> {
         let mut statuses_by_base: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
 
-        for base_chunk in winner_base_ids.chunks(QUERY_BATCH_SIZE) {
+        let base_chunks = chunked_with(1, winner_base_ids.iter().copied());
+        for base_chunk in &base_chunks {
+            let base_chunk: Vec<_> = base_chunk.collect();
             let all_statuses: Vec<_> = purl_status::Entity::find()
                 .columns([
                     version_range::Column::Id,
@@ -589,7 +588,7 @@ impl PurlService {
                     base_purl::Relation::VersionedPurls.def(),
                 )
                 .left_join(version_range::Entity)
-                .filter(purl_status::Column::BasePurlId.is_in(base_chunk.iter().copied()))
+                .filter(purl_status::Column::BasePurlId.is_in(base_chunk))
                 .filter(versioned_purl::Column::Id.is_in(winner_vp_ids.iter().copied()))
                 .filter(SimpleExpr::FunctionCall(
                     Func::cust(trustify_common::db::VersionMatches)
@@ -727,7 +726,9 @@ impl PurlService {
             .collect();
 
         let mut results = Vec::new();
-        for chunk in unique_keys.chunks(QUERY_BATCH_SIZE) {
+        let key_chunks = chunked_with(3, unique_keys.into_iter());
+        for chunk in &key_chunks {
+            let chunk: Vec<_> = chunk.collect();
             let condition = chunk
                 .iter()
                 .fold(Condition::any(), |cond, key| cond.add(key.as_condition()));
@@ -750,9 +751,11 @@ impl PurlService {
         let base_purl_ids: Vec<_> = base_purls.iter().map(|bp| bp.id).collect();
 
         let mut by_base: HashMap<_, Vec<_>> = HashMap::new();
-        for chunk in base_purl_ids.chunks(QUERY_BATCH_SIZE) {
+        let id_chunks = chunked_with(1, base_purl_ids.into_iter());
+        for chunk in &id_chunks {
+            let chunk: Vec<_> = chunk.collect();
             let batch = versioned_purl::Entity::find()
-                .filter(versioned_purl::Column::BasePurlId.is_in(chunk.iter().copied()))
+                .filter(versioned_purl::Column::BasePurlId.is_in(chunk))
                 .all(connection)
                 .await?;
             for vp in batch {
