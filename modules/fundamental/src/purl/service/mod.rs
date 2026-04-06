@@ -554,12 +554,10 @@ impl PurlService {
         let statuses_by_base =
             Self::fetch_vulnerability_statuses(&winner_base_ids, &winner_vp_ids, connection)
                 .await?;
-        let qualified_purls = Self::fetch_qualified_purl_map(&winner_vp_ids, connection).await?;
 
         // Assemble recommendations from batched data
         for winner in winners {
-            let entry =
-                Self::assemble_recommend_entry(&winner, &statuses_by_base, &qualified_purls);
+            let entry = Self::assemble_recommend_entry(&winner, &statuses_by_base);
             recommendations.insert(winner.purl_string, vec![entry]);
         }
 
@@ -653,51 +651,23 @@ impl PurlService {
         Ok(statuses_by_base)
     }
 
-    /// Loads qualified PURLs for winning versioned PURLs to resolve full PURL strings with qualifiers.
+    /// Builds a single recommendation entry from a winner and its vulnerability statuses.
     ///
-    /// A versioned PURL may have multiple qualified variants (e.g. different `arch` or `type`
-    /// qualifiers). We keep only the first one found per versioned PURL because vulnerability
-    /// statuses are tracked at the base PURL level, so all qualified variants share the same
-    /// vulnerability data. The qualified PURL is used here only to reconstruct a full PURL
-    /// string (with qualifiers) for the recommendation response.
-    /// Chunks the IN clause to stay within Postgres bind parameter limits.
-    #[instrument(skip(winner_vp_ids, connection), err)]
-    async fn fetch_qualified_purl_map<C: ConnectionTrait>(
-        winner_vp_ids: &[Uuid],
-        connection: &C,
-    ) -> Result<HashMap<Uuid, qualified_purl::Model>, Error> {
-        let mut by_vp: HashMap<_, _> = HashMap::new();
-        for chunk in winner_vp_ids.chunks(QUERY_BATCH_SIZE) {
-            let qualified_purls = qualified_purl::Entity::find()
-                .filter(qualified_purl::Column::VersionedPurlId.is_in(chunk.iter().copied()))
-                .all(connection)
-                .await?;
-            for qp in qualified_purls {
-                by_vp.entry(qp.versioned_purl_id).or_insert(qp);
-            }
-        }
-        Ok(by_vp)
-    }
-
-    /// Builds a single recommendation entry from a winner, its vulnerability statuses, and qualified PURL.
+    /// Returns the versioned PURL (without qualifiers) as the recommended package string.
+    /// Qualifiers are context-dependent (arch, repository_url, type) and the system cannot
+    /// know which qualifiers match the caller's environment.
     fn assemble_recommend_entry(
         winner: &Winner<'_>,
         statuses_by_base: &HashMap<Uuid, Vec<StatusInfo>>,
-        qualified_by_vp: &HashMap<Uuid, qualified_purl::Model>,
     ) -> RecommendEntry {
-        let package_str = qualified_by_vp
-            .get(&winner.versioned_purl.id)
-            .map(|qp| Purl::from(qp.purl.clone()).to_string())
-            .unwrap_or_else(|| {
-                Purl {
-                    ty: winner.base.r#type.clone(),
-                    namespace: winner.base.namespace.clone(),
-                    name: winner.base.name.clone(),
-                    version: Some(winner.versioned_purl.version.clone()),
-                    qualifiers: Default::default(),
-                }
-                .to_string()
-            });
+        let package_str = Purl {
+            ty: winner.base.r#type.clone(),
+            namespace: winner.base.namespace.clone(),
+            name: winner.base.name.clone(),
+            version: Some(winner.versioned_purl.version.clone()),
+            qualifiers: Default::default(),
+        }
+        .to_string();
 
         // When the same vulnerability appears in multiple advisories with different statuses,
         // keep the one from the most recent advisory so that newer assessments (e.g. "fixed")

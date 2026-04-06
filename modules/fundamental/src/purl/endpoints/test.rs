@@ -343,7 +343,7 @@ async fn get_recommendations(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     );
     assert_eq!(
         recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"][0]["package"],
-        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002?repository_url=https://maven.repository.redhat.com/ga/&type=jar",
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002",
     );
 
     let mut cves = recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"]
@@ -541,7 +541,7 @@ async fn get_recommendations_mixed(ctx: &TrustifyContext) -> Result<(), anyhow::
     let entry = &recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"];
     assert_eq!(
         entry[0]["package"],
-        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002?repository_url=https://maven.repository.redhat.com/ga/&type=jar"
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002"
     );
     assert_eq!(
         entry[0]["vulnerabilities"],
@@ -560,8 +560,8 @@ async fn get_recommendations_mixed(ctx: &TrustifyContext) -> Result<(), anyhow::
 async fn get_recommendations_fallback_package_str(
     ctx: &TrustifyContext,
 ) -> Result<(), anyhow::Error> {
-    // Ingest a versioned_purl WITHOUT a qualified_purl to exercise the fallback
-    // package string construction path
+    // Ingest a versioned_purl WITHOUT a qualified_purl to verify the versioned
+    // PURL is returned as the recommended package string
     let base = ctx
         .graph
         .ingest_package(&Purl::from_str("pkg:cargo/tokio")?, &ctx.db)
@@ -581,8 +581,7 @@ async fn get_recommendations_fallback_package_str(
     let rec_list = recs["pkg:cargo/tokio@1.0.0"].as_array().unwrap();
     assert_eq!(rec_list.len(), 1);
 
-    // Without a qualified_purl, the fallback constructs the package string
-    // from base_purl fields + versioned_purl version
+    // Recommendations always return the versioned PURL (without qualifiers)
     let package = rec_list[0]["package"].as_str().unwrap();
     assert_eq!(package, "pkg:cargo/tokio@1.0.0-redhat-00001");
 
