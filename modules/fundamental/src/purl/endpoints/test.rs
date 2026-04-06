@@ -3,6 +3,7 @@ use crate::purl::model::summary::base_purl::BasePurlSummary;
 use crate::purl::model::summary::purl::PurlSummary;
 use crate::test::caller;
 use actix_web::test::TestRequest;
+use rstest::rstest;
 use serde_json::{Value, json};
 use std::str::FromStr;
 use test_context::test_context;
@@ -470,17 +471,27 @@ async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), a
 }
 
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn get_recommendations_unknown_purl(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[case::unknown_purl(
+    "pkg:maven/com.example/nonexistent@1.0.0",
+    json!({"pkg:maven/com.example/nonexistent@1.0.0": []})
+)]
+#[case::invalid_version(
+    "pkg:maven/jakarta.el/jakarta.el-api@not-a-version",
+    json!({})
+)]
+#[test_log::test(actix_web::test)]
+async fn get_recommendations_no_match(
+    ctx: &TrustifyContext,
+    #[case] purl: &str,
+    #[case] expected: Value,
+) -> Result<(), anyhow::Error> {
     ctx.ingest_documents(["cve/CVE-2022-45787.json"]).await?;
 
     let app = caller(ctx).await?;
-    let recommendations = recommend(&app, &["pkg:maven/com.example/nonexistent@1.0.0"]).await;
+    let recommendations = recommend(&app, &[purl]).await;
 
-    assert_eq!(
-        recommendations["recommendations"],
-        json!({"pkg:maven/com.example/nonexistent@1.0.0": []})
-    );
+    assert_eq!(recommendations["recommendations"], expected);
 
     Ok(())
 }
@@ -507,20 +518,6 @@ async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), a
             }]
         })
     );
-
-    Ok(())
-}
-
-#[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn get_recommendations_invalid_version(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    ctx.ingest_documents(["cve/CVE-2022-45787.json"]).await?;
-
-    let app = caller(ctx).await?;
-    let recommendations =
-        recommend(&app, &["pkg:maven/jakarta.el/jakarta.el-api@not-a-version"]).await;
-
-    assert_eq!(recommendations["recommendations"], json!({}));
 
     Ok(())
 }
