@@ -521,7 +521,7 @@ mod test {
         let resp = call_service(&app, req).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 
-        let req = TestRequest::get().uri("/api/v2/advisory").to_request();
+        let req = TestRequest::get().uri("/api/v3/advisory").to_request();
         let body = call_and_read_body(&app, req).await;
         let text = std::str::from_utf8(&body)?;
         assert!(text.contains("items"));
