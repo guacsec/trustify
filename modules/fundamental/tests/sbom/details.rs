@@ -2,7 +2,7 @@ use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
 use trustify_common::id::Id;
-use trustify_module_fundamental::common::model::Severity;
+use trustify_module_fundamental::common::model::{Score, ScoreType, ScoredVector, Severity};
 use trustify_module_fundamental::sbom::{model::details::SbomDetails, service::SbomService};
 use trustify_test_context::TrustifyContext;
 
@@ -88,77 +88,102 @@ async fn sbom_details_cyclonedx_osv(ctx: &TrustifyContext) -> Result<(), anyhow:
         &sbom1,
         "GHSA-45c4-8wx5-qw6w",
         "CVE-2023-37276",
-        Severity::Medium,
+        &[
+            sv(ScoreType::V3_1, 5.3, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N"),
+            sv(
+                ScoreType::V4,
+                6.9,
+                "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N",
+            ),
+        ],
     );
     check_advisory(
         &sbom1,
         "GHSA-c25x-cm9x-qqgx",
         "CVE-2023-28445",
-        Severity::Critical,
+        &[sv(ScoreType::V3_1, 9.9, "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H")],
     );
     check_advisory(
         &sbom1,
         "GHSA-4h4p-553m-46qh",
         "CVE-2024-6886",
-        Severity::Critical,
+        &[
+            sv(ScoreType::V3_1, 9.8, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"),
+            sv(
+                ScoreType::V4,
+                10.0,
+                "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X",
+            ),
+        ],
     );
     check_advisory(
         &sbom1,
         "GHSA-2ccf-ffrj-m4qw",
         "CVE-2023-29020",
-        Severity::Medium,
+        &[sv(ScoreType::V3_1, 6.5, "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N")],
     );
-    check_advisory(
-        &sbom1,
-        "GHSA-3cqw-pxgr-jhrm",
-        "CVE-2009-3631",
-        Severity::None,
-    );
+    check_advisory(&sbom1, "GHSA-3cqw-pxgr-jhrm", "CVE-2009-3631", &[]);
     check_advisory(
         &sbom1,
         "GHSA-rh58-r7jh-xhx3",
         "CVE-2021-26423",
-        Severity::High,
+        &[sv(ScoreType::V3_1, 7.5, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H")],
     );
     check_advisory(
         &sbom1,
         "GHSA-cvw2-xj8r-mjf7",
         "CVE-2019-25025",
-        Severity::Medium,
+        &[sv(ScoreType::V3_1, 5.3, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N")],
     );
     check_advisory(
         &sbom1,
         "GHSA-738q-mc72-2q22",
         "CVE-2023-45312",
-        Severity::High,
+        &[sv(ScoreType::V3_1, 8.8, "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H")],
     );
     check_advisory(
         &sbom1,
         "GHSA-wc9m-r3v6-9p5h",
         "CVE-2025-0509",
-        Severity::High,
+        &[sv(ScoreType::V3_1, 7.3, "CVSS:3.1/AV:A/AC:H/PR:H/UI:R/S:C/C:H/I:H/A:H")],
     );
     check_advisory(
         &sbom1,
         "GHSA-fmj7-7gfw-64pg",
         "CVE-2024-48915",
-        Severity::None,
+        &[
+            sv(ScoreType::V3_1, 0.0, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N"),
+            sv(ScoreType::V4, 7.6, "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:P/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N"),
+        ],
     );
     check_advisory(
         &sbom1,
         "GHSA-qq9f-q439-2574",
         "CVE-2024-8447",
-        Severity::Medium,
+        &[sv(ScoreType::V3_1, 5.9, "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H")],
     );
     Ok(())
 }
 
-#[allow(deprecated)]
+/// Constructs a `ScoredVector` from its parts, deriving the severity from the type and value.
+fn sv(r#type: ScoreType, value: f64, vector: impl Into<String>) -> ScoredVector {
+    ScoredVector {
+        score: Score {
+            severity: Severity::from((r#type, value)),
+            r#type,
+            value,
+        },
+        vector: vector.into(),
+    }
+}
+
+/// Asserts that the given advisory is present in the SBOM, has a single affected status entry
+/// for the expected vulnerability, and carries exactly the expected CVSS scores.
 fn check_advisory(
     sbom: &SbomDetails,
     advisory_id: &str,
     vulnerability_id: &str,
-    severity: Severity,
+    expected_scores: &[ScoredVector],
 ) {
     let advisories = sbom
         .advisories
@@ -178,4 +203,9 @@ fn check_advisory(
         advisory.status[0].vulnerability.identifier
     );
     assert_eq!("affected", advisory.status[0].status);
+    assert_eq!(
+        expected_scores,
+        advisory.status[0].scores.as_slice(),
+        "scores mismatch for advisory {advisory_id}"
+    );
 }
