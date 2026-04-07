@@ -232,6 +232,7 @@ mod test {
     use super::*;
     use rstest::rstest;
     use strum::VariantArray;
+    use trustify_entity::advisory_vulnerability_score as entity_score;
 
     #[test]
     fn ensure_schema_variants() {
@@ -310,5 +311,24 @@ mod test {
         #[case] expected: Severity,
     ) {
         assert_eq!(Severity::from((score_type, score)), expected);
+    }
+
+    #[rstest]
+    #[case(ScoreType::V2, entity_score::ScoreType::V2_0)]
+    #[case(ScoreType::V3, entity_score::ScoreType::V3_0)]
+    #[case(ScoreType::V3_1, entity_score::ScoreType::V3_1)]
+    #[case(ScoreType::V4, entity_score::ScoreType::V4_0)]
+    fn score_type_to_entity(#[case] input: ScoreType, #[case] expected: entity_score::ScoreType) {
+        assert_eq!(entity_score::ScoreType::from(input), expected);
+    }
+
+    #[rstest]
+    #[case(Severity::None, entity_score::Severity::None)]
+    #[case(Severity::Low, entity_score::Severity::Low)]
+    #[case(Severity::Medium, entity_score::Severity::Medium)]
+    #[case(Severity::High, entity_score::Severity::High)]
+    #[case(Severity::Critical, entity_score::Severity::Critical)]
+    fn severity_to_entity(#[case] input: Severity, #[case] expected: entity_score::Severity) {
+        assert_eq!(entity_score::Severity::from(input), expected);
     }
 }

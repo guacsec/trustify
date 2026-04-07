@@ -195,3 +195,96 @@ impl ScoreCreator {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::str::FromStr;
+    use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
+    use uuid::Uuid;
+
+    #[test]
+    fn score_information_into_active_model() {
+        // Exercises the From<ScoreInformation> for advisory_vulnerability_score::ActiveModel path.
+        let info = ScoreInformation {
+            vulnerability_id: "CVE-2021-1234".to_string(),
+            r#type: ScoreType::V3_1,
+            vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H".to_string(),
+            score: 9.8,
+            severity: Severity::Critical,
+        };
+        let model: advisory_vulnerability_score::ActiveModel = info.into();
+        assert_eq!(model.vulnerability_id.unwrap(), "CVE-2021-1234");
+        assert_eq!(model.r#type.unwrap(), ScoreType::V3_1);
+        assert_eq!(model.score.unwrap(), 9.8f32);
+        assert_eq!(model.severity.unwrap(), Severity::Critical);
+    }
+
+    #[test]
+    fn score_information_from_v2_high() {
+        // Exercises the High severity branch (score >= 7.0) in From<(String, v2_0::CvssV2)>.
+        // AV:N/AC:L/Au:N/C:C/I:C/A:C is a CVSS v2 vector with score 10.0 (High).
+        let cvss =
+            v2_0::CvssV2::from_str("AV:N/AC:L/Au:N/C:C/I:C/A:C").expect("valid CVSS v2 vector");
+        let info: ScoreInformation = ("CVE-2021-9999".to_string(), cvss).into();
+        assert_eq!(info.r#type, ScoreType::V2_0);
+        assert_eq!(info.severity, Severity::High);
+        assert!(info.score >= 7.0);
+    }
+
+    #[test]
+    fn score_information_from_v3_no_version() {
+        // Exercises the None version branch in From<(String, v3::CvssV3)>, which defaults to V3_0.
+        // Deserialising without a "version" field leaves CvssV3::version as None.
+        let cvss: v3::CvssV3 = serde_json::from_value(serde_json::json!({
+            "vectorString": "",
+            "baseScore": 0.0,
+            "baseSeverity": "NONE"
+        }))
+        .expect("valid minimal CvssV3 JSON");
+        assert!(cvss.version.is_none(), "precondition: version must be None");
+        let info: ScoreInformation = ("CVE-2021-0000".to_string(), cvss).into();
+        assert_eq!(info.r#type, ScoreType::V3_0);
+    }
+
+    #[test]
+    fn score_information_from_v4_none_severity() {
+        // Exercises the CvssSeverity::None branch in From<(String, v4_0::CvssV4)>.
+        // With no metric fields populated calculated_base_score() returns None,
+        // so unwrap_or(0.0) yields 0.0 which maps to Severity::None.
+        let cvss: v4_0::CvssV4 = serde_json::from_value(serde_json::json!({
+            "vectorString": "",
+            "baseScore": 0.0,
+            "baseSeverity": "NONE"
+        }))
+        .expect("valid minimal CvssV4 JSON");
+        let info: ScoreInformation = ("CVE-2021-0000".to_string(), cvss).into();
+        assert_eq!(info.severity, Severity::None);
+    }
+
+    #[test]
+    fn score_creator_extend() {
+        // Exercises ScoreCreator::extend() by verifying items are appended to the internal list.
+        let advisory_id = Uuid::nil();
+        let mut creator = ScoreCreator::new(advisory_id);
+        let items = vec![
+            ScoreInformation {
+                vulnerability_id: "CVE-2021-0001".to_string(),
+                r#type: ScoreType::V3_1,
+                vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H".to_string(),
+                score: 9.8,
+                severity: Severity::Critical,
+            },
+            ScoreInformation {
+                vulnerability_id: "CVE-2021-0002".to_string(),
+                r#type: ScoreType::V4_0,
+                vector: "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+                    .to_string(),
+                score: 7.5,
+                severity: Severity::High,
+            },
+        ];
+        creator.extend(items);
+        assert_eq!(creator.scores.len(), 2);
+    }
+}

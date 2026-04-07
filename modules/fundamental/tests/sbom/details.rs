@@ -89,7 +89,11 @@ async fn sbom_details_cyclonedx_osv(ctx: &TrustifyContext) -> Result<(), anyhow:
         "GHSA-45c4-8wx5-qw6w",
         "CVE-2023-37276",
         &[
-            sv(ScoreType::V3_1, 5.3, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N"),
+            sv(
+                ScoreType::V3_1,
+                5.3,
+                "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
+            ),
             sv(
                 ScoreType::V4,
                 6.9,
@@ -101,14 +105,22 @@ async fn sbom_details_cyclonedx_osv(ctx: &TrustifyContext) -> Result<(), anyhow:
         &sbom1,
         "GHSA-c25x-cm9x-qqgx",
         "CVE-2023-28445",
-        &[sv(ScoreType::V3_1, 9.9, "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H")],
+        &[sv(
+            ScoreType::V3_1,
+            9.9,
+            "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H",
+        )],
     );
     check_advisory(
         &sbom1,
         "GHSA-4h4p-553m-46qh",
         "CVE-2024-6886",
         &[
-            sv(ScoreType::V3_1, 9.8, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"),
+            sv(
+                ScoreType::V3_1,
+                9.8,
+                "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            ),
             sv(
                 ScoreType::V4,
                 10.0,
@@ -120,47 +132,79 @@ async fn sbom_details_cyclonedx_osv(ctx: &TrustifyContext) -> Result<(), anyhow:
         &sbom1,
         "GHSA-2ccf-ffrj-m4qw",
         "CVE-2023-29020",
-        &[sv(ScoreType::V3_1, 6.5, "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N")],
+        &[sv(
+            ScoreType::V3_1,
+            6.5,
+            "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        )],
     );
     check_advisory(&sbom1, "GHSA-3cqw-pxgr-jhrm", "CVE-2009-3631", &[]);
     check_advisory(
         &sbom1,
         "GHSA-rh58-r7jh-xhx3",
         "CVE-2021-26423",
-        &[sv(ScoreType::V3_1, 7.5, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H")],
+        &[sv(
+            ScoreType::V3_1,
+            7.5,
+            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+        )],
     );
     check_advisory(
         &sbom1,
         "GHSA-cvw2-xj8r-mjf7",
         "CVE-2019-25025",
-        &[sv(ScoreType::V3_1, 5.3, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N")],
+        &[sv(
+            ScoreType::V3_1,
+            5.3,
+            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+        )],
     );
     check_advisory(
         &sbom1,
         "GHSA-738q-mc72-2q22",
         "CVE-2023-45312",
-        &[sv(ScoreType::V3_1, 8.8, "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H")],
+        &[sv(
+            ScoreType::V3_1,
+            8.8,
+            "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+        )],
     );
     check_advisory(
         &sbom1,
         "GHSA-wc9m-r3v6-9p5h",
         "CVE-2025-0509",
-        &[sv(ScoreType::V3_1, 7.3, "CVSS:3.1/AV:A/AC:H/PR:H/UI:R/S:C/C:H/I:H/A:H")],
+        &[sv(
+            ScoreType::V3_1,
+            7.3,
+            "CVSS:3.1/AV:A/AC:H/PR:H/UI:R/S:C/C:H/I:H/A:H",
+        )],
     );
     check_advisory(
         &sbom1,
         "GHSA-fmj7-7gfw-64pg",
         "CVE-2024-48915",
         &[
-            sv(ScoreType::V3_1, 0.0, "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N"),
-            sv(ScoreType::V4, 7.6, "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:P/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N"),
+            sv(
+                ScoreType::V3_1,
+                0.0,
+                "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N",
+            ),
+            sv(
+                ScoreType::V4,
+                7.6,
+                "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:P/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N",
+            ),
         ],
     );
     check_advisory(
         &sbom1,
         "GHSA-qq9f-q439-2574",
         "CVE-2024-8447",
-        &[sv(ScoreType::V3_1, 5.9, "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H")],
+        &[sv(
+            ScoreType::V3_1,
+            5.9,
+            "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
+        )],
     );
     Ok(())
 }
