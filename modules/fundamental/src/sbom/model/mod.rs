@@ -9,7 +9,7 @@ use crate::{
     sbom::service::sbom::IntoPackage,
     source_document::model::SourceDocument,
 };
-use sea_orm::{ConnectionTrait, ModelTrait, PaginatorTrait, prelude::Uuid};
+use sea_orm::{ConnectionTrait, FromQueryResult, ModelTrait, PaginatorTrait, prelude::Uuid};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tracing::{info_span, instrument};
@@ -19,6 +19,17 @@ use trustify_entity::{
     labels::Labels, relationship::Relationship, sbom, sbom_node, sbom_package, source_document,
 };
 use utoipa::ToSchema;
+
+/// Lightweight SBOM lookup result containing only the SBOM ID and document ID.
+/// Designed for efficient bulk lookups (e.g., CLI delete/prune operations)
+/// by joining only the `sbom` and `source_document` tables.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, FromQueryResult)]
+pub struct SbomLookup {
+    #[serde(with = "uuid::serde::urn")]
+    #[schema(value_type=String)]
+    pub sbom_id: Uuid,
+    pub document_id: Option<String>,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, Default)]
 pub struct SbomHead {

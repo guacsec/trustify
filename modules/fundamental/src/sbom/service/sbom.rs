@@ -3,8 +3,8 @@ use crate::{
     Error,
     common::license_filtering::{LICENSE, license_text_coalesce},
     sbom::model::{
-        SbomExternalPackageReference, SbomNodeReference, SbomPackage, SbomPackageRelation,
-        SbomPackageSummary, SbomSummary, Which, details::SbomDetails,
+        SbomExternalPackageReference, SbomLookup, SbomNodeReference, SbomPackage,
+        SbomPackageRelation, SbomPackageSummary, SbomSummary, Which, details::SbomDetails,
     },
 };
 use futures_util::{StreamExt, TryStreamExt, stream};
@@ -21,7 +21,7 @@ use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
     cpe::Cpe,
     db::{
-        limiter::{LimiterTrait, limit_selector},
+        limiter::{LimiterAsModelTrait, LimiterTrait, limit_selector},
         multi_model::{FromQueryResultMultiModel, SelectIntoMultiModel},
         query::{Columns, Filtering, IntoColumns, Query, q},
     },
@@ -112,6 +112,37 @@ impl SbomService {
             Some(row) => Some(SbomSummary::from_entity(row, self, connection).await?),
             None => None,
         })
+    }
+
+    /// Fetch lightweight SBOM lookups (only sbom_id and document_id).
+    /// Joins only `sbom` and `source_document` tables for maximum efficiency.
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
+    pub async fn fetch_sbom_lookups<C: ConnectionTrait>(
+        &self,
+        search: Query,
+        paginated: Paginated,
+        connection: &C,
+    ) -> Result<PaginatedResults<SbomLookup>, Error> {
+        let limiter = sbom::Entity::find()
+            .join(JoinType::Join, sbom::Relation::SourceDocument.def())
+            .select_only()
+            .column(sbom::Column::SbomId)
+            .column(sbom::Column::DocumentId)
+            .filtering_with(
+                search,
+                Columns::from_entity::<sbom::Entity>()
+                    .add_columns(source_document::Entity)
+                    .translator(|f, op, v| match f.split_once(':') {
+                        Some(("label", key)) => Some(format!("labels:{key}{op}{v}")),
+                        _ => None,
+                    }),
+            )?
+            .limiting_as::<SbomLookup>(connection, paginated.offset, paginated.limit);
+
+        let total = limiter.total().await?;
+        let items = limiter.fetch().await?;
+
+        Ok(PaginatedResults { total, items })
     }
 
     /// delete one sbom
