@@ -25,95 +25,6 @@ paths:
                   version:
                     type: string
   /api/v2/advisory:
-    get:
-      tags:
-      - advisory
-      summary: List advisories
-      operationId: listAdvisories
-      parameters:
-      - name: q
-        in: query
-        description: |
-          Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
-          ```text
-          (* Query Grammar - EBNF Compliant *)
-          query = ( values | filter ) , { "&" , query } ;
-          values = value , { "|" , value } ;
-          filter = field , operator , values ;
-          operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<" ;
-          field = ("id" | "identifier" | "version" | "document_id" | "deprecated" | "issuer_id" | "published" | "modified" | "withdrawn" | "title" | "ingested" | "label")
-          value = { value_char } ;
-          value_char = escaped_char | normal_char ;
-          escaped_char = "\" , special_char ;
-          normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\' ? ;
-          special_char = "&" | "|" | "=" | "!" | "~" | ">" | "<" | "\" ;
-          ```
-          Examples:
-          - Simple filter: title=example
-          - Multiple values filter: title=foo|bar|baz
-          - Complex filter: modified>2024-01-01
-          - Combined query: title=foo&average_severity=high
-          - Escaped characters: title=foo\\&bar
-        required: false
-        schema:
-          type: string
-      - name: sort
-        in: query
-        description: |-
-          EBNF grammar for the _sort_ parameter:
-          ```text
-              sort = field [ ':', order ] { ',' sort }
-              order = ( "asc" | "desc" )
-              field = ("id" | "identifier" | "version" | "document_id" | "deprecated" | "issuer_id" | "published" | "modified" | "withdrawn" | "title" | "ingested" | "label")
-          ```
-          The optional _order_ should be one of "asc" or "desc". If
-          omitted, the order defaults to "asc".
-
-          Each _field_ name must correspond to one of the columns of the
-          table holding the entities being queried. Those corresponding
-          to JSON objects in the database may use a ':' to delimit the
-          column name and the object key,
-          e.g. `purl:qualifiers:type:desc`
-        required: false
-        schema:
-          type: string
-      - name: offset
-        in: query
-        description: |-
-          The first item to return, skipping all that come before it.
-
-          NOTE: The order of items is defined by the API being called.
-        required: false
-        schema:
-          type: integer
-          format: int64
-          minimum: 0
-      - name: limit
-        in: query
-        description: |-
-          The maximum number of entries to return.
-
-          Zero means: no limit
-        required: false
-        schema:
-          type: integer
-          format: int64
-          minimum: 0
-      - name: deprecated
-        in: query
-        required: false
-        schema:
-          type: string
-          enum:
-          - Ignore
-          - Consider
-      responses:
-        '200':
-          description: Matching vulnerabilities
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedResults_AdvisorySummary'
     post:
       tags:
       - advisory
@@ -242,26 +153,6 @@ paths:
         '404':
           description: The advisory could not be found
   /api/v2/advisory/{key}:
-    get:
-      tags:
-      - advisory
-      summary: Get an advisory
-      operationId: getAdvisory
-      parameters:
-      - name: key
-        in: path
-        required: true
-        schema:
-          $ref: '#/components/schemas/Id'
-      responses:
-        '200':
-          description: Matching advisory
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdvisoryDetails'
-        '404':
-          description: The advisory could not be found
     delete:
       tags:
       - advisory
@@ -2286,34 +2177,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendResponse'
-  /api/v2/purl/{key}:
-    get:
-      tags:
-      - purl
-      summary: Retrieve details of a fully-qualified pURL
-      operationId: getPurl
-      parameters:
-      - name: deprecated
-        in: query
-        required: false
-        schema:
-          type: string
-          enum:
-          - Ignore
-          - Consider
-      - name: key
-        in: path
-        description: opaque identifier for a fully-qualified PURL, or URL-encoded pURL itself
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: Details for the qualified PURL
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PurlDetails'
   /api/v2/sbom:
     get:
       tags:
@@ -2744,29 +2607,6 @@ paths:
       responses:
         '204':
           description: Matching SBOM as deleted
-        '404':
-          description: The SBOM could not be found
-  /api/v2/sbom/{id}/advisory:
-    get:
-      tags:
-      - sbom
-      summary: Get advisories for an SBOM
-      operationId: getSbomAdvisories
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          $ref: '#/components/schemas/Id'
-      responses:
-        '200':
-          description: Matching SBOM
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/SbomAdvisory'
         '404':
           description: The SBOM could not be found
   /api/v2/sbom/{id}/all-license-ids:
@@ -3388,88 +3228,6 @@ paths:
           description: User preferences are deleted
         '412':
           description: The provided If-Match revision did not match the actual revision
-  /api/v2/vulnerability:
-    get:
-      tags:
-      - vulnerability
-      summary: List vulnerabilities
-      operationId: listVulnerabilities
-      parameters:
-      - name: q
-        in: query
-        description: |
-          Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
-          ```text
-          (* Query Grammar - EBNF Compliant *)
-          query = ( values | filter ) , { "&" , query } ;
-          values = value , { "|" , value } ;
-          filter = field , operator , values ;
-          operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<" ;
-          field = ("id" | "title" | "reserved" | "published" | "modified" | "withdrawn" | "cwes" | "base_score" | "base_severity")
-          value = { value_char } ;
-          value_char = escaped_char | normal_char ;
-          escaped_char = "\" , special_char ;
-          normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\' ? ;
-          special_char = "&" | "|" | "=" | "!" | "~" | ">" | "<" | "\" ;
-          ```
-          Examples:
-          - Simple filter: title=example
-          - Multiple values filter: title=foo|bar|baz
-          - Complex filter: modified>2024-01-01
-          - Combined query: title=foo&average_severity=high
-          - Escaped characters: title=foo\\&bar
-        required: false
-        schema:
-          type: string
-      - name: sort
-        in: query
-        description: |-
-          EBNF grammar for the _sort_ parameter:
-          ```text
-              sort = field [ ':', order ] { ',' sort }
-              order = ( "asc" | "desc" )
-              field = ("id" | "title" | "reserved" | "published" | "modified" | "withdrawn" | "cwes" | "base_score" | "base_severity")
-          ```
-          The optional _order_ should be one of "asc" or "desc". If
-          omitted, the order defaults to "asc".
-
-          Each _field_ name must correspond to one of the columns of the
-          table holding the entities being queried. Those corresponding
-          to JSON objects in the database may use a ':' to delimit the
-          column name and the object key,
-          e.g. `purl:qualifiers:type:desc`
-        required: false
-        schema:
-          type: string
-      - name: offset
-        in: query
-        description: |-
-          The first item to return, skipping all that come before it.
-
-          NOTE: The order of items is defined by the API being called.
-        required: false
-        schema:
-          type: integer
-          format: int64
-          minimum: 0
-      - name: limit
-        in: query
-        description: |-
-          The maximum number of entries to return.
-
-          Zero means: no limit
-        required: false
-        schema:
-          type: integer
-          format: int64
-          minimum: 0
-      responses:
-        '200':
-          description: Matching vulnerabilities
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedResults_VulnerabilitySummary'
   /api/v2/vulnerability/analyze:
     post:
       tags:
@@ -3489,28 +3247,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AnalysisResponse'
-  /api/v2/vulnerability/{id}:
-    get:
-      tags:
-      - vulnerability
-      summary: Retrieve vulnerability details
-      operationId: getVulnerability
-      parameters:
-      - name: id
-        in: path
-        description: ID of the vulnerability
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: Specified vulnerability
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VulnerabilityDetails'
-        '404':
-          description: The vulnerability could not be found
   /api/v2/weakness:
     get:
       tags:
@@ -3642,6 +3378,145 @@ paths:
                 $ref: '#/components/schemas/LicenseSummary'
         '404':
           description: The weakness could not be found
+  /api/v3/advisory:
+    get:
+      tags:
+      - advisory
+      summary: List advisories
+      operationId: listAdvisories
+      parameters:
+      - name: q
+        in: query
+        description: |
+          Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
+          ```text
+          (* Query Grammar - EBNF Compliant *)
+          query = ( values | filter ) , { "&" , query } ;
+          values = value , { "|" , value } ;
+          filter = field , operator , values ;
+          operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<" ;
+          field = ("id" | "identifier" | "version" | "document_id" | "deprecated" | "issuer_id" | "published" | "modified" | "withdrawn" | "title" | "ingested" | "label")
+          value = { value_char } ;
+          value_char = escaped_char | normal_char ;
+          escaped_char = "\" , special_char ;
+          normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\' ? ;
+          special_char = "&" | "|" | "=" | "!" | "~" | ">" | "<" | "\" ;
+          ```
+          Examples:
+          - Simple filter: title=example
+          - Multiple values filter: title=foo|bar|baz
+          - Complex filter: modified>2024-01-01
+          - Combined query: title=foo&average_severity=high
+          - Escaped characters: title=foo\\&bar
+        required: false
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: |-
+          EBNF grammar for the _sort_ parameter:
+          ```text
+              sort = field [ ':', order ] { ',' sort }
+              order = ( "asc" | "desc" )
+              field = ("id" | "identifier" | "version" | "document_id" | "deprecated" | "issuer_id" | "published" | "modified" | "withdrawn" | "title" | "ingested" | "label")
+          ```
+          The optional _order_ should be one of "asc" or "desc". If
+          omitted, the order defaults to "asc".
+
+          Each _field_ name must correspond to one of the columns of the
+          table holding the entities being queried. Those corresponding
+          to JSON objects in the database may use a ':' to delimit the
+          column name and the object key,
+          e.g. `purl:qualifiers:type:desc`
+        required: false
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: no limit
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: deprecated
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - Ignore
+          - Consider
+      responses:
+        '200':
+          description: Matching vulnerabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResults_AdvisorySummary'
+  /api/v3/advisory/{key}:
+    get:
+      tags:
+      - advisory
+      summary: Get an advisory
+      operationId: getAdvisory
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: Matching advisory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvisoryDetails'
+        '404':
+          description: The advisory could not be found
+  /api/v3/purl/{key}:
+    get:
+      tags:
+      - purl
+      summary: Retrieve details of a fully-qualified pURL
+      operationId: getPurl
+      parameters:
+      - name: deprecated
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - Ignore
+          - Consider
+      - name: key
+        in: path
+        description: opaque identifier for a fully-qualified PURL, or URL-encoded pURL itself
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Details for the qualified PURL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurlDetails'
   /api/v3/sbom:
     get:
       tags:
@@ -3762,6 +3637,111 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedResults_SbomPackageSummary'
+  /api/v3/sbom/{id}/advisory:
+    get:
+      tags:
+      - sbom
+      summary: Get advisories for an SBOM
+      operationId: getSbomAdvisories
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: Matching SBOM
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SbomAdvisory'
+        '404':
+          description: The SBOM could not be found
+  /api/v3/vulnerability:
+    get:
+      tags:
+      - vulnerability
+      summary: List vulnerabilities
+      operationId: listVulnerabilities
+      parameters:
+      - name: q
+        in: query
+        description: |
+          Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
+          ```text
+          (* Query Grammar - EBNF Compliant *)
+          query = ( values | filter ) , { "&" , query } ;
+          values = value , { "|" , value } ;
+          filter = field , operator , values ;
+          operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<" ;
+          field = ("id" | "title" | "reserved" | "published" | "modified" | "withdrawn" | "cwes" | "base_score" | "base_severity")
+          value = { value_char } ;
+          value_char = escaped_char | normal_char ;
+          escaped_char = "\" , special_char ;
+          normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\' ? ;
+          special_char = "&" | "|" | "=" | "!" | "~" | ">" | "<" | "\" ;
+          ```
+          Examples:
+          - Simple filter: title=example
+          - Multiple values filter: title=foo|bar|baz
+          - Complex filter: modified>2024-01-01
+          - Combined query: title=foo&average_severity=high
+          - Escaped characters: title=foo\\&bar
+        required: false
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: |-
+          EBNF grammar for the _sort_ parameter:
+          ```text
+              sort = field [ ':', order ] { ',' sort }
+              order = ( "asc" | "desc" )
+              field = ("id" | "title" | "reserved" | "published" | "modified" | "withdrawn" | "cwes" | "base_score" | "base_severity")
+          ```
+          The optional _order_ should be one of "asc" or "desc". If
+          omitted, the order defaults to "asc".
+
+          Each _field_ name must correspond to one of the columns of the
+          table holding the entities being queried. Those corresponding
+          to JSON objects in the database may use a ':' to delimit the
+          column name and the object key,
+          e.g. `purl:qualifiers:type:desc`
+        required: false
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: no limit
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      responses:
+        '200':
+          description: Matching vulnerabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResults_VulnerabilitySummary'
   /api/v3/vulnerability/analyze:
     post:
       tags:
@@ -3780,6 +3760,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AnalysisResponseV3'
+  /api/v3/vulnerability/{id}:
+    get:
+      tags:
+      - vulnerability
+      summary: Retrieve vulnerability details
+      operationId: getVulnerability
+      parameters:
+      - name: id
+        in: path
+        description: ID of the vulnerability
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Specified vulnerability
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VulnerabilityDetails'
+        '404':
+          description: The vulnerability could not be found
 components:
   schemas:
     AdvisoryDetails:
