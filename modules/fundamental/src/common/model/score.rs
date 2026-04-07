@@ -227,7 +227,6 @@ impl From<entity_score::Model> for Score {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
