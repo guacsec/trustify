@@ -3,7 +3,7 @@ use crate::{
         Group, GroupRef, UpdateAssignments, create_groups, locate_id, read_assignments,
         resolve_group_refs,
     },
-    sbom::model::{SbomPackage, SbomSummary},
+    sbom::model::{SbomLookup, SbomPackage, SbomSummary},
     test::{caller, label::Api},
 };
 use actix_http::StatusCode;
@@ -1922,6 +1922,79 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::BAD_REQUEST, response.status());
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn lookup_sboms(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let result = ctx
+        .ingest_document("spdx/quarkus-bom-3.2.11.Final-redhat-00001.json")
+        .await?;
+    let id = result.id.to_string();
+
+    let uri = "/api/v2/sbom/lookup";
+    let req = TestRequest::get().uri(uri).to_request();
+    let response: PaginatedResults<SbomLookup> = app.call_and_read_body_json(req).await;
+
+    assert_eq!(response.total, 1);
+    assert_eq!(response.items.len(), 1);
+    assert_eq!(response.items[0].sbom_id.to_string(), id);
+    assert!(response.items[0].document_id.is_some());
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn lookup_sboms_search(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_document("spdx/quarkus-bom-3.2.11.Final-redhat-00001.json")
+        .await?;
+    ctx.ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+
+    // Without filter: both SBOMs
+    let req = TestRequest::get().uri("/api/v2/sbom/lookup").to_request();
+    let response: PaginatedResults<SbomLookup> = app.call_and_read_body_json(req).await;
+    assert_eq!(response.total, 2);
+
+    // With search filter
+    let uri = format!("/api/v2/sbom/lookup?q={}", encode("quarkus"));
+    let req = TestRequest::get().uri(&uri).to_request();
+    let response: PaginatedResults<SbomLookup> = app.call_and_read_body_json(req).await;
+    assert_eq!(response.total, 1);
+    assert!(response.items[0].document_id.is_some());
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn lookup_sboms_pagination(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_document("spdx/quarkus-bom-3.2.11.Final-redhat-00001.json")
+        .await?;
+    ctx.ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+
+    // Page with limit=1
+    let req = TestRequest::get()
+        .uri("/api/v2/sbom/lookup?limit=1")
+        .to_request();
+    let response: PaginatedResults<SbomLookup> = app.call_and_read_body_json(req).await;
+    assert_eq!(response.total, 2);
+    assert_eq!(response.items.len(), 1);
+
+    // Second page
+    let req = TestRequest::get()
+        .uri("/api/v2/sbom/lookup?limit=1&offset=1")
+        .to_request();
+    let response: PaginatedResults<SbomLookup> = app.call_and_read_body_json(req).await;
+    assert_eq!(response.total, 2);
+    assert_eq!(response.items.len(), 1);
 
     Ok(())
 }
