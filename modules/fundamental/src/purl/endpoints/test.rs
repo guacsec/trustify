@@ -1,16 +1,17 @@
-use crate::purl::model::details::base_purl::BasePurlDetails;
-use crate::purl::model::summary::base_purl::BasePurlSummary;
-use crate::purl::model::summary::purl::PurlSummary;
-use crate::test::caller;
+use crate::{
+    purl::model::{
+        details::base_purl::BasePurlDetails,
+        summary::{base_purl::BasePurlSummary, purl::PurlSummary},
+    },
+    test::caller,
+};
 use actix_web::test::TestRequest;
 use rstest::rstest;
 use serde_json::{Value, json};
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::db::Database;
-use trustify_common::model::PaginatedResults;
-use trustify_common::purl::Purl;
+use trustify_common::{db::Database, model::PaginatedResults, purl::Purl};
 use trustify_module_ingestor::graph::Graph;
 use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
 use urlencoding::encode;
@@ -158,7 +159,7 @@ async fn package_with_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
 
     let uuid = response.items[0].head.uuid;
 
-    let uri = format!("/api/v2/purl/{uuid}");
+    let uri = format!("/api/v3/purl/{uuid}");
 
     let request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
@@ -175,6 +176,15 @@ async fn package_with_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     assert_eq!(
         "CVE-2021-32714",
         response["advisories"][0]["status"][0]["vulnerability"]["identifier"]
+    );
+    // Deprecated average fields must not appear.
+    assert_eq!(
+        response["advisories"][0]["status"][0]["average_score"],
+        Value::Null
+    );
+    assert_eq!(
+        response["advisories"][0]["status"][0]["average_severity"],
+        Value::Null
     );
 
     Ok(())
@@ -271,7 +281,7 @@ async fn test_purl_license_details(ctx: &TrustifyContext) -> Result<(), anyhow::
 
     let uuid = response.items[0].head.uuid;
 
-    let uri = format!("/api/v2/purl/{uuid}");
+    let uri = format!("/api/v3/purl/{uuid}");
 
     let request = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;

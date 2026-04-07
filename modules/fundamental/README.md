@@ -16,7 +16,7 @@ http localhost:8080/api/v2/sbom/by-purl id==6cfff15d-ee06-4cb7-be37-a835aed2af82
 
 ## Labels
 
-**NOTE:** The allowing examples use SBOMs. It works the same way with advisories.
+**NOTE:** The following examples use SBOMs. It works the same way with advisories.
 
 All examples in this section expect the environment variable `ID`
 to point to an SBOM/advisory in the form of `urn:uuid:<id>`.
@@ -24,7 +24,7 @@ to point to an SBOM/advisory in the form of `urn:uuid:<id>`.
 ## Get labels
 
 ```bash
-http localhost:8080/api/v2/sbom/$ID | jq .labels
+http localhost:8080/api/v3/sbom/$ID | jq .labels
 ```
 
 ## Mutate labels
@@ -54,5 +54,5 @@ This will set `foo` to `bar` and remove the label `bar`.
 ## Search by labels
 
 ```bash
-http GET localhost:8080/api/v2/sbom 'q==label:foo=bar' | jq '.items[] | {id, name, labels}'
+http GET localhost:8080/api/v3/sbom 'q==label:foo=bar' | jq '.items[] | {id, name, labels}'
 ```

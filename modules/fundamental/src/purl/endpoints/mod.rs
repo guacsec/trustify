@@ -47,7 +47,7 @@ pub fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig, d
         (status = 200, description = "Details for the qualified PURL", body = PurlDetails),
     ),
 )]
-#[get("/v2/purl/{key}")]
+#[get("/v3/purl/{key}")]
 /// Retrieve details of a fully-qualified pURL
 pub async fn get(
     service: web::Data<PurlService>,

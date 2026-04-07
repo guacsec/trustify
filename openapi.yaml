@@ -3789,21 +3789,7 @@ components:
       - type: object
         required:
         - vulnerabilities
-        - average_severity
-        - average_score
         properties:
-          average_score:
-            type:
-            - number
-            - 'null'
-            format: double
-            description: Average (arithmetic mean) score of the advisory aggregated from *all* related vulnerability assertions.
-            deprecated: true
-          average_severity:
-            oneOf:
-            - type: 'null'
-            - $ref: '#/components/schemas/Severity'
-              description: Average (arithmetic mean) severity of the advisory aggregated from *all* related vulnerability assertions.
           vulnerabilities:
             type: array
             items:
@@ -3870,23 +3856,8 @@ components:
         description: Information pertaning to the underlying source document, if any.
       - type: object
         required:
-        - average_severity
-        - average_score
         - vulnerabilities
         properties:
-          average_score:
-            type:
-            - number
-            - 'null'
-            format: double
-            description: Average (arithmetic mean) score of the advisory aggregated from *all* related vulnerability assertions.
-            deprecated: true
-          average_severity:
-            type:
-            - string
-            - 'null'
-            description: Average (arithmetic mean) severity of the advisory aggregated from *all* related vulnerability assertions.
-            deprecated: true
           vulnerabilities:
             type: array
             items:
@@ -3896,44 +3867,17 @@ components:
       allOf:
       - $ref: '#/components/schemas/VulnerabilityHead'
       - type: object
+        required:
+        - scores
         properties:
-          score:
-            type:
-            - number
-            - 'null'
-            format: double
-            description: |-
-              The average (arithmetic mean) score this advisory assigns to
-              the particular vulnerability.
-            deprecated: true
-          severity:
-            oneOf:
-            - type: 'null'
-            - $ref: '#/components/schemas/Severity'
-              description: |-
-                The English-language word description of the severity of the given
-                vulnerability, as asserted by the advisory, using the CVSS bucketing
-                ranges.
-
-                Critical: 9.0–10.0
-                High: 7.0–8.9
-                Medium: 4.0–6.9
-                Low: 0.1–3.9
-                None: 0
+          scores:
+            type: array
+            items:
+              $ref: '#/components/schemas/ScoredVector'
+            description: All CVSS scores with their raw vector strings from the advisory for this vulnerability.
     AdvisoryVulnerabilitySummary:
       allOf:
       - $ref: '#/components/schemas/AdvisoryVulnerabilityHead'
-      - type: object
-        required:
-        - cvss3_scores
-        properties:
-          cvss3_scores:
-            type: array
-            items:
-              type: string
-            description: |-
-              All CVSS3 scores from the advisory for the given vulnerability.
-              May include several, varying by minor version of the CVSS3 vector.
       description: Summary of information from this advisory regarding a single specific vulnerability.
     AnalysisAdvisory:
       allOf:
@@ -4109,6 +4053,26 @@ components:
     BasePurlSummary:
       allOf:
       - $ref: '#/components/schemas/BasePurlHead'
+    BaseScore:
+      type: object
+      description: |-
+        Base score information in the context of a [`VulnerabilityHead`]. Notably, this excludes the
+        raw CVSS vector string.
+
+        Uses the same `ScoreType` and `Severity` serialization as [`crate::common::model::Score`]
+        so that all score-related fields in API responses are consistent.
+      required:
+      - type
+      - severity
+      - score
+      properties:
+        score:
+          type: number
+          format: double
+        severity:
+          $ref: '#/components/schemas/Severity'
+        type:
+          $ref: '#/components/schemas/ScoreType'
     BaseSummary:
       type: object
       required:
@@ -4826,23 +4790,8 @@ components:
               description: Information pertaning to the underlying source document, if any.
             - type: object
               required:
-              - average_severity
-              - average_score
               - vulnerabilities
               properties:
-                average_score:
-                  type:
-                  - number
-                  - 'null'
-                  format: double
-                  description: Average (arithmetic mean) score of the advisory aggregated from *all* related vulnerability assertions.
-                  deprecated: true
-                average_severity:
-                  type:
-                  - string
-                  - 'null'
-                  description: Average (arithmetic mean) severity of the advisory aggregated from *all* related vulnerability assertions.
-                  deprecated: true
                 vulnerabilities:
                   type: array
                   items:
@@ -5375,28 +5324,6 @@ components:
           items:
             allOf:
             - $ref: '#/components/schemas/VulnerabilityHead'
-            - type: object
-              required:
-              - average_severity
-              - average_score
-              - advisories
-              properties:
-                advisories:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/VulnerabilityAdvisoryHead'
-                average_score:
-                  type:
-                  - number
-                  - 'null'
-                  format: double
-                  description: Average (arithmetic mean) score of the vulnerability aggregated from *all* related advisories.
-                  deprecated: true
-                average_severity:
-                  oneOf:
-                  - type: 'null'
-                  - $ref: '#/components/schemas/Severity'
-                    description: Average (arithmetic mean) severity of the vulnerability aggregated from *all* related advisories.
         total:
           type: integer
           format: int64
@@ -5586,19 +5513,11 @@ components:
       - vulnerability
       - advisory
       - scores
-      - average_severity
-      - average_score
       - status
       - context
       properties:
         advisory:
           $ref: '#/components/schemas/AdvisoryHead'
-        average_score:
-          type: number
-          format: double
-          deprecated: true
-        average_severity:
-          $ref: '#/components/schemas/Severity'
         context:
           oneOf:
           - type: 'null'
@@ -5606,7 +5525,7 @@ components:
         scores:
           type: array
           items:
-            $ref: '#/components/schemas/Score'
+            $ref: '#/components/schemas/ScoredVector'
           description: All CVSS scores associated with the vulnerability
         status:
           type: string
@@ -6003,18 +5922,10 @@ components:
       - $ref: '#/components/schemas/VulnerabilityHead'
       - type: object
         required:
-        - average_severity
-        - average_score
         - status
         - packages
         - scores
         properties:
-          average_score:
-            type: number
-            format: double
-            deprecated: true
-          average_severity:
-            $ref: '#/components/schemas/Severity'
           context:
             oneOf:
             - type: 'null'
@@ -6026,7 +5937,7 @@ components:
           scores:
             type: array
             items:
-              $ref: '#/components/schemas/Score'
+              $ref: '#/components/schemas/ScoredVector'
           status:
             type: string
     SbomSummary:
@@ -6043,6 +5954,7 @@ components:
               $ref: '#/components/schemas/SbomPackage'
     Score:
       type: object
+      description: 'A parsed CVSS score: the scoring system version, numeric value, and derived severity.'
       required:
       - type
       - value
@@ -6050,14 +5962,18 @@ components:
       properties:
         severity:
           $ref: '#/components/schemas/Severity'
-          description: The derived severity
+          description: The severity band derived from the score value.
         type:
           $ref: '#/components/schemas/ScoreType'
-          description: The score type
+          description: The scoring system version.
         value:
           type: number
           format: double
-          description: The actual value
+          description: The numeric score, rounded to one decimal place.
+      example:
+        type: '3.1'
+        value: 7.5
+        severity: high
     ScoreType:
       type: string
       description: The type of score, indicating the scoring system and version used.
@@ -6071,22 +5987,40 @@ components:
       - CVSS v3.0 score
       - CVSS v3.1 score
       - CVSS v4.0 score
+    ScoredVector:
+      allOf:
+      - $ref: '#/components/schemas/Score'
+        description: The score type, value, and derived severity.
+      - type: object
+        required:
+        - vector
+        properties:
+          vector:
+            type: string
+            description: The raw CVSS vector string (e.g. `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`).
+      description: |-
+        A CVSS score combined with its raw vector string, for contexts where clients need both
+        the pre-parsed numeric values and the original vector for display or re-parsing.
+      example:
+        type: '3.1'
+        value: 7.5
+        severity: high
+        vector: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
     Severity:
       type: string
-      description: |-
-        Qualitative Severity Rating Scale
-
-        Described in CVSS v3.1 Specification: Section 5:
-        <https://www.first.org/cvss/specification-document#t17>
-
-        > For some purposes it is useful to have a textual representation of the
-        > numeric Base, Temporal and Environmental scores.
+      description: Severity rating derived from a CVSS score value.
       enum:
       - none
       - low
       - medium
       - high
       - critical
+      x-enum-descriptions:
+      - No impact (score = 0.0)
+      - Low severity (score 0.1–3.9)
+      - Medium severity (score 4.0–6.9)
+      - High severity (score 7.0–8.9)
+      - Critical severity (score 9.0–10.0)
     SourceDocument:
       type: object
       required:
@@ -6289,19 +6223,13 @@ components:
       - $ref: '#/components/schemas/AdvisoryHead'
       - type: object
         required:
-        - severity
-        - score
+        - scores
         properties:
-          score:
-            type:
-            - number
-            - 'null'
-            format: double
-            deprecated: true
-          severity:
-            oneOf:
-            - type: 'null'
-            - $ref: '#/components/schemas/Severity'
+          scores:
+            type: array
+            items:
+              $ref: '#/components/schemas/ScoredVector'
+            description: All CVSS scores with their raw vector strings from the advisory for this vulnerability.
     VulnerabilityAdvisoryStatus:
       type: object
       required:
@@ -6322,16 +6250,10 @@ components:
       - $ref: '#/components/schemas/VulnerabilityAdvisoryHead'
       - type: object
         required:
-        - cvss3_scores
         - purls
         - sboms
         - number_of_vulnerabilities
         properties:
-          cvss3_scores:
-            type: array
-            items:
-              type: string
-            description: CVSS3 scores from this advisory regarding the vulnerability.
           number_of_vulnerabilities:
             type: integer
             format: int64
@@ -6355,8 +6277,6 @@ components:
       - $ref: '#/components/schemas/VulnerabilityHead'
       - type: object
         required:
-        - average_severity
-        - average_score
         - advisories
         properties:
           advisories:
@@ -6364,18 +6284,6 @@ components:
             items:
               $ref: '#/components/schemas/VulnerabilityAdvisorySummary'
             description: Advisories addressing this vulnerability, if any.
-          average_score:
-            type:
-            - number
-            - 'null'
-            format: double
-            description: Average (arithmetic mean) score of the vulnerability aggregated from *all* related advisories.
-            deprecated: true
-          average_severity:
-            oneOf:
-            - type: 'null'
-            - $ref: '#/components/schemas/Severity'
-              description: Average (arithmetic mean) severity of the vulnerability aggregated from *all* related advisories.
     VulnerabilityHead:
       type: object
       required:
@@ -6391,6 +6299,11 @@ components:
       - released
       - cwes
       properties:
+        base_score:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/BaseScore'
+            description: The main, base score.
         cwes:
           type: array
           items:
@@ -6493,25 +6406,3 @@ components:
     VulnerabilitySummary:
       allOf:
       - $ref: '#/components/schemas/VulnerabilityHead'
-      - type: object
-        required:
-        - average_severity
-        - average_score
-        - advisories
-        properties:
-          advisories:
-            type: array
-            items:
-              $ref: '#/components/schemas/VulnerabilityAdvisoryHead'
-          average_score:
-            type:
-            - number
-            - 'null'
-            format: double
-            description: Average (arithmetic mean) score of the vulnerability aggregated from *all* related advisories.
-            deprecated: true
-          average_severity:
-            oneOf:
-            - type: 'null'
-            - $ref: '#/components/schemas/Severity'
-              description: Average (arithmetic mean) severity of the vulnerability aggregated from *all* related advisories.

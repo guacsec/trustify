@@ -358,7 +358,7 @@ pub async fn get(
         (status = 404, description = "The SBOM could not be found"),
     ),
 )]
-#[get("/v2/sbom/{id}/advisory")]
+#[get("/v3/sbom/{id}/advisory")]
 pub async fn get_sbom_advisories(
     fetcher: web::Data<SbomService>,
     db: web::Data<Database>,

@@ -15,6 +15,22 @@ pub enum Api {
 }
 
 impl Api {
+    /// Builds a URI for read (GET detail) requests. Uses the current API version for each
+    /// resource — v3 for advisory and vulnerability, v2 for everything else.
+    pub fn into_read_uri(self, id: impl Display) -> String {
+        match self {
+            Self::Advisory => format!(
+                "/api/v3/advisory/urn:uuid:{}",
+                urlencoding::encode(&id.to_string())
+            ),
+            Self::Sbom => format!(
+                "/api/v2/sbom/urn:uuid:{}",
+                urlencoding::encode(&id.to_string())
+            ),
+        }
+    }
+
+    /// Builds a URI for mutation requests (label PUT/PATCH, delete, etc.) which remain on v2.
     pub fn into_uri(self, id: impl Display, suffix: Option<&str>) -> String {
         let suffix = suffix.unwrap_or("");
         match self {
@@ -37,7 +53,7 @@ pub async fn assert_labels<C: CallService>(
     id: impl Display,
     labels: Value,
 ) -> anyhow::Result<()> {
-    let request = TestRequest::get().uri(&api.into_uri(id, None)).to_request();
+    let request = TestRequest::get().uri(&api.into_read_uri(id)).to_request();
     let response = app.call_service(request).await;
     log::debug!("Code: {}", response.status());
     assert_eq!(response.status(), StatusCode::OK);

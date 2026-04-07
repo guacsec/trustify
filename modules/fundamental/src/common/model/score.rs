@@ -174,24 +174,32 @@ impl From<Severity> for advisory_vulnerability_score::Severity {
     }
 }
 
+/// A parsed CVSS score: the scoring system version, numeric value, and derived severity.
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, ToSchema, PartialEq)]
+#[schema(example = json!({"type": "3.1", "value": 7.5, "severity": "high"}))]
 pub struct Score {
-    /// The score type
+    /// The scoring system version.
     pub r#type: ScoreType,
-    /// The actual value
+    /// The numeric score, rounded to one decimal place.
     pub value: f64,
-    /// The derived severity
+    /// The severity band derived from the score value.
     pub severity: Severity,
 }
 
 /// A CVSS score combined with its raw vector string, for contexts where clients need both
 /// the pre-parsed numeric values and the original vector for display or re-parsing.
 #[derive(Clone, Serialize, Deserialize, Debug, ToSchema, PartialEq)]
+#[schema(example = json!({
+    "type": "3.1",
+    "value": 7.5,
+    "severity": "high",
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+}))]
 pub struct ScoredVector {
     /// The score type, value, and derived severity.
     #[serde(flatten)]
     pub score: Score,
-    /// The raw CVSS vector string (e.g. `CVSS:3.1/AV:N/AC:L/...`).
+    /// The raw CVSS vector string (e.g. `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`).
     pub vector: String,
 }
 

@@ -1290,7 +1290,7 @@ async fn get_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let v: Value = app
         .call_and_read_body_json(
             TestRequest::get()
-                .uri(&format!("/api/v2/sbom/urn:uuid:{id}/advisory"))
+                .uri(&format!("/api/v3/sbom/urn:uuid:{id}/advisory"))
                 .to_request(),
         )
         .await;
@@ -1303,6 +1303,9 @@ async fn get_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         v[0]["status"][0]["scores"],
         json!([{"type": "3.1", "value": 5.3, "severity": "medium", "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"}])
     );
+    // Deprecated average fields must not appear.
+    assert_eq!(v[0]["status"][0]["average_score"], Value::Null);
+    assert_eq!(v[0]["status"][0]["average_severity"], Value::Null);
 
     Ok(())
 }
@@ -1326,7 +1329,7 @@ async fn get_advisories_with_deprecated_filtering(
     let v: Value = app
         .call_and_read_body_json(
             TestRequest::get()
-                .uri(&format!("/api/v2/sbom/urn:uuid:{id}/advisory"))
+                .uri(&format!("/api/v3/sbom/urn:uuid:{id}/advisory"))
                 .to_request(),
         )
         .await;
@@ -1337,6 +1340,9 @@ async fn get_advisories_with_deprecated_filtering(
     assert_eq!(v.as_array().unwrap().len(), 1);
     assert_eq!(v[0]["identifier"], "CVE-2024-26308");
     assert!(v[0]["status"][0]["scores"].as_array().unwrap().is_empty());
+    // Deprecated average fields must not appear.
+    assert_eq!(v[0]["status"][0]["average_score"], Value::Null);
+    assert_eq!(v[0]["status"][0]["average_severity"], Value::Null);
 
     ctx.ingest_documents(["cve/CVE-2024-26308-updated.json"])
         .await?;
@@ -1344,7 +1350,7 @@ async fn get_advisories_with_deprecated_filtering(
     let v: Value = app
         .call_and_read_body_json(
             TestRequest::get()
-                .uri(&format!("/api/v2/sbom/urn:uuid:{id}/advisory"))
+                .uri(&format!("/api/v3/sbom/urn:uuid:{id}/advisory"))
                 .to_request(),
         )
         .await;
@@ -1357,6 +1363,9 @@ async fn get_advisories_with_deprecated_filtering(
         v[0]["status"][0]["scores"],
         json!([{"type": "3.1", "value": 5.5, "severity": "medium", "vector": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H"}])
     );
+    // Deprecated average fields must not appear.
+    assert_eq!(v[0]["status"][0]["average_score"], Value::Null);
+    assert_eq!(v[0]["status"][0]["average_severity"], Value::Null);
 
     Ok(())
 }

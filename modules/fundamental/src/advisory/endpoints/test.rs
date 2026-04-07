@@ -79,29 +79,50 @@ async fn all_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let uri = "/api/v2/advisory";
+    let uri = "/api/v3/advisory";
 
     let request = TestRequest::get().uri(uri).to_request();
 
-    let response: PaginatedResults<AdvisorySummary> = app.call_and_read_body_json(request).await;
+    let response: Value = app.call_and_read_body_json(request).await;
 
-    assert_eq!(2, response.items.len());
+    assert_eq!(2, response["total"]);
 
-    let rhsa_1 = &response
-        .items
+    let items = response["items"].as_array().unwrap();
+
+    // RHSA-1: has one vulnerability with a score.
+    let rhsa_1 = items
         .iter()
-        .find(|e| e.head.identifier == "RHSA-1");
+        .find(|e| e["identifier"] == "RHSA-1")
+        .expect("RHSA-1 must be in the list");
 
-    assert!(rhsa_1.is_some());
+    assert_eq!(rhsa_1["title"], "RHSA-1");
+    assert_eq!(rhsa_1["vulnerabilities"].as_array().unwrap().len(), 1);
 
-    let rhsa_1 = rhsa_1.unwrap();
-
-    assert!(
-        rhsa_1
-            .vulnerabilities
-            .iter()
-            .any(|e| e.head.identifier == "CVE-123")
+    let cve_123 = &rhsa_1["vulnerabilities"][0];
+    assert_eq!(cve_123["identifier"], "CVE-123");
+    // base_score is null — the vulnerability was not ingested with one.
+    assert_eq!(cve_123["base_score"], Value::Null);
+    // Structured scores must carry all four fields including the vector.
+    assert_eq!(
+        cve_123["scores"],
+        json!([{"type": "3.0", "value": 0.0, "severity": "none",
+                "vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N"}])
     );
+    // Old per-vulnerability scalar fields must not appear.
+    assert_eq!(cve_123["score"], Value::Null);
+    assert_eq!(cve_123["severity"], Value::Null);
+    // Old advisory-level average fields must not appear.
+    assert_eq!(rhsa_1["average_score"], Value::Null);
+    assert_eq!(rhsa_1["average_severity"], Value::Null);
+
+    // RHSA-2: no vulnerabilities linked.
+    let rhsa_2 = items
+        .iter()
+        .find(|e| e["identifier"] == "RHSA-2")
+        .expect("RHSA-2 must be in the list");
+
+    assert_eq!(rhsa_2["title"], "RHSA-2");
+    assert_eq!(rhsa_2["vulnerabilities"].as_array().unwrap().len(), 0);
 
     Ok(())
 }
@@ -164,7 +185,7 @@ async fn one_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     });
     score_creator.create(&ctx.db).await?;
 
-    let uri = format!("/api/v2/advisory/urn:uuid:{}", advisory2.advisory.id);
+    let uri = format!("/api/v3/advisory/urn:uuid:{}", advisory2.advisory.id);
 
     let request = TestRequest::get().uri(&uri).to_request();
 
@@ -186,7 +207,19 @@ async fn one_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         ]
     );
 
-    let uri = format!("/api/v2/advisory/urn:uuid:{}", advisory1.advisory.id);
+    // cvss3_scores must not appear — it was removed.
+    let old = response.query("$.vulnerabilities[*].cvss3_scores")?;
+    assert!(old.is_empty(), "cvss3_scores must not be present");
+    // Old per-vulnerability scalar fields must not appear.
+    let old = response.query("$.vulnerabilities[*].score")?;
+    assert!(old.is_empty(), "score must not be present");
+    let old = response.query("$.vulnerabilities[*].severity")?;
+    assert!(old.is_empty(), "severity must not be present");
+    // Old advisory-level aggregate fields must not appear.
+    assert_eq!(response["average_score"], Value::Null);
+    assert_eq!(response["average_severity"], Value::Null);
+
+    let uri = format!("/api/v3/advisory/urn:uuid:{}", advisory1.advisory.id);
 
     let request = TestRequest::get().uri(&uri).to_request();
 
@@ -258,7 +291,7 @@ async fn one_advisory_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Error
     });
     score_creator.create(&ctx.db).await?;
 
-    let uri = format!("/api/v2/advisory/{}", uuid.urn());
+    let uri = format!("/api/v3/advisory/{}", uuid.urn());
 
     let request = TestRequest::get().uri(&uri).to_request();
 
@@ -282,6 +315,18 @@ async fn one_advisory_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Error
         ]
     );
 
+    // cvss3_scores must not appear — it was removed.
+    let old = response.query("$.vulnerabilities[*].cvss3_scores")?;
+    assert!(old.is_empty(), "cvss3_scores must not be present");
+    // Old per-vulnerability scalar fields must not appear.
+    let old = response.query("$.vulnerabilities[*].score")?;
+    assert!(old.is_empty(), "score must not be present");
+    let old = response.query("$.vulnerabilities[*].severity")?;
+    assert!(old.is_empty(), "severity must not be present");
+    // Old advisory-level aggregate fields must not appear.
+    assert_eq!(response["average_score"], Value::Null);
+    assert_eq!(response["average_severity"], Value::Null);
+
     Ok(())
 }
 
@@ -290,7 +335,7 @@ async fn one_advisory_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Error
 async fn search_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     async fn query(app: &impl CallService, q: &str) -> PaginatedResults<AdvisorySummary> {
         let uri = format!(
-            "/api/v2/advisory?q={}&sort={}",
+            "/api/v3/advisory?q={}&sort={}",
             urlencoding::encode(q),
             urlencoding::encode("ingested:desc")
         );
@@ -334,7 +379,7 @@ async fn search_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn rejected_cve(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let query = async |expected_count, q| {
         let app = caller(ctx).await.unwrap();
-        let uri = format!("/api/v2/advisory?q={}", urlencoding::encode(q));
+        let uri = format!("/api/v3/advisory?q={}", urlencoding::encode(q));
         let req = TestRequest::get().uri(&uri).to_request();
         let response: Value = app.call_and_read_body_json(req).await;
         tracing::debug!(test = "", "{response:#?}");
@@ -494,7 +539,7 @@ async fn upload_with_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
     // now check the labels
 
     let request = TestRequest::get()
-        .uri(&format!("/api/v2/advisory/urn:uuid:{}", result.id))
+        .uri(&format!("/api/v3/advisory/urn:uuid:{}", result.id))
         .to_request();
     let result: AdvisoryDetails = app.call_and_read_body_json(request).await;
 
@@ -565,7 +610,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let doc = ctx.ingest_document(DOC).await?;
 
     let advisory_list: PaginatedResults<AdvisorySummary> = app
-        .call_and_read_body_json(TestRequest::get().uri("/api/v2/advisory").to_request())
+        .call_and_read_body_json(TestRequest::get().uri("/api/v3/advisory").to_request())
         .await;
     assert_eq!(advisory_list.total, 1);
     let key: StorageKey = advisory_list.items[0].source_document.clone().try_into()?;
@@ -586,7 +631,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // check that the document is gone
     let advisory_list: PaginatedResults<AdvisorySummary> = app
-        .call_and_read_body_json(TestRequest::get().uri("/api/v2/advisory").to_request())
+        .call_and_read_body_json(TestRequest::get().uri("/api/v3/advisory").to_request())
         .await;
     assert_eq!(advisory_list.total, 0);
 
@@ -610,7 +655,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn query_advisories_by_label(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let query = async |q| {
         let app = caller(ctx).await.unwrap();
-        let uri = format!("/api/v2/advisory?q={}", encode(q));
+        let uri = format!("/api/v3/advisory?q={}", encode(q));
         let req = TestRequest::get().uri(&uri).to_request();
         let response: Value = app.call_and_read_body_json(req).await;
         assert_eq!(1, response["total"], "for {q}");
@@ -663,7 +708,7 @@ async fn advisory_with_null_severity(ctx: &TrustifyContext) -> Result<(), anyhow
         .await?
         .id
         .to_string();
-    let uri = format!("/api/v2/advisory/urn:uuid:{id}");
+    let uri = format!("/api/v3/advisory/urn:uuid:{id}");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     tracing::debug!(test = "", "{response:#?}");

@@ -84,7 +84,7 @@ struct AdvisoryQuery {
         (status = 200, description = "Matching vulnerabilities", body = PaginatedResults<AdvisorySummary>),
     ),
 )]
-#[get("/v2/advisory")]
+#[get("/v3/advisory")]
 /// List advisories
 pub async fn all(
     state: web::Data<AdvisoryService>,
@@ -113,7 +113,7 @@ pub async fn all(
         (status = 404, description = "The advisory could not be found"),
     ),
 )]
-#[get("/v2/advisory/{key}")]
+#[get("/v3/advisory/{key}")]
 /// Get an advisory
 pub async fn get(
     state: web::Data<AdvisoryService>,
