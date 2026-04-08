@@ -21,7 +21,7 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
 };
 use sea_query::{Asterisk, ColumnType, Expr, Func, JoinType, Order, SimpleExpr, UnionType};
-use tracing::instrument;
+use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
     db::{
         chunk::chunked_with,
@@ -495,7 +495,9 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        let base_purls = Self::fetch_base_purls(&input_purls, connection).await?;
+        let base_purls = Self::fetch_base_purls(&input_purls, connection)
+            .instrument(info_span!("loading base purls"))
+            .await?;
         if base_purls.is_empty() {
             for ip in &input_purls {
                 recommendations.insert(ip.purl.to_string(), Vec::new());
@@ -503,8 +505,9 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        let versioned_by_base =
-            Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
+        let versioned_by_base = Self::fetch_versioned_purls_by_base(&base_purls, connection)
+            .instrument(info_span!("loading versioned purls"))
+            .await?;
 
         let base_purl_map: HashMap<_, _> = base_purls
             .into_iter()
@@ -553,6 +556,7 @@ impl PurlService {
 
         let statuses_by_base =
             Self::fetch_vulnerability_statuses(&winner_base_ids, &winner_vp_ids, connection)
+                .instrument(info_span!("loading vulnerability statuses"))
                 .await?;
 
         // Assemble recommendations from batched data
