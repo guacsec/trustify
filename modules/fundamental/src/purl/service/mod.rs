@@ -514,7 +514,7 @@ impl PurlService {
         #[allow(clippy::unwrap_used)]
         let pattern = Regex::new("redhat-[0-9]+$").unwrap();
 
-        let mut winners: Vec<Winner> = Vec::new();
+        let mut winners = Vec::new();
 
         for ip in &input_purls {
             let key = PurlKey::from_purl(&ip.purl);
@@ -569,12 +569,12 @@ impl PurlService {
         winner_vp_ids: &[Uuid],
         connection: &C,
     ) -> Result<HashMap<Uuid, Vec<StatusInfo>>, Error> {
-        let mut statuses_by_base: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
+        let mut statuses_by_base: HashMap<_, Vec<StatusInfo>> = HashMap::new();
 
         let base_chunks = chunked_with(1, winner_base_ids.iter().copied());
         for base_chunk in &base_chunks {
             let base_chunk: Vec<_> = base_chunk.collect();
-            let all_statuses: Vec<_> = purl_status::Entity::find()
+            let all_statuses = purl_status::Entity::find()
                 .columns([
                     version_range::Column::Id,
                     version_range::Column::LowVersion,
@@ -683,29 +683,27 @@ impl PurlService {
                 .or_insert(info);
         }
 
-        let vulnerabilities: Vec<_> = best_by_vuln
-            .into_values()
-            .map(|info| {
-                let vex_status = match info.status_slug.as_str() {
-                    "affected" => VexStatus::Affected,
-                    "fixed" => VexStatus::Fixed,
-                    "not_affected" => VexStatus::NotAffected,
-                    "under_investigation" => VexStatus::UnderInvestigation,
-                    "recommended" => VexStatus::Recommended,
-                    other => VexStatus::Other(other.to_string()),
-                };
-                VulnerabilityStatus {
-                    id: info.vuln_id.clone(),
-                    status: Some(vex_status),
-                    justification: None,
-                    remediations: RemediationSummary::from_entities(&info.remediations),
-                }
-            })
-            .collect();
-
         RecommendEntry {
             package: package_str,
-            vulnerabilities,
+            vulnerabilities: best_by_vuln
+                .into_values()
+                .map(|info| {
+                    let vex_status = match info.status_slug.as_str() {
+                        "affected" => VexStatus::Affected,
+                        "fixed" => VexStatus::Fixed,
+                        "not_affected" => VexStatus::NotAffected,
+                        "under_investigation" => VexStatus::UnderInvestigation,
+                        "recommended" => VexStatus::Recommended,
+                        other => VexStatus::Other(other.to_string()),
+                    };
+                    VulnerabilityStatus {
+                        id: info.vuln_id.clone(),
+                        status: Some(vex_status),
+                        justification: None,
+                        remediations: RemediationSummary::from_entities(&info.remediations),
+                    }
+                })
+                .collect(),
         }
     }
 
