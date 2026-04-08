@@ -1,4 +1,5 @@
 use anyhow::{Context, anyhow};
+use base16ct::HexDisplay;
 use futures::StreamExt;
 use git2::{BranchType, Repository};
 use sha2::Digest;
@@ -275,7 +276,7 @@ async fn validate_checksums(
             hasher.update(&buffer[..n]);
         }
 
-        let calculated = format!("{:x}", hasher.finalize());
+        let calculated = format!("{:x}", HexDisplay(&hasher.finalize()));
 
         // read digest file
 

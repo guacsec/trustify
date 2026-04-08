@@ -38,7 +38,9 @@ where
 /// Update an OSV, removing the "fixed" state, so that we can, later on, add it again.
 fn update_unmark_fixed(mut osv: Vulnerability) -> Vulnerability {
     // remove the "fixed" event
-    osv.affected[0]
+    osv.affected
+        .as_mut()
+        .expect("test data must have 'affected'")[0]
         .ranges
         .as_mut()
         .expect("must be expected test data")[0]
@@ -50,7 +52,9 @@ fn update_unmark_fixed(mut osv: Vulnerability) -> Vulnerability {
 
 /// Add back the "fixed" event
 fn update_mark_fixed_again(mut osv: Vulnerability) -> Vulnerability {
-    osv.affected[0]
+    osv.affected
+        .as_mut()
+        .expect("test data must have 'affected'")[0]
         .ranges
         .as_mut()
         .expect("must be expected test data")[0]

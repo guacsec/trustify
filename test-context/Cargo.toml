@@ -18,6 +18,7 @@ trustify-module-storage = { workspace = true }
 actix-http = { workspace = true }
 actix-web = { workspace = true }
 anyhow = { workspace = true }
+base16ct = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }

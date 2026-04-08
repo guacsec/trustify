@@ -132,7 +132,7 @@ impl<'g> OsvLoader<'g> {
                 }
             }
 
-            for affected in &osv.affected {
+            for affected in osv.affected.iter().flatten() {
                 // we only process it when we have a package
 
                 let Some(package) = &affected.package else {

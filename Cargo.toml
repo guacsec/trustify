@@ -48,11 +48,12 @@ aws-config = { version = "1.8.14", features = ["behavior-version-latest"] }
 aws-sdk-s3 = { version = "1.124.0", features = ["behavior-version-latest"] }
 aws-smithy-http-client = { version = "1.1.11", features = ["rustls-aws-lc"] }
 aws-smithy-types = { version = "1.4.5" }
+base16ct = "1"
 base64 = "0.22"
-biscuit = "0.7"
-build-info = "0.0.42"
-build-info-build = "0.0.42"
-build-info-common = "0.0.42"
+biscuit = "0.7.0" # keep aligned with openid
+build-info = "0.0.43"
+build-info-build = "0.0.43"
+build-info-common = "0.0.43"
 bytes = "1.5"
 bytesize = "2.0"
 chrono = { version = "0.4.35", default-features = false }
@@ -95,13 +96,13 @@ moka = "0.12.10"
 native-tls = "0.2"
 num-traits = "0.2"
 oci-client = "0.16.0"
-openid = "0.22.0"
+openid = "0.23.0"
 openssl = "0.10"
 opentelemetry = "0.31"
 opentelemetry-otlp = "0.31"
 opentelemetry_sdk = "0.31"
 opentelemetry-instrumentation-actix-web = "0.23.0"
-osv = { version = "0.2.1", default-features = false, features = [] }
+osv = { version = "0.3.0", default-features = false, features = [] }
 packageurl = "0.6"
 parking_lot = "0.12"
 peak_alloc = "0.3.0"
@@ -126,12 +127,12 @@ serde-cyclonedx = "0.10.0"
 serde_json = "1.0.114"
 serde_qs = { version = "1", features = ["actix4"] }
 serde_yml = { package = "serde_yaml_ng", version = "0.10" }
-sha2 = "0.10.8"
+sha2 = "0.11.0"
 spdx = "0.13.3"
 spdx-expression = "0.5.2"
 spdx-rs = "0.5.3"
 sqlx = { version = "0.8", features = ["tls-native-tls"] }
-strum = "0.27.1"
+strum = "0.28.0"
 tar = "0.4.45"
 temp-env = "0.3"
 tempfile = "3"
