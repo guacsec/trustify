@@ -34,18 +34,17 @@ use trustify_common::{
 use trustify_entity::{
     advisory, base_purl, license, purl_status,
     qualified_purl::{self, CanonicalPurl},
-    remediation, remediation_purl_status, sbom_license_expanded, sbom_node,
-    sbom_node_purl_ref, sbom_package_license, status, version_range, versioned_purl,
-    vulnerability,
+    remediation, remediation_purl_status, sbom_license_expanded, sbom_node, sbom_node_purl_ref,
+    sbom_package_license, status, version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::Deprecation;
 
 /// Composite key identifying a base PURL by type, namespace, and name (without version).
-#[derive(Clone, PartialEq, Eq, Hash)]
-struct PurlKey {
-    ty: String,
-    namespace: Option<String>,
-    name: String,
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct PurlKey<'a> {
+    ty: &'a str,
+    namespace: Option<&'a str>,
+    name: &'a str,
 }
 
 /// Vulnerability status record linking a vulnerability ID to its VEX status and remediations.
@@ -65,28 +64,28 @@ struct Winner<'a> {
     base: &'a base_purl::Model,
 }
 
-impl PurlKey {
-    fn from_purl(purl: &Purl) -> Self {
+impl<'a> PurlKey<'a> {
+    fn from_purl(purl: &'a Purl) -> Self {
         Self {
-            ty: purl.ty.clone(),
-            namespace: purl.namespace.clone(),
-            name: purl.name.clone(),
+            ty: &purl.ty,
+            namespace: purl.namespace.as_deref(),
+            name: &purl.name,
         }
     }
 
-    fn from_base_purl(bp: &base_purl::Model) -> Self {
+    fn from_base_purl(bp: &'a base_purl::Model) -> Self {
         Self {
-            ty: bp.r#type.clone(),
-            namespace: bp.namespace.clone(),
-            name: bp.name.clone(),
+            ty: &bp.r#type,
+            namespace: bp.namespace.as_deref(),
+            name: &bp.name,
         }
     }
 
     fn as_condition(&self) -> Condition {
         let mut cond = Condition::all()
-            .add(base_purl::Column::Type.eq(&self.ty))
-            .add(base_purl::Column::Name.eq(&self.name));
-        if let Some(ns) = &self.namespace {
+            .add(base_purl::Column::Type.eq(self.ty))
+            .add(base_purl::Column::Name.eq(self.name));
+        if let Some(ns) = self.namespace {
             cond = cond.add(base_purl::Column::Namespace.eq(ns));
         } else {
             cond = cond.add(base_purl::Column::Namespace.is_null());
@@ -509,12 +508,9 @@ impl PurlService {
             .instrument(info_span!("loading versioned purls"))
             .await?;
 
-        let base_purl_map: HashMap<_, _> = base_purls
-            .into_iter()
-            .map(|bp| {
-                let key = PurlKey::from_base_purl(&bp);
-                (key, bp)
-            })
+        let base_purl_map: HashMap<PurlKey<'_>, &base_purl::Model> = base_purls
+            .iter()
+            .map(|bp| (PurlKey::from_base_purl(bp), bp))
             .collect();
 
         #[allow(clippy::unwrap_used)]
@@ -522,9 +518,9 @@ impl PurlService {
 
         let mut winners = Vec::new();
 
-        for ip in input_purls {
+        for ip in &input_purls {
             let key = PurlKey::from_purl(&ip.purl);
-            let Some(base) = base_purl_map.get(&key) else {
+            let Some(&base) = base_purl_map.get(&key) else {
                 recommendations.insert(ip.purl.to_string(), Vec::new());
                 continue;
             };
@@ -719,7 +715,7 @@ impl PurlService {
             .iter()
             .filter_map(|ip| {
                 let key = PurlKey::from_purl(&ip.purl);
-                seen_keys.insert(key.clone()).then_some(key)
+                seen_keys.insert(key).then_some(key)
             })
             .collect();
 
