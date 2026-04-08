@@ -503,20 +503,23 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        let base_purl_map: HashMap<_, _> = base_purls
-            .iter()
-            .map(|bp| (PurlKey::from_base_purl(bp), bp))
-            .collect();
-
         let versioned_by_base =
             Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
+
+        let base_purl_map: HashMap<_, _> = base_purls
+            .into_iter()
+            .map(|bp| {
+                let key = PurlKey::from_base_purl(&bp);
+                (key, bp)
+            })
+            .collect();
 
         #[allow(clippy::unwrap_used)]
         let pattern = Regex::new("redhat-[0-9]+$").unwrap();
 
         let mut winners = Vec::new();
 
-        for ip in &input_purls {
+        for ip in input_purls {
             let key = PurlKey::from_purl(&ip.purl);
             let Some(base) = base_purl_map.get(&key) else {
                 recommendations.insert(ip.purl.to_string(), Vec::new());
@@ -603,17 +606,10 @@ impl PurlService {
                 .await?;
             let advisories_loaded = all_statuses.load_one(advisory::Entity, connection).await?;
             let status_models = all_statuses.load_one(status::Entity, connection).await?;
-            let status_slug_map: HashMap<_, _> = all_statuses
-                .iter()
-                .zip(status_models.iter())
-                .map(|(ps, st)| {
-                    (
-                        ps.status_id,
-                        st.as_ref()
-                            .map(|s| s.slug.clone())
-                            .unwrap_or_else(|| "unknown".to_string()),
-                    )
-                })
+            let status_slug_map: HashMap<_, _> = status_models
+                .into_iter()
+                .flatten()
+                .map(|s| (s.id, s.slug))
                 .collect();
             let remediations = all_statuses
                 .load_many_to_many(
@@ -624,10 +620,10 @@ impl PurlService {
                 .await?;
 
             for (((vuln, advisory), ps), rems) in vulns
-                .iter()
-                .zip(advisories_loaded.iter())
-                .zip(all_statuses.iter())
-                .zip(remediations.iter())
+                .into_iter()
+                .zip(advisories_loaded)
+                .zip(all_statuses)
+                .zip(remediations)
             {
                 if let (Some(v), Some(advisory)) = (vuln, advisory) {
                     let slug = status_slug_map
@@ -638,9 +634,9 @@ impl PurlService {
                         .entry(ps.base_purl_id)
                         .or_default()
                         .push(StatusInfo {
-                            vuln_id: v.id.clone(),
+                            vuln_id: v.id,
                             status_slug: slug,
-                            remediations: rems.clone(),
+                            remediations: rems,
                             advisory_date: advisory.modified.or(advisory.published),
                         });
                 }
