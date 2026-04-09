@@ -494,9 +494,7 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        let base_purls = Self::fetch_base_purls(&input_purls, connection)
-            .instrument(info_span!("loading base purls"))
-            .await?;
+        let base_purls = Self::fetch_base_purls(&input_purls, connection).await?;
         if base_purls.is_empty() {
             for ip in &input_purls {
                 recommendations.insert(ip.purl.to_string(), Vec::new());
@@ -504,11 +502,10 @@ impl PurlService {
             return Ok(recommendations);
         }
 
-        let versioned_by_base = Self::fetch_versioned_purls_by_base(&base_purls, connection)
-            .instrument(info_span!("loading versioned purls"))
-            .await?;
+        let versioned_by_base =
+            Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
 
-        let base_purl_map: HashMap<PurlKey<'_>, &base_purl::Model> = base_purls
+        let base_purl_map: HashMap<_, _> = base_purls
             .iter()
             .map(|bp| (PurlKey::from_base_purl(bp), bp))
             .collect();
@@ -547,13 +544,12 @@ impl PurlService {
         }
 
         // Batch fetch vulnerability statuses and qualified PURLs for all winners
-        let winner_base_ids: Vec<_> = winners.iter().map(|w| w.base.id).unique().collect();
-        let winner_vp_ids: Vec<_> = winners.iter().map(|w| w.versioned_purl.id).collect();
-
-        let statuses_by_base =
-            Self::fetch_vulnerability_statuses(&winner_base_ids, &winner_vp_ids, connection)
-                .instrument(info_span!("loading vulnerability statuses"))
-                .await?;
+        let statuses_by_base = Self::fetch_vulnerability_statuses(
+            winners.iter().map(|w| w.base.id).unique(),
+            winners.iter().map(|w| w.versioned_purl.id),
+            connection,
+        )
+        .await?;
 
         // Assemble recommendations from batched data
         for winner in winners {
@@ -566,15 +562,16 @@ impl PurlService {
 
     /// Batch-loads vulnerability statuses for the winning versioned PURLs, grouped by base PURL ID.
     /// Chunks by base PURL IDs to stay within Postgres bind parameter limits.
-    #[instrument(skip(winner_base_ids, winner_vp_ids, connection), err)]
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn fetch_vulnerability_statuses<C: ConnectionTrait>(
-        winner_base_ids: &[Uuid],
-        winner_vp_ids: &[Uuid],
+        winner_base_ids: impl IntoIterator<Item = Uuid>,
+        winner_vp_ids: impl IntoIterator<Item = Uuid>,
         connection: &C,
     ) -> Result<HashMap<Uuid, Vec<StatusInfo>>, Error> {
         let mut statuses_by_base: HashMap<_, Vec<StatusInfo>> = HashMap::new();
+        let winner_vp_ids: Vec<_> = winner_vp_ids.into_iter().collect();
 
-        let base_chunks = chunked_with(1, winner_base_ids.iter().copied());
+        let base_chunks = chunked_with(1, winner_base_ids.into_iter());
         for base_chunk in &base_chunks {
             let base_chunk: Vec<_> = base_chunk.collect();
             let all_statuses = purl_status::Entity::find()
@@ -599,13 +596,21 @@ impl PurlService {
                         .arg(Expr::col((version_range::Entity, Asterisk))),
                 ))
                 .all(connection)
+                .instrument(info_span!("querying purl statuses"))
                 .await?;
 
             let vulns = all_statuses
                 .load_one(vulnerability::Entity, connection)
+                .instrument(info_span!("loading vulnerabilities"))
                 .await?;
-            let advisories_loaded = all_statuses.load_one(advisory::Entity, connection).await?;
-            let status_models = all_statuses.load_one(status::Entity, connection).await?;
+            let advisories_loaded = all_statuses
+                .load_one(advisory::Entity, connection)
+                .instrument(info_span!("loading advisories"))
+                .await?;
+            let status_models = all_statuses
+                .load_one(status::Entity, connection)
+                .instrument(info_span!("loading statuses"))
+                .await?;
             let status_slug_map: HashMap<_, _> = status_models
                 .into_iter()
                 .flatten()
@@ -617,6 +622,7 @@ impl PurlService {
                     remediation_purl_status::Entity,
                     connection,
                 )
+                .instrument(info_span!("loading remediations"))
                 .await?;
 
             for (((vuln, advisory), ps), rems) in vulns
@@ -705,7 +711,7 @@ impl PurlService {
 
     /// Batch-fetches base PURL entities for the deduplicated set of input PURLs.
     /// Chunks the OR conditions to stay within Postgres bind parameter limits.
-    #[instrument(skip(input_purls, connection), err)]
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn fetch_base_purls<C: ConnectionTrait>(
         input_purls: &[InputPurl],
         connection: &C,
@@ -737,7 +743,7 @@ impl PurlService {
 
     /// Loads all versioned PURLs for the given base PURLs, grouped by base PURL ID.
     /// Chunks the IN clause to stay within Postgres bind parameter limits.
-    #[instrument(skip(base_purls, connection), err)]
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn fetch_versioned_purls_by_base<C: ConnectionTrait>(
         base_purls: &[base_purl::Model],
         connection: &C,
