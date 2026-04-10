@@ -5,7 +5,6 @@ members = [
     "common/auth",
     "common/db",
     "common/infrastructure",
-    "cvss",
     "entity",
     "migration",
     "modules/analysis",
@@ -165,7 +164,6 @@ zip = "8"
 
 trustify-auth = { path = "common/auth", features = ["actix", "swagger"] }
 trustify-common = { path = "common" }
-trustify-cvss = { path = "cvss" }
 trustify-db = { path = "common/db" }
 trustify-entity = { path = "entity" }
 trustify-infrastructure = { path = "common/infrastructure" }

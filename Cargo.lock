@@ -8350,16 +8350,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "trustify-cvss"
-version = "0.5.0-alpha.1"
-dependencies = [
- "serde",
- "test-log",
- "tokio",
- "utoipa",
-]
-
-[[package]]
 name = "trustify-db"
 version = "0.5.0-alpha.1"
 dependencies = [
@@ -8399,7 +8389,6 @@ dependencies = [
  "time",
  "tokio",
  "trustify-common",
- "trustify-cvss",
  "trustify-test-context",
  "utoipa",
 ]
@@ -8587,7 +8576,6 @@ dependencies = [
  "tracing-subscriber",
  "trustify-auth",
  "trustify-common",
- "trustify-cvss",
  "trustify-entity",
  "trustify-module-analysis",
  "trustify-module-ingestor",
@@ -8702,7 +8690,6 @@ dependencies = [
  "tracing",
  "trustify-auth",
  "trustify-common",
- "trustify-cvss",
  "trustify-entity",
  "trustify-module-analysis",
  "trustify-module-storage",

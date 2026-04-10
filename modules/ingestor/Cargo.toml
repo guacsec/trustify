@@ -9,7 +9,6 @@ rust-version.workspace = true
 [dependencies]
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }
-trustify-cvss = { workspace = true }
 trustify-entity = { workspace = true }
 trustify-module-storage = { workspace = true }
 trustify-module-analysis = { workspace = true }
