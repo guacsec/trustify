@@ -22,34 +22,30 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // Composite index on purl_status(advisory_id, status_id)
+        // Index on purl_status(advisory_id)
         //
-        // Required for CASCADE deletes on advisory deletion. The composite also
-        // serves ingest_package_status() which filters by (advisory_id, status_id).
+        // Required for CASCADE deletes on advisory deletion.
         manager
             .create_index(
                 Index::create()
                     .if_not_exists()
                     .table(PurlStatus::Table)
-                    .name(Indexes::IdxPurlStatusAdvisoryIdStatusId.to_string())
+                    .name(Indexes::IdxPurlStatusAdvisoryId.to_string())
                     .col(PurlStatus::AdvisoryId)
-                    .col(PurlStatus::StatusId)
                     .to_owned(),
             )
             .await?;
 
-        // Composite index on product_status(advisory_id, vulnerability_id)
+        // Index on product_status(advisory_id)
         //
-        // Required for CASCADE deletes on advisory deletion. The composite also
-        // serves vulnerability detail view JOINs on (advisory_id, vulnerability_id).
+        // Required for CASCADE deletes on advisory deletion.
         manager
             .create_index(
                 Index::create()
                     .if_not_exists()
                     .table(ProductStatus::Table)
-                    .name(Indexes::IdxProductStatusAdvisoryIdVulnId.to_string())
+                    .name(Indexes::IdxProductStatusAdvisoryId.to_string())
                     .col(ProductStatus::AdvisoryId)
-                    .col(ProductStatus::VulnerabilityId)
                     .to_owned(),
             )
             .await?;
@@ -63,7 +59,7 @@ impl MigrationTrait for Migration {
                 Index::drop()
                     .if_exists()
                     .table(ProductStatus::Table)
-                    .name(Indexes::IdxProductStatusAdvisoryIdVulnId.to_string())
+                    .name(Indexes::IdxProductStatusAdvisoryId.to_string())
                     .to_owned(),
             )
             .await?;
@@ -73,7 +69,7 @@ impl MigrationTrait for Migration {
                 Index::drop()
                     .if_exists()
                     .table(PurlStatus::Table)
-                    .name(Indexes::IdxPurlStatusAdvisoryIdStatusId.to_string())
+                    .name(Indexes::IdxPurlStatusAdvisoryId.to_string())
                     .to_owned(),
             )
             .await?;
@@ -96,8 +92,8 @@ impl MigrationTrait for Migration {
 #[derive(DeriveIden)]
 enum Indexes {
     IdxAdvVulnScoreAdvisoryId,
-    IdxPurlStatusAdvisoryIdStatusId,
-    IdxProductStatusAdvisoryIdVulnId,
+    IdxPurlStatusAdvisoryId,
+    IdxProductStatusAdvisoryId,
 }
 
 #[derive(DeriveIden)]
@@ -110,12 +106,10 @@ enum AdvisoryVulnerabilityScore {
 enum PurlStatus {
     Table,
     AdvisoryId,
-    StatusId,
 }
 
 #[derive(DeriveIden)]
 enum ProductStatus {
     Table,
     AdvisoryId,
-    VulnerabilityId,
 }
