@@ -362,18 +362,9 @@ fn get_score(cvss: &Value) -> Option<(ScoreType, f64, Severity)> {
         .and_then(Value::as_str)
         .and_then(|s| Severity::from_str(&s.to_lowercase()).ok());
 
-    fn from_cvss_v2(score: f64) -> Option<Severity> {
-        match score {
-            s if (0.0..4.0).contains(&s) => Some(Severity::Low),
-            s if (4.0..7.0).contains(&s) => Some(Severity::Medium),
-            s if (7.0..=10.0).contains(&s) => Some(Severity::High),
-            _ => None,
-        }
-    }
-
     match r#type {
         // CVSS v2.0 does not have a baseSeverity field, so we need to calculate it from the score.
-        ScoreType::V2_0 => Some((r#type, score, from_cvss_v2(score)?)),
+        ScoreType::V2_0 => Some((r#type, score, (score, ScoreType::V2_0).into())),
         _ => Some((r#type, score, severity?)),
     }
 }
