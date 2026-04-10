@@ -59,9 +59,9 @@ pub fn extract_scores(cve: &Cve, creator: &mut ScoreCreator) {
         let metric = CvssMetric::from(cve_metric);
 
         let cvss_objects: Vec<Cvss> = vec![
-            metric.cvss_v3_1.map(Cvss::V3_1),
-            metric.cvss_v3_0.map(Cvss::V3_0),
             metric.cvss_v2_0.map(Cvss::V2),
+            metric.cvss_v3_0.map(Cvss::V3_0),
+            metric.cvss_v3_1.map(Cvss::V3_1),
             metric.cvss_v4_0.map(Cvss::V4),
         ]
         .into_iter()
