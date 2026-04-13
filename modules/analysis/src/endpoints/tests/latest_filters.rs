@@ -1,11 +1,11 @@
 use super::req::*;
-use crate::test::{Join, caller};
+use crate::test::caller;
 use jsonpath_rust::JsonPath;
 use rstest::*;
 use serde_json::{Value, json};
 use std::cmp;
 use test_context::test_context;
-use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
+use trustify_test_context::{Join, TrustifyContext, subset::ContainsSubset};
 
 #[test_context(TrustifyContext)]
 #[rstest]

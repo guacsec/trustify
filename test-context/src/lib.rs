@@ -24,6 +24,7 @@ use serde::Serialize;
 use std::{
     env,
     fmt::Debug,
+    fmt::Display,
     io::{Cursor, Read, Seek, Write},
     path::{Path, PathBuf},
 };
@@ -37,6 +38,7 @@ use trustify_module_ingestor::{
     service::{Cache, Format, IngestorService, dataset::DatasetIngestResult},
 };
 use trustify_module_storage::service::fs::FileSystemBackend;
+use walkdir::DirEntry;
 use zip::write::FileOptions;
 
 pub enum Dataset {
@@ -226,6 +228,32 @@ $$;
         Ok(r)
     }
 
+    pub async fn ingest_parallel_vec(
+        &self,
+        paths: impl IntoIterator<Item = impl AsRef<str>>,
+    ) -> Result<Vec<IngestResult>, anyhow::Error> {
+        // hold on to paths for the async part
+
+        let paths = Vec::from_iter(paths);
+        let paths: Vec<_> = paths.iter().map(|s| s.as_ref()).collect();
+
+        // ensure we drop 'f' before 'paths'
+
+        let r = {
+            let mut f = vec![];
+
+            for path in paths {
+                f.push(self.ingest_document(path));
+            }
+
+            futures::future::try_join_all(f).await?
+        };
+
+        // return result
+
+        Ok(r)
+    }
+
     /// Create a dataset on the fly and ingest it
     ///
     /// The path can either be a literal path, or a pre-defined constant like [`Dataset`].
@@ -233,28 +261,75 @@ $$;
         &self,
         path: impl AsRef<Path>,
     ) -> Result<DatasetIngestResult, anyhow::Error> {
-        let base = self.absolute_path(path)?;
         let mut data = vec![];
         let mut dataset = zip::write::ZipWriter::new(Cursor::new(&mut data));
-        for entry in walkdir::WalkDir::new(&base) {
-            let entry = entry?;
-            let Ok(path) = entry.path().strip_prefix(&base) else {
-                continue;
-            };
 
+        self.walk_documents(path, |entry, path| {
             if entry.file_type().is_file() {
                 dataset.start_file_from_path(path, FileOptions::<()>::default())?;
                 dataset.write_all(&(std::fs::read(entry.path())?))?;
             } else if entry.file_type().is_dir() {
                 dataset.add_directory_from_path(path, FileOptions::<()>::default())?;
             }
-        }
+
+            Ok(())
+        })?;
+
         dataset.finish()?;
 
         Ok(self
             .db
             .transaction(async |tx| self.ingestor.ingest_dataset(&data, (), 0, tx).await)
             .await?)
+    }
+
+    /// Recursively ingest all documents in a path
+    pub async fn ingest_path(
+        &self,
+        path: impl AsRef<Path>,
+        parallel: bool,
+    ) -> Result<Vec<IngestResult>, anyhow::Error> {
+        let base = self.absolute_path(path)?;
+
+        let mut docs = vec![];
+        self.walk_documents(&base, |entry, path| {
+            if entry.file_type().is_file()
+                && let Some(s) = path.to_str()
+            {
+                let s = base
+                    .join(s)
+                    .to_str()
+                    .expect("must be a valid name")
+                    .to_string();
+                log::info!("Adding: {s}");
+                docs.push(s.to_string());
+            }
+            Ok(())
+        })?;
+
+        if parallel {
+            self.ingest_parallel_vec(docs).await
+        } else {
+            self.ingest_documents(docs).await
+        }
+    }
+
+    fn walk_documents<F>(&self, path: impl AsRef<Path>, mut f: F) -> Result<(), anyhow::Error>
+    where
+        F: FnMut(&DirEntry, &Path) -> Result<(), anyhow::Error>,
+    {
+        let base = self.absolute_path(path)?;
+
+        for entry in walkdir::WalkDir::new(&base) {
+            let entry = entry?;
+            let Ok(path) = entry.path().strip_prefix(&base) else {
+                continue;
+            };
+
+            f(&entry, path)?;
+        }
+
+        Ok(())
     }
 
     pub(crate) fn teardown(&self) {
@@ -380,6 +455,25 @@ pub trait IngestionResult: Sized {
 impl IngestionResult for Vec<IngestResult> {
     fn collect_ids(self) -> impl Iterator<Item = String> {
         self.into_iter().map(|r| r.id)
+    }
+}
+
+pub trait Join: Sized {
+    /// Turn a base prefix and an iterator of items into an iterator of base + item.
+    fn join(self, other: impl IntoIterator<Item = impl Display>) -> impl Iterator<Item = String>;
+
+    /// Same as [`Self::join`], but accepting iterators of iterators for joining, flattening them.
+    fn chain(
+        self,
+        other: impl IntoIterator<Item = impl IntoIterator<Item = impl Display>>,
+    ) -> impl Iterator<Item = String> {
+        Self::join(self, other.into_iter().flatten())
+    }
+}
+
+impl<D: Display> Join for D {
+    fn join(self, other: impl IntoIterator<Item = impl Display>) -> impl Iterator<Item = String> {
+        other.into_iter().map(move |s| format!("{self}{s}"))
     }
 }
 

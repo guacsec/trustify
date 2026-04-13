@@ -1,4 +1,4 @@
-use crate::test::Join;
+use trustify_test_context::Join;
 
 pub const BASE: &str = "cyclonedx/rh/latest_filters/TC-3278/";
 

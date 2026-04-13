@@ -1,10 +1,10 @@
 use super::req::*;
-use crate::test::{Join, caller};
+use crate::test::caller;
 use rstest::rstest;
 use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
-use trustify_test_context::{TrustifyContext, subset::ContainsSubset};
+use trustify_test_context::{Join, TrustifyContext, subset::ContainsSubset};
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]

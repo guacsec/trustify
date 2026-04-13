@@ -6,7 +6,6 @@ use crate::{
     model::{BaseSummary, Node as GraphNode},
     service::AnalysisService,
 };
-use std::fmt::Display;
 use trustify_entity::relationship::Relationship;
 use trustify_test_context::{
     TrustifyContext,
@@ -114,23 +113,4 @@ where
     log::debug!("Ancestors: {ancestors:#?}");
 
     f(ancestors.as_slice())
-}
-
-pub(crate) trait Join: Sized {
-    /// Turn a base prefix and an iterator of items into an iterator of base + item.
-    fn join(self, other: impl IntoIterator<Item = impl Display>) -> impl Iterator<Item = String>;
-
-    /// Same as [`Self::join`], but accepting iterators of iterators for joining, flattening them.
-    fn chain(
-        self,
-        other: impl IntoIterator<Item = impl IntoIterator<Item = impl Display>>,
-    ) -> impl Iterator<Item = String> {
-        Self::join(self, other.into_iter().flatten())
-    }
-}
-
-impl<D: Display> Join for D {
-    fn join(self, other: impl IntoIterator<Item = impl Display>) -> impl Iterator<Item = String> {
-        other.into_iter().map(move |s| format!("{self}{s}"))
-    }
 }
