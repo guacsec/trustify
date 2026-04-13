@@ -1,5 +1,8 @@
 use crate::{
-    common::test::{Create, GroupResponse, IfMatchType, UpdateAssignments, read_assignments},
+    common::test::{
+        Create, Group, GroupResponse, IfMatchType, UpdateAssignments, create_groups, locate_id,
+        locate_ids, read_assignments,
+    },
     sbom_group::model::BulkAssignmentRequest,
     test::caller,
 };
@@ -184,6 +187,21 @@ async fn assert_assigned_groups(
     Ok(())
 }
 
+async fn call_assign(
+    app: &impl CallService,
+    sbom_id: &str,
+    body: impl serde::Serialize,
+) -> StatusCode {
+    app.call_service(
+        TestRequest::put()
+            .uri(&format!("/api/v2/group/sbom-assignment/{sbom_id}"))
+            .set_json(body)
+            .to_request(),
+    )
+    .await
+    .status()
+}
+
 async fn call_bulk_assign(app: &impl CallService, body: impl serde::Serialize) -> StatusCode {
     app.call_service(
         TestRequest::put()
@@ -365,6 +383,58 @@ async fn bulk_sbom_group_assignments_duplicate_group(ctx: &TrustifyContext) -> a
     assert_eq!(status, StatusCode::NO_CONTENT);
 
     assert_assigned_groups(&app, &sbom_id, &[&group.id]).await?;
+
+    Ok(())
+}
+
+/// Verify that concurrent SBOM group assignments preserve replace semantics.
+///
+/// `update_assignments` replaces ALL group assignments for an SBOM, so after
+/// two requests -- whether sequential or concurrent -- exactly one group must
+/// remain. The sequential case always keeps the last writer's group; the
+/// concurrent case may keep either, but never both and never none.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::sequential(false, &["Group 2"])]
+#[case::parallel(true, &["Group 1", "Group 2"])]
+#[test_log::test(actix_web::test)]
+async fn concurrent_sbom_group_assignment_race(
+    ctx: &TrustifyContext,
+    #[case] parallel: bool,
+    #[case] in_expected: &[&str],
+) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    // Given: an SBOM and two groups
+    let groups = create_groups(&app, vec![Group::new("Group 1"), Group::new("Group 2")]).await?;
+    let group1_id = locate_id(&groups, ["Group 1"]);
+    let group2_id = locate_id(&groups, ["Group 2"]);
+    let in_expected = locate_ids(&groups, in_expected.iter().map(|name| [*name]));
+
+    let sbom_result = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+
+    // When: two requests each assign the SBOM to a different group
+    let (status1, status2) = if parallel {
+        tokio::join!(
+            call_assign(&app, &sbom_result.id, vec![&group1_id]),
+            call_assign(&app, &sbom_result.id, vec![&group2_id]),
+        )
+    } else {
+        (
+            call_assign(&app, &sbom_result.id, vec![&group1_id]).await,
+            call_assign(&app, &sbom_result.id, vec![&group2_id]).await,
+        )
+    };
+
+    assert_eq!(status1, StatusCode::NO_CONTENT);
+    assert_eq!(status2, StatusCode::NO_CONTENT);
+
+    // Then: exactly one group must remain (replace semantics)
+    let actual = read_assignments(&app, &sbom_result.id).await?.group_ids;
+    assert_eq!(actual.len(), 1, "exactly one group must be present");
+    assert!(in_expected.contains(&actual[0]));
 
     Ok(())
 }

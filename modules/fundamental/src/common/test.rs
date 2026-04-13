@@ -333,6 +333,16 @@ pub fn locate_id(
         .clone()
 }
 
+/// Look up multiple group IDs by their name paths at once.
+pub fn locate_ids<I, P, S>(ids: &HashMap<Vec<String>, String>, paths: I) -> Vec<String>
+where
+    I: IntoIterator<Item = P>,
+    P: IntoIterator<Item = S>,
+    S: ToString,
+{
+    paths.into_iter().map(|p| locate_id(ids, p)).collect()
+}
+
 pub async fn create_groups(
     app: &impl CallService,
     groups: Vec<Group>,
