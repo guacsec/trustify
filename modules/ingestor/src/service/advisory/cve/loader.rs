@@ -364,7 +364,13 @@ fn get_score(cvss: &Value) -> Option<(ScoreType, f64, Severity)> {
 
     match r#type {
         // CVSS v2.0 does not have a baseSeverity field, so we need to calculate it from the score.
-        ScoreType::V2_0 => Some((r#type, score, (score, ScoreType::V2_0).into())),
+        ScoreType::V2_0 => {
+            // CVSS v2 scores must be in the valid range [0.0, 10.0]
+            if !(0.0..=10.0).contains(&score) {
+                return None;
+            }
+            Some((r#type, score, (score, ScoreType::V2_0).into()))
+        }
         _ => Some((r#type, score, severity?)),
     }
 }
