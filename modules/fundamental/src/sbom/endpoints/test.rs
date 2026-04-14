@@ -1860,6 +1860,54 @@ async fn query_aibom_models(
 
 #[test_context(TrustifyContext)]
 #[rstest]
+#[case("hugging", 2)]
+#[case("granite", 1)]
+#[case("pkg:huggingface/ibm-granite", 1)]
+#[case("pkg:huggingface/ibm-granite/granite-docling-258M", 1)]
+#[case("pkg:huggingface/ibm-granite/granite-docling-258M@1.0", 1)]
+#[case("purl=pkg:huggingface/ibm-granite/granite-docling-258M@1.0", 1)]
+#[case("purl~granite", 1)]
+#[case("purl:namespace=ibm-granite&purl:version=1.0&purl:type=huggingface", 1)]
+#[case("name~granite", 1)]
+#[case("name=granite-docling-258M", 1)]
+#[case("properties:typeOfModel=idefics3", 1)]
+#[case(
+    "properties:typeOfModel=idefics3&properties:primaryPurpose=image-text-to-text",
+    1
+)]
+#[case("purl:type=boatymcboatface", 1)]
+// negative / no-match queries
+#[case("name=non-existent-model-name", 0)]
+#[case("purl:type=does-not-exist", 0)]
+#[case(
+    "properties:typeOfModel=idefics3&properties:primaryPurpose=text-to-image",
+    0
+)]
+#[test_log::test(actix_web::test)]
+async fn query_all_aibom_models(
+    ctx: &TrustifyContext,
+    #[case] q: &str,
+    #[case] count: i64,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    ctx.ingest_documents([
+        "cyclonedx/ai/ibm-granite_granite-docling-258M_aibom.json",
+        "cyclonedx/ai/nvidia_canary-1b-v2_aibom.json",
+    ])
+    .await?;
+
+    let uri = format!("/api/v2/sbom/models?q={}", encode(q));
+    let req = TestRequest::get().uri(&uri).to_request();
+    let response: Value = app.call_and_read_body_json(req).await;
+
+    assert_eq!(response["total"].as_i64(), Some(count), "q: {q}");
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[rstest]
 #[case::no_filter([], 3)]
 #[case::group1([GroupRef::ByName(&["Group 1"])], 2)]
 #[case::group2([GroupRef::ByName(&["Group 2"])], 1)]

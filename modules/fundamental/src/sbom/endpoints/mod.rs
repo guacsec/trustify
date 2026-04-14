@@ -64,6 +64,7 @@ pub fn configure(
         .service(v3::all)
         .service(all_related)
         .service(count_related)
+        .service(all_models)
         .service(get)
         .service(get_sbom_advisories)
         .service(delete)
@@ -478,9 +479,35 @@ pub async fn models(
 ) -> actix_web::Result<impl Responder> {
     let tx = db.begin_read().await?;
     let result = fetch
-        .fetch_sbom_models(id.into_inner(), search, paginated, &tx)
+        .fetch_sbom_models(Some(id.into_inner()), search, paginated, &tx)
         .await?;
+    Ok(HttpResponse::Ok().json(result))
+}
 
+/// Search for all AI models
+#[utoipa::path(
+    tag = "sbom",
+    operation_id = "listAllModels",
+    params(
+        Query,
+        Paginated,
+    ),
+    responses(
+        (status = 200, description = "AI Models", body = PaginatedResults<SbomModel>),
+    ),
+)]
+#[get("/v2/sbom/models")]
+pub async fn all_models(
+    fetch: web::Data<SbomService>,
+    db: web::Data<Database>,
+    web::Query(search): web::Query<Query>,
+    web::Query(paginated): web::Query<Paginated>,
+    _: Require<ReadSbom>,
+) -> actix_web::Result<impl Responder> {
+    let tx = db.begin_read().await?;
+    let result = fetch
+        .fetch_sbom_models(None, search, paginated, &tx)
+        .await?;
     Ok(HttpResponse::Ok().json(result))
 }
 

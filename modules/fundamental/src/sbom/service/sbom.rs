@@ -437,14 +437,13 @@ impl SbomService {
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn fetch_sbom_models<C: ConnectionTrait>(
         &self,
-        sbom_id: Uuid,
+        sbom_id: Option<Uuid>,
         search: Query,
         paginated: Paginated,
         connection: &C,
     ) -> Result<PaginatedResults<SbomModel>, Error> {
-        let query = join_purls_and_cpes(
+        let mut query = join_purls_and_cpes(
             sbom_ai::Entity::find()
-                .filter(sbom_ai::Column::SbomId.eq(sbom_id))
                 .select_only()
                 .column_as(sbom_ai::Column::NodeId, "id")
                 .group_by(sbom_ai::Column::NodeId)
@@ -467,6 +466,9 @@ impl SbomService {
                         }),
                 )?,
         );
+        if let Some(id) = sbom_id {
+            query = query.filter(sbom_ai::Column::SbomId.eq(id));
+        }
 
         let limiter = limit_selector::<'_, _, _, _, ModelCatcher>(
             connection,
