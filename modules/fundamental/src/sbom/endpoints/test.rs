@@ -1860,48 +1860,61 @@ async fn query_aibom_models(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case("hugging", 2)]
-#[case("granite", 1)]
-#[case("pkg:huggingface/ibm-granite", 1)]
-#[case("pkg:huggingface/ibm-granite/granite-docling-258M", 1)]
-#[case("pkg:huggingface/ibm-granite/granite-docling-258M@1.0", 1)]
-#[case("purl=pkg:huggingface/ibm-granite/granite-docling-258M@1.0", 1)]
-#[case("purl~granite", 1)]
-#[case("purl:namespace=ibm-granite&purl:version=1.0&purl:type=huggingface", 1)]
-#[case("name~granite", 1)]
-#[case("name=granite-docling-258M", 1)]
-#[case("properties:typeOfModel=idefics3", 1)]
-#[case(
-    "properties:typeOfModel=idefics3&properties:primaryPurpose=image-text-to-text",
-    1
-)]
-#[case("purl:type=boatymcboatface", 1)]
-// negative / no-match queries
-#[case("name=non-existent-model-name", 0)]
-#[case("purl:type=does-not-exist", 0)]
-#[case(
-    "properties:typeOfModel=idefics3&properties:primaryPurpose=text-to-image",
-    0
-)]
+#[case(None, &["canary-1b-v2", "granite-docling-258M"])]
+#[case(Some(""), &["canary-1b-v2", "granite-docling-258M"])]
+#[case(Some("thesearenotthedroidsyouarelookingfor"), &[])]
+#[case(Some("hugging"), &["canary-1b-v2", "granite-docling-258M"])]
+#[case(Some("granite"), &["granite-docling-258M"])]
+#[case(Some("pkg:huggingface/ibm-granite"), &["granite-docling-258M"])]
+#[case(Some("pkg:huggingface/ibm-granite/granite-docling-258M"), &["granite-docling-258M"])]
+#[case(Some("pkg:huggingface/ibm-granite/granite-docling-258M@1.0"), &["granite-docling-258M"])]
+#[case(Some("purl=pkg:huggingface/ibm-granite/granite-docling-258M@1.0"), &["granite-docling-258M"])]
+#[case(Some("purl~granite"), &["granite-docling-258M"])]
+#[case(Some("purl:namespace=ibm-granite&purl:version=1.0&purl:type=huggingface"), &["granite-docling-258M"])]
+#[case(Some("name~granite"), &["granite-docling-258M"])]
+#[case(Some("name=granite-docling-258M"), &["granite-docling-258M"])]
+#[case(Some("properties:typeOfModel=idefics3"), &["granite-docling-258M"])]
+#[case(Some("properties:typeOfModel=idefics3&properties:primaryPurpose=image-text-to-text"), &["granite-docling-258M"])]
+#[case(Some("purl:type=boatymcboatface"), &["granite-docling-258M"])]
+#[case(Some("name=non-existent-model-name"), &[])]
+#[case(Some("purl:type=does-not-exist"), &[])]
+#[case(Some("properties:typeOfModel=idefics3&properties:primaryPurpose=text-to-image"), &[])]
 #[test_log::test(actix_web::test)]
 async fn query_all_aibom_models(
     ctx: &TrustifyContext,
-    #[case] q: &str,
-    #[case] count: i64,
+    #[case] q: Option<&str>,
+    #[case] names: &[&str],
 ) -> Result<(), anyhow::Error> {
-    let app = caller(ctx).await?;
-
     ctx.ingest_documents([
         "cyclonedx/ai/ibm-granite_granite-docling-258M_aibom.json",
         "cyclonedx/ai/nvidia_canary-1b-v2_aibom.json",
     ])
     .await?;
 
-    let uri = format!("/api/v2/sbom/models?q={}", encode(q));
+    let uri = if let Some(q) = q {
+        format!("/api/v2/sbom/models?q={}", encode(q))
+    } else {
+        "/api/v2/sbom/models".into()
+    };
     let req = TestRequest::get().uri(&uri).to_request();
-    let response: Value = app.call_and_read_body_json(req).await;
+    let app = caller(ctx).await?;
 
-    assert_eq!(response["total"].as_i64(), Some(count), "q: {q}");
+    #[derive(serde::Deserialize)]
+    struct Page<T> {
+        total: usize,
+        items: Vec<T>,
+    }
+    #[derive(serde::Deserialize)]
+    struct Summary {
+        name: String,
+    }
+
+    let response: Page<Summary> = app.call_and_read_body_json(req).await;
+    let mut v: Vec<_> = response.items.into_iter().map(|i| i.name).collect();
+    v.sort();
+
+    assert_eq!(response.total, names.len());
+    assert_eq!(v, names);
 
     Ok(())
 }
