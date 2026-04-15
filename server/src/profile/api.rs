@@ -148,12 +148,12 @@ pub struct UiConfig {
     pub scope: String,
     /// Whether to load user info
     #[arg(
-        id = "oidc-load-user",
+        id = "ui-load-user",
         long,
-        env = "OIDC_LOAD_USER",
-        default_value = "true"
+        env = "UI_LOAD_USER",
+        default_value_t = true
     )]
-    pub load_user: String,
+    pub load_user: bool,
 }
 
 const SERVICE_ID: &str = "trustify";
@@ -253,7 +253,7 @@ impl InitData {
             oidc_server_url: run.ui.issuer_url,
             oidc_client_id: run.ui.client_id,
             oidc_scope: run.ui.scope,
-            oidc_load_user: run.ui.load_user,
+            oidc_load_user: run.ui.load_user.to_string(),
         };
 
         let config = ModuleConfig {
