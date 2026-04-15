@@ -108,7 +108,7 @@ peak_alloc = "0.3.0"
 pem = "3"
 petgraph = { version = "0.8.0", features = ["serde-1"] }
 quick-xml = "0.39.0"
-rand = "0.10.0"
+rand = "0.10.1"
 regex = "1.10.3"
 reqwest = "0.13"
 ring = "0.17.8"
