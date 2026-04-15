@@ -146,6 +146,14 @@ pub struct UiConfig {
     /// Scopes to request
     #[arg(id = "ui-scope", long, env = "UI_SCOPE", default_value = "openid")]
     pub scope: String,
+    /// Whether to load user info
+    #[arg(
+        id = "oidc-load-user",
+        long,
+        env = "OIDC_LOAD_USER",
+        default_value = "true"
+    )]
+    pub load_user: String,
 }
 
 const SERVICE_ID: &str = "trustify";
@@ -245,6 +253,7 @@ impl InitData {
             oidc_server_url: run.ui.issuer_url,
             oidc_client_id: run.ui.client_id,
             oidc_scope: run.ui.scope,
+            oidc_load_user: run.ui.load_user,
         };
 
         let config = ModuleConfig {
