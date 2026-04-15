@@ -53,6 +53,7 @@
 | `TRUSTD_WITH_GRAPHQL`                    | Allows enabling the GraphQL endpoint                                                | `false`                                 |
 | `UI_CLIENT_ID`                           | Client ID used by the UI                                                            | `frontend`                              |
 | `UI_ISSUER_URL`                          | Issuer URL used by the UI                                                           | `http://localhost:8090/realms/trustify` |
+| `UI_LOAD_USER`                           | Whether to load user info                                                           | `true`                                  |
 | `UI_SCOPE`                               | Scopes to request                                                                   | `openid`                                |
 
 ## Development 
