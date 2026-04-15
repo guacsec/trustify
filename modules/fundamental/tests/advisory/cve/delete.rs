@@ -29,7 +29,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
     // check info
 
     let v = vuln
-        .fetch_vulnerability("CVE-2021-32714", Deprecation::Ignore, &ctx.db)
+        .fetch_vulnerability("CVE-2021-32714", Deprecation::Ignore, false, &ctx.db)
         .await?
         .expect("must exist");
 
@@ -42,7 +42,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
     // check with deprecated, should be the same result
 
     let v = vuln
-        .fetch_vulnerability("CVE-2021-32714", Deprecation::Consider, &ctx.db)
+        .fetch_vulnerability("CVE-2021-32714", Deprecation::Consider, false, &ctx.db)
         .await?
         .expect("must exist");
 

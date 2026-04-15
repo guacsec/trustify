@@ -250,6 +250,7 @@ impl PurlAdvisory {
                 base_type: None,
                 base_severity: None,
                 base_score: None,
+                authoritative_advisory_id: None,
                 id_sort_key: None, // Fallback only; normally loaded from database
             });
 

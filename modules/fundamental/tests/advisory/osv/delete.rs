@@ -29,7 +29,7 @@ async fn fixed(ctx: &TrustifyContext) -> anyhow::Result<()> {
     // check info
 
     let v = vuln
-        .fetch_vulnerability("CVE-2020-5238", Deprecation::Ignore, &ctx.db)
+        .fetch_vulnerability("CVE-2020-5238", Deprecation::Ignore, false, &ctx.db)
         .await?
         .expect("must exist");
 
@@ -38,7 +38,7 @@ async fn fixed(ctx: &TrustifyContext) -> anyhow::Result<()> {
     // check with deprecated, should be the same result
 
     let v = vuln
-        .fetch_vulnerability("CVE-2020-5238", Deprecation::Consider, &ctx.db)
+        .fetch_vulnerability("CVE-2020-5238", Deprecation::Consider, false, &ctx.db)
         .await?
         .expect("must exist");
 

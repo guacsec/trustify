@@ -45,7 +45,7 @@ async fn simple(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let vuln = VulnerabilityService::new();
     let v = vuln
-        .fetch_vulnerability("CVE-2023-33201", Deprecation::Consider, &ctx.db)
+        .fetch_vulnerability("CVE-2023-33201", Deprecation::Consider, false, &ctx.db)
         .await?
         .expect("must exist");
 
@@ -53,7 +53,7 @@ async fn simple(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let vuln = VulnerabilityService::new();
     let v = vuln
-        .fetch_vulnerability("CVE-2023-33201", Deprecation::Ignore, &ctx.db)
+        .fetch_vulnerability("CVE-2023-33201", Deprecation::Ignore, false, &ctx.db)
         .await?
         .expect("must exist");
 

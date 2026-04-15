@@ -3773,6 +3773,12 @@ paths:
         required: true
         schema:
           type: string
+      - name: scores
+        in: query
+        description: Include the full scores array from the advisory that contributed the base_score.
+        required: false
+        schema:
+          type: boolean
       responses:
         '200':
           description: Specified vulnerability
@@ -6286,6 +6292,15 @@ components:
             items:
               $ref: '#/components/schemas/VulnerabilityAdvisorySummary'
             description: Advisories addressing this vulnerability, if any.
+          scores:
+            type:
+            - array
+            - 'null'
+            items:
+              $ref: '#/components/schemas/ScoredVector'
+            description: |-
+              Full CVSS scores from the authoritative advisory (the one that contributed the base_score).
+              Only present when the `scores` query parameter is set to `true`.
     VulnerabilityHead:
       type: object
       required:

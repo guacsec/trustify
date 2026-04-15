@@ -36,7 +36,7 @@ async fn equal(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let vuln = VulnerabilityService::new();
     let v = vuln
-        .fetch_vulnerability("CVE-2023-33201", Default::default(), &ctx.db)
+        .fetch_vulnerability("CVE-2023-33201", Default::default(), false, &ctx.db)
         .await?
         .expect("must exist");
 
@@ -61,7 +61,7 @@ async fn change_ps_num_advisories(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let vuln = VulnerabilityService::new();
     let v = vuln
-        .fetch_vulnerability("CVE-2023-33201", Deprecation::Ignore, &ctx.db)
+        .fetch_vulnerability("CVE-2023-33201", Deprecation::Ignore, false, &ctx.db)
         .await?
         .expect("must exist");
 
@@ -71,7 +71,7 @@ async fn change_ps_num_advisories(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let vuln = VulnerabilityService::new();
     let v = vuln
-        .fetch_vulnerability("CVE-2023-33201", Deprecation::Consider, &ctx.db)
+        .fetch_vulnerability("CVE-2023-33201", Deprecation::Consider, false, &ctx.db)
         .await?
         .expect("must exist");
 

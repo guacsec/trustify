@@ -57,6 +57,7 @@ mod m0002150_fix_advisory_labels_index;
 mod m0002160_fix_ref_fk;
 mod m0002170_drop_cvss_tables;
 mod m0002180_advisory_fk_indexes;
+mod m0002190_vulnerability_base_score_advisory;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -130,6 +131,7 @@ impl MigratorExt for Migrator {
             .normal(m0002160_fix_ref_fk::Migration)
             .normal(m0002170_drop_cvss_tables::Migration)
             .normal(m0002180_advisory_fk_indexes::Migration)
+            .normal(m0002190_vulnerability_base_score_advisory::Migration)
     }
 }
 

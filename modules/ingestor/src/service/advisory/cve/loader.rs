@@ -23,7 +23,8 @@ use cve::{
     Cve, Timestamp,
     common::{Description, Product, Status, VersionRange},
 };
-use sea_orm::{ConnectionTrait, TransactionTrait};
+use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, TransactionTrait};
+use sea_query::Expr;
 use serde_json::Value;
 use std::str::FromStr;
 use std::{collections::HashSet, fmt::Debug};
@@ -31,7 +32,7 @@ use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::hashing::Digests;
 use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
-use trustify_entity::{labels::Labels, version_scheme::VersionScheme};
+use trustify_entity::{labels::Labels, version_scheme::VersionScheme, vulnerability};
 
 /// Loader capable of parsing a CVE Record JSON file
 /// and manipulating the Graph to integrate it into
@@ -118,6 +119,19 @@ impl<'g> CveLoader<'g> {
         let mut score_creator = ScoreCreator::new(advisory.advisory.id);
         extract_scores(&cve, &mut score_creator);
         score_creator.create(tx).await?;
+
+        // Link the vulnerability to its authoritative advisory when the CVE
+        // record contributed a base_score.
+        if information.base_score.is_some() {
+            vulnerability::Entity::update_many()
+                .col_expr(
+                    vulnerability::Column::AuthoritativeAdvisoryId,
+                    Expr::value(advisory.advisory.id),
+                )
+                .filter(vulnerability::Column::Id.eq(id))
+                .exec(tx)
+                .await?;
+        }
 
         // Initialize batch creator for efficient status ingestion
         let mut purl_status_creator = PurlStatusCreator::new();

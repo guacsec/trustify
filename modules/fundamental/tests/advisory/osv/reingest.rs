@@ -30,7 +30,7 @@ async fn equal(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let vuln = VulnerabilityService::new();
     let v = vuln
-        .fetch_vulnerability("CVE-2020-5238", Default::default(), &ctx.db)
+        .fetch_vulnerability("CVE-2020-5238", Default::default(), false, &ctx.db)
         .await?
         .expect("must exist");
 
@@ -55,7 +55,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let vuln = VulnerabilityService::new();
     let v = vuln
-        .fetch_vulnerability("CVE-2020-5238", Deprecation::Ignore, &ctx.db)
+        .fetch_vulnerability("CVE-2020-5238", Deprecation::Ignore, false, &ctx.db)
         .await?
         .expect("must exist");
 
@@ -67,7 +67,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let vuln = VulnerabilityService::new();
     let v = vuln
-        .fetch_vulnerability("CVE-2020-5238", Deprecation::Consider, &ctx.db)
+        .fetch_vulnerability("CVE-2020-5238", Deprecation::Consider, false, &ctx.db)
         .await?
         .expect("must exist");
 
