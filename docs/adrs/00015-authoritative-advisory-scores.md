@@ -47,10 +47,9 @@ row is deleted — the vulnerability's primary key `id` is never affected.
 
 ### Ingestion-time linking
 
-The `authoritative_advisory_id` is set during CVE ingestion only. `VulnerabilityCreator::create`
-reports which vulnerabilities received a `base_score`, and the CVE loader uses this to issue a
-separate `UPDATE` setting `authoritative_advisory_id`. Non-CVE ingestors (CSAF, OSV) never touch
-this column.
+The `authoritative_advisory_id` is set during CVE ingestion only. The CVE loader checks whether the
+ingested record contributed a `base_score` and, if so, issues a separate `UPDATE` setting
+`authoritative_advisory_id`. Non-CVE ingestors (CSAF, OSV) never touch this column.
 
 ### Migration backfill
 
@@ -80,9 +79,8 @@ A new `scores` boolean query parameter is added to the vulnerability detail endp
 `true`, the response includes a `scores` array containing all `ScoredVector` entries from the
 authoritative advisory (the one identified by `authoritative_advisory_id`).
 
-When `scores` is omitted or `false`, the `scores` field is absent from the response entirely
-(via `skip_serializing_if`). When `scores=true` but no authoritative advisory is linked, the
-field is `null`.
+When `scores` is omitted or `false`, the `scores` field is absent from the response entirely.
+When `scores=true` but no authoritative advisory is linked, the field is explicitly `null`.
 
 No additional database queries are needed — the scores for all advisories of the vulnerability
 are already fetched in `VulnerabilityDetails::from_entity`. The authoritative scores are simply

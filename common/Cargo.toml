@@ -19,6 +19,7 @@ hex = { workspace = true }
 hide = { workspace = true }
 human-date-parser = { workspace = true }
 humantime = { workspace = true }
+isx = { workspace = true }
 itertools = { workspace = true }
 lenient_semver = { workspace = true }
 log = { workspace = true }

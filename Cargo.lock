@@ -8314,6 +8314,7 @@ dependencies = [
  "hide",
  "human-date-parser",
  "humantime",
+ "isx",
  "itertools 0.14.0",
  "lenient_semver",
  "log",
