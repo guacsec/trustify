@@ -5712,6 +5712,29 @@ components:
           type: string
           format: date-time
           description: Start of the import run
+    RequestedField_Vec_Vec_ScoredVector:
+      oneOf:
+      - type: 'null'
+      - type: array
+        items:
+          allOf:
+          - $ref: '#/components/schemas/Score'
+            description: The score type, value, and derived severity.
+          - type: object
+            required:
+            - vector
+            properties:
+              vector:
+                type: string
+                description: The raw CVSS vector string (e.g. `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`).
+          description: |-
+            A CVSS score combined with its raw vector string, for contexts where clients need both
+            the pre-parsed numeric values and the original vector for display or re-parsing.
+          example:
+            type: '3.1'
+            value: 7.5
+            severity: high
+            vector: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
     Revisioned_Importer:
       type: object
       description: |-
@@ -6293,11 +6316,7 @@ components:
               $ref: '#/components/schemas/VulnerabilityAdvisorySummary'
             description: Advisories addressing this vulnerability, if any.
           scores:
-            type:
-            - array
-            - 'null'
-            items:
-              $ref: '#/components/schemas/ScoredVector'
+            $ref: '#/components/schemas/RequestedField_Vec_Vec_ScoredVector'
             description: |-
               Full CVSS scores from the authoritative advisory (the one that contributed the base_score).
               Only present when the `scores` query parameter is set to `true`.

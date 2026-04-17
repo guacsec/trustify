@@ -120,18 +120,16 @@ impl<'g> CveLoader<'g> {
         extract_scores(&cve, &mut score_creator);
         score_creator.create(tx).await?;
 
-        // Link the vulnerability to its authoritative advisory when the CVE
-        // record contributed a base_score.
-        if information.base_score.is_some() {
-            vulnerability::Entity::update_many()
-                .col_expr(
-                    vulnerability::Column::AuthoritativeAdvisoryId,
-                    Expr::value(advisory.advisory.id),
-                )
-                .filter(vulnerability::Column::Id.eq(id))
-                .exec(tx)
-                .await?;
-        }
+        // A CVE advisory is always the authoritative source for its vulnerability,
+        // regardless of whether it carries CVSS scores.
+        vulnerability::Entity::update_many()
+            .col_expr(
+                vulnerability::Column::AuthoritativeAdvisoryId,
+                Expr::value(advisory.advisory.id),
+            )
+            .filter(vulnerability::Column::Id.eq(id))
+            .exec(tx)
+            .await?;
 
         // Initialize batch creator for efficient status ingestion
         let mut purl_status_creator = PurlStatusCreator::new();

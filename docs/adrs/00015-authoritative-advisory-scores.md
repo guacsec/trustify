@@ -47,9 +47,10 @@ row is deleted — the vulnerability's primary key `id` is never affected.
 
 ### Ingestion-time linking
 
-The `authoritative_advisory_id` is set during CVE ingestion only. The CVE loader checks whether the
-ingested record contributed a `base_score` and, if so, issues a separate `UPDATE` setting
-`authoritative_advisory_id`. Non-CVE ingestors (CSAF, OSV) never touch this column.
+The `authoritative_advisory_id` is set during CVE ingestion only. A CVE advisory is always the
+authoritative source for its vulnerability, regardless of whether it carries CVSS scores. The CVE
+loader unconditionally issues an `UPDATE` setting `authoritative_advisory_id` after creating the
+advisory. Non-CVE ingestors (CSAF, OSV) never touch this column.
 
 ### Migration backfill
 
@@ -69,8 +70,7 @@ FROM (
     WHERE a.labels->>'type' = 'cve'
     ORDER BY av.vulnerability_id, a.modified DESC NULLS LAST
 ) best
-WHERE best.vulnerability_id = vulnerability.id
-  AND vulnerability.base_score IS NOT NULL;
+WHERE best.vulnerability_id = vulnerability.id;
 ```
 
 ### Optional `scores` query parameter on `GET /api/v3/vulnerability/{id}`
@@ -80,7 +80,9 @@ A new `scores` boolean query parameter is added to the vulnerability detail endp
 authoritative advisory (the one identified by `authoritative_advisory_id`).
 
 When `scores` is omitted or `false`, the `scores` field is absent from the response entirely.
-When `scores=true` but no authoritative advisory is linked, the field is explicitly `null`.
+When `scores=true` but no authoritative advisory is linked (non-CVE vulnerabilities), the field is
+explicitly `null`. When the authoritative advisory exists but carries no CVSS scores, the field is
+an empty array (`[]`).
 
 No additional database queries are needed — the scores for all advisories of the vulnerability
 are already fetched in `VulnerabilityDetails::from_entity`. The authoritative scores are simply
@@ -118,7 +120,7 @@ ADR builds on that foundation:
 
 * The `vulnerability` table gains a new nullable column and composite FK. The FK references a
   composite unique key on `advisory_vulnerability`, ensuring referential integrity.
-* CVE ingestion performs one additional UPDATE per vulnerability (only when `base_score` is set).
+* CVE ingestion performs one additional UPDATE per vulnerability to set `authoritative_advisory_id`.
   This is a single-row update by primary key and has negligible performance impact.
 * Non-CVE ingestors (CSAF, OSV) are unaffected — they do not set `authoritative_advisory_id`.
 * The `scores` query parameter is opt-in. Existing clients see no change in the default response

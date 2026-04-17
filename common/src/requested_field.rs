@@ -54,9 +54,9 @@ impl<T: utoipa::__dev::ComposeSchema> utoipa::__dev::ComposeSchema for Requested
     }
 }
 
-impl<T: utoipa::__dev::ComposeSchema> ToSchema for RequestedField<T> {
+impl<T: utoipa::__dev::ComposeSchema + ToSchema> ToSchema for RequestedField<T> {
     fn name() -> Cow<'static, str> {
-        "RequestedField".into()
+        format!("RequestedField_{}", T::name()).into()
     }
 }
 
