@@ -55,14 +55,7 @@ trustify sbom duplicates delete
 ### From Source
 
 ```bash
-# Clone the repository
-git clone https://github.com/guacsec/trustify-cli.git
-cd trustify-cli
-
-# Build
-cargo build --release
-
-# The binary will be at ./target/release/trustify
+cargo install --git https://github.com/guacsec/trustify.git --branch main --path cli 
 ```
 
 ## Configuration
@@ -78,7 +71,8 @@ TRUSTIFY_CLIENT_SECRET=my-secret
 
 That's it! The CLI automatically loads credentials and handles OAuth2 token management.
 
-> **Tip:** You can also use CLI arguments (`-u`, `--sso-url`, etc.) or shell environment variables. CLI args take priority over env vars, which take priority over `.env` files.
+> [!TIP]
+> You can also use CLI arguments (`-u`, `--sso-url`, etc.) or shell environment variables. CLI args take priority over env vars, which take priority over `.env` files.
 
 ## Commands
 
