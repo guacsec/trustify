@@ -81,9 +81,9 @@ HTTP GET api/v1/analysis/root-component/{component-purl}
 
 all of the above should return paginated lists:
 
-```json
-{"total" : 2,
+```json5
 {
+  "total" : 2,
   "items": [
     {
       "sbom_id": "0191d750-49a2-72b2-bf1a-f7c6ae792518",
@@ -114,7 +114,7 @@ all of the above should return paginated lists:
       "product_version": "1-2",
       "ancestors": []
     },
-  ....
+  // ....
   ]
 }
 ```
@@ -126,7 +126,7 @@ HTTP GET api/v1/analysis/dep?q={}
 HTTP GET api/v1/analysis/dep/{component-name}
 HTTP GET api/v1/analysis/dep/{component-purl}
 
-```json
+```json5
 {
   "items": [
     {
@@ -203,8 +203,12 @@ HTTP GET api/v1/analysis/dep/{component-purl}
               "name": "openldap",
               "deps": []
             },
-            ...
+            // ...
           ]
+        }
+      ]
+    }
+  ]
 }
 ```
 
