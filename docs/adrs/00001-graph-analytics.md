@@ -23,7 +23,7 @@ ensure they retrieve all related components.
 
 For example,
 
-![Simple sbom](sbom-simple-example.png)
+![Simple sbom](00001-graph-analytics/sbom-simple-example.png)
 
 has 3 root components (A,AA,EE) ... querying from the context of any other node should resolve to the appropriate root component.
 

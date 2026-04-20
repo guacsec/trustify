@@ -10,7 +10,7 @@ ACCEPTED
 Using spdx and cdx formats, we want to enable an SBOM to be able to denote relationships between its own packages with 
 packages/components contained in another SBOM.
 
-![Multiple sboms](product-component-sbom.png)
+![Multiple sboms](00003-external-references/product-component-sbom.png)
 
 This is not just a feature for managing complex distributions of SBOMs but also allows the extension of _authority_ of an 
 originating SBOM enhancing relationships against packages in other SBOMs. 
