@@ -35,6 +35,8 @@ utoipa = { workspace = true, features = ["actix_extras", "yaml"] }
 utoipa-actix-web = { workspace = true }
 
 [dev-dependencies]
+rstest = { workspace = true }
+serde_json = { workspace = true }
 urlencoding = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }

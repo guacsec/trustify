@@ -8,6 +8,7 @@ pub mod error;
 pub mod hashing;
 pub mod id;
 pub mod memo;
+pub mod middleware;
 pub mod model;
 pub mod package;
 pub mod purl;

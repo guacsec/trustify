@@ -8,6 +8,7 @@ use bytes::Bytes;
 use serde::de::DeserializeOwned;
 use std::future::Future;
 use trustify_auth::authorizer::Authorizer;
+use trustify_common::middleware::StdMiddleware;
 use utoipa_actix_web::{AppExt, service_config::ServiceConfig};
 
 /// A trait wrapping an `impl Service` in a way that we can pass it as a reference.
@@ -34,16 +35,29 @@ where
     }
 }
 
+/// Creates a test app with endpoints scoped under `/api`.
 pub async fn caller<F>(cfg_fn: F) -> anyhow::Result<impl CallService>
+where
+    F: FnOnce(&mut ServiceConfig),
+{
+    caller_app(|svc| {
+        svc.service(utoipa_actix_web::scope("/api").configure(cfg_fn));
+    })
+    .await
+}
+
+/// Creates a test app with root-level configuration and standard middleware.
+pub async fn caller_app<F>(cfg_fn: F) -> anyhow::Result<impl CallService>
 where
     F: FnOnce(&mut ServiceConfig),
 {
     Ok(actix_web::test::init_service(
         App::new()
+            .std_middleware()
             .into_utoipa_app()
             .app_data(web::PayloadConfig::default().limit(5 * 1024 * 1024))
             .app_data(web::Data::new(Authorizer::new(None)))
-            .service(utoipa_actix_web::scope("/api").configure(cfg_fn))
+            .configure(cfg_fn)
             .into_app(),
     )
     .await)

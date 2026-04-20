@@ -13,7 +13,7 @@ use trustify_auth::{
     devmode::{FRONTEND_CLIENT_ID, ISSUER_URL},
     swagger_ui::{SwaggerUiOidc, SwaggerUiOidcConfig},
 };
-use trustify_common::{config::Database, db, model::BinaryByteSize};
+use trustify_common::{config::Database, db, middleware::ReadOnlyState, model::BinaryByteSize};
 use trustify_infrastructure::{
     Infrastructure, InfrastructureConfig, InitContext,
     app::{
@@ -34,6 +34,10 @@ use utoipa::openapi::{Info, License};
 pub struct Run {
     #[arg(long, env)]
     pub devmode: bool,
+
+    /// Enable read-only mode, rejecting all mutating API requests
+    #[arg(long, env = "TRUSTD_READ_ONLY")]
+    pub read_only: bool,
 
     /// Inject example importer configurations during startup
     #[arg(long, env)]
@@ -172,6 +176,7 @@ struct InitData {
     ui: UI,
     config: ModuleConfig,
     analysis: AnalysisService,
+    read_only: bool,
 }
 
 /// Groups all module configurations.
@@ -284,6 +289,7 @@ impl InitData {
             #[cfg(feature = "garage-door")]
             embedded_oidc,
             ui,
+            read_only: run.read_only,
         })
     }
 
@@ -307,6 +313,7 @@ impl InitData {
                             storage: self.storage.clone(),
                             auth: self.authenticator.clone(),
                             analysis: self.analysis.clone(),
+                            read_only: self.read_only,
                         },
                     );
                 })
@@ -354,6 +361,7 @@ pub(crate) struct Config {
     pub(crate) storage: DispatchBackend,
     pub(crate) analysis: AnalysisService,
     pub(crate) auth: Option<Arc<Authenticator>>,
+    pub(crate) read_only: bool,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
@@ -368,45 +376,44 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         storage,
         auth,
         analysis,
+        read_only,
     } = config;
 
     let graph = Graph::new(db.clone());
-
-    // set global request limits
-
     let limit = ByteSize::gb(1).as_u64() as usize;
+
+    svc.app_data(web::Data::new(ReadOnlyState(read_only)));
     svc.app_data(web::PayloadConfig::default().limit(limit));
+    svc.app_data(graph);
 
-    // register REST API & UI
+    svc.configure(|svc| {
+        endpoints::configure(svc, auth.clone(), read_only);
+    });
 
-    svc.app_data(graph)
-        .configure(|svc| {
-            endpoints::configure(svc, auth.clone());
-        })
-        .service(
-            utoipa_actix_web::scope("/api")
-                .map(|svc| svc.wrap(new_auth(auth)))
-                .configure(|svc| {
-                    trustify_module_importer::endpoints::configure(svc, db.clone());
-                    trustify_module_ingestor::endpoints::configure(
-                        svc,
-                        ingestor,
-                        db.clone(),
-                        storage.clone(),
-                        Some(analysis.clone()),
-                    );
-                    trustify_module_fundamental::endpoints::configure(
-                        svc,
-                        fundamental,
-                        db.clone(),
-                        storage,
-                        analysis.clone(),
-                    );
-                    trustify_module_analysis::endpoints::configure(svc, db.clone(), analysis);
-                    trustify_module_user::endpoints::configure(svc, db.clone());
-                    trustify_module_ui::endpoints::configure(svc, ui)
-                }),
-        );
+    svc.service(
+        utoipa_actix_web::scope("/api")
+            .map(|scope| scope.wrap(new_auth(auth)))
+            .configure(|svc| {
+                trustify_module_importer::endpoints::configure(svc, db.clone());
+                trustify_module_ingestor::endpoints::configure(
+                    svc,
+                    ingestor,
+                    db.clone(),
+                    storage.clone(),
+                    Some(analysis.clone()),
+                );
+                trustify_module_fundamental::endpoints::configure(
+                    svc,
+                    fundamental,
+                    db.clone(),
+                    storage,
+                    analysis.clone(),
+                );
+                trustify_module_analysis::endpoints::configure(svc, db.clone(), analysis);
+                trustify_module_user::endpoints::configure(svc, db.clone());
+                trustify_module_ui::endpoints::configure(svc, ui)
+            }),
+    );
 }
 
 struct PostConfig {
@@ -430,20 +437,17 @@ mod test {
     use super::*;
     use actix_web::{
         App,
-        http::{StatusCode, header},
+        http::{Method, StatusCode, header},
         test::{TestRequest, call_and_read_body, call_service},
     };
     use clap::{Args, Command, FromArgMatches};
+    use rstest::rstest;
     use std::sync::Arc;
     use test_context::test_context;
     use test_log::test;
     use trustify_infrastructure::app::http::ApplyOpenApi;
-    use trustify_module_storage::{
-        service::dispatch::DispatchBackend, service::fs::FileSystemBackend,
-    };
     use trustify_module_ui::{UI, endpoints::UiResources};
-    use trustify_test_context::TrustifyContext;
-    use trustify_test_context::app::TestApp;
+    use trustify_test_context::{TrustifyContext, app::TestApp, call, call::CallService};
     use utoipa_actix_web::AppExt;
 
     #[test_context(TrustifyContext)]
@@ -465,10 +469,8 @@ mod test {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(actix_web::test)]
     async fn routing(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let db = &ctx.db;
-        let (storage, _) = FileSystemBackend::for_test().await?;
         let ui = Arc::new(UiResources::new(&UI::default())?);
-        let analysis = AnalysisService::new(AnalysisConfig::default(), db.clone());
+        let analysis = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
         let app = actix_web::test::init_service(
             App::new()
                 .into_utoipa_app()
@@ -478,10 +480,11 @@ mod test {
                         svc,
                         Config {
                             config: ModuleConfig::default(),
-                            db: db.clone(),
-                            storage: DispatchBackend::Filesystem(storage),
+                            db: ctx.db.clone(),
+                            storage: ctx.storage.clone().into(),
                             auth: None,
                             analysis,
+                            read_only: false,
                         },
                     );
                 })
@@ -534,6 +537,101 @@ mod test {
         let body = call_and_read_body(&app, req).await;
         let text = std::str::from_utf8(&body)?;
         assert!(text.contains("items"));
+
+        Ok(())
+    }
+
+    /// Creates a fully configured test app with all server endpoints and standard middleware.
+    async fn caller(ctx: &TrustifyContext, read_only: bool) -> impl CallService {
+        let analysis = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+        call::caller_app(move |svc| {
+            configure(
+                svc,
+                Config {
+                    config: ModuleConfig::default(),
+                    db: ctx.db.clone(),
+                    storage: ctx.storage.clone().into(),
+                    auth: None,
+                    analysis,
+                    read_only,
+                },
+            );
+        })
+        .await
+        .expect("failed to build test app")
+    }
+
+    #[test_context(TrustifyContext)]
+    #[rstest]
+    // read-only mode still allows GET
+    #[case::ro_get(true, Method::GET, "/api/v3/advisory", StatusCode::OK)]
+    // read-only mode rejects POST
+    #[case::ro_post(
+        true,
+        Method::POST,
+        "/api/v3/advisory",
+        StatusCode::SERVICE_UNAVAILABLE
+    )]
+    // read-only mode rejects PUT
+    #[case::ro_put(
+        true,
+        Method::PUT,
+        "/api/v2/importer/foo",
+        StatusCode::SERVICE_UNAVAILABLE
+    )]
+    // read-only mode rejects PATCH
+    #[case::ro_patch(
+        true,
+        Method::PATCH,
+        "/api/v2/importer/foo",
+        StatusCode::SERVICE_UNAVAILABLE
+    )]
+    // read-only mode rejects DELETE
+    #[case::ro_delete(
+        true,
+        Method::DELETE,
+        "/api/v2/importer/foo",
+        StatusCode::SERVICE_UNAVAILABLE
+    )]
+    // normal mode allows GET
+    #[case::rw_get(false, Method::GET, "/api/v3/advisory", StatusCode::OK)]
+    // normal mode lets POST through to handler
+    #[case::rw_post(false, Method::POST, "/api/v3/advisory", StatusCode::NOT_FOUND)]
+    // normal mode lets PUT through to handler
+    #[case::rw_put(false, Method::PUT, "/api/v2/importer/foo", StatusCode::BAD_REQUEST)]
+    // normal mode lets PATCH through to handler
+    #[case::rw_patch(false, Method::PATCH, "/api/v2/importer/foo", StatusCode::NOT_FOUND)]
+    // normal mode lets DELETE through to handler
+    #[case::rw_delete(false, Method::DELETE, "/api/v2/importer/foo", StatusCode::NO_CONTENT)]
+    #[test_log::test(actix_web::test)]
+    async fn read_only_guards_mutations(
+        ctx: &TrustifyContext,
+        #[case] read_only: bool,
+        #[case] method: Method,
+        #[case] uri: &str,
+        #[case] expected: StatusCode,
+    ) -> Result<(), anyhow::Error> {
+        let app = caller(ctx, read_only).await;
+        let req = TestRequest::default().method(method).uri(uri).to_request();
+        let resp = app.call_service(req).await;
+        assert_eq!(resp.status(), expected);
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[rstest]
+    #[case::read_only(true)]
+    #[case::read_write(false)]
+    #[test_log::test(tokio::test)]
+    async fn well_known_read_only_field(
+        ctx: &TrustifyContext,
+        #[case] read_only: bool,
+    ) -> Result<(), anyhow::Error> {
+        let app = caller(ctx, read_only).await;
+
+        let req = TestRequest::get().uri("/.well-known/trustify").to_request();
+        let resp: serde_json::Value = app.call_and_read_body_json(req).await;
+        assert_eq!(resp["readOnly"], serde_json::json!(read_only));
 
         Ok(())
     }
