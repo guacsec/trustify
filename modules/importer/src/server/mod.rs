@@ -21,13 +21,16 @@ use trustify_common::db::Database;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
-/// run the importer loop
+/// Run the importer loop.
+///
+/// When `read_only` is true, the loop stays alive but no imports are started.
 pub async fn importer(
     db: Database,
     storage: DispatchBackend,
     working_dir: Option<PathBuf>,
     analysis: Option<AnalysisService>,
     concurrency: usize,
+    read_only: bool,
 ) -> anyhow::Result<()> {
     Server {
         db,
@@ -35,6 +38,7 @@ pub async fn importer(
         working_dir,
         analysis,
         concurrency,
+        read_only,
     }
     .run()
     .await
@@ -62,6 +66,7 @@ struct Server {
     working_dir: Option<PathBuf>,
     analysis: Option<AnalysisService>,
     concurrency: usize,
+    read_only: bool,
 }
 
 impl Server {
@@ -103,6 +108,11 @@ impl Server {
 
             // Update any importers that we assume have crashed
             reap(&importers, &service).await?;
+
+            // In read-only mode the loop stays alive for health probes but no imports are started
+            if self.read_only {
+                continue;
+            }
 
             // Asynchronously fire off new jobs subject to max concurrency
             runs.extend(

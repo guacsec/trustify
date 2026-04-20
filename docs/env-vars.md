@@ -44,6 +44,7 @@
 | `TRUSTD_GC_FREQ`                         | Database garbage collection frequency [disabled by default] (humantime)             | `0s`                                    |
 | `TRUSTD_ISSUER_URL`                      | Issuer URL for `--devmode`                                                          | `http://localhost:8090/realms/trustify` |
 | `TRUSTD_MAX_CACHE_SIZE`                  | Maximum size of the graph cache.                                                    | `200 MiB`                               |
+| `TRUSTD_READ_ONLY`                       | Enable read-only mode, rejecting all mutating API requests                          | `false`                                 |
 | `TRUSTD_S3_ACCESS_KEY`                   | S3 access key                                                                       |                                         |
 | `TRUSTD_S3_BUCKET`                       | S3 bucket name                                                                      |                                         |
 | `TRUSTD_S3_REGION`                       | S3 region name                                                                      |                                         |

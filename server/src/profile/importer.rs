@@ -9,9 +9,13 @@ use trustify_module_storage::{
     service::{dispatch::DispatchBackend, fs::FileSystemBackend, s3::S3Backend},
 };
 
-/// Run the API server
+/// Run the importer server
 #[derive(clap::Args, Debug)]
 pub struct Run {
+    /// Enable read-only mode, suspending all importer runs
+    #[arg(long, env = "TRUSTD_READ_ONLY")]
+    pub read_only: bool,
+
     /// The importer working directory
     #[arg(long, id = "working_dir", env = "IMPORTER_WORKING_DIR")]
     pub working_dir: Option<PathBuf>,
@@ -46,6 +50,7 @@ struct InitData {
     storage: DispatchBackend,
     working_dir: Option<PathBuf>,
     concurrency: usize,
+    read_only: bool,
 }
 
 impl Run {
@@ -95,6 +100,7 @@ impl InitData {
             storage,
             working_dir: run.working_dir,
             concurrency: run.concurrency,
+            read_only: run.read_only,
         })
     }
 
@@ -109,6 +115,7 @@ impl InitData {
                 self.working_dir,
                 None, // Running the importer, we don't need an analysis graph update
                 self.concurrency,
+                self.read_only,
             )
             .await
         }

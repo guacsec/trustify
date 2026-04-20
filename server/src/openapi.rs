@@ -22,6 +22,7 @@ pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
                     analysis,
                     #[cfg(feature = "graphql")]
                     with_graphql: true,
+                    read_only: false,
                 },
             );
         })
