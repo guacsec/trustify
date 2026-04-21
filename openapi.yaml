@@ -19,9 +19,12 @@ paths:
                 type: object
                 required:
                 - version
+                - readOnly
                 properties:
                   build:
                     type: object
+                  readOnly:
+                    type: boolean
                   version:
                     type: string
   /api/v2/advisory:
