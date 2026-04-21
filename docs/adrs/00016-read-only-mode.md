@@ -72,7 +72,7 @@ restarting without the flag), importers that were enabled resume their normal sc
 
 ### Status endpoint
 
-The existing `GET /.well-known/trustify` endpoint is extended with a `read_only` field:
+The existing `GET /.well-known/trustify` endpoint is extended with a `readOnly` field:
 
 ```json
 {
