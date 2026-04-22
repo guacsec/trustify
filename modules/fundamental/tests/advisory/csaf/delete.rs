@@ -127,7 +127,7 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     assert_eq!(purl.advisories.len(), 1);
     purl.advisories
-        .sort_unstable_by(|a, b| a.head.modified.cmp(&b.head.modified));
+        .sort_unstable_by_key(|a| a.head.modified);
     let adv1 = &mut purl.advisories[0];
 
     assert_eq!(

@@ -474,7 +474,7 @@ mod test {
         let mut advs = system
             .get_advisories(Deprecation::Consider, &ctx.db)
             .await?;
-        advs.sort_unstable_by(|a, b| a.advisory.modified.cmp(&b.advisory.modified));
+        advs.sort_unstable_by_key(|a| a.advisory.modified);
         let deps = advs
             .iter()
             .map(|adv| (adv.advisory.id, adv.advisory.deprecated))
