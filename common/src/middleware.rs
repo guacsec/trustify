@@ -13,7 +13,7 @@ use crate::error::ErrorInformation;
 /// Shared state indicating whether the instance is in read-only mode.
 ///
 /// Defaults to `false` (read-write) when no state is registered in app data.
-#[derive(Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct ReadOnlyState(pub bool);
 
 impl Deref for ReadOnlyState {
@@ -31,7 +31,7 @@ impl FromRequest for ReadOnlyState {
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
         let state = req
             .app_data::<web::Data<ReadOnlyState>>()
-            .map(|s| s.get_ref().clone())
+            .map(|s| *s.get_ref())
             .unwrap_or_default();
         std::future::ready(Ok(state))
     }
