@@ -1,6 +1,7 @@
 pub mod chunk;
 pub mod limiter;
 pub mod multi_model;
+pub mod pagination_cache;
 pub mod query;
 
 mod create;

@@ -188,10 +188,16 @@ impl LicenseService {
             )
             .collect::<Vec<_>>();
 
+        let total = if paginated.total {
+            Some(all_matching.len() as u64)
+        } else {
+            None
+        };
+
         if all_matching.len() < paginated.offset as usize {
             return Ok(PaginatedResults {
                 items: vec![],
-                total: all_matching.len() as u64,
+                total,
             });
         }
 
@@ -200,12 +206,12 @@ impl LicenseService {
         if paginated.limit > 0 && matching.len() > paginated.limit as usize {
             Ok(PaginatedResults {
                 items: SpdxLicenseSummary::from_details(&matching[..paginated.limit as usize]),
-                total: all_matching.len() as u64,
+                total,
             })
         } else {
             Ok(PaginatedResults {
                 items: SpdxLicenseSummary::from_details(matching),
-                total: all_matching.len() as u64,
+                total,
             })
         }
     }
@@ -375,16 +381,22 @@ impl LicenseService {
             num_items: i64,
         }
 
-        let (sql_count, values) = count_query.build(PostgresQueryBuilder);
-        let total = Count::find_by_statement(Statement::from_sql_and_values(
-            DatabaseBackend::Postgres,
-            sql_count,
-            values,
-        ))
-        .one(connection)
-        .await?
-        .unwrap_or(Count { num_items: 0 })
-        .num_items as u64;
+        let total = if paginated.total {
+            let (sql_count, values) = count_query.build(PostgresQueryBuilder);
+            Some(
+                Count::find_by_statement(Statement::from_sql_and_values(
+                    DatabaseBackend::Postgres,
+                    sql_count,
+                    values,
+                ))
+                .one(connection)
+                .await?
+                .unwrap_or(Count { num_items: 0 })
+                .num_items as u64,
+            )
+        } else {
+            None
+        };
 
         // Apply pagination
         union_query = union_query

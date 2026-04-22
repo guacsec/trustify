@@ -2,12 +2,16 @@ use crate::{license::model::LicenseSummary, weakness::service::WeaknessService};
 use actix_web::{HttpResponse, Responder, get, web};
 use trustify_auth::{ReadWeakness, authorizer::Require};
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{Database, pagination_cache::PaginationCache, query::Query},
     model::{Paginated, PaginatedResults},
 };
 
-pub fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig, db: Database) {
-    let weakness_service = WeaknessService::new(db);
+pub fn configure(
+    config: &mut utoipa_actix_web::service_config::ServiceConfig,
+    db: Database,
+    cache: PaginationCache,
+) {
+    let weakness_service = WeaknessService::new(db, cache);
 
     config
         .app_data(web::Data::new(weakness_service))

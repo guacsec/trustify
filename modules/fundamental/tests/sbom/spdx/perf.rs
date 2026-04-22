@@ -57,12 +57,13 @@ async fn ingest_spdx_medium(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
                     Paginated {
                         offset: 0,
                         limit: 1,
+                        total: true,
                     },
                     &ctx.db,
                 )
                 .await?;
             assert_eq!(1, packages.items.len());
-            assert_eq!(7994, packages.total);
+            assert_eq!(Some(7994), packages.total);
 
             Ok(())
         },
@@ -150,12 +151,13 @@ async fn ingest_spdx_medium_cpes(ctx: &TrustifyContext) -> Result<(), anyhow::Er
                     Paginated {
                         offset: 0,
                         limit: 1,
+                        total: true,
                     },
                     &ctx.db,
                 )
                 .await?;
             assert_eq!(1, packages.items.len());
-            assert_eq!(50668, packages.total);
+            assert_eq!(Some(50668), packages.total);
 
             Ok(())
         },

@@ -15,7 +15,7 @@ use sea_orm::prelude::Uuid;
 use std::str::FromStr;
 use trustify_auth::{ReadAdvisory, ReadSbom, authorizer::Require};
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{Database, pagination_cache::PaginationCache, query::Query},
     id::IdError,
     model::{Paginated, PaginatedResults},
     purl::Purl,
@@ -23,8 +23,12 @@ use trustify_common::{
 
 mod base;
 
-pub fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig, db: Database) {
-    let purl_service = PurlService::new();
+pub fn configure(
+    config: &mut utoipa_actix_web::service_config::ServiceConfig,
+    db: Database,
+    cache: PaginationCache,
+) {
+    let purl_service = PurlService::new(cache);
 
     config
         .app_data(web::Data::new(db))

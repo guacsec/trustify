@@ -96,8 +96,9 @@ of:
 * Normalized filter/search parameters (the `Query` and any additional filter parameters that
   affect the result set)
 
-The cache entry is valid for a configurable TTL, set via a server-wide configuration option
-(environment variable or config file), defaulting to 60 seconds:
+The cache entry is valid for a configurable TTL, set via CLI argument
+(`--pagination-cache-ttl`) or environment variable, defaulting to 60 seconds.
+The value uses humantime format (e.g. `60s`, `5m`, `1h`):
 
 ```
 TRUSTD_PAGINATION_TOTAL_CACHE_TTL=60s

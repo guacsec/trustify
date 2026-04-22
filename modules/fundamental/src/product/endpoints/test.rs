@@ -5,6 +5,7 @@ use jsonpath_rust::JsonPath;
 use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::db::query::Query;
 use trustify_common::model::Paginated;
 use trustify_module_ingestor::graph::product::ProductInformation;
@@ -69,13 +70,20 @@ async fn one_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let service = crate::product::service::ProductService::new();
+    let service = crate::product::service::ProductService::new(PaginationCache::for_test());
 
     let products = service
-        .fetch_products(Query::default(), Paginated::default(), &ctx.db)
+        .fetch_products(
+            Query::default(),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(1, products.total);
+    assert_eq!(Some(1), products.total);
 
     let first_product = &products.items[0];
     let product_id = first_product.head.id;
@@ -109,13 +117,20 @@ async fn delete_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let service = crate::product::service::ProductService::new();
+    let service = crate::product::service::ProductService::new(PaginationCache::for_test());
 
     let products = service
-        .fetch_products(Query::default(), Paginated::default(), &ctx.db)
+        .fetch_products(
+            Query::default(),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(1, products.total);
+    assert_eq!(Some(1), products.total);
 
     let first_product = &products.items[0];
     let product_id = first_product.head.id;
@@ -129,10 +144,17 @@ async fn delete_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(response.status(), StatusCode::OK);
 
     let products = service
-        .fetch_products(Query::default(), Paginated::default(), &ctx.db)
+        .fetch_products(
+            Query::default(),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(0, products.total);
+    assert_eq!(Some(0), products.total);
 
     let request = TestRequest::delete().uri(&uri).to_request();
 

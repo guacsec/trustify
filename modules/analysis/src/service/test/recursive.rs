@@ -29,7 +29,10 @@ async fn test_circular_deps_cyclonedx_service_count(
         .retrieve(
             ComponentReference::Name("junit-bom"),
             query,
-            Paginated::default(),
+            Paginated {
+                total: true,
+                ..Paginated::default()
+            },
             &ctx.db,
         )
         .await?;
@@ -43,7 +46,7 @@ async fn test_circular_deps_cyclonedx_service_count(
 
     // assert result count
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     Ok(())
 }
@@ -70,7 +73,10 @@ async fn test_circular_deps_cyclonedx_service<const N: usize>(
         .retrieve(
             ComponentReference::Name("A"),
             query,
-            Paginated::default(),
+            Paginated {
+                total: true,
+                ..Paginated::default()
+            },
             &ctx.db,
         )
         .await?;
@@ -92,7 +98,7 @@ async fn test_circular_deps_cyclonedx_service<const N: usize>(
         ]
     );
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     Ok(())
 }
@@ -116,7 +122,10 @@ async fn test_circular_deps_spdx_service<const N: usize>(
         .retrieve(
             ComponentReference::Name("A"),
             query,
-            Paginated::default(),
+            Paginated {
+                total: true,
+                ..Paginated::default()
+            },
             &ctx.db,
         )
         .await?;
@@ -138,7 +147,7 @@ async fn test_circular_deps_spdx_service<const N: usize>(
         ]
     );
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     Ok(())
 }

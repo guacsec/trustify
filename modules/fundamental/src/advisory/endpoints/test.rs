@@ -79,7 +79,7 @@ async fn all_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let uri = "/api/v3/advisory";
+    let uri = "/api/v3/advisory?total=true";
 
     let request = TestRequest::get().uri(uri).to_request();
 
@@ -335,7 +335,7 @@ async fn one_advisory_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Error
 async fn search_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     async fn query(app: &impl CallService, q: &str) -> PaginatedResults<AdvisorySummary> {
         let uri = format!(
-            "/api/v3/advisory?q={}&sort={}",
+            "/api/v3/advisory?total=true&q={}&sort={}",
             urlencoding::encode(q),
             urlencoding::encode("ingested:desc")
         );
@@ -346,30 +346,30 @@ async fn search_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // No results before ingestion
     let result = query(&app, "").await;
-    assert_eq!(result.total, 0);
+    assert_eq!(result.total, Some(0));
 
     // ingest some advisories
     ctx.ingest_documents(["mitre/CVE-2024-27088.json", "mitre/CVE-2024-28111.json"])
         .await?;
 
     let result = query(&app, "").await;
-    assert_eq!(result.total, 2);
+    assert_eq!(result.total, Some(2));
     assert_eq!(result.items[0].head.identifier, "CVE-2024-28111");
     let result = query(&app, "ingested>last week").await;
-    assert_eq!(result.total, 2);
+    assert_eq!(result.total, Some(2));
     assert_eq!(result.items[0].head.identifier, "CVE-2024-28111");
     let result = query(&app, "csv").await;
-    assert_eq!(result.total, 1);
+    assert_eq!(result.total, Some(1));
     assert_eq!(result.items[0].head.identifier, "CVE-2024-28111");
     let result = query(&app, "function#copy").await;
-    assert_eq!(result.total, 1);
+    assert_eq!(result.total, Some(1));
     assert_eq!(result.items[0].head.identifier, "CVE-2024-27088");
     let result = query(&app, "tostringtokens").await;
-    assert_eq!(result.total, 1);
+    assert_eq!(result.total, Some(1));
     assert_eq!(result.items[0].head.identifier, "CVE-2024-27088");
     let result = query(&app, "es5-ext").await;
     assert_eq!(result.items[0].head.identifier, "CVE-2024-27088");
-    assert_eq!(result.total, 1);
+    assert_eq!(result.total, Some(1));
 
     Ok(())
 }
@@ -379,7 +379,7 @@ async fn search_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn rejected_cve(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let query = async |expected_count, q| {
         let app = caller(ctx).await.unwrap();
-        let uri = format!("/api/v3/advisory?q={}", urlencoding::encode(q));
+        let uri = format!("/api/v3/advisory?total=true&q={}", urlencoding::encode(q));
         let req = TestRequest::get().uri(&uri).to_request();
         let response: Value = app.call_and_read_body_json(req).await;
         tracing::debug!(test = "", "{response:#?}");
@@ -610,9 +610,13 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let doc = ctx.ingest_document(DOC).await?;
 
     let advisory_list: PaginatedResults<AdvisorySummary> = app
-        .call_and_read_body_json(TestRequest::get().uri("/api/v3/advisory").to_request())
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri("/api/v3/advisory?total=true")
+                .to_request(),
+        )
         .await;
-    assert_eq!(advisory_list.total, 1);
+    assert_eq!(advisory_list.total, Some(1));
     let key: StorageKey = advisory_list.items[0].source_document.clone().try_into()?;
     assert!(storage.retrieve(key.clone()).await?.is_some());
 
@@ -631,9 +635,13 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // check that the document is gone
     let advisory_list: PaginatedResults<AdvisorySummary> = app
-        .call_and_read_body_json(TestRequest::get().uri("/api/v3/advisory").to_request())
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri("/api/v3/advisory?total=true")
+                .to_request(),
+        )
         .await;
-    assert_eq!(advisory_list.total, 0);
+    assert_eq!(advisory_list.total, Some(0));
 
     // second delete should fail
     let response = app
@@ -655,7 +663,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn query_advisories_by_label(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let query = async |q| {
         let app = caller(ctx).await.unwrap();
-        let uri = format!("/api/v3/advisory?q={}", encode(q));
+        let uri = format!("/api/v3/advisory?total=true&q={}", encode(q));
         let req = TestRequest::get().uri(&uri).to_request();
         let response: Value = app.call_and_read_body_json(req).await;
         assert_eq!(1, response["total"], "for {q}");

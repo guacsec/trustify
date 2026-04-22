@@ -3,6 +3,7 @@
 
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_test_context::TrustifyContext;
 use uuid::Uuid;
@@ -20,7 +21,7 @@ async fn cdx_prod_comp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let _prod: Uuid = result.pop().unwrap().id.parse().expect("must have a uid");
     let _comp: Uuid = result.pop().unwrap().id.parse().expect("must have a uid");
 
-    let _service = SbomService::new(ctx.db.clone());
+    let _service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     // TODO: implement when we have the tools
 

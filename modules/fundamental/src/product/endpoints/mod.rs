@@ -13,13 +13,17 @@ use actix_web::{HttpResponse, Responder, delete, get, web};
 use sea_orm::TransactionTrait;
 use trustify_auth::{DeleteMetadata, ReadMetadata, authorizer::Require};
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{Database, pagination_cache::PaginationCache, query::Query},
     model::{Paginated, PaginatedResults},
 };
 use uuid::Uuid;
 
-pub fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig, db: Database) {
-    let service = ProductService::new();
+pub fn configure(
+    config: &mut utoipa_actix_web::service_config::ServiceConfig,
+    db: Database,
+    cache: PaginationCache,
+) {
+    let service = ProductService::new(cache);
     config
         .app_data(web::Data::new(db))
         .app_data(web::Data::new(service))

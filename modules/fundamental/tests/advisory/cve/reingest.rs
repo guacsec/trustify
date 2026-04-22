@@ -1,6 +1,7 @@
 use super::{twice, update_mark_rejected};
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_module_fundamental::vulnerability::service::VulnerabilityService;
 use trustify_module_ingestor::common::Deprecation;
 use trustify_test_context::TrustifyContext;
@@ -17,7 +18,7 @@ async fn equal(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check info
 
-    let vuln = VulnerabilityService::new();
+    let vuln = VulnerabilityService::new(PaginationCache::for_test());
     let v = vuln
         .fetch_vulnerability("CVE-2021-32714", Default::default(), false, &ctx.db)
         .await?
@@ -42,7 +43,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check without deprecated
 
-    let vuln = VulnerabilityService::new();
+    let vuln = VulnerabilityService::new(PaginationCache::for_test());
     let v = vuln
         .fetch_vulnerability("CVE-2021-32714", Deprecation::Ignore, false, &ctx.db)
         .await?
@@ -56,7 +57,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check with deprecated
 
-    let vuln = VulnerabilityService::new();
+    let vuln = VulnerabilityService::new(PaginationCache::for_test());
     let v = vuln
         .fetch_vulnerability("CVE-2021-32714", Deprecation::Consider, false, &ctx.db)
         .await?

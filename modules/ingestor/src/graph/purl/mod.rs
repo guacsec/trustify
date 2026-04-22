@@ -18,7 +18,11 @@ use std::{
 };
 use tracing::instrument;
 use trustify_common::{
-    db::{chunk::EntityChunkedIter, limiter::LimiterTrait},
+    db::{
+        chunk::EntityChunkedIter,
+        limiter::{LimitedResult, LimiterTrait},
+        pagination_cache::PaginationCache,
+    },
     model::{Paginated, PaginatedResults},
     purl::{Purl, PurlErr},
 };
@@ -314,17 +318,19 @@ impl<'g> PackageContext<'g> {
         &self,
         paginated: Paginated,
         connection: &C,
+        cache: &PaginationCache,
     ) -> Result<PaginatedResults<PackageVersionContext<'_>>, Error> {
         let limiter = entity::versioned_purl::Entity::find()
             .filter(entity::versioned_purl::Column::BasePurlId.eq(self.base_purl.id))
-            .limiting(connection, paginated.limit, paginated.offset);
+            .limiting(connection, paginated.limit, paginated.offset, cache);
+
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         Ok(PaginatedResults {
-            total: limiter.total().await?,
-            items: limiter
-                .fetch()
-                .await?
-                .drain(0..)
+            total,
+            items: items
+                .into_iter()
                 .map(|each| PackageVersionContext::new(self, each))
                 .collect(),
         })
@@ -379,6 +385,7 @@ mod tests {
     use test_context::test_context;
     use test_log::test;
 
+    use trustify_common::db::pagination_cache::PaginationCache;
     use trustify_common::model::Paginated;
     use trustify_common::purl::Purl;
     use trustify_entity::qualified_purl;
@@ -491,12 +498,14 @@ mod tests {
                 Paginated {
                     offset: 50,
                     limit: 50,
+                    total: true,
                 },
                 &ctx.db,
+                &PaginationCache::for_test(),
             )
             .await?;
 
-        assert_eq!(TOTAL_ITEMS, paginated.total);
+        assert_eq!(Some(TOTAL_ITEMS), paginated.total);
         assert_eq!(50, paginated.items.len());
 
         let _next_paginated = pkg
@@ -504,12 +513,14 @@ mod tests {
                 Paginated {
                     offset: 100,
                     limit: 50,
+                    total: true,
                 },
                 &ctx.db,
+                &PaginationCache::for_test(),
             )
             .await?;
 
-        assert_eq!(TOTAL_ITEMS, paginated.total);
+        assert_eq!(Some(TOTAL_ITEMS), paginated.total);
         assert_eq!(50, paginated.items.len());
 
         Ok(())

@@ -1,7 +1,13 @@
 use crate::profile::spawn_db_check;
 use futures::FutureExt;
 use std::{path::PathBuf, process::ExitCode};
-use trustify_common::{config::Database, db};
+use trustify_common::{
+    config::Database,
+    db::{
+        self,
+        pagination_cache::{PaginationCache, PaginationConfig},
+    },
+};
 use trustify_infrastructure::{Infrastructure, InfrastructureConfig, InitContext};
 use trustify_module_importer::server::importer;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
@@ -28,6 +34,10 @@ pub struct Run {
 
     // flattened commands must go last
     //
+    /// Pagination configuration
+    #[command(flatten)]
+    pub pagination: PaginationConfig,
+
     /// Database configuration
     #[command(flatten)]
     pub database: Database,
@@ -44,6 +54,7 @@ const SERVICE_ID: &str = "trustify-importer";
 
 struct InitData {
     db: db::Database,
+    cache: PaginationCache,
     storage: DispatchBackend,
     working_dir: Option<PathBuf>,
     concurrency: usize,
@@ -79,6 +90,7 @@ impl InitData {
 
         Ok(InitData {
             db,
+            cache: run.pagination.into_cache(),
             storage,
             working_dir: run.working_dir,
             concurrency: run.concurrency,
@@ -93,6 +105,7 @@ impl InitData {
         let importer = async {
             importer(
                 db,
+                self.cache,
                 storage,
                 self.working_dir,
                 None, // Running the importer, we don't need an analysis graph update

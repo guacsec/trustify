@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::model::Paginated;
 use trustify_entity::relationship::Relationship;
 use trustify_module_fundamental::sbom::model::{SbomNodeReference, SbomPackage, Which};
@@ -21,7 +22,7 @@ fn to_strings(purls: &[PurlSummary]) -> Vec<String> {
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     let result = ctx
         .ingest_document("cyclonedx/openssl-3.0.7-18.el9_2.cdx_1.6_aliases.sbom.json")
@@ -32,10 +33,18 @@ async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // fetch describes
 
     let packages = service
-        .describes_packages::<_, _, SbomPackage>(sbom_id, Paginated::default(), &ctx.db)
+        .describes_packages::<_, _, SbomPackage>(
+            sbom_id,
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(packages.total, 1);
+    assert_eq!(packages.total, Some(1));
     assert_eq!(packages.items.len(), 1);
 
     let package = &packages.items[0];
@@ -54,7 +63,11 @@ async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .fetch_related_packages::<_, _, SbomPackage>(
             sbom_id,
             Default::default(),
-            Paginated::default(),
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
             Which::Right,
             SbomNodeReference::Package("pkg:rpm/redhat/openssl@3.0.7-18.el9_2?arch=src" /* this is actually the bom-ref value */),
             Some(Relationship::AncestorOf),
@@ -62,7 +75,7 @@ async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    assert_eq!(result.total, 1);
+    assert_eq!(result.total, Some(1));
     let relation = &result.items[0];
     assert_eq!(
         to_strings(&relation.package.purl),

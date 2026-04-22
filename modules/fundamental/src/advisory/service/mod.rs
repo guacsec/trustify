@@ -12,8 +12,9 @@ use tracing::instrument;
 use trustify_common::{
     db::{
         Database, UpdateDeprecatedAdvisory,
-        limiter::LimiterAsModelTrait,
+        limiter::{LimitedResult, LimiterAsModelTrait},
         multi_model::{FromQueryResultMultiModel, SelectIntoMultiModel},
+        pagination_cache::PaginationCache,
         query::{Columns, Filtering, Query},
     },
     id::{Id, TrySelectForId},
@@ -25,11 +26,12 @@ use uuid::Uuid;
 
 pub struct AdvisoryService {
     db: Database,
+    cache: PaginationCache,
 }
 
 impl AdvisoryService {
-    pub fn new(db: Database) -> Self {
-        Self { db }
+    pub fn new(db: Database, cache: PaginationCache) -> Self {
+        Self { db, cache }
     }
 
     #[instrument(skip(self, connection))]
@@ -60,11 +62,11 @@ impl AdvisoryService {
                 connection,
                 paginated.offset,
                 paginated.limit,
+                &self.cache,
             )?;
 
-        let total = limiter.total().await?;
-
-        let items = limiter.fetch().await?;
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         Ok(PaginatedResults {
             total,

@@ -42,7 +42,7 @@ async fn related_packages_transitively<'a, C: ConnectionTrait>(
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn infinite_loop(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     let result = ctx.ingest_document("spdx/loop.json").await?;
 
@@ -57,20 +57,37 @@ async fn infinite_loop(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .expect("must be found");
 
     let packages = service
-        .fetch_sbom_packages(id, Default::default(), Default::default(), &ctx.db)
+        .fetch_sbom_packages(
+            id,
+            Default::default(),
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(packages.total, 3);
+    assert_eq!(packages.total, Some(3));
 
     let packages = related_packages_transitively(&sbom, &ctx.db).await?;
 
     assert_eq!(packages.len(), 3);
 
     let packages = service
-        .describes_packages::<_, _, SbomPackage>(id, Paginated::default(), &ctx.db)
+        .describes_packages::<_, _, SbomPackage>(
+            id,
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(packages.total, 1);
+    assert_eq!(packages.total, Some(1));
 
     let packages = service
         .related_packages(id, None, SbomNodeReference::All, &ctx.db)
@@ -97,12 +114,21 @@ async fn double_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?
         .expect("must be found");
 
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
     let packages = service
-        .fetch_sbom_packages(id, Default::default(), Default::default(), &ctx.db)
+        .fetch_sbom_packages(
+            id,
+            Default::default(),
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(packages.total, 3);
+    assert_eq!(packages.total, Some(3));
 
     let packages = related_packages_transitively(&sbom, &ctx.db).await?;
 
@@ -133,12 +159,21 @@ async fn self_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?
         .expect("must be found");
 
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
     let packages = service
-        .fetch_sbom_packages(id, Default::default(), Default::default(), &ctx.db)
+        .fetch_sbom_packages(
+            id,
+            Default::default(),
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(packages.total, 0);
+    assert_eq!(packages.total, Some(0));
 
     let packages = related_packages_transitively(&sbom, &ctx.db).await?;
 
@@ -169,12 +204,21 @@ async fn self_ref_package(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?
         .expect("must be found");
 
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
     let packages = service
-        .fetch_sbom_packages(id, Default::default(), Default::default(), &ctx.db)
+        .fetch_sbom_packages(
+            id,
+            Default::default(),
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(packages.total, 1);
+    assert_eq!(packages.total, Some(1));
 
     let packages = related_packages_transitively(&sbom, &ctx.db).await?;
 
@@ -208,12 +252,21 @@ async fn special_char(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         bail!("must be an id")
     };
 
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
     let packages = service
-        .fetch_sbom_packages(id, Default::default(), Default::default(), &ctx.db)
+        .fetch_sbom_packages(
+            id,
+            Default::default(),
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(packages.total, 105);
+    assert_eq!(packages.total, Some(105));
 
     let sbom = service
         .fetch_sbom_summary(Id::Uuid(id), &ctx.db)

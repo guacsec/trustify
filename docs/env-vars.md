@@ -42,6 +42,7 @@
 | `TRUSTD_DB_PASSWORD`                     | Database password                                                                   | `trustify`                              |
 | `TRUSTD_DB_PORT`                         | Database port                                                                       | `5432`                                  |
 | `TRUSTD_DB_USER`                         | Database username                                                                   | `postgres`                              |
+| `TRUSTD_PAGINATION_TOTAL_CACHE_TTL`      | TTL for cached pagination total counts (humantime)                                  | `60s`                                   |
 | `TRUSTD_ISSUER_URL`                      | Issuer URL for `--devmode`                                                          | `http://localhost:8090/realms/trustify` |
 | `TRUSTD_MAX_CACHE_SIZE`                  | Maximum size of the graph cache.                                                    | `200 MiB`                               |
 | `TRUSTD_READ_ONLY`                       | Enable read-only mode, rejecting all mutating API requests                          | `false`                                 |

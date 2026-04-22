@@ -2,6 +2,7 @@ use std::convert::TryInto;
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::hashing::Digests;
 use trustify_common::purl::Purl;
 use trustify_common::sbom::SbomLocator;
@@ -276,7 +277,7 @@ async fn ingest_package_relates_to_package_dependency_of(
     ctx: &TrustifyContext,
 ) -> Result<(), anyhow::Error> {
     let system = &ctx.graph;
-    let fetch = SbomService::new(ctx.db.clone());
+    let fetch = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     let sbom1 = system
         .ingest_sbom(

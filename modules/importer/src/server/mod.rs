@@ -17,7 +17,7 @@ use time::OffsetDateTime;
 use tokio::{task::LocalSet, time::MissedTickBehavior};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
-use trustify_common::db::Database;
+use trustify_common::db::{Database, pagination_cache::PaginationCache};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
@@ -26,6 +26,7 @@ use trustify_module_storage::service::dispatch::DispatchBackend;
 /// When `read_only` is true, the loop stays alive but no imports are started.
 pub async fn importer(
     db: Database,
+    cache: PaginationCache,
     storage: DispatchBackend,
     working_dir: Option<PathBuf>,
     analysis: Option<AnalysisService>,
@@ -34,6 +35,7 @@ pub async fn importer(
 ) -> anyhow::Result<()> {
     Server {
         db,
+        cache,
         storage,
         working_dir,
         analysis,
@@ -62,6 +64,7 @@ impl From<Report> for RunOutput {
 /// Single node, single process importer processor.
 struct Server {
     db: Database,
+    cache: PaginationCache,
     storage: DispatchBackend,
     working_dir: Option<PathBuf>,
     analysis: Option<AnalysisService>,
@@ -81,7 +84,7 @@ impl Server {
         let meter = global::meter("importer::Server");
         let running_importers = meter.u64_gauge("running_importers").build();
 
-        let service = ImporterService::new(self.db.clone());
+        let service = ImporterService::new(self.db.clone(), self.cache.clone());
         let runner = ImportRunner {
             db: self.db.clone(),
             storage: self.storage.clone(),

@@ -13,7 +13,15 @@ use trustify_auth::{
     devmode::{FRONTEND_CLIENT_ID, ISSUER_URL},
     swagger_ui::{SwaggerUiOidc, SwaggerUiOidcConfig},
 };
-use trustify_common::{config::Database, db, middleware::ReadOnlyState, model::BinaryByteSize};
+use trustify_common::{
+    config::Database,
+    db::{
+        self,
+        pagination_cache::{PaginationCache, PaginationConfig},
+    },
+    middleware::ReadOnlyState,
+    model::BinaryByteSize,
+};
 use trustify_infrastructure::{
     Infrastructure, InfrastructureConfig, InitContext,
     app::{
@@ -111,6 +119,9 @@ pub struct Run {
     pub swagger_ui_oidc: SwaggerUiOidcConfig,
 
     #[command(flatten)]
+    pub pagination: PaginationConfig,
+
+    #[command(flatten)]
     pub ui: UiConfig,
 }
 
@@ -166,6 +177,7 @@ struct InitData {
     authenticator: Option<Arc<Authenticator>>,
     authorizer: Authorizer,
     db: db::Database,
+    cache: PaginationCache,
     storage: DispatchBackend,
     http: HttpServerConfig<Trustify>,
     tracing: Tracing,
@@ -240,8 +252,10 @@ impl InitData {
             trustify_db::Database(&db).migrate().await?;
         }
 
+        let cache = run.pagination.into_cache();
+
         if run.devmode || run.sample_data {
-            sample_data(db.clone()).await?;
+            sample_data(db.clone(), cache.clone()).await?;
         }
 
         context
@@ -280,6 +294,7 @@ impl InitData {
             authenticator,
             authorizer,
             db,
+            cache,
             config,
             http: run.http,
             tracing: run.infra.tracing,
@@ -310,6 +325,7 @@ impl InitData {
                         Config {
                             config: self.config.clone(),
                             db: self.db.clone(),
+                            cache: self.cache.clone(),
                             storage: self.storage.clone(),
                             auth: self.authenticator.clone(),
                             analysis: self.analysis.clone(),
@@ -358,6 +374,7 @@ pub fn default_openapi_info() -> Info {
 pub(crate) struct Config {
     pub(crate) config: ModuleConfig,
     pub(crate) db: db::Database,
+    pub(crate) cache: PaginationCache,
     pub(crate) storage: DispatchBackend,
     pub(crate) analysis: AnalysisService,
     pub(crate) auth: Option<Arc<Authenticator>>,
@@ -373,6 +390,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                 ui,
             },
         db,
+        cache,
         storage,
         auth,
         analysis,
@@ -394,7 +412,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         utoipa_actix_web::scope("/api")
             .map(|scope| scope.wrap(new_auth(auth)))
             .configure(|svc| {
-                trustify_module_importer::endpoints::configure(svc, db.clone());
+                trustify_module_importer::endpoints::configure(svc, db.clone(), cache.clone());
                 trustify_module_ingestor::endpoints::configure(
                     svc,
                     ingestor,
@@ -408,6 +426,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     db.clone(),
                     storage,
                     analysis.clone(),
+                    cache,
                 );
                 trustify_module_analysis::endpoints::configure(svc, db.clone(), analysis);
                 trustify_module_user::endpoints::configure(svc, db.clone());
@@ -481,6 +500,7 @@ mod test {
                         Config {
                             config: ModuleConfig::default(),
                             db: ctx.db.clone(),
+                            cache: PaginationCache::for_test(),
                             storage: ctx.storage.clone().into(),
                             auth: None,
                             analysis,
@@ -551,6 +571,7 @@ mod test {
                     config: ModuleConfig::default(),
                     db: ctx.db.clone(),
                     storage: ctx.storage.clone().into(),
+                    cache: PaginationCache::for_test(),
                     auth: None,
                     analysis,
                     read_only,

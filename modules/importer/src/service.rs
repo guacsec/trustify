@@ -11,7 +11,8 @@ use tracing::instrument;
 use trustify_common::{
     db::{
         Database, DatabaseErrors,
-        limiter::LimiterTrait,
+        limiter::{LimitedResult, LimiterTrait},
+        pagination_cache::PaginationCache,
         query::{Filtering, Query},
     },
     error::ErrorInformation,
@@ -123,11 +124,12 @@ where
 #[derive(Clone, Debug)]
 pub struct ImporterService {
     db: Database,
+    cache: PaginationCache,
 }
 
 impl ImporterService {
-    pub fn new(db: Database) -> Self {
-        Self { db }
+    pub fn new(db: Database, cache: PaginationCache) -> Self {
+        Self { db, cache }
     }
 
     pub async fn list(&self) -> Result<Vec<Importer>, Error> {
@@ -479,16 +481,14 @@ impl ImporterService {
             .filter(importer_report::Column::Importer.eq(name))
             .filtering(search)?
             .order_by_desc(importer_report::Column::Creation)
-            .limiting(&self.db, paginated.offset, paginated.limit);
+            .limiting(&self.db, paginated.offset, paginated.limit, &self.cache);
+
+        let LimitedResult { items, total } = limiting.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         Ok(PaginatedResults {
-            total: limiting.total().await?,
-            items: limiting
-                .fetch()
-                .await?
-                .into_iter()
-                .map(ImporterReport::from)
-                .collect(),
+            total,
+            items: items.into_iter().map(ImporterReport::from).collect(),
         })
     }
 }

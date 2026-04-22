@@ -11,14 +11,18 @@ use trustify_auth::{
     CreateImporter, DeleteImporter, ReadImporter, UpdateImporter, authorizer::Require,
 };
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{Database, pagination_cache::PaginationCache, query::Query},
     endpoints::extract_revision,
     model::{Paginated, PaginatedResults, Revisioned},
 };
 
-/// mount the "importer" module
-pub fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, db: Database) {
-    svc.app_data(web::Data::new(ImporterService::new(db)))
+/// Mount the "importer" module.
+pub fn configure(
+    svc: &mut utoipa_actix_web::service_config::ServiceConfig,
+    db: Database,
+    cache: PaginationCache,
+) {
+    svc.app_data(web::Data::new(ImporterService::new(db, cache)))
         .service(list)
         .service(create)
         .service(read)

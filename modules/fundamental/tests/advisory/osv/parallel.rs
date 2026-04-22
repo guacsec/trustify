@@ -1,6 +1,7 @@
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::{db::query::Query, model::Paginated};
 use trustify_module_fundamental::advisory::service::AdvisoryService;
 use trustify_module_ingestor::common::Deprecation;
@@ -19,17 +20,21 @@ async fn ingest_10(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     futures_util::future::try_join_all(f).await?;
 
-    let service = AdvisoryService::new(ctx.db.clone());
+    let service = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
 
     let result = service
         .fetch_advisories(
             Query::default(),
-            Paginated::default(),
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
             Deprecation::Consider,
             &ctx.db,
         )
         .await?;
-    assert_eq!(1, result.total);
+    assert_eq!(Some(1), result.total);
 
     Ok(())
 }

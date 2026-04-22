@@ -1,7 +1,7 @@
 mod bytesize;
 pub use bytesize::*;
 
-use crate::db::limiter::Limiter;
+use crate::db::limiter::{LimitedResult, Limiter};
 use sea_orm::{ConnectionTrait, DbErr, SelectorTrait};
 use std::cmp::min;
 use std::marker::PhantomData;
@@ -37,22 +37,31 @@ pub struct Paginated {
     /// Zero means: no limit
     #[serde(default = "default::limit")]
     pub limit: u64,
+    /// Whether to compute and return the total count of matching items.
+    #[serde(default)]
+    pub total: bool,
 }
 
 impl Paginated {
+    /// Paginate an in-memory slice, optionally including the total count.
     pub fn paginate_array<T: Clone>(&self, vec: &[T]) -> PaginatedResults<T> {
-        // trying to start past the end of the vec
+        let total = if self.total {
+            Some(vec.len() as u64)
+        } else {
+            None
+        };
+
         if self.offset as usize > vec.len() {
             return PaginatedResults {
                 items: vec![],
-                total: vec.len() as u64,
+                total,
             };
         }
 
         if self.limit == 0 {
             return PaginatedResults {
                 items: Vec::from(&vec[self.offset as usize..]),
-                total: vec.len() as u64,
+                total,
             };
         }
 
@@ -60,7 +69,7 @@ impl Paginated {
 
         PaginatedResults {
             items: Vec::from(&vec[self.offset as usize..end]),
-            total: vec.len() as u64,
+            total,
         }
     }
 }
@@ -75,35 +84,33 @@ mod default {
 #[serde(rename_all = "camelCase")]
 pub struct PaginatedResults<R> {
     pub items: Vec<R>,
-    pub total: u64,
+    pub total: Option<u64>,
 }
 
 impl<T> Default for PaginatedResults<T> {
     fn default() -> Self {
         Self {
             items: vec![],
-            total: 0,
+            total: None,
         }
     }
 }
 
 impl<R> PaginatedResults<R> {
-    /// Create a new paginated result
+    /// Create a new paginated result, optionally computing the total count.
     pub async fn new<C, S1, S2>(
         limiter: Limiter<'_, C, S1, S2>,
+        paginated: Paginated,
     ) -> Result<PaginatedResults<S1::Item>, DbErr>
     where
         C: ConnectionTrait,
         S1: SelectorTrait,
         S2: SelectorTrait,
     {
-        let total = limiter.total().await?;
-        let results = limiter.fetch().await?;
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
-        Ok(PaginatedResults {
-            items: results,
-            total,
-        })
+        Ok(PaginatedResults { items, total })
     }
 
     pub fn map<O, F: FnMut(R) -> O>(self, f: F) -> PaginatedResults<O> {
@@ -129,52 +136,71 @@ mod test {
         let paginated = Paginated {
             offset: 0,
             limit: 0,
+            total: true,
         }
         .paginate_array(&data);
 
-        assert_eq!(10, paginated.total);
+        assert_eq!(Some(10), paginated.total);
         assert_eq!(10, paginated.items.len());
 
         let paginated = Paginated {
             offset: 0,
             limit: 5,
+            total: true,
         }
         .paginate_array(&data);
 
-        assert_eq!(10, paginated.total);
+        assert_eq!(Some(10), paginated.total);
         assert_eq!(5, paginated.items.len());
 
         let paginated = Paginated {
             offset: 5,
             limit: 0,
+            total: true,
         }
         .paginate_array(&data);
 
-        assert_eq!(10, paginated.total);
+        assert_eq!(Some(10), paginated.total);
         assert_eq!(5, paginated.items.len());
 
         let paginated = Paginated {
             offset: 12,
             limit: 0,
+            total: true,
         }
         .paginate_array(&data);
 
-        assert_eq!(10, paginated.total);
+        assert_eq!(Some(10), paginated.total);
         assert_eq!(0, paginated.items.len());
+    }
+
+    #[test]
+    fn paginated_vec_no_total() {
+        let data = [1, 2, 3];
+
+        let paginated = Paginated {
+            offset: 0,
+            limit: 0,
+            total: false,
+        }
+        .paginate_array(&data);
+
+        assert_eq!(None, paginated.total);
+        assert_eq!(3, paginated.items.len());
     }
 
     #[test]
     fn map() {
         let input = PaginatedResults {
             items: vec![1, 2, 3],
-            total: 10,
+            total: Some(10),
         };
 
         assert_eq!(
             input.map(|n| n.to_string()),
             PaginatedResults {
                 items: vec!["1".to_string(), "2".to_string(), "3".to_string()],
-                total: 10
+                total: Some(10)
             }
         )
     }

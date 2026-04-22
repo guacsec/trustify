@@ -1,20 +1,28 @@
 use super::*;
 use crate::{advisory::model::AdvisoryHead, source_document::model::SourceDocument};
-use std::collections::HashMap;
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
-use trustify_common::{db::query::q, hashing::Digests, model::Paginated, purl::Purl};
-use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
-use trustify_entity::labels::Labels;
-use trustify_entity::version_scheme::VersionScheme;
-use trustify_module_ingestor::graph::Outcome;
-use trustify_module_ingestor::graph::advisory::{
-    AdvisoryContext, AdvisoryInformation,
-    version::{VersionInfo, VersionSpec},
+use trustify_common::{
+    db::{pagination_cache::PaginationCache, query::q},
+    hashing::Digests,
+    model::Paginated,
+    purl::Purl,
 };
-use trustify_module_ingestor::graph::cvss::{ScoreCreator, ScoreInformation};
+use trustify_entity::{
+    advisory_vulnerability_score::{ScoreType, Severity},
+    labels::Labels,
+    version_scheme::VersionScheme,
+};
+use trustify_module_ingestor::graph::{
+    Outcome,
+    advisory::{
+        AdvisoryContext, AdvisoryInformation,
+        version::{VersionInfo, VersionSpec},
+    },
+    cvss::{ScoreCreator, ScoreInformation},
+};
 use trustify_test_context::TrustifyContext;
 
 pub async fn ingest_sample_advisory<'a>(
@@ -68,12 +76,20 @@ async fn all_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     ingest_sample_advisory(ctx, "RHSA-2", "RHSA-2").await?;
 
-    let fetch = AdvisoryService::new(ctx.db.clone());
+    let fetch = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
     let fetched = fetch
-        .fetch_advisories(q(""), Paginated::default(), Default::default(), &ctx.db)
+        .fetch_advisories(
+            q(""),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            Default::default(),
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(fetched.total, 2);
+    assert_eq!(fetched.total, Some(2));
     Ok(())
 }
 
@@ -125,7 +141,7 @@ async fn single_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     ingest_sample_advisory(ctx, "RHSA-2", "RHSA-2").await?;
 
-    let fetch = AdvisoryService::new(ctx.db.clone());
+    let fetch = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
     let jenny256 = Id::sha256(&digests.sha256);
     let jenny384 = Id::sha384(&digests.sha384);
     let jenny512 = Id::sha512(&digests.sha512);
@@ -210,7 +226,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let fetch = AdvisoryService::new(ctx.db.clone());
+    let fetch = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
     let jenny256 = Id::sha256(&digests.sha256);
     let fetched = fetch.fetch_advisory(jenny256.clone(), &ctx.db).await?;
 
@@ -268,7 +284,7 @@ async fn set_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
         )
         .await?;
 
-    let advisory_service = AdvisoryService::new(ctx.db.clone());
+    let advisory_service = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
     let jenny256 = Id::sha256(&digests.sha256);
 
     let fetched = advisory_service
@@ -344,7 +360,7 @@ async fn update_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         )
         .await?;
 
-    let advisory_service = AdvisoryService::new(ctx.db.clone());
+    let advisory_service = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
     let jenny256 = Id::sha256(&digests.sha256);
 
     let fetched = advisory_service

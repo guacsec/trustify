@@ -57,7 +57,7 @@ async fn test_simple_analysis_service(ctx: &TrustifyContext) -> Result<(), anyho
             "doesn't match: {traces:#?}"
         );
     });
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     // ensure we set implicit relationship on components with no defined relationships
     let analysis_graph = service
@@ -73,7 +73,7 @@ async fn test_simple_analysis_service(ctx: &TrustifyContext) -> Result<(), anyho
     let analysis_graph = analysis_graph.roots();
     log::debug!("After: {analysis_graph:#?}");
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     Ok(())
 }
@@ -118,7 +118,7 @@ async fn test_simple_analysis_cyclonedx_service(
             "doesn't match: {traces:#?}"
         );
     });
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     // ensure we set implicit relationship on components with no defined relationships
     let analysis_graph = service
@@ -134,7 +134,7 @@ async fn test_simple_analysis_cyclonedx_service(
     let analysis_graph = analysis_graph.root_traces();
     log::debug!("After: {analysis_graph:#?}");
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     Ok(())
 }
@@ -181,7 +181,7 @@ async fn test_simple_by_name_analysis_service(ctx: &TrustifyContext) -> Result<(
         );
     });
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     Ok(())
 }
@@ -224,7 +224,7 @@ async fn simple_by_name_analysis_service_filter_rel(
         );
     });
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     Ok(())
 }
@@ -273,7 +273,7 @@ async fn test_simple_by_purl_analysis_service(ctx: &TrustifyContext) -> Result<(
         );
     });
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
     Ok(())
 }
 
@@ -325,7 +325,7 @@ async fn test_quarkus_analysis_service(ctx: &TrustifyContext) -> Result<(), anyh
         );
     });
 
-    assert_eq!(analysis_graph.total, 2);
+    assert_eq!(analysis_graph.total, Some(2));
 
     Ok(())
 }
@@ -421,12 +421,15 @@ async fn test_simple_deps_service(ctx: &TrustifyContext) -> Result<(), anyhow::E
         .retrieve(
             &Query::q("AA"),
             QueryOptions::descendants(),
-            Paginated::default(),
+            Paginated {
+                total: true,
+                ..Paginated::default()
+            },
             &ctx.db,
         )
         .await?;
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     // ensure we set implicit relationship on components with no defined relationships
     let analysis_graph = service
@@ -442,7 +445,7 @@ async fn test_simple_deps_service(ctx: &TrustifyContext) -> Result<(), anyhow::E
     let analysis_graph = analysis_graph.roots();
     log::debug!("After: {analysis_graph:#?}");
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     Ok(())
 }
@@ -458,12 +461,15 @@ async fn test_simple_deps_cyclonedx_service(ctx: &TrustifyContext) -> Result<(),
         .retrieve(
             &Query::q("AA"),
             QueryOptions::descendants(),
-            Paginated::default(),
+            Paginated {
+                total: true,
+                ..Paginated::default()
+            },
             &ctx.db,
         )
         .await?;
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     // ensure we set implicit relationship on component with no defined relationships
     let analysis_graph = service
@@ -475,7 +481,7 @@ async fn test_simple_deps_cyclonedx_service(ctx: &TrustifyContext) -> Result<(),
         )
         .await?
         .roots();
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     Ok(())
 }
@@ -491,13 +497,16 @@ async fn test_simple_by_name_deps_service(ctx: &TrustifyContext) -> Result<(), a
         .retrieve(
             ComponentReference::Name("A"),
             QueryOptions::descendants(),
-            Paginated::default(),
+            Paginated {
+                total: true,
+                ..Paginated::default()
+            },
             &ctx.db,
         )
         .await?;
 
     assert_eq!(analysis_graph.items.len(), 1);
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     assert_eq!(
         analysis_graph.items[0].purl,
@@ -525,7 +534,10 @@ async fn test_simple_by_purl_deps_service(ctx: &TrustifyContext) -> Result<(), a
         .retrieve(
             &component_purl,
             QueryOptions::descendants(),
-            Paginated::default(),
+            Paginated {
+                total: true,
+                ..Paginated::default()
+            },
             &ctx.db,
         )
         .await?;
@@ -535,7 +547,7 @@ async fn test_simple_by_purl_deps_service(ctx: &TrustifyContext) -> Result<(), a
         vec![Purl::from_str("pkg:rpm/redhat/AA@0.0.0?arch=src")?]
     );
 
-    assert_eq!(analysis_graph.total, 1);
+    assert_eq!(analysis_graph.total, Some(1));
 
     Ok(())
 }
@@ -555,12 +567,15 @@ async fn test_quarkus_deps_service(ctx: &TrustifyContext) -> Result<(), anyhow::
         .retrieve(
             &Query::q("spymemcached"),
             QueryOptions::descendants(),
-            Paginated::default(),
+            Paginated {
+                total: true,
+                ..Paginated::default()
+            },
             &ctx.db,
         )
         .await?;
 
-    assert_eq!(analysis_graph.total, 2);
+    assert_eq!(analysis_graph.total, Some(2));
 
     Ok(())
 }

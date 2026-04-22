@@ -2,6 +2,7 @@ use super::{twice, update_mark_fixed_again, update_unmark_fixed};
 use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::purl::Purl;
 use trustify_entity::labels::Labels;
 use trustify_module_fundamental::{
@@ -28,7 +29,7 @@ async fn equal(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check info
 
-    let vuln = VulnerabilityService::new();
+    let vuln = VulnerabilityService::new(PaginationCache::for_test());
     let v = vuln
         .fetch_vulnerability("CVE-2020-5238", Default::default(), false, &ctx.db)
         .await?
@@ -53,7 +54,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check without deprecated
 
-    let vuln = VulnerabilityService::new();
+    let vuln = VulnerabilityService::new(PaginationCache::for_test());
     let v = vuln
         .fetch_vulnerability("CVE-2020-5238", Deprecation::Ignore, false, &ctx.db)
         .await?
@@ -65,7 +66,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check with deprecated
 
-    let vuln = VulnerabilityService::new();
+    let vuln = VulnerabilityService::new(PaginationCache::for_test());
     let v = vuln
         .fetch_vulnerability("CVE-2020-5238", Deprecation::Consider, false, &ctx.db)
         .await?
@@ -78,7 +79,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check status
 
-    let service = PurlService::new();
+    let service = PurlService::new(PaginationCache::for_test());
     let purls = service
         .purls(Default::default(), Default::default(), &ctx.db)
         .await?;
