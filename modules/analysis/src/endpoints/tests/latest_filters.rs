@@ -76,7 +76,7 @@ async fn resolve_rh_variant_latest_filter_container_cdx(
         let _response = app.req(Req::default()).await?;
     }
 
-    let mut response = app.req(req).await?;
+    let mut response = app.req(req.with_total()).await?;
 
     sort(&mut response["items"]);
 
@@ -148,7 +148,7 @@ async fn resolve_rh_variant_latest_filter_rpms_cdx(
         let _response = app.req(Req::default()).await?;
     }
 
-    let response = app.req(req).await?;
+    let response = app.req(req.with_total()).await?;
 
     log::info!("{response:#?}");
     assert_eq!(total, response["total"]);
@@ -215,7 +215,7 @@ async fn resolve_rh_variant_latest_filter_middleware_cdx(
         let _response = app.req(Req::default()).await?;
     }
 
-    let response = app.req(req).await?;
+    let response = app.req(req.with_total()).await?;
 
     log::info!("{response:#?}");
     assert_eq!(total, response["total"]);
@@ -254,6 +254,7 @@ async fn test_tc2606(
             latest: true,
             what: What::Id("cpe:/a:redhat:rhel_eus:9.4::appstream"),
             descendants: Some(1),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -355,6 +356,7 @@ async fn test_tc2677(
             latest: true,
             what: What::Id("cpe:/a:redhat:3scale:2.15::el9"),
             descendants: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -505,7 +507,7 @@ async fn parse_ids_find_only_exact_matches(
         let _response = app.req(Req::default()).await?;
     }
 
-    let response = app.req(req).await?;
+    let response = app.req(req.with_total()).await?;
     assert_eq!(total, response["total"]);
 
     Ok(())
@@ -544,6 +546,7 @@ async fn test_tc2758(
             latest: true,
             what: What::Id("cpe:/a:redhat:jboss_enterprise_application_platform:7.4"),
             descendants: Some(100),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -787,7 +790,7 @@ async fn resolve_rh_variant_latest_filter_tc_3278(
         let _response = app.req(Req::default()).await?;
     }
 
-    let mut response = app.req(req).await?;
+    let mut response = app.req(req.with_total()).await?;
 
     sort(&mut response["items"]);
 
@@ -879,7 +882,7 @@ async fn resolve_rh_variant_latest_filter_tc_2719(
         let _response = app.req(Req::default()).await?;
     }
 
-    let mut response = app.req(req).await?;
+    let mut response = app.req(req.with_total()).await?;
 
     sort(&mut response["items"]);
 
@@ -1014,7 +1017,7 @@ async fn test_tc3624(
         let _response = app.req(Req::default()).await?;
     }
 
-    let mut response = app.req(req).await?;
+    let mut response = app.req(req.with_total()).await?;
 
     sort(&mut response["items"]);
 
