@@ -112,8 +112,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
     // must be 2, as we consider deprecated ones too
 
     assert_eq!(purl.advisories.len(), 2);
-    purl.advisories
-        .sort_unstable_by_key(|a| a.head.modified);
+    purl.advisories.sort_unstable_by_key(|a| a.head.modified);
     let (slice1, slice2) = purl.advisories.split_at_mut(1);
     let adv1 = &mut slice1[0];
     let adv2 = &mut slice2[0];
