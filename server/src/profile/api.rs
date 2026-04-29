@@ -633,12 +633,12 @@ mod test {
     #[test_context(TrustifyContext)]
     #[rstest]
     // read-only mode still allows GET
-    #[case::ro_get(true, Method::GET, "/api/v3/advisory", StatusCode::OK)]
+    #[case::ro_get(true, Method::GET, "/api/v2/advisory", StatusCode::OK)]
     // read-only mode rejects POST
     #[case::ro_post(
         true,
         Method::POST,
-        "/api/v3/advisory",
+        "/api/v2/advisory",
         StatusCode::SERVICE_UNAVAILABLE
     )]
     // read-only mode rejects PUT
@@ -663,9 +663,9 @@ mod test {
         StatusCode::SERVICE_UNAVAILABLE
     )]
     // normal mode allows GET
-    #[case::rw_get(false, Method::GET, "/api/v3/advisory", StatusCode::OK)]
+    #[case::rw_get(false, Method::GET, "/api/v2/advisory", StatusCode::OK)]
     // normal mode lets POST through to handler
-    #[case::rw_post(false, Method::POST, "/api/v3/advisory", StatusCode::NOT_FOUND)]
+    #[case::rw_post(false, Method::POST, "/api/v2/advisory", StatusCode::BAD_REQUEST)]
     // normal mode lets PUT through to handler
     #[case::rw_put(false, Method::PUT, "/api/v2/importer/foo", StatusCode::BAD_REQUEST)]
     // normal mode lets PATCH through to handler
