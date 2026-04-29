@@ -620,6 +620,8 @@ mod test {
                     storage: ctx.storage.clone().into(),
                     auth: None,
                     analysis,
+                    #[cfg(feature = "graphql")]
+                    with_graphql: false,
                     read_only,
                 },
             );
