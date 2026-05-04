@@ -21,7 +21,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     sync::Arc,
 };
-use tracing::instrument;
+use tracing::{Instrument, info_span, instrument};
 use trustify_common::{db::VersionMatches, memo::Memo};
 use trustify_entity::{
     advisory, advisory_vulnerability, advisory_vulnerability_score, base_purl, cpe, organization,
@@ -161,6 +161,7 @@ impl SbomDetails {
             )
             .into_model::<IdSet>()
             .all(tx)
+            .instrument(info_span!("fetch IDs"))
             .await?;
 
         log::debug!("Collected {} ID sets from first query", id_sets.len());
@@ -172,6 +173,7 @@ impl SbomDetails {
                 raw_sql::product_advisory_info_sql(),
                 [sbom.sbom_id.into(), statuses.into()],
             ))
+            .instrument(info_span!("product_advisory_info_sql"))
             .await?;
 
         // Convert raw SQL results to IdSet objects
@@ -279,6 +281,7 @@ impl SbomDetails {
                     .eq(PgFunc::any(av_vulnerability_ids)),
             )
             .all(tx)
+            .instrument(info_span!("fetch advisory vulnerabilities"))
             .await?
             .into_iter()
             .map(|av| ((av.advisory_id, av.vulnerability_id.clone()), Arc::new(av)))
@@ -294,6 +297,7 @@ impl SbomDetails {
                     Expr::col(vulnerability::Column::Id).eq(PgFunc::any(vulnerability_ids.clone())),
                 )
                 .all(tx)
+                .instrument(info_span!("fetch vulnerabilities"))
                 .await?
                 .into_iter()
                 .map(|v| (v.id.clone(), Arc::new(v)))
@@ -303,6 +307,7 @@ impl SbomDetails {
         let cpes_map: BTreeMap<Uuid, Arc<cpe::Model>> = cpe::Entity::find()
             .filter(Expr::col(cpe::Column::Id).eq(PgFunc::any(cpe_ids)))
             .all(tx)
+            .instrument(info_span!("fetch CPEs"))
             .await?
             .into_iter()
             .map(|c| (c.id, Arc::new(c)))
@@ -312,6 +317,7 @@ impl SbomDetails {
         let statuses_map: BTreeMap<Uuid, Arc<status::Model>> = status::Entity::find()
             .filter(Expr::col(status::Column::Id).eq(PgFunc::any(status_ids)))
             .all(tx)
+            .instrument(info_span!("fetch status"))
             .await?
             .into_iter()
             .map(|s| (s.id, Arc::new(s)))
@@ -322,6 +328,7 @@ impl SbomDetails {
             organization::Entity::find()
                 .filter(Expr::col(organization::Column::Id).eq(PgFunc::any(organization_ids)))
                 .all(tx)
+                .instrument(info_span!("fetch organizations"))
                 .await?
                 .into_iter()
                 .map(|o| (o.id, Arc::new(o)))
@@ -339,6 +346,7 @@ impl SbomDetails {
                     .eq(PgFunc::any(vulnerability_ids)),
             )
             .all(tx)
+            .instrument(info_span!("fetch scores"))
             .await?;
         log::debug!("Pre-fetched {} scores", scores.len());
 
