@@ -14,6 +14,9 @@ a freshly instantiated snapshot from that import. This takes seconds rather than
 * Have a BTRFS volume mounted, with the following options: `defaults,user,exec,user_subvol_rm_allowed`
 * Set `TRUST_TEST_BTRFS_STORE` to a directory which is on such a volume, otherwise the current working directory is used, which must be on a BTRFS volume with those options
 
+If the requirements are not met, tests will automatically fall back to creating a temporary directory per test and
+run import operations every time. This is slower, but still does run tests.
+
 ## Maintenance
 
 It may happen that, at the end of a run, subvolumes don't get cleaned up. You can check using the following command:
@@ -27,8 +30,4 @@ short-lived and removed after a test was run.
 
 ## Alternatives
 
-If the requirements are not met (non-Linux platform, missing `btrfs` tool, or the store path is not on a BTRFS
-filesystem), tests will automatically fall back to creating a temporary directory per test and running import
-operations every time. This is slower, but does run tests.
-
-The temporary directory will be the sytem temporary directory, but can be overridden by using the `TMPDIR` variable.
+The temporary directory will be the system temporary directory, but can be overridden by using the `TMPDIR` variable.

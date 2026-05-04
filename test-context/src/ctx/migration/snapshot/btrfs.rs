@@ -36,15 +36,23 @@ impl Command {
 
 #[cfg(target_os = "linux")]
 impl Command {
-    pub fn is_btrfs(path: impl AsRef<Path>) -> io::Result<bool> {
-        const BTRFS_SUPER_MAGIC: nix::libc::c_long = 0x9123683E;
+    /// Find the mount info entry for the given path (longest mount point prefix match).
+    fn find_mount_entry(path: impl AsRef<Path>) -> io::Result<Option<procfs::process::MountInfo>> {
+        let path = path.as_ref().canonicalize()?;
+        let me = procfs::process::Process::myself().map_err(io::Error::other)?;
+        let mountinfo = me.mountinfo().map_err(io::Error::other)?;
 
-        let stat = nix::sys::statfs::statfs(path.as_ref()).map_err(io::Error::from)?;
-
-        Ok(stat.filesystem_type().0 == BTRFS_SUPER_MAGIC)
+        Ok(mountinfo
+            .into_iter()
+            .filter(|m| path.starts_with(&m.mount_point))
+            .max_by_key(|m| m.mount_point.as_os_str().len()))
     }
 
     pub fn new() -> anyhow::Result<Self> {
+        if std::env::var_os("TRUST_TEST_BTRFS_DISABLE").is_some() {
+            bail!("btrfs support disabled via TRUST_TEST_BTRFS_DISABLE");
+        }
+
         let btrfs = which::which("btrfs").context(
             r#"unable to locate btrfs:
 
@@ -60,11 +68,32 @@ You can install `btrfs`:
         }
         .ok_or_else(|| anyhow!("unable to locate btrfs store"))?;
 
-        if !Self::is_btrfs(store.as_path())? {
+        let mount_entry = Self::find_mount_entry(store.as_path())?.ok_or_else(|| {
+            anyhow!(
+                "unable to find mount entry for btrfs store ({})",
+                store.display()
+            )
+        })?;
+
+        if mount_entry.fs_type != "btrfs" {
             bail!(
                 r#"btrfs store ({}) is not on a btrfs volume.
 
 You can set `TRUST_TEST_BTRFS_STORE` to a directory on a BTRFS volume mounted with: defaults,user,exec,user_subvol_rm_allowed
+"#,
+                store.display()
+            );
+        }
+
+        if !mount_entry
+            .super_options
+            .contains_key("user_subvol_rm_allowed")
+        {
+            bail!(
+                r#"btrfs store ({}) is missing the `user_subvol_rm_allowed` mount option.
+
+Remount the volume with: defaults,user,exec,user_subvol_rm_allowed
+Or update /etc/fstab and remount.
 "#,
                 store.display()
             );

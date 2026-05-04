@@ -64,4 +64,5 @@
 | `EXTERNAL_TEST_DB`           | Run tests against external test database if set                                                             |               |
 | `EXTERNAL_TEST_DB_BOOTSTRAP` | Run tests against external test database if set                                                             |               |
 | `MEM_LIMIT_MB`               | Set memory limit for tests that use TrustifyContext, shows the memory usage when the test reaches the limit | `500 MiB`     |
+| `TRUST_TEST_BTRFS_DISABLE`   | Disable BTRFS snapshot support even if available                                                            |               |
 | `TRUST_TEST_BTRFS_STORE`     | Path to a BTRFS-backed directory for using snapshots for tests                                              | User's home   |
