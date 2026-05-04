@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777311287808,
+  "lastUpdate": 1777914273660,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -18553,6 +18553,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/2dfe3698ff011370e8593f1621a1588ba0bd9c6c"
         },
         "date": 1777311285859,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "a6061a658667c067384a7a3b99402a03a8f1117f",
+          "message": "test: check for btrfs mount option too\n\nCheck if the volume was mounted with the required mount option. If not,\nlog and fall back to the non-btrfs tests.\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-05-04T14:08:54Z",
+          "tree_id": "b9b0c4be3179859d1e31234235fa6c5dfcf872ea",
+          "url": "https://github.com/guacsec/trustify/commit/a6061a658667c067384a7a3b99402a03a8f1117f"
+        },
+        "date": 1777914272014,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
