@@ -322,7 +322,7 @@ impl<'g> PackageContext<'g> {
     ) -> Result<PaginatedResults<PackageVersionContext<'_>>, Error> {
         let limiter = entity::versioned_purl::Entity::find()
             .filter(entity::versioned_purl::Column::BasePurlId.eq(self.base_purl.id))
-            .limiting(connection, paginated.limit, paginated.offset, cache);
+            .limiting(connection, paginated.offset, paginated.limit, cache);
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;
@@ -376,7 +376,6 @@ pub async fn batch_create_base_purls<C: ConnectionTrait>(
 #[allow(clippy::unwrap_used)]
 mod tests {
     use std::collections::BTreeMap;
-    use std::num::NonZeroU64;
     use std::str::FromStr;
 
     use sea_orm::{EntityTrait, IntoSimpleExpr, QueryFilter, QuerySelect, QueryTrait};
@@ -385,6 +384,7 @@ mod tests {
     use test_context::test_context;
     use test_log::test;
 
+    use rstest::rstest;
     use trustify_common::db::pagination_cache::PaginationCache;
     use trustify_common::model::Paginated;
     use trustify_common::purl::Purl;
@@ -471,16 +471,26 @@ mod tests {
     }
 
     #[test_context(TrustifyContext, skip_teardown)]
-    #[test(tokio::test)]
-    async fn get_versions_paginated(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
+    #[rstest]
+    #[case::basic_page(50, 50, true, Some(200), 50)]
+    #[case::second_page(100, 50, true, Some(200), 50)]
+    #[case::asymmetric(0, 10, true, Some(200), 10)]
+    #[case::asymmetric_page2(10, 10, true, Some(200), 10)]
+    #[case::zero_limit_with_total(0, 0, true, Some(200), 0)]
+    #[case::zero_limit_no_total(0, 0, false, None, 0)]
+    #[tokio::test]
+    async fn get_versions_paginated(
+        ctx: TrustifyContext,
+        #[case] offset: u64,
+        #[case] limit: u64,
+        #[case] total: bool,
+        #[case] expected_total: Option<u64>,
+        #[case] expected_len: usize,
+    ) -> Result<(), anyhow::Error> {
         let system = Graph::new(ctx.db.clone());
 
-        const TOTAL_ITEMS: u64 = 200;
-        let _page_size = NonZeroU64::new(50).unwrap();
-
-        for v in 0..TOTAL_ITEMS {
+        for v in 0..200u64 {
             let version = format!("pkg:maven/io.quarkus/quarkus-core@{v}").try_into()?;
-
             let _ = system.ingest_package_version(&version, &ctx.db).await?;
         }
 
@@ -489,39 +499,67 @@ mod tests {
             .await?
             .unwrap();
 
-        let all_versions = pkg.get_versions(&ctx.db).await?;
-
-        assert_eq!(TOTAL_ITEMS, all_versions.len() as u64);
-
-        let paginated = pkg
+        let result = pkg
             .get_versions_paginated(
                 Paginated {
-                    offset: 50,
-                    limit: 50,
-                    total: true,
+                    offset,
+                    limit,
+                    total,
                 },
                 &ctx.db,
                 &PaginationCache::for_test(),
             )
             .await?;
 
-        assert_eq!(Some(TOTAL_ITEMS), paginated.total);
-        assert_eq!(50, paginated.items.len());
+        assert_eq!(expected_total, result.total);
+        assert_eq!(expected_len, result.items.len());
 
-        let _next_paginated = pkg
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext, skip_teardown)]
+    #[rstest]
+    #[case::clamped(0, 30, 10)]
+    #[case::within_max(0, 5, 5)]
+    #[tokio::test]
+    async fn get_versions_paginated_max_limit(
+        ctx: TrustifyContext,
+        #[case] offset: u64,
+        #[case] limit: u64,
+        #[case] expected_len: usize,
+    ) -> Result<(), anyhow::Error> {
+        use std::time::Duration;
+
+        let system = Graph::new(ctx.db.clone());
+
+        const TOTAL_ITEMS: u64 = 50;
+
+        for v in 0..TOTAL_ITEMS {
+            let version = format!("pkg:maven/io.quarkus/quarkus-core@{v}").try_into()?;
+            let _ = system.ingest_package_version(&version, &ctx.db).await?;
+        }
+
+        let pkg = system
+            .get_package(&"pkg:maven/io.quarkus/quarkus-core".try_into()?, &ctx.db)
+            .await?
+            .unwrap();
+
+        let cache = PaginationCache::new(Duration::ZERO, 10);
+
+        let result = pkg
             .get_versions_paginated(
                 Paginated {
-                    offset: 100,
-                    limit: 50,
+                    offset,
+                    limit,
                     total: true,
                 },
                 &ctx.db,
-                &PaginationCache::for_test(),
+                &cache,
             )
             .await?;
 
-        assert_eq!(Some(TOTAL_ITEMS), paginated.total);
-        assert_eq!(50, paginated.items.len());
+        assert_eq!(Some(TOTAL_ITEMS), result.total);
+        assert_eq!(expected_len, result.items.len());
 
         Ok(())
     }
