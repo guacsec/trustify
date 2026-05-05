@@ -48,6 +48,13 @@ erDiagram
         string name
     }
 
+    Cpe {
+        uuid id
+        string vendor
+        string product
+        string version
+    }
+
     BasePurl {
         uuid id
         string type
@@ -60,8 +67,19 @@ erDiagram
         uuid advisory_id
         uuid vulnerability_id
         uuid status_id
-        uuid base_purl_id
+        string package
         uuid product_version_range_id
+        uuid context_cpe_id
+    }
+
+    PurlStatus {
+        uuid id
+        uuid advisory_id
+        uuid vulnerability_id
+        uuid status_id
+        uuid base_purl_id
+        uuid version_range_id
+        uuid context_cpe_id
     }
 
     Sbom {
@@ -69,18 +87,23 @@ erDiagram
     }
 
     Organization || -- o{ Product : produces
-    Product || -- o{ ProductVersion : have
+    Product || -- o{ ProductVersion : has
     ProductVersion || -- || Sbom : describes
 
-    Product || -- o{ ProductVersionRange : have
+    Product || -- o{ ProductVersionRange : has
     ProductVersionRange || -- || VersionRange : belongs
 
-    BasePurl || -- || ProductVersionRange : belongs
+    ProductStatus }o -- || Advisory : describes
+    ProductStatus }o -- || Vulnerability : describes
+    ProductStatus }o -- || Status : describes
+    ProductStatus }o -- || ProductVersionRange : describes
+    ProductStatus }o -- o| Cpe : "context"
 
-    ProductStatus || -- || Advisory : describes
-    ProductStatus || -- || Vulnerability : describes
-    ProductStatus || -- || BasePurl : describes
-    ProductStatus || -- || Status : describes
-    ProductStatus || -- || ProductVersionRange : describe
+    PurlStatus }o -- || Advisory : describes
+    PurlStatus }o -- || Vulnerability : describes
+    PurlStatus }o -- || Status : describes
+    PurlStatus }o -- || BasePurl : describes
+    PurlStatus }o -- || VersionRange : describes
+    PurlStatus }o -- o| Cpe : "context"
 
 ```
