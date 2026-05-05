@@ -16,7 +16,7 @@ An SBOM contains a list of nodes, which are connected by relationships (like A d
 (e.g. SPDX), this may include references to the document itself (A describes SBOM), or to external documents
 (SBOM-A amends SBOM-B) and nodes in external documents (A depends on SBOM-B/C).
 
-A node can be either the SBOM itself, packages (aka components), files, or other parts of the SBOM.
+A node can be the SBOM itself, a package (aka component), a file, or another part of the SBOM.
 
 To represent this graph of SBOM, packages, files and relationships, the model of SPDX is being used, as it also covers
 the features of CycloneDX. In the database, this is being represented by the following structure:
