@@ -5,6 +5,7 @@ mod query;
 mod test;
 
 pub use query::*;
+use utoipa::IntoParams;
 use uuid::Uuid;
 
 use crate::{
@@ -48,6 +49,13 @@ use trustify_module_ingestor::{
     service::{Cache, Format, IngestorService},
 };
 use trustify_module_storage::service::StorageBackend;
+
+#[derive(Clone, Debug, PartialEq, Eq, Default, serde::Deserialize, IntoParams)]
+pub struct ModelGetParams {
+    /// Include SBOM counts for each model
+    #[serde(default)]
+    pub counts: bool,
+}
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
@@ -464,6 +472,7 @@ pub async fn packages(
         ("id", Path, description = "ID of the SBOM to get models for"),
         Query,
         Paginated,
+        ModelGetParams,
     ),
     responses(
         (status = 200, description = "AI Models", body = PaginatedResults<SbomModel>),
@@ -476,11 +485,12 @@ pub async fn models(
     id: web::Path<Uuid>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
+    web::Query(ModelGetParams { counts }): web::Query<ModelGetParams>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let tx = db.begin_read().await?;
     let result = fetch
-        .fetch_sbom_models(Some(id.into_inner()), search, paginated, &tx)
+        .fetch_sbom_models(Some(id.into_inner()), search, paginated, counts, &tx)
         .await?;
     Ok(HttpResponse::Ok().json(result))
 }
@@ -492,6 +502,7 @@ pub async fn models(
     params(
         Query,
         Paginated,
+        ModelGetParams,
     ),
     responses(
         (status = 200, description = "AI Models", body = PaginatedResults<SbomModel>),
@@ -503,11 +514,12 @@ pub async fn all_models(
     db: web::Data<Database>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
+    web::Query(ModelGetParams { counts }): web::Query<ModelGetParams>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let tx = db.begin_read().await?;
     let result = fetch
-        .fetch_sbom_models(None, search, paginated, &tx)
+        .fetch_sbom_models(None, search, paginated, counts, &tx)
         .await?;
     Ok(HttpResponse::Ok().json(result))
 }

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tracing::{info_span, instrument};
 use tracing_futures::Instrument;
-use trustify_common::{cpe::Cpe, purl::Purl};
+use trustify_common::{cpe::Cpe, purl::Purl, requested_field::RequestedField};
 use trustify_entity::{
     labels::Labels, relationship::Relationship, sbom, sbom_node, sbom_package, source_document,
 };
@@ -114,7 +114,7 @@ pub struct ModelCatcher {
     pub properties: serde_json::Value,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, ToSchema)]
 pub struct SbomModel {
     /// The internal ID of a model
     pub id: String,
@@ -125,7 +125,7 @@ pub struct SbomModel {
     /// The properties associated with the model
     pub properties: serde_json::Map<String, serde_json::Value>,
     /// Number of SBOMs containing this model
-    pub sbom_count: i64,
+    pub sbom_count: RequestedField<i64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, Default)]

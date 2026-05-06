@@ -2768,6 +2768,12 @@ paths:
         required: false
         schema:
           type: boolean
+      - name: counts
+        in: query
+        description: Include SBOM counts for each model
+        required: false
+        schema:
+          type: boolean
       responses:
         '200':
           description: AI Models
@@ -3019,6 +3025,12 @@ paths:
       - name: total
         in: query
         description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      - name: counts
+        in: query
+        description: Include SBOM counts for each model
         required: false
         schema:
           type: boolean
@@ -5356,8 +5368,7 @@ components:
                   $ref: '#/components/schemas/PurlSummary'
                 description: The model's PURL
               sbom_count:
-                type: integer
-                format: int64
+                $ref: '#/components/schemas/RequestedField_i64_i64'
                 description: Number of SBOMs containing this model
         total:
           type:
@@ -6001,6 +6012,11 @@ components:
             value: 7.5
             severity: high
             vector: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+    RequestedField_i64_i64:
+      oneOf:
+      - type: 'null'
+      - type: integer
+        format: int64
     Revisioned_Importer:
       type: object
       description: |-
@@ -6142,8 +6158,7 @@ components:
             $ref: '#/components/schemas/PurlSummary'
           description: The model's PURL
         sbom_count:
-          type: integer
-          format: int64
+          $ref: '#/components/schemas/RequestedField_i64_i64'
           description: Number of SBOMs containing this model
     SbomPackage:
       type: object

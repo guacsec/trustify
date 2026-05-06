@@ -29,6 +29,7 @@ use trustify_common::{
     id::{Id, TrySelectForId},
     model::{Paginated, PaginatedResults},
     purl::Purl,
+    requested_field::BoolRequestedField,
     service::{Mappable, Resulting},
 };
 use trustify_entity::{
@@ -440,6 +441,7 @@ impl SbomService {
         sbom_id: Option<Uuid>,
         search: Query,
         paginated: Paginated,
+        include_counts: bool,
         connection: &C,
     ) -> Result<PaginatedResults<SbomModel>, Error> {
         let mut query = join_purls_and_cpes(
@@ -478,11 +480,11 @@ impl SbomService {
             &self.cache,
         );
 
-        let total = limiter.total().await?;
-        let model_catchers = limiter.fetch().await?;
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         // Parse PURLs once per model and collect all unique PURL UUIDs
-        let parsed: Vec<(String, String, serde_json::Value, Vec<PurlSummary>)> = model_catchers
+        let parsed: Vec<(String, String, serde_json::Value, Vec<PurlSummary>)> = items
             .into_iter()
             .map(|c| {
                 let purls = PurlSummary::from_values(c.purls);
@@ -498,7 +500,7 @@ impl SbomService {
         all_purl_uuids.dedup();
 
         // Batch count: how many distinct SBOMs reference each PURL
-        let counts_by_uuid: HashMap<Uuid, i64> = if all_purl_uuids.is_empty() {
+        let counts_by_uuid: HashMap<Uuid, i64> = if all_purl_uuids.is_empty() || !include_counts {
             HashMap::new()
         } else {
             sbom_node_purl_ref::Entity::find()
@@ -509,6 +511,7 @@ impl SbomService {
                 .group_by(sbom_node_purl_ref::Column::QualifiedPurlId)
                 .into_tuple::<(Uuid, i64)>()
                 .all(connection)
+                .instrument(info_span!("count sboms per model"))
                 .await?
                 .into_iter()
                 .collect()
@@ -517,11 +520,12 @@ impl SbomService {
         let items = parsed
             .into_iter()
             .map(|(id, name, properties, purls)| {
-                let sbom_count = purls
-                    .iter()
-                    .flat_map(|p| counts_by_uuid.get(&p.head.uuid).copied())
-                    .max()
-                    .unwrap_or(0);
+                let sbom_count = include_counts.then_requested(|| {
+                    purls
+                        .iter()
+                        .flat_map(|p| counts_by_uuid.get(&p.head.uuid).copied())
+                        .max()
+                });
                 let properties = match properties {
                     serde_json::Value::Object(m) => m,
                     _ => serde_json::Map::new(),
