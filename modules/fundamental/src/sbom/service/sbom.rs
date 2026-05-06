@@ -478,9 +478,63 @@ impl SbomService {
             &self.cache,
         );
 
-        let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
-        let items = items.into_iter().map(SbomModel::from_row).collect();
+        let total = limiter.total().await?;
+        let model_catchers = limiter.fetch().await?;
+
+        // Parse PURLs once per model and collect all unique PURL UUIDs
+        let parsed: Vec<(String, String, serde_json::Value, Vec<PurlSummary>)> = model_catchers
+            .into_iter()
+            .map(|c| {
+                let purls = PurlSummary::from_values(c.purls);
+                (c.id, c.name, c.properties, purls)
+            })
+            .collect();
+
+        let mut all_purl_uuids = Vec::new();
+        for (.., purls) in &parsed {
+            all_purl_uuids.extend(purls.iter().map(|p| p.head.uuid));
+        }
+        all_purl_uuids.sort_unstable();
+        all_purl_uuids.dedup();
+
+        // Batch count: how many distinct SBOMs reference each PURL
+        let counts_by_uuid: HashMap<Uuid, i64> = if all_purl_uuids.is_empty() {
+            HashMap::new()
+        } else {
+            sbom_node_purl_ref::Entity::find()
+                .select_only()
+                .column(sbom_node_purl_ref::Column::QualifiedPurlId)
+                .column_as(sbom_node_purl_ref::Column::SbomId.count(), "count")
+                .filter(sbom_node_purl_ref::Column::QualifiedPurlId.is_in(all_purl_uuids))
+                .group_by(sbom_node_purl_ref::Column::QualifiedPurlId)
+                .into_tuple::<(Uuid, i64)>()
+                .all(connection)
+                .await?
+                .into_iter()
+                .collect()
+        };
+
+        let items = parsed
+            .into_iter()
+            .map(|(id, name, properties, purls)| {
+                let sbom_count = purls
+                    .iter()
+                    .flat_map(|p| counts_by_uuid.get(&p.head.uuid).copied())
+                    .max()
+                    .unwrap_or(0);
+                let properties = match properties {
+                    serde_json::Value::Object(m) => m,
+                    _ => serde_json::Map::new(),
+                };
+                SbomModel {
+                    id,
+                    name,
+                    purls,
+                    properties,
+                    sbom_count,
+                }
+            })
+            .collect();
 
         Ok(PaginatedResults { items, total })
     }

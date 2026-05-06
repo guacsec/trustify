@@ -124,22 +124,8 @@ pub struct SbomModel {
     pub purls: Vec<PurlSummary>,
     /// The properties associated with the model
     pub properties: serde_json::Map<String, serde_json::Value>,
-}
-
-impl SbomModel {
-    pub fn from_row(row: ModelCatcher) -> Self {
-        let purls = PurlSummary::from_values(row.purls);
-        let properties = match row.properties {
-            serde_json::Value::Object(m) => m,
-            _ => serde_json::Map::new(),
-        };
-        Self {
-            id: row.id,
-            name: row.name,
-            purls,
-            properties,
-        }
-    }
+    /// Number of SBOMs containing this model
+    pub sbom_count: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, Default)]

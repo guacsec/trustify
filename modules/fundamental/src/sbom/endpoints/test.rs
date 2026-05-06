@@ -1804,6 +1804,7 @@ async fn get_aibom_models(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                     "serialNumber": "urn:uuid:ibm-granite-granite-docling-258M",
                     "primaryPurpose": "image-text-to-text",
                 },
+                "sbom_count": 1,
             },
         ],
         "total": 1

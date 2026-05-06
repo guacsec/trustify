@@ -5336,6 +5336,7 @@ components:
             - name
             - purls
             - properties
+            - sbom_count
             properties:
               id:
                 type: string
@@ -5354,6 +5355,10 @@ components:
                 items:
                   $ref: '#/components/schemas/PurlSummary'
                 description: The model's PURL
+              sbom_count:
+                type: integer
+                format: int64
+                description: Number of SBOMs containing this model
         total:
           type:
           - integer
@@ -6117,6 +6122,7 @@ components:
       - name
       - purls
       - properties
+      - sbom_count
       properties:
         id:
           type: string
@@ -6135,6 +6141,10 @@ components:
           items:
             $ref: '#/components/schemas/PurlSummary'
           description: The model's PURL
+        sbom_count:
+          type: integer
+          format: int64
+          description: Number of SBOMs containing this model
     SbomPackage:
       type: object
       required:
