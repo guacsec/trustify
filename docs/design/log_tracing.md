@@ -46,9 +46,68 @@ A default setting for developer workload would be `info`. Alternate settings are
 Function calls can be wrapped with the `#[instrument]` attribute, which allows tracing calls to functions, including
 their arguments and return values.
 
+### Performance considerations
+
 Adding instrumentation like this adds some overhead. So it should be applied with care. However, on the other side, it
 can be used to profile the application, also in production environments. This can be a considerable help, when things
-go wrong in production.
+go wrong in production. As a rule of thumb, instrumentation should be added when a block of work is run which is
+expected to take a significant (in the context of the operation) amount of time. Especially when calls are expected to
+vary in performance, or to network resources, like executing SQL queries. On the other side, very predictable and
+short/quick/trivial functions are bad candidates.
+
+Also, it should be considered that some parts of the code may loop over data. In cases like this, it might be necessary
+to wrap, structure spans differently, in order, later on, understand what was going on. Also see the section about
+functions later on.
+
+#### Good examples
+
+```rust
+#[instrument(skip(db), err(level=tracing::Level::INFO))]
+async fn do_work(db: &Connection) -> Result<Vec<Item>, Error> {
+  let a = db.query("…")
+          .instrument(info_span!("Query set A"))
+          .await?;
+  let b = other_work(&db)
+          // no `instrument` here, as the function already has instrumentation
+          .await?;
+  
+  Ok(a.into_iter().zip(b)
+          .map(|(a,b)| Item::new(a,b))
+          .collect())
+}
+```
+
+#### Bad examples
+
+```rust
+impl Item {
+  #[instrument]
+  fn new(a: A, b: B) -> Self {
+    Self {a, b}
+  }
+}
+```
+
+* The `new` function is trivial and predictable. Adding instrumentation here will cause a lot of information being
+  generated, as it's called in a loop. Consuming a lot of time (generating traces), compared to the actual work being
+  done.
+* Also are the arguments `a` and `b` added. This would result in basically dumping the while data read from the
+  database to the tracing system. That is not the goal. 
+
+```rust
+#[instrument(skip(db), ret)]
+async fn other_work(db: &Connection) -> Result<Vec<B>, Error> {
+  db.query("…")
+        .instrument(info_span!("Query set B"))
+        .await
+}
+```
+
+* The result of the function is recorded. However, this is bigger array of result information.
+* The function itself is trivial, but calls out to a network resource. Adding instrumentation is ok. However, there
+  is both function level instrumentation (`#[instrument]`) as well as a wrapper for the only function call of the
+  function (`.instrument(...)`). Only one would be sufficient. Ideally the function level one, with proper error
+  recording.
 
 ### Arguments
 
@@ -101,6 +160,38 @@ structs. In cases like that, use `err`, but lower the level to `info`:
 #[instrument(err(level=tracing::Level::INFO))]
 fn example() -> Result<LargeStruct, Error> {}
 ```
+
+### Inside functions
+
+Bigger functions have the problem that, if they are calling into functions which don't have instrumentation, they
+appear a big black box, but it is unclear what section in the function consumes the time. There are the following simple
+strategies we use to provide more information about parts of the inner workings of a function.
+
+If a call is made to a function which doesn't have instrumentation, but is expected to take a considerable
+amount of time, it is possible to wrap this with a span:
+
+```rust
+fn example() -> Result<(), Error>{
+  let _json = info_span!("json.parse")
+          .in_scope(|| serde_json::from_slice(&buf))?;  
+}
+```
+
+This can also be done for async functions, for actually for any `Future`, but it has to be done differently, so that
+the call stack and span context is properly maintained:
+
+```rust
+async fn example() -> Result<(), Error>{
+  let _json = other_fn()
+          .instrument(info_span!("do work"))
+          .await?;
+} 
+```
+
+> [!NOTE]
+> As adding instrumentation consumes resources as well, and having "too much" doesn't help investigating issues,
+> functions which already have instrumentation added (e.g. using `#[instrument]`), must not also have instrumentation
+> added on the call site.
 
 ## println and panic
 
