@@ -1,4 +1,4 @@
-# 00017. Make pagination more efficient by making total optional and caching it
+# 00017. Improve pagination: optional total, caching, limit enforcement
 
 Date: 2026-04-21
 
@@ -18,7 +18,7 @@ must scan the entire filtered result set regardless of the `OFFSET`/`LIMIT` appl
 query. This cost is paid on every page navigation, even though the total rarely changes between
 consecutive page requests from the same user session.
 
-Two independent optimizations address this:
+Three changes address this:
 
 1. **Make `total` optional** — allow clients to opt in to the count query only when they need it
    (e.g. a UI that needs to render a page count). Clients that do not need the total (infinite
@@ -28,6 +28,10 @@ Two independent optimizations address this:
 2. **Cache the total server-side** — when `total` is requested, cache the count result for a
    configurable duration so that repeated paginated requests with the same filters reuse the
    cached count instead of hitting the database again.
+
+3. **Enforce a maximum pagination limit** — reject requests with a `limit` value exceeding a
+   configurable maximum (default 1000) with HTTP 400, preventing clients from requesting
+   unbounded result sets that could overwhelm the database.
 
 ## Decision
 
@@ -136,6 +140,35 @@ key, a data change would require either re-evaluating cached filters to determin
 are affected, or bulk-invalidating all entries for a given entity type (discarding unaffected
 entries). This could be revisited if TTL-based staleness turns out to be problematic in practice.
 
+### Maximum pagination limit
+
+A configurable maximum is enforced on the `limit` query parameter. When a request exceeds it,
+the server returns HTTP 400 Bad Request with:
+
+* An `X-Pagination-Max-Limit` response header containing the configured maximum, so clients can
+  discover and adapt to the limit programmatically.
+* A JSON body using the standard `ErrorInformation` format:
+
+```json
+{
+  "error": "LimitExceeded",
+  "message": "requested pagination limit exceeds the maximum of 1000"
+}
+```
+
+The maximum is set via CLI argument (`--pagination-max-limit`) or environment variable,
+defaulting to 1000. Setting it to 0 disables the limit check entirely:
+
+```
+TRUSTD_PAGINATION_MAX_LIMIT=1000
+```
+
+### Behavior of limit=0
+
+When `limit=0` is passed, the server returns an empty `items` array without executing the data
+query. The `total` is still computed if `total=true` is requested. This is a **breaking change**
+from the previous behavior where `limit=0` meant "no limit" and returned all items.
+
 ### Changes to the Limiter
 
 The `Limiter` struct and its construction are updated to support the optional total:
@@ -193,6 +226,11 @@ purposes, moving the pagination cache there could be reconsidered as a low-effor
 * The `PaginatedResults` response type changes `total` from `u64` to `Option<u64>`. This is a
   **breaking change** — existing clients that assume `total` is always a number must be updated
   to either pass `total=true` or handle `null`.
+* `limit=0` now returns zero items instead of all items. This is a **breaking change** — clients
+  that relied on `limit=0` to fetch everything must be updated to use an explicit limit.
+* Requests with a `limit` exceeding the configured maximum (default 1000) are rejected with
+  HTTP 400. Clients can read the `X-Pagination-Max-Limit` response header to discover the
+  server's maximum.
 * Clients that do not need the total (the common case) no longer pay the `COUNT(*)` overhead,
   reducing response latency for large result sets.
 * Repeated pagination requests with the same filters within the TTL window avoid redundant
