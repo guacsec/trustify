@@ -56,7 +56,7 @@ vary in performance, or to network resources, like executing SQL queries. On the
 short/quick/trivial functions are bad candidates.
 
 Also, it should be considered that some parts of the code may loop over data. In cases like this, it might be necessary
-to wrap, structure spans differently, in order, later on, understand what was going on. Also see the section about
+to wrap or structure spans differently in order to, later on, understand what was going on. Also see the section about
 functions later on.
 
 #### Good examples
@@ -91,7 +91,7 @@ impl Item {
 * The `new` function is trivial and predictable. Adding instrumentation here will cause a lot of information being
   generated, as it's called in a loop. Consuming a lot of time (generating traces), compared to the actual work being
   done.
-* Also are the arguments `a` and `b` added. This would result in basically dumping the while data read from the
+* Also, the arguments `a` and `b` are added. This would basically dump the whole data read from the
   database to the tracing system. That is not the goal. 
 
 ```rust
@@ -103,7 +103,7 @@ async fn other_work(db: &Connection) -> Result<Vec<B>, Error> {
 }
 ```
 
-* The result of the function is recorded. However, this is bigger array of result information.
+* The result of the function is recorded. However, this is a bigger array of result information.
 * The function itself is trivial, but calls out to a network resource. Adding instrumentation is ok. However, there
   is both function level instrumentation (`#[instrument]`) as well as a wrapper for the only function call of the
   function (`.instrument(...)`). Only one would be sufficient. Ideally the function level one, with proper error
@@ -164,7 +164,7 @@ fn example() -> Result<LargeStruct, Error> {}
 ### Inside functions
 
 Bigger functions have the problem that, if they are calling into functions which don't have instrumentation, they
-appear a big black box, but it is unclear what section in the function consumes the time. There are the following simple
+appear as a big black box, but it is unclear what section in the function consumes the time. There are the following simple
 strategies we use to provide more information about parts of the inner workings of a function.
 
 If a call is made to a function which doesn't have instrumentation, but is expected to take a considerable
