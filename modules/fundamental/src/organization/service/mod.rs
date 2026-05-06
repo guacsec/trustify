@@ -31,10 +31,9 @@ impl OrganizationService {
     ) -> Result<PaginatedResults<OrganizationSummary>, Error> {
         let limiter = organization::Entity::find().filtering(search)?.limiting(
             connection,
-            paginated.offset,
-            paginated.limit,
+            paginated,
             &self.cache,
-        );
+        )?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;

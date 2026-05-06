@@ -322,7 +322,7 @@ impl<'g> PackageContext<'g> {
     ) -> Result<PaginatedResults<PackageVersionContext<'_>>, Error> {
         let limiter = entity::versioned_purl::Entity::find()
             .filter(entity::versioned_purl::Column::BasePurlId.eq(self.base_purl.id))
-            .limiting(connection, paginated.offset, paginated.limit, cache);
+            .limiting(connection, paginated, cache)?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;
@@ -518,15 +518,9 @@ mod tests {
     }
 
     #[test_context(TrustifyContext, skip_teardown)]
-    #[rstest]
-    #[case::clamped(0, 30, 10)]
-    #[case::within_max(0, 5, 5)]
     #[tokio::test]
-    async fn get_versions_paginated_max_limit(
+    async fn get_versions_paginated_within_max_limit(
         ctx: TrustifyContext,
-        #[case] offset: u64,
-        #[case] limit: u64,
-        #[case] expected_len: usize,
     ) -> Result<(), anyhow::Error> {
         use std::time::Duration;
 
@@ -549,8 +543,8 @@ mod tests {
         let result = pkg
             .get_versions_paginated(
                 Paginated {
-                    offset,
-                    limit,
+                    offset: 0,
+                    limit: 5,
                     total: true,
                 },
                 &ctx.db,
@@ -559,7 +553,50 @@ mod tests {
             .await?;
 
         assert_eq!(Some(TOTAL_ITEMS), result.total);
-        assert_eq!(expected_len, result.items.len());
+        assert_eq!(5, result.items.len());
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext, skip_teardown)]
+    #[tokio::test]
+    async fn get_versions_paginated_exceeds_max_limit(
+        ctx: TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use crate::graph::error::Error;
+        use std::time::Duration;
+
+        let system = Graph::new(ctx.db.clone());
+
+        for v in 0..10u64 {
+            let version = format!("pkg:maven/io.quarkus/quarkus-core@{v}").try_into()?;
+            let _ = system.ingest_package_version(&version, &ctx.db).await?;
+        }
+
+        let pkg = system
+            .get_package(&"pkg:maven/io.quarkus/quarkus-core".try_into()?, &ctx.db)
+            .await?
+            .unwrap();
+
+        let cache = PaginationCache::new(Duration::ZERO, 10);
+
+        let err = pkg
+            .get_versions_paginated(
+                Paginated {
+                    offset: 0,
+                    limit: 30,
+                    total: true,
+                },
+                &ctx.db,
+                &cache,
+            )
+            .await
+            .expect_err("should reject limit exceeding max");
+
+        match err {
+            Error::Limit(limit_err) => assert_eq!(limit_err.max_limit, 10),
+            other => panic!("expected LimitError, got: {other:?}"),
+        }
 
         Ok(())
     }

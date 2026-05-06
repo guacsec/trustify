@@ -19,7 +19,7 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             result.id.parse().expect("Must be a UID"),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             &ctx.db,
@@ -48,7 +48,7 @@ async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             result.id.parse().expect("Must be a UID"),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             &ctx.db,
@@ -77,7 +77,7 @@ async fn simple_comp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             result.id.parse().expect("Must be a UID"),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             &ctx.db,
@@ -98,7 +98,7 @@ async fn simple_comp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             Default::default(),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             &ctx.db,

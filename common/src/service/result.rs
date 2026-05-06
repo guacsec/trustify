@@ -1,11 +1,11 @@
 use crate::{
     db::{
-        limiter::{LimitedResult, limit_selector},
+        limiter::{LimitedResult, LimiterError, limit_selector},
         pagination_cache::PaginationCache,
     },
     model::{Paginated, PaginatedResults},
 };
-use sea_orm::{ConnectionTrait, DbErr, EntityTrait, FromQueryResult, Select};
+use sea_orm::{ConnectionTrait, EntityTrait, FromQueryResult, Select};
 use std::fmt::Debug;
 
 #[allow(async_fn_in_trait)]
@@ -17,7 +17,7 @@ pub trait Resulting: Sized + Debug {
         db: &C,
         query: Select<E>,
         cache: &PaginationCache,
-    ) -> Result<Self::Output<M>, DbErr>
+    ) -> Result<Self::Output<M>, LimiterError>
     where
         C: ConnectionTrait,
         E: EntityTrait<Model = EM>,
@@ -33,14 +33,14 @@ impl Resulting for Paginated {
         db: &C,
         query: Select<E>,
         cache: &PaginationCache,
-    ) -> Result<Self::Output<M>, DbErr>
+    ) -> Result<Self::Output<M>, LimiterError>
     where
         C: ConnectionTrait,
         E: EntityTrait<Model = EM>,
         EM: FromQueryResult + Send + Sync,
         M: FromQueryResult + Send + Sync,
     {
-        let limiter = limit_selector(db, query, self.offset, self.limit, cache);
+        let limiter = limit_selector(db, query, self, cache)?;
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(self.total).await?;
 
@@ -56,14 +56,14 @@ impl Resulting for () {
         db: &C,
         query: Select<E>,
         _cache: &PaginationCache,
-    ) -> Result<Self::Output<M>, DbErr>
+    ) -> Result<Self::Output<M>, LimiterError>
     where
         C: ConnectionTrait,
         E: EntityTrait<Model = EM>,
         EM: FromQueryResult + Send + Sync,
         M: FromQueryResult + Send + Sync,
     {
-        query.into_model().all(db).await
+        Ok(query.into_model().all(db).await?)
     }
 }
 

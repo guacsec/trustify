@@ -92,7 +92,7 @@ async fn quarkus(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             SbomExternalPackageReference::Purl(&Purl::from_str(purl).expect("must parse")),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             Query::default(),

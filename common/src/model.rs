@@ -22,9 +22,7 @@ pub struct Revisioned<T> {
     pub revision: String,
 }
 
-#[derive(
-    IntoParams, Copy, Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize,
-)]
+#[derive(IntoParams, Copy, Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Paginated {
     /// The first item to return, skipping all that come before it.
@@ -34,12 +32,22 @@ pub struct Paginated {
     pub offset: u64,
     /// The maximum number of entries to return.
     ///
-    /// Zero means: no limit
+    /// Zero means: return no items (the total count is still computed if requested).
     #[serde(default = "default::limit")]
     pub limit: u64,
     /// Whether to compute and return the total count of matching items.
     #[serde(default)]
     pub total: bool,
+}
+
+impl Default for Paginated {
+    fn default() -> Self {
+        Self {
+            offset: 0,
+            limit: default::limit(),
+            total: false,
+        }
+    }
 }
 
 impl Paginated {
@@ -51,16 +59,16 @@ impl Paginated {
             None
         };
 
-        if self.offset as usize > vec.len() {
+        if self.limit == 0 {
             return PaginatedResults {
                 items: vec![],
                 total,
             };
         }
 
-        if self.limit == 0 {
+        if self.offset as usize > vec.len() {
             return PaginatedResults {
-                items: Vec::from(&vec[self.offset as usize..]),
+                items: vec![],
                 total,
             };
         }
@@ -133,6 +141,7 @@ mod test {
     fn paginated_vec() {
         let data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
+        // limit=0 returns no items but still computes total
         let paginated = Paginated {
             offset: 0,
             limit: 0,
@@ -141,7 +150,7 @@ mod test {
         .paginate_array(&data);
 
         assert_eq!(Some(10), paginated.total);
-        assert_eq!(10, paginated.items.len());
+        assert_eq!(0, paginated.items.len());
 
         let paginated = Paginated {
             offset: 0,
@@ -153,6 +162,7 @@ mod test {
         assert_eq!(Some(10), paginated.total);
         assert_eq!(5, paginated.items.len());
 
+        // limit=0 with offset still returns no items
         let paginated = Paginated {
             offset: 5,
             limit: 0,
@@ -161,7 +171,7 @@ mod test {
         .paginate_array(&data);
 
         assert_eq!(Some(10), paginated.total);
-        assert_eq!(5, paginated.items.len());
+        assert_eq!(0, paginated.items.len());
 
         let paginated = Paginated {
             offset: 12,
@@ -186,7 +196,7 @@ mod test {
         .paginate_array(&data);
 
         assert_eq!(None, paginated.total);
-        assert_eq!(3, paginated.items.len());
+        assert_eq!(0, paginated.items.len());
     }
 
     #[test]

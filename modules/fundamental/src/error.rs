@@ -2,7 +2,11 @@ use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use sea_orm::DbErr;
 use std::borrow::Cow;
 use trustify_common::{
-    db::DatabaseErrors, decompress, error::ErrorInformation, id::IdError, purl::PurlErr,
+    db::{DatabaseErrors, limiter::LimiterError, pagination_cache::LimitError},
+    decompress,
+    error::ErrorInformation,
+    id::IdError,
+    purl::PurlErr,
 };
 use trustify_entity::labels;
 use trustify_module_storage::service::StorageKeyError;
@@ -49,6 +53,8 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Label(#[from] labels::Error),
+    #[error(transparent)]
+    Limit(#[from] LimitError),
     #[error("revision not found")]
     RevisionNotFound,
     #[error("unavailable")]
@@ -70,6 +76,15 @@ impl From<DbErr> for Error {
             Self::Unavailable
         } else {
             Self::Database(value)
+        }
+    }
+}
+
+impl From<LimiterError> for Error {
+    fn from(value: LimiterError) -> Self {
+        match value {
+            LimiterError::Db(e) => e.into(),
+            LimiterError::Limit(e) => e.into(),
         }
     }
 }
@@ -116,6 +131,7 @@ impl ResponseError for Error {
             Self::Label(err) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("Label", err))
             }
+            Self::Limit(err) => err.error_response(),
             Self::Unavailable => {
                 HttpResponse::ServiceUnavailable().json(ErrorInformation::new("Unavailable", self))
             }

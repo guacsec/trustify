@@ -39,6 +39,8 @@ pub enum Error {
     Query(#[from] trustify_common::db::query::Error),
     #[error(transparent)]
     Label(#[from] labels::Error),
+    #[error(transparent)]
+    Limit(#[from] trustify_common::db::pagination_cache::LimitError),
 }
 
 impl From<sea_orm::DbErr> for Error {
@@ -96,6 +98,7 @@ impl ResponseError for Error {
                 message: self.to_string(),
                 details: None,
             }),
+            Self::Limit(err) => err.error_response(),
             _ => HttpResponse::InternalServerError().json(ErrorInformation {
                 error: "Internal".into(),
                 message: self.to_string(),
@@ -481,7 +484,7 @@ impl ImporterService {
             .filter(importer_report::Column::Importer.eq(name))
             .filtering(search)?
             .order_by_desc(importer_report::Column::Creation)
-            .limiting(&self.db, paginated.offset, paginated.limit, &self.cache);
+            .limiting(&self.db, paginated, &self.cache)?;
 
         let LimitedResult { items, total } = limiting.fetch().await?;
         let total = total.requested(paginated.total).await?;

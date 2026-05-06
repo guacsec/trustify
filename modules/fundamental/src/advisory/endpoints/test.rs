@@ -1,17 +1,21 @@
 use crate::{
     advisory::model::{AdvisoryDetails, AdvisorySummary},
-    test::{caller, label::Api},
+    test::{caller, caller_with, label::Api},
 };
 use actix_http::StatusCode;
-use actix_web::test::TestRequest;
+use actix_web::{body::MessageBody, test::TestRequest};
 use hex::ToHex;
 use jsonpath_rust::JsonPath;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+use std::time::Duration;
 use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
-use trustify_common::{hashing::Digests, model::PaginatedResults};
+use trustify_common::{
+    db::pagination_cache::PaginationCache, error::ErrorInformation, hashing::Digests,
+    model::PaginatedResults,
+};
 use trustify_entity::{advisory_vulnerability_score, labels::Labels};
 use trustify_module_ingestor::{
     graph::{advisory::AdvisoryInformation, cvss::ScoreCreator},
@@ -803,6 +807,35 @@ async fn all_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         ]),
     )
     .await?;
+
+    Ok(())
+}
+
+/// Verify that exceeding the configured max limit returns 400 with the correct header and body.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn list_advisories_limit_exceeded(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let cache = PaginationCache::new(Duration::ZERO, 10);
+    let app = caller_with(ctx, Default::default(), cache).await?;
+
+    let request = TestRequest::get()
+        .uri("/api/v3/advisory?limit=50")
+        .to_request();
+    let response = app.call_service(request).await;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    let header = response
+        .headers()
+        .get("X-Pagination-Max-Limit")
+        .expect("missing X-Pagination-Max-Limit header");
+    assert_eq!(header.to_str().unwrap(), "10");
+
+    let body = response.into_body().try_into_bytes().unwrap();
+    let info: ErrorInformation =
+        serde_json::from_slice(&body).expect("response body should be valid JSON");
+    assert_eq!(info.error, "LimitExceeded");
+    assert!(info.message.contains("10"));
 
     Ok(())
 }

@@ -97,7 +97,7 @@ impl SbomGroupService {
 
         let query = sbom_group::Entity::find().filtering(query)?;
 
-        let limiter = query.limiting_pagination(db, paginated, &self.cache);
+        let limiter = query.limiting(db, paginated, &self.cache)?;
 
         let result = PaginatedResults::<sbom_group::Model>::new(limiter, paginated).await?;
 

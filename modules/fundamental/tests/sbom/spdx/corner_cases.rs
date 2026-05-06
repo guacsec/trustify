@@ -62,7 +62,7 @@ async fn infinite_loop(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             Default::default(),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             &ctx.db,
@@ -80,7 +80,7 @@ async fn infinite_loop(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             id,
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             &ctx.db,
@@ -121,7 +121,7 @@ async fn double_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             Default::default(),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             &ctx.db,
@@ -166,7 +166,7 @@ async fn self_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             Default::default(),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             &ctx.db,
@@ -211,7 +211,7 @@ async fn self_ref_package(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             Default::default(),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             &ctx.db,
@@ -259,7 +259,7 @@ async fn special_char(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             Default::default(),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             &ctx.db,

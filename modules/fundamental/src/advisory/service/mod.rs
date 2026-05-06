@@ -58,12 +58,7 @@ impl AdvisoryService {
                         _ => None,
                     }),
             )?
-            .try_limiting_as_multi_model::<AdvisoryCatcher>(
-                connection,
-                paginated.offset,
-                paginated.limit,
-                &self.cache,
-            )?;
+            .try_limiting_as_multi_model::<AdvisoryCatcher>(connection, paginated, &self.cache)?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;

@@ -1,5 +1,5 @@
 use sea_orm::DbErr;
-use trustify_common::purl::PurlErr;
+use trustify_common::{db::pagination_cache::LimitError, purl::PurlErr};
 use trustify_entity::labels;
 
 #[derive(Debug, thiserror::Error)]
@@ -24,4 +24,7 @@ pub enum Error {
 
     #[error(transparent)]
     Label(#[from] labels::Error),
+
+    #[error(transparent)]
+    Limit(#[from] LimitError),
 }

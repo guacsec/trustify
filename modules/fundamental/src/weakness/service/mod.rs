@@ -31,10 +31,9 @@ impl WeaknessService {
     ) -> Result<PaginatedResults<WeaknessSummary>, Error> {
         let limiter = weakness::Entity::find().filtering(query)?.limiting(
             &self.db,
-            paginated.offset,
-            paginated.limit,
+            paginated,
             &self.cache,
-        );
+        )?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;

@@ -24,7 +24,7 @@ async fn ingest_10(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             Query::default(),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             Deprecation::Consider,

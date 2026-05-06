@@ -287,7 +287,7 @@ impl SbomService {
                         },
                     }),
             )?
-            .limiting(connection, paginated.offset, paginated.limit, &self.cache);
+            .limiting(connection, paginated, &self.cache)?;
 
         let LimitedResult {
             items: sboms,
@@ -419,13 +419,8 @@ impl SbomService {
 
         // limit and execute
 
-        let limiter = limit_selector::<_, _, _, PackageCatcher>(
-            connection,
-            query,
-            paginated.offset,
-            paginated.limit,
-            &self.cache,
-        );
+        let limiter =
+            limit_selector::<_, _, _, PackageCatcher>(connection, query, paginated, &self.cache)?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;
@@ -472,13 +467,8 @@ impl SbomService {
             query = query.filter(sbom_ai::Column::SbomId.eq(id));
         }
 
-        let limiter = limit_selector::<_, _, _, ModelCatcher>(
-            connection,
-            query,
-            paginated.offset,
-            paginated.limit,
-            &self.cache,
-        );
+        let limiter =
+            limit_selector::<_, _, _, ModelCatcher>(connection, query, paginated, &self.cache)?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;
@@ -682,7 +672,7 @@ impl SbomService {
 
         // limit and execute
 
-        let limiter = query.limiting(connection, paginated.offset, paginated.limit, &self.cache);
+        let limiter = query.limiting(connection, paginated, &self.cache)?;
 
         let LimitedResult {
             items: sboms,

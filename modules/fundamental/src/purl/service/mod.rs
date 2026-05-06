@@ -166,7 +166,7 @@ impl PurlService {
         let limiter = base_purl::Entity::find()
             .filter(base_purl::Column::Type.eq(r#type))
             .filtering(query)?
-            .limiting(connection, paginated.offset, paginated.limit, &self.cache);
+            .limiting(connection, paginated, &self.cache)?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;
@@ -378,10 +378,9 @@ impl PurlService {
     ) -> Result<PaginatedResults<BasePurlSummary>, Error> {
         let limiter = base_purl::Entity::find().filtering(query)?.limiting(
             connection,
-            paginated.offset,
-            paginated.limit,
+            paginated,
             &self.cache,
-        );
+        )?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;
@@ -477,7 +476,7 @@ impl PurlService {
                 select.filter(qualified_purl::Column::Id.in_subquery(spdx_select.into_query()));
         }
 
-        let limiter = select.limiting(connection, paginated.offset, paginated.limit, &self.cache);
+        let limiter = select.limiting(connection, paginated, &self.cache)?;
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;
 

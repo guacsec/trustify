@@ -29,10 +29,9 @@ impl ProductService {
     ) -> Result<PaginatedResults<ProductSummary>, Error> {
         let limiter = product::Entity::find().filtering(search)?.limiting(
             connection,
-            paginated.offset,
-            paginated.limit,
+            paginated,
             &self.cache,
-        );
+        )?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total).await?;

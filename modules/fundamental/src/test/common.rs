@@ -7,12 +7,13 @@ use trustify_test_context::{
 };
 
 pub async fn caller(ctx: &TrustifyContext) -> anyhow::Result<impl CallService + '_> {
-    caller_with(ctx, Config::default()).await
+    caller_with(ctx, Config::default(), PaginationCache::for_test()).await
 }
 
-async fn caller_with(
+pub async fn caller_with(
     ctx: &TrustifyContext,
     config: Config,
+    cache: PaginationCache,
 ) -> anyhow::Result<impl CallService + '_> {
     let analysis = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
     call::caller(|svc| {
@@ -22,7 +23,7 @@ async fn caller_with(
             ctx.db.clone(),
             ctx.storage.clone(),
             analysis.clone(),
-            PaginationCache::for_test(),
+            cache,
         );
         trustify_module_analysis::endpoints::configure(svc, ctx.db.clone(), analysis);
     })

@@ -24,7 +24,7 @@ async fn assert_status(app: &impl CallService, sboms: usize, graphs: usize) {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn upload_lazy_load(ctx: &TrustifyContext) -> anyhow::Result<()> {
-    let app = caller_with(ctx, Config::default()).await?;
+    let app = caller_with(ctx, Config::default(), PaginationCache::for_test()).await?;
 
     let request = TestRequest::post()
         .uri("/api/v2/sbom")

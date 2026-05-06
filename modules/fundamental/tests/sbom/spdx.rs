@@ -94,7 +94,7 @@ async fn test_parse_spdx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                     sbom.sbom.sbom_id,
                     Paginated {
                         offset: 0,
-                        limit: 0,
+                        limit: 1000,
                         total: true,
                     },
                     &ctx.db,
@@ -147,7 +147,7 @@ async fn ingest_spdx_broken_refs(ctx: &TrustifyContext) -> Result<(), anyhow::Er
             Default::default(),
             Paginated {
                 offset: 0,
-                limit: 0,
+                limit: 1000,
                 total: true,
             },
             Default::default(),
