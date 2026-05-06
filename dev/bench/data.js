@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778074831866,
+  "lastUpdate": 1778097653876,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -18640,6 +18640,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/61ae2e33f5238a61ca3817f577d1fee972349c4b"
         },
         "date": 1778074830247,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "c8cc8e7850453424abf50099a5acf8419f0bd706",
+          "message": "chore: use re-exported biscuit",
+          "timestamp": "2026-05-06T17:26:21Z",
+          "tree_id": "d2156faeeadcf87cf0b3cc3e63752064146317d5",
+          "url": "https://github.com/guacsec/trustify/commit/c8cc8e7850453424abf50099a5acf8419f0bd706"
+        },
+        "date": 1778097652224,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
