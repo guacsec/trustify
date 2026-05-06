@@ -177,7 +177,7 @@ fn example() -> Result<(), Error>{
 }
 ```
 
-This can also be done for async functions, for actually for any `Future`, but it has to be done differently, so that
+This can also be done for async functions, or actually for any `Future`, but it has to be done differently, so that
 the call stack and span context is properly maintained:
 
 ```rust
