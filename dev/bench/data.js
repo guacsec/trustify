@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778180566363,
+  "lastUpdate": 1778192237446,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -18698,6 +18698,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/4c6204c0d90d16f29fdb24e2a661dcd92161b95f"
         },
         "date": 1778180564051,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jim@crossleys.org",
+            "name": "Jim Crossley",
+            "username": "jcrossley3"
+          },
+          "committer": {
+            "email": "jim@crossleys.org",
+            "name": "Jim Crossley",
+            "username": "jcrossley3"
+          },
+          "distinct": true,
+          "id": "ecf520c49bb1f025856bf115557d7399cb443788",
+          "message": "PR feedback: instrumentation and RequestedField",
+          "timestamp": "2026-05-07T19:35:47Z",
+          "tree_id": "c35221724c13b332dc47f8c6346943e12679304a",
+          "url": "https://github.com/guacsec/trustify/commit/ecf520c49bb1f025856bf115557d7399cb443788"
+        },
+        "date": 1778192235131,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
