@@ -32,7 +32,7 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         .id
         .to_string();
 
-    let uri = format!("/api/v2/sbom/urn:uuid:{id}/all-license-ids");
+    let uri = format!("/api/v3/sbom/urn:uuid:{id}/all-license-ids");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     let expected_result = json!([
@@ -366,7 +366,7 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         .id
         .to_string();
 
-    let uri = format!("/api/v2/sbom/urn:uuid:{id}/all-license-ids");
+    let uri = format!("/api/v3/sbom/urn:uuid:{id}/all-license-ids");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     let expected_result = json!([
@@ -431,13 +431,13 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     assert!(expected_result.contains_subset(response.clone()));
 
     // properly formatted but not existent Id
-    let req = TestRequest::get().uri("/api/v2/sbom/sha256:e5c850b67868563002801668950832278f8093308b3a3c57931f591442ed3160/all-license-ids").to_request();
+    let req = TestRequest::get().uri("/api/v3/sbom/sha256:e5c850b67868563002801668950832278f8093308b3a3c57931f591442ed3160/all-license-ids").to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
 
     // badly formatted Id
     let req = TestRequest::get()
-        .uri("/api/v2/sbom/sha123:1234/all-license-ids")
+        .uri("/api/v3/sbom/sha123:1234/all-license-ids")
         .to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::BAD_REQUEST, response.status());
@@ -450,7 +450,7 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         .await?
         .id
         .to_string();
-    let uri = format!("/api/v2/sbom/urn:uuid:{id}/all-license-ids");
+    let uri = format!("/api/v3/sbom/urn:uuid:{id}/all-license-ids");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     let expected_result = json!([
@@ -588,7 +588,7 @@ async fn get_packages_sbom_by_query(ctx: &TrustifyContext) -> Result<(), anyhow:
 
     async fn query_value(app: &impl CallService, id: &str, q: &str) -> Value {
         let uri = format!(
-            "/api/v2/sbom/urn:uuid:{id}/packages?total=true&q={}",
+            "/api/v3/sbom/urn:uuid:{id}/packages?total=true&q={}",
             urlencoding::encode(q)
         );
         let req = TestRequest::get().uri(&uri).to_request();
@@ -984,7 +984,7 @@ async fn license_export(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .id
         .to_string();
 
-    let uri = format!("/api/v2/sbom/urn:uuid:{id}/license-export");
+    let uri = format!("/api/v3/sbom/urn:uuid:{id}/license-export");
     let req = TestRequest::get().uri(&uri).to_request();
     let response = app.call_service(req).await;
 
@@ -1012,7 +1012,7 @@ async fn upload(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let app = caller(ctx).await?;
 
     let request = TestRequest::post()
-        .uri("/api/v2/sbom")
+        .uri("/api/v3/sbom")
         .set_payload(document_bytes("quarkus-bom-2.13.8.Final-redhat-00004.json").await?)
         .to_request();
 
@@ -1073,7 +1073,7 @@ async fn upload_with_groups(
     let ids = create_groups(&app, build_groups(&group_paths)).await?;
 
     let query = resolve_group_refs(&ids, groups);
-    let uri = format!("/api/v2/sbom?{query}");
+    let uri = format!("/api/v3/sbom?{query}");
     let request = TestRequest::post()
         .uri(&uri)
         .set_payload(document_bytes("quarkus-bom-2.13.8.Final-redhat-00004.json").await?)
@@ -1101,7 +1101,7 @@ async fn get_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?
         .id
         .to_string();
-    let uri = format!("/api/v2/sbom/urn:uuid:{id}");
+    let uri = format!("/api/v3/sbom/urn:uuid:{id}");
     let req = TestRequest::get().uri(&uri).to_request();
     let sbom: Value = app.call_and_read_body_json(req).await;
     log::debug!("{sbom:#?}");
@@ -1125,7 +1125,7 @@ async fn filter_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     async fn query(app: &impl CallService, id: &str, q: &str) -> PaginatedResults<SbomPackage> {
         let uri = format!(
-            "/api/v2/sbom/urn:uuid:{id}/packages?total=true&q={}",
+            "/api/v3/sbom/urn:uuid:{id}/packages?total=true&q={}",
             encode(q)
         );
         let req = TestRequest::get().uri(&uri).to_request();
@@ -1213,7 +1213,7 @@ async fn delete_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app
         .call_service(
             TestRequest::delete()
-                .uri(&format!("/api/v2/sbom/urn:uuid:{}", result.id.clone()))
+                .uri(&format!("/api/v3/sbom/urn:uuid:{}", result.id.clone()))
                 .to_request(),
         )
         .await;
@@ -1226,7 +1226,7 @@ async fn delete_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app
         .call_service(
             TestRequest::delete()
-                .uri(&format!("/api/v2/sbom/urn:uuid:{}", result.id.clone()))
+                .uri(&format!("/api/v3/sbom/urn:uuid:{}", result.id.clone()))
                 .to_request(),
         )
         .await;
@@ -1248,7 +1248,7 @@ async fn download_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let id = result.id.to_string();
 
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/urn:uuid:{id}"))
+        .uri(&format!("/api/v3/sbom/urn:uuid:{id}"))
         .to_request();
 
     let sbom = app.call_and_read_body_json::<SbomSummary>(req).await;
@@ -1261,7 +1261,7 @@ async fn download_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // Verify we can download by all hashes
     for hash in hashes {
         let req = TestRequest::get()
-            .uri(&format!("/api/v2/sbom/{hash}/download"))
+            .uri(&format!("/api/v3/sbom/{hash}/download"))
             .to_request();
         let body = app.call_and_read_body(req).await;
         assert_eq!(bytes, body);
@@ -1269,7 +1269,7 @@ async fn download_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Verify we can download by uuid
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/urn:uuid:{id}/download"))
+        .uri(&format!("/api/v3/sbom/urn:uuid:{id}/download"))
         .to_request();
     let body = app.call_and_read_body(req).await;
     assert_eq!(bytes, body);
@@ -1378,7 +1378,7 @@ async fn get_advisories_with_deprecated_filtering(
 async fn query_sboms_by_ingested_time(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     async fn query(app: &impl CallService, q: &str) -> Value {
         let uri = format!(
-            "/api/v2/sbom?total=true&q={}&sort={}",
+            "/api/v3/sbom?total=true&q={}&sort={}",
             urlencoding::encode(q),
             urlencoding::encode("ingested:desc")
         );
@@ -1416,7 +1416,7 @@ async fn query_sboms_by_ingested_time(ctx: &TrustifyContext) -> Result<(), anyho
 async fn query_sboms_by_label(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let query = async |total, q| {
         let app = caller(ctx).await.unwrap();
-        let uri = format!("/api/v2/sbom?total=true&q={}", encode(q));
+        let uri = format!("/api/v3/sbom?total=true&q={}", encode(q));
         let req = TestRequest::get().uri(&uri).to_request();
         let response: Value = app.call_and_read_body_json(req).await;
         assert_eq!(total, response["total"], "for {q}");
@@ -1489,7 +1489,7 @@ async fn query_sboms_by_package(ctx: &TrustifyContext) -> Result<(), anyhow::Err
     let query = async |purl, sort| {
         let app = caller(ctx).await.unwrap();
         let uri = format!(
-            "/api/v2/sbom/by-package?total=true&purl={}&sort={}",
+            "/api/v3/sbom/by-package?total=true&purl={}&sort={}",
             encode(purl),
             encode(sort)
         );
@@ -1530,7 +1530,7 @@ async fn query_sboms_by_array_values(ctx: &TrustifyContext) -> Result<(), anyhow
 
     let query = async |expected_count, q| {
         let app = caller(ctx).await.unwrap();
-        let uri = format!("/api/v2/sbom?total=true&q={}", encode(q));
+        let uri = format!("/api/v3/sbom?total=true&q={}", encode(q));
         let req = TestRequest::get().uri(&uri).to_request();
         let response: Value = app.call_and_read_body_json(req).await;
         tracing::debug!(test = "", "{response:#?}");
@@ -1565,7 +1565,7 @@ async fn test_label(
         .id
         .to_string();
 
-    let mut uri = format!("/api/v2/sbom-labels?filter_text={}", encode(query));
+    let mut uri = format!("/api/v3/sbom-labels?filter_text={}", encode(query));
 
     if let Some(limit) = limit.into() {
         uri.push_str(&format!("&limit={limit}"));
@@ -1646,7 +1646,7 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // First upload it via the normal SBOM endpoint
     let request = TestRequest::post()
-        .uri("/api/v2/sbom")
+        .uri("/api/v3/sbom")
         .set_payload(document_bytes("cyclonedx/cryptographic/keycloak-cbom.json").await?)
         .to_request();
     let response = app.call_service(request).await;
@@ -1655,7 +1655,7 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Now fetch the AIBOM we just uploaded by its id
     let id = result.id.to_string();
-    let uri = format!("/api/v2/sbom/{id}");
+    let uri = format!("/api/v3/sbom/{id}");
 
     let req = TestRequest::get().uri(&uri).to_request();
     let sbom: Value = app.call_and_read_body_json(req).await;
@@ -1672,7 +1672,7 @@ async fn get_cbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(labels["kind"], "cbom");
     assert_eq!(labels["type"], "cyclonedx");
 
-    let uri = format!("/api/v2/sbom/{id}/packages?total=true");
+    let uri = format!("/api/v3/sbom/{id}/packages?total=true");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     log::info!("{:#}", json!(response));
@@ -1691,7 +1691,7 @@ async fn get_aibom_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 
     // First upload it via the normal SBOM endpoint
     let request = TestRequest::post()
-        .uri("/api/v2/sbom")
+        .uri("/api/v3/sbom")
         .set_payload(
             document_bytes("cyclonedx/ai/ibm-granite_granite-docling-258M_aibom.json").await?,
         )
@@ -1702,7 +1702,7 @@ async fn get_aibom_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 
     // Now fetch the AIBOM we just uploaded by its id
     let id = result.id.to_string();
-    let uri = format!("/api/v2/sbom/{id}");
+    let uri = format!("/api/v3/sbom/{id}");
     let req = TestRequest::get().uri(&uri).to_request();
     let sbom: Value = app.call_and_read_body_json(req).await;
     log::debug!("{sbom:#?}");
@@ -1714,7 +1714,7 @@ async fn get_aibom_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
     assert_eq!(labels["kind"], "aibom");
     assert_eq!(labels["type"], "cyclonedx");
 
-    let uri = format!("/api/v2/sbom/{id}/packages?total=true");
+    let uri = format!("/api/v3/sbom/{id}/packages?total=true");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     log::info!("{:#}", json!(response));
@@ -1753,7 +1753,7 @@ async fn get_aibom_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
     assert!(expected_result.contains_subset(response.clone()));
 
     let uri = format!(
-        "/api/v2/sbom/by-package?purl={}",
+        "/api/v3/sbom/by-package?purl={}",
         encode("pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0")
     );
     let req = TestRequest::get().uri(&uri).to_request();
@@ -1853,7 +1853,7 @@ async fn query_aibom_models(
         .id
         .to_string();
 
-    let uri = format!("/api/v2/sbom/{id}/models?total=true&q={}", encode(q));
+    let uri = format!("/api/v3/sbom/{id}/models?total=true&q={}", encode(q));
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
 
@@ -1896,9 +1896,9 @@ async fn query_all_aibom_models(
     .await?;
 
     let uri = if let Some(q) = q {
-        format!("/api/v2/sbom/models?total=true&q={}", encode(q))
+        format!("/api/v3/sbom/models?total=true&q={}", encode(q))
     } else {
-        "/api/v2/sbom/models?total=true".into()
+        "/api/v3/sbom/models?total=true".into()
     };
     let req = TestRequest::get().uri(&uri).to_request();
     let app = caller(ctx).await?;
@@ -1964,7 +1964,7 @@ async fn filter_sboms_by_group(
         .await?;
 
     let query = resolve_group_refs(&ids, groups);
-    let uri = format!("/api/v2/sbom?total=true&{query}");
+    let uri = format!("/api/v3/sbom?total=true&{query}");
     log::info!("URI: {uri}");
     let req = TestRequest::get().uri(&uri).to_request();
 
@@ -1994,20 +1994,20 @@ async fn packages_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Fetch summary to get hashes
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/urn:uuid:{id}"))
+        .uri(&format!("/api/v3/sbom/urn:uuid:{id}"))
         .to_request();
     let sbom: Value = app.call_and_read_body_json(req).await;
     let sha256 = sbom["sha256"].as_str().unwrap();
 
     // Fetch packages by UUID
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/urn:uuid:{id}/packages?total=true"))
+        .uri(&format!("/api/v3/sbom/urn:uuid:{id}/packages?total=true"))
         .to_request();
     let by_uuid: Value = app.call_and_read_body_json(req).await;
 
     // Fetch packages by SHA-256
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/{sha256}/packages?total=true"))
+        .uri(&format!("/api/v3/sbom/{sha256}/packages?total=true"))
         .to_request();
     let by_hash: Value = app.call_and_read_body_json(req).await;
 
@@ -2017,21 +2017,21 @@ async fn packages_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Non-existent hash -> 404
     let req = TestRequest::get()
-        .uri("/api/v2/sbom/sha256:0000000000000000000000000000000000000000000000000000000000000000/packages")
+        .uri("/api/v3/sbom/sha256:0000000000000000000000000000000000000000000000000000000000000000/packages")
         .to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
 
     // Invalid identifier (no prefix) -> 400
     let req = TestRequest::get()
-        .uri("/api/v2/sbom/not-an-id/packages")
+        .uri("/api/v3/sbom/not-an-id/packages")
         .to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::BAD_REQUEST, response.status());
 
     // Unsupported prefix -> 400
     let req = TestRequest::get()
-        .uri("/api/v2/sbom/sha123:abcd/packages")
+        .uri("/api/v3/sbom/sha123:abcd/packages")
         .to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::BAD_REQUEST, response.status());
@@ -2050,20 +2050,20 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Fetch summary to get hashes
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/urn:uuid:{id}"))
+        .uri(&format!("/api/v3/sbom/urn:uuid:{id}"))
         .to_request();
     let sbom: Value = app.call_and_read_body_json(req).await;
     let sha256 = sbom["sha256"].as_str().unwrap();
 
     // Fetch related by UUID
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/urn:uuid:{id}/related"))
+        .uri(&format!("/api/v3/sbom/urn:uuid:{id}/related"))
         .to_request();
     let by_uuid: Value = app.call_and_read_body_json(req).await;
 
     // Fetch related by SHA-256
     let req = TestRequest::get()
-        .uri(&format!("/api/v2/sbom/{sha256}/related"))
+        .uri(&format!("/api/v3/sbom/{sha256}/related"))
         .to_request();
     let by_hash: Value = app.call_and_read_body_json(req).await;
 
@@ -2072,21 +2072,21 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Non-existent hash -> 404
     let req = TestRequest::get()
-        .uri("/api/v2/sbom/sha256:0000000000000000000000000000000000000000000000000000000000000000/related")
+        .uri("/api/v3/sbom/sha256:0000000000000000000000000000000000000000000000000000000000000000/related")
         .to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
 
     // Invalid identifier (no prefix) -> 400
     let req = TestRequest::get()
-        .uri("/api/v2/sbom/not-an-id/related")
+        .uri("/api/v3/sbom/not-an-id/related")
         .to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::BAD_REQUEST, response.status());
 
     // Unsupported prefix -> 400
     let req = TestRequest::get()
-        .uri("/api/v2/sbom/sha123:abcd/related")
+        .uri("/api/v3/sbom/sha123:abcd/related")
         .to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::BAD_REQUEST, response.status());

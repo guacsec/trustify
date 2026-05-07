@@ -30,7 +30,7 @@ async fn upload_bomb_dataset(ctx: &TrustifyContext) -> anyhow::Result<()> {
     dataset.finish()?;
 
     let request = TestRequest::post()
-        .uri("/api/v2/dataset")
+        .uri("/api/v3/dataset")
         .set_payload(data)
         .to_request();
 

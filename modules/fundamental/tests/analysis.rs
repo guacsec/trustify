@@ -12,7 +12,7 @@ include!("../src/test/common.rs");
 
 async fn assert_status(app: &impl CallService, sboms: usize, graphs: usize) {
     let request: Request = TestRequest::get()
-        .uri("/api/v2/analysis/status")
+        .uri("/api/v3/analysis/status")
         .to_request();
     let response: Value = app.call_and_read_body_json(request).await;
 
@@ -27,7 +27,7 @@ async fn upload_lazy_load(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let app = caller_with(ctx, Config::default(), PaginationCache::for_test()).await?;
 
     let request = TestRequest::post()
-        .uri("/api/v2/sbom")
+        .uri("/api/v3/sbom")
         .set_payload(document_bytes_raw("spdx/simple.json").await?)
         .to_request();
 
@@ -41,7 +41,7 @@ async fn upload_lazy_load(ctx: &TrustifyContext) -> anyhow::Result<()> {
     // now perform a query
 
     let uri = format!(
-        "/api/v2/analysis/component/{}?ancestors=10",
+        "/api/v3/analysis/component/{}?ancestors=10",
         urlencoding::encode("pkg:rpm/redhat/A@0.0.0?arch=src")
     );
     let request: Request = TestRequest::get().uri(&uri).to_request();

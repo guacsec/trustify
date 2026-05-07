@@ -38,7 +38,7 @@ mod default {
         (status = 200, description = "List all unique key/value labels from all Advisories", body = Vec<Value>),
     ),
 )]
-#[get("/v2/advisory-labels")]
+#[get("/v3/advisory-labels")]
 /// List all unique key/value labels from all Advisories
 pub async fn all(
     db: web::Data<Database>,
@@ -67,7 +67,7 @@ pub async fn all(
         (status = 404, description = "The advisory could not be found"),
     ),
 )]
-#[put("/v2/advisory/{id}/label")]
+#[put("/v3/advisory/{id}/label")]
 pub async fn set(
     advisory: web::Data<AdvisoryService>,
     db: web::Data<Database>,
@@ -99,7 +99,7 @@ pub async fn set(
         (status = 404, description = "The advisory could not be found"),
     ),
 )]
-#[patch("/v2/advisory/{id}/label")]
+#[patch("/v3/advisory/{id}/label")]
 pub async fn update(
     advisory: web::Data<AdvisoryService>,
     id: web::Path<Id>,

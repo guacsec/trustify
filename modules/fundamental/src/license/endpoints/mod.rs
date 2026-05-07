@@ -44,7 +44,7 @@ struct LicenseQuery {
         (status = 200, description = "Matching licenses", body = PaginatedResults<LicenseText>),
     ),
 )]
-#[get("/v2/license")]
+#[get("/v3/license")]
 pub async fn list_licenses(
     service: web::Data<LicenseService>,
     db: web::Data<Database>,

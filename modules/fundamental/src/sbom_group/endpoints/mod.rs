@@ -64,7 +64,7 @@ pub fn configure(
         (status = 403, description = "The user authenticated, but not authorized for this operation"),
    )
 )]
-#[get("/v2/group/sbom")]
+#[get("/v3/group/sbom")]
 /// List SBOM groups
 async fn list(
     service: web::Data<SbomGroupService>,
@@ -104,7 +104,7 @@ struct CreateResponse {
         (status = 409, description = "The name of the group is not unique within the parent"),
     )
 )]
-#[post("/v2/group/sbom")]
+#[post("/v3/group/sbom")]
 /// Create a new SBOM group
 async fn create(
     req: HttpRequest,
@@ -143,7 +143,7 @@ async fn create(
         (status = 412, description = "The requested revision is not the current revision of the group"),
     )
 )]
-#[delete("/v2/group/sbom/{id}")]
+#[delete("/v3/group/sbom/{id}")]
 /// Delete an SBOM group
 async fn delete(
     service: web::Data<SbomGroupService>,
@@ -179,7 +179,7 @@ async fn delete(
         (status = 412, description = "The requested revision is not the current revision of the group"),
     )
 )]
-#[put("/v2/group/sbom/{id}")]
+#[put("/v3/group/sbom/{id}")]
 /// Update an SBOM group
 async fn update(
     service: web::Data<SbomGroupService>,
@@ -217,7 +217,7 @@ async fn update(
         (status = 403, description = "The user authenticated, but not authorized for this operation"),
     )
 )]
-#[get("/v2/group/sbom/{id}")]
+#[get("/v3/group/sbom/{id}")]
 /// Read the SBOM group information
 async fn read(
     service: web::Data<SbomGroupService>,
@@ -250,7 +250,7 @@ async fn read(
         (status = 404, description = "The SBOM was not found"),
     )
 )]
-#[get("/v2/group/sbom-assignment/{id}")]
+#[get("/v3/group/sbom-assignment/{id}")]
 /// Get SBOM group assignments
 async fn read_assignments(
     service: web::Data<SbomGroupService>,
@@ -285,7 +285,7 @@ async fn read_assignments(
         (status = 412, description = "The requested revision is not the current revision"),
     )
 )]
-#[put("/v2/group/sbom-assignment/{id}")]
+#[put("/v3/group/sbom-assignment/{id}")]
 /// Update SBOM group assignments
 async fn update_assignments(
     service: web::Data<SbomGroupService>,
@@ -318,7 +318,7 @@ async fn update_assignments(
         (status = 403, description = "The user authenticated, but not authorized for this operation"),
     )
 )]
-#[put("/v2/group/sbom-assignment")]
+#[put("/v3/group/sbom-assignment")]
 /// Bulk update SBOM group assignments
 async fn bulk_update_assignments(
     service: web::Data<SbomGroupService>,

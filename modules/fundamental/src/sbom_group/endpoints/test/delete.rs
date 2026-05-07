@@ -23,7 +23,7 @@ async fn delete_nonexistent_group(ctx: &TrustifyContext) -> Result<(), anyhow::E
     let delete_response = app
         .call_service(
             TestRequest::delete()
-                .uri(&format!("/api/v2/group/sbom/{}", nonexistent_id))
+                .uri(&format!("/api/v3/group/sbom/{}", nonexistent_id))
                 .insert_header((http::header::IF_MATCH, "*"))
                 .to_request(),
         )
@@ -59,7 +59,7 @@ async fn delete_group_with_children(ctx: &TrustifyContext) -> Result<(), anyhow:
     let delete_response = app
         .call_service(
             TestRequest::delete()
-                .uri(&format!("/api/v2/group/sbom/{}", parent.id))
+                .uri(&format!("/api/v3/group/sbom/{}", parent.id))
                 .insert_header((http::header::IF_MATCH, "*"))
                 .to_request(),
         )

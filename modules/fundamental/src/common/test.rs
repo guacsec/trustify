@@ -47,7 +47,7 @@ impl FromCreateResponse for anyhow::Result<GroupResponse> {
 
         assert_eq!(
             location,
-            format!("/api/v2/group/sbom/{id}").as_str(),
+            format!("/api/v3/group/sbom/{id}").as_str(),
             "must return a relative URL to the group"
         );
 
@@ -124,7 +124,7 @@ impl Create {
         let response = app
             .call_service(
                 TestRequest::post()
-                    .uri("/api/v2/group/sbom")
+                    .uri("/api/v3/group/sbom")
                     .set_json(request_body)
                     .to_request(),
             )
@@ -163,7 +163,7 @@ pub async fn read_assignments(
     let response = app
         .call_service(
             TestRequest::get()
-                .uri(&format!("/api/v2/group/sbom-assignment/{}", sbom_id))
+                .uri(&format!("/api/v3/group/sbom-assignment/{}", sbom_id))
                 .to_request(),
         )
         .await;
@@ -227,7 +227,7 @@ impl UpdateAssignments {
         let initial_etag = self.etag.clone();
 
         let request = TestRequest::put()
-            .uri(&format!("/api/v2/group/sbom-assignment/{}", &self.sbom_id))
+            .uri(&format!("/api/v3/group/sbom-assignment/{}", &self.sbom_id))
             .set_json(&self.group_ids);
 
         let request = match self.etag {

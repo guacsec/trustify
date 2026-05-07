@@ -81,7 +81,7 @@ async fn create_and_delete_group(
     let group: GroupResponse = Create::new("test_group_for_deletion").execute(&app).await?;
 
     // Delete the group
-    let delete_request = TestRequest::delete().uri(&format!("/api/v2/group/sbom/{}", group.id));
+    let delete_request = TestRequest::delete().uri(&format!("/api/v3/group/sbom/{}", group.id));
     let delete_request = add_if_match(delete_request, if_match_type, &group.etag);
 
     let delete_response = app.call_service(delete_request.to_request()).await;
@@ -91,7 +91,7 @@ async fn create_and_delete_group(
     let get_response = app
         .call_service(
             TestRequest::get()
-                .uri(&format!("/api/v2/group/sbom/{}", group.id))
+                .uri(&format!("/api/v3/group/sbom/{}", group.id))
                 .to_request(),
         )
         .await;

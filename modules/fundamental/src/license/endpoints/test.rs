@@ -12,7 +12,7 @@ use trustify_test_context::{TrustifyContext, call::CallService};
 async fn list_spdx_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    let uri = "/api/v2/license/spdx/license?total=true";
+    let uri = "/api/v3/license/spdx/license?total=true";
 
     let request = TestRequest::get().uri(uri).to_request();
 
@@ -28,12 +28,12 @@ async fn list_spdx_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 async fn get_spdx_license(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    let uri = "/api/v2/license/spdx/license/GLWTPL";
+    let uri = "/api/v3/license/spdx/license/GLWTPL";
     let request = TestRequest::get().uri(uri).to_request();
     let response: SpdxLicenseDetails = app.call_and_read_body_json(request).await;
     assert_eq!(response.summary.id, "GLWTPL");
 
-    let uri = "/api/v2/license/spdx/license/GlwtPL";
+    let uri = "/api/v3/license/spdx/license/GlwtPL";
     let request = TestRequest::get().uri(uri).to_request();
     let response: SpdxLicenseDetails = app.call_and_read_body_json(request).await;
     assert_eq!(response.summary.id, "GLWTPL");
@@ -46,7 +46,7 @@ async fn get_spdx_license(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn list_licenses_no_data(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    let uri = "/api/v2/license?total=true";
+    let uri = "/api/v3/license?total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -66,7 +66,7 @@ async fn list_licenses_with_spdx_sbom(ctx: &TrustifyContext) -> Result<(), anyho
     ctx.ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
         .await?;
 
-    let uri = "/api/v2/license?sort=license:asc&total=true";
+    let uri = "/api/v3/license?sort=license:asc&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -103,7 +103,7 @@ async fn list_licenses_no_license_ref(ctx: &TrustifyContext) -> Result<(), anyho
     ctx.ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
         .await?;
 
-    let uri = "/api/v2/license?sort=license:asc&limit=733&total=true";
+    let uri = "/api/v3/license?sort=license:asc&limit=733&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -138,7 +138,7 @@ async fn list_licenses_with_cyclonedx_sbom(ctx: &TrustifyContext) -> Result<(), 
     ctx.ingest_document("zookeeper-3.9.2-cyclonedx.json")
         .await?;
 
-    let uri = "/api/v2/license?sort=license:asc&total=true";
+    let uri = "/api/v3/license?sort=license:asc&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -169,7 +169,7 @@ async fn list_licenses_with_mixed_sboms(ctx: &TrustifyContext) -> Result<(), any
     ])
     .await?;
 
-    let uri = "/api/v2/license?sort=license:asc&total=true";
+    let uri = "/api/v3/license?sort=license:asc&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -206,35 +206,35 @@ async fn list_licenses_with_search_filter(ctx: &TrustifyContext) -> Result<(), a
     .await?;
 
     // Test search filter for "ASL" (Apache Software License)
-    let uri = "/api/v2/license?q=license~ASL&total=true";
+    let uri = "/api/v3/license?q=license~ASL&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
     assert_eq!(response.total, Some(4));
 
     // Test full text search filter for "ASL" (Apache Software License)
-    let uri = "/api/v2/license?q=ASL&total=true";
+    let uri = "/api/v3/license?q=ASL&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
     assert_eq!(response.total, Some(4));
 
     // Test case-insensitive search filter for "asl"
-    let uri = "/api/v2/license?q=asl&total=true";
+    let uri = "/api/v3/license?q=asl&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
     assert_eq!(response.total, Some(4));
 
     // Test case-insensitive search filter for "AsL"
-    let uri = "/api/v2/license?q=AsL&total=true";
+    let uri = "/api/v3/license?q=AsL&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
     assert_eq!(response.total, Some(4));
 
     // Test for non-existent license
-    let uri = "/api/v2/license?q=NonExistentLicense&total=true";
+    let uri = "/api/v3/license?q=NonExistentLicense&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -242,7 +242,7 @@ async fn list_licenses_with_search_filter(ctx: &TrustifyContext) -> Result<(), a
     assert_eq!(0, response.items.len());
 
     // Test search filter for "ASL" (Apache Software License) and sorting (default asc)
-    let uri = "/api/v2/license?q=license~ASL&sort=license&total=true";
+    let uri = "/api/v3/license?q=license~ASL&sort=license&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -254,7 +254,7 @@ async fn list_licenses_with_search_filter(ctx: &TrustifyContext) -> Result<(), a
     assert_eq!(license_names, sorted_licenses);
 
     // Test full text search filter for "ASL" (Apache Software License) and sorting desc
-    let uri = "/api/v2/license?q=ASL&sort=license:desc&total=true";
+    let uri = "/api/v3/license?q=ASL&sort=license:desc&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -275,7 +275,7 @@ async fn list_licenses_with_pagination(ctx: &TrustifyContext) -> Result<(), anyh
     let app = caller(ctx).await?;
 
     // Test pagination - first page
-    let uri = "/api/v2/license?limit=5&offset=0&total=true";
+    let uri = "/api/v3/license?limit=5&offset=0&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -290,7 +290,7 @@ async fn list_licenses_with_pagination(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test pagination - second page (if there are enough items)
     if total_licenses > 5 {
-        let uri = "/api/v2/license?limit=5&offset=5&total=true";
+        let uri = "/api/v3/license?limit=5&offset=5&total=true";
         let request = TestRequest::get().uri(uri).to_request();
         let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -305,7 +305,7 @@ async fn list_licenses_with_pagination(ctx: &TrustifyContext) -> Result<(), anyh
 
     // Test pagination with offset beyond available items
     let uri = format!(
-        "/api/v2/license?limit=5&offset={}&total=true",
+        "/api/v3/license?limit=5&offset={}&total=true",
         total_licenses + 10
     );
     let request = TestRequest::get().uri(&uri).to_request();
@@ -329,7 +329,7 @@ async fn list_licenses_no_partial_license_ref_match(
     // LicenseRef-GPL ("GPL License") vs LicenseRef-GPLv2 ("GPLv2 License")
     ctx.ingest_document("spdx/license-ref-overlap.json").await?;
 
-    let uri = "/api/v2/license?limit=1000";
+    let uri = "/api/v3/license?limit=1000";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -393,7 +393,7 @@ async fn list_licenses_sorting(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     ctx.ingest_document("spdx/OCP-TOOLS-4.11-RHEL-8.json")
         .await?;
 
-    let uri = "/api/v2/license?sort=license:asc&limit=733&total=true";
+    let uri = "/api/v3/license?sort=license:asc&limit=733&total=true";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
 
@@ -406,7 +406,7 @@ async fn list_licenses_sorting(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     sorted_licenses.sort();
     assert_eq!(license_names, sorted_licenses);
 
-    let uri = "/api/v2/license?sort=license:desc&limit=733";
+    let uri = "/api/v3/license?sort=license:desc&limit=733";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<LicenseText> = app.call_and_read_body_json(request).await;
     let license_names: Vec<String> = response.items.iter().map(|l| l.license.clone()).collect();

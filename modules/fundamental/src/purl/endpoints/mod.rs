@@ -81,7 +81,7 @@ pub async fn get(
         (status = 200, description = "All relevant matching qualified PURLs", body = PaginatedResults<PurlSummary>),
     ),
 )]
-#[get("/v2/purl")]
+#[get("/v3/purl")]
 /// List fully-qualified pURLs
 pub async fn all(
     service: web::Data<PurlService>,
@@ -102,7 +102,7 @@ pub async fn all(
         (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse)
     )
 )]
-#[post("/v2/purl/recommend")]
+#[post("/v3/purl/recommend")]
 pub async fn recommend(
     purl_service: web::Data<PurlService>,
     db: web::Data<Database>,

@@ -76,7 +76,7 @@ impl Update {
         }
 
         let request = TestRequest::put()
-            .uri(&format!("/api/v2/group/sbom/{}", &self.id))
+            .uri(&format!("/api/v3/group/sbom/{}", &self.id))
             .set_json(update_body);
 
         let request = add_if_match(request, self.if_match_type, &self.etag);
@@ -96,7 +96,7 @@ async fn get_group_helper(
     let response = app
         .call_service(
             TestRequest::get()
-                .uri(&format!("/api/v2/group/sbom/{}", id))
+                .uri(&format!("/api/v3/group/sbom/{}", id))
                 .to_request(),
         )
         .await;

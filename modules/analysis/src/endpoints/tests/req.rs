@@ -64,7 +64,7 @@ impl<C: CallService> ReqExt for C {
             false => "",
         };
 
-        const BASE: &str = "/api/v2/analysis/";
+        const BASE: &str = "/api/v3/analysis/";
 
         let mut uri = match loc {
             What::None => {

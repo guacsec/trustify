@@ -95,7 +95,7 @@ mod default {
         )
     )
 )]
-#[post("/v2/ui/extract-sbom-purls")]
+#[post("/v3/ui/extract-sbom-purls")]
 /// Extract PURLs from an SBOM provided in the request
 async fn extract_sbom_purls(
     web::Query(ExtractSbomPurls { format }): web::Query<ExtractSbomPurls>,

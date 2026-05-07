@@ -597,33 +597,33 @@ mod test {
     #[case::ro_put(
         true,
         Method::PUT,
-        "/api/v2/importer/foo",
+        "/api/v3/importer/foo",
         StatusCode::SERVICE_UNAVAILABLE
     )]
     // read-only mode rejects PATCH
     #[case::ro_patch(
         true,
         Method::PATCH,
-        "/api/v2/importer/foo",
+        "/api/v3/importer/foo",
         StatusCode::SERVICE_UNAVAILABLE
     )]
     // read-only mode rejects DELETE
     #[case::ro_delete(
         true,
         Method::DELETE,
-        "/api/v2/importer/foo",
+        "/api/v3/importer/foo",
         StatusCode::SERVICE_UNAVAILABLE
     )]
     // normal mode allows GET
     #[case::rw_get(false, Method::GET, "/api/v3/advisory", StatusCode::OK)]
     // normal mode lets POST through to handler
-    #[case::rw_post(false, Method::POST, "/api/v3/advisory", StatusCode::NOT_FOUND)]
+    #[case::rw_post(false, Method::POST, "/api/v3/advisory", StatusCode::BAD_REQUEST)]
     // normal mode lets PUT through to handler
-    #[case::rw_put(false, Method::PUT, "/api/v2/importer/foo", StatusCode::BAD_REQUEST)]
+    #[case::rw_put(false, Method::PUT, "/api/v3/importer/foo", StatusCode::BAD_REQUEST)]
     // normal mode lets PATCH through to handler
-    #[case::rw_patch(false, Method::PATCH, "/api/v2/importer/foo", StatusCode::NOT_FOUND)]
+    #[case::rw_patch(false, Method::PATCH, "/api/v3/importer/foo", StatusCode::NOT_FOUND)]
     // normal mode lets DELETE through to handler
-    #[case::rw_delete(false, Method::DELETE, "/api/v2/importer/foo", StatusCode::NO_CONTENT)]
+    #[case::rw_delete(false, Method::DELETE, "/api/v3/importer/foo", StatusCode::NO_CONTENT)]
     #[test_log::test(actix_web::test)]
     async fn read_only_guards_mutations(
         ctx: &TrustifyContext,

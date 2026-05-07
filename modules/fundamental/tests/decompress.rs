@@ -18,7 +18,7 @@ async fn assert(
 ) -> anyhow::Result<()> {
     let app = caller(ctx).await?;
 
-    let request = TestRequest::post().uri("/api/v2/sbom");
+    let request = TestRequest::post().uri("/api/v3/sbom");
 
     let request = match content_type.into() {
         Some(ct) => request.append_header((http::header::CONTENT_TYPE, ct)),

@@ -18,7 +18,7 @@ use trustify_common::{
         (status = 200, description = "Matching licenses", body = PaginatedResults<SpdxLicenseSummary>),
     ),
 )]
-#[get("/v2/license/spdx/license")]
+#[get("/v3/license/spdx/license")]
 /// List SPDX licenses
 pub async fn list_spdx_licenses(
     state: web::Data<LicenseService>,
@@ -37,7 +37,7 @@ pub async fn list_spdx_licenses(
         (status = 200, description = "SPDX license details", body = SpdxLicenseDetails),
     ),
 )]
-#[get("/v2/license/spdx/license/{id}")]
+#[get("/v3/license/spdx/license/{id}")]
 /// Get SPDX license details
 pub async fn get_spdx_license(
     state: web::Data<LicenseService>,

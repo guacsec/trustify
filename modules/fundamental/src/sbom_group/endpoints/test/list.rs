@@ -285,7 +285,7 @@ async fn run_list_test(
     expected_referenced: Option<Vec<&'static [&'static str]>>,
 ) -> anyhow::Result<()> {
     let mut uri = format!(
-        "/api/v2/group/sbom?total=true&q={}&",
+        "/api/v3/group/sbom?total=true&q={}&",
         urlencoding::encode(q)
     );
     if options.totals {

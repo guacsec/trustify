@@ -70,7 +70,7 @@ async fn assert_extract_fn(
 
     let bytes = document_bytes_raw(file).await?;
 
-    let mut uri = "/api/v2/ui/extract-sbom-purls?".to_string();
+    let mut uri = "/api/v3/ui/extract-sbom-purls?".to_string();
 
     if let Some(format) = format.into() {
         uri = format!("{uri}format={format}")

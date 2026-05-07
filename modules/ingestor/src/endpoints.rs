@@ -53,7 +53,7 @@ struct UploadParams {
         (status = 400, description = "The file could not be parsed as an dataset"),
     )
 )]
-#[post("/v2/dataset")]
+#[post("/v3/dataset")]
 /// Upload a new dataset
 pub async fn upload_dataset(
     service: web::Data<IngestorService>,

@@ -43,7 +43,7 @@ pub fn configure(
         (status = 200, description = "Matching products", body = PaginatedResults<ProductSummary>),
     ),
 )]
-#[get("/v2/product")]
+#[get("/v3/product")]
 pub async fn all(
     state: web::Data<ProductService>,
     db: web::Data<Database>,
@@ -66,7 +66,7 @@ pub async fn all(
         (status = 404, description = "The product could not be found"),
     ),
 )]
-#[get("/v2/product/{id}")]
+#[get("/v3/product/{id}")]
 pub async fn get(
     state: web::Data<ProductService>,
     db: web::Data<Database>,
@@ -93,7 +93,7 @@ pub async fn get(
         (status = 404, description = "The product could not be found"),
     ),
 )]
-#[delete("/v2/product/{id}")]
+#[delete("/v3/product/{id}")]
 pub async fn delete(
     state: web::Data<ProductService>,
     db: web::Data<Database>,

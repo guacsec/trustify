@@ -40,7 +40,7 @@ pub fn configure(
         (status = 200, description = "Matching organizations", body = OrganizationSummary),
     ),
 )]
-#[get("/v2/organization")]
+#[get("/v3/organization")]
 /// List organizations
 pub async fn all(
     state: web::Data<OrganizationService>,
@@ -64,7 +64,7 @@ pub async fn all(
         (status = 404, description = "The organization could not be found"),
     ),
 )]
-#[get("/v2/organization/{id}")]
+#[get("/v3/organization/{id}")]
 /// Retrieve organization details
 pub async fn get(
     state: web::Data<OrganizationService>,

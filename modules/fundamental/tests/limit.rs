@@ -22,7 +22,7 @@ async fn upload_bomb_sbom(ctx: &TrustifyContext) -> anyhow::Result<()> {
     .await?;
 
     let request = TestRequest::post()
-        .uri("/api/v2/sbom")
+        .uri("/api/v3/sbom")
         .set_payload(document_bytes_raw("bomb.bz2").await?)
         .to_request();
 
@@ -47,7 +47,7 @@ async fn upload_bomb_advisory(ctx: &TrustifyContext) -> anyhow::Result<()> {
     .await?;
 
     let request = TestRequest::post()
-        .uri("/api/v2/advisory")
+        .uri("/api/v3/advisory")
         .set_payload(document_bytes_raw("bomb.bz2").await?)
         .to_request();
 

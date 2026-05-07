@@ -80,7 +80,7 @@ async fn sbom_group_assignments_not_found(ctx: &TrustifyContext) -> anyhow::Resu
     let response = app
         .call_service(
             TestRequest::get()
-                .uri("/api/v2/group/sbom-assignment/00000000-0000-0000-0000-000000000000")
+                .uri("/api/v3/group/sbom-assignment/00000000-0000-0000-0000-000000000000")
                 .to_request(),
         )
         .await;
@@ -194,7 +194,7 @@ async fn call_assign(
 ) -> StatusCode {
     app.call_service(
         TestRequest::put()
-            .uri(&format!("/api/v2/group/sbom-assignment/{sbom_id}"))
+            .uri(&format!("/api/v3/group/sbom-assignment/{sbom_id}"))
             .set_json(body)
             .to_request(),
     )
@@ -205,7 +205,7 @@ async fn call_assign(
 async fn call_bulk_assign(app: &impl CallService, body: impl serde::Serialize) -> StatusCode {
     app.call_service(
         TestRequest::put()
-            .uri("/api/v2/group/sbom-assignment")
+            .uri("/api/v3/group/sbom-assignment")
             .set_json(body)
             .to_request(),
     )

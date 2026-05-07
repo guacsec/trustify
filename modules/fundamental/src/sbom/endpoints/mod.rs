@@ -102,7 +102,7 @@ const CONTENT_TYPE_GZIP: &str = "application/gzip";
         (status = 400, description = "Invalid UUID format."),
     ),
 )]
-#[get("/v2/sbom/{id}/all-license-ids")]
+#[get("/v3/sbom/{id}/all-license-ids")]
 pub async fn get_unique_licenses(
     fetcher: web::Data<LicenseService>,
     db: web::Data<Database>,
@@ -129,7 +129,7 @@ pub async fn get_unique_licenses(
         (status = 404, description = "The document could not be found"),
     ),
 )]
-#[get("/v2/sbom/{id}/license-export")]
+#[get("/v3/sbom/{id}/license-export")]
 pub async fn get_license_export(
     fetcher: web::Data<LicenseService>,
     db: web::Data<Database>,
@@ -275,7 +275,7 @@ mod v3 {
         (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary>),
     ),
 )]
-#[get("/v2/sbom/by-package")]
+#[get("/v3/sbom/by-package")]
 pub async fn all_related(
     sbom: web::Data<SbomService>,
     db: web::Data<Database>,
@@ -309,7 +309,7 @@ pub async fn all_related(
         (status = 200, description = "Number of matching SBOMs per package", body = Vec<i64>),
     ),
 )]
-#[get("/v2/sbom/count-by-package")]
+#[get("/v3/sbom/count-by-package")]
 pub async fn count_related(
     sbom: web::Data<SbomService>,
     db: web::Data<Database>,
@@ -339,7 +339,7 @@ pub async fn count_related(
         (status = 404, description = "The SBOM could not be found"),
     ),
 )]
-#[get("/v2/sbom/{id}")]
+#[get("/v3/sbom/{id}")]
 pub async fn get(
     fetcher: web::Data<SbomService>,
     db: web::Data<Database>,
@@ -399,7 +399,7 @@ all!(GetSbomAdvisories -> ReadSbom, ReadAdvisory);
         (status = 404, description = "The SBOM could not be found"),
     ),
 )]
-#[delete("/v2/sbom/{id}")]
+#[delete("/v3/sbom/{id}")]
 pub async fn delete(
     i: web::Data<IngestorService>,
     service: web::Data<SbomService>,
@@ -441,7 +441,7 @@ pub async fn delete(
         (status = 404, description = "The SBOM could not be found"),
     ),
 )]
-#[get("/v2/sbom/{id}/packages")]
+#[get("/v3/sbom/{id}/packages")]
 pub async fn packages(
     fetch: web::Data<SbomService>,
     db: web::Data<Database>,
@@ -478,7 +478,7 @@ pub async fn packages(
         (status = 200, description = "AI Models", body = PaginatedResults<SbomModel>),
     ),
 )]
-#[get("/v2/sbom/{id}/models")]
+#[get("/v3/sbom/{id}/models")]
 pub async fn models(
     fetch: web::Data<SbomService>,
     db: web::Data<Database>,
@@ -508,7 +508,7 @@ pub async fn models(
         (status = 200, description = "AI Models", body = PaginatedResults<SbomModel>),
     ),
 )]
-#[get("/v2/sbom/models")]
+#[get("/v3/sbom/models")]
 pub async fn all_models(
     fetch: web::Data<SbomService>,
     db: web::Data<Database>,
@@ -552,7 +552,7 @@ struct RelatedQuery {
         (status = 404, description = "The SBOM could not be found"),
     ),
 )]
-#[get("/v2/sbom/{id}/related")]
+#[get("/v3/sbom/{id}/related")]
 pub async fn related(
     fetch: web::Data<SbomService>,
     db: web::Data<Database>,
@@ -630,7 +630,7 @@ const fn default_format() -> Format {
         (status = 400, description = "One or more group IDs are invalid or do not exist"),
     )
 )]
-#[post("/v2/sbom")]
+#[post("/v3/sbom")]
 #[allow(clippy::too_many_arguments)]
 /// Upload a new SBOM
 pub async fn upload(
@@ -689,7 +689,7 @@ pub async fn upload(
         (status = 404, description = "The document could not be found"),
     )
 )]
-#[get("/v2/sbom/{key}/download")]
+#[get("/v3/sbom/{key}/download")]
 pub async fn download(
     ingestor: web::Data<IngestorService>,
     db: web::Data<Database>,

@@ -39,7 +39,7 @@ mod default {
         (status = 200, description = "List all unique key/value labels from all SBOMs", body = Vec<Value>),
     ),
 )]
-#[get("/v2/sbom-labels")]
+#[get("/v3/sbom-labels")]
 /// List all unique key/value labels from all SBOMs
 pub async fn all(
     db: web::Data<Database>,
@@ -68,7 +68,7 @@ pub async fn all(
         (status = 404, description = "The SBOM could not be found"),
     ),
 )]
-#[patch("/v2/sbom/{id}/label")]
+#[patch("/v3/sbom/{id}/label")]
 pub async fn update(
     sbom: web::Data<SbomService>,
     id: web::Path<Id>,
@@ -99,7 +99,7 @@ pub async fn update(
         (status = 404, description = "The SBOM could not be found"),
     ),
 )]
-#[put("/v2/sbom/{id}/label")]
+#[put("/v3/sbom/{id}/label")]
 pub async fn set(
     sbom: web::Data<SbomService>,
     db: web::Data<Database>,

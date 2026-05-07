@@ -24,7 +24,7 @@ impl Api {
                 urlencoding::encode(&id.to_string())
             ),
             Self::Sbom => format!(
-                "/api/v2/sbom/urn:uuid:{}",
+                "/api/v3/sbom/urn:uuid:{}",
                 urlencoding::encode(&id.to_string())
             ),
         }
@@ -35,11 +35,11 @@ impl Api {
         let suffix = suffix.unwrap_or("");
         match self {
             Self::Advisory => format!(
-                "/api/v2/advisory/urn:uuid:{}{suffix}",
+                "/api/v3/advisory/urn:uuid:{}{suffix}",
                 urlencoding::encode(&id.to_string())
             ),
             Self::Sbom => format!(
-                "/api/v2/sbom/urn:uuid:{}{suffix}",
+                "/api/v3/sbom/urn:uuid:{}{suffix}",
                 urlencoding::encode(&id.to_string())
             ),
         }

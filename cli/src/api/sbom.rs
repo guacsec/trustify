@@ -19,7 +19,7 @@ use crate::common::{
     new_delete_result,
 };
 
-const SBOM_PATH: &str = "/v2/sbom";
+const SBOM_PATH: &str = "/v3/sbom";
 
 /// Parameters for find duplicates
 pub struct FindDuplicatesParams {

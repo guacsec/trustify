@@ -249,7 +249,7 @@ async fn spdx_only_contains_relationships(ctx: &TrustifyContext) -> Result<(), a
     let purl = "pkg:rpm/redhat/rubygem-google-cloud-compute@0.5.0-1.el8sat?arch=src";
 
     let uri = format!(
-        "/api/v2/analysis/component/{}?descendants=10&relationships=contains",
+        "/api/v3/analysis/component/{}?descendants=10&relationships=contains",
         urlencoding::encode(purl)
     );
     let request: Request = TestRequest::get().uri(&uri).to_request();

@@ -38,7 +38,7 @@ async fn all_products(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let uri = "/api/v2/product?sort=name";
+    let uri = "/api/v3/product?sort=name";
 
     let request = TestRequest::get().uri(uri).to_request();
 
@@ -88,7 +88,7 @@ async fn one_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let first_product = &products.items[0];
     let product_id = first_product.head.id;
 
-    let uri = format!("/api/v2/product/{product_id}");
+    let uri = format!("/api/v3/product/{product_id}");
 
     let request = TestRequest::get().uri(&uri).to_request();
 
@@ -135,7 +135,7 @@ async fn delete_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let first_product = &products.items[0];
     let product_id = first_product.head.id;
 
-    let uri = format!("/api/v2/product/{product_id}");
+    let uri = format!("/api/v3/product/{product_id}");
 
     let request = TestRequest::delete().uri(&uri).to_request();
 

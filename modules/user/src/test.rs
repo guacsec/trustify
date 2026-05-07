@@ -147,7 +147,7 @@ async fn wrong_rev(ctx: TrustifyContext) {
     // create one
 
     let req = actix::TestRequest::put()
-        .uri("/api/v2/userPreference/foo")
+        .uri("/api/v3/userPreference/foo")
         .set_json(json!({"a": 1}))
         .to_request()
         .test_auth("user-a");
@@ -158,7 +158,7 @@ async fn wrong_rev(ctx: TrustifyContext) {
     // try to update the wrong one
 
     let req = actix::TestRequest::put()
-        .uri("/api/v2/userPreference/foo")
+        .uri("/api/v3/userPreference/foo")
         .append_header((header::IF_MATCH, r#""a""#))
         .set_json(json!({"a": 2}))
         .to_request()

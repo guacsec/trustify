@@ -410,7 +410,7 @@ async fn upload_default_csaf_format(ctx: &TrustifyContext) -> Result<(), anyhow:
 
     let payload = document_bytes("csaf/cve-2023-33201.json").await?;
 
-    let uri = "/api/v2/advisory";
+    let uri = "/api/v3/advisory";
     let request = TestRequest::post()
         .uri(uri)
         .set_payload(payload)
@@ -448,7 +448,7 @@ async fn upload_default_csaf_format_multiple(ctx: &TrustifyContext) -> Result<()
         "csaf/rhsa-2024-2705.json",
     ];
 
-    let uri = "/api/v2/advisory";
+    let uri = "/api/v3/advisory";
 
     for file in files {
         let payload = document_bytes(file).await?;
@@ -471,7 +471,7 @@ async fn upload_osv_format(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
     let payload = document_bytes("osv/RUSTSEC-2021-0079.json").await?;
 
-    let uri = "/api/v2/advisory";
+    let uri = "/api/v3/advisory";
     let request = TestRequest::post()
         .uri(uri)
         .set_payload(payload)
@@ -489,7 +489,7 @@ async fn upload_cve_format(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
     let payload = document_bytes("mitre/CVE-2024-27088.json").await?;
 
-    let uri = "/api/v2/advisory";
+    let uri = "/api/v3/advisory";
     let request = TestRequest::post()
         .uri(uri)
         .set_payload(payload)
@@ -506,7 +506,7 @@ async fn upload_cve_format(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn upload_unknown_format(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
 
-    let uri = "/api/v2/advisory";
+    let uri = "/api/v3/advisory";
     let request = TestRequest::post().uri(uri).to_request();
 
     let response = app.call_service(request).await;
@@ -527,7 +527,7 @@ async fn upload_with_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
     let app = caller(ctx).await?;
     let payload = document_bytes("csaf/cve-2023-33201.json").await?;
 
-    let uri = "/api/v2/advisory?labels.foo=bar&labels.bar=baz";
+    let uri = "/api/v3/advisory?labels.foo=bar&labels.bar=baz";
     let request = TestRequest::post()
         .uri(uri)
         .set_payload(payload)
@@ -569,7 +569,7 @@ async fn download_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let digest: String = Sha256::digest(document_bytes(DOC).await?).encode_hex();
     let app = caller(ctx).await?;
     ctx.ingest_document(DOC).await?;
-    let uri = format!("/api/v2/advisory/sha256:{digest}/download");
+    let uri = format!("/api/v3/advisory/sha256:{digest}/download");
     let request = TestRequest::get().uri(&uri).to_request();
     let doc: Value = app.call_and_read_body_json(request).await;
     assert_eq!(doc["document"]["tracking"]["id"], "CVE-2023-33201");
@@ -583,7 +583,7 @@ async fn download_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn download_advisory_by_id(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
     let result = ctx.ingest_document(DOC).await?;
-    let uri = format!("/api/v2/advisory/urn:uuid:{}/download", result.id);
+    let uri = format!("/api/v3/advisory/urn:uuid:{}/download", result.id);
     let request = TestRequest::get().uri(&uri).to_request();
     let doc: Value = app.call_and_read_body_json(request).await;
     assert_eq!(doc["document"]["tracking"]["id"], "CVE-2023-33201");
@@ -628,7 +628,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app
         .call_service(
             TestRequest::delete()
-                .uri(&format!("/api/v2/advisory/urn:uuid:{}", doc.id))
+                .uri(&format!("/api/v3/advisory/urn:uuid:{}", doc.id))
                 .to_request(),
         )
         .await;
@@ -651,7 +651,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app
         .call_service(
             TestRequest::delete()
-                .uri(&format!("/api/v2/advisory/urn:uuid:{}", doc.id))
+                .uri(&format!("/api/v3/advisory/urn:uuid:{}", doc.id))
                 .to_request(),
         )
         .await;
@@ -747,7 +747,7 @@ async fn test_label(
         .id
         .to_string();
 
-    let mut uri = format!("/api/v2/advisory-labels?filter_text={}", encode(query));
+    let mut uri = format!("/api/v3/advisory-labels?filter_text={}", encode(query));
 
     if let Some(limit) = limit.into() {
         uri.push_str(&format!("&limit={limit}"));

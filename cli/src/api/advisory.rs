@@ -4,7 +4,7 @@ use crate::common::{
     new_delete_result,
 };
 
-const ADVISORY_PATH: &str = "/v2/advisory";
+const ADVISORY_PATH: &str = "/v3/advisory";
 
 pub async fn list(client: &ApiClient, params: &ListParams) -> Result<String, ApiError> {
     client.get_with_query(ADVISORY_PATH, params).await

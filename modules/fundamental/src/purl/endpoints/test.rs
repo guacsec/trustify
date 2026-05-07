@@ -20,7 +20,7 @@ use uuid::Uuid;
 async fn recommend(app: &impl CallService, purls: &[&str]) -> Value {
     app.call_and_read_body_json(
         TestRequest::post()
-            .uri("/api/v2/purl/recommend")
+            .uri("/api/v3/purl/recommend")
             .set_json(json!({ "purls": purls }))
             .to_request(),
     )
@@ -85,13 +85,13 @@ async fn base_purls(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     setup(&ctx.db, &ctx.graph).await?;
     let app = caller(ctx).await?;
 
-    let uri = "/api/v2/purl/base?q=log4j";
+    let uri = "/api/v3/purl/base?q=log4j";
     let request = TestRequest::get().uri(uri).to_request();
     let log4j: PaginatedResults<BasePurlSummary> = app.call_and_read_body_json(request).await;
 
     assert_eq!(1, log4j.items.len());
 
-    let uri = format!("/api/v2/purl/base/{}", log4j.items[0].head.uuid);
+    let uri = format!("/api/v3/purl/base/{}", log4j.items[0].head.uuid);
     let request = TestRequest::get().uri(&uri).to_request();
     let response: BasePurlDetails = app.call_and_read_body_json(request).await;
     assert_eq!(log4j.items[0].head.uuid, response.head.uuid);
@@ -105,7 +105,7 @@ async fn qualified_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
     setup(&ctx.db, &ctx.graph).await?;
     let app = caller(ctx).await?;
 
-    let uri = "/api/v2/purl?q=log4j";
+    let uri = "/api/v3/purl?q=log4j";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
 
@@ -120,7 +120,7 @@ async fn qualified_packages_filtering(ctx: &TrustifyContext) -> Result<(), anyho
     setup(&ctx.db, &ctx.graph).await?;
     let app = caller(ctx).await?;
 
-    let uri = format!("/api/v2/purl?q={}", encode("type=maven"));
+    let uri = format!("/api/v3/purl?q={}", encode("type=maven"));
     let request = TestRequest::get().uri(&uri).to_request();
     let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
     assert_eq!(3, response.items.len());
@@ -131,7 +131,7 @@ async fn qualified_packages_filtering(ctx: &TrustifyContext) -> Result<(), anyho
             &ctx.db,
         )
         .await?;
-    let uri = format!("/api/v2/purl?q={}", encode("type=rpm&arch=i386"));
+    let uri = format!("/api/v3/purl?q={}", encode("type=rpm&arch=i386"));
     let request = TestRequest::get().uri(&uri).to_request();
     let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
     assert_eq!(1, response.items.len());
@@ -151,7 +151,7 @@ async fn package_with_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
 
     let app = caller(ctx).await?;
 
-    let uri = "/api/v2/purl?q=hyper";
+    let uri = "/api/v3/purl?q=hyper";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
 
@@ -202,7 +202,7 @@ async fn purl_component_queries(ctx: &TrustifyContext) -> Result<(), anyhow::Err
         .id;
     let query = async |query| {
         let app = caller(ctx).await.unwrap();
-        let uri = format!("/api/v2/purl?q={}", urlencoding::encode(query));
+        let uri = format!("/api/v3/purl?q={}", urlencoding::encode(query));
         let request = TestRequest::get().uri(&uri).to_request();
         let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
         tracing::debug!(test = "", "{response:#?}");
@@ -242,7 +242,7 @@ async fn purl_filter_queries(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
 
     let query = async |query| {
         let app = caller(ctx).await.unwrap();
-        let uri = format!("/api/v2/purl?q={}&sort=purl:qualifiers:type", encode(query));
+        let uri = format!("/api/v3/purl?q={}&sort=purl:qualifiers:type", encode(query));
         let request = TestRequest::get().uri(&uri).to_request();
         let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
         tracing::debug!(test = "", "{response:#?}");
@@ -273,7 +273,7 @@ async fn test_purl_license_details(ctx: &TrustifyContext) -> Result<(), anyhow::
     ctx.ingest_documents(["spdx/OCP-TOOLS-4.11-RHEL-8.json"])
         .await?;
 
-    let uri = "/api/v2/purl?q=graphite2";
+    let uri = "/api/v3/purl?q=graphite2";
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
 

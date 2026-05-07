@@ -30,7 +30,7 @@ pub fn configure(
         (status = 200, description = "Matching weaknesses", body = PaginatedResults<LicenseSummary>),
     ),
 )]
-#[get("/v2/weakness")]
+#[get("/v3/weakness")]
 /// List weaknesses
 pub async fn list_weaknesses(
     state: web::Data<WeaknessService>,
@@ -49,7 +49,7 @@ pub async fn list_weaknesses(
         (status = 404, description = "The weakness could not be found"),
     ),
 )]
-#[get("/v2/weakness/{id}")]
+#[get("/v3/weakness/{id}")]
 /// Retrieve weakness details
 pub async fn get_weakness(
     state: web::Data<WeaknessService>,

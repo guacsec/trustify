@@ -311,7 +311,7 @@ async fn ingest_broken_refs_api(ctx: &TrustifyContext) -> Result<(), anyhow::Err
     let app = caller(ctx).await?;
 
     let request = TestRequest::post()
-        .uri("/api/v2/sbom")
+        .uri("/api/v3/sbom")
         .set_payload(document_bytes("spdx/broken-refs.json").await?)
         .to_request();
 

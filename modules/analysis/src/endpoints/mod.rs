@@ -53,7 +53,7 @@ struct StatusQuery {
         (status = 200, description = "Analysis status", body = AnalysisStatus),
     ),
 )]
-#[get("/v2/analysis/status")]
+#[get("/v3/analysis/status")]
 /// Get the status of the analysis service.
 pub async fn analysis_status(
     service: web::Data<AnalysisService>,
@@ -80,7 +80,7 @@ pub async fn analysis_status(
         (status = 200, description = "Retrieved component(s) located by an exact match of name, pURL, or CPE", body = PaginatedResults<Node>),
     ),
 )]
-#[get("/v2/analysis/component/{key}")]
+#[get("/v3/analysis/component/{key}")]
 /// Retrieve SBOM components (packages) by name, Package URL, or CPE.
 pub async fn get_component(
     service: web::Data<AnalysisService>,
@@ -112,7 +112,7 @@ pub async fn get_component(
         (status = 200, description = "Retrieved component(s) located by search", body = PaginatedResults<Node>),
     ),
 )]
-#[get("/v2/analysis/component")]
+#[get("/v3/analysis/component")]
 /// Retrieve SBOM components (packages) by a complex search.
 pub async fn search_component(
     service: web::Data<AnalysisService>,
@@ -143,7 +143,7 @@ pub async fn search_component(
         (status = 415, description = "Unsupported rendering format"),
     ),
 )]
-#[get("/v2/analysis/sbom/{sbom}/render.{ext}")]
+#[get("/v3/analysis/sbom/{sbom}/render.{ext}")]
 /// Render an SBOM graph
 pub async fn render_sbom_graph(
     service: web::Data<AnalysisService>,
@@ -181,7 +181,7 @@ pub async fn render_sbom_graph(
         (status = 200, description = "Retrieved latest component(s) located by search", body = PaginatedResults<Node>),
     ),
 )]
-#[get("/v2/analysis/latest/component")]
+#[get("/v3/analysis/latest/component")]
 /// Retrieve latest SBOM components (packages) by a complex search.
 pub async fn search_latest_component(
     service: web::Data<AnalysisService>,
@@ -211,7 +211,7 @@ pub async fn search_latest_component(
         (status = 200, description = "Retrieved latest component(s) located by an exact match of name, pURL, or CPE", body = PaginatedResults<Node>),
     ),
 )]
-#[get("/v2/analysis/latest/component/{key}")]
+#[get("/v3/analysis/latest/component/{key}")]
 /// Retrieve latest SBOM components (packages) by name, Package URL, or CPE.
 pub async fn get_latest_component(
     service: web::Data<AnalysisService>,

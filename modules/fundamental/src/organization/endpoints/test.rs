@@ -51,7 +51,7 @@ async fn all_organizations(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let uri = "/api/v2/organization?sort=name";
+    let uri = "/api/v3/organization?sort=name";
 
     let request = TestRequest::get().uri(uri).to_request();
 
@@ -117,7 +117,7 @@ async fn one_organization(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let first_org = &orgs.items[0];
     let org_id = first_org.head.id;
 
-    let uri = format!("/api/v2/organization/{org_id}");
+    let uri = format!("/api/v3/organization/{org_id}");
 
     let request = TestRequest::get().uri(&uri).to_request();
 

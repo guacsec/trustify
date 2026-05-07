@@ -184,7 +184,7 @@ async fn test_status_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::Error
         })
         .await?;
 
-    let uri = "/api/v2/analysis/status";
+    let uri = "/api/v3/analysis/status";
     let request: Request = TestRequest::get().uri(uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
 
@@ -194,7 +194,7 @@ async fn test_status_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::Error
     // ingest duplicate sbom which has different date
     ctx.ingest_documents(["spdx/simple-dup.json"]).await?;
 
-    let uri = "/api/v2/analysis/status";
+    let uri = "/api/v3/analysis/status";
     let request: Request = TestRequest::get().uri(uri).to_request();
     let response: Value = app.call_and_read_body_json(request).await;
 

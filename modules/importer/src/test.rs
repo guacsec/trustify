@@ -81,7 +81,7 @@ async fn default(ctx: TrustifyContext) {
     // create one
 
     let req = actix::TestRequest::post()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .set_json(mock_configuration("bar"))
         .to_request();
 
@@ -91,7 +91,7 @@ async fn default(ctx: TrustifyContext) {
     // now list all
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer")
+        .uri("/api/v3/importer")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -119,7 +119,7 @@ async fn default(ctx: TrustifyContext) {
     // update it
 
     let req = actix::TestRequest::put()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .set_json(mock_configuration("baz"))
         .to_request();
 
@@ -129,7 +129,7 @@ async fn default(ctx: TrustifyContext) {
     // get it
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -141,7 +141,7 @@ async fn default(ctx: TrustifyContext) {
     // delete it
 
     let req = actix::TestRequest::delete()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -150,7 +150,7 @@ async fn default(ctx: TrustifyContext) {
     // get none
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -165,7 +165,7 @@ async fn oplock(ctx: TrustifyContext) {
     // create one
 
     let req = actix::TestRequest::post()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .set_json(mock_configuration("bar"))
         .to_request();
 
@@ -175,7 +175,7 @@ async fn oplock(ctx: TrustifyContext) {
     // update it (no lock)
 
     let req = actix::TestRequest::put()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .set_json(mock_configuration("baz"))
         .to_request();
 
@@ -185,7 +185,7 @@ async fn oplock(ctx: TrustifyContext) {
     // get it
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -201,7 +201,7 @@ async fn oplock(ctx: TrustifyContext) {
     // update it (with lock)
 
     let req = actix::TestRequest::put()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .set_json(mock_configuration("buz"))
         .append_header((header::IF_MATCH, etag.clone()))
         .to_request();
@@ -212,7 +212,7 @@ async fn oplock(ctx: TrustifyContext) {
     // get it
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -224,7 +224,7 @@ async fn oplock(ctx: TrustifyContext) {
     // update it (with broken lock)
 
     let req = actix::TestRequest::put()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .set_json(mock_configuration("boz"))
         .append_header((header::IF_MATCH, etag.clone()))
         .to_request();
@@ -235,7 +235,7 @@ async fn oplock(ctx: TrustifyContext) {
     // update it (with wrong name)
 
     let req = actix::TestRequest::put()
-        .uri("/api/v2/importer/foo2")
+        .uri("/api/v3/importer/foo2")
         .set_json(mock_configuration("boz"))
         .append_header((header::IF_MATCH, etag.clone()))
         .to_request();
@@ -246,7 +246,7 @@ async fn oplock(ctx: TrustifyContext) {
     // get it (must not change)
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -264,7 +264,7 @@ async fn oplock(ctx: TrustifyContext) {
     // delete it (wrong lock)
 
     let req = actix::TestRequest::delete()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .append_header((header::IF_MATCH, old_etag.clone()))
         .to_request();
 
@@ -274,7 +274,7 @@ async fn oplock(ctx: TrustifyContext) {
     // get it (must still be there)
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -286,7 +286,7 @@ async fn oplock(ctx: TrustifyContext) {
     // delete it (correct lock)
 
     let req = actix::TestRequest::delete()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .append_header((header::IF_MATCH, etag.clone()))
         .to_request();
 
@@ -296,7 +296,7 @@ async fn oplock(ctx: TrustifyContext) {
     // get none
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -311,7 +311,7 @@ async fn patch(ctx: TrustifyContext) {
     // create one
 
     let req = actix::TestRequest::post()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .set_json(mock_configuration("bar"))
         .to_request();
 
@@ -321,7 +321,7 @@ async fn patch(ctx: TrustifyContext) {
     // get it
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -333,7 +333,7 @@ async fn patch(ctx: TrustifyContext) {
     // patch it
 
     let req = actix::TestRequest::patch()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .set_json(json!({
             "sbom": {
                 "source": "baz",
@@ -348,7 +348,7 @@ async fn patch(ctx: TrustifyContext) {
     // get it (again)
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -360,7 +360,7 @@ async fn patch(ctx: TrustifyContext) {
     // delete it
 
     let req = actix::TestRequest::delete()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -369,7 +369,7 @@ async fn patch(ctx: TrustifyContext) {
     // try again
 
     let req = actix::TestRequest::patch()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .set_json(json!({
             "sbom": {
                 "source": "bar",
@@ -389,7 +389,7 @@ async fn read_only(ctx: &mut ReadOnly<TrustifyContext>) {
     // list all
 
     let req = actix::TestRequest::get()
-        .uri("/api/v2/importer")
+        .uri("/api/v3/importer")
         .to_request();
 
     let resp = actix::call_service(&app, req).await;
@@ -401,7 +401,7 @@ async fn read_only(ctx: &mut ReadOnly<TrustifyContext>) {
     // try to create one, must fail
 
     let req = actix::TestRequest::post()
-        .uri("/api/v2/importer/foo")
+        .uri("/api/v3/importer/foo")
         .set_json(mock_configuration("bar"))
         .to_request();
 

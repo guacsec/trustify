@@ -144,7 +144,7 @@ pub async fn get(
         (status = 404, description = "The advisory could not be found"),
     ),
 )]
-#[delete("/v2/advisory/{key}")]
+#[delete("/v3/advisory/{key}")]
 /// Delete an advisory
 pub async fn delete(
     i: web::Data<IngestorService>,
@@ -201,7 +201,7 @@ const fn default_format() -> Format {
         (status = 400, description = "The file could not be parsed as an advisory"),
     )
 )]
-#[post("/v2/advisory")]
+#[post("/v3/advisory")]
 /// Upload a new advisory
 pub async fn upload(
     service: web::Data<IngestorService>,
@@ -248,7 +248,7 @@ pub async fn upload(
         (status = 404, description = "The document could not be found"),
     )
 )]
-#[get("/v2/advisory/{key}/download")]
+#[get("/v3/advisory/{key}/download")]
 /// Download an advisory document
 pub async fn download(
     db: web::Data<Database>,
