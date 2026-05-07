@@ -430,7 +430,7 @@ async fn query(ctx: &TrustifyContext, query: &str) -> Value {
     let response: Value = app
         .req(Req {
             what: What::Q(query),
-            limit: Some(0),
+            limit: Some(1000),
             total: true,
             ..Req::default()
         })
