@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778097653876,
+  "lastUpdate": 1778180566363,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -18669,6 +18669,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/c8cc8e7850453424abf50099a5acf8419f0bd706"
         },
         "date": 1778097652224,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": true,
+          "id": "4c6204c0d90d16f29fdb24e2a661dcd92161b95f",
+          "message": "test: basic tests for CLI covering SBOM and advisories",
+          "timestamp": "2026-05-07T16:12:03Z",
+          "tree_id": "14c5dd0fd4cdc1d80cb304da56a3c01fa31715bc",
+          "url": "https://github.com/guacsec/trustify/commit/4c6204c0d90d16f29fdb24e2a661dcd92161b95f"
+        },
+        "date": 1778180564051,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
