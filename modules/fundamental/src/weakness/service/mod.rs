@@ -6,7 +6,8 @@ use sea_orm::EntityTrait;
 use trustify_common::{
     db::{
         Database,
-        limiter::LimiterTrait,
+        limiter::{LimitedResult, LimiterTrait},
+        pagination_cache::PaginationCache,
         query::{Filtering, Query},
     },
     model::{Paginated, PaginatedResults},
@@ -15,11 +16,12 @@ use trustify_entity::weakness;
 
 pub struct WeaknessService {
     db: Database,
+    cache: PaginationCache,
 }
 
 impl WeaknessService {
-    pub fn new(db: Database) -> Self {
-        Self { db }
+    pub fn new(db: Database, cache: PaginationCache) -> Self {
+        Self { db, cache }
     }
 
     pub async fn list_weaknesses(
@@ -31,10 +33,11 @@ impl WeaknessService {
             &self.db,
             paginated.offset,
             paginated.limit,
+            &self.cache,
         );
 
-        let total = limiter.total().await?;
-        let items = limiter.fetch().await?;
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         Ok(PaginatedResults {
             items: WeaknessSummary::from_entities(&items).await?,

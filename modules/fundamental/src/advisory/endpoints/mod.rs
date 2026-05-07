@@ -21,7 +21,7 @@ use std::str::FromStr;
 use time::OffsetDateTime;
 use trustify_auth::{CreateAdvisory, DeleteAdvisory, ReadAdvisory, authorizer::Require};
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{Database, pagination_cache::PaginationCache, query::Query},
     decompress::decompress_async,
     id::Id,
     model::{BinaryData, Paginated, PaginatedResults},
@@ -38,8 +38,9 @@ pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
     db: Database,
     upload_limit: usize,
+    cache: PaginationCache,
 ) {
-    let advisory_service = AdvisoryService::new(db.clone());
+    let advisory_service = AdvisoryService::new(db.clone(), cache);
 
     config
         .app_data(web::Data::new(db))

@@ -1,5 +1,6 @@
 use bytesize::ByteSize;
 use std::{collections::HashSet, time::Duration};
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_module_importer::model::{
     ClearlyDefinedImporter, ClearlyDefinedPackageType, CveImporter, CweImporter,
     DEFAULT_SOURCE_CLEARLY_DEFINED_CURATION, DEFAULT_SOURCE_CVEPROJECT, DEFAULT_SOURCE_CWE_CATALOG,
@@ -171,8 +172,11 @@ async fn add_quay(
 }
 
 /// Insert example importers, ignoring existing ones
-pub async fn sample_data(db: trustify_common::db::Database) -> anyhow::Result<()> {
-    let importer = ImporterService::new(db);
+pub async fn sample_data(
+    db: trustify_common::db::Database,
+    cache: PaginationCache,
+) -> anyhow::Result<()> {
+    let importer = ImporterService::new(db, cache);
 
     add(&importer, "redhat-sbom",  ImporterConfiguration::Sbom(SbomImporter {
         common: CommonImporter {
@@ -349,9 +353,9 @@ mod test {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(tokio::test)]
     async fn add_samples(ctx: TrustifyContext) -> anyhow::Result<()> {
-        sample_data(ctx.db.clone()).await?;
+        sample_data(ctx.db.clone(), PaginationCache::for_test()).await?;
 
-        let service = ImporterService::new(ctx.db.clone());
+        let service = ImporterService::new(ctx.db.clone(), PaginationCache::for_test());
         let result = service.list().await?;
 
         assert_eq!(result.len(), 16);

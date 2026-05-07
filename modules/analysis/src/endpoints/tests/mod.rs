@@ -29,6 +29,7 @@ async fn test_simple_retrieve_analysis_endpoint(
         .req(Req {
             what: What::Q("B"),
             ancestors: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -45,6 +46,7 @@ async fn test_simple_retrieve_analysis_endpoint(
         .req(Req {
             what: What::Q("BB"),
             ancestors: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -74,6 +76,7 @@ async fn test_simple_retrieve_by_name_analysis_endpoint(
         .req(Req {
             what: What::Id("B"),
             ancestors: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -103,6 +106,7 @@ async fn test_simple_retrieve_by_purl_analysis_endpoint(
         .req(Req {
             what: What::Id("pkg:rpm/redhat/B@0.0.0"),
             ancestors: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -137,6 +141,7 @@ async fn test_quarkus_retrieve_analysis_endpoint(
         .req(Req {
             what: What::Q("spymemcached"),
             ancestors: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -174,6 +179,7 @@ async fn test_status_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::Error
     let _response: Value = app
         .req(Req {
             what: What::Q("BB"),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -209,6 +215,7 @@ async fn test_simple_dep_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::E
             what: What::Q("A"),
             ancestors: Some(10),
             descendants: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -264,6 +271,7 @@ async fn test_simple_dep_by_name_endpoint(ctx: &TrustifyContext) -> Result<(), a
         .req(Req {
             what: What::Id("A"),
             descendants: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -294,6 +302,7 @@ async fn test_simple_dep_by_purl_endpoint(ctx: &TrustifyContext) -> Result<(), a
         .req(Req {
             what: What::Id(purl),
             descendants: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -326,6 +335,7 @@ async fn test_quarkus_dep_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::
         .req(Req {
             what: What::Q("spymemcached"),
             descendants: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -362,6 +372,7 @@ async fn quarkus_component_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::
     let response: Value = app
         .req(Req {
             what: What::Id(purl),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -392,6 +403,7 @@ async fn quarkus_component_by_cpe(ctx: &TrustifyContext) -> Result<(), anyhow::E
     let response: Value = app
         .req(Req {
             what: What::Id("cpe:/a:redhat:quarkus:3.2::el8"),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -419,6 +431,7 @@ async fn query(ctx: &TrustifyContext, query: &str) -> Value {
         .req(Req {
             what: What::Q(query),
             limit: Some(0),
+            total: true,
             ..Req::default()
         })
         .await
@@ -502,7 +515,7 @@ async fn find_components_without_namespace(
     Req {
         what: What::Q("node_id=SPDXRef-A"),
         descendants: Some(10),
-        ..Req::default()
+        total: true, ..Req::default()
     },
     Some("A"),
     1
@@ -511,7 +524,7 @@ async fn find_components_without_namespace(
     Req {
         what: What::Q("node_id=SPDXRef-B"),
         ancestors: Some(10),
-        ..Req::default()
+        total: true, ..Req::default()
     },
     Some("B"),
     1
@@ -520,7 +533,7 @@ async fn find_components_without_namespace(
     Req {
         what: What::Q("node_id=SPDXRef-B&name=B"),
         ancestors: Some(10),
-        ..Req::default()
+        total: true, ..Req::default()
     },
     Some("B"),
     1
@@ -529,7 +542,7 @@ async fn find_components_without_namespace(
     Req {
         what: What::Q("sbom_id=urn:uuid:99999999-9999-9999-9999-999999999999"),
         ancestors: Some(10),
-        ..Req::default()
+        total: true, ..Req::default()
     },
     None,
     0
@@ -538,7 +551,7 @@ async fn find_components_without_namespace(
     Req {
         what: What::Q("node_id=SPDXRef-B&name=A"),
         ancestors: Some(10),
-        ..Req::default()
+        total: true, ..Req::default()
     },
     None,
     0
@@ -553,7 +566,7 @@ async fn test_retrieve_query_params_endpoint(
     let app = caller(ctx).await?;
     ctx.ingest_documents(["spdx/simple.json"]).await?;
 
-    let response: Value = app.req(req).await?;
+    let response: Value = app.req(req.with_total()).await?;
 
     if let Some(name) = expected_name {
         assert_eq!(response["items"][0]["name"], name);
@@ -576,6 +589,7 @@ async fn test_retrieve_query_params_endpoint_sbom_id(
         .req(Req {
             what: What::Q("node_id=SPDXRef-B&name=B"),
             ancestors: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;
@@ -586,6 +600,7 @@ async fn test_retrieve_query_params_endpoint_sbom_id(
         .req(Req {
             what: What::Q(&format!("sbom_id={sbom_id}")),
             ancestors: Some(10),
+            total: true,
             ..Req::default()
         })
         .await?;

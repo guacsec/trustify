@@ -19,7 +19,7 @@ use trustify_auth::{
     authorizer::Require,
 };
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{Database, pagination_cache::PaginationCache, query::Query},
     endpoints::extract_revision,
     model::{Paginated, Revisioned},
 };
@@ -29,8 +29,9 @@ pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
     db: Database,
     max_group_name_length: usize,
+    cache: PaginationCache,
 ) {
-    let service = SbomGroupService::new(max_group_name_length);
+    let service = SbomGroupService::new(max_group_name_length, cache);
 
     config
         .app_data(web::Data::new(db))

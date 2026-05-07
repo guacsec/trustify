@@ -37,7 +37,7 @@ use trustify_auth::{
     authorizer::{Authorizer, Require},
 };
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{Database, pagination_cache::PaginationCache, query::Query},
     decompress::decompress_async,
     id::Id,
     model::{BinaryData, Paginated, PaginatedResults},
@@ -53,8 +53,9 @@ pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
     db: Database,
     upload_limit: usize,
+    cache: PaginationCache,
 ) {
-    let sbom_service = SbomService::new(db.clone());
+    let sbom_service = SbomService::new(db.clone(), cache);
 
     config
         .app_data(web::Data::new(db))

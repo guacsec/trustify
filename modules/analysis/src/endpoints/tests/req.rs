@@ -16,8 +16,18 @@ pub struct Req<'a> {
     pub limit: Option<u64>,
     /// Offset for pagination
     pub offset: Option<u64>,
+    /// Request total count
+    pub total: bool,
     /// What is being requested
     pub what: What<'a>,
+}
+
+impl Req<'_> {
+    /// Return a copy with total count requested.
+    pub const fn with_total(mut self) -> Self {
+        self.total = true;
+        self
+    }
 }
 
 /// Indication of what is being requested
@@ -46,6 +56,7 @@ impl<C: CallService> ReqExt for C {
             descendants,
             limit,
             offset,
+            total,
         } = req;
 
         let latest = match latest {
@@ -84,6 +95,10 @@ impl<C: CallService> ReqExt for C {
 
         if let Some(offset) = offset {
             uri = format!("{uri}offset={offset}&");
+        }
+
+        if total {
+            uri = format!("{uri}total=true&");
         }
 
         let request: Request = TestRequest::get().uri(&uri).to_request();

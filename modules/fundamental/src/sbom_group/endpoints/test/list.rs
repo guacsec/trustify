@@ -284,7 +284,10 @@ async fn run_list_test(
     expected_items: impl IntoIterator<Item = Item>,
     expected_referenced: Option<Vec<&'static [&'static str]>>,
 ) -> anyhow::Result<()> {
-    let mut uri = format!("/api/v2/group/sbom?q={}&", urlencoding::encode(q));
+    let mut uri = format!(
+        "/api/v2/group/sbom?total=true&q={}&",
+        urlencoding::encode(q)
+    );
     if options.totals {
         uri.push_str("totals=true&");
     }
@@ -312,7 +315,7 @@ async fn run_list_test(
 
     let expected_items = into_actual(expected_items, &ids);
 
-    assert_eq!(response.result.total, expected_items.len() as u64);
+    assert_eq!(response.result.total, Some(expected_items.len() as u64));
     assert_eq!(response.result.items, expected_items);
 
     // Assert referenced groups

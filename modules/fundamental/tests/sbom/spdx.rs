@@ -14,6 +14,7 @@ use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
 use tracing::instrument;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::model::Paginated;
 use trustify_common::{id::Id, purl::Purl, sbom::spdx::parse_spdx};
 use trustify_entity::relationship::Relationship;
@@ -91,12 +92,16 @@ async fn test_parse_spdx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             let described = service
                 .describes_packages::<_, _, SbomPackage>(
                     sbom.sbom.sbom_id,
-                    Paginated::default(),
+                    Paginated {
+                        offset: 0,
+                        limit: 0,
+                        total: true,
+                    },
                     &ctx.db,
                 )
                 .await?;
 
-            assert_eq!(1, described.total);
+            assert_eq!(Some(1), described.total);
             let first = &described.items[0];
 
             let contains = service
@@ -125,7 +130,7 @@ async fn test_parse_spdx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn ingest_spdx_broken_refs(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let sbom = SbomService::new(ctx.db.clone());
+    let sbom = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     let err = ctx
         .ingest_document("spdx/broken-refs.json")
@@ -140,14 +145,18 @@ async fn ingest_spdx_broken_refs(ctx: &TrustifyContext) -> Result<(), anyhow::Er
     let result = sbom
         .fetch_sboms::<_, SbomPackage>(
             Default::default(),
-            Default::default(),
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
             Default::default(),
             &ctx.db,
         )
         .await?;
 
     // there must be no traces, everything must be rolled back
-    assert_eq!(result.total, 0);
+    assert_eq!(result.total, Some(0));
 
     Ok(())
 }

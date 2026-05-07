@@ -4,6 +4,7 @@ use roxmltree::Document;
 use std::io::Read;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::{hashing::HashingRead, model::Paginated};
 use trustify_entity::labels::Labels;
 use trustify_module_fundamental::weakness::service::WeaknessService;
@@ -17,7 +18,7 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     const TOTAL_ITEMS_FOUND: u64 = 964;
 
     let loader = CweCatalogLoader::new();
-    let service = WeaknessService::new(ctx.db.clone());
+    let service = WeaknessService::new(ctx.db.clone(), PaginationCache::for_test());
 
     // extract document from zip file
 
@@ -47,11 +48,12 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             Paginated {
                 offset: 0,
                 limit: 10,
+                total: true,
             },
         )
         .await?;
 
-    assert_eq!(TOTAL_ITEMS_FOUND, all.total);
+    assert_eq!(Some(TOTAL_ITEMS_FOUND), all.total);
 
     let w = service
         .get_weakness("CWE-1004")
@@ -84,13 +86,14 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             Paginated {
                 offset: 0,
                 limit: 10,
+                total: true,
             },
         )
         .await?;
 
     // must be the same number of items
 
-    assert_eq!(964, all.total);
+    assert_eq!(Some(964), all.total);
 
     let w = service
         .get_weakness("CWE-1004")

@@ -1,8 +1,7 @@
 //! OpenID Connect tools
 
 use super::user::UserDetails;
-use biscuit::SingleOrMultiple;
-use openid::CompactJson;
+use openid::{CompactJson, biscuit::SingleOrMultiple};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;

@@ -99,7 +99,7 @@ async fn container_evolve(
         let _response = app.req(Req::default()).await?;
     }
 
-    let response = app.req(req).await?;
+    let response = app.req(req.with_total()).await?;
 
     log::info!("{response:#?}");
 

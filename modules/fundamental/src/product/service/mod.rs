@@ -3,7 +3,8 @@ use crate::{Error, product::model::details::ProductDetails};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use trustify_common::{
     db::{
-        limiter::LimiterTrait,
+        limiter::{LimitedResult, LimiterTrait},
+        pagination_cache::PaginationCache,
         query::{Filtering, Query},
     },
     model::{Paginated, PaginatedResults},
@@ -11,12 +12,13 @@ use trustify_common::{
 use trustify_entity::product;
 use uuid::Uuid;
 
-#[derive(Default)]
-pub struct ProductService {}
+pub struct ProductService {
+    cache: PaginationCache,
+}
 
 impl ProductService {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(cache: PaginationCache) -> Self {
+        Self { cache }
     }
 
     pub async fn fetch_products<C: ConnectionTrait + Sync + Send>(
@@ -29,13 +31,15 @@ impl ProductService {
             connection,
             paginated.offset,
             paginated.limit,
+            &self.cache,
         );
 
-        let total = limiter.total().await?;
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         Ok(PaginatedResults {
             total,
-            items: ProductSummary::from_entities(&limiter.fetch().await?, connection).await?,
+            items: ProductSummary::from_entities(&items, connection).await?,
         })
     }
 

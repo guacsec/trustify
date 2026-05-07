@@ -5,7 +5,8 @@ use crate::{
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use trustify_common::{
     db::{
-        limiter::LimiterTrait,
+        limiter::{LimitedResult, LimiterTrait},
+        pagination_cache::PaginationCache,
         query::{Filtering, Query},
     },
     model::{Paginated, PaginatedResults},
@@ -13,12 +14,13 @@ use trustify_common::{
 use trustify_entity::organization;
 use uuid::Uuid;
 
-#[derive(Default)]
-pub struct OrganizationService {}
+pub struct OrganizationService {
+    cache: PaginationCache,
+}
 
 impl OrganizationService {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(cache: PaginationCache) -> Self {
+        Self { cache }
     }
 
     pub async fn fetch_organizations<C: ConnectionTrait>(
@@ -31,13 +33,15 @@ impl OrganizationService {
             connection,
             paginated.offset,
             paginated.limit,
+            &self.cache,
         );
 
-        let total = limiter.total().await?;
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         Ok(PaginatedResults {
             total,
-            items: OrganizationSummary::from_entities(&limiter.fetch().await?),
+            items: OrganizationSummary::from_entities(&items),
         })
     }
     pub async fn fetch_organization<C: ConnectionTrait>(

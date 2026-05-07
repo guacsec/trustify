@@ -4,6 +4,7 @@ use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::db::query::Query;
 use trustify_common::id::Id;
 use trustify_common::model::Paginated;
@@ -33,7 +34,7 @@ fn assert_by_cleaning_id(sbom1: &mut SbomDetails, sbom2: &mut SbomDetails) {
 #[instrument]
 #[test(tokio::test)]
 async fn quarkus(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let sbom = SbomService::new(ctx.db.clone());
+    let sbom = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     // ingest the first version
     let result1 = ctx
@@ -89,13 +90,17 @@ async fn quarkus(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let sboms = sbom
         .find_related_sboms(
             SbomExternalPackageReference::Purl(&Purl::from_str(purl).expect("must parse")),
-            Paginated::default(),
+            Paginated {
+                offset: 0,
+                limit: 0,
+                total: true,
+            },
             Query::default(),
             &ctx.db,
         )
         .await?;
 
-    assert_eq!(sboms.total, 2);
+    assert_eq!(sboms.total, Some(2));
 
     // done
 
@@ -108,7 +113,7 @@ async fn quarkus(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[instrument]
 #[test(tokio::test)]
 async fn nhc(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let sbom = SbomService::new(ctx.db.clone());
+    let sbom = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     // ingest the first version
     let result1 = ctx.ingest_document("nhc/v1/nhc-0.4.z.json.xz").await?;
@@ -159,7 +164,7 @@ async fn nhc(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[instrument]
 #[test(tokio::test)]
 async fn nhc_same(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let sbom = SbomService::new(ctx.db.clone());
+    let sbom = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     // ingest the first version
     let result1 = ctx.ingest_document("nhc/v1/nhc-0.4.z.json.xz").await?;
@@ -213,7 +218,7 @@ async fn nhc_same(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[instrument]
 #[test(tokio::test)]
 async fn nhc_same_content(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let sbom = SbomService::new(ctx.db.clone());
+    let sbom = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     // ingest the first version
     let result1 = ctx.ingest_document("nhc/v1/nhc-0.4.z.json.xz").await?;
@@ -290,7 +295,7 @@ async fn nhc_same_content(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[instrument]
 #[test(tokio::test)]
 async fn syft_rerun(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let sbom = SbomService::new(ctx.db.clone());
+    let sbom = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     // ingest the first version
     let result1 = ctx.ingest_document("syft-ubi-example/v1.json.xz").await?;

@@ -18,6 +18,7 @@ use trustify_common::{
     db::{
         DatabaseErrors,
         limiter::LimiterTrait,
+        pagination_cache::PaginationCache,
         query::{Filtering, Query},
     },
     model::{Paginated, PaginatedResults, Revisioned},
@@ -74,12 +75,14 @@ impl ParentsMode {
 
 pub struct SbomGroupService {
     max_group_name_length: usize,
+    cache: PaginationCache,
 }
 
 impl SbomGroupService {
-    pub fn new(max_group_name_length: usize) -> Self {
+    pub fn new(max_group_name_length: usize, cache: PaginationCache) -> Self {
         Self {
             max_group_name_length,
+            cache,
         }
     }
 
@@ -94,9 +97,9 @@ impl SbomGroupService {
 
         let query = sbom_group::Entity::find().filtering(query)?;
 
-        let limiter = query.limiting_pagination(db, paginated);
+        let limiter = query.limiting_pagination(db, paginated, &self.cache);
 
-        let result = PaginatedResults::<sbom_group::Model>::new(limiter).await?;
+        let result = PaginatedResults::<sbom_group::Model>::new(limiter, paginated).await?;
 
         let mut items = Vec::with_capacity(result.items.len());
         let total = result.total;
@@ -829,6 +832,7 @@ fn query_by_revision<Q: QueryFilter>(id: &str, revision: Option<&str>, query: Q)
 mod test {
     use super::*;
     use rstest::rstest;
+    use trustify_common::db::pagination_cache::PaginationCache;
 
     /// Ensure that we validate grounames
     #[rstest]
@@ -842,7 +846,7 @@ mod test {
     #[case("Foo Bar 1.2", 0)]
     #[test_log::test]
     fn ensure_valid_names(#[case] input: &str, #[case] violations: usize) {
-        let service = SbomGroupService::new(32);
+        let service = SbomGroupService::new(32, PaginationCache::for_test());
         let result = service.validate_group_name(input);
         assert_eq!(result.len(), violations);
     }
@@ -850,7 +854,7 @@ mod test {
     /// Ensure that the default configuration works
     #[test_log::test]
     fn ensure_default_works() {
-        let service = SbomGroupService::new(Default::default());
+        let service = SbomGroupService::new(Default::default(), PaginationCache::for_test());
         let result = service.validate_group_name("foo bar");
         assert!(result.is_empty());
     }

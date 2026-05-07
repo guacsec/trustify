@@ -14,6 +14,7 @@ use serde_json::json;
 use std::time::Duration;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_test_context::{ReadOnly, TrustifyContext, app::TestApp};
 use utoipa_actix_web::AppExt;
 
@@ -63,8 +64,9 @@ async fn app(
             .into_utoipa_app()
             .add_test_authorizer()
             .service(
-                utoipa_actix_web::scope("/api")
-                    .configure(|svc| super::endpoints::configure(svc, db)),
+                utoipa_actix_web::scope("/api").configure(|svc| {
+                    super::endpoints::configure(svc, db, PaginationCache::for_test())
+                }),
             )
             .into_app(),
     )

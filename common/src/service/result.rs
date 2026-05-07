@@ -1,16 +1,23 @@
 use crate::{
-    db::limiter::limit_selector,
+    db::{
+        limiter::{LimitedResult, limit_selector},
+        pagination_cache::PaginationCache,
+    },
     model::{Paginated, PaginatedResults},
 };
 use sea_orm::{ConnectionTrait, DbErr, EntityTrait, FromQueryResult, Select};
 use std::fmt::Debug;
 
-/// A
 #[allow(async_fn_in_trait)]
 pub trait Resulting: Sized + Debug {
     type Output<T>: Sized + Mappable<T>;
 
-    async fn get<C, E, EM, M>(self, db: &C, query: Select<E>) -> Result<Self::Output<M>, DbErr>
+    async fn get<C, E, EM, M>(
+        self,
+        db: &C,
+        query: Select<E>,
+        cache: &PaginationCache,
+    ) -> Result<Self::Output<M>, DbErr>
     where
         C: ConnectionTrait,
         E: EntityTrait<Model = EM>,
@@ -21,21 +28,21 @@ pub trait Resulting: Sized + Debug {
 impl Resulting for Paginated {
     type Output<T> = PaginatedResults<T>;
 
-    async fn get<C, E, EM, M>(self, db: &C, query: Select<E>) -> Result<Self::Output<M>, DbErr>
+    async fn get<C, E, EM, M>(
+        self,
+        db: &C,
+        query: Select<E>,
+        cache: &PaginationCache,
+    ) -> Result<Self::Output<M>, DbErr>
     where
         C: ConnectionTrait,
         E: EntityTrait<Model = EM>,
         EM: FromQueryResult + Send + Sync,
         M: FromQueryResult + Send + Sync,
     {
-        // limit and execute
-
-        let limiter = limit_selector(db, query, self.offset, self.limit);
-
-        let total = limiter.total().await?;
-        let items = limiter.fetch().await?;
-
-        // collect results
+        let limiter = limit_selector(db, query, self.offset, self.limit, cache);
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(self.total).await?;
 
         Ok(PaginatedResults { items, total })
     }
@@ -44,14 +51,18 @@ impl Resulting for Paginated {
 impl Resulting for () {
     type Output<T> = Vec<T>;
 
-    async fn get<C, E, EM, M>(self, db: &C, query: Select<E>) -> Result<Self::Output<M>, DbErr>
+    async fn get<C, E, EM, M>(
+        self,
+        db: &C,
+        query: Select<E>,
+        _cache: &PaginationCache,
+    ) -> Result<Self::Output<M>, DbErr>
     where
         C: ConnectionTrait,
         E: EntityTrait<Model = EM>,
         EM: FromQueryResult + Send + Sync,
         M: FromQueryResult + Send + Sync,
     {
-        // just fetch all
         query.into_model().all(db).await
     }
 }
@@ -70,7 +81,7 @@ pub trait Mappable<In>: Sized {
         F: FnMut(In) -> Option<Out>,
         Mapped: Mappable<Out>;
 
-    fn collect(total: u64, items: impl Iterator<Item = In>) -> Self;
+    fn collect(total: Option<u64>, items: impl Iterator<Item = In>) -> Self;
 }
 
 impl<In> Mappable<In> for Vec<In> {
@@ -79,10 +90,10 @@ impl<In> Mappable<In> for Vec<In> {
         F: FnMut(In) -> Option<Out>,
         Mapped: Mappable<Out>,
     {
-        Mapped::collect(self.len() as _, self.into_iter().flat_map(f))
+        Mapped::collect(Some(self.len() as _), self.into_iter().flat_map(f))
     }
 
-    fn collect(_: u64, items: impl Iterator<Item = In>) -> Self {
+    fn collect(_: Option<u64>, items: impl Iterator<Item = In>) -> Self {
         Vec::from_iter(items)
     }
 }
@@ -96,7 +107,7 @@ impl<In> Mappable<In> for PaginatedResults<In> {
         Mapped::collect(self.total, self.items.into_iter().flat_map(f))
     }
 
-    fn collect(total: u64, items: impl Iterator<Item = In>) -> Self {
+    fn collect(total: Option<u64>, items: impl Iterator<Item = In>) -> Self {
         PaginatedResults {
             total,
             items: items.collect(),

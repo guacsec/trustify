@@ -11,11 +11,8 @@ pub trait Roots {
 impl Roots for PaginatedResults<Node> {
     fn roots(self) -> PaginatedResults<Node> {
         let items = self.items.roots();
-        let total = items.len();
-        Self {
-            items,
-            total: total as _,
-        }
+        let total = Some(items.len() as u64);
+        Self { items, total }
     }
 }
 
@@ -53,11 +50,8 @@ impl<'a> RootTraces for &'a PaginatedResults<Node> {
 
     fn root_traces(self) -> Self::Result {
         let items = self.items.root_traces();
-        let total = items.len();
-        Self::Result {
-            items,
-            total: total as _,
-        }
+        let total = Some(items.len() as u64);
+        Self::Result { items, total }
     }
 }
 

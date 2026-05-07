@@ -4,6 +4,7 @@ use itertools::Itertools;
 use serde_json::json;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_module_fundamental::vulnerability::service::VulnerabilityService;
 use trustify_test_context::{Dataset, TrustifyContext, subset::ContainsSubset};
 
@@ -12,7 +13,7 @@ use trustify_test_context::{Dataset, TrustifyContext, subset::ContainsSubset};
 async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ctx.ingest_dataset(Dataset::DS3).await?;
 
-    let service = VulnerabilityService::new();
+    let service = VulnerabilityService::new(PaginationCache::for_test());
 
     let result = service
         .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db)

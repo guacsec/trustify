@@ -73,6 +73,7 @@ async fn test_parse_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyhow::Error
                     Paginated {
                         offset: 0,
                         limit: 1,
+                        total: true,
                     },
                     &ctx.db,
                 )
@@ -80,7 +81,7 @@ async fn test_parse_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyhow::Error
 
             log::debug!("{packages:?}");
 
-            assert_eq!(41, packages.total);
+            assert_eq!(Some(41), packages.total);
 
             Ok(())
         },
@@ -120,6 +121,7 @@ async fn parse_cyclonedx_1dot6(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
                     Paginated {
                         offset: 0,
                         limit: 1,
+                        total: true,
                     },
                     &ctx.db,
                 )
@@ -127,7 +129,7 @@ async fn parse_cyclonedx_1dot6(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
 
             log::debug!("{packages:?}");
 
-            assert_eq!(9, packages.total);
+            assert_eq!(Some(9), packages.total);
 
             assert_eq!(sbom.sbom.authors, vec!["Some Author".to_string()]);
             assert_eq!(sbom.sbom.suppliers, vec!["Some Supplier".to_string()]);

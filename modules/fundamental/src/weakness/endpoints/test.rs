@@ -21,13 +21,13 @@ async fn list_weaknesses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let app = caller(ctx).await?;
 
-    let uri = "/api/v2/weakness";
+    let uri = "/api/v2/weakness?total=true";
 
     let request = TestRequest::get().uri(uri).to_request();
 
     let response: PaginatedResults<WeaknessSummary> = app.call_and_read_body_json(request).await;
 
-    assert!(response.total > 900);
+    assert!(response.total.expect("total should be present") > 900);
 
     Ok(())
 }
@@ -45,13 +45,13 @@ async fn query_weaknesses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let app = caller(ctx).await?;
 
-    let uri = "/api/v2/weakness?q=struts";
+    let uri = "/api/v2/weakness?q=struts&total=true";
 
     let request = TestRequest::get().uri(uri).to_request();
 
     let response: PaginatedResults<WeaknessSummary> = app.call_and_read_body_json(request).await;
 
-    assert_eq!(response.total, 4);
+    assert_eq!(response.total, Some(4));
 
     Ok(())
 }

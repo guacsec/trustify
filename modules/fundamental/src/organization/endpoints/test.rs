@@ -1,13 +1,12 @@
 use crate::test::caller;
-use actix_web::cookie::time::OffsetDateTime;
-use actix_web::test::TestRequest;
+use actix_web::{cookie::time::OffsetDateTime, test::TestRequest};
 use jsonpath_rust::JsonPath;
 use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
-use trustify_common::db::query::Query;
-use trustify_common::hashing::Digests;
-use trustify_common::model::Paginated;
+use trustify_common::{
+    db::pagination_cache::PaginationCache, db::query::Query, hashing::Digests, model::Paginated,
+};
 use trustify_module_ingestor::graph::advisory::AdvisoryInformation;
 use trustify_test_context::{TrustifyContext, call::CallService};
 
@@ -99,13 +98,21 @@ async fn one_organization(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .link_to_vulnerability("CVE-123", None, &ctx.db)
         .await?;
 
-    let service = crate::organization::service::OrganizationService::new();
+    let service =
+        crate::organization::service::OrganizationService::new(PaginationCache::for_test());
 
     let orgs = service
-        .fetch_organizations(Query::default(), Paginated::default(), &ctx.db)
+        .fetch_organizations(
+            Query::default(),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(1, orgs.total);
+    assert_eq!(Some(1), orgs.total);
 
     let first_org = &orgs.items[0];
     let org_id = first_org.head.id;

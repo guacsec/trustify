@@ -1,6 +1,7 @@
 use super::{twice, update_mark_fixed_again, update_unmark_fixed};
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_module_fundamental::{
     advisory::service::AdvisoryService, vulnerability::service::VulnerabilityService,
 };
@@ -13,7 +14,7 @@ use trustify_test_context::TrustifyContext;
 async fn fixed(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let (r1, r2) = twice(ctx, update_unmark_fixed, update_mark_fixed_again).await?;
 
-    let vuln = VulnerabilityService::new();
+    let vuln = VulnerabilityService::new(PaginationCache::for_test());
 
     // must be changed
 
@@ -21,7 +22,7 @@ async fn fixed(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // now delete the newer one
 
-    let service = AdvisoryService::new(ctx.db.clone());
+    let service = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
     service
         .delete_advisory(r2.id.parse().expect("must be a UUID variant"), &ctx.db)
         .await?;

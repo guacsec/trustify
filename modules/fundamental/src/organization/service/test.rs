@@ -1,6 +1,7 @@
 use actix_web::cookie::time::OffsetDateTime;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::db::query::Query;
 use trustify_common::hashing::Digests;
 use trustify_common::model::Paginated;
@@ -28,13 +29,21 @@ async fn all_organizations(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let service = crate::organization::service::OrganizationService::new();
+    let service =
+        crate::organization::service::OrganizationService::new(PaginationCache::for_test());
 
     let orgs = service
-        .fetch_organizations(Query::default(), Paginated::default(), &ctx.db)
+        .fetch_organizations(
+            Query::default(),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(1, orgs.total);
+    assert_eq!(Some(1), orgs.total);
     assert_eq!(1, orgs.items.len());
 
     Ok(())

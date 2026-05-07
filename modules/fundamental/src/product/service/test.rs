@@ -2,6 +2,7 @@ use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
 use trustify_common::cpe::Cpe;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::db::query::Query;
 use trustify_common::hashing::Digests;
 use trustify_common::model::Paginated;
@@ -38,13 +39,20 @@ async fn all_products(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .ingest_product_version("1.0.0".to_string(), Some(sbom.sbom.sbom_id), &ctx.db)
         .await?;
 
-    let service = crate::product::service::ProductService::new();
+    let service = crate::product::service::ProductService::new(PaginationCache::for_test());
 
     let prods = service
-        .fetch_products(Query::default(), Paginated::default(), &ctx.db)
+        .fetch_products(
+            Query::default(),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(1, prods.total);
+    assert_eq!(Some(1), prods.total);
     assert_eq!(1, prods.items.len());
 
     let ver_sbom = ver.get_sbom(&ctx.db).await?.expect("No sbom found");
@@ -129,13 +137,20 @@ async fn delete_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let service = crate::product::service::ProductService::new();
+    let service = crate::product::service::ProductService::new(PaginationCache::for_test());
 
     let prods = service
-        .fetch_products(Query::default(), Paginated::default(), &ctx.db)
+        .fetch_products(
+            Query::default(),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &ctx.db,
+        )
         .await?;
 
-    assert_eq!(1, prods.total);
+    assert_eq!(Some(1), prods.total);
     assert_eq!(1, prods.items.len());
 
     let result = service.delete_product(pr.product.id, &ctx.db).await?;

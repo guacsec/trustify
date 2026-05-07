@@ -1,3 +1,4 @@
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_module_analysis::config::AnalysisConfig;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_test_context::{
@@ -21,6 +22,7 @@ async fn caller_with(
             ctx.db.clone(),
             ctx.storage.clone(),
             analysis.clone(),
+            PaginationCache::for_test(),
         );
         trustify_module_analysis::endpoints::configure(svc, ctx.db.clone(), analysis);
     })

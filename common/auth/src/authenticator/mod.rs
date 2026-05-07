@@ -16,7 +16,6 @@ use crate::{
     authenticator::claims::ValidatedAccessToken, authenticator::config::AuthenticatorConfig,
 };
 use anyhow::anyhow;
-use biscuit::jws::Compact;
 use claims::AccessTokenClaims;
 use config::AuthenticatorClientConfig;
 use error::AuthenticationError;
@@ -25,7 +24,7 @@ use jsonpath_rust::{
     parser::{model::JpQuery, parse_json_path},
     query::js_path_process,
 };
-use openid::{Client, Configurable, Discovered, Empty, Jws};
+use openid::{Client, Configurable, Discovered, Empty, Jws, biscuit::jws::Compact};
 use serde_json::Value;
 use std::{collections::HashMap, ops::Deref};
 use tracing::instrument;

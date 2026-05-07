@@ -25,7 +25,8 @@ use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
     db::{
         chunk::chunked_with,
-        limiter::LimiterTrait,
+        limiter::{LimitedResult, LimiterTrait},
+        pagination_cache::PaginationCache,
         query::{Columns, Filtering, IntoColumns, Query, q},
     },
     model::{Paginated, PaginatedResults},
@@ -119,12 +120,13 @@ impl InputPurl {
     }
 }
 
-#[derive(Default)]
-pub struct PurlService {}
+pub struct PurlService {
+    cache: PaginationCache,
+}
 
 impl PurlService {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(cache: PaginationCache) -> Self {
+        Self { cache }
     }
 
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
@@ -164,12 +166,13 @@ impl PurlService {
         let limiter = base_purl::Entity::find()
             .filter(base_purl::Column::Type.eq(r#type))
             .filtering(query)?
-            .limiting(connection, paginated.offset, paginated.limit);
+            .limiting(connection, paginated.offset, paginated.limit, &self.cache);
 
-        let total = limiter.total().await?;
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         Ok(PaginatedResults {
-            items: BasePurlSummary::from_entities(&limiter.fetch().await?).await?,
+            items: BasePurlSummary::from_entities(&items).await?,
             total,
         })
     }
@@ -377,12 +380,14 @@ impl PurlService {
             connection,
             paginated.offset,
             paginated.limit,
+            &self.cache,
         );
 
-        let total = limiter.total().await?;
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         Ok(PaginatedResults {
-            items: BasePurlSummary::from_entities(&limiter.fetch().await?).await?,
+            items: BasePurlSummary::from_entities(&items).await?,
             total,
         })
     }
@@ -472,11 +477,12 @@ impl PurlService {
                 select.filter(qualified_purl::Column::Id.in_subquery(spdx_select.into_query()));
         }
 
-        let limiter = select.limiting(connection, paginated.offset, paginated.limit);
-        let total = limiter.total().await?;
+        let limiter = select.limiting(connection, paginated.offset, paginated.limit, &self.cache);
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         Ok(PaginatedResults {
-            items: PurlSummary::from_entities(&limiter.fetch().await?),
+            items: PurlSummary::from_entities(&items),
             total,
         })
     }

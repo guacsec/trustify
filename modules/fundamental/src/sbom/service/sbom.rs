@@ -22,7 +22,7 @@ use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
     cpe::Cpe,
     db::{
-        limiter::{LimiterTrait, limit_selector},
+        limiter::{LimitedResult, LimiterTrait, limit_selector},
         multi_model::{FromQueryResultMultiModel, SelectIntoMultiModel},
         query::{Columns, Filtering, IntoColumns, Query, q},
     },
@@ -286,10 +286,13 @@ impl SbomService {
                         },
                     }),
             )?
-            .limiting(connection, paginated.offset, paginated.limit);
+            .limiting(connection, paginated.offset, paginated.limit, &self.cache);
 
-        let total = limiter.total().await?;
-        let sboms = limiter.fetch().await?;
+        let LimitedResult {
+            items: sboms,
+            total,
+        } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         let items = stream::iter(
             sboms
@@ -415,20 +418,17 @@ impl SbomService {
 
         // limit and execute
 
-        let limiter = limit_selector::<'_, _, _, _, PackageCatcher>(
+        let limiter = limit_selector::<_, _, _, PackageCatcher>(
             connection,
             query,
             paginated.offset,
             paginated.limit,
+            &self.cache,
         );
 
-        let total = limiter.total().await?;
-        let items = limiter
-            .fetch()
-            .await?
-            .into_iter()
-            .map(SbomPackage::from_row)
-            .collect();
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
+        let items = items.into_iter().map(SbomPackage::from_row).collect();
 
         Ok(PaginatedResults { items, total })
     }
@@ -470,20 +470,17 @@ impl SbomService {
             query = query.filter(sbom_ai::Column::SbomId.eq(id));
         }
 
-        let limiter = limit_selector::<'_, _, _, _, ModelCatcher>(
+        let limiter = limit_selector::<_, _, _, ModelCatcher>(
             connection,
             query,
             paginated.offset,
             paginated.limit,
+            &self.cache,
         );
 
-        let total = limiter.total().await?;
-        let items = limiter
-            .fetch()
-            .await?
-            .into_iter()
-            .map(SbomModel::from_row)
-            .collect();
+        let LimitedResult { items, total } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
+        let items = items.into_iter().map(SbomModel::from_row).collect();
 
         Ok(PaginatedResults { items, total })
     }
@@ -627,10 +624,13 @@ impl SbomService {
 
         // limit and execute
 
-        let limiter = query.limiting(connection, paginated.offset, paginated.limit);
+        let limiter = query.limiting(connection, paginated.offset, paginated.limit, &self.cache);
 
-        let total = limiter.total().await?;
-        let sboms = limiter.fetch().await?;
+        let LimitedResult {
+            items: sboms,
+            total,
+        } = limiter.fetch().await?;
+        let total = total.requested(paginated.total).await?;
 
         // collect results
 
@@ -730,7 +730,7 @@ impl SbomService {
             package: P,
         }
 
-        let r: R::Output<Row<P::Row>> = R::get(options, db, query).await?;
+        let r: R::Output<Row<P::Row>> = R::get(options, db, query, &self.cache).await?;
 
         Ok(r.flat_map_all(|row| {
             Some(SbomPackageRelation {
@@ -1079,6 +1079,7 @@ mod test {
     use super::*;
     use test_context::test_context;
     use test_log::test;
+    use trustify_common::db::pagination_cache::PaginationCache;
     use trustify_common::db::query::q;
     use trustify_common::hashing::Digests;
     use trustify_entity::labels::Labels;
@@ -1132,19 +1133,22 @@ mod test {
         assert_eq!(sbom_v1.sbom.sbom_id, sbom_v1_again.sbom.sbom_id);
         assert_ne!(sbom_v1.sbom.sbom_id, sbom_v2.sbom.sbom_id);
 
-        let fetch = SbomService::new(ctx.db.clone());
+        let fetch = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
         let fetched = fetch
             .fetch_sboms::<_, SbomPackage>(
                 q("MySpAcE").sort("name,authors,published"),
-                Paginated::default(),
+                Paginated {
+                    total: true,
+                    ..Default::default()
+                },
                 Default::default(),
                 &ctx.db,
             )
             .await?;
 
         log::debug!("{:#?}", fetched.items);
-        assert_eq!(1, fetched.total);
+        assert_eq!(Some(1), fetched.total);
 
         Ok(())
     }
@@ -1194,67 +1198,72 @@ mod test {
             )
             .await?;
 
-        let service = SbomService::new(ctx.db.clone());
+        let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+
+        let paginated_with_total = Paginated {
+            total: true,
+            ..Default::default()
+        };
 
         let fetched = service
             .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
-                Paginated::default(),
+                paginated_with_total,
                 FetchOptions::default().labels(("ci", "job1")),
                 &ctx.db,
             )
             .await?;
-        assert_eq!(1, fetched.total);
+        assert_eq!(Some(1), fetched.total);
 
         let fetched = service
             .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
-                Paginated::default(),
+                paginated_with_total,
                 FetchOptions::default().labels(("ci", "job2")),
                 &ctx.db,
             )
             .await?;
-        assert_eq!(2, fetched.total);
+        assert_eq!(Some(2), fetched.total);
 
         let fetched = service
             .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
-                Paginated::default(),
+                paginated_with_total,
                 FetchOptions::default().labels(("ci", "job3")),
                 &ctx.db,
             )
             .await?;
-        assert_eq!(0, fetched.total);
+        assert_eq!(Some(0), fetched.total);
 
         let fetched = service
             .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
-                Paginated::default(),
+                paginated_with_total,
                 FetchOptions::default().labels(("foo", "bar")),
                 &ctx.db,
             )
             .await?;
-        assert_eq!(0, fetched.total);
+        assert_eq!(Some(0), fetched.total);
 
         let fetched = service
             .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
-                Paginated::default(),
+                paginated_with_total,
                 Default::default(),
                 &ctx.db,
             )
             .await?;
-        assert_eq!(3, fetched.total);
+        assert_eq!(Some(3), fetched.total);
 
         let fetched = service
             .fetch_sboms::<_, SbomPackage>(
                 Query::default(),
-                Paginated::default(),
+                paginated_with_total,
                 FetchOptions::default().labels([("ci", "job2"), ("team", "a")]),
                 &ctx.db,
             )
             .await?;
-        assert_eq!(1, fetched.total);
+        assert_eq!(Some(1), fetched.total);
 
         Ok(())
     }
@@ -1273,7 +1282,7 @@ mod test {
             )
             .await?;
 
-        let service = SbomService::new(ctx.db.clone());
+        let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
         assert!(service.delete_sbom(sbom_v1.sbom.sbom_id, &ctx.db).await?);
         assert!(!service.delete_sbom(sbom_v1.sbom.sbom_id, &ctx.db).await?);

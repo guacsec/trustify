@@ -7,6 +7,7 @@ use std::time::Instant;
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::id::Id;
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_module_storage::service::StorageBackend;
@@ -17,7 +18,7 @@ use trustify_test_context::{Dataset, TrustifyContext};
 #[test(tokio::test)]
 #[instrument]
 async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
     let storage = &ctx.storage;
 
     let start = Instant::now();

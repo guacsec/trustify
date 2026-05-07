@@ -11,13 +11,17 @@ use crate::{
 use actix_web::{HttpResponse, Responder, get, web};
 use trustify_auth::{ReadMetadata, authorizer::Require};
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{Database, pagination_cache::PaginationCache, query::Query},
     model::Paginated,
 };
 use uuid::Uuid;
 
-pub fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig, db: Database) {
-    let service = OrganizationService::new();
+pub fn configure(
+    config: &mut utoipa_actix_web::service_config::ServiceConfig,
+    db: Database,
+    cache: PaginationCache,
+) {
+    let service = OrganizationService::new(cache);
     config
         .app_data(web::Data::new(db))
         .app_data(web::Data::new(service))

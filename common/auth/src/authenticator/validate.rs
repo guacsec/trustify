@@ -1,8 +1,8 @@
 use crate::authenticator::claims::AccessTokenClaims;
-use biscuit::Empty;
 use chrono::{Duration, Utc};
 use openid::{
     Client, Config, Configurable, Jws, Provider,
+    biscuit::Empty,
     error::{Expiry, Mismatch, Missing, Validation},
 };
 

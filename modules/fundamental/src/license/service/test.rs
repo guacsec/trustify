@@ -18,7 +18,14 @@ async fn test_licenses_union_spdx_and_cyclonedx(
 
     // RED: Before ingestion
     let result_before = service
-        .licenses(Query::default(), Paginated::default(), &ctx.db)
+        .licenses(
+            Query::default(),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &ctx.db,
+        )
         .await?;
     let baseline_count = result_before.total;
 
@@ -36,6 +43,7 @@ async fn test_licenses_union_spdx_and_cyclonedx(
             Paginated {
                 offset: 0,
                 limit: 1000,
+                total: true,
             },
             &ctx.db,
         )
@@ -199,6 +207,7 @@ async fn test_cyclonedx_uses_raw_license_text(ctx: &TrustifyContext) -> Result<(
             Paginated {
                 offset: 0,
                 limit: 100,
+                ..Default::default()
             },
             &ctx.db,
         )
@@ -271,6 +280,7 @@ async fn test_license_count_accuracy(ctx: &TrustifyContext) -> Result<(), anyhow
             Paginated {
                 offset: 0,
                 limit: 1000,
+                total: true,
             },
             &ctx.db,
         )
@@ -290,6 +300,7 @@ async fn test_license_count_accuracy(ctx: &TrustifyContext) -> Result<(), anyhow
             Paginated {
                 offset: 0,
                 limit: 1000,
+                total: true,
             },
             &ctx.db,
         )
@@ -307,13 +318,14 @@ async fn test_license_count_accuracy(ctx: &TrustifyContext) -> Result<(), anyhow
             Paginated {
                 offset: 0,
                 limit: 10000,
+                total: true,
             },
             &ctx.db,
         )
         .await?;
     assert_eq!(
         all_items.total,
-        all_items.items.len() as u64,
+        Some(all_items.items.len() as u64),
         "Total count should match number of items when all fetched"
     );
 
@@ -341,6 +353,7 @@ async fn test_license_ordering_by_coalesce(ctx: &TrustifyContext) -> Result<(), 
             Paginated {
                 offset: 0,
                 limit: 100,
+                ..Default::default()
             },
             &ctx.db,
         )
@@ -386,13 +399,17 @@ async fn test_license_filtering_on_coalesce(ctx: &TrustifyContext) -> Result<(),
             Paginated {
                 offset: 0,
                 limit: 100,
+                total: true,
             },
             &ctx.db,
         )
         .await?;
 
     // REFACTOR: Verify filtering works on COALESCE result
-    assert!(apache_results.total > 0, "Should find Apache licenses");
+    assert!(
+        apache_results.total > Some(0),
+        "Should find Apache licenses"
+    );
 
     for license in &apache_results.items {
         assert!(
@@ -423,6 +440,7 @@ async fn test_coalesce_null_handling(ctx: &TrustifyContext) -> Result<(), anyhow
             Paginated {
                 offset: 0,
                 limit: 100,
+                total: true,
             },
             &ctx.db,
         )
@@ -430,7 +448,7 @@ async fn test_coalesce_null_handling(ctx: &TrustifyContext) -> Result<(), anyhow
 
     // REFACTOR: Verify COALESCE fallback to license.text works when expanded_text is NULL
     assert!(
-        result.total > 0,
+        result.total > Some(0),
         "Should get CycloneDX licenses via COALESCE fallback to license.text"
     );
 
@@ -465,6 +483,7 @@ async fn test_license_pagination_with_count(ctx: &TrustifyContext) -> Result<(),
             Paginated {
                 offset: 0,
                 limit: 5,
+                total: true,
             },
             &ctx.db,
         )
@@ -474,7 +493,7 @@ async fn test_license_pagination_with_count(ctx: &TrustifyContext) -> Result<(),
     // REFACTOR: Verify pagination works correctly with refactored COUNT
     assert!(page1.items.len() <= 5, "Page 1 should have at most 5 items");
     assert!(
-        total >= page1.items.len() as u64,
+        total >= Some(page1.items.len() as u64),
         "Total should be >= page 1 items"
     );
 
@@ -484,6 +503,7 @@ async fn test_license_pagination_with_count(ctx: &TrustifyContext) -> Result<(),
             Paginated {
                 offset: 5,
                 limit: 5,
+                total: true,
             },
             &ctx.db,
         )
@@ -516,12 +536,19 @@ async fn test_preloaded_licenses_visible(ctx: &TrustifyContext) -> Result<(), an
 
     // Baseline: Get initial license count (includes pre-loaded SPDX dictionary)
     let before = service
-        .licenses(Query::default(), Paginated::default(), &ctx.db)
+        .licenses(
+            Query::default(),
+            Paginated {
+                total: true,
+                ..Default::default()
+            },
+            &ctx.db,
+        )
         .await?;
 
     // Pre-loaded licenses should be visible even before any SBOM ingestion
     assert!(
-        before.total > 0,
+        before.total > Some(0),
         "Pre-loaded SPDX dictionary entries should be visible"
     );
 

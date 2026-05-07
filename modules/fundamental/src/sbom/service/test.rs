@@ -9,7 +9,10 @@ use test_context::test_context;
 use test_log::test;
 use trustify_common::{
     cpe::Cpe,
-    db::query::{Query, q},
+    db::{
+        pagination_cache::PaginationCache,
+        query::{Query, q},
+    },
     id::Id,
     model::Paginated,
     purl::Purl,
@@ -30,7 +33,7 @@ async fn sbom_details_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
         ])
         .await?;
 
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     let id_3_2_12 = results[3].id.clone();
 
@@ -67,7 +70,7 @@ async fn count_sboms(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         ])
         .await?;
 
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     let neither_purl = Purl::from_str(
         "pkg:maven/io.smallrye/smallrye-graphql@0.0.0.redhat-00000?repository_url=https://maven.repository.redhat.com/ga/&type=jar",
@@ -114,7 +117,7 @@ async fn sbom_set_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         ])
         .await?;
 
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     let id_3_2_12 = Id::parse_uuid(&results[3].id)?;
 
@@ -150,7 +153,7 @@ async fn sbom_update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
         ])
         .await?;
 
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     let id_3_2_12 = Id::parse_uuid(&results[3].id)?;
 
@@ -188,7 +191,12 @@ async fn sbom_update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+
+    let paginated_with_total = Paginated {
+        total: true,
+        ..Default::default()
+    };
 
     // Ingest SBOMs with license information
     ctx.ingest_document("spdx/mtv-2.6.json").await?;
@@ -198,7 +206,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
     let results = service
         .fetch_sboms::<_, SbomPackage>(
             q("license=GPLv3+ and GPLv3+ with exceptions and GPLv2+ with exceptions and LGPLv2+ and BSD"),
-            Paginated::default(),
+            paginated_with_total,
             Default::default(),
             &ctx.db,
         )
@@ -206,14 +214,14 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     log::debug!("License filter results: {results:#?}");
     // Both SBOMs contain packages with this license combination
-    assert_eq!(results.total, 2);
+    assert_eq!(results.total, Some(2));
     assert_eq!(results.items.len(), 2);
 
     // Test 2: Filter by partial license match
     let results = service
         .fetch_sboms::<_, SbomPackage>(
             q("license~GPLv3+ with exceptions"),
-            Paginated::default(),
+            paginated_with_total,
             Default::default(),
             &ctx.db,
         )
@@ -221,14 +229,14 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     log::debug!("Partial license filter results: {results:#?}");
     // Both SBOMs contain packages with 'GPLv3+ with exceptions' license
-    assert_eq!(results.total, 2);
+    assert_eq!(results.total, Some(2));
     assert_eq!(results.items.len(), 2);
 
     // Test 3: Filter by license found in single SBOMs
     let results = service
         .fetch_sboms::<_, SbomPackage>(
             q("license~OFL"),
-            Paginated::default(),
+            paginated_with_total,
             Default::default(),
             &ctx.db,
         )
@@ -236,14 +244,14 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     log::debug!("OFL license filter results: {results:#?}");
     // Only SPDX SBOMs contain packages with OFL license
-    assert_eq!(results.total, 1);
+    assert_eq!(results.total, Some(1));
     assert_eq!(results.items[0].head.name, "MTV-2.6");
 
     // Test 3b: Filter by license found in single SBOMs
     let results = service
         .fetch_sboms::<_, SbomPackage>(
             q("license=Apache 2.0"),
-            Paginated::default(),
+            paginated_with_total,
             Default::default(),
             &ctx.db,
         )
@@ -251,7 +259,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     log::debug!("Apache 2.0 license filter results: {results:#?}");
     // Only CycloneDX SBOM has Apache 2.0
-    assert_eq!(results.total, 1);
+    assert_eq!(results.total, Some(1));
     assert_eq!(
         results.items[0].head.name,
         "quay/quay-builder-qemu-rhcos-rhel8"
@@ -261,7 +269,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
     let results = service
         .fetch_sboms::<_, SbomPackage>(
             q("license=OFL|Apache 2.0"),
-            Paginated::default(),
+            paginated_with_total,
             Default::default(),
             &ctx.db,
         )
@@ -269,14 +277,14 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     log::debug!("Multiple license OR filter results: {results:#?}");
     // Both SBOMs contain packages with these licenses
-    assert_eq!(results.total, 2);
+    assert_eq!(results.total, Some(2));
     assert_eq!(results.items.len(), 2);
 
     // Test 5: Negative test - license that doesn't exist
     let results = service
         .fetch_sboms::<_, SbomPackage>(
             q("license=NONEXISTENT_LICENSE"),
-            Paginated::default(),
+            paginated_with_total,
             Default::default(),
             &ctx.db,
         )
@@ -284,14 +292,14 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     log::debug!("Nonexistent license filter results: {results:#?}");
     // Should return no SBOMs
-    assert_eq!(results.total, 0);
+    assert_eq!(results.total, Some(0));
     assert!(results.items.is_empty());
 
     // Test 6: Empty license query
     let results = service
         .fetch_sboms::<_, SbomPackage>(
             q("license="),
-            Paginated::default(),
+            paginated_with_total,
             Default::default(),
             &ctx.db,
         )
@@ -299,14 +307,14 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     log::debug!("Empty license query results: {results:#?}");
     // Should return no SBOMs or handle gracefully
-    assert_eq!(results.total, 0);
+    assert_eq!(results.total, Some(0));
     assert!(results.items.is_empty());
 
     // Test 7: Combine license filter with other filters (should work together)
     let results = service
         .fetch_sboms::<_, SbomPackage>(
             q("license~Apache&name~quay"),
-            Paginated::default(),
+            paginated_with_total,
             Default::default(),
             &ctx.db,
         )
@@ -315,7 +323,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
     log::debug!("Combined license + name filter results: {results:#?}");
     // Should find SBOMs that have both Apache license and name containing "quay"
     // CycloneDX SBOM has Apache license and "quay" in name
-    assert_eq!(results.total, 1);
+    assert_eq!(results.total, Some(1));
     assert_eq!(
         results.items[0].head.name,
         "quay/quay-builder-qemu-rhcos-rhel8"
@@ -328,6 +336,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
             Paginated {
                 offset: 0,
                 limit: 1,
+                total: true,
             },
             Default::default(),
             &ctx.db,
@@ -342,7 +351,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
         results.items[0].head.name,
         "quay/quay-builder-qemu-rhcos-rhel8"
     );
-    assert_eq!(results.total, 2);
+    assert_eq!(results.total, Some(2));
 
     // Test 8b: Pagination with license filtering and offset > 0
     let results_offset = service
@@ -351,6 +360,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
             Paginated {
                 offset: 1,
                 limit: 1,
+                total: true,
             },
             Default::default(),
             &ctx.db,
@@ -360,13 +370,13 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
     // Should return the second item and total should still be 2
     assert_eq!(results_offset.items.len(), 1);
     assert_eq!(results_offset.items[0].head.name, "MTV-2.6");
-    assert_eq!(results_offset.total, 2);
+    assert_eq!(results_offset.total, Some(2));
 
     // Test 9: Verify that SBOMs without license filters still work
     let all_results = service
         .fetch_sboms::<_, SbomPackage>(
             Query::default(),
-            Paginated::default(),
+            paginated_with_total,
             Default::default(),
             &ctx.db,
         )
@@ -374,7 +384,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 
     log::debug!("All SBOMs results: {all_results:#?}");
     // Should return all SBOMs
-    assert_eq!(all_results.total, 2); // We ingested exactly 2 SBOMs
+    assert_eq!(all_results.total, Some(2)); // We ingested exactly 2 SBOMs
 
     Ok(())
 }
@@ -382,25 +392,34 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+
+    let paginated_with_total = Paginated {
+        total: true,
+        ..Default::default()
+    };
 
     // Ingest an SBOM with license information
     let sbom_id = Uuid::parse_str(&ctx.ingest_document("spdx/mtv-2.6.json").await?.id).unwrap();
 
     // Test 1: No license filter - should return all packages
     let all_packages = service
-        .fetch_sbom_packages(sbom_id, Query::default(), Paginated::default(), &ctx.db)
+        .fetch_sbom_packages(sbom_id, Query::default(), paginated_with_total, &ctx.db)
         .await?;
 
-    log::debug!("All packages count: {}", all_packages.total);
-    assert_eq!(all_packages.total, 5388, "Should have packages in the SBOM");
+    log::debug!("All packages count: {:?}", all_packages.total);
+    assert_eq!(
+        all_packages.total,
+        Some(5388),
+        "Should have packages in the SBOM"
+    );
 
     // Test 2: Filter by specific license that exists
     let license_filtered = service
         .fetch_sbom_packages(
             sbom_id,
             q("license=GPLv2 AND GPLv2+ AND CC-BY"),
-            Paginated::default(),
+            paginated_with_total,
             &ctx.db,
         )
         .await?;
@@ -408,30 +427,31 @@ async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<
     log::debug!("License filtered packages: {license_filtered:#?}");
     // Should find packages with this specific license
     // This validates that the license filtering is applied correctly
-    assert_eq!(license_filtered.total, 14);
+    assert_eq!(license_filtered.total, Some(14));
 
     // Test 3: Filter by partial license match
     let partial_license_filtered = service
-        .fetch_sbom_packages(sbom_id, q("license~GPL"), Paginated::default(), &ctx.db)
+        .fetch_sbom_packages(sbom_id, q("license~GPL"), paginated_with_total, &ctx.db)
         .await?;
 
     log::debug!("Partial license filtered packages: {partial_license_filtered:#?}");
     // Should find packages with licenses containing "GPL"
-    assert_eq!(partial_license_filtered.total, 448);
+    assert_eq!(partial_license_filtered.total, Some(448));
 
     // Test 4: Filter by non-existent license
     let no_match = service
         .fetch_sbom_packages(
             sbom_id,
             q("license=NONEXISTENT_LICENSE"),
-            Paginated::default(),
+            paginated_with_total,
             &ctx.db,
         )
         .await?;
 
     log::debug!("No match packages: {no_match:#?}");
     assert_eq!(
-        no_match.total, 0,
+        no_match.total,
+        Some(0),
         "Should return no packages for non-existent license"
     );
     assert!(
@@ -444,17 +464,17 @@ async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<
         .fetch_sbom_packages(
             sbom_id,
             q("license~GPLv2 AND GPLv2+ AND CC-BY&name~qemu-kvm-"),
-            Paginated::default(),
+            paginated_with_total,
             &ctx.db,
         )
         .await?;
 
     log::debug!("Combined filter packages: {combined_filter:#?}");
     // Should apply both license and name filters
-    assert_eq!(combined_filter.total, 11);
+    assert_eq!(combined_filter.total, Some(11));
 
     // Test 6: Pagination with license filtering
-    if partial_license_filtered.total > 1 {
+    if partial_license_filtered.total > Some(1) {
         let paginated = service
             .fetch_sbom_packages(
                 sbom_id,
@@ -462,6 +482,7 @@ async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<
                 Paginated {
                     offset: 0,
                     limit: 1,
+                    total: true,
                 },
                 &ctx.db,
             )
@@ -481,7 +502,7 @@ async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let purl_service = PurlService::new();
+    let purl_service = PurlService::new(PaginationCache::for_test());
     assert_eq!(
         0,
         purl_service
@@ -520,7 +541,7 @@ async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), any
     );
 
     let tx = ctx.db.begin().await?;
-    let sbom_service = SbomService::new(ctx.db.clone());
+    let sbom_service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
     // delete the UBI SBOM
     assert!(sbom_service.delete_sbom(ubi9_sbom.id.parse()?, &tx).await?);
     tx.commit().await?;
@@ -574,23 +595,28 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
         ])
         .await?;
 
-    let purl_service = PurlService::new();
+    let purl_service = PurlService::new(PaginationCache::for_test());
 
     // Count all PURLs before deletion
+    let paginated_with_total = Paginated {
+        total: true,
+        ..Default::default()
+    };
     let packages_before = purl_service
-        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .purls(Query::default(), paginated_with_total, &ctx.db)
         .await?;
     log::debug!(
-        "Total packages before SBOM deletion: {}",
+        "Total packages before SBOM deletion: {:?}",
         packages_before.total
     );
     assert_eq!(
-        packages_before.total, 2087,
+        packages_before.total,
+        Some(2087),
         "Should have packages after ingestion"
     );
 
     // Delete one of the SBOMs
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
     let sbom_uuid = results[1].id.parse().expect("SBOM should have a UUID");
     let tx = ctx.db.begin().await?;
     assert!(
@@ -601,14 +627,15 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
 
     // Count all packages after deletion
     let packages_after = purl_service
-        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .purls(Query::default(), paginated_with_total, &ctx.db)
         .await?;
     log::debug!(
-        "Total packages after SBOM deletion: {}",
+        "Total packages after SBOM deletion: {:?}",
         packages_before.total
     );
     assert_eq!(
-        packages_after.total, 2083,
+        packages_after.total,
+        Some(2083),
         "Should have packages after deletion"
     );
 
@@ -622,7 +649,8 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
     // - AND not referenced by the advisory
     //
     // We verify that MOST packages are preserved (conservative approach).
-    let packages_deleted = packages_before.total - packages_after.total;
+    let packages_deleted = packages_before.total.expect("total requested")
+        - packages_after.total.expect("total requested");
     log::debug!("Qualified PURLs deleted: {}", packages_deleted);
 
     assert_eq!(packages_deleted, 4, "Should have deleted 4 packages");
@@ -638,14 +666,15 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
 
     // Count all packages after deletion
     let packages_after = purl_service
-        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .purls(Query::default(), paginated_with_total, &ctx.db)
         .await?;
     log::debug!(
-        "Total packages after second SBOM deletion: {}",
+        "Total packages after second SBOM deletion: {:?}",
         packages_before.total
     );
     assert_eq!(
-        packages_after.total, 2082,
+        packages_after.total,
+        Some(2082),
         "Should have packages after second deletion"
     );
 
@@ -660,14 +689,15 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
 
     // Count all packages after deletion
     let packages_after = purl_service
-        .purls(Query::default(), Paginated::default(), &ctx.db)
+        .purls(Query::default(), paginated_with_total, &ctx.db)
         .await?;
     log::debug!(
-        "Total packages after third SBOM deletion: {}",
+        "Total packages after third SBOM deletion: {:?}",
         packages_before.total
     );
     assert_eq!(
-        packages_after.total, 1472,
+        packages_after.total,
+        Some(1472),
         "Should have packages after second deletion"
     );
 
@@ -679,7 +709,7 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn test_sbom_package_licenses_coalesce(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     // RED: No packages before ingestion
     // GREEN: Ingest SPDX (uses expanded_license) and CycloneDX (uses raw license.text)
@@ -700,6 +730,7 @@ async fn test_sbom_package_licenses_coalesce(ctx: &TrustifyContext) -> Result<()
             Paginated {
                 offset: 0,
                 limit: 100,
+                ..Default::default()
             },
             &ctx.db,
         )
@@ -712,6 +743,7 @@ async fn test_sbom_package_licenses_coalesce(ctx: &TrustifyContext) -> Result<()
             Paginated {
                 offset: 0,
                 limit: 100,
+                ..Default::default()
             },
             &ctx.db,
         )
@@ -758,7 +790,7 @@ async fn test_sbom_package_licenses_coalesce(ctx: &TrustifyContext) -> Result<()
 async fn test_sbom_package_license_filtering_with_coalesce(
     ctx: &TrustifyContext,
 ) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     // RED: No packages before ingestion
     // GREEN: Ingest SPDX with Apache licenses
@@ -775,6 +807,7 @@ async fn test_sbom_package_license_filtering_with_coalesce(
             Paginated {
                 offset: 0,
                 limit: 100,
+                total: true,
             },
             &ctx.db,
         )
@@ -782,7 +815,7 @@ async fn test_sbom_package_license_filtering_with_coalesce(
 
     // REFACTOR: Verify filtering works on COALESCE result
     assert!(
-        apache_packages.total > 0,
+        apache_packages.total > Some(0),
         "Expected at least one package to match Apache filter"
     );
     let has_apache = apache_packages.items.iter().any(|p| {
@@ -805,7 +838,7 @@ async fn test_sbom_package_license_filtering_with_coalesce(
 async fn test_sbom_package_license_not_null_filter(
     ctx: &TrustifyContext,
 ) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone());
+    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     // RED: No packages before ingestion
     // GREEN: Ingest SBOM with licenses
@@ -821,6 +854,7 @@ async fn test_sbom_package_license_not_null_filter(
             Paginated {
                 offset: 0,
                 limit: 1000,
+                ..Default::default()
             },
             &ctx.db,
         )

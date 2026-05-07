@@ -11,6 +11,7 @@ mod spdx;
 use sea_orm::{DatabaseTransaction, TransactionTrait};
 use std::time::Instant;
 use tracing::{Instrument, info_span, instrument};
+use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::{db::Database, hashing::Digests};
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_module_ingestor::{
@@ -51,7 +52,7 @@ where
 
     let db = &ctx.db;
     let graph = Graph::new(db.clone());
-    let service = SbomService::new(db.clone());
+    let service = SbomService::new(db.clone(), PaginationCache::for_test());
 
     let start = Instant::now();
     let sbom = info_span!("parse json")
