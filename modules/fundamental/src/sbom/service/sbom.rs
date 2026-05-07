@@ -27,7 +27,7 @@ use trustify_common::{
         query::{Columns, Filtering, IntoColumns, Query, q},
     },
     id::{Id, TrySelectForId},
-    model::{Paginated, PaginatedResults},
+    model::{PaginatedResults, Pagination},
     purl::Purl,
     requested_field::BoolRequestedField,
     service::{Mappable, Resulting},
@@ -194,7 +194,7 @@ impl SbomService {
     pub async fn fetch_sboms<C, P>(
         &self,
         search: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
         options: FetchOptions,
         connection: &C,
     ) -> Result<PaginatedResults<SbomSummary<P>>, Error>
@@ -293,7 +293,7 @@ impl SbomService {
             items: sboms,
             total,
         } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         let items = stream::iter(
             sboms
@@ -317,7 +317,7 @@ impl SbomService {
         &self,
         sbom_id: Uuid,
         search: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<SbomPackage>, Error> {
         let mut query = sbom_package::Entity::find()
@@ -423,7 +423,7 @@ impl SbomService {
             limit_selector::<_, _, _, PackageCatcher>(connection, query, paginated, &self.cache)?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
         let items = items.into_iter().map(SbomPackage::from_row).collect();
 
         Ok(PaginatedResults { items, total })
@@ -435,7 +435,7 @@ impl SbomService {
         &self,
         sbom_id: Option<Uuid>,
         search: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
         include_counts: bool,
         connection: &C,
     ) -> Result<PaginatedResults<SbomModel>, Error> {
@@ -471,7 +471,7 @@ impl SbomService {
             limit_selector::<_, _, _, ModelCatcher>(connection, query, paginated, &self.cache)?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         // Parse PURLs once per model and collect all unique PURL UUIDs
         let parsed: Vec<(String, String, serde_json::Value, Vec<PurlSummary>)> = items
@@ -645,7 +645,7 @@ impl SbomService {
     pub async fn find_related_sboms<C: ConnectionTrait>(
         &self,
         package_ref: SbomExternalPackageReference<'_>,
-        paginated: Paginated,
+        paginated: impl Pagination,
         query: Query,
         connection: &C,
     ) -> Result<PaginatedResults<SbomSummary>, Error> {
@@ -678,7 +678,7 @@ impl SbomService {
             items: sboms,
             total,
         } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         // collect results
 
@@ -1130,6 +1130,7 @@ mod test {
     use trustify_common::db::pagination_cache::PaginationCache;
     use trustify_common::db::query::q;
     use trustify_common::hashing::Digests;
+    use trustify_common::model::Paginated;
     use trustify_entity::labels::Labels;
     use trustify_test_context::TrustifyContext;
 

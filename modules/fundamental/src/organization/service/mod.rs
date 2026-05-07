@@ -9,7 +9,7 @@ use trustify_common::{
         pagination_cache::PaginationCache,
         query::{Filtering, Query},
     },
-    model::{Paginated, PaginatedResults},
+    model::{PaginatedResults, Pagination},
 };
 use trustify_entity::organization;
 use uuid::Uuid;
@@ -26,7 +26,7 @@ impl OrganizationService {
     pub async fn fetch_organizations<C: ConnectionTrait>(
         &self,
         search: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<OrganizationSummary>, Error> {
         let limiter = organization::Entity::find().filtering(search)?.limiting(
@@ -36,7 +36,7 @@ impl OrganizationService {
         )?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         Ok(PaginatedResults {
             total,

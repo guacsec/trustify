@@ -2,7 +2,7 @@ use anyhow::bail;
 use test_context::test_context;
 use test_log::test;
 use trustify_common::db::pagination_cache::PaginationCache;
-use trustify_common::{db::query::Query, model::Paginated};
+use trustify_common::{db::query::Query, model::Limit};
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_test_context::TrustifyContext;
 
@@ -21,7 +21,13 @@ async fn multi_purls(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
 
     let sbom = service
-        .fetch_sbom_packages(id, Query::default(), Paginated::default(), &ctx.db)
+        .fetch_sbom_packages(
+            id,
+            Query::default(),
+            // high limit to find the specific package among all SBOM entries
+            Limit(1000),
+            &ctx.db,
+        )
         .await?;
 
     // this package shows up with 4 purls, despite there being only one

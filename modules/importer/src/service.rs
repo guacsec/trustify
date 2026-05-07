@@ -16,7 +16,7 @@ use trustify_common::{
         query::{Filtering, Query},
     },
     error::ErrorInformation,
-    model::{Paginated, PaginatedResults, Revisioned},
+    model::{PaginatedResults, Pagination, Revisioned},
 };
 use trustify_entity::{importer, importer_report, labels};
 use uuid::Uuid;
@@ -478,7 +478,7 @@ impl ImporterService {
         &self,
         name: &str,
         search: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
     ) -> Result<PaginatedResults<ImporterReport>, Error> {
         let limiting = importer_report::Entity::find()
             .filter(importer_report::Column::Importer.eq(name))
@@ -487,7 +487,7 @@ impl ImporterService {
             .limiting(&self.db, paginated, &self.cache)?;
 
         let LimitedResult { items, total } = limiting.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         Ok(PaginatedResults {
             total,

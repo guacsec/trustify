@@ -3,8 +3,7 @@ pub use bytesize::*;
 
 use crate::db::limiter::{LimitedResult, Limiter};
 use sea_orm::{ConnectionTrait, DbErr, SelectorTrait};
-use std::cmp::min;
-use std::marker::PhantomData;
+use std::{cmp::min, fmt::Debug, marker::PhantomData};
 use utoipa::{IntoParams, ToSchema};
 
 /// A struct wrapping an item with a revision.
@@ -40,44 +39,86 @@ pub struct Paginated {
     pub total: bool,
 }
 
+/// Trait for types that carry pagination parameters.
+pub trait Pagination: Copy + Debug {
+    fn offset(&self) -> u64;
+    fn limit(&self) -> u64;
+    fn total(&self) -> bool;
+
+    /// Paginate an in-memory slice, optionally including the total count.
+    fn paginate_array<T: Clone>(&self, vec: &[T]) -> PaginatedResults<T> {
+        let total = if self.total() {
+            Some(vec.len() as u64)
+        } else {
+            None
+        };
+
+        if self.limit() == 0 {
+            return PaginatedResults {
+                items: vec![],
+                total,
+            };
+        }
+
+        if self.offset() as usize > vec.len() {
+            return PaginatedResults {
+                items: vec![],
+                total,
+            };
+        }
+
+        let end = min(self.offset() as usize + self.limit() as usize, vec.len());
+
+        PaginatedResults {
+            items: Vec::from(&vec[self.offset() as usize..end]),
+            total,
+        }
+    }
+}
+
+impl Pagination for Paginated {
+    fn offset(&self) -> u64 {
+        self.offset
+    }
+    fn limit(&self) -> u64 {
+        self.limit
+    }
+    fn total(&self) -> bool {
+        self.total
+    }
+}
+
+/// A pagination limit, convertible into a full `Paginated` with default offset and no total.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Limit(pub u64);
+
+impl Pagination for Limit {
+    fn offset(&self) -> u64 {
+        0
+    }
+    fn limit(&self) -> u64 {
+        self.0
+    }
+    fn total(&self) -> bool {
+        false
+    }
+}
+
+impl From<Limit> for Paginated {
+    fn from(Limit(limit): Limit) -> Self {
+        Self {
+            limit,
+            ..Default::default()
+        }
+    }
+}
+
 impl Default for Paginated {
     fn default() -> Self {
         Self {
             offset: 0,
             limit: default::limit(),
             total: false,
-        }
-    }
-}
-
-impl Paginated {
-    /// Paginate an in-memory slice, optionally including the total count.
-    pub fn paginate_array<T: Clone>(&self, vec: &[T]) -> PaginatedResults<T> {
-        let total = if self.total {
-            Some(vec.len() as u64)
-        } else {
-            None
-        };
-
-        if self.limit == 0 {
-            return PaginatedResults {
-                items: vec![],
-                total,
-            };
-        }
-
-        if self.offset as usize > vec.len() {
-            return PaginatedResults {
-                items: vec![],
-                total,
-            };
-        }
-
-        let end = min(self.offset as usize + self.limit as usize, vec.len());
-
-        PaginatedResults {
-            items: Vec::from(&vec[self.offset as usize..end]),
-            total,
         }
     }
 }
@@ -108,7 +149,7 @@ impl<R> PaginatedResults<R> {
     /// Create a new paginated result, optionally computing the total count.
     pub async fn new<C, S1, S2>(
         limiter: Limiter<'_, C, S1, S2>,
-        paginated: Paginated,
+        paginated: impl Pagination,
     ) -> Result<PaginatedResults<S1::Item>, DbErr>
     where
         C: ConnectionTrait,
@@ -116,7 +157,7 @@ impl<R> PaginatedResults<R> {
         S2: SelectorTrait,
     {
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         Ok(PaginatedResults { items, total })
     }
@@ -135,7 +176,7 @@ pub struct BinaryData(PhantomData<Vec<u8>>);
 
 #[cfg(test)]
 mod test {
-    use crate::model::{Paginated, PaginatedResults};
+    use crate::model::{Paginated, PaginatedResults, Pagination};
 
     #[test_log::test(test)]
     fn paginated_vec() {

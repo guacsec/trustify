@@ -14,7 +14,7 @@ use trustify_common::{
         query::{Query, q},
     },
     id::Id,
-    model::Paginated,
+    model::{Limit, Paginated},
     purl::Purl,
 };
 use trustify_entity::labels::Labels;
@@ -503,10 +503,12 @@ async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<
 #[test(actix_web::test)]
 async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let purl_service = PurlService::new(PaginationCache::for_test());
+    // use a high limit to fetch all items for count assertions
+    let all = Limit(2000);
     assert_eq!(
         0,
         purl_service
-            .purls(Query::default(), Paginated::default(), &ctx.db)
+            .purls(Query::default(), all, &ctx.db)
             .await?
             .items
             .len()
@@ -521,7 +523,7 @@ async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), any
     assert_eq!(
         880,
         purl_service
-            .purls(Query::default(), Paginated::default(), &ctx.db)
+            .purls(Query::default(), all, &ctx.db)
             .await?
             .items
             .len()
@@ -534,7 +536,7 @@ async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), any
     assert_eq!(
         1490,
         purl_service
-            .purls(Query::default(), Paginated::default(), &ctx.db)
+            .purls(Query::default(), all, &ctx.db)
             .await?
             .items
             .len()
@@ -547,9 +549,7 @@ async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), any
     tx.commit().await?;
 
     // it should not leave behind orphaned purls
-    let result = purl_service
-        .purls(Query::default(), Paginated::default(), &ctx.db)
-        .await?;
+    let result = purl_service.purls(Query::default(), all, &ctx.db).await?;
     // running the deletion, should have deleted those orphaned purls
     assert_eq!(880, result.items.len());
 
@@ -563,9 +563,7 @@ async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), any
     tx.commit().await?;
 
     // running the deletion, should have deleted those orphaned purls
-    let result = purl_service
-        .purls(Query::default(), Paginated::default(), &ctx.db)
-        .await?;
+    let result = purl_service.purls(Query::default(), all, &ctx.db).await?;
 
     assert_eq!(0, result.items.len());
     Ok(())

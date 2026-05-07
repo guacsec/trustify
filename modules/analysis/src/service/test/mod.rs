@@ -614,7 +614,7 @@ async fn test_retrieve_all_sbom_roots_by_name(ctx: &TrustifyContext) -> Result<(
             sbom_id,
             ComponentReference::Name(&component_name),
             QueryOptions::ancestors(),
-            Default::default(),
+            Paginated::default(),
             &ctx.db,
         )
         .await?;

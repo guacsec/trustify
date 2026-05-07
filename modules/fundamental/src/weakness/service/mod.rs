@@ -10,7 +10,7 @@ use trustify_common::{
         pagination_cache::PaginationCache,
         query::{Filtering, Query},
     },
-    model::{Paginated, PaginatedResults},
+    model::{PaginatedResults, Pagination},
 };
 use trustify_entity::weakness;
 
@@ -27,7 +27,7 @@ impl WeaknessService {
     pub async fn list_weaknesses(
         &self,
         query: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
     ) -> Result<PaginatedResults<WeaknessSummary>, Error> {
         let limiter = weakness::Entity::find().filtering(query)?.limiting(
             &self.db,
@@ -36,7 +36,7 @@ impl WeaknessService {
         )?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         Ok(PaginatedResults {
             items: WeaknessSummary::from_entities(&items).await?,

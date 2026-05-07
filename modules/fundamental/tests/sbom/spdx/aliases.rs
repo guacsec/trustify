@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::model::Paginated;
 use trustify_module_analysis::{
     config::AnalysisConfig,
     service::{AnalysisService, ComponentReference},
@@ -21,7 +22,7 @@ async fn cpe_purl(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .retrieve(
             ComponentReference::Id("SPDXRef-SRPM"),
             (),
-            Default::default(),
+            Paginated::default(),
             &ctx.db,
         )
         .await?;

@@ -3,7 +3,7 @@ use crate::{
         multi_model::{FromQueryResultMultiModel, SelectIntoMultiModel},
         pagination_cache::{LimitError, PaginationCache},
     },
-    model::Paginated,
+    model::Pagination,
 };
 
 /// Offset and limit for a paginated query.
@@ -15,15 +15,12 @@ pub struct Page {
     pub limit: u64,
 }
 
-impl From<Paginated> for Page {
-    fn from(
-        Paginated {
-            offset,
-            limit,
-            total: _,
-        }: Paginated,
-    ) -> Self {
-        Self { offset, limit }
+impl<T: Pagination> From<T> for Page {
+    fn from(p: T) -> Self {
+        Self {
+            offset: p.offset(),
+            limit: p.limit(),
+        }
     }
 }
 

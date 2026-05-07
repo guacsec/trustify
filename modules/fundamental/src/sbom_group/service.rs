@@ -21,7 +21,7 @@ use trustify_common::{
         pagination_cache::PaginationCache,
         query::{Filtering, Query},
     },
-    model::{Paginated, PaginatedResults, Revisioned},
+    model::{PaginatedResults, Pagination, Revisioned},
 };
 use trustify_entity::{sbom, sbom_group, sbom_group_assignment};
 use utoipa::{IntoParams, ToSchema};
@@ -89,7 +89,7 @@ impl SbomGroupService {
     pub async fn list(
         &self,
         options: ListOptions,
-        paginated: Paginated,
+        paginated: impl Pagination,
         query: Query,
         db: &impl ConnectionTrait,
     ) -> Result<GroupListResult, Error> {

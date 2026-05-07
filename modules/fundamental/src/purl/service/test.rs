@@ -7,7 +7,7 @@ use trustify_common::{
         pagination_cache::PaginationCache,
         query::{Query, q},
     },
-    model::Paginated,
+    model::{Limit, Paginated},
     purl::Purl,
 };
 use trustify_test_context::{Dataset, TrustifyContext};
@@ -676,10 +676,12 @@ async fn qualified_packages_filter_by_license(ctx: &TrustifyContext) -> Result<(
     log::debug!("{results:#?}");
     assert_eq!(4, results.items.len());
 
+    // use a high limit to fetch all 57 expected matches
     let results = service
         .purls(
             q("license~GPLv3+ with exceptions|Apache"),
-            Paginated::default(),
+            // use a high limit to fetch all expected matches
+            Limit(100),
             &ctx.db,
         )
         .await?;

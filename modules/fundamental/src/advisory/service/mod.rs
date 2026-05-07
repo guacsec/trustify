@@ -18,7 +18,7 @@ use trustify_common::{
         query::{Columns, Filtering, Query},
     },
     id::{Id, TrySelectForId},
-    model::{Paginated, PaginatedResults},
+    model::{PaginatedResults, Pagination},
 };
 use trustify_entity::{advisory, labels::Labels, organization, source_document};
 use trustify_module_ingestor::common::{Deprecation, DeprecationExt};
@@ -38,7 +38,7 @@ impl AdvisoryService {
     pub async fn fetch_advisories<C: ConnectionTrait + Sync + Send>(
         &self,
         search: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
         deprecation: Deprecation,
         connection: &C,
     ) -> Result<PaginatedResults<AdvisorySummary>, Error> {
@@ -61,7 +61,7 @@ impl AdvisoryService {
             .try_limiting_as_multi_model::<AdvisoryCatcher>(connection, paginated, &self.cache)?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         Ok(PaginatedResults {
             total,

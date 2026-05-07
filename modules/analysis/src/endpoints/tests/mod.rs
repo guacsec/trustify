@@ -425,6 +425,7 @@ async fn quarkus_component_by_cpe(ctx: &TrustifyContext) -> Result<(), anyhow::E
     Ok(())
 }
 
+/// Query the analysis endpoint with a high limit to fetch all matching items.
 async fn query(ctx: &TrustifyContext, query: &str) -> Value {
     let app = caller(ctx).await.unwrap();
     let response: Value = app

@@ -108,7 +108,11 @@ async fn test_parse_spdx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 .fetch_related_packages::<_, _, SbomPackage>(
                     sbom.sbom.sbom_id,
                     Default::default(),
-                    Paginated::default(),
+                    // high limit to fetch all contained packages
+                    Paginated {
+                        limit: 1000,
+                        ..Default::default()
+                    },
                     Which::Left,
                     first,
                     Some(Relationship::Contains),

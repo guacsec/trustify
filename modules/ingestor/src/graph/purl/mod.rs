@@ -23,7 +23,7 @@ use trustify_common::{
         limiter::{LimitedResult, LimiterTrait},
         pagination_cache::PaginationCache,
     },
-    model::{Paginated, PaginatedResults},
+    model::{PaginatedResults, Pagination},
     purl::{Purl, PurlErr},
 };
 use trustify_entity as entity;
@@ -316,7 +316,7 @@ impl<'g> PackageContext<'g> {
 
     pub async fn get_versions_paginated<C: ConnectionTrait>(
         &self,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
         cache: &PaginationCache,
     ) -> Result<PaginatedResults<PackageVersionContext<'_>>, Error> {
@@ -325,7 +325,7 @@ impl<'g> PackageContext<'g> {
             .limiting(connection, paginated, cache)?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         Ok(PaginatedResults {
             total,

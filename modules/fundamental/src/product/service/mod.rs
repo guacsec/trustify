@@ -7,7 +7,7 @@ use trustify_common::{
         pagination_cache::PaginationCache,
         query::{Filtering, Query},
     },
-    model::{Paginated, PaginatedResults},
+    model::{PaginatedResults, Pagination},
 };
 use trustify_entity::product;
 use uuid::Uuid;
@@ -24,7 +24,7 @@ impl ProductService {
     pub async fn fetch_products<C: ConnectionTrait + Sync + Send>(
         &self,
         search: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<ProductSummary>, Error> {
         let limiter = product::Entity::find().filtering(search)?.limiting(
@@ -34,7 +34,7 @@ impl ProductService {
         )?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         Ok(PaginatedResults {
             total,

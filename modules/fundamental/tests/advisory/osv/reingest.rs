@@ -3,6 +3,7 @@ use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
 use trustify_common::db::pagination_cache::PaginationCache;
+use trustify_common::model::Paginated;
 use trustify_common::purl::Purl;
 use trustify_entity::labels::Labels;
 use trustify_module_fundamental::{
@@ -81,7 +82,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let service = PurlService::new(PaginationCache::for_test());
     let purls = service
-        .purls(Default::default(), Default::default(), &ctx.db)
+        .purls(Default::default(), Paginated::default(), &ctx.db)
         .await?;
 
     let purl = purls

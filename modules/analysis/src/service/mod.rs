@@ -47,7 +47,7 @@ use tokio::{
 use tracing::instrument;
 use trustify_common::{
     db::query::{Value, ValueContext},
-    model::{Paginated, PaginatedResults},
+    model::{PaginatedResults, Pagination},
 };
 use trustify_entity::{
     relationship::Relationship,
@@ -572,7 +572,7 @@ impl AnalysisService {
         sbom_id: Uuid,
         query: impl Into<GraphQuery<'_>> + Debug,
         options: impl Into<QueryOptions> + Debug,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<Node>, Error> {
         let distinct_sbom_ids = vec![sbom_id];
@@ -594,7 +594,7 @@ impl AnalysisService {
         &self,
         query: impl Into<GraphQuery<'_>> + Debug,
         options: impl Into<QueryOptions> + Debug,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<Node>, Error> {
         let query = query.into();
@@ -622,7 +622,7 @@ impl AnalysisService {
         &self,
         query: impl Into<GraphQuery<'_>> + Debug,
         options: impl Into<QueryOptions> + Debug,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<Node>, Error> {
         let query = query.into();

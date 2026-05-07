@@ -5,6 +5,7 @@ use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
 use trustify_common::db::pagination_cache::PaginationCache;
+use trustify_common::model::Limit;
 use trustify_common::purl::Purl;
 use trustify_entity::labels::Labels;
 use trustify_module_fundamental::advisory::model::AdvisoryHead;
@@ -97,7 +98,12 @@ async fn change_ps_list_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let service = PurlService::new(PaginationCache::for_test());
     let purls = service
-        .purls(Default::default(), Default::default(), &ctx.db)
+        .purls(
+            Default::default(),
+            // high limit to find the specific purl among all entries
+            Limit(1000),
+            &ctx.db,
+        )
         .await?;
 
     // pkg:rpm/redhat/eap7-bouncycastle@1.76.0-4.redhat_00001.1.el9eap?arch=noarch
@@ -243,7 +249,12 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     let service = PurlService::new(PaginationCache::for_test());
     let purls = service
-        .purls(Default::default(), Default::default(), &ctx.db)
+        .purls(
+            Default::default(),
+            // high limit to find the specific purl among all entries
+            Limit(1000),
+            &ctx.db,
+        )
         .await?;
 
     // pkg:rpm/redhat/eap7-bouncycastle-util@1.76.0-4.redhat_00001.1.el9eap?arch=noarch

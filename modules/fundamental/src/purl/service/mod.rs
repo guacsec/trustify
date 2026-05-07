@@ -29,7 +29,7 @@ use trustify_common::{
         pagination_cache::PaginationCache,
         query::{Columns, Filtering, IntoColumns, Query, q},
     },
-    model::{Paginated, PaginatedResults},
+    model::{PaginatedResults, Pagination},
     purl::{Purl, PurlErr},
 };
 use trustify_entity::{
@@ -160,7 +160,7 @@ impl PurlService {
         &self,
         r#type: &str,
         query: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<BasePurlSummary>, Error> {
         let limiter = base_purl::Entity::find()
@@ -169,7 +169,7 @@ impl PurlService {
             .limiting(connection, paginated, &self.cache)?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         Ok(PaginatedResults {
             items: BasePurlSummary::from_entities(&items).await?,
@@ -373,7 +373,7 @@ impl PurlService {
     pub async fn base_purls<C: ConnectionTrait>(
         &self,
         query: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<BasePurlSummary>, Error> {
         let limiter = base_purl::Entity::find().filtering(query)?.limiting(
@@ -383,7 +383,7 @@ impl PurlService {
         )?;
 
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         Ok(PaginatedResults {
             items: BasePurlSummary::from_entities(&items).await?,
@@ -395,7 +395,7 @@ impl PurlService {
     pub async fn purls<C: ConnectionTrait>(
         &self,
         query: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<PurlSummary>, Error> {
         let mut select = qualified_purl::Entity::find().filtering_with(
@@ -478,7 +478,7 @@ impl PurlService {
 
         let limiter = select.limiting(connection, paginated, &self.cache)?;
         let LimitedResult { items, total } = limiter.fetch().await?;
-        let total = total.requested(paginated.total).await?;
+        let total = total.requested(paginated.total()).await?;
 
         Ok(PaginatedResults {
             items: PurlSummary::from_entities(&items),

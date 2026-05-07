@@ -24,7 +24,7 @@ use tracing::instrument;
 use trustify_common::{
     db::query::{Columns, Filtering, IntoColumns, Query, q},
     id::{Id, TrySelectForId},
-    model::{Paginated, PaginatedResults},
+    model::{PaginatedResults, Pagination},
 };
 use trustify_entity::{
     expanded_license, license, licensing_infos, qualified_purl, sbom, sbom_license_expanded,
@@ -171,7 +171,7 @@ impl LicenseService {
     pub async fn list_spdx_licenses(
         &self,
         search: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
     ) -> Result<PaginatedResults<SpdxLicenseSummary>, Error> {
         let all_matching = spdx::identifiers::LICENSES
             .iter()
@@ -188,24 +188,24 @@ impl LicenseService {
             )
             .collect::<Vec<_>>();
 
-        let total = if paginated.total {
+        let total = if paginated.total() {
             Some(all_matching.len() as u64)
         } else {
             None
         };
 
-        if all_matching.len() < paginated.offset as usize {
+        if all_matching.len() < paginated.offset() as usize {
             return Ok(PaginatedResults {
                 items: vec![],
                 total,
             });
         }
 
-        let matching = &all_matching[paginated.offset as usize..];
+        let matching = &all_matching[paginated.offset() as usize..];
 
-        if paginated.limit > 0 && matching.len() > paginated.limit as usize {
+        if paginated.limit() > 0 && matching.len() > paginated.limit() as usize {
             Ok(PaginatedResults {
-                items: SpdxLicenseSummary::from_details(&matching[..paginated.limit as usize]),
+                items: SpdxLicenseSummary::from_details(&matching[..paginated.limit() as usize]),
                 total,
             })
         } else {
@@ -298,7 +298,7 @@ impl LicenseService {
     pub async fn licenses<C: ConnectionTrait>(
         &self,
         search: Query,
-        paginated: Paginated,
+        paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<LicenseText>, Error> {
         const LICENSE_TEXT: &str = "text";
@@ -381,7 +381,7 @@ impl LicenseService {
             num_items: i64,
         }
 
-        let total = if paginated.total {
+        let total = if paginated.total() {
             let (sql_count, values) = count_query.build(PostgresQueryBuilder);
             Some(
                 Count::find_by_statement(Statement::from_sql_and_values(
@@ -400,8 +400,8 @@ impl LicenseService {
 
         // Apply pagination
         union_query = union_query
-            .offset(paginated.offset)
-            .limit(paginated.limit)
+            .offset(paginated.offset())
+            .limit(paginated.limit())
             .to_owned();
 
         let (sql, values) = union_query.build(PostgresQueryBuilder);
