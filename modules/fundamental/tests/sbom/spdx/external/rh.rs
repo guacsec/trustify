@@ -21,7 +21,7 @@ async fn spdx_prod_comp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let _prod: Uuid = result.pop().unwrap().id.parse().expect("must have a uid");
     let _comp: Uuid = result.pop().unwrap().id.parse().expect("must have a uid");
 
-    let _service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let _service = SbomService::new(PaginationCache::for_test());
 
     // TODO: implement when we have the tools
 

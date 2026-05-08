@@ -17,7 +17,7 @@ use std::{collections::HashMap, future, sync::Arc};
 use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use tracing::instrument;
-use trustify_common::db::Database;
+use trustify_common::db::ReadWrite;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::{Cache, Format, IngestorService};
 
@@ -31,7 +31,7 @@ pub struct QuayWalker<C: RunContext> {
     continuation: LastModified,
     importer: QuayImporter,
     ingestor: IngestorService,
-    db: Database,
+    db: ReadWrite,
     report: Arc<Mutex<ReportBuilder>>,
     client: reqwest::Client,
     oci: oci::Client,
@@ -42,7 +42,7 @@ impl<C: RunContext> QuayWalker<C> {
     pub fn new(
         importer: QuayImporter,
         ingestor: IngestorService,
-        db: Database,
+        db: ReadWrite,
         report: Arc<Mutex<ReportBuilder>>,
         context: C,
     ) -> Result<Self, Error> {
@@ -317,6 +317,7 @@ mod test {
     use super::*;
     use test_context::test_context;
     use test_log::test;
+    use trustify_common::db::ReadWrite;
     use trustify_test_context::TrustifyContext;
     use wiremock::{
         Mock, MockServer, ResponseTemplate,
@@ -334,7 +335,7 @@ mod test {
                 ..Default::default()
             },
             ctx.ingestor.clone(),
-            ctx.db.clone(),
+            ReadWrite::new(ctx.db.clone()),
             Arc::new(Mutex::new(ReportBuilder::new())),
             (),
         )?
@@ -394,7 +395,7 @@ mod test {
                 ..Default::default()
             },
             ctx.ingestor.clone(),
-            ctx.db.clone(),
+            ReadWrite::new(ctx.db.clone()),
             report.clone(),
             (),
         )?;
@@ -438,7 +439,7 @@ mod test {
                 ..Default::default()
             },
             ctx.ingestor.clone(),
-            ctx.db.clone(),
+            ReadWrite::new(ctx.db.clone()),
             report.clone(),
             (),
         )?;
@@ -461,7 +462,7 @@ mod test {
                 ..Default::default()
             },
             ctx.ingestor.clone(),
-            ctx.db.clone(),
+            ReadWrite::new(ctx.db.clone()),
             Arc::new(Mutex::new(ReportBuilder::new())),
             (),
         )?;

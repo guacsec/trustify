@@ -20,13 +20,13 @@ use crate::{
 use std::path::PathBuf;
 use time::OffsetDateTime;
 use tracing::instrument;
-use trustify_common::db::Database;
+use trustify_common::db::ReadWrite;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
 #[derive(Clone)]
 pub struct ImportRunner {
-    pub db: Database,
+    pub db: ReadWrite,
     pub storage: DispatchBackend,
     pub working_dir: Option<PathBuf>,
     pub analysis: Option<AnalysisService>,

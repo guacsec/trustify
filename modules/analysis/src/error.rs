@@ -4,7 +4,7 @@ use actix_web::{HttpResponse, ResponseError};
 use cpe::uri::OwnedUri;
 use sea_orm::DbErr;
 use std::str::FromStr;
-use trustify_common::db::DatabaseErrors;
+use trustify_common::db::{DatabaseErrors, DbError};
 use trustify_common::error::ErrorInformation;
 use trustify_common::id::IdError;
 use trustify_common::purl::PurlErr;
@@ -47,6 +47,16 @@ impl From<DbErr> for Error {
             Self::Unavailable
         } else {
             Self::Database(value)
+        }
+    }
+}
+
+impl From<DbError> for Error {
+    fn from(value: DbError) -> Self {
+        match value {
+            DbError::Database(err) => Self::Database(err),
+            DbError::Unavailable => Self::Unavailable,
+            DbError::ReadOnly => Self::Internal(value.to_string()),
         }
     }
 }

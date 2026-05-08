@@ -582,7 +582,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn cve_loader(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let graph = Graph::new(ctx.db.clone());
+        let graph = Graph::new();
 
         let (cve, digests): (Cve, _) = document("mitre/CVE-2024-28111.json").await?;
 
@@ -644,7 +644,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn divine_purls(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let graph = Graph::new(ctx.db.clone());
+        let graph = Graph::new();
 
         let (cve, digests): (Cve, _) = document("cve/CVE-2024-26308.json").await?;
 

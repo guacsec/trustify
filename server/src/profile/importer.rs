@@ -99,7 +99,7 @@ impl InitData {
     }
 
     async fn run(self) -> anyhow::Result<()> {
-        let db = self.db;
+        let db = db::ReadWrite::new(self.db);
         let storage = self.storage;
 
         let importer = async {

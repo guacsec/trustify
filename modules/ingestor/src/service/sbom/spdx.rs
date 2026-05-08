@@ -82,7 +82,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn ingest_spdx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let graph = Graph::new(ctx.db.clone());
+        let graph = Graph::new();
         let data = document_bytes("ubi9-9.2-755.1697625012.json").await?;
 
         let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());

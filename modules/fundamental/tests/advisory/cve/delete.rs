@@ -22,7 +22,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // now delete the newer one
 
-    let service = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = AdvisoryService::new(PaginationCache::for_test());
     service
         .delete_advisory(r2.id.parse().expect("must be a UUID variant"), &ctx.db)
         .await?;

@@ -1,15 +1,16 @@
 use crate::{
+    Error,
     advisory::service::AdvisoryService,
     common::{service::DocumentType, service::fetch_labels},
-    db::DatabaseExt,
 };
 use actix_web::{HttpResponse, Responder, get, patch, put, web};
+use sea_orm::TransactionTrait;
 use trustify_auth::{
     Permission, UpdateAdvisory,
     authenticator::user::UserInformation,
     authorizer::{Authorizer, Require},
 };
-use trustify_common::{db::Database, id::Id};
+use trustify_common::{db, id::Id};
 use trustify_entity::labels::{Labels, Update};
 use utoipa::IntoParams;
 
@@ -41,14 +42,14 @@ mod default {
 #[get("/v3/advisory-labels")]
 /// List all unique key/value labels from all Advisories
 pub async fn all(
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(query): web::Query<LabelQuery>,
     authorizer: web::Data<Authorizer>,
     user: UserInformation,
 ) -> actix_web::Result<impl Responder> {
     authorizer.require(&user, Permission::ReadAdvisory)?;
 
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let result = fetch_labels(DocumentType::Advisory, query.filter_text, query.limit, &tx).await?;
 
     Ok(HttpResponse::Ok().json(result))
@@ -70,7 +71,7 @@ pub async fn all(
 #[put("/v3/advisory/{id}/label")]
 pub async fn set(
     advisory: web::Data<AdvisoryService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     id: web::Path<Id>,
     web::Json(labels): web::Json<Labels>,
     _: Require<UpdateAdvisory>,
@@ -102,17 +103,19 @@ pub async fn set(
 #[patch("/v3/advisory/{id}/label")]
 pub async fn update(
     advisory: web::Data<AdvisoryService>,
+    db: web::Data<db::ReadWrite>,
     id: web::Path<Id>,
     web::Json(update): web::Json<Update>,
     _: Require<UpdateAdvisory>,
-) -> actix_web::Result<impl Responder> {
-    Ok(
-        match advisory
-            .update_labels(id.into_inner(), |labels| update.apply_to(labels))
-            .await?
-        {
-            Some(()) => HttpResponse::NoContent(),
-            None => HttpResponse::NotFound(),
-        },
-    )
+) -> Result<impl Responder, Error> {
+    let tx = db.begin().await?;
+    let result = advisory
+        .update_labels(id.into_inner(), |labels| update.apply_to(labels), &tx)
+        .await?;
+    tx.commit().await?;
+
+    Ok(match result {
+        Some(()) => HttpResponse::NoContent(),
+        None => HttpResponse::NotFound(),
+    })
 }

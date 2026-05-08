@@ -1,3 +1,4 @@
+use trustify_common::db;
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
 use trustify_module_ingestor::endpoints::{Config, configure};
 use trustify_test_context::{
@@ -14,7 +15,7 @@ pub async fn caller_with(
         configure(
             svc,
             config,
-            ctx.db.clone(),
+            db::ReadWrite::new(ctx.db.clone()),
             ctx.storage.clone(),
             Some(analysis),
         )

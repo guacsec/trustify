@@ -6,6 +6,7 @@ use crate::{
     model::{BaseSummary, Node as GraphNode},
     service::AnalysisService,
 };
+use trustify_common::db;
 use trustify_entity::relationship::Relationship;
 use trustify_test_context::{
     TrustifyContext,
@@ -14,7 +15,7 @@ use trustify_test_context::{
 
 pub async fn caller(ctx: &TrustifyContext) -> anyhow::Result<impl CallService + '_> {
     let analysis = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
-    call::caller(|svc| configure(svc, ctx.db.clone(), analysis)).await
+    call::caller(|svc| configure(svc, db::ReadOnly::new(ctx.db.clone()), analysis)).await
 }
 
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]

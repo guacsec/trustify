@@ -1,8 +1,7 @@
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
-use trustify_common::db::pagination_cache::PaginationCache;
-use trustify_common::id::Id;
+use trustify_common::{db::pagination_cache::PaginationCache, id::Id};
 use trustify_module_fundamental::common::model::{Score, ScoreType, ScoredVector, Severity};
 use trustify_module_fundamental::sbom::{model::details::SbomDetails, service::SbomService};
 use trustify_test_context::TrustifyContext;
@@ -11,7 +10,7 @@ use trustify_test_context::TrustifyContext;
 #[test(tokio::test)]
 #[instrument]
 async fn sbom_details_cyclonedx_osv(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let sbom = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let sbom = SbomService::new(PaginationCache::for_test());
 
     // ingest the SBOM
     let result1 = ctx.ingest_document("cyclonedx/ghsa_test.json").await?;

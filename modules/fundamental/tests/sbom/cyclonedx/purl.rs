@@ -1,8 +1,7 @@
 use itertools::Itertools;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::db::pagination_cache::PaginationCache;
-use trustify_common::model::Paginated;
+use trustify_common::{db::pagination_cache::PaginationCache, model::Paginated};
 use trustify_entity::relationship::Relationship;
 use trustify_module_fundamental::sbom::model::{SbomNodeReference, SbomPackage, Which};
 use trustify_module_fundamental::{
@@ -22,7 +21,7 @@ fn to_strings(purls: &[PurlSummary]) -> Vec<String> {
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let result = ctx
         .ingest_document("cyclonedx/openssl-3.0.7-18.el9_2.cdx_1.6_aliases.sbom.json")

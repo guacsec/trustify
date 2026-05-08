@@ -133,8 +133,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn ingest_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let db = &ctx.db;
-        let graph = Graph::new(db.clone());
+        let graph = Graph::new();
         let data = document_bytes("zookeeper-3.9.2-cyclonedx.json").await?;
 
         let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
@@ -160,8 +159,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn ingest_ai_cyclonedx_nvidia(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let db = &ctx.db;
-        let graph = Graph::new(db.clone());
+        let graph = Graph::new();
         let data = document_bytes("cyclonedx/ai/nvidia_canary-1b-v2_aibom.json").await?;
 
         let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
@@ -209,8 +207,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn ingest_ai_cyclonedx_ibm(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let db = &ctx.db;
-        let graph = Graph::new(db.clone());
+        let graph = Graph::new();
         let data =
             document_bytes("cyclonedx/ai/ibm-granite_granite-docling-258M_aibom.json").await?;
 
@@ -237,8 +234,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn ingest_cryptographic_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let db = &ctx.db;
-        let graph = Graph::new(db.clone());
+        let graph = Graph::new();
         let data = document_bytes("cyclonedx/cryptographic/cbom.json").await?;
 
         let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());

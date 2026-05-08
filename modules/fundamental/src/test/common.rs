@@ -1,4 +1,4 @@
-use trustify_common::db::pagination_cache::PaginationCache;
+use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::config::AnalysisConfig;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_test_context::{
@@ -16,16 +16,19 @@ pub async fn caller_with(
     cache: PaginationCache,
 ) -> anyhow::Result<impl CallService + '_> {
     let analysis = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+    let db_rw = db::ReadWrite::new(ctx.db.clone());
+    let db_ro = db::ReadOnly::new(ctx.db.clone());
     call::caller(|svc| {
         configure(
             svc,
             config,
-            ctx.db.clone(),
+            db_rw,
+            db_ro.clone(),
             ctx.storage.clone(),
             analysis.clone(),
             cache,
         );
-        trustify_module_analysis::endpoints::configure(svc, ctx.db.clone(), analysis);
+        trustify_module_analysis::endpoints::configure(svc, db_ro, analysis);
     })
     .await
 }

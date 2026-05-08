@@ -14,7 +14,7 @@ use trustify_auth::{
     swagger_ui::{SwaggerUiOidc, SwaggerUiOidcConfig},
 };
 use trustify_common::{
-    config::Database,
+    config::{Database, DatabaseReadOnly},
     db::{
         self,
         pagination_cache::{PaginationCache, PaginationConfig},
@@ -102,6 +102,10 @@ pub struct Run {
     #[command(flatten)]
     pub database: Database,
 
+    /// Read-only database configuration (optional, falls back to primary database)
+    #[command(flatten)]
+    pub database_ro: DatabaseReadOnly,
+
     /// Location of the storage
     #[command(flatten)]
     pub storage: StorageConfig,
@@ -176,7 +180,8 @@ const SERVICE_ID: &str = "trustify";
 struct InitData {
     authenticator: Option<Arc<Authenticator>>,
     authorizer: Authorizer,
-    db: db::Database,
+    db_rw: db::ReadWrite,
+    db_ro: db::ReadOnly,
     cache: PaginationCache,
     storage: DispatchBackend,
     http: HttpServerConfig<Trustify>,
@@ -252,6 +257,15 @@ impl InitData {
             trustify_db::Database(&db).migrate().await?;
         }
 
+        let db_ro = if run.database_ro.is_configured() {
+            let ro_config = run.database_ro.to_database_config(&run.database);
+            let ro_db = db::Database::new(&ro_config).await?;
+            db::ReadOnly::new(ro_db)
+        } else {
+            db::ReadOnly::new(db.clone())
+        };
+        let db_rw = db::ReadWrite::new(db.clone());
+
         let cache = run.pagination.into_cache();
 
         if run.devmode || run.sample_data {
@@ -293,7 +307,8 @@ impl InitData {
             analysis: AnalysisService::new(run.analysis, db.clone()),
             authenticator,
             authorizer,
-            db,
+            db_rw,
+            db_ro,
             cache,
             config,
             http: run.http,
@@ -324,7 +339,8 @@ impl InitData {
                         svc,
                         Config {
                             config: self.config.clone(),
-                            db: self.db.clone(),
+                            db_rw: self.db_rw.clone(),
+                            db_ro: self.db_ro.clone(),
                             cache: self.cache.clone(),
                             storage: self.storage.clone(),
                             auth: self.authenticator.clone(),
@@ -373,7 +389,8 @@ pub fn default_openapi_info() -> Info {
 
 pub(crate) struct Config {
     pub(crate) config: ModuleConfig,
-    pub(crate) db: db::Database,
+    pub(crate) db_rw: db::ReadWrite,
+    pub(crate) db_ro: db::ReadOnly,
     pub(crate) cache: PaginationCache,
     pub(crate) storage: DispatchBackend,
     pub(crate) analysis: AnalysisService,
@@ -389,7 +406,8 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                 fundamental,
                 ui,
             },
-        db,
+        db_rw,
+        db_ro,
         cache,
         storage,
         auth,
@@ -397,7 +415,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         read_only,
     } = config;
 
-    let graph = Graph::new(db.clone());
+    let graph = Graph::new();
     let limit = ByteSize::gb(1).as_u64() as usize;
 
     svc.app_data(web::Data::new(ReadOnlyState(read_only)));
@@ -412,24 +430,25 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         utoipa_actix_web::scope("/api")
             .map(|scope| scope.wrap(new_auth(auth)))
             .configure(|svc| {
-                trustify_module_importer::endpoints::configure(svc, db.clone(), cache.clone());
+                trustify_module_importer::endpoints::configure(svc, db_rw.clone(), cache.clone());
                 trustify_module_ingestor::endpoints::configure(
                     svc,
                     ingestor,
-                    db.clone(),
+                    db_rw.clone(),
                     storage.clone(),
                     Some(analysis.clone()),
                 );
                 trustify_module_fundamental::endpoints::configure(
                     svc,
                     fundamental,
-                    db.clone(),
+                    db_rw.clone(),
+                    db_ro.clone(),
                     storage,
                     analysis.clone(),
                     cache,
                 );
-                trustify_module_analysis::endpoints::configure(svc, db.clone(), analysis);
-                trustify_module_user::endpoints::configure(svc, db.clone());
+                trustify_module_analysis::endpoints::configure(svc, db_ro.clone(), analysis);
+                trustify_module_user::endpoints::configure(svc);
                 trustify_module_ui::endpoints::configure(svc, ui)
             }),
     );
@@ -499,7 +518,8 @@ mod test {
                         svc,
                         Config {
                             config: ModuleConfig::default(),
-                            db: ctx.db.clone(),
+                            db_rw: db::ReadWrite::new(ctx.db.clone()),
+                            db_ro: db::ReadOnly::new(ctx.db.clone()),
                             cache: PaginationCache::for_test(),
                             storage: ctx.storage.clone().into(),
                             auth: None,
@@ -569,7 +589,8 @@ mod test {
                 svc,
                 Config {
                     config: ModuleConfig::default(),
-                    db: ctx.db.clone(),
+                    db_rw: db::ReadWrite::new(ctx.db.clone()),
+                    db_ro: db::ReadOnly::new(ctx.db.clone()),
                     storage: ctx.storage.clone().into(),
                     cache: PaginationCache::for_test(),
                     auth: None,

@@ -3,8 +3,9 @@ use crate::{
     service::{Error, IngestorService},
 };
 use actix_web::{HttpResponse, Responder, post, web};
+use sea_orm::TransactionTrait;
 use trustify_auth::{UploadDataset, authorizer::Require};
-use trustify_common::{db::Database, model::BinaryData};
+use trustify_common::{db, model::BinaryData};
 use trustify_entity::labels::Labels;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
@@ -14,11 +15,11 @@ use utoipa::IntoParams;
 pub fn configure(
     svc: &mut utoipa_actix_web::service_config::ServiceConfig,
     config: Config,
-    db: Database,
+    db: db::ReadWrite,
     storage: impl Into<DispatchBackend>,
     analysis: Option<AnalysisService>,
 ) {
-    let ingestor_service = IngestorService::new(Graph::new(db.clone()), storage, analysis);
+    let ingestor_service = IngestorService::new(Graph::new(), storage, analysis);
 
     svc.app_data(web::Data::new(ingestor_service))
         .app_data(web::Data::new(config))
@@ -58,18 +59,16 @@ struct UploadParams {
 pub async fn upload_dataset(
     service: web::Data<IngestorService>,
     config: web::Data<Config>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     web::Query(UploadParams { labels }): web::Query<UploadParams>,
     bytes: web::Bytes,
     _: Require<UploadDataset>,
 ) -> Result<impl Responder, Error> {
-    let result = db
-        .transaction(async |tx| {
-            service
-                .ingest_dataset(&bytes, labels, config.dataset_entry_limit, tx)
-                .await
-        })
+    let tx = db.begin().await?;
+    let result = service
+        .ingest_dataset(&bytes, labels, config.dataset_entry_limit, &tx)
         .await?;
+    tx.commit().await?;
 
     Ok(HttpResponse::Created().json(result))
 }

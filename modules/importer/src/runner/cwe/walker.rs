@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::bytes::Buf;
 use tracing::instrument;
-use trustify_common::db::Database;
+use trustify_common::db::ReadWrite;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::{Cache, Format, IngestorService};
 use zip::ZipArchive;
@@ -17,7 +17,7 @@ pub struct CweWalker {
     continuation: LastModified,
     source: String,
     ingestor: IngestorService,
-    db: Database,
+    db: ReadWrite,
     report: Arc<Mutex<ReportBuilder>>,
 }
 
@@ -25,7 +25,7 @@ impl CweWalker {
     pub fn new(
         source: impl Into<String>,
         ingestor: IngestorService,
-        db: Database,
+        db: ReadWrite,
         report: Arc<Mutex<ReportBuilder>>,
     ) -> Self {
         Self {

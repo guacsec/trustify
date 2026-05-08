@@ -17,7 +17,7 @@ use time::OffsetDateTime;
 use tokio::{task::LocalSet, time::MissedTickBehavior};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
-use trustify_common::db::{Database, pagination_cache::PaginationCache};
+use trustify_common::db::{ReadWrite, pagination_cache::PaginationCache};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
@@ -25,7 +25,7 @@ use trustify_module_storage::service::dispatch::DispatchBackend;
 ///
 /// When `read_only` is true, the loop stays alive but no imports are started.
 pub async fn importer(
-    db: Database,
+    db: ReadWrite,
     cache: PaginationCache,
     storage: DispatchBackend,
     working_dir: Option<PathBuf>,
@@ -63,7 +63,7 @@ impl From<Report> for RunOutput {
 
 /// Single node, single process importer processor.
 struct Server {
-    db: Database,
+    db: ReadWrite,
     cache: PaginationCache,
     storage: DispatchBackend,
     working_dir: Option<PathBuf>,

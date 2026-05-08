@@ -1,24 +1,21 @@
 #[cfg(test)]
 mod test;
 
-use crate::{
-    db::DatabaseExt,
-    organization::{
-        model::{OrganizationDetails, OrganizationSummary},
-        service::OrganizationService,
-    },
+use crate::organization::{
+    model::{OrganizationDetails, OrganizationSummary},
+    service::OrganizationService,
 };
 use actix_web::{HttpResponse, Responder, get, web};
 use trustify_auth::{ReadMetadata, authorizer::Require};
 use trustify_common::{
-    db::{Database, pagination_cache::PaginationCache, query::Query},
+    db::{self, pagination_cache::PaginationCache, query::Query},
     model::Paginated,
 };
 use uuid::Uuid;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
-    db: Database,
+    db: db::ReadOnly,
     cache: PaginationCache,
 ) {
     let service = OrganizationService::new(cache);
@@ -44,12 +41,12 @@ pub fn configure(
 /// List organizations
 pub async fn all(
     state: web::Data<OrganizationService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadMetadata>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(state.fetch_organizations(search, paginated, &tx).await?))
 }
 
@@ -68,11 +65,11 @@ pub async fn all(
 /// Retrieve organization details
 pub async fn get(
     state: web::Data<OrganizationService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<Uuid>,
     _: Require<ReadMetadata>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let fetched = state.fetch_organization(*id, &tx).await?;
 
     if let Some(fetched) = fetched {

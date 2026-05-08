@@ -14,7 +14,7 @@ use serde_json::json;
 use std::time::Duration;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::db::pagination_cache::PaginationCache;
+use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_test_context::{ReadOnly, TrustifyContext, app::TestApp};
 use utoipa_actix_web::AppExt;
 
@@ -58,7 +58,7 @@ fn mock_importer(result: &Importer, source: impl Into<String>) -> Importer {
 async fn app(
     ctx: &TrustifyContext,
 ) -> impl Service<Request, Response = ServiceResponse<BoxBody>, Error = actix_web::Error> {
-    let db = ctx.db.clone();
+    let db = db::ReadWrite::new(ctx.db.clone());
     actix::init_service(
         App::new()
             .into_utoipa_app()

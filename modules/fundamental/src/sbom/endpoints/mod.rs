@@ -11,7 +11,6 @@ use uuid::Uuid;
 use crate::{
     Error,
     common::{LicenseRefMapping, service::delete_doc},
-    db::DatabaseExt,
     license::{
         get_sanitize_filename,
         service::{LicenseService, license_export::LicenseExporter},
@@ -38,7 +37,7 @@ use trustify_auth::{
     authorizer::{Authorizer, Require},
 };
 use trustify_common::{
-    db::{Database, pagination_cache::PaginationCache, query::Query},
+    db::{self, pagination_cache::PaginationCache, query::Query},
     decompress::decompress_async,
     id::Id,
     model::{BinaryData, Paginated, PaginatedResults},
@@ -59,14 +58,16 @@ pub struct ModelGetParams {
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
-    db: Database,
+    db_rw: db::ReadWrite,
+    db_ro: db::ReadOnly,
     upload_limit: usize,
     cache: PaginationCache,
 ) {
-    let sbom_service = SbomService::new(db.clone(), cache);
+    let sbom_service = SbomService::new(cache);
 
     config
-        .app_data(web::Data::new(db))
+        .app_data(web::Data::new(db_rw))
+        .app_data(web::Data::new(db_ro))
         .app_data(web::Data::new(sbom_service))
         .app_data(web::Data::new(Config { upload_limit }))
         .service(v2::all)
@@ -105,12 +106,12 @@ const CONTENT_TYPE_GZIP: &str = "application/gzip";
 #[get("/v3/sbom/{id}/all-license-ids")]
 pub async fn get_unique_licenses(
     fetcher: web::Data<LicenseService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let parsed_id = Id::from_str(&id).map_err(Error::IdKey)?;
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let all_licenses_info = fetcher.get_all_license_info(parsed_id, &tx).await?;
     match all_licenses_info {
         Some(all_licenses) => Ok(HttpResponse::Ok().json(all_licenses)),
@@ -132,11 +133,11 @@ pub async fn get_unique_licenses(
 #[get("/v3/sbom/{id}/license-export")]
 pub async fn get_license_export(
     fetcher: web::Data<LicenseService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
 ) -> actix_web::Result<impl Responder> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
 
     let license_export_result = fetcher.license_export(id, &tx).await?;
     if let Some(name_group_version) = license_export_result.sbom_name_group_version.clone() {
@@ -193,7 +194,7 @@ mod v2 {
     #[deprecated = "Use the v3 version of this API"]
     pub async fn all(
         fetch: web::Data<SbomService>,
-        db: web::Data<Database>,
+        db: web::Data<db::ReadOnly>,
         web::Query(search): web::Query<Query>,
         web::Query(paginated): web::Query<Paginated>,
         QsQuery(group_filter): QsQuery<GroupFilterQuery>,
@@ -202,7 +203,7 @@ mod v2 {
     ) -> actix_web::Result<impl Responder> {
         authorizer.require(&user, Permission::ReadSbom)?;
 
-        let tx = db.begin_read().await?;
+        let tx = db.begin().await?;
         let mut options = FetchOptions::default();
         if !group_filter.group.is_empty() {
             options = options.groups(group_filter.group);
@@ -236,7 +237,7 @@ mod v3 {
     #[get("/v3/sbom")]
     pub async fn all(
         fetch: web::Data<SbomService>,
-        db: web::Data<Database>,
+        db: web::Data<db::ReadOnly>,
         web::Query(search): web::Query<Query>,
         web::Query(paginated): web::Query<Paginated>,
         QsQuery(group_filter): QsQuery<GroupFilterQuery>,
@@ -245,7 +246,7 @@ mod v3 {
     ) -> actix_web::Result<impl Responder> {
         authorizer.require(&user, Permission::ReadSbom)?;
 
-        let tx = db.begin_read().await?;
+        let tx = db.begin().await?;
         let mut options = FetchOptions::default();
         if !group_filter.group.is_empty() {
             options = options.groups(group_filter.group);
@@ -278,7 +279,7 @@ mod v3 {
 #[get("/v3/sbom/by-package")]
 pub async fn all_related(
     sbom: web::Data<SbomService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     web::Query(all_related): web::Query<ExternalReferenceQuery>,
@@ -288,7 +289,7 @@ pub async fn all_related(
     authorizer.require(&user, Permission::ReadSbom)?;
 
     let id = (&all_related).try_into()?;
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
 
     let result = sbom.find_related_sboms(id, paginated, search, &tx).await?;
 
@@ -312,7 +313,7 @@ pub async fn all_related(
 #[get("/v3/sbom/count-by-package")]
 pub async fn count_related(
     sbom: web::Data<SbomService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Json(ids): web::Json<Vec<ExternalReferenceQuery>>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
@@ -321,7 +322,7 @@ pub async fn count_related(
         .map(SbomExternalPackageReference::try_from)
         .collect::<Result<Vec<_>, _>>()?;
 
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let result = sbom.count_related_sboms(ids, &tx).await?;
 
     Ok(HttpResponse::Ok().json(result))
@@ -342,13 +343,13 @@ pub async fn count_related(
 #[get("/v3/sbom/{id}")]
 pub async fn get(
     fetcher: web::Data<SbomService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
 
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
 
     match fetcher.fetch_sbom_summary(id, &tx).await? {
         Some(v) => Ok(HttpResponse::Ok().json(v)),
@@ -371,12 +372,12 @@ pub async fn get(
 #[get("/v3/sbom/{id}/advisory")]
 pub async fn get_sbom_advisories(
     fetcher: web::Data<SbomService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
     _: Require<GetSbomAdvisories>,
 ) -> actix_web::Result<impl Responder> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
 
     let statuses: Vec<String> = vec!["affected".to_string()];
     match fetcher.fetch_sbom_details(id, statuses, &tx).await? {
@@ -403,7 +404,7 @@ all!(GetSbomAdvisories -> ReadSbom, ReadAdvisory);
 pub async fn delete(
     i: web::Data<IngestorService>,
     service: web::Data<SbomService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     id: web::Path<String>,
     _: Require<DeleteSbom>,
 ) -> Result<impl Responder, Error> {
@@ -444,14 +445,14 @@ pub async fn delete(
 #[get("/v3/sbom/{id}/packages")]
 pub async fn packages(
     fetch: web::Data<SbomService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
 
     let Some((sbom, _, _)) = fetch.fetch_sbom(id, &tx).await? else {
         return Ok(HttpResponse::NotFound().finish());
@@ -481,14 +482,14 @@ pub async fn packages(
 #[get("/v3/sbom/{id}/models")]
 pub async fn models(
     fetch: web::Data<SbomService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<Uuid>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     web::Query(ModelGetParams { counts }): web::Query<ModelGetParams>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let result = fetch
         .fetch_sbom_models(Some(id.into_inner()), search, paginated, counts, &tx)
         .await?;
@@ -511,13 +512,13 @@ pub async fn models(
 #[get("/v3/sbom/models")]
 pub async fn all_models(
     fetch: web::Data<SbomService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     web::Query(ModelGetParams { counts }): web::Query<ModelGetParams>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let result = fetch
         .fetch_sbom_models(None, search, paginated, counts, &tx)
         .await?;
@@ -555,7 +556,7 @@ struct RelatedQuery {
 #[get("/v3/sbom/{id}/related")]
 pub async fn related(
     fetch: web::Data<SbomService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
@@ -563,7 +564,7 @@ pub async fn related(
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
 
     let Some((sbom, _, _)) = fetch.fetch_sbom(id, &tx).await? else {
         return Ok(HttpResponse::NotFound().finish());
@@ -637,7 +638,7 @@ pub async fn upload(
     ingestor: web::Data<IngestorService>,
     sbom_group: web::Data<SbomGroupService>,
     config: web::Data<Config>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     QsQuery(UploadQuery {
         labels,
         format,
@@ -650,28 +651,26 @@ pub async fn upload(
 ) -> Result<impl Responder, Error> {
     let bytes = decompress_async(bytes, content_type.map(|ct| ct.0), config.upload_limit).await??;
 
-    let result = db
-        .transaction(async |tx| {
-            let mut result = ingestor
-                .ingest(&bytes, format, labels, None, cache, tx)
-                .await
-                .map_err(Error::Ingestor)?;
+    let tx = db.begin().await?;
 
-            if !group.is_empty() {
-                sbom_group
-                    .update_assignments(&result.id, None, group, tx)
-                    .await?;
-            }
+    let mut result = ingestor
+        .ingest(&bytes, format, labels, None, cache, &tx)
+        .await
+        .map_err(Error::Ingestor)?;
 
-            // Rewrite ID to have the prefix: Although the field is "id" it always carried the ID,
-            // but with the `urn:uuid:` prefix. Which was used for "key" fields. Which accepted
-            // for than the actual ID. The whole naming is flawed and confusing. But in order to
-            // keep the API stable, we need to return the ID with the prefix.
-            result.id = format!("urn:uuid:{}", result.id);
+    if !group.is_empty() {
+        sbom_group
+            .update_assignments(&result.id, None, group, &tx)
+            .await?;
+    }
 
-            Ok::<_, Error>(result)
-        })
-        .await?;
+    // Rewrite ID to have the prefix: Although the field is "id" it always carried the ID,
+    // but with the `urn:uuid:` prefix. Which was used for "key" fields. Which accepted
+    // for than the actual ID. The whole naming is flawed and confusing. But in order to
+    // keep the API stable, we need to return the ID with the prefix.
+    result.id = format!("urn:uuid:{}", result.id);
+
+    tx.commit().await?;
 
     log::info!("Uploaded SBOM: {}", result.id);
     Ok(HttpResponse::Created().json(result))
@@ -692,13 +691,13 @@ pub async fn upload(
 #[get("/v3/sbom/{key}/download")]
 pub async fn download(
     ingestor: web::Data<IngestorService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     sbom: web::Data<SbomService>,
     key: web::Path<String>,
     _: Require<ReadSbom>,
 ) -> Result<impl Responder, Error> {
     let id = Id::from_str(&key).map_err(Error::IdKey)?;
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
 
     let Some(sbom) = sbom.fetch_sbom_summary(id, &tx).await? else {
         return Ok(HttpResponse::NotFound().finish());

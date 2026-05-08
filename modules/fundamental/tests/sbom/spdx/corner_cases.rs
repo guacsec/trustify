@@ -9,9 +9,7 @@ use sea_orm::ConnectionTrait;
 use strum::VariantArray;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::id::Id;
-use trustify_common::model::Paginated;
-use trustify_common::purl::Purl;
+use trustify_common::{id::Id, model::Paginated, purl::Purl};
 use trustify_entity::relationship::Relationship;
 use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_module_fundamental::{
@@ -42,7 +40,7 @@ async fn related_packages_transitively<'a, C: ConnectionTrait>(
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn infinite_loop(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let result = ctx.ingest_document("spdx/loop.json").await?;
 
@@ -114,7 +112,7 @@ async fn double_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?
         .expect("must be found");
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
     let packages = service
         .fetch_sbom_packages(
             id,
@@ -159,7 +157,7 @@ async fn self_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?
         .expect("must be found");
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
     let packages = service
         .fetch_sbom_packages(
             id,
@@ -204,7 +202,7 @@ async fn self_ref_package(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?
         .expect("must be found");
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
     let packages = service
         .fetch_sbom_packages(
             id,
@@ -252,7 +250,7 @@ async fn special_char(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         bail!("must be an id")
     };
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
     let packages = service
         .fetch_sbom_packages(
             id,

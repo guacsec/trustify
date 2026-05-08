@@ -14,9 +14,10 @@ use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
 use tracing::instrument;
-use trustify_common::db::pagination_cache::PaginationCache;
-use trustify_common::model::Paginated;
-use trustify_common::{id::Id, purl::Purl, sbom::spdx::parse_spdx};
+use trustify_common::{
+    db::pagination_cache::PaginationCache, id::Id, model::Paginated, purl::Purl,
+    sbom::spdx::parse_spdx,
+};
 use trustify_entity::relationship::Relationship;
 use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_module_fundamental::{
@@ -134,7 +135,7 @@ async fn test_parse_spdx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn ingest_spdx_broken_refs(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let sbom = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let sbom = SbomService::new(PaginationCache::for_test());
 
     let err = ctx
         .ingest_document("spdx/broken-refs.json")

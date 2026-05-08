@@ -5,13 +5,13 @@ use crate::{
 use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait,
     FromQueryResult, IntoActiveModel, QueryResult, QuerySelect, QueryTrait, RelationTrait, Select,
-    Statement, TransactionTrait,
+    Statement,
 };
 use sea_query::{ColumnType, Expr, JoinType};
 use tracing::instrument;
 use trustify_common::{
     db::{
-        Database, UpdateDeprecatedAdvisory,
+        UpdateDeprecatedAdvisory,
         limiter::{LimitedResult, LimiterAsModelTrait},
         multi_model::{FromQueryResultMultiModel, SelectIntoMultiModel},
         pagination_cache::PaginationCache,
@@ -25,13 +25,13 @@ use trustify_module_ingestor::common::{Deprecation, DeprecationExt};
 use uuid::Uuid;
 
 pub struct AdvisoryService {
-    db: Database,
     cache: PaginationCache,
 }
 
 impl AdvisoryService {
-    pub fn new(db: Database, cache: PaginationCache) -> Self {
-        Self { db, cache }
+    /// Creates a new advisory service.
+    pub fn new(cache: PaginationCache) -> Self {
+        Self { cache }
     }
 
     #[instrument(skip(self, connection))]
@@ -143,18 +143,17 @@ impl AdvisoryService {
 
     /// Update the labels of an advisory
     ///
-    /// Returns `Ok(Some(()))` if a document was found and updated. If no document was found, it will
-    /// return `Ok(None)`.
-    ///
-    /// The function will handle its own transaction.
-    pub async fn update_labels<F>(&self, id: Id, mutator: F) -> Result<Option<()>, Error>
+    /// Finds the advisory by id using `FOR UPDATE`, applies the mutator, and stores the result.
+    /// The caller must provide a transaction for `FOR UPDATE` semantics.
+    pub async fn update_labels<F>(
+        &self,
+        id: Id,
+        mutator: F,
+        connection: &impl ConnectionTrait,
+    ) -> Result<Option<()>, Error>
     where
         F: FnOnce(Labels) -> Labels,
     {
-        let tx = self.db.begin().await.map_err(Error::from)?;
-
-        // work around missing "FOR UPDATE" issue
-
         let mut query = advisory::Entity::find()
             .try_filter(id)
             .map_err(Error::IdKey)?
@@ -162,33 +161,20 @@ impl AdvisoryService {
 
         query.sql.push_str(" FOR UPDATE");
 
-        // find the current entry
-
         let Some(result) = advisory::Entity::find()
             .from_raw_sql(query)
-            .one(&tx)
+            .one(connection)
             .await
             .map_err(Error::from)?
         else {
-            // return early, nothing found
             return Ok(None);
         };
-
-        // perform the mutation
 
         let labels = result.labels.clone();
         let mut result = result.into_active_model();
         result.labels = Set(mutator(labels).validate()?);
 
-        // store
-
-        result.update(&tx).await.map_err(Error::from)?;
-
-        // commit
-
-        tx.commit().await.map_err(Error::from)?;
-
-        // return
+        result.update(connection).await.map_err(Error::from)?;
 
         Ok(Some(()))
     }

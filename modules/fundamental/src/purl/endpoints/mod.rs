@@ -1,6 +1,5 @@
 use crate::{
     Error,
-    db::DatabaseExt,
     endpoints::Deprecation,
     purl::{
         model::{
@@ -15,7 +14,7 @@ use sea_orm::prelude::Uuid;
 use std::str::FromStr;
 use trustify_auth::{ReadAdvisory, ReadSbom, authorizer::Require};
 use trustify_common::{
-    db::{Database, pagination_cache::PaginationCache, query::Query},
+    db::{self, pagination_cache::PaginationCache, query::Query},
     id::IdError,
     model::{Paginated, PaginatedResults},
     purl::Purl,
@@ -28,7 +27,7 @@ mod test;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
-    db: Database,
+    db: db::ReadOnly,
     cache: PaginationCache,
 ) {
     let purl_service = PurlService::new(cache);
@@ -59,12 +58,12 @@ pub fn configure(
 /// Retrieve details of a fully-qualified pURL
 pub async fn get(
     service: web::Data<PurlService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     key: web::Path<String>,
     web::Query(Deprecation { deprecated }): web::Query<Deprecation>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     if key.starts_with("pkg") {
         let purl = Purl::from_str(&key).map_err(Error::Purl)?;
         Ok(HttpResponse::Ok().json(service.purl_by_purl(&purl, deprecated, &tx).await?))
@@ -89,12 +88,12 @@ pub async fn get(
 /// List fully-qualified pURLs
 pub async fn all(
     service: web::Data<PurlService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(service.purls(search, paginated, &tx).await?))
 }
 
@@ -114,11 +113,11 @@ mod v2 {
     #[deprecated = "Use the v3 version of this API"]
     pub async fn recommend(
         purl_service: web::Data<PurlService>,
-        db: web::Data<Database>,
+        db: web::Data<db::ReadOnly>,
         request: web::Json<RecommendRequest>,
         _: Require<ReadAdvisory>,
     ) -> actix_web::Result<impl Responder> {
-        let tx = db.begin_read().await?;
+        let tx = db.begin().await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
         let response = RecommendResponse { recommendations };
@@ -141,11 +140,11 @@ mod v3 {
     #[post("/v3/purl/recommend")]
     pub async fn recommend(
         purl_service: web::Data<PurlService>,
-        db: web::Data<Database>,
+        db: web::Data<db::ReadOnly>,
         request: web::Json<RecommendRequest>,
         _: Require<ReadAdvisory>,
     ) -> actix_web::Result<impl Responder> {
-        let tx = db.begin_read().await?;
+        let tx = db.begin().await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
         let response = RecommendResponse { recommendations };

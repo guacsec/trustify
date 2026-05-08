@@ -1,16 +1,17 @@
 use crate::{
+    Error,
     common::service::{DocumentType, fetch_labels},
-    db::DatabaseExt,
     sbom::service::SbomService,
 };
 use actix_web::{HttpResponse, Responder, get, patch, put, web};
+use sea_orm::TransactionTrait;
 use serde::Deserialize;
 use trustify_auth::{
     Permission, UpdateSbom,
     authenticator::user::UserInformation,
     authorizer::{Authorizer, Require},
 };
-use trustify_common::{db::Database, id::Id};
+use trustify_common::{db, id::Id};
 use trustify_entity::labels::{Labels, Update};
 use utoipa::IntoParams;
 
@@ -42,14 +43,14 @@ mod default {
 #[get("/v3/sbom-labels")]
 /// List all unique key/value labels from all SBOMs
 pub async fn all(
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(query): web::Query<LabelQuery>,
     authorizer: web::Data<Authorizer>,
     user: UserInformation,
 ) -> actix_web::Result<impl Responder> {
     authorizer.require(&user, Permission::ReadSbom)?;
 
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let result = fetch_labels(DocumentType::Sbom, query.filter_text, query.limit, &tx).await?;
 
     Ok(HttpResponse::Ok().json(result))
@@ -71,19 +72,21 @@ pub async fn all(
 #[patch("/v3/sbom/{id}/label")]
 pub async fn update(
     sbom: web::Data<SbomService>,
+    db: web::Data<db::ReadWrite>,
     id: web::Path<Id>,
     web::Json(update): web::Json<Update>,
     _: Require<UpdateSbom>,
-) -> actix_web::Result<impl Responder> {
-    Ok(
-        match sbom
-            .update_labels(id.into_inner(), |labels| update.apply_to(labels))
-            .await?
-        {
-            Some(()) => HttpResponse::NoContent(),
-            None => HttpResponse::NotFound(),
-        },
-    )
+) -> Result<impl Responder, Error> {
+    let tx = db.begin().await?;
+    let result = sbom
+        .update_labels(id.into_inner(), |labels| update.apply_to(labels), &tx)
+        .await?;
+    tx.commit().await?;
+
+    Ok(match result {
+        Some(()) => HttpResponse::NoContent(),
+        None => HttpResponse::NotFound(),
+    })
 }
 
 /// Replace the labels of an SBOM
@@ -102,7 +105,7 @@ pub async fn update(
 #[put("/v3/sbom/{id}/label")]
 pub async fn set(
     sbom: web::Data<SbomService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     id: web::Path<Id>,
     web::Json(labels): web::Json<Labels>,
     _: Require<UpdateSbom>,

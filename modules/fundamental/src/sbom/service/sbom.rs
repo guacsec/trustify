@@ -1127,6 +1127,7 @@ mod test {
     use super::*;
     use test_context::test_context;
     use test_log::test;
+
     use trustify_common::db::pagination_cache::PaginationCache;
     use trustify_common::db::query::q;
     use trustify_common::hashing::Digests;
@@ -1182,7 +1183,7 @@ mod test {
         assert_eq!(sbom_v1.sbom.sbom_id, sbom_v1_again.sbom.sbom_id);
         assert_ne!(sbom_v1.sbom.sbom_id, sbom_v2.sbom.sbom_id);
 
-        let fetch = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+        let fetch = SbomService::new(PaginationCache::for_test());
 
         let fetched = fetch
             .fetch_sboms::<_, SbomPackage>(
@@ -1247,7 +1248,7 @@ mod test {
             )
             .await?;
 
-        let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+        let service = SbomService::new(PaginationCache::for_test());
 
         let paginated_with_total = Paginated {
             total: true,
@@ -1331,7 +1332,7 @@ mod test {
             )
             .await?;
 
-        let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+        let service = SbomService::new(PaginationCache::for_test());
 
         assert!(service.delete_sbom(sbom_v1.sbom.sbom_id, &ctx.db).await?);
         assert!(!service.delete_sbom(sbom_v1.sbom.sbom_id, &ctx.db).await?);

@@ -586,8 +586,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn loader(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let db = &ctx.db;
-        let graph = Graph::new(db.clone());
+        let graph = Graph::new();
 
         let (osv, digests): (Vulnerability, _) = document("osv/RUSTSEC-2021-0079.json").await?;
 
@@ -650,8 +649,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn loader_pypi(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let db = &ctx.db;
-        let graph = Graph::new(db.clone());
+        let graph = Graph::new();
 
         let (osv, digests): (Vulnerability, _) = document("osv/GHSA-45c4-8wx5-qw6w.json").await?;
 
@@ -715,8 +713,7 @@ mod test {
         let osv: Vulnerability = serde_json::from_str(osv_content)?;
         let digests = Digests::digest(osv_content.as_bytes());
 
-        let db = &ctx.db;
-        let graph = Graph::new(db.clone());
+        let graph = Graph::new();
 
         // Load the OSV
         let loader = OsvLoader::new(&graph);
@@ -755,7 +752,7 @@ mod test {
     #[test(tokio::test)]
     async fn loader_crates_io(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         let db = &ctx.db;
-        let graph = Graph::new(db.clone());
+        let graph = Graph::new();
 
         let (osv, digests): (Vulnerability, _) = document("osv/GHSA-434x-w66g-qw3r.json").await?;
 

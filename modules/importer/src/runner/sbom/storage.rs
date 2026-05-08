@@ -10,7 +10,7 @@ use sbom_walker::{
     validation::{ValidatedSbom, ValidatedVisitor, ValidationContext},
 };
 use std::sync::Arc;
-use trustify_common::db::Database;
+use trustify_common::db::ReadWrite;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::{Cache, Format, IngestorService};
 use walker_common::utils::url::Urlify;
@@ -22,7 +22,7 @@ pub struct StorageVisitor<C: RunContext> {
     pub max_size: Option<u64>,
     pub labels: Labels,
     pub ingestor: IngestorService,
-    pub db: Database,
+    pub db: ReadWrite,
     /// the report to report our messages to
     pub report: Arc<Mutex<ReportBuilder>>,
 }

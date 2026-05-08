@@ -9,7 +9,7 @@ use tokio::{
     time::{Duration, interval},
 };
 use tokio_util::sync::CancellationToken;
-use trustify_common::db::Database;
+use trustify_common::db::ReadWrite;
 use trustify_entity::importer;
 
 pub struct Heart {
@@ -20,7 +20,7 @@ pub struct Heart {
 impl Heart {
     pub const RATE: Duration = Duration::from_secs(10);
 
-    pub fn new<F>(importer: Importer, db: Database, future: F, token: CancellationToken) -> Self
+    pub fn new<F>(importer: Importer, db: ReadWrite, future: F, token: CancellationToken) -> Self
     where
         F: Future + 'static,
     {
@@ -35,7 +35,7 @@ impl Heart {
     // Attempts to acquire exclusive optimistic lock. Upon success,
     // spawns the future, and regularly updates the lock until the
     // future completes.
-    async fn pump<F>(importer: Importer, db: Database, future: F, token: CancellationToken)
+    async fn pump<F>(importer: Importer, db: ReadWrite, future: F, token: CancellationToken)
     where
         F: Future + 'static,
     {
@@ -73,7 +73,7 @@ impl Heart {
     // record with the current time, but only if the db matches the
     // state of the &Importer parameter, otherwise an error is
     // returned. Upon success, the updated Importer is returned.
-    async fn beat(importer: &Importer, db: &Database) -> Result<Importer, Error> {
+    async fn beat(importer: &Importer, db: &ReadWrite) -> Result<Importer, Error> {
         let t = OffsetDateTime::now_utc().unix_timestamp_nanos();
         let model = importer::ActiveModel {
             name: Set(importer.name.to_owned()),

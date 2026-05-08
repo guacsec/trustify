@@ -19,12 +19,12 @@ use trustify_auth::{
     utoipa::AuthResponse,
 };
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{self, query::Query},
     model::{Paginated, PaginatedResults},
 };
 use utoipa_actix_web::service_config::ServiceConfig;
 
-pub fn configure(config: &mut ServiceConfig, db: Database, analysis: AnalysisService) {
+pub fn configure(config: &mut ServiceConfig, db: db::ReadOnly, analysis: AnalysisService) {
     config
         .app_data(web::Data::new(analysis))
         .app_data(web::Data::new(db))
@@ -57,14 +57,15 @@ struct StatusQuery {
 /// Get the status of the analysis service.
 pub async fn analysis_status(
     service: web::Data<AnalysisService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     user: UserInformation,
     authorizer: web::Data<Authorizer>,
     web::Query(StatusQuery { details }): web::Query<StatusQuery>,
     _: Require<ReadSystemInformation>,
 ) -> actix_web::Result<impl Responder> {
     authorizer.require(&user, Permission::ReadSystemInformation)?;
-    Ok(HttpResponse::Ok().json(service.status(db.as_ref(), details).await?))
+    let tx = db.begin().await?;
+    Ok(HttpResponse::Ok().json(service.status(&tx, details).await?))
 }
 
 #[utoipa::path(
@@ -84,19 +85,16 @@ pub async fn analysis_status(
 /// Retrieve SBOM components (packages) by name, Package URL, or CPE.
 pub async fn get_component(
     service: web::Data<AnalysisService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     key: web::Path<String>,
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
+    let tx = db.begin().await?;
 
-    Ok(HttpResponse::Ok().json(
-        service
-            .retrieve(&query, options, paginated, db.as_ref())
-            .await?,
-    ))
+    Ok(HttpResponse::Ok().json(service.retrieve(&query, options, paginated, &tx).await?))
 }
 
 #[utoipa::path(
@@ -116,17 +114,14 @@ pub async fn get_component(
 /// Retrieve SBOM components (packages) by a complex search.
 pub async fn search_component(
     service: web::Data<AnalysisService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    Ok(HttpResponse::Ok().json(
-        service
-            .retrieve(&search, options, paginated, db.as_ref())
-            .await?,
-    ))
+    let tx = db.begin().await?;
+    Ok(HttpResponse::Ok().json(service.retrieve(&search, options, paginated, &tx).await?))
 }
 
 #[utoipa::path(
@@ -147,7 +142,7 @@ pub async fn search_component(
 /// Render an SBOM graph
 pub async fn render_sbom_graph(
     service: web::Data<AnalysisService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     path: web::Path<(String, String)>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
@@ -158,8 +153,9 @@ pub async fn render_sbom_graph(
     };
 
     let sbom = parse_sbom_id(&sbom)?;
+    let tx = db.begin().await?;
 
-    let graph = service.load_graph(db.as_ref(), sbom).await?;
+    let graph = service.load_graph(&tx, sbom).await?;
 
     if let Some((data, content_type)) = service.render(graph.as_ref(), ext) {
         Ok(HttpResponse::Ok().content_type(content_type).body(data))
@@ -185,15 +181,16 @@ pub async fn render_sbom_graph(
 /// Retrieve latest SBOM components (packages) by a complex search.
 pub async fn search_latest_component(
     service: web::Data<AnalysisService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
+    let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(
         service
-            .retrieve_latest(&search, options, paginated, db.as_ref())
+            .retrieve_latest(&search, options, paginated, &tx)
             .await?,
     ))
 }
@@ -215,17 +212,18 @@ pub async fn search_latest_component(
 /// Retrieve latest SBOM components (packages) by name, Package URL, or CPE.
 pub async fn get_latest_component(
     service: web::Data<AnalysisService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     key: web::Path<String>,
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
+    let tx = db.begin().await?;
 
     Ok(HttpResponse::Ok().json(
         service
-            .retrieve_latest(&query, options, paginated, db.as_ref())
+            .retrieve_latest(&query, options, paginated, &tx)
             .await?,
     ))
 }

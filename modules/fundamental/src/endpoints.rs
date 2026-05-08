@@ -1,5 +1,5 @@
 use actix_web::web;
-use trustify_common::db::{Database, pagination_cache::PaginationCache};
+use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_ingestor::service::IngestorService;
@@ -16,28 +16,36 @@ pub struct Config {
 pub fn configure(
     svc: &mut utoipa_actix_web::service_config::ServiceConfig,
     config: Config,
-    db: Database,
+    db_rw: db::ReadWrite,
+    db_ro: db::ReadOnly,
     storage: impl Into<DispatchBackend>,
     analysis: AnalysisService,
     cache: PaginationCache,
 ) {
-    let ingestor_service = IngestorService::new(Graph::new(db.clone()), storage, Some(analysis));
+    let ingestor_service = IngestorService::new(Graph::new(), storage, Some(analysis));
     svc.app_data(web::Data::new(ingestor_service));
 
     crate::advisory::endpoints::configure(
         svc,
-        db.clone(),
+        db_rw.clone(),
+        db_ro.clone(),
         config.advisory_upload_limit,
         cache.clone(),
     );
-    crate::license::endpoints::configure(svc, db.clone());
-    crate::organization::endpoints::configure(svc, db.clone(), cache.clone());
-    crate::purl::endpoints::configure(svc, db.clone(), cache.clone());
-    crate::product::endpoints::configure(svc, db.clone(), cache.clone());
-    crate::sbom::endpoints::configure(svc, db.clone(), config.sbom_upload_limit, cache.clone());
-    crate::vulnerability::endpoints::configure(svc, db.clone(), cache.clone());
-    crate::weakness::endpoints::configure(svc, db.clone(), cache.clone());
-    crate::sbom_group::endpoints::configure(svc, db, config.max_group_name_length, cache);
+    crate::license::endpoints::configure(svc, db_ro.clone());
+    crate::organization::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    crate::purl::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    crate::product::endpoints::configure(svc, db_rw.clone(), db_ro.clone(), cache.clone());
+    crate::sbom::endpoints::configure(
+        svc,
+        db_rw.clone(),
+        db_ro.clone(),
+        config.sbom_upload_limit,
+        cache.clone(),
+    );
+    crate::vulnerability::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    crate::weakness::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    crate::sbom_group::endpoints::configure(svc, db_rw, db_ro, config.max_group_name_length, cache);
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, ToSchema, serde::Deserialize, IntoParams)]

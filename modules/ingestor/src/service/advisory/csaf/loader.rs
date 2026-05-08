@@ -249,7 +249,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn loader(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let graph = Graph::new(ctx.db.clone());
+        let graph = Graph::new();
 
         let tx = ctx.db.begin().await?;
 
@@ -326,7 +326,7 @@ mod test {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(tokio::test)]
     async fn multiple_vulnerabilities(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let graph = Graph::new(ctx.db.clone());
+        let graph = Graph::new();
         let loader = CsafLoader::new(&graph);
 
         let (csaf, digests): (Csaf, _) = document("csaf/rhsa-2024_3666.json").await?;
@@ -376,7 +376,7 @@ mod test {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(tokio::test)]
     async fn product_status(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let graph = Graph::new(ctx.db.clone());
+        let graph = Graph::new();
         let loader = CsafLoader::new(&graph);
 
         let (csaf, digests): (Csaf, _) = document("csaf/cve-2023-0044.json").await?;
@@ -421,7 +421,7 @@ mod test {
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         use trustify_entity::{remediation, remediation_product_status};
 
-        let graph = Graph::new(ctx.db.clone());
+        let graph = Graph::new();
         let loader = CsafLoader::new(&graph);
 
         let (csaf, digests): (Csaf, _) = document("csaf/cve-2023-0044.json").await?;
@@ -510,7 +510,7 @@ mod test {
         use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
         use trustify_entity::{remediation, remediation_purl_status};
 
-        let graph = Graph::new(ctx.db.clone());
+        let graph = Graph::new();
         let loader = CsafLoader::new(&graph);
 
         let (csaf, digests): (Csaf, _) = document("csaf/rhsa-2024_3666.json").await?;

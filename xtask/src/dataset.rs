@@ -6,7 +6,7 @@ use serde_json::Value;
 use std::{env, io::BufReader, path::PathBuf, time::Duration};
 use tar::Builder;
 use tokio::fs;
-use trustify_common::model::BinaryByteSize;
+use trustify_common::{db::ReadWrite, model::BinaryByteSize};
 use trustify_module_importer::{
     model::{CommonImporter, CsafImporter, CveImporter, ImporterConfiguration, SbomImporter},
     runner::{
@@ -131,7 +131,7 @@ impl GenerateDump {
         };
 
         let importer = ImportRunner {
-            db: db.clone(),
+            db: ReadWrite::new(db.clone()),
             storage: storage.into(),
             working_dir: self.working_dir.as_ref().map(|wd| wd.join("wd")),
             // The xtask doesn't need the analysis graph
@@ -187,8 +187,7 @@ impl GenerateDump {
 
         // ingest files
 
-        let service =
-            IngestorService::new(Graph::new(runner.db.clone()), runner.storage.clone(), None);
+        let service = IngestorService::new(Graph::new(), runner.storage.clone(), None);
         for path in config.paths {
             log::info!("Ingesting: {}", path.display());
             let path = wd.join(path);

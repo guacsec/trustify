@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use sea_orm::DbErr;
 use std::borrow::Cow;
 use trustify_common::{
-    db::{DatabaseErrors, limiter::LimiterError, pagination_cache::LimitError},
+    db::{DatabaseErrors, DbError, limiter::LimiterError, pagination_cache::LimitError},
     decompress,
     error::ErrorInformation,
     id::IdError,
@@ -85,6 +85,16 @@ impl From<LimiterError> for Error {
         match value {
             LimiterError::Db(e) => e.into(),
             LimiterError::Limit(e) => e.into(),
+        }
+    }
+}
+
+impl From<DbError> for Error {
+    fn from(value: DbError) -> Self {
+        match value {
+            DbError::Database(err) => Self::Database(err),
+            DbError::Unavailable => Self::Unavailable,
+            DbError::ReadOnly => Self::Internal(value.to_string()),
         }
     }
 }

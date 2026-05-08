@@ -4,9 +4,7 @@ use super::prepare_ps_state_change;
 use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
-use trustify_common::db::pagination_cache::PaginationCache;
-use trustify_common::model::Limit;
-use trustify_common::purl::Purl;
+use trustify_common::{db::pagination_cache::PaginationCache, model::Limit, purl::Purl};
 use trustify_entity::labels::Labels;
 use trustify_module_fundamental::advisory::model::AdvisoryHead;
 use trustify_module_fundamental::common::model::{Score, ScoreType};
@@ -38,7 +36,7 @@ async fn simple(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // now delete the newer one
 
-    let service = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = AdvisoryService::new(PaginationCache::for_test());
     service
         .delete_advisory(r2.id.parse().expect("must be a UUID variant"), &ctx.db)
         .await?;
@@ -78,7 +76,7 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // now delete the newer one
 
-    let service = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = AdvisoryService::new(PaginationCache::for_test());
     service
         .delete_advisory(r2.id.parse().expect("must be a UUID variant"), &ctx.db)
         .await?;

@@ -4,6 +4,7 @@ use roxmltree::Document;
 use std::io::Read;
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::ReadOnly;
 use trustify_common::db::pagination_cache::PaginationCache;
 use trustify_common::{hashing::HashingRead, model::Paginated};
 use trustify_entity::labels::Labels;
@@ -18,7 +19,8 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     const TOTAL_ITEMS_FOUND: u64 = 964;
 
     let loader = CweCatalogLoader::new();
-    let service = WeaknessService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = WeaknessService::new(PaginationCache::for_test());
+    let db_ro = ReadOnly::new(ctx.db.clone());
 
     // extract document from zip file
 
@@ -42,6 +44,7 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // fetch data
 
+    let tx = db_ro.begin().await?;
     let all = service
         .list_weaknesses(
             Default::default(),
@@ -50,13 +53,14 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 limit: 10,
                 total: true,
             },
+            &tx,
         )
         .await?;
 
     assert_eq!(Some(TOTAL_ITEMS_FOUND), all.total);
 
     let w = service
-        .get_weakness("CWE-1004")
+        .get_weakness("CWE-1004", &tx)
         .await?
         .expect("must be found");
 
@@ -80,6 +84,7 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // fetch data again
 
+    let tx = db_ro.begin().await?;
     let all = service
         .list_weaknesses(
             Default::default(),
@@ -88,6 +93,7 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 limit: 10,
                 total: true,
             },
+            &tx,
         )
         .await?;
 
@@ -96,7 +102,7 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(Some(964), all.total);
 
     let w = service
-        .get_weakness("CWE-1004")
+        .get_weakness("CWE-1004", &tx)
         .await?
         .expect("must be found");
 

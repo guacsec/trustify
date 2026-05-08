@@ -2,10 +2,9 @@ use crate::{
     Error,
     weakness::model::{WeaknessDetails, WeaknessSummary},
 };
-use sea_orm::EntityTrait;
+use sea_orm::{ConnectionTrait, EntityTrait};
 use trustify_common::{
     db::{
-        Database,
         limiter::{LimitedResult, LimiterTrait},
         pagination_cache::PaginationCache,
         query::{Filtering, Query},
@@ -15,22 +14,24 @@ use trustify_common::{
 use trustify_entity::weakness;
 
 pub struct WeaknessService {
-    db: Database,
     cache: PaginationCache,
 }
 
 impl WeaknessService {
-    pub fn new(db: Database, cache: PaginationCache) -> Self {
-        Self { db, cache }
+    /// Creates a new weakness service.
+    pub fn new(cache: PaginationCache) -> Self {
+        Self { cache }
     }
 
-    pub async fn list_weaknesses(
+    /// Lists weaknesses matching the given query.
+    pub async fn list_weaknesses<C: ConnectionTrait>(
         &self,
         query: Query,
         paginated: impl Pagination,
+        connection: &C,
     ) -> Result<PaginatedResults<WeaknessSummary>, Error> {
         let limiter = weakness::Entity::find().filtering(query)?.limiting(
-            &self.db,
+            connection,
             paginated,
             &self.cache,
         )?;
@@ -44,8 +45,13 @@ impl WeaknessService {
         })
     }
 
-    pub async fn get_weakness(&self, id: &str) -> Result<Option<WeaknessDetails>, Error> {
-        if let Some(found) = weakness::Entity::find_by_id(id).one(&self.db).await? {
+    /// Gets a single weakness by ID.
+    pub async fn get_weakness(
+        &self,
+        id: &str,
+        connection: &impl ConnectionTrait,
+    ) -> Result<Option<WeaknessDetails>, Error> {
+        if let Some(found) = weakness::Entity::find_by_id(id).one(connection).await? {
             Ok(Some(WeaknessDetails::from_entity(&found).await?))
         } else {
             Ok(None)

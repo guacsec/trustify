@@ -10,7 +10,7 @@ use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::{
     db::{
-        Database, DatabaseErrors,
+        DatabaseErrors, ReadWrite,
         limiter::{LimitedResult, LimiterTrait},
         pagination_cache::PaginationCache,
         query::{Filtering, Query},
@@ -126,12 +126,13 @@ where
 
 #[derive(Clone, Debug)]
 pub struct ImporterService {
-    db: Database,
+    db: ReadWrite,
     cache: PaginationCache,
 }
 
 impl ImporterService {
-    pub fn new(db: Database, cache: PaginationCache) -> Self {
+    /// Creates a new importer service backed by the given read-write connection.
+    pub fn new(db: ReadWrite, cache: PaginationCache) -> Self {
         Self { db, cache }
     }
 

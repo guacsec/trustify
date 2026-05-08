@@ -131,7 +131,7 @@ mod test {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(tokio::test)]
     async fn ingest_cpe(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let graph = Graph::new(ctx.db.clone());
+        let graph = Graph::new();
 
         let cpe = Cpe::from_str("cpe:/a:redhat:enterprise_linux:9::crb")?;
 

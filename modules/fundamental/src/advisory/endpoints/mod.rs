@@ -10,7 +10,6 @@ use crate::{
         service::AdvisoryService,
     },
     common::service::delete_doc,
-    db::DatabaseExt,
     endpoints::Deprecation,
 };
 use actix_web::{HttpResponse, Responder, delete, get, http::header, post, web};
@@ -21,7 +20,7 @@ use std::str::FromStr;
 use time::OffsetDateTime;
 use trustify_auth::{CreateAdvisory, DeleteAdvisory, ReadAdvisory, authorizer::Require};
 use trustify_common::{
-    db::{Database, pagination_cache::PaginationCache, query::Query},
+    db::{self, pagination_cache::PaginationCache, query::Query},
     decompress::decompress_async,
     id::Id,
     model::{BinaryData, Paginated, PaginatedResults},
@@ -36,14 +35,16 @@ use uuid::Uuid;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
-    db: Database,
+    db_rw: db::ReadWrite,
+    db_ro: db::ReadOnly,
     upload_limit: usize,
     cache: PaginationCache,
 ) {
-    let advisory_service = AdvisoryService::new(db.clone(), cache);
+    let advisory_service = AdvisoryService::new(cache);
 
     config
-        .app_data(web::Data::new(db))
+        .app_data(web::Data::new(db_rw))
+        .app_data(web::Data::new(db_ro))
         .app_data(web::Data::new(advisory_service))
         .app_data(web::Data::new(Config { upload_limit }))
         .service(all)
@@ -89,13 +90,13 @@ struct AdvisoryQuery {
 /// List advisories
 pub async fn all(
     state: web::Data<AdvisoryService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     web::Query(Deprecation { deprecated }): web::Query<Deprecation>,
     _: Require<ReadAdvisory>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(
         state
             .fetch_advisories(search, paginated, deprecated, &tx)
@@ -118,12 +119,12 @@ pub async fn all(
 /// Get an advisory
 pub async fn get(
     state: web::Data<AdvisoryService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     key: web::Path<String>,
     _: Require<ReadAdvisory>,
 ) -> actix_web::Result<impl Responder> {
     let hash_key = Id::from_str(&key).map_err(Error::IdKey)?;
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let fetched = state.fetch_advisory(hash_key, &tx).await?;
 
     if let Some(fetched) = fetched {
@@ -149,7 +150,7 @@ pub async fn get(
 pub async fn delete(
     i: web::Data<IngestorService>,
     service: web::Data<AdvisoryService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     key: web::Path<String>,
     _: Require<DeleteAdvisory>,
 ) -> Result<impl Responder, Error> {
@@ -213,7 +214,7 @@ pub async fn upload(
     }): web::Query<UploadParams>,
     content_type: Option<web::Header<header::ContentType>>,
     bytes: web::Bytes,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     _: Require<CreateAdvisory>,
 ) -> Result<impl Responder, Error> {
     let bytes = decompress_async(bytes, content_type.map(|ct| ct.0), config.upload_limit).await??;
@@ -251,15 +252,14 @@ pub async fn upload(
 #[get("/v3/advisory/{key}/download")]
 /// Download an advisory document
 pub async fn download(
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     ingestor: web::Data<IngestorService>,
     advisory: web::Data<AdvisoryService>,
     key: web::Path<String>,
     _: Require<ReadAdvisory>,
 ) -> Result<impl Responder, Error> {
-    // the user requested id
     let id = Id::from_str(&key).map_err(Error::IdKey)?;
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
 
     // look up document by id
     let Some(advisory) = advisory.fetch_advisory(id, &tx).await? else {

@@ -31,6 +31,20 @@ const ENV_DB_MAX_LIFETIME: &str = "TRUSTD_DB_MAX_LIFETIME";
 const ENV_DB_IDLE_TIMEOUT: &str = "TRUSTD_DB_IDLE_TIMEOUT";
 const ENV_DB_SSLMODE: &str = "TRUSTD_DB_SSLMODE";
 
+const ENV_DB_RO_URL: &str = "TRUSTD_DB_RO_URL";
+const ENV_DB_RO_NAME: &str = "TRUSTD_DB_RO_NAME";
+const ENV_DB_RO_USER: &str = "TRUSTD_DB_RO_USER";
+const ENV_DB_RO_PASS: &str = "TRUSTD_DB_RO_PASSWORD";
+const ENV_DB_RO_HOST: &str = "TRUSTD_DB_RO_HOST";
+const ENV_DB_RO_PORT: &str = "TRUSTD_DB_RO_PORT";
+const ENV_DB_RO_MAX_CONN: &str = "TRUSTD_DB_RO_MAX_CONN";
+const ENV_DB_RO_MIN_CONN: &str = "TRUSTD_DB_RO_MIN_CONN";
+const ENV_DB_RO_CONNECT_TIMEOUT: &str = "TRUSTD_DB_RO_CONNECT_TIMEOUT";
+const ENV_DB_RO_ACQUIRE_TIMEOUT: &str = "TRUSTD_DB_RO_ACQUIRE_TIMEOUT";
+const ENV_DB_RO_MAX_LIFETIME: &str = "TRUSTD_DB_RO_MAX_LIFETIME";
+const ENV_DB_RO_IDLE_TIMEOUT: &str = "TRUSTD_DB_RO_IDLE_TIMEOUT";
+const ENV_DB_RO_SSLMODE: &str = "TRUSTD_DB_RO_SSLMODE";
+
 /// PostgreSQL SSL mode
 #[derive(Copy, Clone, Debug, Default, clap::ValueEnum, Eq, PartialEq, strum::Display)]
 #[strum(serialize_all = "kebab-case")]
@@ -161,6 +175,80 @@ impl Database {
             port,
             ..Self::from_env()?
         })
+    }
+}
+
+/// Read-only database options, mirroring `Database` with all fields optional.
+///
+/// When a field is not set, the corresponding value from the R/W `Database` config is used.
+/// If no R/O fields are set at all, the R/W connection is reused for reads.
+#[derive(clap::Parser, Debug, Clone, Default, Eq, PartialEq)]
+#[command(next_help_heading = "Read-Only Database")]
+#[group(id = "database-ro")]
+pub struct DatabaseReadOnly {
+    /// A complete URL for the read-only database.
+    #[arg(id = "db-ro-url", long, env = ENV_DB_RO_URL)]
+    pub url: Option<String>,
+    #[arg(id = "db-ro-user", long, env = ENV_DB_RO_USER)]
+    pub username: Option<String>,
+    #[arg(id = "db-ro-password", long, env = ENV_DB_RO_PASS)]
+    pub password: Option<Hide<String>>,
+    #[arg(id = "db-ro-host", long, env = ENV_DB_RO_HOST)]
+    pub host: Option<String>,
+    #[arg(id = "db-ro-port", long, env = ENV_DB_RO_PORT)]
+    pub port: Option<u16>,
+    #[arg(id = "db-ro-name", long, env = ENV_DB_RO_NAME)]
+    pub name: Option<String>,
+    #[arg(id = "db-ro-max-conn", long, env = ENV_DB_RO_MAX_CONN)]
+    pub max_conn: Option<u32>,
+    #[arg(id = "db-ro-min-conn", long, env = ENV_DB_RO_MIN_CONN)]
+    pub min_conn: Option<u32>,
+    #[arg(id = "db-ro-sslmode", long, env = ENV_DB_RO_SSLMODE, value_enum)]
+    pub sslmode: Option<SslMode>,
+    #[arg(id = "db-ro-conn-timeout", long, env = ENV_DB_RO_CONNECT_TIMEOUT)]
+    pub connect_timeout: Option<u64>,
+    #[arg(id = "db-ro-acquire-timeout", long, env = ENV_DB_RO_ACQUIRE_TIMEOUT)]
+    pub acquire_timeout: Option<u64>,
+    #[arg(id = "db-ro-max-lifetime", long, env = ENV_DB_RO_MAX_LIFETIME)]
+    pub max_lifetime: Option<u64>,
+    #[arg(id = "db-ro-idle-timeout", long, env = ENV_DB_RO_IDLE_TIMEOUT)]
+    pub idle_timeout: Option<u64>,
+}
+
+impl DatabaseReadOnly {
+    /// Returns true if any R/O database option was explicitly set.
+    pub fn is_configured(&self) -> bool {
+        self.url.is_some()
+            || self.host.is_some()
+            || self.port.is_some()
+            || self.username.is_some()
+            || self.password.is_some()
+            || self.name.is_some()
+    }
+
+    /// Builds a `Database` config by overlaying R/O values on top of the R/W fallback.
+    pub fn to_database_config(&self, fallback: &Database) -> Database {
+        Database {
+            url: self.url.clone().or_else(|| fallback.url.clone()),
+            username: self
+                .username
+                .clone()
+                .unwrap_or_else(|| fallback.username.clone()),
+            password: self
+                .password
+                .clone()
+                .unwrap_or_else(|| fallback.password.clone()),
+            host: self.host.clone().unwrap_or_else(|| fallback.host.clone()),
+            port: self.port.unwrap_or(fallback.port),
+            name: self.name.clone().unwrap_or_else(|| fallback.name.clone()),
+            max_conn: self.max_conn.unwrap_or(fallback.max_conn),
+            min_conn: self.min_conn.unwrap_or(fallback.min_conn),
+            sslmode: self.sslmode.unwrap_or(fallback.sslmode),
+            connect_timeout: self.connect_timeout.unwrap_or(fallback.connect_timeout),
+            acquire_timeout: self.acquire_timeout.unwrap_or(fallback.acquire_timeout),
+            max_lifetime: self.max_lifetime.unwrap_or(fallback.max_lifetime),
+            idle_timeout: self.idle_timeout.unwrap_or(fallback.idle_timeout),
+        }
     }
 }
 

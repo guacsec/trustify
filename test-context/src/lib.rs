@@ -79,7 +79,7 @@ impl TrustifyTestContext {
         storage: FileSystemBackend,
         resources: impl Into<ResourceStack>,
     ) -> Self {
-        let graph = Graph::new(db.clone());
+        let graph = Graph::new();
         let ingestor = IngestorService::new(graph.clone(), storage.clone(), Default::default());
         let mem_limit_mb = env::var("MEM_LIMIT_MB")
             .unwrap_or("500".into())

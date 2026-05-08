@@ -4,12 +4,13 @@ use actix_web::{
     http::header::{self, ETag, EntityTag, IfMatch},
     put, web,
 };
+use sea_orm::TransactionTrait;
 use trustify_auth::authenticator::user::UserDetails;
-use trustify_common::{db::Database, model::Revisioned};
+use trustify_common::{db, model::Revisioned};
 
 /// mount the "user" module
-pub fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, db: Database) {
-    svc.app_data(web::Data::new(UserPreferenceService::new(db)))
+pub fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig) {
+    svc.app_data(web::Data::new(UserPreferenceService::new()))
         .service(set)
         .service(get)
         .service(delete);
@@ -37,10 +38,12 @@ pub fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, db: 
 /// Get user preferences
 async fn get(
     service: web::Data<UserPreferenceService>,
+    db: web::Data<db::ReadOnly>,
     key: web::Path<String>,
     user: UserDetails,
-) -> Result<impl Responder, Error> {
-    Ok(match service.get(user.id, key.into_inner()).await? {
+) -> actix_web::Result<impl Responder> {
+    let tx = db.begin().await?;
+    Ok(match service.get(user.id, key.into_inner(), &tx).await? {
         Some(Revisioned { value, revision }) => HttpResponse::Ok()
             .append_header((header::ETAG, ETag(EntityTag::new_strong(revision))))
             .json(value),
@@ -71,6 +74,7 @@ async fn get(
 /// Set user preferences
 async fn set(
     service: web::Data<UserPreferenceService>,
+    db: web::Data<db::ReadWrite>,
     key: web::Path<String>,
     user: UserDetails,
     web::Header(if_match): web::Header<IfMatch>,
@@ -85,7 +89,7 @@ async fn set(
         value: (),
         revision,
     } = service
-        .set(user.id, key.into_inner(), revision, data)
+        .set(user.id, key.into_inner(), revision, data, db.as_ref())
         .await?;
 
     Ok(HttpResponse::NoContent()
@@ -110,6 +114,7 @@ async fn set(
 /// Delete user preferences
 async fn delete(
     service: web::Data<UserPreferenceService>,
+    db: web::Data<db::ReadWrite>,
     key: web::Path<String>,
     user: UserDetails,
     web::Header(if_match): web::Header<IfMatch>,
@@ -119,6 +124,10 @@ async fn delete(
         IfMatch::Items(items) => items.first().map(|etag| etag.tag()),
     };
 
-    service.delete(user.id, key.into_inner(), revision).await?;
+    let tx = db.begin().await?;
+    service
+        .delete(user.id, key.into_inner(), revision, &tx)
+        .await?;
+    tx.commit().await?;
     Ok(HttpResponse::NoContent().finish())
 }

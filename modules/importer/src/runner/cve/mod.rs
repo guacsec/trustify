@@ -14,7 +14,7 @@ use parking_lot::Mutex;
 use std::{path::Path, path::PathBuf, sync::Arc};
 use tokio::runtime::Handle;
 use tracing::instrument;
-use trustify_common::db::Database;
+use trustify_common::db::ReadWrite;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::Cache;
 use trustify_module_ingestor::{
@@ -28,7 +28,7 @@ struct Context<C: RunContext + 'static> {
     labels: Labels,
     report: Arc<Mutex<ReportBuilder>>,
     ingestor: IngestorService,
-    db: Database,
+    db: ReadWrite,
 }
 
 impl<C: RunContext> Context<C> {
@@ -90,11 +90,8 @@ impl super::ImportRunner {
         cve: CveImporter,
         continuation: serde_json::Value,
     ) -> Result<RunOutput, ScannerError> {
-        let ingestor = IngestorService::new(
-            Graph::new(self.db.clone()),
-            self.storage.clone(),
-            self.analysis.clone(),
-        );
+        let ingestor =
+            IngestorService::new(Graph::new(), self.storage.clone(), self.analysis.clone());
 
         let report = Arc::new(Mutex::new(ReportBuilder::new()));
         let continuation = serde_json::from_value(continuation).unwrap_or_default();

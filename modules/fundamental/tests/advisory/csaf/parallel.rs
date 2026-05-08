@@ -1,8 +1,10 @@
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
-use trustify_common::db::pagination_cache::PaginationCache;
-use trustify_common::{db::query::Query, model::Paginated};
+use trustify_common::{
+    db::{pagination_cache::PaginationCache, query::Query},
+    model::Paginated,
+};
 use trustify_module_fundamental::advisory::service::AdvisoryService;
 use trustify_module_ingestor::common::Deprecation;
 use trustify_test_context::TrustifyContext;
@@ -17,7 +19,7 @@ async fn ingest_10(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .ingest_parallel(["csaf/cve-2023-33201.json"; 10])
         .await?;
 
-    let service = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = AdvisoryService::new(PaginationCache::for_test());
 
     let result = service
         .fetch_advisories(

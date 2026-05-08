@@ -344,7 +344,7 @@ mod test {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(tokio::test)]
     async fn ingest_advisories(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         let advisory1 = system
             .ingest_advisory(
@@ -385,7 +385,7 @@ mod test {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(tokio::test)]
     async fn ingest_advisory_cve(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         let advisory = system
             .ingest_advisory(
@@ -433,7 +433,7 @@ mod test {
             }
         }
 
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         let a1 = system
             .ingest_advisory(

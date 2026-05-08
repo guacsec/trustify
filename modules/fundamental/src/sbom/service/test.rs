@@ -33,7 +33,7 @@ async fn sbom_details_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
         ])
         .await?;
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let id_3_2_12 = results[3].id.clone();
 
@@ -70,7 +70,7 @@ async fn count_sboms(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         ])
         .await?;
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let neither_purl = Purl::from_str(
         "pkg:maven/io.smallrye/smallrye-graphql@0.0.0.redhat-00000?repository_url=https://maven.repository.redhat.com/ga/&type=jar",
@@ -117,7 +117,7 @@ async fn sbom_set_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         ])
         .await?;
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let id_3_2_12 = Id::parse_uuid(&results[3].id)?;
 
@@ -153,7 +153,7 @@ async fn sbom_update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
         ])
         .await?;
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let id_3_2_12 = Id::parse_uuid(&results[3].id)?;
 
@@ -170,9 +170,11 @@ async fn sbom_update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
     update_map.insert("label_3".to_string(), "Third Label".to_string());
     let update_labels = Labels(update_map);
     let update = trustify_entity::labels::Update::new();
+    let tx = ctx.db.begin().await?;
     service
-        .update_labels(id_3_2_12.clone(), |_| update.apply_to(update_labels))
+        .update_labels(id_3_2_12.clone(), |_| update.apply_to(update_labels), &tx)
         .await?;
+    tx.commit().await?;
 
     let details = service
         .fetch_sbom_details(id_3_2_12, Default::default(), &ctx.db)
@@ -191,7 +193,7 @@ async fn sbom_update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let paginated_with_total = Paginated {
         total: true,
@@ -392,7 +394,7 @@ async fn fetch_sboms_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyh
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let paginated_with_total = Paginated {
         total: true,
@@ -543,7 +545,7 @@ async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), any
     );
 
     let tx = ctx.db.begin().await?;
-    let sbom_service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let sbom_service = SbomService::new(PaginationCache::for_test());
     // delete the UBI SBOM
     assert!(sbom_service.delete_sbom(ubi9_sbom.id.parse()?, &tx).await?);
     tx.commit().await?;
@@ -614,7 +616,7 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
     );
 
     // Delete one of the SBOMs
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
     let sbom_uuid = results[1].id.parse().expect("SBOM should have a UUID");
     let tx = ctx.db.begin().await?;
     assert!(
@@ -707,7 +709,7 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn test_sbom_package_licenses_coalesce(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     // RED: No packages before ingestion
     // GREEN: Ingest SPDX (uses expanded_license) and CycloneDX (uses raw license.text)
@@ -788,7 +790,7 @@ async fn test_sbom_package_licenses_coalesce(ctx: &TrustifyContext) -> Result<()
 async fn test_sbom_package_license_filtering_with_coalesce(
     ctx: &TrustifyContext,
 ) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     // RED: No packages before ingestion
     // GREEN: Ingest SPDX with Apache licenses
@@ -836,7 +838,7 @@ async fn test_sbom_package_license_filtering_with_coalesce(
 async fn test_sbom_package_license_not_null_filter(
     ctx: &TrustifyContext,
 ) -> Result<(), anyhow::Error> {
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     // RED: No packages before ingestion
     // GREEN: Ingest SBOM with licenses

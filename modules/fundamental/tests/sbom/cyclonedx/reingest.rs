@@ -4,8 +4,7 @@ use anyhow::bail;
 use sea_orm::EntityTrait;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::db::pagination_cache::PaginationCache;
-use trustify_common::model::Paginated;
+use trustify_common::{db::pagination_cache::PaginationCache, model::Paginated};
 use trustify_entity::sbom;
 use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_module_fundamental::sbom::service::SbomService;
@@ -25,7 +24,7 @@ async fn reingest(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             .await?
             .expect("must be found");
 
-        let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+        let service = SbomService::new(PaginationCache::for_test());
 
         let packages = service
             .describes_packages::<_, _, SbomPackage>(

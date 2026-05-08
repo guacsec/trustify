@@ -1,6 +1,5 @@
 use crate::{
     Error,
-    db::DatabaseExt,
     purl::{
         model::{details::base_purl::BasePurlDetails, summary::base_purl::BasePurlSummary},
         service::PurlService,
@@ -11,7 +10,7 @@ use sea_orm::prelude::Uuid;
 use std::str::FromStr;
 use trustify_auth::{ReadSbom, authorizer::Require};
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{self, query::Query},
     id::IdError,
     model::{Paginated, PaginatedResults},
     purl::Purl,
@@ -31,11 +30,11 @@ use trustify_common::{
 /// Retrieve details about a base versionless pURL
 pub async fn get_base_purl(
     service: web::Data<PurlService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     key: web::Path<String>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     if key.starts_with("pkg:") {
         let purl = Purl::from_str(&key).map_err(|e| Error::IdKey(IdError::Purl(e)))?;
         Ok(HttpResponse::Ok().json(service.base_purl_by_purl(&purl, &tx).await?))
@@ -60,10 +59,10 @@ pub async fn get_base_purl(
 /// List base versionless pURLs
 pub async fn all_base_purls(
     service: web::Data<PurlService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(service.base_purls(search, paginated, &tx).await?))
 }

@@ -7,7 +7,7 @@ use std::io::{BufRead, Read};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::bytes::Buf;
-use trustify_common::db::Database;
+use trustify_common::db::ReadWrite;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::{Cache, Format, IngestorService};
 
@@ -15,7 +15,7 @@ pub struct ClearlyDefinedWalker<P: Progress + Send + 'static> {
     continuation: ClearlyDefinedItemContinuation,
     source: String,
     ingestor: IngestorService,
-    db: Database,
+    db: ReadWrite,
     progress: P,
     report: Arc<Mutex<ReportBuilder>>,
     coordinates_seen_this_run: HashSet<String>,
@@ -26,7 +26,7 @@ impl<P: Progress + Send + 'static> ClearlyDefinedWalker<P> {
     pub fn new(
         source: impl Into<String>,
         ingestor: IngestorService,
-        db: Database,
+        db: ReadWrite,
         report: Arc<Mutex<ReportBuilder>>,
         progress: P,
     ) -> Self {
@@ -199,6 +199,7 @@ mod test {
     use test_context::test_context;
     use test_log::test;
     use tokio::sync::Mutex;
+    use trustify_common::db::ReadWrite;
     use trustify_test_context::TrustifyContext;
 
     #[test_context(TrustifyContext)]
@@ -207,7 +208,7 @@ mod test {
         let mut walker = ClearlyDefinedWalker::new(
             "https://clearlydefinedprod.blob.core.windows.net/changes-notifications/",
             ctx.ingestor.clone(),
-            ctx.db.clone(),
+            ReadWrite::new(ctx.db.clone()),
             Arc::new(Mutex::new(ReportBuilder::new())),
             (),
         );

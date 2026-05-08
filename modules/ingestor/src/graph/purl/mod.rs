@@ -398,7 +398,7 @@ mod tests {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(tokio::test)]
     async fn ingest_packages(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         let pkg1 = system
             .ingest_package(&"pkg:maven/io.quarkus/quarkus-core".try_into()?, &ctx.db)
@@ -424,7 +424,7 @@ mod tests {
     async fn ingest_package_versions_missing_version(
         ctx: TrustifyContext,
     ) -> Result<(), anyhow::Error> {
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         let result = system
             .ingest_package_version(&"pkg:maven/io.quarkus/quarkus-addons".try_into()?, &ctx.db)
@@ -438,7 +438,7 @@ mod tests {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(tokio::test)]
     async fn ingest_package_versions(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         let pkg1 = system
             .ingest_package_version(
@@ -487,7 +487,7 @@ mod tests {
         #[case] expected_total: Option<u64>,
         #[case] expected_len: usize,
     ) -> Result<(), anyhow::Error> {
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         for v in 0..200u64 {
             let version = format!("pkg:maven/io.quarkus/quarkus-core@{v}").try_into()?;
@@ -524,7 +524,7 @@ mod tests {
     ) -> Result<(), anyhow::Error> {
         use std::time::Duration;
 
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         const TOTAL_ITEMS: u64 = 50;
 
@@ -566,7 +566,7 @@ mod tests {
         use crate::graph::error::Error;
         use std::time::Duration;
 
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         for v in 0..10u64 {
             let version = format!("pkg:maven/io.quarkus/quarkus-core@{v}").try_into()?;
@@ -606,7 +606,7 @@ mod tests {
     async fn ingest_qualified_packages_transactionally(
         ctx: TrustifyContext,
     ) -> Result<(), anyhow::Error> {
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         let tx_system = system.clone();
 
@@ -636,7 +636,7 @@ mod tests {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(tokio::test)]
     async fn ingest_qualified_packages(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let system = Graph::new(ctx.db.clone());
+        let system = Graph::new();
 
         let pkg1 = system
             .ingest_qualified_package(
@@ -686,7 +686,7 @@ mod tests {
     #[test_context(TrustifyContext, skip_teardown)]
     #[test(tokio::test)]
     async fn query_qualified_packages(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
-        let graph = Graph::new(ctx.db.clone());
+        let graph = Graph::new();
 
         for i in [
             "pkg:maven/io.quarkus/quarkus-core@1.2.3",

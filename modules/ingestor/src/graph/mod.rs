@@ -26,7 +26,7 @@ use trustify_common::hashing::Digests;
 use trustify_entity::source_document;
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Graph {
     pub(crate) db_context: Arc<Mutex<DbContext>>,
 }
@@ -40,7 +40,7 @@ pub enum Error<E: Send> {
 }
 
 impl Graph {
-    pub fn new(_db: trustify_common::db::Database) -> Self {
+    pub fn new() -> Self {
         Self {
             db_context: Arc::new(Mutex::new(DbContext::new())),
         }

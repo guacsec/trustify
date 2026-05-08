@@ -5,15 +5,15 @@ pub mod sbom;
 #[cfg(test)]
 mod test;
 
-use trustify_common::db::{Database, pagination_cache::PaginationCache};
+use trustify_common::db::pagination_cache::PaginationCache;
 
 pub struct SbomService {
-    db: Database,
     pub(crate) cache: PaginationCache,
 }
 
 impl SbomService {
-    pub fn new(db: Database, cache: PaginationCache) -> Self {
-        Self { db, cache }
+    /// Creates a new SBOM service.
+    pub fn new(cache: PaginationCache) -> Self {
+        Self { cache }
     }
 }

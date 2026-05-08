@@ -1,14 +1,11 @@
-use crate::{
-    db::DatabaseExt,
-    license::{
-        endpoints::spdx::{get_spdx_license, list_spdx_licenses},
-        service::{LicenseService, LicenseText},
-    },
+use crate::license::{
+    endpoints::spdx::{get_spdx_license, list_spdx_licenses},
+    service::{LicenseService, LicenseText},
 };
 use actix_web::{HttpResponse, Responder, get, web};
 use trustify_auth::{ReadSbom, authorizer::Require};
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{self, query::Query},
     model::{Paginated, PaginatedResults},
 };
 use trustify_query::TrustifyQuery;
@@ -16,7 +13,7 @@ use trustify_query_derive::Query;
 
 pub mod spdx;
 
-pub fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig, db: Database) {
+pub fn configure(config: &mut utoipa_actix_web::service_config::ServiceConfig, db: db::ReadOnly) {
     let license_service = LicenseService::new();
 
     config
@@ -47,12 +44,12 @@ struct LicenseQuery {
 #[get("/v3/license")]
 pub async fn list_licenses(
     service: web::Data<LicenseService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(service.licenses(search, paginated, &tx).await?))
 }
 

@@ -5,7 +5,7 @@ use super::{
     model::*,
     service::{ListOptions, SbomGroupService},
 };
-use crate::{Error, db::DatabaseExt};
+use crate::Error;
 use actix_web::{
     HttpRequest, HttpResponse, Responder, delete, get,
     http::header::{self, ETag, EntityTag, IfMatch},
@@ -19,7 +19,7 @@ use trustify_auth::{
     authorizer::Require,
 };
 use trustify_common::{
-    db::{Database, pagination_cache::PaginationCache, query::Query},
+    db::{self, pagination_cache::PaginationCache, query::Query},
     endpoints::extract_revision,
     model::{Paginated, Revisioned},
 };
@@ -27,14 +27,16 @@ use utoipa::ToSchema;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
-    db: Database,
+    db_rw: db::ReadWrite,
+    db_ro: db::ReadOnly,
     max_group_name_length: usize,
     cache: PaginationCache,
 ) {
     let service = SbomGroupService::new(max_group_name_length, cache);
 
     config
-        .app_data(web::Data::new(db))
+        .app_data(web::Data::new(db_rw))
+        .app_data(web::Data::new(db_ro))
         .app_data(web::Data::new(service))
         .service(list)
         .service(create)
@@ -68,13 +70,13 @@ pub fn configure(
 /// List SBOM groups
 async fn list(
     service: web::Data<SbomGroupService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(pagination): web::Query<Paginated>,
     web::Query(options): web::Query<ListOptions>,
     web::Query(query): web::Query<Query>,
     _: Require<ReadSbomGroup>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let result = service.list(options, pagination, query, &tx).await?;
 
     Ok(HttpResponse::Ok().json(result))
@@ -109,16 +111,16 @@ struct CreateResponse {
 async fn create(
     req: HttpRequest,
     service: web::Data<SbomGroupService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     web::Json(group): web::Json<GroupRequest>,
     _: Require<CreateSbomGroup>,
 ) -> Result<impl Responder, Error> {
+    let tx = db.begin().await?;
     let Revisioned {
         revision,
         value: id,
-    } = db
-        .transaction(async |tx| service.create(group, tx).await)
-        .await?;
+    } = service.create(group, &tx).await?;
+    tx.commit().await?;
 
     Ok(HttpResponse::Created()
         .append_header((header::LOCATION, format!("{}/{}", req.path(), id)))
@@ -147,7 +149,7 @@ async fn create(
 /// Delete an SBOM group
 async fn delete(
     service: web::Data<SbomGroupService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     id: web::Path<String>,
     web::Header(if_match): web::Header<IfMatch>,
     _: Require<DeleteSbomGroup>,
@@ -183,7 +185,7 @@ async fn delete(
 /// Update an SBOM group
 async fn update(
     service: web::Data<SbomGroupService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     id: web::Path<String>,
     web::Json(group): web::Json<GroupRequest>,
     web::Header(if_match): web::Header<IfMatch>,
@@ -221,11 +223,11 @@ async fn update(
 /// Read the SBOM group information
 async fn read(
     service: web::Data<SbomGroupService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
     _: Require<ReadSbomGroup>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let group = service.read(&id, &tx).await?;
 
     Ok(match group {
@@ -254,11 +256,11 @@ async fn read(
 /// Get SBOM group assignments
 async fn read_assignments(
     service: web::Data<SbomGroupService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
     _: Require<ReadSbom>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let assignments = service.read_assignments(&id, &tx).await?;
 
     Ok(match assignments {
@@ -289,20 +291,19 @@ async fn read_assignments(
 /// Update SBOM group assignments
 async fn update_assignments(
     service: web::Data<SbomGroupService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     id: web::Path<String>,
     web::Json(group_ids): web::Json<Vec<String>>,
     web::Header(if_match): web::Header<IfMatch>,
     _: Require<UpdateSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     let revision = extract_revision(&if_match);
 
-    db.transaction(async |tx| {
-        service
-            .update_assignments(&id, revision, group_ids, tx)
-            .await
-    })
-    .await?;
+    let tx = db.begin().await?;
+    service
+        .update_assignments(&id, revision, group_ids, &tx)
+        .await?;
+    tx.commit().await?;
 
     Ok(HttpResponse::NoContent().finish())
 }
@@ -322,16 +323,15 @@ async fn update_assignments(
 /// Bulk update SBOM group assignments
 async fn bulk_update_assignments(
     service: web::Data<SbomGroupService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     web::Json(request): web::Json<BulkAssignmentRequest>,
     _: Require<UpdateSbom>,
-) -> actix_web::Result<impl Responder> {
-    db.transaction(async |tx| {
-        service
-            .bulk_update_assignments(request.sbom_ids, request.group_ids, tx)
-            .await
-    })
-    .await?;
+) -> Result<impl Responder, Error> {
+    let tx = db.begin().await?;
+    service
+        .bulk_update_assignments(request.sbom_ids, request.group_ids, &tx)
+        .await?;
+    tx.commit().await?;
 
     Ok(HttpResponse::NoContent().finish())
 }

@@ -3,7 +3,6 @@ mod test;
 
 use crate::{
     Error,
-    db::DatabaseExt,
     product::{
         model::{details::ProductDetails, summary::ProductSummary},
         service::ProductService,
@@ -13,19 +12,21 @@ use actix_web::{HttpResponse, Responder, delete, get, web};
 use sea_orm::TransactionTrait;
 use trustify_auth::{DeleteMetadata, ReadMetadata, authorizer::Require};
 use trustify_common::{
-    db::{Database, pagination_cache::PaginationCache, query::Query},
+    db::{self, pagination_cache::PaginationCache, query::Query},
     model::{Paginated, PaginatedResults},
 };
 use uuid::Uuid;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
-    db: Database,
+    db_rw: db::ReadWrite,
+    db_ro: db::ReadOnly,
     cache: PaginationCache,
 ) {
     let service = ProductService::new(cache);
     config
-        .app_data(web::Data::new(db))
+        .app_data(web::Data::new(db_rw))
+        .app_data(web::Data::new(db_ro))
         .app_data(web::Data::new(service))
         .service(all)
         .service(delete)
@@ -46,12 +47,12 @@ pub fn configure(
 #[get("/v3/product")]
 pub async fn all(
     state: web::Data<ProductService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadMetadata>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(state.fetch_products(search, paginated, &tx).await?))
 }
 
@@ -69,11 +70,11 @@ pub async fn all(
 #[get("/v3/product/{id}")]
 pub async fn get(
     state: web::Data<ProductService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadOnly>,
     id: web::Path<Uuid>,
     _: Require<ReadMetadata>,
 ) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
+    let tx = db.begin().await?;
     let fetched = state.fetch_product(*id, &tx).await?;
     if let Some(fetched) = fetched {
         Ok(HttpResponse::Ok().json(fetched))
@@ -96,7 +97,7 @@ pub async fn get(
 #[delete("/v3/product/{id}")]
 pub async fn delete(
     state: web::Data<ProductService>,
-    db: web::Data<Database>,
+    db: web::Data<db::ReadWrite>,
     id: web::Path<Uuid>,
     _: Require<DeleteMetadata>,
 ) -> Result<impl Responder, Error> {

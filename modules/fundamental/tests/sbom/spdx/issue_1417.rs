@@ -1,8 +1,10 @@
 use anyhow::bail;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::db::pagination_cache::PaginationCache;
-use trustify_common::{db::query::Query, model::Limit};
+use trustify_common::{
+    db::{pagination_cache::PaginationCache, query::Query},
+    model::Limit,
+};
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_test_context::TrustifyContext;
 
@@ -18,7 +20,7 @@ async fn multi_purls(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         bail!("must be an id")
     };
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let sbom = service
         .fetch_sbom_packages(

@@ -1,5 +1,6 @@
 use super::*;
 use crate::{advisory::model::AdvisoryHead, source_document::model::SourceDocument};
+use sea_orm::TransactionTrait;
 use std::{collections::HashMap, str::FromStr};
 use test_context::test_context;
 use test_log::test;
@@ -76,7 +77,7 @@ async fn all_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     ingest_sample_advisory(ctx, "RHSA-2", "RHSA-2").await?;
 
-    let fetch = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
+    let fetch = AdvisoryService::new(PaginationCache::for_test());
     let fetched = fetch
         .fetch_advisories(
             q(""),
@@ -141,7 +142,7 @@ async fn single_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     ingest_sample_advisory(ctx, "RHSA-2", "RHSA-2").await?;
 
-    let fetch = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
+    let fetch = AdvisoryService::new(PaginationCache::for_test());
     let jenny256 = Id::sha256(&digests.sha256);
     let jenny384 = Id::sha384(&digests.sha384);
     let jenny512 = Id::sha512(&digests.sha512);
@@ -226,7 +227,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let fetch = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
+    let fetch = AdvisoryService::new(PaginationCache::for_test());
     let jenny256 = Id::sha256(&digests.sha256);
     let fetched = fetch.fetch_advisory(jenny256.clone(), &ctx.db).await?;
 
@@ -284,7 +285,7 @@ async fn set_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
         )
         .await?;
 
-    let advisory_service = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
+    let advisory_service = AdvisoryService::new(PaginationCache::for_test());
     let jenny256 = Id::sha256(&digests.sha256);
 
     let fetched = advisory_service
@@ -360,7 +361,7 @@ async fn update_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         )
         .await?;
 
-    let advisory_service = AdvisoryService::new(ctx.db.clone(), PaginationCache::for_test());
+    let advisory_service = AdvisoryService::new(PaginationCache::for_test());
     let jenny256 = Id::sha256(&digests.sha256);
 
     let fetched = advisory_service
@@ -381,9 +382,11 @@ async fn update_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     update_map.insert("label_3".to_string(), "Third Label".to_string());
     let update_labels = Labels(update_map);
     let update = trustify_entity::labels::Update::new();
+    let tx = ctx.db.begin().await?;
     advisory_service
-        .update_labels(id.clone(), |_| update.apply_to(update_labels))
+        .update_labels(id.clone(), |_| update.apply_to(update_labels), &tx)
         .await?;
+    tx.commit().await?;
 
     let fetched_again = advisory_service.fetch_advisory(id.clone(), &ctx.db).await?;
     //update only alters values of pre-existing keys - it won't add in an entirely new key/value pair

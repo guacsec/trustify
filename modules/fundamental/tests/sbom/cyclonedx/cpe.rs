@@ -1,7 +1,6 @@
 use test_context::test_context;
 use test_log::test;
-use trustify_common::db::pagination_cache::PaginationCache;
-use trustify_common::model::Paginated;
+use trustify_common::{db::pagination_cache::PaginationCache, model::Paginated};
 use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_test_context::TrustifyContext;
@@ -12,7 +11,7 @@ use trustify_test_context::TrustifyContext;
 async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let result = ctx.ingest_document("cyclonedx/simple_cpe.json").await?;
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let packages = service
         .describes_packages::<_, _, SbomPackage>(
@@ -41,7 +40,7 @@ async fn simple(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let result = ctx.ingest_document("cyclonedx/simple_cpe_2.json").await?;
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let packages = service
         .describes_packages::<_, _, SbomPackage>(
@@ -70,7 +69,7 @@ async fn simple_ref(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 async fn simple_comp(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let result = ctx.ingest_document("cyclonedx/simple_cpe_3.json").await?;
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
 
     let packages = service
         .describes_packages::<_, _, SbomPackage>(

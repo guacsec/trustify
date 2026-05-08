@@ -3,8 +3,7 @@
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::db::pagination_cache::PaginationCache;
-use trustify_common::id::Id;
+use trustify_common::{db::pagination_cache::PaginationCache, id::Id};
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_test_context::TrustifyContext;
 
@@ -16,7 +15,7 @@ use trustify_test_context::TrustifyContext;
 async fn fetch(ctx: &TrustifyContext) -> anyhow::Result<()> {
     // this requires an imported dataset
 
-    let service = SbomService::new(ctx.db.clone(), PaginationCache::for_test());
+    let service = SbomService::new(PaginationCache::for_test());
     // update this digest to point to a "large SBOM"
     // the following statement can be used"
     /*
