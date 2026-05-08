@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778192237446,
+  "lastUpdate": 1778255325976,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -18732,6 +18732,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "ab1d61f97aaee86fba0d5ef148194b5ecdb346e8",
+          "message": "chore: provide proper values for tests, make it easier passing limits\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T12:58:01Z",
+          "tree_id": "30cf13aa43b6d8338325ed96d26e18c579c7d3f6",
+          "url": "https://github.com/guacsec/trustify/commit/ab1d61f97aaee86fba0d5ef148194b5ecdb346e8"
+        },
+        "date": 1778255324488,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 11,
             "unit": "s"
           }
         ]
