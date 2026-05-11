@@ -187,9 +187,7 @@ async fn wrong_rev(ctx: TrustifyContext) {
             .into_utoipa_app()
             .app_data(web::Data::new(db_rw))
             .app_data(web::Data::new(db_ro))
-            .service(
-                utoipa_actix_web::scope("/api").configure(super::endpoints::configure),
-            )
+            .service(utoipa_actix_web::scope("/api").configure(super::endpoints::configure))
             .into_app(),
     )
     .await;
