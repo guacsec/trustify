@@ -52,7 +52,7 @@ async fn cli_sbom_list_full_format() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(sample_sbom_response()))
         .mount(&server)
         .await;
@@ -77,7 +77,7 @@ async fn cli_sbom_list_id_format() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(sample_sbom_response()))
         .mount(&server)
         .await;
@@ -99,7 +99,7 @@ async fn cli_sbom_list_name_format() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(sample_sbom_response()))
         .mount(&server)
         .await;
@@ -122,7 +122,7 @@ async fn cli_sbom_list_short_format() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(sample_sbom_response()))
         .mount(&server)
         .await;
@@ -147,7 +147,7 @@ async fn cli_sbom_list_with_query() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .and(query_param("q", "name=my-app"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [sample_sbom_response()["items"][0]],
@@ -181,7 +181,7 @@ async fn cli_sbom_list_with_pagination() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .and(query_param("limit", "10"))
         .and(query_param("offset", "20"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
@@ -216,7 +216,7 @@ async fn cli_sbom_list_with_sort() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .and(query_param("sort", "published:desc"))
         .respond_with(ResponseTemplate::new(200).set_body_json(sample_sbom_response()))
         .mount(&server)
@@ -247,7 +247,7 @@ async fn cli_sbom_get_by_id() {
     let sbom_id = "019c99b2-32cb-7ce0-a1f4-353e398627e4";
 
     Mock::given(method("GET"))
-        .and(path(format!("/api/v2/sbom/{}", sbom_id)))
+        .and(path(format!("/api/v3/sbom/{}", sbom_id)))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "id": sbom_id,
             "name": "my-app",
@@ -277,7 +277,7 @@ async fn cli_sbom_delete_by_id() {
     let sbom_id = "019c99b2-32cb-7ce0-a1f4-353e398627e4";
 
     Mock::given(method("DELETE"))
-        .and(path(format!("/api/v2/sbom/{}", sbom_id)))
+        .and(path(format!("/api/v3/sbom/{}", sbom_id)))
         .respond_with(ResponseTemplate::new(200).set_body_string(""))
         .mount(&server)
         .await;
@@ -299,7 +299,7 @@ async fn cli_sbom_delete_by_id_dry_run() {
     let sbom_id = "019c99b2-32cb-7ce0-a1f4-353e398627e4";
 
     Mock::given(method("DELETE"))
-        .and(path(format!("/api/v2/sbom/{}", sbom_id)))
+        .and(path(format!("/api/v3/sbom/{}", sbom_id)))
         .respond_with(ResponseTemplate::new(200).set_body_string(""))
         .mount(&server)
         .await;
@@ -333,7 +333,7 @@ async fn cli_sbom_delete_by_query_dry_run() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [{
                 "id": "019c99b2-32cb-7ce0-a1f4-353e398627e4",
@@ -368,7 +368,7 @@ async fn cli_sbom_duplicates_find_default() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [],
             "total": 0
@@ -392,7 +392,7 @@ async fn cli_sbom_duplicates_find_custom_params() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [],
             "total": 0
@@ -474,7 +474,7 @@ async fn cli_sbom_prune_dry_run() {
         .to_string();
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [],
             "total": 0
@@ -510,7 +510,7 @@ async fn cli_sbom_prune_published_before() {
         .to_string();
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [],
             "total": 0
@@ -545,7 +545,7 @@ async fn cli_sbom_prune_by_label() {
         .to_string();
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [],
             "total": 0
@@ -580,7 +580,7 @@ async fn cli_sbom_prune_keep_latest() {
         .to_string();
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/sbom"))
+        .and(path("/api/v3/sbom"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [],
             "total": 0
@@ -611,7 +611,7 @@ async fn cli_advisory_list() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/advisory"))
+        .and(path("/api/v3/advisory"))
         .respond_with(ResponseTemplate::new(200).set_body_json(sample_advisory_response()))
         .mount(&server)
         .await;
@@ -637,7 +637,7 @@ async fn cli_advisory_list_with_query() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/advisory"))
+        .and(path("/api/v3/advisory"))
         .and(query_param("q", "identifier=CVE-2024-1234"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [sample_advisory_response()["items"][0]],
@@ -671,7 +671,7 @@ async fn cli_advisory_list_with_pagination() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/advisory"))
+        .and(path("/api/v3/advisory"))
         .and(query_param("limit", "10"))
         .and(query_param("offset", "20"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
@@ -710,7 +710,7 @@ async fn cli_advisory_prune_dry_run() {
         .to_string();
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/advisory"))
+        .and(path("/api/v3/advisory"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [],
             "total": 0
@@ -746,7 +746,7 @@ async fn cli_advisory_prune_older_than() {
         .to_string();
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/advisory"))
+        .and(path("/api/v3/advisory"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [],
             "total": 0
@@ -781,7 +781,7 @@ async fn cli_advisory_prune_keep_latest() {
         .to_string();
 
     Mock::given(method("GET"))
-        .and(path("/api/v2/advisory"))
+        .and(path("/api/v3/advisory"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "items": [],
             "total": 0
