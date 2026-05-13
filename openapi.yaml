@@ -152,7 +152,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedResults_SbomSummary'
+                $ref: '#/components/schemas/PaginatedResults_SbomSummary_SbomPackage'
       deprecated: true
   /api/v2/vulnerability/analyze:
     post:
@@ -2667,7 +2667,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedResults_SbomPackageSummary'
+                $ref: '#/components/schemas/PaginatedResults_SbomSummary_SbomPackageSummary'
     post:
       tags:
       - sbom
@@ -5513,41 +5513,6 @@ components:
           - 'null'
           format: int64
           minimum: 0
-    PaginatedResults_SbomPackageSummary:
-      type: object
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            type: object
-            required:
-            - id
-            - name
-            properties:
-              group:
-                type:
-                - string
-                - 'null'
-                description: An optional group/namespace for an SBOM package
-              id:
-                type: string
-                description: The SBOM internal ID of a package
-              name:
-                type: string
-                description: The name of the package in the SBOM
-              version:
-                type:
-                - string
-                - 'null'
-                description: An optional version for an SBOM package
-        total:
-          type:
-          - integer
-          - 'null'
-          format: int64
-          minimum: 0
     PaginatedResults_SbomSummary:
       type: object
       required:
@@ -5567,6 +5532,126 @@ components:
                   type: array
                   items:
                     $ref: '#/components/schemas/SbomPackage'
+        total:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
+    PaginatedResults_SbomSummary_SbomPackage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            allOf:
+            - $ref: '#/components/schemas/SbomHead'
+            - $ref: '#/components/schemas/SourceDocument'
+            - type: object
+              required:
+              - described_by
+              properties:
+                described_by:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                    - id
+                    - name
+                    - purl
+                    - cpe
+                    - licenses
+                    - licenses_ref_mapping
+                    properties:
+                      cpe:
+                        type: array
+                        items:
+                          type: string
+                        description: CPEs identifying the package
+                      group:
+                        type:
+                        - string
+                        - 'null'
+                        description: An optional group/namespace for an SBOM package
+                      id:
+                        type: string
+                        description: The SBOM internal ID of a package
+                      licenses:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LicenseInfo'
+                        description: License info
+                      licenses_ref_mapping:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LicenseRefMapping'
+                        description: |-
+                          LicenseRef mappings
+
+                          **Deprecated**: Licenses are now pre-expanded at ingestion time via `expanded_license` /
+                          `sbom_license_expanded` tables. This field is always empty and will be removed in a future
+                          release.
+                        deprecated: true
+                      name:
+                        type: string
+                        description: The name of the package in the SBOM
+                      purl:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PurlSummary'
+                        description: PURLs identifying the package
+                      version:
+                        type:
+                        - string
+                        - 'null'
+                        description: An optional version for an SBOM package
+        total:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
+    PaginatedResults_SbomSummary_SbomPackageSummary:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            allOf:
+            - $ref: '#/components/schemas/SbomHead'
+            - $ref: '#/components/schemas/SourceDocument'
+            - type: object
+              required:
+              - described_by
+              properties:
+                described_by:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                    - id
+                    - name
+                    properties:
+                      group:
+                        type:
+                        - string
+                        - 'null'
+                        description: An optional group/namespace for an SBOM package
+                      id:
+                        type: string
+                        description: The SBOM internal ID of a package
+                      name:
+                        type: string
+                        description: The name of the package in the SBOM
+                      version:
+                        type:
+                        - string
+                        - 'null'
+                        description: An optional version for an SBOM package
         total:
           type:
           - integer

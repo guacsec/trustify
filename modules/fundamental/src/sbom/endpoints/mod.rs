@@ -186,7 +186,7 @@ mod v2 {
             GroupFilterQuery,
         ),
         responses(
-            (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary>),
+            (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary<SbomPackage>>),
         ),
     )]
     #[get("/v2/sbom")]
@@ -230,7 +230,7 @@ mod v3 {
             GroupFilterQuery,
         ),
         responses(
-            (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomPackageSummary>),
+            (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary<SbomPackageSummary>>),
         ),
     )]
     #[get("/v3/sbom")]
