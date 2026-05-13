@@ -1777,7 +1777,7 @@ async fn get_aibom_models(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .id
         .to_string();
 
-    let uri = format!("/api/v2/sbom/{id}/models?total=true&counts=true");
+    let uri = format!("/api/v3/sbom/{id}/models?total=true&counts=true");
     let req = TestRequest::get().uri(&uri).to_request();
     let response: Value = app.call_and_read_body_json(req).await;
     log::info!("response:\n{:#}", json!(response));

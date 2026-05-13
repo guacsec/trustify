@@ -1,5 +1,5 @@
 # Upload the dataset
-POST http://localhost:8080/api/v2/dataset
+POST http://localhost:8080/api/v3/dataset
 file,etc/datasets/ds3.zip;
 
 HTTP 201
@@ -16,7 +16,7 @@ advisory_id: jsonpath "$.files.['csaf/2023/cve-2023-0044.json'].id"
 
 
 # Check vulnerabilities for UBI 8 SBOM
-GET http://localhost:8080/api/v2/sbom/{{ubi8_sbom_id}}/advisory
+GET http://localhost:8080/api/v3/sbom/{{ubi8_sbom_id}}/advisory
 
 HTTP 200
 
@@ -24,7 +24,7 @@ HTTP 200
 jsonpath "$[?(@.document_id == 'CVE-2024-28834')].status[?(@.context.cpe == 'cpe:/a:redhat:enterprise_linux:8:*:appstream:*')]" count == 1
 
 # Check purl vulnerability date
-GET http://localhost:8080/api/v2/purl/3a5c8e1e-17c4-5715-b74c-f8b61c4d7d8c
+GET http://localhost:8080/api/v3/purl/3a5c8e1e-17c4-5715-b74c-f8b61c4d7d8c
 HTTP 200
 
 [Asserts]
@@ -32,18 +32,18 @@ jsonpath "$.advisories[*].status[*].vulnerability.published" not isEmpty
 
 
 # Check vulnerability title
-GET http://localhost:8080/api/v2/vulnerability/CVE-2023-21971
+GET http://localhost:8080/api/v3/vulnerability/CVE-2023-21971
 HTTP 200
 
 [Asserts]
 jsonpath "$.title" not isEmpty
 
 ## Test delete and re-upload advisory
-DELETE http://localhost:8080/api/v2/advisory/{{advisory_id}}
+DELETE http://localhost:8080/api/v3/advisory/{{advisory_id}}
 
 HTTP 200
 
-POST http://localhost:8080/api/v2/advisory
+POST http://localhost:8080/api/v3/advisory
 file,etc/datasets/ds3/csaf/2023/cve-2023-0044.json;
 
 HTTP 201

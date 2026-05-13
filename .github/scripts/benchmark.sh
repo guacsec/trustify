@@ -16,7 +16,7 @@ zip --version
 # Send
 
 start_time=$(date +%s)
-http --ignore-stdin POST localhost:8080/api/v2/dataset "Authorization:$(oidc token trustify -bf)" @etc/datasets/ds3.zip
+http --ignore-stdin POST localhost:8080/api/v3/dataset "Authorization:$(oidc token trustify -bf)" @etc/datasets/ds3.zip
 end_time=$(date +%s)
 
 runtime=$((end_time - start_time))

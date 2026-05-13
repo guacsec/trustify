@@ -95,7 +95,7 @@ Get an OAuth2 access token for use with other tools.
 
 ```bash
 TOKEN=$(trustify auth token)
-curl -H "Authorization: Bearer $TOKEN" $TRUSTIFY_URL/api/v2/sbom
+curl -H "Authorization: Bearer $TOKEN" $TRUSTIFY_URL/api/v3/sbom
 ```
 
 ---
@@ -150,7 +150,7 @@ trustify sbom duplicates find --output out.json # Custom output file
 
 **Output file format:**
 
-```json
+```json5
 [
   {
     "document_id": "urn:example:sbom-1.0",
@@ -193,7 +193,7 @@ trustify sbom prune --output results.json --quiet            # Save results to f
 
 **Output file format:**
 
-```json
+```json5
 {
   "deleted": [
     {

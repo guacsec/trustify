@@ -64,7 +64,7 @@ zipped archive of SBOMs and/or Advisories like so:
 ```shell
 cd etc/datasets
 make
-http POST localhost:8080/api/v2/dataset @ds1.zip
+http POST localhost:8080/api/v3/dataset @ds1.zip
 ```
 
 #### Upload
@@ -74,8 +74,8 @@ There is an "Upload" menu option in the GUI: http://localhost:8080/upload
 You can also interact with the API directly in a shell:
 
 ```shell
-cat some-sbom.json | http POST localhost:8080/api/v2/sbom
-cat some-advisory.json | http POST localhost:8080/api/v2/advisory
+cat some-sbom.json | http POST localhost:8080/api/v3/sbom
+cat some-advisory.json | http POST localhost:8080/api/v3/advisory
 ```
 
 #### Importers

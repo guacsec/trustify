@@ -27,7 +27,7 @@
 - Entity models: `Model` struct inside each entity module, table names are snake_case (`sbom`, `advisory`, `sbom_group`)
 - Service structs: `<Domain>Service` (e.g., `SbomService`, `AdvisoryService`)
 - Endpoint functions: short verbs — `get`, `all`, `delete`, `upload`, `download`, `packages`, `related`
-- API routes: `/v2/<resource>` (e.g., `/v2/sbom`, `/v2/advisory/{key}`)
+- API routes: `/v3/<resource>` (e.g., `/v3/sbom`, `/v3/advisory/{key}`)
 - OpenAPI operation IDs: camelCase (`getSbom`, `listSboms`)
 - Test functions: descriptive snake_case (`upload_with_groups`, `filter_packages`, `query_sboms_by_label`)
 
@@ -139,7 +139,7 @@ Any files modified by steps 1–2 (e.g., `openapi.yaml`, JSON schema files) must
 - Read operations acquire a read transaction: `let tx = db.begin_read().await?;`
 - List endpoints accept `Query` (search/filter), `Paginated` (pagination), and return `PaginatedResults<T>`
 - Every endpoint has a `#[utoipa::path(...)]` attribute for OpenAPI documentation with `tag`, `operation_id`, `params`, and `responses`
-- Route attributes use Actix macros: `#[get("/v2/...")]`, `#[post("/v2/...")]`, `#[delete("/v2/...")]`
+- Route attributes use Actix macros: `#[get("/v3/...")]`, `#[post("/v3/...")]`, `#[delete("/v3/...")]`
 
 ## Entity Model Patterns
 

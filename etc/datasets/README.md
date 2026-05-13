@@ -37,7 +37,7 @@ make ds3-sboms
 You can then upload it to the existing instance like
 
 ```shell
-http POST localhost:8080/api/v2/dataset @etc/datasets/ds3-sboms.zip
+http POST localhost:8080/api/v3/dataset @etc/datasets/ds3-sboms.zip
 ```
 
 ## DS4

@@ -5,13 +5,13 @@
 By PURL:
 
 ```bash
-http localhost:8080/api/v2/sbom/by-purl purl==pkg:maven/org.apache.xmlgraphics/batik-anim@1.9.1
+http localhost:8080/api/v3/sbom/by-purl purl==pkg:maven/org.apache.xmlgraphics/batik-anim@1.9.1
 ```
 
 By package ID (as returned by other APIs):
 
 ```bash
-http localhost:8080/api/v2/sbom/by-purl id==6cfff15d-ee06-4cb7-be37-a835aed2af82
+http localhost:8080/api/v3/sbom/by-purl id==6cfff15d-ee06-4cb7-be37-a835aed2af82
 ```
 
 ## List SBOMs
@@ -30,7 +30,7 @@ to point to an SBOM/advisory in the form of `urn:uuid:<id>`.
 ### Get labels
 
 ```bash
-http localhost:8080/api/v2/sbom/$ID | jq .labels
+http localhost:8080/api/v3/sbom/$ID | jq .labels
 ```
 
 ### Mutate labels
@@ -38,7 +38,7 @@ http localhost:8080/api/v2/sbom/$ID | jq .labels
 Replace all labels:
 
 ```bash
-http PUT localhost:8080/api/v2/sbom/$ID/label foo=bar bar=baz baz= 
+http PUT localhost:8080/api/v3/sbom/$ID/label foo=bar bar=baz baz= 
 ```
 
 This will replace all existing labels with the following labels:
@@ -52,7 +52,7 @@ This will replace all existing labels with the following labels:
 Update (patch) labels:
 
 ```bash
-http PATCH localhost:8080/api/v2/sbom/$ID/label foo=bar bar=
+http PATCH localhost:8080/api/v3/sbom/$ID/label foo=bar bar=
 ```
 
 This will set `foo` to `bar` and remove the label `bar`.

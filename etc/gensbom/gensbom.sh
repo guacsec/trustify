@@ -147,7 +147,7 @@ _SBOM_COUNTER=0
 _CURL_FLAGS="-LsSf"
 
 # Service ping: curl will report when token and/or certs are not valid
-curl ${_CURL_FLAGS} ${_CA_OPTS[@]} ${_AUTH_HEADER:+-H "${_AUTH_HEADER}"} "${TPA_SERVICE_URL}/api/v2/sbom?limit=1" > /dev/null || :
+curl ${_CURL_FLAGS} ${_CA_OPTS[@]} ${_AUTH_HEADER:+-H "${_AUTH_HEADER}"} "${TPA_SERVICE_URL}/api/v3/sbom?limit=1" > /dev/null || :
 
 while IFS="" read -r _IMAGE || [[ -n "${_IMAGE}" ]]; do
     if [[ -z "${_IMAGE}" ]]; then
@@ -176,7 +176,7 @@ while IFS="" read -r _IMAGE || [[ -n "${_IMAGE}" ]]; do
         ${_AUTH_HEADER:+-H "${_AUTH_HEADER}"} \
         -H "Content-Type: application/json" \
         -d "@${_SBOM}" \
-        "${TPA_SERVICE_URL}/api/v2/sbom"; \
+        "${TPA_SERVICE_URL}/api/v3/sbom"; \
     then
         warning "Failed to ingest \`${_SBOM}\`"
     else
