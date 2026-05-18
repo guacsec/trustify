@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779111734741,
+  "lastUpdate": 1779132048658,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -18819,6 +18819,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "480d2bd8224ba04a9567f2055c7d45fcdfdefb03",
+          "message": "chore: create a clone of the /v2/purl/recommend endpoint\n\nThe /v2/purl/recommend endpoint gets cloned in order to make it easier\nfor DA to migrate.",
+          "timestamp": "2026-05-18T16:24:23Z",
+          "tree_id": "8c36062b2247835463c17a2f6910deaa7c8eafd0",
+          "url": "https://github.com/guacsec/trustify/commit/480d2bd8224ba04a9567f2055c7d45fcdfdefb03"
+        },
+        "date": 1779132046652,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
