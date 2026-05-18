@@ -17,7 +17,7 @@ use sea_orm::{
 use sea_query::{ColumnType, Expr, JoinType, UnionType, extension::postgres::PgExpr};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, sync::Arc, vec::Vec};
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
     cpe::Cpe,
@@ -114,80 +114,81 @@ impl SbomService {
         })
     }
 
-    /// delete one sbom
+    /// delete multiple sboms
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
-    pub async fn delete_sbom<C: ConnectionTrait>(
+    pub async fn delete_sboms<C: ConnectionTrait>(
         &self,
-        id: Uuid,
+        ids: Vec<Uuid>,
         connection: &C,
-    ) -> Result<bool, Error> {
+    ) -> Result<Vec<String>, Error> {
+        if ids.is_empty() {
+            return Ok(vec![]);
+        }
+
         // IMPORTANT: Capture qualified_purl IDs before CASCADE deletion.
-        // After SBOM deletion, CASCADE removes sbom_node_purl_ref entries,
+        // After SBOMs deletion, CASCADE removes sbom_node_purl_ref entries,
         // then GC uses the captured IDs to clean up orphaned PURLs.
         let qualified_purl_ids: Vec<Uuid> = sbom_node_purl_ref::Entity::find()
             .select_only()
             .column(sbom_node_purl_ref::Column::QualifiedPurlId)
-            .filter(sbom_node_purl_ref::Column::SbomId.eq(id))
+            .filter(sbom_node_purl_ref::Column::SbomId.is_in(ids.clone()))
             .into_tuple()
             .all(connection)
             .await?;
 
         log::debug!(
-            "Captured {} qualified_purl IDs from SBOM {} for cleanup",
+            "Captured {} qualified_purl IDs from SBOMs {:?} for cleanup",
             qualified_purl_ids.len(),
-            id
+            ids
         );
 
-        // Delete the SBOM - CASCADE will properly delete sbom_package and sbom_node_purl_ref
+        // Delete SBOMs - CASCADE will properly delete sbom_package and sbom_node_purl_ref
         let stmt = Statement::from_sql_and_values(
             connection.get_database_backend(),
-            r#"DELETE FROM sbom WHERE sbom_id=$1 RETURNING source_document_id"#,
-            [id.into()],
+            r#"DELETE FROM sbom WHERE sbom_id = ANY($1) RETURNING source_document_id"#,
+            vec![ids.clone().into()],
         );
 
         let result = connection.query_all(stmt).await?;
-        if result.len() > 1 {
-            return Err(Error::Data(format!("Too many rows deleted for {id}")));
-        }
 
-        for row in &result {
-            let source_document = row.try_get_by_index::<Option<Uuid>>(0)?;
-            if let Some(doc) = source_document {
-                source_document::Entity::delete_by_id(doc)
-                    .exec(connection)
-                    .await?;
-            }
-        }
+        let source_document_ids: Vec<_> = result
+            .iter()
+            .map(|r| r.try_get_by_index::<Uuid>(0))
+            .collect::<Result<_, _>>()?;
+
+        let digests = match source_document_ids.is_empty() {
+            true => vec![],
+            false => source_document::Entity::delete_many()
+                .filter(source_document::Column::Id.is_in(source_document_ids))
+                .exec_with_returning(connection)
+                .await?
+                .iter()
+                .map(|x| x.sha256.clone())
+                .collect(),
+        };
 
         // Cleanup orphaned PURLs if deletion succeeded and we had PURLs to check
-        if !qualified_purl_ids.is_empty() && result.len() == 1 {
-            // Build array parameter for the GC query
-            let array_param = sea_query::Value::Array(
-                sea_query::ArrayType::Uuid,
-                Some(Box::new(
-                    qualified_purl_ids
-                        .iter()
-                        .map(|&id| sea_query::Value::Uuid(Some(Box::new(id))))
-                        .collect(),
-                )),
-            );
-
+        if !qualified_purl_ids.is_empty() {
             let gc_stmt = Statement::from_sql_and_values(
                 connection.get_database_backend(),
                 // it looks much more readable in an SQL file
                 include_str!("gc_purls_after_sbom_deletion.sql"),
-                vec![array_param],
+                vec![qualified_purl_ids.into()],
             );
 
-            let gc_result = connection.execute(gc_stmt).await?;
+            let gc_result = connection
+                .execute(gc_stmt)
+                .instrument(info_span!("delete_sboms::gc"))
+                .await?;
             log::debug!(
-                "Cleaned up {} orphaned purl records after SBOM {} deletion",
+                "Cleaned up {} orphaned purl records after SBOMs {:?} deletion",
                 gc_result.rows_affected(),
-                id
+                ids,
             );
         }
 
-        Ok(result.len() == 1)
+        // Return a list of keys of blobs to be removed from the storage
+        Ok(digests)
     }
 
     /// fetch all SBOMs
@@ -1334,8 +1335,20 @@ mod test {
 
         let service = SbomService::new(PaginationCache::for_test());
 
-        assert!(service.delete_sbom(sbom_v1.sbom.sbom_id, &ctx.db).await?);
-        assert!(!service.delete_sbom(sbom_v1.sbom.sbom_id, &ctx.db).await?);
+        assert!(
+            // A digest is expected
+            !service
+                .delete_sboms(vec![sbom_v1.sbom.sbom_id], &ctx.db)
+                .await?
+                .is_empty()
+        );
+        assert!(
+            // No SBOM, no digest
+            service
+                .delete_sboms(vec![sbom_v1.sbom.sbom_id], &ctx.db)
+                .await?
+                .is_empty()
+        );
 
         Ok(())
     }
