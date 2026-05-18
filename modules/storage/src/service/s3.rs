@@ -1,8 +1,8 @@
 use crate::{
     config::S3Config,
     service::{
-        StorageBackend, StorageKey, StorageResult, StoreError, compression::Compression,
-        temp::TempFile,
+        DeleteManyError, StorageBackend, StorageKey, StorageResult, StoreError,
+        compression::Compression, temp::TempFile,
     },
 };
 use anyhow::{Context, anyhow, bail};
@@ -15,6 +15,7 @@ use aws_sdk_s3::{
     },
     operation::get_object::GetObjectError,
     primitives::FsBuilder,
+    types::{Delete, ObjectIdentifier},
 };
 use aws_smithy_http_client::tls::{Provider, TlsContext, TrustStore, rustls_provider::CryptoMode};
 use aws_smithy_types::endpoint::Endpoint;
@@ -214,6 +215,38 @@ impl StorageBackend for S3Backend {
             Ok(_) => Ok(()),
             Err(err) => Err(Error::S3(err.into())),
         }
+    }
+
+    async fn delete_many(&self, keys: &[StorageKey]) -> Result<(), DeleteManyError<Self::Error>> {
+        if keys.is_empty() {
+            return Ok(());
+        }
+
+        // From official AWS S3 SDK examples
+        //
+        // Push into a mut vector to use `?` early return errors while building object keys.
+        let mut delete_object_ids: Vec<ObjectIdentifier> = vec![];
+        for StorageKey(key) in keys {
+            let obj_id = ObjectIdentifier::builder()
+                .key(key)
+                .build()
+                .map_err(|err| DeleteManyError::Generic(Error::S3(err.into())))?;
+            delete_object_ids.push(obj_id);
+        }
+
+        self.client
+            .delete_objects()
+            .bucket(&self.bucket)
+            .delete(
+                Delete::builder()
+                    .set_objects(Some(delete_object_ids))
+                    .build()
+                    .map_err(|err| DeleteManyError::Generic(Error::S3(err.into())))?,
+            )
+            .send()
+            .await
+            .map_err(|err| DeleteManyError::Generic(Error::S3(err.into())))?;
+        Ok(())
     }
 }
 

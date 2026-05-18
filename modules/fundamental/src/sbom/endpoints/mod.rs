@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     Error,
-    common::{LicenseRefMapping, service::delete_doc},
+    common::LicenseRefMapping,
     license::{
         get_sanitize_filename,
         service::{LicenseService, license_export::LicenseExporter},
@@ -23,7 +23,6 @@ use crate::{
         service::{SbomService, sbom::FetchOptions},
     },
     sbom_group::service::SbomGroupService,
-    source_document::model::SourceDocument,
 };
 use actix_web::{HttpResponse, Responder, delete, get, http::header, post, web};
 use config::Config;
@@ -47,7 +46,7 @@ use trustify_module_ingestor::{
     model::IngestResult,
     service::{Cache, Format, IngestorService},
 };
-use trustify_module_storage::service::StorageBackend;
+use trustify_module_storage::service::{StorageBackend, StorageKey};
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, serde::Deserialize, IntoParams)]
 pub struct ModelGetParams {
@@ -78,6 +77,7 @@ pub fn configure(
         .service(get)
         .service(get_sbom_advisories)
         .service(delete)
+        .service(delete_many)
         .service(packages)
         .service(models)
         .service(related)
@@ -388,6 +388,20 @@ pub async fn get_sbom_advisories(
 
 all!(GetSbomAdvisories -> ReadSbom, ReadAdvisory);
 
+async fn delete_blobs<T: StorageBackend>(digests: &[String], storage: &T) {
+    if let Err(e) = storage
+        .delete_many(
+            &digests
+                .iter()
+                .map(|k| StorageKey::from_sha256(k))
+                .collect::<Vec<_>>(),
+        )
+        .await
+    {
+        log::error!("Failed to remove SBOMs from the storage: {e:#?}");
+    }
+}
+
 /// Delete an SBOM
 #[utoipa::path(
     tag = "sbom",
@@ -410,16 +424,51 @@ pub async fn delete(
     let tx = db.begin().await?;
 
     let id = Id::from_str(&id)?;
-    if let Some((v, _, source_document)) = service.fetch_sbom(id, &tx).await?
-        && service.delete_sbom(v.sbom_id, &tx).await?
+    if let Some((v, _, _)) = service.fetch_sbom(id, &tx).await?
+        && let digests = service.delete_sboms(vec![v.sbom_id], &tx).await?
+        && !digests.is_empty()
     {
         tx.commit().await?;
-        if let Err(e) =
-            delete_doc(&SourceDocument::from_entity(&source_document), i.storage()).await
-        {
-            log::warn!("Ignoring {e}");
-        }
+        delete_blobs(&digests, i.storage()).await;
     }
+    Ok(HttpResponse::NoContent().finish())
+}
+
+/// Delete multiple SBOMs
+#[utoipa::path(
+    tag = "sbom",
+    operation_id = "deleteSboms",
+    request_body(
+        content = Vec<String>,
+        description = "List of ids of SBOMs to be deleted",
+        content_type = "application/json",
+    ),
+    responses(
+        (status = 204, description = "Requested SBOMs were deleted or did not exist"),
+    ),
+)]
+#[delete("/v3/sbom")]
+pub async fn delete_many(
+    i: web::Data<IngestorService>,
+    service: web::Data<SbomService>,
+    db: web::Data<db::ReadWrite>,
+    web::Json(body): web::Json<Vec<String>>,
+    _: Require<DeleteSbom>,
+) -> actix_web::Result<impl Responder, Error> {
+    let tx = db.begin().await?;
+
+    let ids = body
+        .into_iter()
+        .filter_map(|x| Uuid::try_parse(&x).ok())
+        .collect();
+
+    let digests = service.delete_sboms(ids, &tx).await?;
+
+    if !digests.is_empty() {
+        tx.commit().await?;
+        delete_blobs(&digests, i.storage()).await;
+    }
+
     Ok(HttpResponse::NoContent().finish())
 }
 

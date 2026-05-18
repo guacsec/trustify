@@ -15,8 +15,8 @@ use tokio::sync::Mutex;
 
 use super::client::{ApiClient, ApiError};
 use crate::common::{
-    DeleteEntry, DeleteResult, ListParams, PruneParams, build_prune_query, delete_entries,
-    new_delete_result,
+    DeleteEntry, DeleteResult, DeletedResult, FailedResult, ListParams, PruneParams,
+    build_prune_query, delete_entries, new_delete_result,
 };
 
 const SBOM_PATH: &str = "/v3/sbom";
@@ -300,6 +300,11 @@ pub async fn delete(client: &ApiClient, id: &str) -> Result<(), ApiError> {
     Ok(())
 }
 
+/// Delete multiple SBOMs by their IDs in one batch
+pub async fn delete_many(client: &ApiClient, ids: &Vec<String>) -> Result<String, ApiError> {
+    client.delete_with_json(SBOM_PATH, ids).await
+}
+
 /// Delete all SBOMs by listing and deleting each one
 pub async fn delete_by_query(
     client: &ApiClient,
@@ -398,8 +403,37 @@ pub async fn prune(client: &ApiClient, params: &PruneParams) -> Result<DeleteRes
         return Ok(new_delete_result(total));
     }
 
+    let ids = entries.iter().map(|x| x.id.clone()).collect();
+    let mut deleted = vec![];
+    let mut failed = vec![];
+
     // Perform the actual deletion
-    delete_list(client, entries, params.concurrency).await
+    match delete_many(client, &ids).await {
+        Ok(_) => deleted.extend(entries.iter().map(|x| DeletedResult {
+            id: x.id.clone(),
+            identifier: x.identifier.clone(),
+        })),
+        Err(e) => failed.extend(entries.iter().map(|x| FailedResult {
+            id: x.id.clone(),
+            identifier: x.identifier.clone(),
+            error: e.to_string(),
+        })),
+    }
+
+    let deleted_total = deleted.len() as u32;
+    let skipped = vec![];
+    let skipped_total = 0;
+    let failed_total = failed.len() as u32;
+
+    Ok(DeleteResult {
+        deleted,
+        deleted_total,
+        skipped,
+        skipped_total,
+        failed,
+        failed_total,
+        total,
+    })
 }
 
 /// Read delete entries from a file

@@ -13,6 +13,7 @@ use crate::service::fs::FileSystemBackend;
 use bytes::Bytes;
 use futures::Stream;
 use hex::ToHex;
+use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::future::Future;
 use tokio::io::AsyncRead;
@@ -27,8 +28,28 @@ pub enum StoreError<B: Debug> {
     Backend(#[source] B),
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum DeleteManyError<E> {
+    /// The whole operation failed
+    #[error("{0}")]
+    Generic(E),
+    /// Individual delete errors
+    #[error("individual delete errors: {0}")]
+    Individual(HashMap<StorageKey, E>),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct StorageKey(String);
+
+impl StorageKey {
+    /// Create a storage key from the digest.
+    ///
+    /// The digest must be SHA256 (without "sha256:" prefix) and user must
+    /// ensure this (for simplicity we omitted checks here).
+    pub fn from_sha256(digest: &str) -> Self {
+        Self(digest.into())
+    }
+}
 
 impl Display for StorageKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -112,4 +133,29 @@ pub trait StorageBackend {
     /// (i.e., return `Ok(())`) and not result in an error. This ensures consistent
     /// behavior across all backends.
     fn delete(&self, key: StorageKey) -> impl Future<Output = Result<(), Self::Error>>;
+
+    /// Batch variant of `delete`, with the same requirements.
+    fn delete_many(
+        &self,
+        keys: &[StorageKey],
+    ) -> impl Future<Output = Result<(), DeleteManyError<Self::Error>>> {
+        async move {
+            // Default implementation: delete blobs one by one (can be overridden in
+            // implementations for particular backends).
+            let mut whats_wrong = HashMap::new();
+
+            for key in keys {
+                // Do not stop on the first error---instead, accumulate all errors
+                // into one and return it when we are done (we do not want one faulty
+                // request to stop the entire deletion process)
+                if let Err(e) = self.delete(key.clone()).await {
+                    whats_wrong.insert(key.clone(), e);
+                }
+            }
+            match whats_wrong.is_empty() {
+                true => Ok(()),
+                false => Err(DeleteManyError::Individual(whats_wrong)),
+            }
+        }
+    }
 }

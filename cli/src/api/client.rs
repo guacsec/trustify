@@ -2,6 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use indicatif::style::TemplateError;
 use reqwest::{Client, RequestBuilder, StatusCode};
+use serde::Serialize;
 use thiserror::Error;
 use tokio::{sync::RwLock, time::sleep};
 
@@ -157,6 +158,21 @@ impl ApiClient {
         self.execute_with_retry(|| async {
             let url = self.url(path);
             let request = self.client.delete(&url);
+            let response = self.authorize(request).await.send().await?;
+            self.handle_response(response).await
+        })
+        .await
+    }
+
+    /// Perform a DELETE request with JSON and retry logic
+    pub async fn delete_with_json<T: Serialize + ?Sized>(
+        &self,
+        path: &str,
+        json: &T,
+    ) -> Result<String, ApiError> {
+        self.execute_with_retry(|| async {
+            let url = self.url(path);
+            let request = self.client.delete(&url).json(json);
             let response = self.authorize(request).await.send().await?;
             self.handle_response(response).await
         })

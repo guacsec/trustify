@@ -62,6 +62,7 @@ csaf = { workspace = true }
 csv = { workspace = true }
 cve = { workspace = true }
 flate2 = { workspace = true }
+futures = { workspace = true }
 hex = { workspace = true }
 humantime = { workspace = true }
 jsonpath-rust = { workspace = true }

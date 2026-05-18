@@ -3,15 +3,18 @@ use crate::{
         Group, GroupRef, UpdateAssignments, create_groups, locate_id, read_assignments,
         resolve_group_refs,
     },
+    purl::model::summary::purl::PurlSummary,
     sbom::model::{SbomPackage, SbomSummary},
     test::{caller, label::Api},
 };
 use actix_http::StatusCode;
 use actix_web::{
     body::MessageBody,
+    dev::ServiceResponse,
     test::{TestRequest, read_body},
 };
 use flate2::bufread::GzDecoder;
+use futures::future::join_all;
 use rstest::rstest;
 use serde_json::{Value, json};
 use std::{collections::HashMap, io::Read, str::FromStr};
@@ -21,9 +24,10 @@ use trustify_common::{id::Id, model::PaginatedResults};
 use trustify_module_ingestor::{model::IngestResult, service::Format};
 use trustify_module_storage::service::{StorageBackend, StorageKey};
 use trustify_test_context::{
-    TrustifyContext, call::CallService, document_bytes, subset::ContainsSubset,
+    IngestionResult, TrustifyContext, call::CallService, document_bytes, subset::ContainsSubset,
 };
 use urlencoding::encode;
+use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -1237,6 +1241,133 @@ async fn delete_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     log::debug!("Code: {}", response.status());
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert!(response.into_body().try_into_bytes().unwrap().is_empty());
+
+    Ok(())
+}
+
+/// Test deleting sboms in a batch
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn delete_sboms(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    const TASKS: usize = 20;
+    let app = caller(ctx).await?;
+    let storage = &ctx.storage;
+    let [_, id1, id2, id3] = ctx
+        .ingest_documents([
+            // this advisory refers to many packages in both the Quarkus SBOMs
+            "csaf/rhsa-2024-2705.json",
+            "spdx/quarkus-bom-3.2.11.Final-redhat-00001.json",
+            "spdx/quarkus-bom-3.2.12.Final-redhat-00002.json",
+            // this SBOM is totally unrelated with the previous documents
+            "ubi9-9.2-755.1697625012.json",
+        ])
+        .await?
+        .into_uuid();
+
+    async fn get_storage_key(
+        app: &impl CallService,
+        id: &Uuid,
+    ) -> Result<StorageKey, anyhow::Error> {
+        let uri = format!("/api/v3/sbom/urn:uuid:{id}");
+        let req = TestRequest::get().uri(&uri).to_request();
+        let sbom = app.call_and_read_body_json::<SbomSummary>(req).await;
+
+        Ok(sbom.source_document.try_into()?)
+    }
+
+    let key1 = get_storage_key(&app, &id1).await?;
+    assert!(storage.retrieve(key1.clone()).await?.is_some());
+    let key2 = get_storage_key(&app, &id2).await?;
+    assert!(storage.retrieve(key2.clone()).await?.is_some());
+    let key3 = get_storage_key(&app, &id3).await?;
+    assert!(storage.retrieve(key3.clone()).await?.is_some());
+
+    async fn count_purls(app: &impl CallService) -> Option<u64> {
+        let req = TestRequest::get()
+            .uri("/api/v3/purl?total=true")
+            .to_request();
+
+        app.call_and_read_body_json::<PaginatedResults<PurlSummary>>(req)
+            .await
+            .total
+    }
+
+    async fn delete<const N: usize>(app: &impl CallService, ids: [&Uuid; N]) -> ServiceResponse {
+        let req = TestRequest::delete()
+            .uri("/api/v3/sbom")
+            .set_json(ids.into_iter().map(|x| Id::Uuid(*x)).collect::<Vec<_>>())
+            .to_request();
+
+        app.call_service(req).await
+    }
+
+    async fn delete_concurrently<const N: usize>(
+        app: &impl CallService,
+        ids: [&Uuid; N],
+        count: usize,
+    ) -> Vec<ServiceResponse> {
+        let mut tasks = vec![];
+
+        for _ in 0..count {
+            let req = TestRequest::delete()
+                .uri("/api/v3/sbom")
+                .set_json(ids.into_iter().map(|x| Id::Uuid(*x)).collect::<Vec<_>>())
+                .to_request();
+            let app_ref = &app;
+
+            tasks.push(async move { app_ref.call_service(req).await });
+        }
+        join_all(tasks).await
+    }
+
+    assert_eq!(count_purls(&app).await, Some(2087));
+
+    // Delete with no input provided
+    let response = delete(&app, []).await;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(response.into_body().try_into_bytes().unwrap().is_empty());
+    // - no purl should be GC'ed (garbage collected)
+    assert_eq!(count_purls(&app).await, Some(2087));
+    // - check the storage
+    assert!(storage.retrieve(key1.clone()).await?.is_some());
+    assert!(storage.retrieve(key2.clone()).await?.is_some());
+    assert!(storage.retrieve(key3.clone()).await?.is_some());
+
+    // Delete quarkus #1
+    let response = delete(&app, [&id1]).await;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(response.into_body().try_into_bytes().unwrap().is_empty());
+    // - 4 purls should be GC'ed
+    assert_eq!(count_purls(&app).await, Some(2083));
+    // - check the storage
+    assert!(storage.retrieve(key1.clone()).await?.is_none());
+    assert!(storage.retrieve(key2.clone()).await?.is_some());
+    assert!(storage.retrieve(key3.clone()).await?.is_some());
+
+    // Delete ubi9 and quarkus #1 again, do it concurrently
+    let responses = delete_concurrently(&app, [&id1, &id3], TASKS).await;
+    assert_eq!(responses.len(), TASKS);
+    for response in responses {
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert!(response.into_body().try_into_bytes().unwrap().is_empty());
+    }
+    // - 610 purls should be GC'ed
+    assert_eq!(count_purls(&app).await, Some(1473));
+    // - check the storage
+    assert!(storage.retrieve(key1.clone()).await?.is_none());
+    assert!(storage.retrieve(key2.clone()).await?.is_some());
+    assert!(storage.retrieve(key3.clone()).await?.is_none());
+
+    // Delete quarkus #2, and ubi9 and quarkus #1 again
+    let response = delete(&app, [&id2, &id1, &id3]).await;
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(response.into_body().try_into_bytes().unwrap().is_empty());
+    // - 1 purl should be GC'ed
+    assert_eq!(count_purls(&app).await, Some(1472));
+    // - check the storage
+    assert!(storage.retrieve(key1.clone()).await?.is_none());
+    assert!(storage.retrieve(key2.clone()).await?.is_none());
+    assert!(storage.retrieve(key3.clone()).await?.is_none());
 
     Ok(())
 }

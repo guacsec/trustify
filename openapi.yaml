@@ -2749,6 +2749,23 @@ paths:
                 $ref: '#/components/schemas/IngestResult'
         '400':
           description: One or more group IDs are invalid or do not exist
+    delete:
+      tags:
+      - sbom
+      summary: Delete multiple SBOMs
+      operationId: deleteSboms
+      requestBody:
+        description: List of ids of SBOMs to be deleted
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+        required: true
+      responses:
+        '204':
+          description: Requested SBOMs were deleted or did not exist
   /api/v3/sbom-labels:
     get:
       tags:
