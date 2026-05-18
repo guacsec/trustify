@@ -23,6 +23,9 @@ use trustify_common::{
 
 mod base;
 
+#[cfg(test)]
+mod test;
+
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
     db: Database,
@@ -35,7 +38,8 @@ pub fn configure(
         .app_data(web::Data::new(purl_service))
         .service(base::get_base_purl)
         .service(base::all_base_purls)
-        .service(recommend) // Must be before `get` to avoid {key} matching "recommend"
+        .service(v2::recommend) // Must be before `get` to avoid {key} matching "recommend"
+        .service(v3::recommend) // Must be before `get` to avoid {key} matching "recommend"
         .service(all)
         .service(get);
 }
@@ -94,28 +98,58 @@ pub async fn all(
     Ok(HttpResponse::Ok().json(service.purls(search, paginated, &tx).await?))
 }
 
-#[utoipa::path(
-    operation_id = "recommend",
-    tag = "purl",
-    request_body = RecommendRequest,
-    responses(
-        (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse)
-    )
-)]
-#[post("/v3/purl/recommend")]
-pub async fn recommend(
-    purl_service: web::Data<PurlService>,
-    db: web::Data<Database>,
-    request: web::Json<RecommendRequest>,
-    _: Require<ReadAdvisory>,
-) -> actix_web::Result<impl Responder> {
-    let tx = db.begin_read().await?;
-    let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
+mod v2 {
+    #![allow(deprecated)]
+    use super::*;
 
-    let response = RecommendResponse { recommendations };
+    #[utoipa::path(
+        operation_id = "v2/recommend",
+        tag = "purl",
+        request_body = RecommendRequest,
+        responses(
+            (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse)
+        )
+    )]
+    #[post("/v2/purl/recommend")]
+    #[deprecated = "Use the v3 version of this API"]
+    pub async fn recommend(
+        purl_service: web::Data<PurlService>,
+        db: web::Data<Database>,
+        request: web::Json<RecommendRequest>,
+        _: Require<ReadAdvisory>,
+    ) -> actix_web::Result<impl Responder> {
+        let tx = db.begin_read().await?;
+        let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
-    Ok(HttpResponse::Ok().json(response))
+        let response = RecommendResponse { recommendations };
+
+        Ok(HttpResponse::Ok().json(response))
+    }
 }
 
-#[cfg(test)]
-mod test;
+mod v3 {
+    use super::*;
+
+    #[utoipa::path(
+        operation_id = "recommend",
+        tag = "purl",
+        request_body = RecommendRequest,
+        responses(
+            (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse)
+        )
+    )]
+    #[post("/v3/purl/recommend")]
+    pub async fn recommend(
+        purl_service: web::Data<PurlService>,
+        db: web::Data<Database>,
+        request: web::Json<RecommendRequest>,
+        _: Require<ReadAdvisory>,
+    ) -> actix_web::Result<impl Responder> {
+        let tx = db.begin_read().await?;
+        let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
+
+        let response = RecommendResponse { recommendations };
+
+        Ok(HttpResponse::Ok().json(response))
+    }
+}

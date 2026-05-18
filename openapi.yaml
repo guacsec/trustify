@@ -27,6 +27,25 @@ paths:
                     type: boolean
                   version:
                     type: string
+  /api/v2/purl/recommend:
+    post:
+      tags:
+      - purl
+      operationId: v2/recommend
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendRequest'
+        required: true
+      responses:
+        '200':
+          description: Get recommendations and remediations for provided purls
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendResponse'
+      deprecated: true
   /api/v2/sbom:
     get:
       tags:
