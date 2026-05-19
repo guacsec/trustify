@@ -27,7 +27,7 @@ use sea_orm::{ConnectionTrait, TransactionTrait};
 use std::{collections::HashSet, fmt::Debug, str::FromStr};
 use tracing::instrument;
 use trustify_common::{hashing::Digests, purl::Purl, time::ChronoExt};
-use trustify_entity::{labels::Labels, version_scheme::VersionScheme};
+use trustify_entity::{labels::Labels, status::Status, version_scheme::VersionScheme};
 
 pub struct OsvLoader<'g> {
     graph: &'g Graph,
@@ -148,7 +148,7 @@ impl<'g> OsvLoader<'g> {
                                 .vulnerability_id
                                 .clone(),
                             purl: purl.clone(),
-                            status: "affected".to_string(),
+                            status: Status::Affected,
                             version_info: VersionInfo {
                                 scheme: VersionScheme::Generic,
                                 spec: VersionSpec::Exact(version.to_string()),
@@ -366,7 +366,7 @@ fn build_package_status(
                 .vulnerability_id
                 .clone(),
             purl: purl.clone(),
-            status: "affected".to_string(),
+            status: Status::Affected,
             version_info: VersionInfo {
                 scheme: version_scheme,
                 spec,
@@ -383,7 +383,7 @@ fn build_package_status(
                 .vulnerability_id
                 .clone(),
             purl: purl.clone(),
-            status: "fixed".to_string(),
+            status: Status::Fixed,
             version_info: VersionInfo {
                 scheme: version_scheme,
                 spec: VersionSpec::Exact(fixed.clone()),
@@ -417,14 +417,13 @@ fn build_package_status_versions<'a>(
                     entries.extend(build_range_from(
                         advisory_vuln,
                         purl,
-                        "affected",
+                        Status::Affected,
                         start,
                         Some(version),
                         &versions,
                     ));
                 }
 
-                // Add "fixed" status
                 entries.push(PurlStatusEntry {
                     advisory_id: advisory_vuln.advisory.advisory.id,
                     vulnerability_id: advisory_vuln
@@ -432,7 +431,7 @@ fn build_package_status_versions<'a>(
                         .vulnerability_id
                         .clone(),
                     purl: purl.clone(),
-                    status: "fixed".to_string(),
+                    status: Status::Fixed,
                     version_info: VersionInfo {
                         scheme: VersionScheme::Generic,
                         spec: VersionSpec::Exact(version.to_string()),
@@ -450,7 +449,7 @@ fn build_package_status_versions<'a>(
         entries.extend(build_range_from(
             advisory_vuln,
             purl,
-            "affected",
+            Status::Affected,
             start,
             None,
             &versions,
@@ -464,7 +463,7 @@ fn build_package_status_versions<'a>(
 fn build_range_from(
     advisory_vuln: &AdvisoryVulnerabilityContext<'_>,
     purl: &Purl,
-    status: &str,
+    status: Status,
     start: &str,
     // exclusive end
     end: Option<&str>,
@@ -481,7 +480,7 @@ fn build_range_from(
                 .vulnerability_id
                 .clone(),
             purl: purl.clone(),
-            status: status.to_string(),
+            status,
             version_info: VersionInfo {
                 scheme: VersionScheme::Generic,
                 spec: VersionSpec::Exact(version.to_string()),

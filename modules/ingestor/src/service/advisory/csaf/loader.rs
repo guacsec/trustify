@@ -25,7 +25,7 @@ use std::{fmt::Debug, str::FromStr};
 use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::hashing::Digests;
-use trustify_entity::labels::Labels;
+use trustify_entity::{labels::Labels, status::Status};
 
 struct Information<'a>(&'a Csaf);
 
@@ -206,9 +206,9 @@ impl<'g> CsafLoader<'g> {
                 .clone(),
         );
 
-        creator.add_all(&product_status.fixed, "fixed");
-        creator.add_all(&product_status.known_not_affected, "not_affected");
-        creator.add_all(&product_status.known_affected, "affected");
+        creator.add_all(&product_status.fixed, Status::Fixed);
+        creator.add_all(&product_status.known_not_affected, Status::NotAffected);
+        creator.add_all(&product_status.known_affected, Status::Affected);
 
         let product_id_mapping = creator.create(self.graph, connection).await?;
 

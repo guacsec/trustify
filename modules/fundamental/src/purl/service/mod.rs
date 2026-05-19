@@ -36,7 +36,7 @@ use trustify_entity::{
     advisory, base_purl, license, purl_status,
     qualified_purl::{self, CanonicalPurl},
     remediation, remediation_purl_status, sbom_license_expanded, sbom_node, sbom_node_purl_ref,
-    sbom_package_license, status, version_range, versioned_purl, vulnerability,
+    sbom_package_license, version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::Deprecation;
 
@@ -612,15 +612,6 @@ impl PurlService {
                 .load_one(advisory::Entity, connection)
                 .instrument(info_span!("loading advisories"))
                 .await?;
-            let status_models = all_statuses
-                .load_one(status::Entity, connection)
-                .instrument(info_span!("loading statuses"))
-                .await?;
-            let status_slug_map: HashMap<_, _> = status_models
-                .into_iter()
-                .flatten()
-                .map(|s| (s.id, s.slug))
-                .collect();
             let remediations = all_statuses
                 .load_many_to_many(
                     remediation::Entity,
@@ -637,10 +628,7 @@ impl PurlService {
                 .zip(remediations)
             {
                 if let (Some(v), Some(advisory)) = (vuln, advisory) {
-                    let slug = status_slug_map
-                        .get(&ps.status_id)
-                        .cloned()
-                        .unwrap_or_else(|| "unknown".to_string());
+                    let slug = ps.status.to_string();
                     statuses_by_base
                         .entry(ps.base_purl_id)
                         .or_default()

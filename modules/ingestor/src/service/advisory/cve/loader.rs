@@ -32,7 +32,9 @@ use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::hashing::Digests;
 use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
-use trustify_entity::{labels::Labels, version_scheme::VersionScheme, vulnerability};
+use trustify_entity::{
+    labels::Labels, status::Status as EntityStatus, version_scheme::VersionScheme, vulnerability,
+};
 
 /// Loader capable of parsing a CVE Record JSON file
 /// and manipulating the Graph to integrate it into
@@ -179,9 +181,9 @@ impl<'g> CveLoader<'g> {
                                 .clone(),
                             purl: purl.clone(),
                             status: match status {
-                                Status::Affected => "affected".to_string(),
-                                Status::Unaffected => "not_affected".to_string(),
-                                Status::Unknown => "unknown".to_string(),
+                                Status::Affected => EntityStatus::Affected,
+                                Status::Unaffected => EntityStatus::NotAffected,
+                                Status::Unknown => EntityStatus::UnderInvestigation,
                             },
                             version_info: VersionInfo {
                                 scheme: version_type

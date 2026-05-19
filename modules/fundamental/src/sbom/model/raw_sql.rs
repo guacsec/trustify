@@ -110,7 +110,7 @@ pub fn product_advisory_info_sql() -> String {
                 ps.id as product_status_id,
                 ps.advisory_id,
                 ps.vulnerability_id,
-                ps.status_id,
+                ps.status,
                 ps.context_cpe_id,
                 sp.qualified_purl_id,
                 sp.sbom_id,
@@ -128,7 +128,7 @@ pub fn product_advisory_info_sql() -> String {
                 ps.id as product_status_id,
                 ps.advisory_id,
                 ps.vulnerability_id,
-                ps.status_id,
+                ps.status,
                 ps.context_cpe_id,
                 sp.qualified_purl_id,
                 sp.sbom_id,
@@ -157,20 +157,19 @@ pub fn product_advisory_info_sql() -> String {
             m.qualified_purl_id AS "qualified_purl_id",
             m.sbom_id AS "sbom_id",
             m.node_id AS "node_id",
-            "status"."id" AS "status_id",
+            m.status::text AS "status_value",
             "cpe"."id" AS "cpe_id",
             "organization"."id" AS "organization_id"
         FROM all_matches m
         JOIN sbom_package ON sbom_package.sbom_id = m.sbom_id AND sbom_package.node_id = m.node_id
         JOIN sbom_node ON sbom_node.sbom_id = m.sbom_id AND sbom_node.node_id = m.node_id
-        JOIN "status" ON m.status_id = "status"."id"
         JOIN "advisory" ON m.advisory_id = "advisory"."id"
         LEFT JOIN "organization" ON "advisory"."issuer_id" = "organization"."id"
         JOIN "advisory_vulnerability" ON m.advisory_id = "advisory_vulnerability"."advisory_id"
             AND m.vulnerability_id = "advisory_vulnerability"."vulnerability_id"
         JOIN "vulnerability" ON "advisory_vulnerability"."vulnerability_id" = "vulnerability"."id"
         LEFT JOIN "cpe" ON m.context_cpe_id = "cpe"."id"
-        WHERE ($2::text[] = ARRAY[]::text[] OR "status"."slug" = ANY($2::text[]))
+        WHERE ($2::text[] = ARRAY[]::text[] OR m.status::text = ANY($2::text[]))
           AND "advisory"."deprecated" = false
         "#
     .to_string()
