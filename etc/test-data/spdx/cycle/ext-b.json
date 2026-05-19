@@ -1,0 +1,53 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "name": "cycle-beta",
+  "documentNamespace": "uri:cycle-ext-b",
+  "creationInfo": {
+    "created": "2024-01-01T00:00:00Z",
+    "creators": ["Tool: test"]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Root-B",
+      "name": "Root-B",
+      "versionInfo": "1.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "supplier": "Organization: Red Hat",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "bbbb111122223333444455556666777788889999aaaabbbbccccddddeeeeffff"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Leaf-B",
+      "name": "Leaf-B",
+      "versionInfo": "1.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "supplier": "Organization: Red Hat",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "aaaa111122223333444455556666777788889999aaaabbbbccccddddeeeeffff"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Root-B",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-Leaf-B",
+      "relatedSpdxElement": "SPDXRef-Root-B",
+      "relationshipType": "CONTAINED_BY"
+    }
+  ]
+}

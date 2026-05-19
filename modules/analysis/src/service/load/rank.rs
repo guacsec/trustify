@@ -472,7 +472,9 @@ mod test {
     use chrono::{TimeZone, Utc};
     use futures::{StreamExt, TryStreamExt, stream};
     use rstest::rstest;
+    use std::time::Duration;
     use test_context::test_context;
+    use tokio::time::timeout;
     use trustify_entity::cpe;
     use trustify_test_context::{IngestionResult, TrustifyContext};
 
@@ -614,5 +616,49 @@ mod test {
         items.sort_by_key(key);
         expected.sort_by_key(key);
         assert_eq!(items, expected);
+    }
+
+    /// Ensure that [`find_external_refs`] terminates when two SBOMs reference each other
+    /// cyclically via shared package checksums.
+    #[test_context(TrustifyContext)]
+    #[test_log::test(actix_web::test)]
+    async fn find_external_refs_cycle(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        let [id_a, _id_b] = ctx
+            .ingest_documents(["spdx/cycle/ext-a.json", "spdx/cycle/ext-b.json"])
+            .await?
+            .into_uuid();
+
+        let mut visited = HashSet::new();
+
+        // no native test timeout in Rust, using tokio's timeout as a deadlock guard
+
+        let mut result = timeout(
+            Duration::from_secs(10),
+            find_external_refs(id_a, "SPDXRef-Root-A".into(), &ctx.db, &mut visited),
+        )
+        .await
+        .expect("find_external_refs should not loop infinitely")?;
+
+        log::info!("resolved external SBOMs: {result:?}");
+
+        // assert
+
+        result.sort();
+
+        assert_eq!(
+            result,
+            vec![
+                ResolvedSbom {
+                    sbom_id: id_a,
+                    node_id: "SPDXRef-Leaf-A".into(),
+                },
+                ResolvedSbom {
+                    sbom_id: _id_b,
+                    node_id: "SPDXRef-Leaf-B".into(),
+                },
+            ]
+        );
+
+        Ok(())
     }
 }

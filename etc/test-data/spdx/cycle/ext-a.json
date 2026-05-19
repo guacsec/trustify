@@ -1,0 +1,53 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "name": "cycle-alpha",
+  "documentNamespace": "uri:cycle-ext-a",
+  "creationInfo": {
+    "created": "2024-01-01T00:00:00Z",
+    "creators": ["Tool: test"]
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Root-A",
+      "name": "Root-A",
+      "versionInfo": "1.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "supplier": "Organization: Red Hat",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "aaaa111122223333444455556666777788889999aaaabbbbccccddddeeeeffff"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Leaf-A",
+      "name": "Leaf-A",
+      "versionInfo": "1.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "supplier": "Organization: Red Hat",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "bbbb111122223333444455556666777788889999aaaabbbbccccddddeeeeffff"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Root-A",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-Leaf-A",
+      "relatedSpdxElement": "SPDXRef-Root-A",
+      "relationshipType": "CONTAINED_BY"
+    }
+  ]
+}
