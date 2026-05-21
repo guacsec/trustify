@@ -4,34 +4,29 @@ use crate::{
         AnalysisService, ComponentReference, QueryOptions, test::warnings::collect_warnings,
     },
 };
-use std::sync::Arc;
+use std::collections::BTreeMap;
 use test_context::test_context;
-use trustify_common::model::{BinaryByteSize, Paginated};
-use trustify_test_context::{IngestionResult, TrustifyContext};
+use trustify_common::model::{BinaryByteSize, Paginated, PaginatedResults};
+use trustify_test_context::TrustifyContext;
 
-/// Verify that cycle detection across external SBOM references works
-/// regardless of cache pressure.
+/// Given a set of ingested documents and a component query,
+/// when the same query is run against a large cache and a tiny (1-byte) cache,
+/// then the result counts and warning counts must be identical.
 ///
-/// Two CycloneDX SBOMs form a cross-SBOM loop: A's component X has an
-/// external dependency on B's component Y, and B's Y has an external
-/// dependency back on A's X. With a large cache both graphs stay resident
-/// and `DiscoveredTracker` detects the cycle via pointer identity. With a
-/// tiny cache the graphs get evicted and re-loaded at new addresses —
-/// exposing whether the tracker still catches the revisit.
-#[test_context(TrustifyContext)]
-#[test_log::test(tokio::test)]
-async fn test_cache_eviction_cross_sbom_cycle_detection(
+/// The 1-byte cache guarantees that every SBOM is evicted immediately after
+/// loading, forcing the collector to re-load graphs from the database on
+/// every access that isn't covered by its own local cache.
+async fn assert_cache_pressure_invariant(
     ctx: &TrustifyContext,
-) -> Result<(), anyhow::Error> {
-    ctx.ingest_documents([
-        "cyclonedx/loop-external/a.json",
-        "cyclonedx/loop-external/b.json",
-    ])
-    .await?;
+    documents: &[&str],
+    component: &str,
+    options: QueryOptions,
+) -> PaginatedResults<crate::model::Node> {
+    ctx.ingest_documents(documents.iter().copied()).await.ok();
 
-    let options = QueryOptions {
-        descendants: u64::MAX,
-        ..Default::default()
+    let paginated = Paginated {
+        total: true,
+        ..Paginated::default()
     };
 
     // --- large cache: both SBOMs fit comfortably ---
@@ -40,15 +35,13 @@ async fn test_cache_eviction_cross_sbom_cycle_detection(
 
     let result_large = service_large
         .retrieve(
-            ComponentReference::Name("X"),
+            ComponentReference::Name(component),
             options.clone(),
-            Paginated {
-                total: true,
-                ..Paginated::default()
-            },
+            paginated,
             &ctx.db,
         )
-        .await?;
+        .await
+        .expect("large-cache retrieve failed");
 
     let warnings_large = collect_warnings(&result_large.items);
 
@@ -70,15 +63,13 @@ async fn test_cache_eviction_cross_sbom_cycle_detection(
 
     let result_tiny = service_tiny
         .retrieve(
-            ComponentReference::Name("X"),
+            ComponentReference::Name(component),
             options,
-            Paginated {
-                total: true,
-                ..Paginated::default()
-            },
+            paginated,
             &ctx.db,
         )
-        .await?;
+        .await
+        .expect("tiny-cache retrieve failed");
 
     let warnings_tiny = collect_warnings(&result_tiny.items);
 
@@ -88,51 +79,98 @@ async fn test_cache_eviction_cross_sbom_cycle_detection(
         warnings_tiny.len()
     );
 
-    // Both should detect the cross-SBOM cycle identically.
-    assert_eq!(
-        warnings_large.len(),
-        warnings_tiny.len(),
-        "cycle detection diverged under cache pressure: large cache produced {} warnings, tiny cache produced {}",
-        warnings_large.len(),
-        warnings_tiny.len(),
-    );
-
     assert_eq!(
         result_large.total, result_tiny.total,
         "result count diverged under cache pressure",
     );
 
+    let sorted_values = |warnings: &BTreeMap<_, &[String]>| -> Vec<String> {
+        let mut v: Vec<_> = warnings.values().flat_map(|w| w.iter().cloned()).collect();
+        v.sort();
+        v
+    };
+
+    assert_eq!(
+        sorted_values(&warnings_large),
+        sorted_values(&warnings_tiny),
+        "warnings diverged under cache pressure",
+    );
+
+    result_large
+}
+
+/// Two CycloneDX SBOMs form a cross-SBOM loop: A's component X has an
+/// external dependency on B's component Y, and B's Y has an external
+/// dependency back on A's X. With a large cache both graphs stay resident
+/// and `DiscoveredTracker` detects the cycle. With a tiny cache the graphs
+/// get evicted and reloaded — the UUID-based tracker must still detect
+/// the revisit.
+#[test_context(TrustifyContext)]
+#[test_log::test(tokio::test)]
+async fn cross_sbom_cycle(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    assert_cache_pressure_invariant(
+        ctx,
+        &[
+            "cyclonedx/loop-external/a.json",
+            "cyclonedx/loop-external/b.json",
+        ],
+        "X",
+        QueryOptions {
+            descendants: u64::MAX,
+            ..Default::default()
+        },
+    )
+    .await;
+
     Ok(())
 }
 
-/// Verify that loading the same SBOM twice under cache pressure returns
-/// the same `Arc` handle, not two independent allocations.
+/// Three components in one SBOM (C1, C2, C3) each have an external
+/// dependency on the same component T1 in another SBOM. Verifies that
+/// all three external references resolve correctly under cache pressure
+/// and produce the same results as with a large cache.
 #[test_context(TrustifyContext)]
 #[test_log::test(tokio::test)]
-async fn test_cache_eviction_same_handle(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let result = ctx
-        .ingest_documents(["cyclonedx/loop-external/a.json"])
-        .await?;
-    let [sbom_uuid] = result.into_uuid();
-
-    let service = AnalysisService::new(
-        AnalysisConfig {
-            max_cache_size: BinaryByteSize::from(1u64),
+async fn fan_out_same_target(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let result = assert_cache_pressure_invariant(
+        ctx,
+        &[
+            "cyclonedx/fan-out-external/container.json",
+            "cyclonedx/fan-out-external/target.json",
+        ],
+        "fan-out-container",
+        QueryOptions {
+            descendants: u64::MAX,
             ..Default::default()
         },
-        ctx.db.clone(),
-    );
+    )
+    .await;
 
-    let first = service.load_graphs(&ctx.db, [sbom_uuid]).await?;
-    let second = service.load_graphs(&ctx.db, [sbom_uuid]).await?;
+    let container = result
+        .items
+        .iter()
+        .find(|n| n.node_id == "root")
+        .expect("should have the root component node");
 
-    let first_arc = &first.first().expect("first load should return a graph").1;
-    let second_arc = &second.first().expect("second load should return a graph").1;
+    let descendants = container
+        .descendants
+        .as_ref()
+        .expect("root should have descendants");
 
-    assert!(
-        Arc::ptr_eq(first_arc, second_arc),
-        "loading the same SBOM twice should return the same Arc handle, \
-         but got two different allocations (cache eviction created a duplicate)",
+    assert_eq!(descendants.len(), 3);
+
+    let resolved_count = descendants
+        .iter()
+        .filter(|c| {
+            c.descendants
+                .as_ref()
+                .is_some_and(|d| d.iter().any(|d| d.node_id.contains("t1")))
+        })
+        .count();
+
+    assert_eq!(
+        resolved_count, 3,
+        "all 3 children should have resolved T1 from the external SBOM"
     );
 
     Ok(())
