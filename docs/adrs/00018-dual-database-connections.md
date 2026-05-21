@@ -122,20 +122,19 @@ maintained regardless of deployment topology.
 
 ### Composition with read-only mode (ADR 00016)
 
-The two features compose naturally:
+The two features compose naturally. The R/W connection (`--db-*`) is always required; the R/O
+connection (`--db-ro-*`) can be omitted, in which case it falls back to the R/W connection:
 
-| Deployment | R/W connection | R/O connection | `--read-only` |
-|------------|---------------|---------------|---------------|
-| Single instance, full mode | Primary | Primary (fallback) | `false` |
-| Single instance, read-only | Not needed | Primary | `true` |
-| Multi-instance, mixed | Primary | Replica | `false` |
-| Multi-instance, read-only replica | Not needed | Replica | `true` |
+| Scenario | `--db-*` (R/W) | `--db-ro-*` (R/O) | `--read-only` | Effect |
+|---|---|---|---|---|
+| Single DB, full mode | Primary | *(omit)* | `false` | R/O falls back to primary |
+| Single DB, read-only | Primary | *(omit)* | `true` | R/O falls back to primary; writes rejected by middleware |
+| Primary + replica, full mode | Primary | Replica | `false` | Reads go to replica, writes to primary |
+| Primary + replica, read-only | Primary | Replica | `true` | Reads from replica; writes rejected by middleware |
 
 When `--read-only` is active (ADR 00016), mutating HTTP requests are rejected by middleware before they
-reach any handler. In this mode, only the R/O connection is needed. The R/W connection configuration can
-be omitted entirely, and the `ReadWrite` type would not be registered in actix app data. Handlers that
-extract `web::Data<ReadWrite>` would return a 500 if somehow reached, but the read-only middleware
-prevents this.
+reach any handler. The R/W connection is still configured and available, but no write operations will be
+performed because the middleware prevents mutating requests from reaching any handler.
 
 ### Migrations
 
