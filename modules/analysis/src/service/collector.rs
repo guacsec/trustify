@@ -7,15 +7,14 @@ use std::{collections::HashMap, sync::Arc};
 /// Tracker for visited nodes, across graphs.
 #[derive(Default, Clone)]
 pub struct DiscoveredTracker {
-    cache: Arc<Mutex<HashMap<*const NodeGraph, FixedBitSet>>>,
+    cache: Arc<Mutex<HashMap<Uuid, FixedBitSet>>>,
 }
 
 impl DiscoveredTracker {
-    pub fn visit(&self, graph: &NodeGraph, node: NodeIndex) -> bool {
+    /// Check if a node was already visited, marking it as visited if not.
+    pub fn visit(&self, sbom_id: Uuid, graph: &NodeGraph, node: NodeIndex) -> bool {
         let mut maps = self.cache.lock();
-        let map = maps
-            .entry(graph as *const Graph<_, _>)
-            .or_insert_with(|| graph.visit_map());
+        let map = maps.entry(sbom_id).or_insert_with(|| graph.visit_map());
 
         map.visit(node)
     }
@@ -28,6 +27,7 @@ impl DiscoveredTracker {
 pub struct Collector<'a, C: ConnectionTrait> {
     graph_cache: &'a Arc<GraphMap>,
     graphs: &'a [(Uuid, Arc<PackageGraph>)],
+    sbom_id: Uuid,
     graph: &'a NodeGraph,
     node: NodeIndex,
     direction: Direction,
@@ -44,6 +44,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         Collector {
             graph_cache: self.graph_cache,
             graphs: self.graphs,
+            sbom_id: self.sbom_id,
             graph: self.graph,
             node: self.node,
             direction: self.direction,
@@ -61,6 +62,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
     pub fn new(
         graph_cache: &'a Arc<GraphMap>,
         graphs: &'a [(Uuid, Arc<PackageGraph>)],
+        sbom_id: Uuid,
         graph: &'a NodeGraph,
         node: NodeIndex,
         direction: Direction,
@@ -73,6 +75,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         Self {
             graph_cache,
             graphs,
+            sbom_id,
             graph,
             node,
             direction,
@@ -88,8 +91,9 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
     /// Continue with another graph and node as an entry point.
     ///
     /// Shares the visited set.
-    pub fn with(self, graph: &'a NodeGraph, node: NodeIndex) -> Self {
+    pub fn with(self, sbom_id: Uuid, graph: &'a NodeGraph, node: NodeIndex) -> Self {
         Self {
+            sbom_id,
             graph,
             node,
             ..self
@@ -103,6 +107,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         Self {
             graph_cache: self.graph_cache,
             graphs: self.graphs,
+            sbom_id: self.sbom_id,
             graph: self.graph,
             node,
             direction: self.direction,
@@ -130,7 +135,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
 
         let node = self.graph.node_weight(self.node);
 
-        if !self.discovered.visit(self.graph, self.node) {
+        if !self.discovered.visit(self.sbom_id, self.graph, self.node) {
             log::trace!("node got visited already");
             return Ok((None, vec!["This node was already visited. Possible relationship loop. Skipping further processing.".into()]));
         }
@@ -196,9 +201,13 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         // recurse into those descendent nodes
         Ok((
             Some(
-                self.with(external_graph.as_ref(), external_node_index)
-                    .collect_graph()
-                    .await?,
+                self.with(
+                    external_sbom_id,
+                    external_graph.as_ref(),
+                    external_node_index,
+                )
+                .collect_graph()
+                .await?,
             ),
             vec![],
         ))
@@ -268,7 +277,11 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                 // recurse into those external sbom nodes and save
 
                 collector
-                    .with(external_graph.as_ref(), external_node_index)
+                    .with(
+                        matched.sbom_id,
+                        external_graph.as_ref(),
+                        external_node_index,
+                    )
                     .collect_graph()
                     .await
             })
