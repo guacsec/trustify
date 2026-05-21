@@ -4,7 +4,7 @@ Date: 2026-05-14
 
 ## Status
 
-PROPOSED
+ACCEPTED
 
 ## Context
 
@@ -88,7 +88,7 @@ The conventions file is designed to be consumed by AI coding assistants:
 
 ### Trade-offs
 
-- **Maintenance burden**: the file must be kept in sync with evolving practices — stale conventions are worse than no conventions
+- **Living document**: conventions are not set in stone — they evolve through the ADR and PR process to improve how we work. When a convention changes, existing code is refactored to align. The goal is continuous improvement, not rigid enforcement
 - **Completeness tension**: too few conventions and the file is unhelpful; too many and it becomes noise that contributors (and AI tools) ignore
 - **Convention vs. enforcement gap**: not all conventions can be enforced by CI — some rely on review discipline
 
@@ -97,7 +97,7 @@ The conventions file is designed to be consumed by AI coding assistants:
 | Risk | Mitigation |
 |------|------------|
 | File becomes outdated | Treat convention violations in review as a signal to update the file |
-| File grows too large for AI context windows | Keep entries concise; split into linked files if needed |
+| File grows too large for contributors and AI context windows | Keep entries concise; split into linked files if needed |
 | Conventions conflict with each other | PR review process catches contradictions before merge |
 | Over-prescription stifles judgment calls | Focus on patterns with clear consensus; leave room for discretion |
 
@@ -229,12 +229,12 @@ WHERE clause.
 and bypasses database index optimizations. The performance gap widens as the unfiltered
 dataset grows.
 
-**Occurrences found (2)**:
+**Occurrences found (0)**:
 
-| # | File | Line(s) | Description |
-|---|------|---------|-------------|
-| 1 | `modules/fundamental/src/vulnerability/model/details/mod.rs` | ~54-68 | All scores fetched via `.all(tx)`, then filtered with `.filter(\|s\| s.advisory_id == ...)` |
-| 2 | `modules/fundamental/src/advisory/model/summary.rs` | ~40-67 | Bulk scores fetched, then O(advisories x vulns x scores) in-memory iteration |
+No confirmed occurrences. The previously cited cases (`vulnerability/model/details/mod.rs`
+and `advisory/model/summary.rs`) are false positives — both intentionally bulk-load data
+and re-use it across multiple consumers to avoid N+1 queries. This category is included
+as a preventive convention.
 
 **Convention options**:
 
@@ -563,7 +563,7 @@ filters or sorts on these columns. As tables grow, query latency increases linea
 |---|----------|-------------|-------------|---------|
 | AP-1 | N+1 Queries | 5 | Prefer batch | Prefer batch; exceptions when impractical |
 | AP-2 | Unbounded Queries | 3 | API pagination | Public API: `PaginatedResults`; internal may be unbounded if scoped |
-| AP-3 | In-Memory Filtering | 2 | — | A: SQL filters, B: Large datasets only, C: Keep |
+| AP-3 | In-Memory Filtering | 0 (false positives removed) | — | A: SQL filters, B: Large datasets only, C: Keep |
 | AP-4 | App-Side Counting | 0 | SQL `COUNT()` | Default `COUNT()`; `.len()` OK if rows already loaded |
 | AP-5 | Missing Batch Ops | 0 | Bulk when many | Bulk for multiple; single op for single-item API |
 | AP-6 | Recursive Traversal | 2 | Validate + error | Check on ingest; propagate errors; no silent skip |
@@ -1008,9 +1008,12 @@ AI-assisted development.
 and `tracing::instrument`/`tracing::Instrument` attributes, creating inconsistent
 observability output.
 
-**Why it matters**: `tracing` and `log` have different span-awareness behavior. `log::*`
-calls inside an `#[instrument]`-annotated function do not automatically attach to the
-tracing span, reducing the correlation between logs and traces.
+**Why it matters**: The project enables the `tracing-log` bridge (`tracing-subscriber` with
+the `"tracing-log"` feature in `common/infrastructure`), so `log::*` calls are forwarded to
+`tracing` and do appear within spans. However, this forwarding is an implicit dependency —
+mixing both frameworks creates confusion for contributors who may not know the bridge exists,
+and adds cognitive overhead when reading code that uses two different APIs for the same purpose.
+Standardizing on `tracing::` removes the ambiguity.
 
 **Occurrences found (6)**:
 
