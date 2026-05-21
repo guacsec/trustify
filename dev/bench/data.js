@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779132048658,
+  "lastUpdate": 1779382237242,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -18843,6 +18843,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/480d2bd8224ba04a9567f2055c7d45fcdfdefb03"
         },
         "date": 1779132046652,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "2d4febe3bd3aaeb36f223941edb1d23fa0925b09",
+          "message": "test: add a test to ensure loop references don't cause a problem\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-05-21T14:17:46Z",
+          "tree_id": "d13ccc4ff55b500c988450e6615843da6c1a395b",
+          "url": "https://github.com/guacsec/trustify/commit/2d4febe3bd3aaeb36f223941edb1d23fa0925b09"
+        },
+        "date": 1779382234806,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
