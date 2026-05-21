@@ -216,16 +216,6 @@ pub struct DatabaseReadOnly {
 }
 
 impl DatabaseReadOnly {
-    /// Returns true if any R/O database option was explicitly set.
-    pub fn is_configured(&self) -> bool {
-        self.url.is_some()
-            || self.host.is_some()
-            || self.port.is_some()
-            || self.username.is_some()
-            || self.password.is_some()
-            || self.name.is_some()
-    }
-
     /// Builds a `Database` config by overlaying R/O values on top of the R/W fallback.
     pub fn to_database_config(&self, fallback: &Database) -> Database {
         Database {
@@ -310,5 +300,104 @@ mod test {
             result.to_url(),
             "postgres://postgres:trustify@localhost:5432/trustify?sslmode=disable"
         );
+    }
+
+    /// Helper to create a default R/W config for use in R/O fallback tests.
+    fn rw_default() -> Database {
+        Database {
+            url: None,
+            username: DB_USER.into(),
+            password: DB_PASS.into(),
+            host: DB_HOST.into(),
+            port: DB_PORT,
+            name: DB_NAME.into(),
+            max_conn: DB_MAX_CONN,
+            min_conn: DB_MIN_CONN,
+            connect_timeout: DB_CONNECT_TIMEOUT,
+            acquire_timeout: DB_ACQUIRE_TIMEOUT,
+            max_lifetime: DB_MAX_LIFETIME,
+            idle_timeout: DB_IDLE_TIMEOUT,
+            sslmode: SslMode::default(),
+        }
+    }
+
+    /// Verify that an unconfigured R/O config falls back to the R/W config entirely.
+    #[test]
+    fn ro_fallback_uses_rw_config() {
+        // given: a default R/W config and an empty R/O config
+        let rw = rw_default();
+        let ro = DatabaseReadOnly::default();
+
+        // when: building the R/O database config
+        let result = ro.to_database_config(&rw);
+
+        // then: the result is identical to the R/W config
+        assert_eq!(result, rw);
+    }
+
+    /// Verify that individual R/O fields override the R/W fallback while inheriting the rest.
+    #[test]
+    fn ro_overrides_host_and_port() {
+        // given: a default R/W config and an R/O config with host and port set
+        let rw = rw_default();
+        let ro = DatabaseReadOnly {
+            host: Some("replica.example.com".into()),
+            port: Some(5433),
+            ..Default::default()
+        };
+
+        // when: building the R/O database config
+        let result = ro.to_database_config(&rw);
+
+        // then: host and port are overridden, everything else falls back to R/W
+        assert_eq!(result.host, "replica.example.com");
+        assert_eq!(result.port, 5433);
+        assert_eq!(result.username, rw.username);
+        assert_eq!(result.password, rw.password);
+        assert_eq!(result.name, rw.name);
+    }
+
+    /// Verify that the R/O URL takes precedence over the R/W URL.
+    #[test]
+    fn ro_url_overrides_rw_url() {
+        // given: both R/W and R/O specify a URL
+        let rw = Database {
+            url: Some("postgres://primary:5432/trustify".into()),
+            ..rw_default()
+        };
+        let ro = DatabaseReadOnly {
+            url: Some("postgres://replica:5433/trustify".into()),
+            ..Default::default()
+        };
+
+        // when: building the R/O database config
+        let result = ro.to_database_config(&rw);
+
+        // then: the R/O URL wins
+        assert_eq!(
+            result.url.as_deref(),
+            Some("postgres://replica:5433/trustify")
+        );
+    }
+
+    /// Verify that R/O credentials override R/W credentials independently.
+    #[test]
+    fn ro_separate_credentials() {
+        // given: an R/O config that only overrides username and password
+        let rw = rw_default();
+        let ro = DatabaseReadOnly {
+            username: Some("readonly_user".into()),
+            password: Some("readonly_pass".into()),
+            ..Default::default()
+        };
+
+        // when: building the R/O database config
+        let result = ro.to_database_config(&rw);
+
+        // then: credentials come from R/O, connection target falls back to R/W
+        assert_eq!(result.username, "readonly_user");
+        assert_eq!(result.password.0, "readonly_pass");
+        assert_eq!(result.host, rw.host);
+        assert_eq!(result.port, rw.port);
     }
 }

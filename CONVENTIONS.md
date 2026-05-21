@@ -133,10 +133,11 @@ Any files modified by steps 1–2 (e.g., `openapi.yaml`, JSON schema files) must
 
 ## Endpoint Patterns
 
-- Endpoints are registered in a `configure()` function that takes `ServiceConfig`, `Database`, and config params
+- Endpoints are registered in a `configure()` function that takes `ServiceConfig`, the `ReadOnly` and/or `ReadWrite` connection types, and config params
 - Services are injected via `web::Data<T>` (Actix application data)
 - Authorization uses `Require<Permission>` extractor or `authorizer.require(&user, Permission::...)` call
-- Read operations acquire a read transaction: `let tx = db.begin_read().await?;`
+- Read operations use the `ReadOnly` connection: `let tx = db.begin().await?;`
+- Write operations use the `ReadWrite` connection and its `transaction()` method
 - List endpoints accept `Query` (search/filter), `Paginated` (pagination), and return `PaginatedResults<T>`
 - Every endpoint has a `#[utoipa::path(...)]` attribute for OpenAPI documentation with `tag`, `operation_id`, `params`, and `responses`
 - Route attributes use Actix macros: `#[get("/v3/...")]`, `#[post("/v3/...")]`, `#[delete("/v3/...")]`

@@ -257,13 +257,8 @@ impl InitData {
             trustify_db::Database(&db).migrate().await?;
         }
 
-        let db_ro = if run.database_ro.is_configured() {
-            let ro_config = run.database_ro.to_database_config(&run.database);
-            let ro_db = db::Database::new(&ro_config).await?;
-            db::ReadOnly::new(ro_db)
-        } else {
-            db::ReadOnly::new(db.clone())
-        };
+        let ro_config = run.database_ro.to_database_config(&run.database);
+        let db_ro = db::ReadOnly::new(db::Database::new(&ro_config).await?);
         let db_rw = db::ReadWrite::new(db.clone());
 
         let cache = run.pagination.into_cache();
