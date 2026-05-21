@@ -513,6 +513,7 @@ impl AnalysisService {
                     let ancestors = Collector::new(
                         &graph_cache,
                         graphs,
+                        node.sbom_id,
                         graph,
                         node_index,
                         Direction::Incoming,
@@ -527,6 +528,7 @@ impl AnalysisService {
                     let descendants = Collector::new(
                         &graph_cache,
                         graphs,
+                        node.sbom_id,
                         graph,
                         node_index,
                         Direction::Outgoing,

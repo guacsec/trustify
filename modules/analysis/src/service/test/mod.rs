@@ -1,3 +1,4 @@
+mod cache_eviction;
 mod query;
 mod recursive;
 mod warnings;
