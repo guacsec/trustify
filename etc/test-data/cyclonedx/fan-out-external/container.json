@@ -1,0 +1,55 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:cdx:cccccccc-cccc-cccc-cccc-cccccccccccc",
+  "version": 1,
+  "metadata": {
+    "timestamp": "1970-01-01T13:30:00Z",
+    "component": {
+      "bom-ref": "root",
+      "name": "fan-out-container",
+      "type": "application"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "c1",
+      "name": "C1",
+      "version": "1",
+      "purl": "pkg:rpm/redhat/C1@1.0.0?arch=src",
+      "type": "library"
+    },
+    {
+      "bom-ref": "c2",
+      "name": "C2",
+      "version": "1",
+      "purl": "pkg:rpm/redhat/C2@1.0.0?arch=src",
+      "type": "library"
+    },
+    {
+      "bom-ref": "c3",
+      "name": "C3",
+      "version": "1",
+      "purl": "pkg:rpm/redhat/C3@1.0.0?arch=src",
+      "type": "library"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": ["c1", "c2", "c3"]
+    },
+    {
+      "ref": "c1",
+      "dependsOn": ["urn:cdx:tttttttt-tttt-tttt-tttt-tttttttttttt/1#t1"]
+    },
+    {
+      "ref": "c2",
+      "dependsOn": ["urn:cdx:tttttttt-tttt-tttt-tttt-tttttttttttt/1#t1"]
+    },
+    {
+      "ref": "c3",
+      "dependsOn": ["urn:cdx:tttttttt-tttt-tttt-tttt-tttttttttttt/1#t1"]
+    }
+  ]
+}

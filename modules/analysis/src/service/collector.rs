@@ -2,7 +2,10 @@ use super::*;
 use crate::model::graph::{ExternalNode, PackageNode};
 use futures::stream::{self, StreamExt};
 use parking_lot::Mutex;
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, hash_map::Entry},
+    sync::Arc,
+};
 
 /// Tracker for visited nodes, across graphs.
 #[derive(Default, Clone)]
@@ -33,6 +36,7 @@ pub struct Collector<'a, C: ConnectionTrait> {
     direction: Direction,
     depth: u64,
     discovered: DiscoveredTracker,
+    loaded_graphs: Arc<Mutex<HashMap<Uuid, Arc<PackageGraph>>>>,
     relationships: &'a HashSet<Relationship>,
     connection: &'a C,
     concurrency: usize,
@@ -49,6 +53,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             direction: self.direction,
             depth: self.depth,
             discovered: self.discovered.clone(),
+            loaded_graphs: self.loaded_graphs.clone(),
             relationships: self.relationships,
             connection: self.connection,
             concurrency: self.concurrency,
@@ -78,6 +83,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             direction,
             depth,
             discovered: Default::default(),
+            loaded_graphs: Default::default(),
             relationships,
             connection,
             concurrency,
@@ -108,10 +114,32 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             direction: self.direction,
             depth: self.depth - 1,
             discovered: self.discovered.clone(),
+            loaded_graphs: self.loaded_graphs.clone(),
             relationships: self.relationships,
             connection: self.connection,
             concurrency: self.concurrency,
             loader: self.loader,
+        }
+    }
+
+    /// Load an external SBOM graph, checking the local cache first.
+    async fn load_external_graph(&self, sbom_id: Uuid) -> Result<Option<Arc<PackageGraph>>, Error> {
+        if let Some(graph) = self.loaded_graphs.lock().get(&sbom_id).cloned() {
+            return Ok(Some(graph));
+        }
+
+        let Some(graph) = self.loader.load(self.connection, sbom_id).await? else {
+            return Ok(None);
+        };
+
+        let mut map = self.loaded_graphs.lock();
+        match map.entry(sbom_id) {
+            Entry::Occupied(e) => {
+                log::debug!("concurrent load of external SBOM {sbom_id}, reusing existing handle");
+                self.loader.redundant_loads.add(1, &[]);
+                Ok(Some(e.get().clone()))
+            }
+            Entry::Vacant(e) => Ok(Some(e.insert(graph).clone())),
         }
     }
 
@@ -169,9 +197,8 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             ));
         };
 
-        // retrieve external sbom graph from graph_cache
-        let Some(external_graph) = self.loader.load(self.connection, external_sbom_id).await?
-        else {
+        // retrieve external sbom graph, checking local cache first
+        let Some(external_graph) = self.load_external_graph(external_sbom_id).await? else {
             return Ok((
                 None,
                 vec![format!(
@@ -244,9 +271,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
 
                 // get the external sbom graph
 
-                let Some(external_graph) =
-                    self.loader.load(self.connection, matched.sbom_id).await?
-                else {
+                let Some(external_graph) = self.load_external_graph(matched.sbom_id).await? else {
                     log::warn!(
                         "external sbom graph {} not found in graph cache or database",
                         matched.sbom_id
@@ -344,13 +369,19 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
 #[derive(Clone)]
 pub struct GraphLoader {
     service: AnalysisService,
+    pub(crate) redundant_loads: Counter<u64>,
 }
 
 impl GraphLoader {
     pub fn new(service: AnalysisService) -> Self {
-        Self { service }
+        let meter = global::meter("AnalysisService");
+        Self {
+            service,
+            redundant_loads: meter.u64_counter("collector_redundant_loads").build(),
+        }
     }
 
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn load(
         &self,
         connection: &impl ConnectionTrait,
