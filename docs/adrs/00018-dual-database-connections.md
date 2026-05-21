@@ -13,11 +13,16 @@ all database operations. Every module receives the same connection via `configur
 server startup path. This means every query, whether it is an expensive full-text search or a small
 metadata write, competes for connections from the same pool against the same PostgreSQL instance.
 
-In production deployments, read traffic (searches, SBOM lookups, vulnerability queries, analysis) vastly
-outweighs write traffic (ingestion, imports). PostgreSQL supports streaming replication with read replicas
-that can serve read-only queries independently of the primary. To take advantage of this, the application
-needs to support two database connections: one targeting the read-write primary and one targeting one or
-more read-only replicas.
+As the number of Trustify pods scales, all instances share the same database primary. A single PostgreSQL
+instance becomes the bottleneck — not because writes are heavy, but because read traffic (searches, SBOM
+lookups, vulnerability queries, analysis) vastly outweighs write traffic (ingestion, imports) and
+saturates the connection pool. Adding more pods only increases contention on the same database.
+
+PostgreSQL supports streaming replication with read replicas that can serve read-only queries
+independently of the primary. Routing read traffic to replicas allows horizontal scaling of the database
+layer alongside the application layer. However, PostgreSQL itself does not route queries — the
+application must decide which connection to use. This requires application-level database routing: the
+ability to maintain two separate connections and direct each query to the appropriate target.
 
 ADR 00016 introduced a read-only mode flag (`--read-only` / `TRUSTD_READ_ONLY`) that gates mutating HTTP
 requests at the middleware level. That decision addressed the application-level request routing but did not
