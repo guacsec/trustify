@@ -417,6 +417,67 @@ tracing::debug!("Processing vulnerability {id}");
 log::debug!("Processing vulnerability {id}");
 ```
 
+## Data Ingestion: Creator Pattern
+
+**Convention**: Use the `*Creator` batch pattern for data ingestion; do not use the
+deprecated `*Context` per-entity pattern.
+
+### Creator pattern (required for new code)
+
+A `*Creator` struct accumulates entries in memory (via `.add()`), then writes them all in
+a single `.create()` call using `INSERT ... ON CONFLICT DO NOTHING` with batch chunking.
+This approach is concurrency-safe, avoids N+1 queries, and uses consistent lock ordering
+to prevent deadlocks.
+
+Key characteristics:
+- **Batch-oriented** — collects entries in a deduplicating collection, then inserts in bulk
+- **Consuming** — `.create(self, ...)` takes ownership; the creator is single-use
+- **Deduplication** — entries are keyed by deterministic UUID or natural key before insert
+- **Atomic** — uses `ON CONFLICT DO NOTHING` so concurrent transactions cannot conflict
+- **Lock-safe** — sorted/chunked inserts where lock ordering matters (e.g.,
+  `OrganizationCreator` sorts by name; others rely on `BTreeMap` key order or the batch
+  helper's own ordering)
+
+```rust
+// Approved: Creator pattern — batch accumulation then bulk insert
+let mut purl_creator = PurlCreator::new();
+for purl in &purls {
+    purl_creator.add(purl.clone());
+}
+purl_creator.create(&connection).await?;
+```
+
+Examples include `PurlCreator`, `PurlStatusCreator`, `OrganizationCreator`,
+`VulnerabilityCreator`, `PackageCreator`, `RelationshipCreator`, `LicenseCreator`,
+`CpeCreator`, and `ScoreCreator` — see `modules/ingestor/src/graph/**/creator.rs` for the
+full set. When adding ingestion for a new entity type, follow this pattern.
+
+Use creators for batch ingest; use the
+[Shared Table Insert Pattern](#shared-table-insert-pattern-duplicate-key-handling) when you
+need the existing row ID back on conflict (e.g., `create_doc`).
+
+### Context pattern (deprecated)
+
+The `*Context` structs (e.g., `ProductContext`, `OrganizationContext`) wrap a single loaded
+entity model with a reference to the parent `Graph` and perform immediate per-entity
+database operations via methods like `ingest_*()`. This design causes:
+
+- **N+1 queries** — each method call triggers individual DB round-trips inside loops
+- **Race conditions** — SELECT-then-INSERT is not atomic; concurrent ingestion of the same
+  entity causes unique-constraint violations
+- **Mixed responsibility** — combines entity representation with ingestion logic
+
+Remaining `*Context` usage is tech debt. Do not extend or add new `*Context` structs. Not
+every entity has a `*Creator` yet, so when modifying code that uses a `*Context`, prefer
+migrating it to the corresponding `*Creator` in the same change when practical — creating
+a new `*Creator` if needed.
+
+```rust
+// Avoid: Context pattern — per-entity immediate insert
+let org_ctx = graph.ingest_organization(name, info, &connection).await?;
+let product_ctx = org_ctx.ingest_product(name, &connection).await?;
+```
+
 ## Shared Table Insert Pattern (Duplicate Key Handling)
 
 When inserting into a table that has unique constraints and is shared across multiple
@@ -476,9 +537,6 @@ under concurrent ingestion.
 
 ## Additional Conventions
 
-The following anti-patterns were identified in
-[ADR-00018](docs/adrs/00018-conventions-file.md); each entry states the agreed convention.
-
 ### N+1 Query Anti-pattern
 
 **Convention**: Prefer batch loading; allow exceptions when impractical.
@@ -516,11 +574,13 @@ unbounded if the caller controls scope and the table is known to be bounded in p
 
 ### In-Memory Filtering Instead of SQL WHERE
 
-**Convention (provisional)**: Push filters to SQL when the unfiltered dataset can exceed
-~100 rows; small known-bounded collections may filter in Rust for readability.
-Unbounded fetch followed by in-memory filter is not an exception to this rule.
-_(Provisional — see [ADR-00018](docs/adrs/00018-conventions-file.md) for options under
-review.)_
+**Convention**: Push filters to SQL; filter in Rust only when the rows are already loaded
+for another purpose in the same scope.
+
+PostgreSQL's query planner handles small datasets efficiently, so "the table is small" is
+not a reason to filter in application code. Filtering in Rust is acceptable when doing so
+eliminates a duplicate query — i.e., the full result set is already materialized for another
+purpose and a second filtered query would be redundant.
 
 ```rust
 // Preferred: filter in SQL
@@ -529,7 +589,13 @@ advisory_vulnerability_score::Entity::find()
     .all(tx)
     .await?;
 
-// Avoid: fetch-then-filter
+// Acceptable: rows already loaded for another purpose, filter avoids a duplicate query
+let all_scores = load_all_scores(tx).await?; // needed elsewhere in this scope
+let filtered: Vec<_> = all_scores.iter()
+    .filter(|s| s.advisory_id == advisory_id)
+    .collect();
+
+// Avoid: fetch-all then filter as the primary access pattern
 let all_scores = advisory_vulnerability_score::Entity::find().all(tx).await?;
 let filtered: Vec<_> = all_scores.into_iter()
     .filter(|s| s.advisory_id == advisory_id)
@@ -616,6 +682,7 @@ No single rule for every column. Before adding (or skipping) an index, weigh the
 | Slow queries or full scans show up in logs | Writes are heavy; extra indexes slow inserts/updates |
 | Public API / user-facing latency matters | Existing indexes already cover the access pattern |
 | Table is large and still growing | Index would duplicate a UNIQUE constraint |
+| Storage cost justifies the overhead | Index storage overhead is significant on large tables |
 
 Record the decision in the PR or migration comment when it is not obvious. For migration-side
 conventions (naming, `IF NOT EXISTS`, index types), see [Database Indexes](#database-indexes).
@@ -639,14 +706,10 @@ Choose what to do based on the situation:
    `match`.
 
 ```rust
-// Approved: log the error before discarding
-match serde_json::from_value::<Report>(report) {
-    Ok(r) => Some(r),
-    Err(e) => {
-        tracing::warn!("Failed to deserialize report: {e}");
-        None
-    }
-}
+// Approved: compact log before discarding
+serde_json::from_value::<Report>(report)
+    .inspect_err(|e| tracing::warn!("Failed to deserialize report: {e}"))
+    .ok()
 
 // Avoid: silent discard
 serde_json::from_value(report).ok()
@@ -764,7 +827,8 @@ Use the narrowest correct PostgreSQL type:
 
 | Data | PostgreSQL Type | Rust / SeaORM |
 |------|----------------|---------------|
-| Primary keys (default) | `UUID` | `Uuid` with `#[sea_orm(primary_key)]` |
+| Primary keys (random) | `UUID` (v7) | `Uuid` with `#[sea_orm(primary_key)]` — v7 has better B-tree locality than v4 |
+| Primary keys (content-derived) | `UUID` (v5) | `Uuid` with `#[sea_orm(primary_key)]` — enables upsert patterns by pre-generating the ID |
 | Primary keys (domain id) | `VARCHAR` / `TEXT` | `String` with `#[sea_orm(primary_key)]` |
 | Foreign keys | Same type as referenced PK | `Uuid` / `String` |
 | Timestamps | `TIMESTAMP WITH TIME ZONE` | `OffsetDateTime` / `Option<OffsetDateTime>` |
@@ -827,8 +891,8 @@ Additional migration-side conventions:
 - **Naming (provisional)**: Match the dominant naming pattern in the migration file you're
   editing. The team is deciding between `<table>_<col(s)>_idx` suffix (dominant in early
   migrations) and `idx_<table>_<col(s)>` prefix (dominant in newer migrations).
-  _(Provisional — see [ADR-00018](docs/adrs/00018-conventions-file.md). This stopgap must be
-  replaced with a single naming convention once the team decides.)_
+  _(Provisional — this stopgap must be replaced with a single naming convention once the
+  team decides.)_
 
 #### Foreign Keys and Constraints
 
@@ -868,5 +932,4 @@ idempotency guards, raw SQL loading, data migration separation). Additional conv
 
 ## References
 
-- [ADR-00018: Conventions File and Performance Anti-Pattern Standards](docs/adrs/00018-conventions-file.md) — full anti-pattern analysis with occurrence lists, option rationale, and open decisions
 - [Logging and Tracing Design](docs/design/log_tracing.md) — rationale for observability conventions
