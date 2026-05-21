@@ -8,9 +8,9 @@ use utoipa_actix_web::AppExt;
 pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
     let (db, _) = trustify_db::embedded::create().await?;
     let (storage, _temp) = FileSystemBackend::for_test().await?;
-    let analysis = AnalysisService::new(AnalysisConfig::default(), db.clone());
     let db_rw = db::ReadWrite::new(db.clone());
     let db_ro = db::ReadOnly::new(db.clone());
+    let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
 
     let (_, mut openapi) = App::new()
         .into_utoipa_app()

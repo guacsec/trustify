@@ -7,7 +7,7 @@ use crate::{
 };
 use rstest::rstest;
 use test_context::test_context;
-use trustify_common::model::Paginated;
+use trustify_common::{db::ReadOnly, model::Paginated};
 use trustify_test_context::{IngestionResult, TrustifyContext};
 
 #[test_context(TrustifyContext)]
@@ -23,7 +23,7 @@ async fn test_circular_deps_cyclonedx_service_count(
     ctx.ingest_documents(["cyclonedx/cyclonedx-circular.json"])
         .await?;
 
-    let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+    let service = AnalysisService::new(AnalysisConfig::default(), ReadOnly::new(ctx.db.clone()));
 
     let analysis_graph = service
         .retrieve(
@@ -67,7 +67,7 @@ async fn test_circular_deps_cyclonedx_service<const N: usize>(
         .await?
         .into_id();
 
-    let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+    let service = AnalysisService::new(AnalysisConfig::default(), ReadOnly::new(ctx.db.clone()));
 
     let analysis_graph = service
         .retrieve(
@@ -116,7 +116,7 @@ async fn test_circular_deps_spdx_service<const N: usize>(
 ) -> Result<(), anyhow::Error> {
     let [sbom] = ctx.ingest_documents(["spdx/loop.json"]).await?.into_id();
 
-    let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+    let service = AnalysisService::new(AnalysisConfig::default(), ReadOnly::new(ctx.db.clone()));
 
     let analysis_graph = service
         .retrieve(

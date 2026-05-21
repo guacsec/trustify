@@ -10,7 +10,8 @@ pub async fn caller_with(
     ctx: &TrustifyContext,
     config: Config,
 ) -> anyhow::Result<impl CallService + '_> {
-    let analysis = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+    let analysis =
+        AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
     call::caller(|svc| {
         configure(
             svc,

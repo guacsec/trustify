@@ -299,7 +299,7 @@ impl InitData {
         };
 
         Ok(InitData {
-            analysis: AnalysisService::new(run.analysis, db.clone()),
+            analysis: AnalysisService::new(run.analysis, db_ro.clone()),
             authenticator,
             authorizer,
             db_rw,
@@ -503,7 +503,8 @@ mod test {
     #[test(actix_web::test)]
     async fn routing(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
         let ui = Arc::new(UiResources::new(&UI::default())?);
-        let analysis = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+        let analysis =
+            AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
         let app = actix_web::test::init_service(
             App::new()
                 .into_utoipa_app()
@@ -578,7 +579,8 @@ mod test {
 
     /// Creates a fully configured test app with all server endpoints and standard middleware.
     async fn caller(ctx: &TrustifyContext, read_only: bool) -> impl CallService {
-        let analysis = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+        let analysis =
+            AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
         call::caller_app(move |svc| {
             configure(
                 svc,

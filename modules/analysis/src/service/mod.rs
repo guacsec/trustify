@@ -46,7 +46,10 @@ use tokio::{
 };
 use tracing::instrument;
 use trustify_common::{
-    db::query::{Value, ValueContext},
+    db::{
+        ReadOnly,
+        query::{Value, ValueContext},
+    },
     model::{PaginatedResults, Pagination},
 };
 use trustify_entity::{
@@ -294,10 +297,7 @@ impl AnalysisService {
     ///
     /// Also, we do not implement default because of this. As a new instance has the implication
     /// of having its own cache. So creating a new instance should be a deliberate choice.
-    pub fn new<C>(config: AnalysisConfig, connection: C) -> Self
-    where
-        C: ConnectionTrait + Send + 'static,
-    {
+    pub fn new(config: AnalysisConfig, connection: ReadOnly) -> Self {
         let meter = global::meter("AnalysisService");
 
         let graph_cache = Arc::new(GraphMap::new(
@@ -358,26 +358,35 @@ impl AnalysisService {
         }
     }
 
-    async fn loader<C>(
+    /// Background task that loads graphs into cache using a read-only connection.
+    async fn loader(
         mut rx: mpsc::UnboundedReceiver<QueueEntry>,
         service: InnerService,
-        connection: C,
-    ) where
-        C: ConnectionTrait + Send + 'static,
-    {
+        connection: ReadOnly,
+    ) {
         let mut next = vec![];
         while rx.recv_many(&mut next, 8).await != 0 {
             let (ids, txs): (Vec<_>, Vec<_>) =
                 next.drain(..).map(|entry| (entry.id, entry.tx)).unzip();
 
-            match service.load_graphs(&connection, ids).await {
-                Ok(r) => {
-                    log::info!("Loaded {} graphs", r.len());
-                }
+            let tx_result = match connection.begin().await {
+                Ok(tx) => match service.load_graphs(&tx, ids).await {
+                    Ok(r) => {
+                        log::info!("Loaded {} graphs", r.len());
+                        Ok(())
+                    }
+                    Err(err) => {
+                        log::warn!("Failed to load graphs into cache: {err}");
+                        Err(())
+                    }
+                },
                 Err(err) => {
-                    log::warn!("Failed to load graphs into cache: {err}");
+                    log::warn!("Failed to begin read-only transaction: {err}");
+                    Err(())
                 }
-            }
+            };
+
+            let _ = tx_result;
 
             // notify listeners if they are interested
             for tx in txs {

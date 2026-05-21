@@ -5,7 +5,7 @@ use crate::{
 use rstest::rstest;
 use std::collections::HashSet;
 use test_context::test_context;
-use trustify_common::db::query::Query;
+use trustify_common::db::{ReadOnly, query::Query};
 use trustify_test_context::{TrustifyContext, q::escape_q};
 
 /// Ensure that the DB logic and the in-memory logic are aligned
@@ -33,7 +33,7 @@ async fn alignment(
 ) -> Result<(), anyhow::Error> {
     ctx.ingest_documents(["cyclonedx/simple.json"]).await?;
 
-    let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+    let service = AnalysisService::new(AnalysisConfig::default(), ReadOnly::new(ctx.db.clone()));
 
     let q = Query {
         q,
