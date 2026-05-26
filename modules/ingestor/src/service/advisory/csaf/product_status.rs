@@ -3,15 +3,15 @@ use crate::graph::advisory::version::{Version, VersionInfo, VersionSpec};
 use cpe::cpe::Cpe;
 use csaf::definitions::{Branch, BranchCategory, FullProductName};
 use trustify_common::purl::Purl;
-use trustify_entity::version_scheme::VersionScheme;
+use trustify_entity::{status::Status, version_scheme::VersionScheme};
 
-#[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ProductStatus {
     pub vendor: Option<String>,
     pub product: String,
     pub version: Option<VersionInfo>,
     pub cpe: Option<trustify_common::cpe::Cpe>,
-    pub status: &'static str,
+    pub status: Status,
     pub purls: Vec<Purl>,
     pub packages: Vec<String>,
 }

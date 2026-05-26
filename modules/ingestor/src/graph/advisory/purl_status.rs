@@ -1,6 +1,6 @@
 use crate::graph::advisory::version::VersionInfo;
 use trustify_common::{cpe::Cpe, purl::Purl};
-use trustify_entity::{purl_status, version_range};
+use trustify_entity::{purl_status, status::Status, version_range};
 use uuid::Uuid;
 
 use sea_orm::Set;
@@ -13,12 +13,12 @@ const NAMESPACE: Uuid = Uuid::from_bytes([
 pub struct PurlStatus {
     pub cpe: Option<Cpe>,
     pub purl: Purl,
-    pub status: Uuid,
+    pub status: Status,
     pub info: VersionInfo,
 }
 
 impl PurlStatus {
-    pub fn new(cpe: Option<Cpe>, purl: Purl, status: Uuid, info: VersionInfo) -> Self {
+    pub fn new(cpe: Option<Cpe>, purl: Purl, status: Status, info: VersionInfo) -> Self {
         Self {
             cpe,
             purl,
@@ -41,7 +41,7 @@ impl PurlStatus {
             id: Set(self.uuid(advisory_id, vulnerability_id.clone())),
             advisory_id: Set(advisory_id),
             vulnerability_id: Set(vulnerability_id),
-            status_id: Set(self.status),
+            status: Set(self.status),
             base_purl_id: Set(package_id),
             context_cpe_id: Set(cpe_id),
             version_range_id: version_range.clone().id,
@@ -50,8 +50,9 @@ impl PurlStatus {
         (version_range, package_status)
     }
 
+    /// Compute a deterministic UUID for deduplication
     pub fn uuid(&self, advisory_id: Uuid, vulnerability_id: String) -> Uuid {
-        let mut result = Uuid::new_v5(&NAMESPACE, self.status.as_bytes());
+        let mut result = Uuid::new_v5(&NAMESPACE, self.status.to_string().as_bytes());
         result = Uuid::new_v5(&result, self.purl.package_uuid().as_bytes());
         result = Uuid::new_v5(&result, self.info.uuid().as_bytes());
         result = Uuid::new_v5(&result, advisory_id.as_bytes());

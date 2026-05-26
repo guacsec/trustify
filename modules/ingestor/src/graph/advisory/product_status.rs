@@ -1,6 +1,6 @@
 use crate::graph::advisory::version::VersionInfo;
 use trustify_common::cpe::Cpe;
-use trustify_entity::{product_status, product_version_range, version_range};
+use trustify_entity::{product_status, product_version_range, status::Status, version_range};
 use uuid::Uuid;
 
 use sea_orm::Set;
@@ -56,7 +56,7 @@ impl ProductVersionRange {
 pub struct ProductStatus {
     pub cpe: Option<Cpe>,
     pub package: Option<String>,
-    pub status: Uuid,
+    pub status: Status,
     pub product_version_range_id: Uuid,
     pub csaf_product_ids: Option<Vec<String>>,
 }
@@ -71,7 +71,7 @@ impl ProductStatus {
             id: Set(self.uuid(advisory_id, vulnerability_id.clone())),
             advisory_id: Set(advisory_id),
             vulnerability_id: Set(vulnerability_id),
-            status_id: Set(self.status),
+            status: Set(self.status),
             package: Set(self.package),
             context_cpe_id: Set(self.cpe.as_ref().map(Cpe::uuid)),
             product_version_range_id: Set(self.product_version_range_id),
@@ -79,8 +79,9 @@ impl ProductStatus {
         }
     }
 
+    /// Compute a deterministic UUID for deduplication
     pub fn uuid(&self, advisory_id: Uuid, vulnerability_id: String) -> Uuid {
-        let mut result = Uuid::new_v5(&NAMESPACE, self.status.as_bytes());
+        let mut result = Uuid::new_v5(&NAMESPACE, self.status.to_string().as_bytes());
         result = Uuid::new_v5(&result, self.product_version_range_id.as_bytes());
         result = Uuid::new_v5(&result, advisory_id.as_bytes());
         result = Uuid::new_v5(&result, vulnerability_id.as_bytes());

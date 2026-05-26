@@ -13,6 +13,7 @@ use trustify_common::{
 use trustify_entity::{
     advisory_vulnerability_score::{ScoreType, Severity},
     labels::Labels,
+    status::Status,
     version_scheme::VersionScheme,
 };
 use trustify_module_ingestor::graph::{
@@ -117,7 +118,7 @@ async fn single_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .ingest_package_status(
             None,
             &Purl::from_str("pkg:maven/org.apache/log4j")?,
-            "fixed",
+            Status::Fixed,
             VersionInfo {
                 scheme: VersionScheme::Maven,
                 spec: VersionSpec::Exact("1.2.3".to_string()),
@@ -130,7 +131,7 @@ async fn single_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .ingest_package_status(
             None,
             &Purl::from_str("pkg:maven/org.apache/log4j")?,
-            "fixed",
+            Status::Fixed,
             VersionInfo {
                 scheme: VersionScheme::Maven,
                 spec: VersionSpec::Exact("1.2.3".to_string()),
@@ -204,7 +205,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .ingest_package_status(
             None,
             &Purl::from_str("pkg:maven/org.apache/log4j")?,
-            "fixed",
+            Status::Fixed,
             VersionInfo {
                 scheme: VersionScheme::Maven,
                 spec: VersionSpec::Exact("1.2.3".to_string()),
@@ -217,7 +218,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .ingest_package_status(
             None,
             &Purl::from_str("pkg:maven/org.apache/log4j")?,
-            "fixed",
+            Status::Fixed,
             VersionInfo {
                 scheme: VersionScheme::Maven,
                 spec: VersionSpec::Exact("1.2.3".to_string()),
@@ -262,7 +263,7 @@ async fn set_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
         .ingest_package_status(
             None,
             &Purl::from_str("pkg:maven/org.apache/log4j")?,
-            "fixed",
+            Status::Fixed,
             VersionInfo {
                 scheme: VersionScheme::Maven,
                 spec: VersionSpec::Exact("1.2.3".to_string()),
@@ -275,7 +276,7 @@ async fn set_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
         .ingest_package_status(
             None,
             &Purl::from_str("pkg:maven/org.apache/log4j")?,
-            "fixed",
+            Status::Fixed,
             VersionInfo {
                 scheme: VersionScheme::Maven,
                 spec: VersionSpec::Exact("1.2.3".to_string()),
@@ -338,7 +339,7 @@ async fn update_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         .ingest_package_status(
             None,
             &Purl::from_str("pkg:maven/org.apache/log4j")?,
-            "fixed",
+            Status::Fixed,
             VersionInfo {
                 scheme: VersionScheme::Maven,
                 spec: VersionSpec::Exact("1.2.3".to_string()),
@@ -351,7 +352,7 @@ async fn update_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         .ingest_package_status(
             None,
             &Purl::from_str("pkg:maven/org.apache/log4j")?,
-            "fixed",
+            Status::Fixed,
             VersionInfo {
                 scheme: VersionScheme::Maven,
                 spec: VersionSpec::Exact("1.2.3".to_string()),
