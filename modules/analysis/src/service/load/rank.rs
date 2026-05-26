@@ -79,7 +79,7 @@ async fn find_external_refs<C>(
     visited: &mut HashSet<(Uuid, String)>,
 ) -> Result<Vec<ResolvedSbom>, Error>
 where
-    C: ConnectionTrait + Send,
+    C: ConnectionTrait + Send + Sync,
 {
     if !visited.insert((sbom_id, node_id.clone())) {
         log::debug!("cycle detected for SBOM {sbom_id} / {node_id}, skipping recursion");
@@ -132,7 +132,7 @@ where
 ///
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn describing_cpes(
-    connection: &(impl ConnectionTrait + Send),
+    connection: &(impl ConnectionTrait + Send + Sync),
     sbom_id: Uuid,
 ) -> Result<Vec<Uuid>, Error> {
     Ok(sbom_node_cpe_ref::Entity::find()
@@ -236,16 +236,22 @@ pub async fn find_node_ancestors<C: ConnectionTrait>(
 #[instrument(skip(connection, rows), fields(rows=rows.len()))]
 pub async fn resolve_sbom_cpes(
     cpe_search: bool,
-    connection: &(impl ConnectionTrait + Send),
+    connection: &(impl ConnectionTrait + Send + Sync),
     rows: Vec<Row>,
+    concurrency: usize,
 ) -> Result<Vec<RankedSbom>, Error> {
-    let mut matched_sboms = Vec::new();
+    use futures::{StreamExt, TryStreamExt, stream};
 
-    for matched in rows {
-        matched_sboms.extend(resolve_sbom_cpe(matched, cpe_search, connection).await?);
-    }
-
-    Ok(matched_sboms)
+    stream::iter(rows)
+        .map(|matched| async move {
+            resolve_sbom_cpe(matched, cpe_search, connection).await
+        })
+        .buffer_unordered(concurrency)
+        .try_fold(Vec::new(), |mut acc, sboms| async move {
+            acc.extend(sboms);
+            Ok(acc)
+        })
+        .await
 }
 
 /// Resolves direct CPE matches by joining external nodes to SBOM nodes.
@@ -253,7 +259,7 @@ pub async fn resolve_sbom_cpes(
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_direct_cpe_matches(
     matched: &Row,
-    connection: &(impl ConnectionTrait + Send),
+    connection: &(impl ConnectionTrait + Send + Sync),
 ) -> Result<Vec<RankedSbom>, Error> {
     let direct = describing_cpes(connection, matched.sbom_id);
     let direct_external = async {
@@ -311,7 +317,7 @@ async fn resolve_direct_cpe_matches(
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_ancestor_external_sboms(
     matched: &Row,
-    connection: &(impl ConnectionTrait + Send),
+    connection: &(impl ConnectionTrait + Send + Sync),
 ) -> Result<Vec<ResolvedSbom>, Error> {
     let top_packages =
         find_node_ancestors(matched.sbom_id, matched.node_id.clone(), connection).await?;
@@ -345,7 +351,7 @@ async fn resolve_ancestor_external_sboms(
 async fn enrich_external_sboms(
     matched: &Row,
     external_sboms: Vec<ResolvedSbom>,
-    connection: &(impl ConnectionTrait + Send),
+    connection: &(impl ConnectionTrait + Send + Sync),
 ) -> Result<Vec<RankedSbom>, Error> {
     let mut results = Vec::new();
 
@@ -382,7 +388,7 @@ async fn enrich_external_sboms(
 async fn resolve_sbom_cpe(
     matched: Row,
     cpe_search: bool,
-    connection: &(impl ConnectionTrait + Send),
+    connection: &(impl ConnectionTrait + Send + Sync),
 ) -> Result<Vec<RankedSbom>, Error> {
     let mut results = Vec::new();
 
