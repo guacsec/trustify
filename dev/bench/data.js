@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779382237242,
+  "lastUpdate": 1779917795166,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -18872,6 +18872,34 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/2d4febe3bd3aaeb36f223941edb1d23fa0925b09"
         },
         "date": 1779382234806,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@jfuller-thinkpadp16vgen1.rmtcz.csb",
+            "name": "James Fuller"
+          },
+          "committer": {
+            "email": "81251736+JimFuller-RedHat@users.noreply.github.com",
+            "name": "Jim Fuller",
+            "username": "JimFuller-RedHat"
+          },
+          "distinct": true,
+          "id": "2b1b843f8e1084dd15eaafb7bf8b51aa4ab130d4",
+          "message": "clippy: fix pagined total field",
+          "timestamp": "2026-05-27T18:42:28Z",
+          "tree_id": "ae788759267645be4c38de2bfb4d44a820db4e82",
+          "url": "https://github.com/guacsec/trustify/commit/2b1b843f8e1084dd15eaafb7bf8b51aa4ab130d4"
+        },
+        "date": 1779917793188,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
