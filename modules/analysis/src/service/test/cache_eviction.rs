@@ -42,10 +42,7 @@ async fn test_cache_eviction_cross_sbom_cycle_detection(
         .retrieve(
             ComponentReference::Name("X"),
             options.clone(),
-            Paginated {
-                total: true,
-                ..Paginated::default()
-            },
+            Paginated::default(),
             &ctx.db,
         )
         .await?;
@@ -72,10 +69,7 @@ async fn test_cache_eviction_cross_sbom_cycle_detection(
         .retrieve(
             ComponentReference::Name("X"),
             options,
-            Paginated {
-                total: true,
-                ..Paginated::default()
-            },
+            Paginated::default(),
             &ctx.db,
         )
         .await?;
