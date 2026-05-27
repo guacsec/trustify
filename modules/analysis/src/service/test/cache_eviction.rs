@@ -24,10 +24,7 @@ async fn assert_cache_pressure_invariant(
 ) -> PaginatedResults<crate::model::Node> {
     ctx.ingest_documents(documents.iter().copied()).await.ok();
 
-    let paginated = Paginated {
-        total: true,
-        ..Paginated::default()
-    };
+    let paginated = Paginated::default();
 
     // --- large cache: both SBOMs fit comfortably ---
 
