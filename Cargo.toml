@@ -132,7 +132,7 @@ spdx-expression = "0.5.2"
 spdx-rs = "0.5.3"
 sqlx = { version = "0.8", features = ["tls-native-tls"] }
 strum = "0.28.0"
-tar = "0.4.45"
+tar = "0.4.46"
 temp-env = "0.3"
 tempfile = "3"
 test-context = "0.5"
