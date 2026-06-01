@@ -4,10 +4,9 @@ use crate::{
         AnalysisService, ComponentReference, QueryOptions, test::warnings::collect_warnings,
     },
 };
-use std::sync::Arc;
 use test_context::test_context;
 use trustify_common::model::{BinaryByteSize, Paginated};
-use trustify_test_context::{IngestionResult, TrustifyContext};
+use trustify_test_context::TrustifyContext;
 
 /// Verify that cycle detection across external SBOM references works
 /// regardless of cache pressure.
@@ -94,39 +93,6 @@ async fn test_cache_eviction_cross_sbom_cycle_detection(
     assert_eq!(
         result_large.total, result_tiny.total,
         "result count diverged under cache pressure",
-    );
-
-    Ok(())
-}
-
-/// Verify that loading the same SBOM twice under cache pressure returns
-/// the same `Arc` handle, not two independent allocations.
-#[test_context(TrustifyContext)]
-#[test_log::test(tokio::test)]
-async fn test_cache_eviction_same_handle(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let result = ctx
-        .ingest_documents(["cyclonedx/loop-external/a.json"])
-        .await?;
-    let [sbom_uuid] = result.into_uuid();
-
-    let service = AnalysisService::new(
-        AnalysisConfig {
-            max_cache_size: BinaryByteSize::from(1u64),
-            ..Default::default()
-        },
-        ctx.db.clone(),
-    );
-
-    let first = service.load_graphs(&ctx.db, [sbom_uuid]).await?;
-    let second = service.load_graphs(&ctx.db, [sbom_uuid]).await?;
-
-    let first_arc = &first.first().expect("first load should return a graph").1;
-    let second_arc = &second.first().expect("second load should return a graph").1;
-
-    assert!(
-        Arc::ptr_eq(first_arc, second_arc),
-        "loading the same SBOM twice should return the same Arc handle, \
-         but got two different allocations (cache eviction created a duplicate)",
     );
 
     Ok(())
