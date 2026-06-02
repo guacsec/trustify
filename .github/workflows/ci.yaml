@@ -91,6 +91,28 @@ jobs:
           sudo rm -Rf ${RUBY_PATH}
           sudo rm -Rf ${SWIFT_PATH}
           sudo rm -Rf ${GRADLE_HOME}
+
+          sudo rm -rf /usr/share/miniconda
+          sudo rm -rf /opt/hostedtoolcache/Python
+          sudo rm -rf /opt/hostedtoolcache/Ruby
+          sudo rm -rf /opt/hostedtoolcache/Java
+          sudo rm -rf /opt/hostedtoolcache/PyPy
+          sudo rm -rf /opt/hostedtoolcache/sbt
+          sudo rm -rf /opt/hostedtoolcache/stack
+          sudo rm -rf /opt/hostedtoolcache/lein
+          sudo rm -rf /opt/pipx
+          sudo rm -rf /var/lib/mysql
+          sudo rm -rf /var/lib/redis
+          sudo rm -rf /var/lib/snapd
+          sudo rm -rf /var/cache/apt
+          sudo rm -rf /usr/local/aws-cli
+          sudo rm -rf /usr/local/aws-sam-cli
+          sudo rm -rf /usr/local/share/terraform
+          sudo rm -rf /usr/local/share/helm
+          sudo rm -rf /usr/local/share/kubectl
+          sudo rm -rf /usr/local/share/pip-cache
+          sudo rm -rf /usr/share/man
+          sudo rm -rf /usr/share/doc
       - run: df -h
 
       - uses: actions/checkout@v5
