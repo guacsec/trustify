@@ -6,7 +6,10 @@ use crate::{
 };
 use std::collections::BTreeMap;
 use test_context::test_context;
-use trustify_common::model::{BinaryByteSize, Paginated, PaginatedResults};
+use trustify_common::{
+    db::ReadOnly,
+    model::{BinaryByteSize, Paginated, PaginatedResults},
+};
 use trustify_test_context::TrustifyContext;
 
 /// Given a set of ingested documents and a component query,
@@ -28,7 +31,8 @@ async fn assert_cache_pressure_invariant(
 
     // --- large cache: both SBOMs fit comfortably ---
 
-    let service_large = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+    let service_large =
+        AnalysisService::new(AnalysisConfig::default(), ReadOnly::new(ctx.db.clone()));
 
     let result_large = service_large
         .retrieve(
@@ -55,7 +59,7 @@ async fn assert_cache_pressure_invariant(
             max_cache_size: BinaryByteSize::from(1u64),
             ..Default::default()
         },
-        ctx.db.clone(),
+        ReadOnly::new(ctx.db.clone()),
     );
 
     let result_tiny = service_tiny
