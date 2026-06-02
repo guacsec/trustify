@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779917795166,
+  "lastUpdate": 1780396308136,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -18900,6 +18900,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/2b1b843f8e1084dd15eaafb7bf8b51aa4ab130d4"
         },
         "date": 1779917793188,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "ef0d70e7c0e1e0c81cd595949436a2c740d7a05e",
+          "message": "fix: let AnalysisService use the ReadOnly connection\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-06-02T09:49:07Z",
+          "tree_id": "affe6fa64af34554ac0178cb3c1cbac764d1f4ea",
+          "url": "https://github.com/guacsec/trustify/commit/ef0d70e7c0e1e0c81cd595949436a2c740d7a05e"
+        },
+        "date": 1780396306122,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
