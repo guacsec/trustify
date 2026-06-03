@@ -21,6 +21,8 @@ jobs:
 
   ci:
     runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
 
     steps:
       - name: Maximize build space
@@ -77,5 +79,7 @@ jobs:
       - uses: codecov/codecov-action@v5
         if: github.repository_owner == 'guacsec'
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
+          flags: unit-tests
+          files: codecov.json
           slug: guacsec/trustify
