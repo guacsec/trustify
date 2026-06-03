@@ -334,6 +334,7 @@ impl InnerService {
         &self,
         connection: &C,
         query: GraphQuery<'_>,
+        concurrency: usize,
     ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error>
     where
         C: ConnectionTrait + Send + Sync,
@@ -396,7 +397,8 @@ impl InnerService {
 
         log::debug!("test latest sbom ids: {:?}", matched_sbom_ids);
 
-        let mut ranked_sboms = resolve_sbom_cpes(cpe_search, connection, matched_sbom_ids).await?;
+        let mut ranked_sboms =
+            resolve_sbom_cpes(cpe_search, connection, matched_sbom_ids, concurrency).await?;
 
         // apply rank
         apply_rank(&mut ranked_sboms);

@@ -642,7 +642,7 @@ impl AnalysisService {
         // load only latest graphs
         let graphs = self
             .inner
-            .load_latest_graphs_query(connection, query)
+            .load_latest_graphs_query(connection, query, self.concurrency)
             .await?;
 
         log::debug!("graph sbom count: {:?}", graphs.len());
