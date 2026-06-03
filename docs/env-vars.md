@@ -58,6 +58,16 @@
 | `UI_LOAD_USER`                           | Whether to load user info                                                           | `true`                                  |
 | `UI_SCOPE`                               | Scopes to request                                                                   | `openid`                                |
 
+## Data Migration
+
+| Environment Variable           | Description                                                                                            | Default Value |
+|--------------------------------|--------------------------------------------------------------------------------------------------------|---------------|
+| `MIGRATION_DATA_CONCURRENT`    | Number of concurrent documents being processed, zero falls back to the number of logical CPUs          | `0`           |
+| `MIGRATION_DATA_CURRENT_RUNNER`| The instance number of the current runner (zero based)                                                 | `0`           |
+| `MIGRATION_DATA_TOTAL_RUNNER`  | The total number of runners                                                                            | `1`           |
+| `MIGRATION_DATA_SKIP_ALL`      | Skip running all data migrations (conflicts with `MIGRATION_DATA_SKIP`)                                | `false`       |
+| `MIGRATION_DATA_SKIP`          | Skip the provided list of data migrations (conflicts with `MIGRATION_DATA_SKIP_ALL`)                   |               |
+
 ## Development 
 
 | Environment Variable         | Description                                                                                                 | Default Value |
