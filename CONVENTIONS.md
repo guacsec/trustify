@@ -159,7 +159,7 @@ Any files modified by steps 1–2 (e.g., `openapi.yaml`, JSON schema files) must
 - Column additions use `add_column_if_not_exists()`
 - Drop operations use `.if_exists()`
 - Raw SQL loaded via `include_str!("migration_dir/up.sql")`
-- Migrations must implement `down()` for reversibility — the `test_migrations` CI test verifies this by running `refresh()` (down + up) on every migration
+- Migrations must implement `down()` for reversibility — the migration module tests verify this (e.g., by running `refresh()`, which executes down + up on every migration)
 - Data migrations are separate from schema migrations, run via `trustd db data <names>`
 
 ## Rust Idioms
@@ -927,8 +927,7 @@ idempotency guards, raw SQL loading, data migration separation). Additional conv
 
 - **Numbering**: increment by 10 (e.g., `m0002190` → `m0002200`) to leave room for
   insertions.
-- **Reversibility**: implement both `up()` and `down()`. The `test_migrations` CI test
-  runs `refresh()` (down + up) on every migration to enforce this.
+- **Reversibility**: implement both `up()` and `down()`.
 - **Schema vs. data**: schema migrations registered with `.normal()`; data backfills
   registered with `.data()`. Prefer no data in schema migrations — separate schema changes
   from data changes.
