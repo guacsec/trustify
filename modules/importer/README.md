@@ -101,5 +101,5 @@ echo true | http PUT localhost:8080/api/v3/importer/redhat-sbom/enabled
 ### Force an importer run
 
 ```shell
-http PUT localhost:8080/api/v3/importer/redhat-sbom/force
+http POST localhost:8080/api/v3/importer/redhat-sbom/force
 ```
