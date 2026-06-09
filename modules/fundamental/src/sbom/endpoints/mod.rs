@@ -396,8 +396,7 @@ all!(GetSbomAdvisories -> ReadSbom, ReadAdvisory);
         ("id" = Id, Path),
     ),
     responses(
-        (status = 204, description = "Matching SBOM as deleted"),
-        (status = 404, description = "The SBOM could not be found"),
+        (status = 204, description = "The SBOM was deleted or did not exist"),
     ),
 )]
 #[delete("/v3/sbom/{id}")]
@@ -411,21 +410,17 @@ pub async fn delete(
     let tx = db.begin().await?;
 
     let id = Id::from_str(&id)?;
-    match service.fetch_sbom(id, &tx).await? {
-        Some((v, _, source_document)) => match service.delete_sbom(v.sbom_id, &tx).await? {
-            false => Ok(HttpResponse::NotFound().finish()),
-            true => {
-                tx.commit().await?;
-                if let Err(e) =
-                    delete_doc(&SourceDocument::from_entity(&source_document), i.storage()).await
-                {
-                    log::warn!("Ignoring {e}");
-                }
-                Ok(HttpResponse::NoContent().finish())
-            }
-        },
-        None => Ok(HttpResponse::NotFound().finish()),
+    if let Some((v, _, source_document)) = service.fetch_sbom(id, &tx).await?
+        && service.delete_sbom(v.sbom_id, &tx).await?
+    {
+        tx.commit().await?;
+        if let Err(e) =
+            delete_doc(&SourceDocument::from_entity(&source_document), i.storage()).await
+        {
+            log::warn!("Ignoring {e}");
+        }
     }
+    Ok(HttpResponse::NoContent().finish())
 }
 
 /// Search for packages of an SBOM

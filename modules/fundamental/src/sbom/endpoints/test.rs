@@ -7,7 +7,10 @@ use crate::{
     test::{caller, label::Api},
 };
 use actix_http::StatusCode;
-use actix_web::test::{TestRequest, read_body};
+use actix_web::{
+    body::MessageBody,
+    test::{TestRequest, read_body},
+};
 use flate2::bufread::GzDecoder;
 use rstest::rstest;
 use serde_json::{Value, json};
@@ -1222,7 +1225,7 @@ async fn delete_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert!(storage.retrieve(key).await?.is_none());
 
-    // If we try again, we should get a 404 since it was deleted.
+    // Deleting again should be idempotent (204, not 404).
     let response = app
         .call_service(
             TestRequest::delete()
@@ -1232,7 +1235,8 @@ async fn delete_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await;
 
     log::debug!("Code: {}", response.status());
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(response.into_body().try_into_bytes().unwrap().is_empty());
 
     Ok(())
 }

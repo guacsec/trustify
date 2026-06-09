@@ -90,8 +90,7 @@ pub async fn get(
         ("id", Path, description = "Opaque ID of the product")
     ),
     responses(
-        (status = 200, description = "Matching product", body = ProductDetails),
-        (status = 404, description = "The product could not be found"),
+        (status = 204, description = "The product was deleted or did not exist"),
     ),
 )]
 #[delete("/v3/product/{id}")]
@@ -102,19 +101,7 @@ pub async fn delete(
     _: Require<DeleteMetadata>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
-
-    match state.fetch_product(*id, &tx).await? {
-        Some(v) => {
-            let rows_affected = state.delete_product(v.head.id, &tx).await?;
-            match rows_affected {
-                0 => Ok(HttpResponse::NotFound().finish()),
-                1 => {
-                    tx.commit().await?;
-                    Ok(HttpResponse::Ok().json(v))
-                }
-                _ => Err(Error::Internal("Unexpected number of rows affected".into())),
-            }
-        }
-        None => Ok(HttpResponse::NotFound().finish()),
-    }
+    state.delete_product(*id, &tx).await?;
+    tx.commit().await?;
+    Ok(HttpResponse::NoContent().finish())
 }

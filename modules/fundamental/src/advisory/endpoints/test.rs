@@ -634,7 +634,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await;
 
     log::debug!("Code: {}", response.status());
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert!(storage.retrieve(key).await?.is_none());
 
     // check that the document is gone
@@ -647,7 +647,7 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await;
     assert_eq!(advisory_list.total, Some(0));
 
-    // second delete should fail
+    // Deleting again should be idempotent (204, not 404).
     let response = app
         .call_service(
             TestRequest::delete()
@@ -657,7 +657,29 @@ async fn delete_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await;
 
     log::debug!("Code: {}", response.status());
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(response.into_body().try_into_bytes().unwrap().is_empty());
+
+    Ok(())
+}
+
+/// Deleting an advisory that was never created should return 204.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn delete_nonexistent_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let id = uuid::Uuid::new_v4();
+
+    let response = app
+        .call_service(
+            TestRequest::delete()
+                .uri(&format!("/api/v3/advisory/urn:uuid:{id}"))
+                .to_request(),
+        )
+        .await;
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(response.into_body().try_into_bytes().unwrap().is_empty());
 
     Ok(())
 }

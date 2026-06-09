@@ -141,8 +141,7 @@ pub async fn get(
         ("key" = Id, Path),
     ),
     responses(
-        (status = 200, description = "Matching advisory", body = AdvisoryDetails),
-        (status = 404, description = "The advisory could not be found"),
+        (status = 204, description = "The advisory was deleted or did not exist"),
     ),
 )]
 #[delete("/v3/advisory/{key}")]
@@ -157,19 +156,15 @@ pub async fn delete(
     let tx = db.begin().await?;
 
     let id = Id::from_str(&key)?;
-    match service.fetch_advisory(id, &tx).await? {
-        Some(v) => match service.delete_advisory(v.head.uuid, &tx).await? {
-            false => Ok(HttpResponse::NotFound().finish()),
-            true => {
-                tx.commit().await?;
-                if let Err(e) = delete_doc(&v.source_document, i.storage()).await {
-                    log::warn!("Ignoring {e}");
-                }
-                Ok(HttpResponse::Ok().json(v))
-            }
-        },
-        None => Ok(HttpResponse::NotFound().finish()),
+    if let Some(v) = service.fetch_advisory(id, &tx).await?
+        && service.delete_advisory(v.head.uuid, &tx).await?
+    {
+        tx.commit().await?;
+        if let Err(e) = delete_doc(&v.source_document, i.storage()).await {
+            log::error!("Ignoring {e}");
+        }
     }
+    Ok(HttpResponse::NoContent().finish())
 }
 
 #[derive(IntoParams, Clone, Debug, PartialEq, Eq, serde::Deserialize)]

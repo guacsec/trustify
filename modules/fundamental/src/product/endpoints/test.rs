@@ -1,6 +1,6 @@
 use crate::test::caller;
 use actix_http::StatusCode;
-use actix_web::test::TestRequest;
+use actix_web::{body::MessageBody, test::TestRequest};
 use jsonpath_rust::JsonPath;
 use serde_json::{Value, json};
 use test_context::test_context;
@@ -141,7 +141,8 @@ async fn delete_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let response = app.call_service(request).await;
 
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(response.into_body().try_into_bytes().unwrap().is_empty());
 
     let products = service
         .fetch_products(
@@ -156,11 +157,13 @@ async fn delete_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     assert_eq!(Some(0), products.total);
 
+    // Deleting again should be idempotent (204, not 404).
     let request = TestRequest::delete().uri(&uri).to_request();
 
     let response = app.call_service(request).await;
 
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert!(response.into_body().try_into_bytes().unwrap().is_empty());
 
     Ok(())
 }

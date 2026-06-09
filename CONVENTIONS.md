@@ -142,6 +142,19 @@ Any files modified by steps 1–2 (e.g., `openapi.yaml`, JSON schema files) must
 - Every endpoint has a `#[utoipa::path(...)]` attribute for OpenAPI documentation with `tag`, `operation_id`, `params`, and `responses`
 - Route attributes use Actix macros: `#[get("/v3/...")]`, `#[post("/v3/...")]`, `#[delete("/v3/...")]`
 
+### DELETE Idempotency
+
+All DELETE endpoints return `204 No Content` regardless of whether the resource existed.
+Deleting a non-existent resource is a successful no-op, not a 404 error. This makes
+DELETE operations idempotent — callers do not need to check existence before deleting,
+and concurrent or repeated deletes are safe.
+
+**Exception — `If-Match` revision checks:** When a DELETE request includes an `If-Match`
+header, the server validates the provided revision against the current resource state.
+If the revisions do not match (including when the resource does not exist but a specific
+revision was provided), the server returns `412 Precondition Failed`. When `If-Match: *`
+is used (or the header is omitted), the idempotent 204 behavior applies.
+
 ## Entity Model Patterns
 
 - Entities use `#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]` with `#[sea_orm(table_name = "...")]`
