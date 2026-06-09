@@ -85,6 +85,7 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
     // Try to get branch shorthand (may be "HEAD" or commit hash in detached state)
     let branch_shorthand = head
         .shorthand()
+        .ok()
         .filter(|s| *s != "HEAD")
         .map(|s| s.to_string());
     let head_commit = head.peel_to_commit()?;
