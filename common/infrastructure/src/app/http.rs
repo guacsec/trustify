@@ -116,11 +116,11 @@ pub enum TlsSecurityProfile {
     /// TLS 1.0+, broadest compatibility.
     #[clap(name = "old")]
     Old,
-    /// TLS 1.2+, recommended default.
-    #[default]
+    /// TLS 1.2+, broad compatibility.
     #[clap(name = "intermediate")]
     Intermediate,
-    /// TLS 1.3 only.
+    /// TLS 1.3 only, most secure.
+    #[default]
     #[clap(name = "modern")]
     Modern,
     /// User-defined min TLS version and cipher suites.
@@ -255,7 +255,7 @@ where
         id = "http-server-tls-security-profile",
         long,
         env = "HTTP_SERVER_TLS_SECURITY_PROFILE",
-        default_value_t = TlsSecurityProfile::Intermediate,
+        default_value_t = TlsSecurityProfile::Modern,
     )]
     pub tls_security_profile: TlsSecurityProfile,
 
@@ -317,7 +317,7 @@ where
             tls_enabled: false,
             tls_key_file: None,
             tls_certificate_file: None,
-            tls_security_profile: TlsSecurityProfile::Intermediate,
+            tls_security_profile: TlsSecurityProfile::Modern,
             tls_min_version: None,
             tls_ciphers: None,
             tls_ciphersuites: None,
@@ -795,14 +795,11 @@ mod test {
         HttpServerBuilder::try_from(HttpServerConfig::<MockEndpoint>::default()).unwrap();
     }
 
-    /// Verifies that the default config uses the Intermediate TLS profile.
+    /// Verifies that the default config uses the Modern TLS profile.
     #[test]
-    fn default_tls_profile_is_intermediate() {
+    fn default_tls_profile_is_modern() {
         let config = HttpServerConfig::<MockEndpoint>::default();
-        assert_eq!(
-            config.tls_security_profile,
-            TlsSecurityProfile::Intermediate
-        );
+        assert_eq!(config.tls_security_profile, TlsSecurityProfile::Modern);
     }
 
     /// Verifies that a Custom profile without min_version is rejected.
