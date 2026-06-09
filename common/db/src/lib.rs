@@ -14,7 +14,7 @@ use trustify_common::{config, db};
 pub struct Database<'a>(pub &'a db::Database);
 
 impl<'a> Database<'a> {
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn migrate(&self) -> Result<(), anyhow::Error> {
         log::debug!("applying migrations");
         Migrator::up(self.0, None).await?;
@@ -23,7 +23,7 @@ impl<'a> Database<'a> {
         Ok(())
     }
 
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn refresh(&self) -> Result<(), anyhow::Error> {
         log::warn!("refreshing database schema...");
         Migrator::refresh(self.0).await?;
@@ -33,7 +33,7 @@ impl<'a> Database<'a> {
     }
 
     /// Import a database from a provided DB dump.
-    #[instrument(err)]
+    #[instrument(err(level=tracing::Level::INFO))]
     pub async fn setup(database: &config::Database) -> Result<db::Database, anyhow::Error> {
         ensure!(
             database.url.is_none(),
@@ -71,7 +71,7 @@ impl<'a> Database<'a> {
         Ok(db)
     }
 
-    #[instrument(err)]
+    #[instrument(err(level=tracing::Level::INFO))]
     pub async fn bootstrap(database: &config::Database) -> Result<db::Database, anyhow::Error> {
         let db = Self::setup(database).await?;
 
@@ -81,7 +81,7 @@ impl<'a> Database<'a> {
     }
 
     /// Import a database from a provided DB dump.
-    #[instrument(skip(r), err)]
+    #[instrument(skip(r), err(level=tracing::Level::INFO))]
     pub async fn import<R>(
         database: &config::Database,
         mut r: R,

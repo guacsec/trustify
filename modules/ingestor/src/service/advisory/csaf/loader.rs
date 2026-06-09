@@ -188,7 +188,7 @@ impl<'g> CsafLoader<'g> {
         Ok(())
     }
 
-    #[instrument(skip_all, err)]
+    #[instrument(skip_all, err(level=tracing::Level::INFO))]
     async fn ingest_product_statuses<C: ConnectionTrait>(
         &self,
         csaf: &Csaf,

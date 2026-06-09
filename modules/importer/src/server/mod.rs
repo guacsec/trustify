@@ -73,7 +73,7 @@ struct Server {
 }
 
 impl Server {
-    #[instrument(skip_all, ret)]
+    #[instrument(skip_all, err(level=tracing::Level::INFO))]
     async fn run(self) -> anyhow::Result<()> {
         // The Heart struct spawns locally because the import fn isn't
         // Send, so we need a LocalSet

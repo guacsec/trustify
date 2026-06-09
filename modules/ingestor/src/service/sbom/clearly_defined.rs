@@ -19,7 +19,7 @@ impl<'g> ClearlyDefinedLoader<'g> {
         Self { graph }
     }
 
-    #[instrument(skip(self, item, tx), ret(level=tracing::Level::INFO))]
+    #[instrument(skip(self, item, tx), err(level=tracing::Level::INFO))]
     pub async fn load(
         &self,
         labels: Labels,

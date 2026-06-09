@@ -167,7 +167,7 @@ impl<ER: ExternalReferenceProcessor> RelationshipCreator<ER> {
     /// This expects a source of references to check against. If creating a fresh set of nodes and
     /// relationships, these sources would most likely be the creators (like [`super::PackageCreator`]).
     /// If nodes already exist in the database, those nodes would need to be extracted and provided.
-    #[instrument(skip_all, ret)]
+    #[instrument(skip_all, err(level=tracing::Level::INFO))]
     pub fn validate(&self, sources: References) -> Result<(), anyhow::Error> {
         let sources = sources.add_source(&self.externals);
 

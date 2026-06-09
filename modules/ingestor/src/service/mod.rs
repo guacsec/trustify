@@ -211,7 +211,7 @@ impl IngestorService {
         &self.storage
     }
 
-    #[instrument(skip_all, ret(level=tracing::Level::INFO))]
+    #[instrument(skip_all, err(level=tracing::Level::INFO))]
     pub async fn ingest(
         &self,
         bytes: &[u8],

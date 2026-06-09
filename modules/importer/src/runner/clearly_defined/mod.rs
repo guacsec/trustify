@@ -12,7 +12,7 @@ use trustify_module_ingestor::graph::Graph;
 use trustify_module_ingestor::service::IngestorService;
 
 impl super::ImportRunner {
-    #[instrument(skip(self), ret)]
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn run_once_clearly_defined(
         &self,
         context: impl RunContext + 'static,

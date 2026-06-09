@@ -14,7 +14,7 @@ use tracing::instrument;
 use trustify_module_ingestor::{graph::Graph, service::IngestorService};
 
 impl super::ImportRunner {
-    #[instrument(skip_all, ret)]
+    #[instrument(skip_all, err(level=tracing::Level::INFO))]
     pub async fn run_once_quay(
         &self,
         context: impl RunContext + 'static,

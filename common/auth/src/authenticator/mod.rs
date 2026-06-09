@@ -121,7 +121,7 @@ impl Authenticator {
     }
 
     /// Validate a bearer token.
-    #[instrument(level = "debug", skip_all, fields(token = token.as_ref()), ret)]
+    #[instrument(level = "debug", skip_all, fields(token = token.as_ref()), err(level=tracing::Level::INFO))]
     pub async fn validate_token<S: AsRef<str>>(
         &self,
         token: S,

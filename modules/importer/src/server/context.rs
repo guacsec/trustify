@@ -94,6 +94,7 @@ impl CheckCancellation {
     }
 
     #[instrument(
+        skip(self),
         ret(level=Level::DEBUG),
         err(level=Level::INFO),
     )]

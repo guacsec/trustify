@@ -228,7 +228,7 @@ impl Graph {
             .collect())
     }
 
-    #[instrument(skip(self, connection), err)]
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn get_product_by_name<C: ConnectionTrait>(
         &self,
         name: impl Into<String> + Debug,
@@ -241,7 +241,7 @@ impl Graph {
             .map(|product| ProductContext::new(self, product)))
     }
 
-    #[instrument(skip(self, connection), err)]
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn get_product_by_organization<C: ConnectionTrait>(
         &self,
         org: impl Into<String> + Debug,

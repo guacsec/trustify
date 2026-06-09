@@ -486,7 +486,7 @@ impl PurlService {
         })
     }
 
-    #[instrument(skip(self, connection), err)]
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn recommend_purls<C: ConnectionTrait>(
         &self,
         purls: &[Purl],

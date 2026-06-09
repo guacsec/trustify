@@ -171,7 +171,7 @@ impl Graph {
         }
     }
 
-    #[instrument(skip(self, connection), err)]
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn get_package_version_by_id<C: ConnectionTrait>(
         &self,
         id: Uuid,
@@ -215,7 +215,7 @@ impl Graph {
             .map(|package| PackageContext::new(self, package)))
     }
 
-    #[instrument(skip(self, connection), err)]
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn get_package_by_id<C: ConnectionTrait>(
         &self,
         id: Uuid,

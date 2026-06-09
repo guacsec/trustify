@@ -171,7 +171,7 @@ where
     }
 
     /// Run the walker
-    #[instrument(skip(self), ret)]
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn run(self) -> Result<Continuation, Error> {
         tokio::task::spawn_blocking(|| self.run_sync()).await?
     }

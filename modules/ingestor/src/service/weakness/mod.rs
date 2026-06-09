@@ -16,7 +16,7 @@ impl CweCatalogLoader {
         Self::default()
     }
 
-    #[instrument(skip(self, buffer, tx), ret)]
+    #[instrument(skip(self, buffer, tx), err(level=tracing::Level::INFO))]
     pub async fn load_bytes(
         &self,
         labels: Labels,
@@ -31,7 +31,7 @@ impl CweCatalogLoader {
         self.load(labels, &document, digests, tx).await
     }
 
-    #[instrument(skip(self, doc, tx), ret)]
+    #[instrument(skip(self, doc, tx), err(level=tracing::Level::INFO))]
     pub async fn load<'x>(
         &self,
         _labels: Labels,

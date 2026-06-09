@@ -79,7 +79,7 @@ pub struct Database {
 }
 
 impl Database {
-    #[instrument(err)]
+    #[instrument(err(level=tracing::Level::INFO))]
     pub async fn new(database: &crate::config::Database) -> Result<Self, anyhow::Error> {
         let url = database.to_url();
 
@@ -111,7 +111,7 @@ impl Database {
         Ok(Self { db, name })
     }
 
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn close(self) -> anyhow::Result<()> {
         Ok(self.db.close().await?)
     }

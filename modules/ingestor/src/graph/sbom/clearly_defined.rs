@@ -7,7 +7,7 @@ use tracing::instrument;
 use trustify_common::purl::Purl;
 
 impl SbomContext {
-    #[instrument(skip(db, curation), err)]
+    #[instrument(skip(db, curation), err(level=tracing::Level::INFO))]
     pub async fn ingest_clearly_defined_curation<C: ConnectionTrait>(
         &self,
         curation: Curation,

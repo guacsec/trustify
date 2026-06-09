@@ -73,7 +73,7 @@ impl<C: RunContext> QuayWalker<C> {
     }
 
     /// Run the walker
-    #[instrument(skip(self), ret)]
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn run(self) -> Result<LastModified, Error> {
         let progress = self.context.progress(format!(
             "Import SBOM attachments from: {}",

@@ -13,7 +13,7 @@ use tracing::instrument;
 use trustify_module_ingestor::{graph::Graph, service::IngestorService};
 
 impl super::ImportRunner {
-    #[instrument(skip(self), ret)]
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn run_once_cwe_catalog(
         &self,
         context: impl RunContext + 'static,

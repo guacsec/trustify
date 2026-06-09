@@ -34,7 +34,7 @@ impl AdvisoryService {
         Self { cache }
     }
 
-    #[instrument(skip(self, connection))]
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn fetch_advisories<C: ConnectionTrait + Sync + Send>(
         &self,
         search: Query,

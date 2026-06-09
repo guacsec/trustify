@@ -83,7 +83,7 @@ impl<C: RunContext> Callbacks<Vec<u8>> for Context<C> {
 }
 
 impl super::ImportRunner {
-    #[instrument(skip(self), ret)]
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn run_once_clearly_defined_curation(
         &self,
         context: impl RunContext + 'static,
