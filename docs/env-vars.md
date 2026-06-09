@@ -17,8 +17,12 @@
 | `HTTP_SERVER_JSON_LIMIT`                 | JSON request limit                                                                  | `2 MiB`                                 |
 | `HTTP_SERVER_REQUEST_LIMIT`              | Overall request limit                                                               | `256 KiB`                               |
 | `HTTP_SERVER_TLS_CERTIFICATE_FILE`       | Path to the TLS certificate in PEM format                                           |                                         |
+| `HTTP_SERVER_TLS_CIPHERS`                | TLS 1.2 cipher list in OpenSSL format (custom profile only)                         |                                         |
+| `HTTP_SERVER_TLS_CIPHERSUITES`           | TLS 1.3 ciphersuites in OpenSSL format (custom profile only)                        |                                         |
 | `HTTP_SERVER_TLS_ENABLED`                | Enable TLS                                                                          | `false`                                 |
 | `HTTP_SERVER_TLS_KEY_FILE`               | Path to the TLS key file in PEM format                                              |                                         |
+| `HTTP_SERVER_TLS_MIN_VERSION`            | Minimum TLS version for custom profile: 1.0, 1.1, 1.2, 1.3                         |                                         |
+| `HTTP_SERVER_TLS_SECURITY_PROFILE`       | TLS security profile: old, intermediate, modern, custom                             | `intermediate`                          |
 | `HTTP_SERVER_WORKERS`                    | Number of worker threads, defaults to zero, which falls back to the number of cores | `0`                                     |
 | `IMPORTER_CONCURRENCY`                   | The maximum number of jobs run simultaneously by the importer                       | `1`                                     |
 | `IMPORTER_WORKING_DIR`                   | Where the importer downloads documents prior to ingesting them                      | `tempdir`                               |

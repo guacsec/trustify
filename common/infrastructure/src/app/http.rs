@@ -13,10 +13,10 @@ use actix_web::{
 use anyhow::{Context, anyhow};
 use bytesize::ByteSize;
 use clap::{Arg, ArgMatches, Args, Command, Error, FromArgMatches, value_parser};
-use openssl::ssl::SslFiletype;
+use openssl::ssl::{SslFiletype, SslVersion};
 use opentelemetry_instrumentation_actix_web::{RequestMetrics, RequestTracing, RouteFormatter};
 use std::{
-    fmt::Debug,
+    fmt::{self, Debug},
     marker::PhantomData,
     net::{IpAddr, Ipv6Addr, SocketAddr, TcpListener},
     ops::Deref,
@@ -110,6 +110,70 @@ impl<E: Endpoint> FromArgMatches for BindPort<E> {
     }
 }
 
+/// TLS security profile, aligned with OpenShift TLS Security Profiles.
+#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq, Default)]
+pub enum TlsSecurityProfile {
+    /// TLS 1.0+, broadest compatibility.
+    #[clap(name = "old")]
+    Old,
+    /// TLS 1.2+, recommended default.
+    #[default]
+    #[clap(name = "intermediate")]
+    Intermediate,
+    /// TLS 1.3 only.
+    #[clap(name = "modern")]
+    Modern,
+    /// User-defined min TLS version and cipher suites.
+    #[clap(name = "custom")]
+    Custom,
+}
+
+impl fmt::Display for TlsSecurityProfile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TlsSecurityProfile::Old => write!(f, "old"),
+            TlsSecurityProfile::Intermediate => write!(f, "intermediate"),
+            TlsSecurityProfile::Modern => write!(f, "modern"),
+            TlsSecurityProfile::Custom => write!(f, "custom"),
+        }
+    }
+}
+
+/// Minimum TLS protocol version.
+#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq)]
+pub enum TlsMinVersion {
+    #[clap(name = "1.0")]
+    Tls1_0,
+    #[clap(name = "1.1")]
+    Tls1_1,
+    #[clap(name = "1.2")]
+    Tls1_2,
+    #[clap(name = "1.3")]
+    Tls1_3,
+}
+
+impl fmt::Display for TlsMinVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TlsMinVersion::Tls1_0 => write!(f, "1.0"),
+            TlsMinVersion::Tls1_1 => write!(f, "1.1"),
+            TlsMinVersion::Tls1_2 => write!(f, "1.2"),
+            TlsMinVersion::Tls1_3 => write!(f, "1.3"),
+        }
+    }
+}
+
+impl TlsMinVersion {
+    fn to_ssl_version(self) -> SslVersion {
+        match self {
+            TlsMinVersion::Tls1_0 => SslVersion::TLS1,
+            TlsMinVersion::Tls1_1 => SslVersion::TLS1_1,
+            TlsMinVersion::Tls1_2 => SslVersion::TLS1_2,
+            TlsMinVersion::Tls1_3 => SslVersion::TLS1_3,
+        }
+    }
+}
+
 #[derive(Clone, Debug, clap::Args)]
 #[command(
     rename_all_env = "SCREAMING_SNAKE_CASE",
@@ -186,6 +250,35 @@ where
     )]
     pub tls_certificate_file: Option<PathBuf>,
 
+    /// TLS security profile (old, intermediate, modern, custom)
+    #[arg(
+        id = "http-server-tls-security-profile",
+        long,
+        env = "HTTP_SERVER_TLS_SECURITY_PROFILE",
+        default_value_t = TlsSecurityProfile::Intermediate,
+    )]
+    pub tls_security_profile: TlsSecurityProfile,
+
+    /// Minimum TLS version (only used with custom profile)
+    #[arg(
+        id = "http-server-tls-min-version",
+        long,
+        env = "HTTP_SERVER_TLS_MIN_VERSION"
+    )]
+    pub tls_min_version: Option<TlsMinVersion>,
+
+    /// TLS 1.2 cipher list in OpenSSL format (only used with custom profile)
+    #[arg(id = "http-server-tls-ciphers", long, env = "HTTP_SERVER_TLS_CIPHERS")]
+    pub tls_ciphers: Option<String>,
+
+    /// TLS 1.3 ciphersuites in OpenSSL format (only used with custom profile)
+    #[arg(
+        id = "http-server-tls-ciphersuites",
+        long,
+        env = "HTTP_SERVER_TLS_CIPHERSUITES"
+    )]
+    pub tls_ciphersuites: Option<String>,
+
     /// Disable the request log
     #[arg(id = "http-disable-log", long, env = "HTTP_SERVER_DISABLE_LOG")]
     pub disable_log: bool,
@@ -224,6 +317,10 @@ where
             tls_enabled: false,
             tls_key_file: None,
             tls_certificate_file: None,
+            tls_security_profile: TlsSecurityProfile::Intermediate,
+            tls_min_version: None,
+            tls_ciphers: None,
+            tls_ciphersuites: None,
             disable_log: false,
             _marker: Default::default(),
         }
@@ -264,6 +361,13 @@ where
             .json_limit(value.json_limit.0.0 as _);
 
         if value.tls_enabled {
+            if value.tls_security_profile == TlsSecurityProfile::Custom
+                && value.tls_min_version.is_none()
+            {
+                return Err(anyhow!(
+                    "Custom TLS profile requires --http-server-tls-min-version"
+                ));
+            }
             result = result.tls(TlsConfiguration {
                 key: value.tls_key_file.ok_or_else(|| {
                     anyhow!("TLS enabled but no key file configured (use --http-server-tls-key-file)")
@@ -271,6 +375,10 @@ where
                 certificate: value.tls_certificate_file.ok_or_else(|| {
                     anyhow!("TLS enabled but no certificate file configured (use --http-server-tls-certificate-file)")
                 })?,
+                security_profile: value.tls_security_profile,
+                min_version: value.tls_min_version,
+                ciphers: value.tls_ciphers,
+                ciphersuites: value.tls_ciphersuites,
             });
         }
 
@@ -309,6 +417,51 @@ pub struct HttpServerBuilder {
 pub struct TlsConfiguration {
     certificate: PathBuf,
     key: PathBuf,
+    security_profile: TlsSecurityProfile,
+    min_version: Option<TlsMinVersion>,
+    ciphers: Option<String>,
+    ciphersuites: Option<String>,
+}
+
+/// Build an SSL acceptor configured according to the given TLS profile.
+fn build_ssl_acceptor(tls: &TlsConfiguration) -> anyhow::Result<openssl::ssl::SslAcceptorBuilder> {
+    let acceptor = match tls.security_profile {
+        TlsSecurityProfile::Old => {
+            let mut builder = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls_server())
+                .context("creating Old TLS profile acceptor")?;
+            builder
+                .set_min_proto_version(None)
+                .context("clearing min TLS version for Old profile")?;
+            builder
+        }
+        TlsSecurityProfile::Intermediate => {
+            SslAcceptor::mozilla_intermediate_v5(SslMethod::tls_server())
+                .context("creating Intermediate TLS profile acceptor")?
+        }
+        TlsSecurityProfile::Modern => SslAcceptor::mozilla_modern_v5(SslMethod::tls_server())
+            .context("creating Modern TLS profile acceptor")?,
+        TlsSecurityProfile::Custom => {
+            let mut builder = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls_server())
+                .context("creating Custom TLS profile acceptor")?;
+            if let Some(min_version) = tls.min_version {
+                builder
+                    .set_min_proto_version(Some(min_version.to_ssl_version()))
+                    .context("setting custom min TLS version")?;
+            }
+            if let Some(ref ciphers) = tls.ciphers {
+                builder
+                    .set_cipher_list(ciphers)
+                    .context("setting custom TLS 1.2 cipher list")?;
+            }
+            if let Some(ref ciphersuites) = tls.ciphersuites {
+                builder
+                    .set_ciphersuites(ciphersuites)
+                    .context("setting custom TLS 1.3 ciphersuites")?;
+            }
+            builder
+        }
+    };
+    Ok(acceptor)
 }
 
 pub enum Bind {
@@ -535,8 +688,8 @@ impl HttpServerBuilder {
 
         let tls = match self.tls {
             Some(tls) => {
-                log::info!("Enabling TLS support");
-                let mut acceptor = SslAcceptor::mozilla_modern_v5(SslMethod::tls_server())?;
+                log::info!("Enabling TLS support (profile: {})", tls.security_profile);
+                let mut acceptor = build_ssl_acceptor(&tls)?;
                 acceptor
                     .set_certificate_chain_file(tls.certificate)
                     .context("setting certificate chain")?;
@@ -640,5 +793,69 @@ mod test {
     #[test]
     fn default_config_converts() {
         HttpServerBuilder::try_from(HttpServerConfig::<MockEndpoint>::default()).unwrap();
+    }
+
+    /// Verifies that the default config uses the Intermediate TLS profile.
+    #[test]
+    fn default_tls_profile_is_intermediate() {
+        let config = HttpServerConfig::<MockEndpoint>::default();
+        assert_eq!(
+            config.tls_security_profile,
+            TlsSecurityProfile::Intermediate
+        );
+    }
+
+    /// Verifies that a Custom profile without min_version is rejected.
+    #[test]
+    fn custom_profile_requires_min_version() {
+        let config = HttpServerConfig::<MockEndpoint> {
+            tls_enabled: true,
+            tls_key_file: Some(PathBuf::from("/tmp/key.pem")),
+            tls_certificate_file: Some(PathBuf::from("/tmp/cert.pem")),
+            tls_security_profile: TlsSecurityProfile::Custom,
+            tls_min_version: None,
+            ..Default::default()
+        };
+        let err = match HttpServerBuilder::try_from(config) {
+            Err(e) => e,
+            Ok(_) => panic!("expected error for Custom profile without min_version"),
+        };
+        assert!(
+            err.to_string().contains("--http-server-tls-min-version"),
+            "error should mention --http-server-tls-min-version, got: {err}"
+        );
+    }
+
+    /// Verifies that all named profiles are accepted during config conversion.
+    #[test]
+    fn all_profiles_accepted() {
+        for profile in [
+            TlsSecurityProfile::Old,
+            TlsSecurityProfile::Intermediate,
+            TlsSecurityProfile::Modern,
+        ] {
+            let config = HttpServerConfig::<MockEndpoint> {
+                tls_enabled: true,
+                tls_key_file: Some(PathBuf::from("/tmp/key.pem")),
+                tls_certificate_file: Some(PathBuf::from("/tmp/cert.pem")),
+                tls_security_profile: profile,
+                ..Default::default()
+            };
+            HttpServerBuilder::try_from(config).unwrap();
+        }
+    }
+
+    /// Verifies that Custom profile with min_version is accepted.
+    #[test]
+    fn custom_profile_with_min_version_accepted() {
+        let config = HttpServerConfig::<MockEndpoint> {
+            tls_enabled: true,
+            tls_key_file: Some(PathBuf::from("/tmp/key.pem")),
+            tls_certificate_file: Some(PathBuf::from("/tmp/cert.pem")),
+            tls_security_profile: TlsSecurityProfile::Custom,
+            tls_min_version: Some(TlsMinVersion::Tls1_2),
+            ..Default::default()
+        };
+        HttpServerBuilder::try_from(config).unwrap();
     }
 }
