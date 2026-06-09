@@ -62,10 +62,10 @@ impl PackageCreator {
         }
     }
 
-    pub fn add<I, C>(
+    pub fn add<'a, I, C>(
         &mut self,
         node_info: NodeInfoParam,
-        refs: impl IntoIterator<Item = PackageReference>,
+        refs: impl Iterator<Item = &'a PackageReference>,
         checksums: I,
     ) where
         I: IntoIterator<Item = C>,
@@ -77,7 +77,7 @@ impl PackageCreator {
                     self.cpe_refs.push(sbom_package_cpe_ref::ActiveModel {
                         sbom_id: Set(self.sbom_id),
                         node_id: Set(node_info.node_id.clone()),
-                        cpe_id: Set(cpe),
+                        cpe_id: Set(*cpe),
                     });
                 }
                 PackageReference::Purl(purl) => {

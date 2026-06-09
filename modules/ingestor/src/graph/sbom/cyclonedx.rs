@@ -4,9 +4,10 @@ use crate::{
         product::ProductInformation,
         purl::creator::PurlCreator,
         sbom::{
-            CycloneDx as CycloneDxProcessor, LicenseCreator, LicenseInfo, NodeInfoParam,
-            PackageCreator, PackageLicensenInfo, PackageReference, References, RelationshipCreator,
-            SbomContext, SbomInformation,
+            CryptographicAssetCreator, CycloneDx as CycloneDxProcessor, LicenseCreator,
+            LicenseInfo, MachineLearningModelCreator, NodeInfoParam, PackageCreator,
+            PackageLicensenInfo, PackageReference, References, RelationshipCreator, SbomContext,
+            SbomInformation,
             processor::{
                 InitContext, PostContext, Processor, RedHatProductComponentRelationships,
                 RunProcessors,
@@ -24,12 +25,14 @@ use sea_orm::ConnectionTrait;
 use serde_cyclonedx::cyclonedx::v_1_6::{
     Component, ComponentEvidenceIdentity, CycloneDx, LicenseChoiceUrl, OrganizationalContact,
 };
-use std::{borrow::Cow, str::FromStr};
+use std::{borrow::Cow, collections::HashMap, str::FromStr};
 use time::{OffsetDateTime, format_description::well_known::Iso8601};
 use tracing::instrument;
 use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::relationship::Relationship;
 use uuid::Uuid;
+
+use super::FileCreator;
 
 /// Marker we use for identifying the document itself.
 ///
@@ -286,59 +289,24 @@ impl<'a> Creator<'a> {
         db: &impl ConnectionTrait,
         processors: &mut [Box<dyn Processor>],
     ) -> Result<(), Error> {
-        let mut purls = PurlCreator::new();
-        let mut cpes = CpeCreator::new();
-        let mut packages = PackageCreator::with_capacity(self.sbom_id, self.components.len());
-        let mut relationships = RelationshipCreator::with_capacity(
-            self.sbom_id,
-            self.relations.len(),
-            CycloneDxProcessor,
-        );
-        let mut licenses = LicenseCreator::new();
+        let mut creator = ComponentCreator::new(self.sbom_id, self.components.len());
 
         for comp in self.components {
-            let creator = ComponentCreator::new(
-                &mut cpes,
-                &mut purls,
-                &mut licenses,
-                &mut packages,
-                &mut relationships,
-            );
-            creator.create(comp);
+            creator.add_component(comp)?;
         }
 
         for (left, rel, right) in self.relations {
-            relationships.relate(left, rel, right);
+            creator.add_relation(left, rel, right);
         }
 
         // post process
-
-        PostContext {
-            cpes: &cpes,
-            purls: &purls,
-            packages: &mut packages,
-            relationships: &mut relationships.rels,
-            externals: &mut relationships.externals,
-        }
-        .run(processors);
+        creator.post_process(processors);
 
         // validate relationships before inserting
+        creator.validate()?;
 
-        let sources = References::new()
-            .add_source(&[CYCLONEDX_DOC_REF])
-            .add_source(&packages);
-        relationships
-            .validate(sources)
-            .map_err(Error::InvalidContent)?;
-
-        // create - order matters to prevent cross-table deadlocks when running concurrent
-        // SBOM ingestions. All SBOM loaders must use the same table insertion order.
-
-        licenses.create(db).await?;
-        purls.create(db).await?;
-        cpes.create(db).await?;
-        packages.create(db).await?;
-        relationships.create(db).await?;
+        // write to db
+        creator.create(db).await?;
 
         // done
 
@@ -346,35 +314,35 @@ impl<'a> Creator<'a> {
     }
 }
 
-struct ComponentCreator<'a> {
-    cpes: &'a mut CpeCreator,
-    purls: &'a mut PurlCreator,
-    licenses: &'a mut LicenseCreator,
-    packages: &'a mut PackageCreator,
-    relationships: &'a mut RelationshipCreator<CycloneDxProcessor>,
-
-    refs: Vec<PackageReference>,
+struct ComponentCreator {
+    cpes: CpeCreator,
+    purls: PurlCreator,
+    licenses: LicenseCreator,
+    packages: PackageCreator,
+    files: FileCreator,
+    models: MachineLearningModelCreator,
+    crypto: CryptographicAssetCreator,
+    relationships: RelationshipCreator<CycloneDxProcessor>,
+    // Map each node to a collection of references
+    refs: HashMap<String, Vec<PackageReference>>,
 }
 
-impl<'a> ComponentCreator<'a> {
-    pub fn new(
-        cpes: &'a mut CpeCreator,
-        purls: &'a mut PurlCreator,
-        licenses: &'a mut LicenseCreator,
-        packages: &'a mut PackageCreator,
-        relationships: &'a mut RelationshipCreator<CycloneDxProcessor>,
-    ) -> Self {
+impl ComponentCreator {
+    pub fn new(sbom_id: Uuid, capacity: usize) -> Self {
         Self {
-            cpes,
-            purls,
-            licenses,
+            cpes: CpeCreator::new(),
+            purls: PurlCreator::new(),
+            licenses: LicenseCreator::new(),
+            packages: PackageCreator::with_capacity(sbom_id, capacity),
+            files: FileCreator::new(sbom_id),
+            models: MachineLearningModelCreator::new(sbom_id),
+            crypto: CryptographicAssetCreator::new(sbom_id),
+            relationships: RelationshipCreator::new(sbom_id, CycloneDxProcessor),
             refs: Default::default(),
-            packages,
-            relationships,
         }
     }
 
-    pub fn create(mut self, comp: &Component) {
+    pub fn add_component(&mut self, comp: &Component) -> Result<(), Error> {
         let node_id = comp
             .bom_ref
             .clone()
@@ -385,7 +353,7 @@ impl<'a> ComponentCreator<'a> {
         if let Some(cpe) = &comp.cpe {
             match Cpe::from_str(cpe.as_ref()) {
                 Ok(cpe) => {
-                    self.add_cpe(cpe);
+                    self.add_cpe(node_id.clone(), cpe);
                 }
                 Err(err) => {
                     log::info!("Skipping CPE due to parsing error: {err}");
@@ -396,7 +364,7 @@ impl<'a> ComponentCreator<'a> {
         if let Some(purl) = &comp.purl {
             match Purl::from_str(purl.as_ref()) {
                 Ok(purl) => {
-                    self.add_purl(purl);
+                    self.add_purl(node_id.clone(), purl);
                 }
                 Err(err) => {
                     log::info!("Skipping PURL due to parsing error: {err}");
@@ -417,12 +385,12 @@ impl<'a> ComponentCreator<'a> {
             match (identity.field.as_str(), &identity.concluded_value) {
                 ("cpe", Some(cpe)) => {
                     if let Ok(cpe) = Cpe::from_str(cpe.as_ref()) {
-                        self.add_cpe(cpe);
+                        self.add_cpe(node_id.clone(), cpe);
                     }
                 }
                 ("purl", Some(purl)) => {
                     if let Ok(purl) = Purl::from_str(purl.as_ref()) {
-                        self.add_purl(purl);
+                        self.add_purl(node_id.clone(), purl);
                     }
                 }
 
@@ -438,17 +406,57 @@ impl<'a> ComponentCreator<'a> {
             })
             .collect::<Vec<_>>();
 
-        self.packages.add(
-            NodeInfoParam {
-                node_id: node_id.clone(),
-                name: comp.name.to_string(),
-                group: comp.group.as_ref().map(|v| v.to_string()),
-                version: comp.version.as_ref().map(|v| v.to_string()),
-                package_license_info: cyclone_licenses,
-            },
-            self.refs,
-            comp.hashes.clone().into_iter().flatten(),
-        );
+        match ComponentType::from_str(&comp.type_) {
+            Ok(ty) => {
+                use ComponentType::*;
+                match ty {
+                    // We treat all these types as "packages"
+                    Application | Framework | Library | Container | OperatingSystem => {
+                        const EMPTY: Vec<PackageReference> = vec![];
+                        self.packages.add(
+                            NodeInfoParam {
+                                node_id: node_id.clone(),
+                                name: comp.name.to_string(),
+                                group: comp.group.as_ref().map(|v| v.to_string()),
+                                version: comp.version.as_ref().map(|v| v.to_string()),
+                                package_license_info: cyclone_licenses,
+                            },
+                            self.refs.get(&node_id).unwrap_or(&EMPTY).iter(),
+                            comp.hashes.clone().into_iter().flatten(),
+                        )
+                    }
+                    File => {
+                        self.files.add(
+                            node_id.clone(),
+                            comp.name.to_string(),
+                            comp.hashes.clone().into_iter().flatten(),
+                        );
+                    }
+                    MachineLearningModel => {
+                        // TODO: store the model card data
+                        self.models.add(
+                            node_id.clone(),
+                            comp.name.to_string(),
+                            comp.hashes.clone().into_iter().flatten(),
+                        );
+                    }
+                    CryptographicAsset => {
+                        // TODO: store the crypto properties data
+                        self.crypto.add(
+                            node_id.clone(),
+                            comp.name.to_string(),
+                            comp.hashes.clone().into_iter().flatten(),
+                        );
+                    }
+                    _ => log::error!("Unsupported component type: '{ty}'"),
+                }
+            }
+            Err(e) => {
+                return Err(Error::InvalidContent(anyhow::anyhow!(
+                    "Invalid component type: {e}"
+                )));
+            }
+        }
 
         for ancestor in comp
             .pedigree
@@ -460,21 +468,9 @@ impl<'a> ComponentCreator<'a> {
                 .clone()
                 .unwrap_or_else(|| Uuid::new_v4().to_string());
 
-            // create the component
+            self.add_component(ancestor)?;
 
-            let creator = Box::new(ComponentCreator::new(
-                self.cpes,
-                self.purls,
-                self.licenses,
-                self.packages,
-                self.relationships,
-            ));
-
-            creator.create(ancestor);
-
-            // and store a relationship
-            self.relationships
-                .relate(target, Relationship::AncestorOf, node_id.clone());
+            self.add_relation(target, Relationship::AncestorOf, node_id.clone());
         }
 
         for variant in comp
@@ -487,31 +483,32 @@ impl<'a> ComponentCreator<'a> {
                 .clone()
                 .unwrap_or_else(|| Uuid::new_v4().to_string());
 
-            // create the component
+            self.add_component(variant)?;
 
-            let creator = Box::new(ComponentCreator::new(
-                self.cpes,
-                self.purls,
-                self.licenses,
-                self.packages,
-                self.relationships,
-            ));
-
-            creator.create(variant);
-
-            self.relationships
-                .relate(node_id.clone(), Relationship::Variant, target);
+            self.add_relation(node_id.clone(), Relationship::Variant, target);
         }
+
+        Ok(())
     }
 
-    pub fn add_cpe(&mut self, cpe: Cpe) {
+    fn add_relation(&mut self, left: String, rel: Relationship, right: String) {
+        self.relationships.relate(left, rel, right);
+    }
+
+    fn add_cpe(&mut self, node_id: String, cpe: Cpe) {
         let id = cpe.uuid();
-        self.refs.push(PackageReference::Cpe(id));
+        self.refs
+            .entry(node_id)
+            .or_default()
+            .push(PackageReference::Cpe(id));
         self.cpes.add(cpe);
     }
 
-    pub fn add_purl(&mut self, purl: Purl) {
-        self.refs.push(PackageReference::Purl(purl.clone()));
+    fn add_purl(&mut self, node_id: String, purl: Purl) {
+        self.refs
+            .entry(node_id)
+            .or_default()
+            .push(PackageReference::Purl(purl.clone()));
         self.purls.add(purl);
     }
 
@@ -548,5 +545,126 @@ impl<'a> ComponentCreator<'a> {
             }
         }
         license_uuid
+    }
+
+    fn post_process(&mut self, processors: &mut [Box<dyn Processor>]) {
+        PostContext {
+            cpes: &self.cpes,
+            purls: &self.purls,
+            packages: &mut self.packages,
+            relationships: &mut self.relationships.rels,
+            externals: &mut self.relationships.externals,
+        }
+        .run(processors);
+    }
+
+    fn validate(&self) -> Result<(), Error> {
+        let sources = References::new()
+            .add_source(&[CYCLONEDX_DOC_REF])
+            .add_source(&self.packages)
+            .add_source(&self.files)
+            .add_source(&self.models)
+            .add_source(&self.crypto);
+        self.relationships
+            .validate(sources)
+            .map_err(Error::InvalidContent)
+    }
+
+    // order matters to prevent cross-table deadlocks when running
+    // concurrent SBOM ingestions. All SBOM loaders must use the same
+    // table insertion order.
+    async fn create(self, db: &impl ConnectionTrait) -> Result<(), Error> {
+        self.licenses.create(db).await?;
+        self.purls.create(db).await?;
+        self.cpes.create(db).await?;
+        self.packages.create(db).await?;
+        self.files.create(db).await?;
+        self.models.create(db).await?;
+        self.crypto.create(db).await?;
+        self.relationships.create(db).await?;
+
+        Ok(())
+    }
+}
+
+/// Type of the components within an SBOM, mostly based on
+/// https://cyclonedx.org/docs/1.6/json/#components_items_type
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::EnumString,
+    strum::Display,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case", ascii_case_insensitive)]
+pub enum ComponentType {
+    /// A software application
+    Application,
+    /// A software framework
+    Framework,
+    /// A software library
+    Library,
+    /// A packaging and/or runtime format
+    Container,
+    /// A runtime environment which interprets or executes software
+    Platform,
+    /// A software operating system without regard to deployment model
+    OperatingSystem,
+    /// A hardware device such as a processor or chip-set
+    Device,
+    /// A special type of software that operates or controls a particular type of device
+    DeviceDriver,
+    /// A special type of software that provides low-level control over a device's hardware
+    Firmware,
+    /// A computer file
+    File,
+    /// A model based on training data that can make predictions or decisions without being explicitly programmed to do so
+    MachineLearningModel,
+    /// A collection of discrete values that convey information
+    Data,
+    /// A cryptographic asset including algorithms, protocols, certificates, keys, tokens, and secrets
+    CryptographicAsset,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use serde_json::json;
+    use std::str::FromStr;
+    use test_log::test;
+
+    #[test]
+    fn component_types() {
+        use ComponentType::*;
+
+        // The standard conversions
+        for (s, t) in [
+            ("application", Application),
+            ("framework", Framework),
+            ("library", Library),
+            ("container", Container),
+            ("platform", Platform),
+            ("operating-system", OperatingSystem),
+            ("device", Device),
+            ("device-driver", DeviceDriver),
+            ("firmware", Firmware),
+            ("file", File),
+            ("machine-learning-model", MachineLearningModel),
+            ("data", Data),
+            ("cryptographic-asset", CryptographicAsset),
+        ] {
+            assert_eq!(ComponentType::from_str(s), Ok(t));
+            assert_eq!(t.to_string(), s);
+            assert_eq!(json!(t), json!(s));
+        }
+
+        // Error handling
+        assert!(ComponentType::from_str("missing").is_err());
+        assert_eq!(ComponentType::from_str("FiLe"), Ok(File));
     }
 }

@@ -301,7 +301,7 @@ impl SbomContext {
                     version: package.package_version,
                     package_license_info,
                 },
-                refs,
+                refs.iter(),
                 package.package_checksum,
             );
         }

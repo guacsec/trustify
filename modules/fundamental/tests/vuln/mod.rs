@@ -18,7 +18,7 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .analyze_purls(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db)
         .await?;
 
-    println!("{:#?}", result);
+    log::debug!("{:#?}", result);
 
     // check number of PURLs
 
