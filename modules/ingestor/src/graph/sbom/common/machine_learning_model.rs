@@ -17,13 +17,52 @@ pub struct ModelCard {
 
 impl From<&Component> for ModelCard {
     fn from(c: &Component) -> Self {
-        let properties = Value::from(c.model_card.as_ref().and_then(|card| {
-            card.properties.as_ref().map(|v| {
-                v.iter()
-                    .map(|p| (p.name.clone(), p.value.clone().into()))
-                    .collect::<Map<_, _>>()
-            })
-        }));
+        let properties = match c.model_card.as_ref() {
+            Some(card) => {
+                let mut map = Map::new();
+
+                if let Some(params) = &card.model_parameters {
+                    if let Some(task) = &params.task {
+                        map.insert(
+                            "primaryPurpose".to_string(),
+                            Value::String(task.clone()),
+                        );
+                    }
+                    if let Some(approach) = &params.approach
+                        && let Some(type_val) = &approach.type_
+                    {
+                        map.insert(
+                            "typeOfModel".to_string(),
+                            Value::String(type_val.clone()),
+                        );
+                    }
+                }
+
+                if let Some(considerations) = &card.considerations
+                    && let Some(limitations) = &considerations.technical_limitations
+                    && !limitations.is_empty()
+                {
+                    map.insert(
+                        "limitation".to_string(),
+                        Value::String(limitations.join("; ")),
+                    );
+                }
+
+                // Generic properties take precedence over structured fields
+                if let Some(props) = &card.properties {
+                    for p in props {
+                        map.insert(p.name.clone(), p.value.clone().into());
+                    }
+                }
+
+                if map.is_empty() {
+                    Value::Null
+                } else {
+                    Value::Object(map)
+                }
+            }
+            None => Value::Null,
+        };
         ModelCard { properties }
     }
 }
