@@ -4,6 +4,8 @@ pub mod advisory_vulnerability_score;
 pub mod base_purl;
 pub mod cpe;
 pub mod expanded_license;
+pub mod exploit_intelligence_job;
+pub mod exploit_intelligence_job_component;
 pub mod importer;
 pub mod importer_report;
 pub mod labels;
