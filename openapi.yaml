@@ -1033,6 +1033,115 @@ paths:
           description: Uploaded the dataset
         '400':
           description: The file could not be parsed as an dataset
+  /api/v3/exploit-intelligence/analyze:
+    post:
+      tags:
+      - exploit-intelligence
+      summary: Trigger an Exploit Intelligence analysis for a CVE against an SBOM.
+      description: |-
+        Creates a job record and spawns a background task that submits the SBOM
+        to the EI client service, polls for completion, and ingests any returned
+        VEX document.
+      operationId: analyzeExploitIntelligence
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeRequest'
+        required: true
+      responses:
+        '201':
+          description: Analysis job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
+        '404':
+          description: SBOM not found
+        '503':
+          description: Exploit Intelligence service not configured
+  /api/v3/exploit-intelligence/jobs:
+    get:
+      tags:
+      - exploit-intelligence
+      summary: List Exploit Intelligence analysis jobs.
+      operationId: listExploitIntelligenceJobs
+      parameters:
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      - name: sbom_id
+        in: query
+        description: Filter by SBOM ID.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      - name: status
+        in: query
+        description: Filter by job status.
+        required: false
+        schema:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JobStatus'
+      responses:
+        '200':
+          description: List of analysis jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResults_ExploitIntelligenceJobSummary'
+  /api/v3/exploit-intelligence/jobs/{id}:
+    get:
+      tags:
+      - exploit-intelligence
+      summary: Get details of a specific Exploit Intelligence analysis job.
+      operationId: getExploitIntelligenceJob
+      parameters:
+      - name: id
+        in: path
+        description: Job identifier
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExploitIntelligenceJobDetails'
+        '404':
+          description: Job not found
   /api/v3/group/sbom:
     get:
       tags:
@@ -4340,6 +4449,34 @@ components:
         cache:
           $ref: '#/components/schemas/CacheStatusDetails'
           description: Details about the cache
+    AnalyzeRequest:
+      type: object
+      description: Request body for triggering an Exploit Intelligence analysis.
+      required:
+      - sbom_id
+      - vulnerability_id
+      properties:
+        sbom_id:
+          type: string
+          format: uuid
+          description: The SBOM identifier to analyze.
+        vulnerability_id:
+          type: string
+          description: The vulnerability identifier (e.g., "CVE-2024-9680").
+    AnalyzeResponse:
+      type: object
+      description: Response returned when an analysis job is successfully created.
+      required:
+      - job_id
+      - status
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          description: The unique job identifier.
+        status:
+          $ref: '#/components/schemas/JobStatus'
+          description: Current lifecycle status of the job.
     BasePurlDetails:
       allOf:
       - $ref: '#/components/schemas/BasePurlHead'
@@ -4636,6 +4773,91 @@ components:
         message:
           type: string
           description: A human-readable error message
+    ExploitIntelligenceJobDetails:
+      type: object
+      description: Detailed view of an Exploit Intelligence analysis job.
+      required:
+      - id
+      - vulnerability_id
+      - status
+      - created
+      - updated
+      properties:
+        advisory_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: FK to advisory — set when a VEX document is ingested from the result.
+        created:
+          type: string
+          description: Timestamp when the job was created.
+        error_message:
+          type:
+          - string
+          - 'null'
+          description: Error details for failed analyses.
+        finding:
+          type:
+          - string
+          - 'null'
+          description: 'Analysis result: "vulnerable", "not_vulnerable", or "uncertain".'
+        id:
+          type: string
+          format: uuid
+          description: The unique job identifier.
+        report_url:
+          type:
+          - string
+          - 'null'
+          description: Link to the EI human-readable justification report.
+        sbom_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: FK to the SBOM being analysed.
+        status:
+          $ref: '#/components/schemas/JobStatus'
+          description: Current lifecycle status of the job.
+        updated:
+          type: string
+          description: Timestamp when the job was last updated.
+        vulnerability_id:
+          type: string
+          description: CVE identifier.
+    ExploitIntelligenceJobSummary:
+      type: object
+      description: Summary of an Exploit Intelligence analysis job.
+      required:
+      - id
+      - vulnerability_id
+      - status
+      - created
+      - updated
+      properties:
+        created:
+          type: string
+          description: Timestamp when the job was created.
+        id:
+          type: string
+          format: uuid
+          description: The unique job identifier.
+        sbom_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: FK to the SBOM being analysed.
+        status:
+          $ref: '#/components/schemas/JobStatus'
+          description: Current lifecycle status of the job.
+        updated:
+          type: string
+          description: Timestamp when the job was last updated.
+        vulnerability_id:
+          type: string
+          description: CVE identifier.
     ExternalReferenceQuery:
       type: object
       properties:
@@ -4911,6 +5133,14 @@ components:
           items:
             type: string
           description: Warnings that occurred during the import process
+    JobStatus:
+      type: string
+      description: Lifecycle status of an Exploit Intelligence analysis job (API representation).
+      enum:
+      - pending
+      - running
+      - completed
+      - failed
     Labels:
       type: object
       additionalProperties:
@@ -5126,6 +5356,51 @@ components:
           items:
             allOf:
             - $ref: '#/components/schemas/BasePurlHead'
+        total:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
+    PaginatedResults_ExploitIntelligenceJobSummary:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            description: Summary of an Exploit Intelligence analysis job.
+            required:
+            - id
+            - vulnerability_id
+            - status
+            - created
+            - updated
+            properties:
+              created:
+                type: string
+                description: Timestamp when the job was created.
+              id:
+                type: string
+                format: uuid
+                description: The unique job identifier.
+              sbom_id:
+                type:
+                - string
+                - 'null'
+                format: uuid
+                description: FK to the SBOM being analysed.
+              status:
+                $ref: '#/components/schemas/JobStatus'
+                description: Current lifecycle status of the job.
+              updated:
+                type: string
+                description: Timestamp when the job was last updated.
+              vulnerability_id:
+                type: string
+                description: CVE identifier.
         total:
           type:
           - integer

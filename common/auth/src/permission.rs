@@ -117,6 +117,11 @@ permission! {
 
         #[strum(serialize = "ai")]
         Ai,
+
+        #[strum(serialize = "create.exploitIntelligence")]
+        CreateExploitIntelligence,
+        #[strum(serialize = "read.exploitIntelligence")]
+        ReadExploitIntelligence,
     }
 }
 

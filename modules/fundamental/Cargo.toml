@@ -30,6 +30,7 @@ futures-util = { workspace = true }
 isx = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
+reqwest = { workspace = true, features = ["json", "multipart"] }
 sanitize-filename = { workspace = true }
 sea-orm = { workspace = true }
 sea-query = { workspace = true }

@@ -92,6 +92,22 @@ pub struct Run {
     )]
     pub scan_limit: BinaryByteSize,
 
+    /// Base URL of the Exploit Intelligence client service.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_URL")]
+    pub exploit_intelligence_url: Option<String>,
+
+    /// Polling interval in seconds for EI analysis completion (default: 30).
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_POLL_INTERVAL_SECS",
+        default_value_t = 30
+    )]
+    pub exploit_intelligence_poll_interval_secs: u64,
+
+    /// Authentication token for the Exploit Intelligence service.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_AUTH_TOKEN")]
+    pub exploit_intelligence_auth_token: Option<String>,
+
     // flattened commands must go last
     //
     /// Analysis configuration
@@ -194,6 +210,9 @@ struct InitData {
     config: ModuleConfig,
     analysis: AnalysisService,
     read_only: bool,
+    ei_config: Option<
+        trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig,
+    >,
 }
 
 /// Groups all module configurations.
@@ -298,6 +317,14 @@ impl InitData {
             },
         };
 
+        let ei_config = run.exploit_intelligence_url.map(|url| {
+            trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig {
+                url,
+                poll_interval_secs: run.exploit_intelligence_poll_interval_secs,
+                auth_token: run.exploit_intelligence_auth_token,
+            }
+        });
+
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
             authenticator,
@@ -315,6 +342,7 @@ impl InitData {
             embedded_oidc,
             ui,
             read_only: run.read_only,
+            ei_config,
         })
     }
 
@@ -341,6 +369,7 @@ impl InitData {
                             auth: self.authenticator.clone(),
                             analysis: self.analysis.clone(),
                             read_only: self.read_only,
+                            ei_config: self.ei_config.clone(),
                         },
                     );
                 })
@@ -391,6 +420,9 @@ pub(crate) struct Config {
     pub(crate) analysis: AnalysisService,
     pub(crate) auth: Option<Arc<Authenticator>>,
     pub(crate) read_only: bool,
+    pub(crate) ei_config: Option<
+        trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig,
+    >,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
@@ -408,6 +440,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         auth,
         analysis,
         read_only,
+        ei_config,
     } = config;
 
     let graph = Graph::new();
@@ -441,6 +474,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     storage,
                     analysis.clone(),
                     cache,
+                    ei_config.clone(),
                 );
                 trustify_module_analysis::endpoints::configure(svc, db_ro.clone(), analysis);
                 trustify_module_user::endpoints::configure(svc);
@@ -521,6 +555,7 @@ mod test {
                             auth: None,
                             analysis,
                             read_only: false,
+                            ei_config: None,
                         },
                     );
                 })
@@ -594,6 +629,7 @@ mod test {
                     auth: None,
                     analysis,
                     read_only,
+                    ei_config: None,
                 },
             );
         })
