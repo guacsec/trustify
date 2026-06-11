@@ -1,7 +1,7 @@
 use crate::{
     Error,
     advisory::model::AdvisoryHead,
-    common::{LicenseInfo, LicenseRefMapping, license_filtering},
+    common::{LicenseInfo, LicenseRefMapping, license_filtering::license_text_coalesce},
     purl::model::{BasePurlHead, PurlHead, VersionedPurlHead},
     sbom::{model::SbomHead, service::sbom::LicenseBasicInfo},
     vulnerability::model::VulnerabilityHead,
@@ -23,9 +23,9 @@ use trustify_common::{
 use trustify_cvss::cvss3::{Cvss3Base, score::Score, severity::Severity};
 use trustify_entity::{
     advisory, base_purl, cpe, cvss3, license, organization, product, product_status,
-    product_version, product_version_range, purl_status, qualified_purl, sbom, sbom_package,
-    sbom_package_license, sbom_package_purl_ref, status, version_range, versioned_purl,
-    vulnerability,
+    product_version, product_version_range, purl_status, qualified_purl, sbom,
+    sbom_license_expanded, sbom_package, sbom_package_license, sbom_package_purl_ref, status,
+    version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::{Deprecation, DeprecationForExt};
 use utoipa::ToSchema;
@@ -109,10 +109,7 @@ impl PurlDetails {
         let licenses: Vec<LicenseInfo> = sbom_package_purl_ref::Entity::find()
             .distinct()
             .select_only()
-            .column_as(
-                license_filtering::get_case_license_text_sbom_id(),
-                "license_name",
-            )
+            .column_as(license_text_coalesce(), "license_name")
             .select_column(sbom_package_license::Column::LicenseType)
             .filter(sbom_package_purl_ref::Column::QualifiedPurlId.eq(qualified_package.id))
             .join(
@@ -121,7 +118,15 @@ impl PurlDetails {
             )
             .join(JoinType::Join, sbom_package::Relation::PackageLicense.def())
             .join(
-                JoinType::Join,
+                JoinType::LeftJoin,
+                sbom_package_license::Relation::SbomLicenseExpanded.def(),
+            )
+            .join(
+                JoinType::LeftJoin,
+                sbom_license_expanded::Relation::ExpandedLicense.def(),
+            )
+            .join(
+                JoinType::LeftJoin,
                 sbom_package_license::Relation::License.def(),
             )
             .into_model::<PurlLicenseResult>()

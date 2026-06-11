@@ -33,6 +33,8 @@ mod m0001180_expand_spdx_licenses_with_mappings_function;
 mod m0001190_optimize_product_advisory_query;
 mod m0001200_source_document_fk_indexes;
 mod m0002100_analysis_perf_indexes;
+mod m0002110_license_query_performance;
+mod m0002120_normalize_expanded_license;
 
 pub struct Migrator;
 
@@ -73,6 +75,8 @@ impl MigratorTrait for Migrator {
             Box::new(m0001190_optimize_product_advisory_query::Migration),
             Box::new(m0001200_source_document_fk_indexes::Migration),
             Box::new(m0002100_analysis_perf_indexes::Migration),
+            Box::new(m0002110_license_query_performance::Migration),
+            Box::new(m0002120_normalize_expanded_license::Migration),
         ]
     }
 }

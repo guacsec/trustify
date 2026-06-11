@@ -27,6 +27,12 @@ pub enum Relation {
     Package,
     #[sea_orm(has_one = "super::license::Entity")]
     License,
+    #[sea_orm(
+        belongs_to = "super::sbom_license_expanded::Entity",
+        from = "(Column::SbomId, Column::LicenseId)",
+        to = "(super::sbom_license_expanded::Column::SbomId, super::sbom_license_expanded::Column::LicenseId)"
+    )]
+    SbomLicenseExpanded,
 }
 
 #[derive(
@@ -64,6 +70,12 @@ impl Related<super::sbom_package::Entity> for Entity {
 impl Related<super::license::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::License.def()
+    }
+}
+
+impl Related<super::sbom_license_expanded::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::SbomLicenseExpanded.def()
     }
 }
 

@@ -9,6 +9,8 @@
 
 *.cdx.json
 *.folded
+*-secret.*
+*.tar
 
 /flame*.svg
 /perf.data*

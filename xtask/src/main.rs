@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-#![recursion_limit = "256"]
+#![recursion_limit = "512"]
 
 use crate::log::init_log;
 use clap::{Parser, Subcommand};

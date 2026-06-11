@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 pub mod config;
 pub mod endpoints;
 pub mod error;

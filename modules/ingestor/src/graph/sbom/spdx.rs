@@ -6,7 +6,7 @@ use crate::{
         sbom::{
             FileCreator, LicenseCreator, LicenseInfo, LicensingInfo, LicensingInfoCreator,
             NodeInfoParam, PackageCreator, PackageLicensenInfo, PackageReference, References,
-            RelationshipCreator, SbomContext, SbomInformation, Spdx,
+            RelationshipCreator, SbomContext, SbomInformation, Spdx, populate_expanded_license,
             processor::{
                 InitContext, PostContext, Processor, RedHatProductComponentRelationships,
                 RunProcessors,
@@ -102,11 +102,11 @@ impl<'a> From<Information<'a>> for SbomInformation {
 
 impl SbomContext {
     #[instrument(skip(db, sbom_data, warnings), ret(level=tracing::Level::DEBUG))]
-    pub async fn ingest_spdx<C: ConnectionTrait>(
+    pub async fn ingest_spdx(
         &self,
         sbom_data: SPDX,
         warnings: &dyn ReportSink,
-        db: &C,
+        db: &impl ConnectionTrait,
     ) -> Result<(), Error> {
         // pre-flight checks
 
@@ -356,6 +356,9 @@ impl SbomContext {
         packages.create(db).await?;
         files.create(db).await?;
         relationships.create(db).await?;
+
+        // Populate expanded license tables
+        populate_expanded_license(self.sbom.sbom_id, db).await?;
 
         // done
 
