@@ -29,7 +29,7 @@ use std::{
 };
 use time::OffsetDateTime;
 use tokio::sync::oneshot;
-use tracing::{Level, instrument};
+use tracing::{Instrument, Level, info_span, instrument};
 use trustify_common::{
     cpe::Cpe as TrustifyCpe,
     db::query::{Columns, Filtering, IntoColumns},
@@ -352,6 +352,7 @@ impl InnerService {
                     .filter(sbom_node::Column::NodeId.eq(node_id))
                     .into_model()
                     .all(connection)
+                    .instrument(info_span!("finding matching sboms", mode = "id"))
                     .await?,
             ),
             GraphQuery::Component(ComponentReference::Name(name)) => (
@@ -360,6 +361,7 @@ impl InnerService {
                     .filter(sbom_node::Column::Name.eq(name))
                     .into_model()
                     .all(connection)
+                    .instrument(info_span!("finding matching sboms", mode = "name"))
                     .await?,
             ),
             GraphQuery::Component(ComponentReference::Purl(purl)) => (
@@ -372,6 +374,7 @@ impl InnerService {
                     )
                     .into_model()
                     .all(connection)
+                    .instrument(info_span!("finding matching sboms", mode = "purl"))
                     .await?,
             ),
             GraphQuery::Component(ComponentReference::Cpe(cpe)) => (
@@ -382,11 +385,19 @@ impl InnerService {
                     .filter(sbom_package_cpe_ref::Column::CpeId.eq(cpe.uuid()))
                     .into_model()
                     .all(connection)
+                    .instrument(info_span!("finding matching sboms", mode = "cpe"))
                     .await?,
             ),
             GraphQuery::Query(query) => (
                 true,
-                select()
+                sbom_node::Entity::find()
+                    .distinct()
+                    .select_only()
+                    .column(sbom::Column::SbomId)
+                    .column(sbom_node::Column::NodeId)
+                    .column(sbom_node::Column::Name)
+                    .column(sbom::Column::Published)
+                    .left_join(sbom::Entity)
                     // required for purl and cpe refs
                     .join(JoinType::InnerJoin, sbom_node::Relation::Package.def())
                     // required for querying purls
@@ -404,11 +415,12 @@ impl InnerService {
                     .filtering_with(query.clone(), q_columns())?
                     .into_model()
                     .all(connection)
+                    .instrument(info_span!("finding matching sboms", mode = "query"))
                     .await?,
             ),
         };
 
-        log::debug!("test latest sbom ids: {:?}", matched_sbom_ids);
+        log::debug!("test latest sbom ids: {}", matched_sbom_ids.len());
 
         let mut ranked_sboms = resolve_sbom_cpes(cpe_search, connection, matched_sbom_ids).await?;
 
