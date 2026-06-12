@@ -104,6 +104,14 @@ pub struct Run {
     )]
     pub exploit_intelligence_poll_interval_secs: u64,
 
+    /// Maximum duration in seconds before EI polling is considered timed out (default: 1800 = 30 minutes).
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_MAX_POLL_DURATION_SECS",
+        default_value_t = 1800
+    )]
+    pub exploit_intelligence_max_poll_duration_secs: u64,
+
     /// Authentication token for the Exploit Intelligence service.
     #[arg(long, env = "EXPLOIT_INTELLIGENCE_AUTH_TOKEN")]
     pub exploit_intelligence_auth_token: Option<String>,
@@ -321,6 +329,7 @@ impl InitData {
             trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig {
                 url,
                 poll_interval_secs: run.exploit_intelligence_poll_interval_secs,
+                max_poll_duration_secs: run.exploit_intelligence_max_poll_duration_secs,
                 auth_token: run.exploit_intelligence_auth_token,
             }
         });
