@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781178371059,
+  "lastUpdate": 1781227592827,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19074,6 +19074,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/317c361e320d5917d9f70fb28ce97c1c1dadb6fd"
         },
         "date": 1781178369442,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": false,
+          "id": "1deda460d9123c72334f7eaae14641ea5c6c55a4",
+          "message": "chore: aligning the instrumentation with standard\n\n* I asked Claude to read this section https://github.com/guacsec/trustify/blob/main/docs/design/log_tracing.md#instrumentation\n* And to read all the rust code and it generated this: https://gist.github.com/helio-frota/57b033421fad29b00a5518deb401e361\n* I removed `tests` from the generated markdown and applied the\n  suggestions\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-06-12T01:03:30Z",
+          "tree_id": "1c4d9be09e0e6a8f0fc543d85787df54f2001a31",
+          "url": "https://github.com/guacsec/trustify/commit/1deda460d9123c72334f7eaae14641ea5c6c55a4"
+        },
+        "date": 1781227591323,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
