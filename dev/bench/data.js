@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781227592827,
+  "lastUpdate": 1781286798990,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19103,6 +19103,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/1deda460d9123c72334f7eaae14641ea5c6c55a4"
         },
         "date": 1781227591323,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jkucera@redhat.com",
+            "name": "Jiri Kucera",
+            "username": "i386x"
+          },
+          "committer": {
+            "email": "jkucera@redhat.com",
+            "name": "Jiří Kučera",
+            "username": "i386x"
+          },
+          "distinct": true,
+          "id": "36d0b5d019832414537f817f2c59274c462e054e",
+          "message": "feat(api): Add delete multiple SBOMs endpoint\n\n- implement `DELETE /v3/sbom` endpoint which deletes\n  requested SBOMs in a one batch and not one-by-one\n- unify status codes: use 204 also for ids that does\n  not point to anything\n- implement `delete_sboms` service method able to delete\n  multiple SBOMs in a one batch\n- add `delete_many` to the `StorageBackend` to support\n  deleting blobs by batches\n- remove `delete_sbom` in favor of `delete_sboms`\n- update trustify-cli to use the new endpoint\n\nRelated: TC-3934, TC-4003\n\nSigned-off-by: Jiří Kučera <jkucera@redhat.com>",
+          "timestamp": "2026-06-12T14:54:01Z",
+          "tree_id": "3a983b063ecdc177ca2f997741295d7f9903a57f",
+          "url": "https://github.com/guacsec/trustify/commit/36d0b5d019832414537f817f2c59274c462e054e"
+        },
+        "date": 1781286797186,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
