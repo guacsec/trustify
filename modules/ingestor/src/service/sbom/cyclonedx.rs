@@ -231,7 +231,6 @@ mod test {
         Ok(())
     }
 
-
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn ingest_ai_cyclonedx_nvidia_properties(
@@ -276,9 +275,7 @@ mod test {
         );
 
         // limitation comes from generic properties (no structured considerations in fixture)
-        assert!(
-            props.get("limitation").and_then(|v| v.as_str()).is_some(),
-        );
+        assert!(props.get("limitation").and_then(|v| v.as_str()).is_some(),);
 
         // Other generic properties are also present
         assert_eq!(
@@ -339,15 +336,13 @@ mod test {
         Ok(())
     }
 
-
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn ingest_ai_cyclonedx_structured_fields(
         ctx: &TrustifyContext,
     ) -> Result<(), anyhow::Error> {
         let graph = Graph::new();
-        let data =
-            document_bytes("cyclonedx/ai/test_structured_model_card.json").await?;
+        let data = document_bytes("cyclonedx/ai/test_structured_model_card.json").await?;
 
         let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
 
@@ -387,6 +382,67 @@ mod test {
         assert_eq!(
             props.get("limitation").and_then(|v| v.as_str()),
             Some("Limited to English text; Max 2048 tokens"),
+        );
+
+        // Structured field: considerations.ethicalConsiderations → safetyRiskAssessment
+        let risks = props.get("safetyRiskAssessment").and_then(|v| v.as_array());
+        assert!(risks.is_some());
+        let risks = risks.unwrap();
+        assert_eq!(risks.len(), 2);
+        assert_eq!(
+            risks[0].get("name").and_then(|v| v.as_str()),
+            Some("Bias in training data"),
+        );
+        assert_eq!(
+            risks[0].get("mitigationStrategy").and_then(|v| v.as_str()),
+            Some("Regular auditing of model outputs"),
+        );
+        assert_eq!(
+            risks[1].get("name").and_then(|v| v.as_str()),
+            Some("Privacy risks from memorization"),
+        );
+        assert!(risks[1].get("mitigationStrategy").is_none());
+
+        // Structured field: considerations.fairnessAssessments → fairnessAssessments
+        let assessments = props.get("fairnessAssessments").and_then(|v| v.as_array());
+        assert!(assessments.is_some());
+        let assessments = assessments.unwrap();
+        assert_eq!(assessments.len(), 1);
+        assert_eq!(
+            assessments[0].get("groupAtRisk").and_then(|v| v.as_str()),
+            Some("Non-English speakers"),
+        );
+        assert_eq!(
+            assessments[0].get("benefits").and_then(|v| v.as_str()),
+            Some("Improved accessibility"),
+        );
+        assert_eq!(
+            assessments[0].get("harms").and_then(|v| v.as_str()),
+            Some("Lower accuracy for underrepresented languages"),
+        );
+        assert_eq!(
+            assessments[0]
+                .get("mitigationStrategy")
+                .and_then(|v| v.as_str()),
+            Some("Multilingual fine-tuning planned"),
+        );
+
+        // Structured field: considerations.performanceTradeoffs → performanceTradeoffs
+        assert_eq!(
+            props.get("performanceTradeoffs").and_then(|v| v.as_str()),
+            Some("Speed vs accuracy on long sequences; Memory usage scales quadratically"),
+        );
+
+        // Structured field: considerations.useCases → useCases
+        assert_eq!(
+            props.get("useCases").and_then(|v| v.as_str()),
+            Some("Conversational AI; Document summarization"),
+        );
+
+        // Structured field: considerations.users → users
+        assert_eq!(
+            props.get("users").and_then(|v| v.as_str()),
+            Some("Developers; Researchers"),
         );
 
         // No generic properties in this fixture, so no bomFormat etc.

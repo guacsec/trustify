@@ -57,6 +57,35 @@
           "technicalLimitations": [
             "Limited to English text",
             "Max 2048 tokens"
+          ],
+          "ethicalConsiderations": [
+            {
+              "name": "Bias in training data",
+              "mitigationStrategy": "Regular auditing of model outputs"
+            },
+            {
+              "name": "Privacy risks from memorization"
+            }
+          ],
+          "fairnessAssessments": [
+            {
+              "groupAtRisk": "Non-English speakers",
+              "benefits": "Improved accessibility",
+              "harms": "Lower accuracy for underrepresented languages",
+              "mitigationStrategy": "Multilingual fine-tuning planned"
+            }
+          ],
+          "performanceTradeoffs": [
+            "Speed vs accuracy on long sequences",
+            "Memory usage scales quadratically"
+          ],
+          "useCases": [
+            "Conversational AI",
+            "Document summarization"
+          ],
+          "users": [
+            "Developers",
+            "Researchers"
           ]
         }
       },
