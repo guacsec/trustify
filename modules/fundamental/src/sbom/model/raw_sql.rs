@@ -1,29 +1,17 @@
 /// This constant is a SQL subquery that filters the context_cpe_id
-/// based on the given sbom_id. It checks if the context_cpe_id is null
-/// or if it is in the list of CPEs that are related to the packages
-/// that describes the SBOM. The additional logic allows us to find
-/// superset of generalized CPEs that don't include subfields like edition
-/// and find "stream" releases based on the major version.
+/// based on the given sbom_id. It reads from the materialized
+/// sbom_describing_cpe table instead of computing the join at query time.
+/// The generalized CPE logic expands matches to include CPEs without edition
+/// and with major-version-only matching.
 pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
 (
     context_cpe_id IS NULL OR
     context_cpe_id IN (
-        WITH related_nodes AS (
-            SELECT DISTINCT right_node_id
-            FROM package_relates_to_package
-            WHERE sbom_id = $1
-              AND relationship = 13
-        ),
-        sbom_cpes AS (
-            SELECT cpe_id, node_id
-            FROM sbom_node_cpe_ref
-            WHERE sbom_id = $1
-              AND node_id IN (SELECT right_node_id FROM related_nodes)
-        ),
-        filtered_cpes AS (
+        WITH filtered_cpes AS (
             SELECT cpe.*
-            FROM sbom_cpes spcr
-            JOIN cpe ON spcr.cpe_id = cpe.id
+            FROM sbom_describing_cpe sdc
+            JOIN cpe ON sdc.cpe_id = cpe.id
+            WHERE sdc.sbom_id = $1
         ),
         generalized_cpes AS (
             SELECT *
@@ -39,14 +27,8 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
         SELECT id FROM generalized_cpes
     ) OR (
         SELECT cpe_id
-        FROM sbom_node_cpe_ref
+        FROM sbom_describing_cpe
         WHERE sbom_id = $1
-        AND node_id IN (
-            SELECT DISTINCT right_node_id
-            FROM package_relates_to_package
-            WHERE sbom_id = $1
-            AND relationship = 13
-        )
         LIMIT 1
     ) IS NULL
 )
@@ -55,23 +37,12 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
 pub fn product_advisory_info_sql() -> String {
     r#"
         WITH
-        -- Pre-compute CPE context filter once instead of in WHERE clause
-        related_nodes AS (
-            SELECT DISTINCT right_node_id
-            FROM package_relates_to_package
-            WHERE sbom_id = $1
-              AND relationship = 13
-        ),
-        sbom_cpes AS (
-            SELECT cpe_id, node_id
-            FROM sbom_node_cpe_ref
-            WHERE sbom_id = $1
-              AND node_id IN (SELECT right_node_id FROM related_nodes)
-        ),
+        -- Read describing CPEs from the materialized table
         filtered_cpes AS (
             SELECT cpe.*
-            FROM sbom_cpes spcr
-            JOIN cpe ON spcr.cpe_id = cpe.id
+            FROM sbom_describing_cpe sdc
+            JOIN cpe ON sdc.cpe_id = cpe.id
+            WHERE sdc.sbom_id = $1
         ),
         generalized_cpes AS (
             SELECT *
@@ -119,7 +90,7 @@ pub fn product_advisory_info_sql() -> String {
             JOIN sbom_purls sp ON ps.package = sp.name
             WHERE (ps.context_cpe_id IS NULL
                    OR ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
-                   OR NOT EXISTS (SELECT 1 FROM sbom_cpes LIMIT 1))
+                   OR NOT EXISTS (SELECT 1 FROM filtered_cpes LIMIT 1))
         ),
 
         -- Match 2: Namespace/name concatenation (handles scoped packages like npm, maven)
@@ -138,7 +109,7 @@ pub fn product_advisory_info_sql() -> String {
             WHERE sp.namespace IS NOT NULL
               AND (ps.context_cpe_id IS NULL
                    OR ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
-                   OR NOT EXISTS (SELECT 1 FROM sbom_cpes LIMIT 1))
+                   OR NOT EXISTS (SELECT 1 FROM filtered_cpes LIMIT 1))
         ),
 
         -- Union the two match types to eliminate OR in JOIN

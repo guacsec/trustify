@@ -191,6 +191,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         let Some(ResolvedSbom {
             sbom_id: external_sbom_id,
             node_id: external_node_id,
+            cpe_ids: _,
         }) = resolve_external_sbom(&external_node.node_id, self.connection).await?
         else {
             return Ok((

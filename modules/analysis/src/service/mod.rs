@@ -29,10 +29,10 @@ use petgraph::{
     visit::{VisitMap, Visitable},
 };
 use sea_orm::{
-    ColumnTrait, EntityOrSelect, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
-    RelationTrait, prelude::ConnectionTrait,
+    ColumnTrait, EntityOrSelect, EntityTrait, FromQueryResult, PaginatorTrait, QueryFilter,
+    QueryOrder, QuerySelect, RelationTrait, prelude::ConnectionTrait,
 };
-use sea_query::JoinType;
+use sea_query::{Expr, JoinType};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
@@ -95,10 +95,9 @@ pub struct AnalysisService {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct ResolvedSbom {
-    // The ID of the SBOM the node was found in
     pub sbom_id: Uuid,
-    // The ID of the node
     pub node_id: String,
+    pub cpe_ids: Vec<Uuid>,
 }
 
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
@@ -159,6 +158,7 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
                 .map(|entity| ResolvedSbom {
                     sbom_id: entity.sbom_id,
                     node_id: sbom_external_node.external_node_ref,
+                    cpe_ids: vec![],
                 }))
         }
         ExternalType::CycloneDx => {
@@ -185,6 +185,7 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
                 .map(|entity| ResolvedSbom {
                     sbom_id: entity.sbom_id,
                     node_id: sbom_external_node.external_node_ref,
+                    cpe_ids: vec![],
                 }))
         }
         ExternalType::RedHatProductComponent => {
@@ -248,41 +249,65 @@ async fn resolve_rh_external_sbom_descendants<C: ConnectionTrait>(
         .map(|matched_model| ResolvedSbom {
             sbom_id: matched_model.sbom_id,
             node_id: matched_model.node_id,
+            cpe_ids: vec![],
         }))
 }
 
+/// Result row from a checksum lookup with aggregated CPE IDs.
+#[derive(Debug, FromQueryResult)]
+struct ChecksumWithCpes {
+    sbom_id: Uuid,
+    node_id: String,
+    cpe_ids: Vec<Uuid>,
+}
+
+/// Resolves external SBOM ancestors by checksum matching, including their describing CPEs.
+///
+/// Uses `array_agg` to collect CPE IDs per `(sbom_id, node_id)` directly in the database
+/// rather than expanding rows per CPE and grouping in Rust.
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
     sbom_external_sbom_id: Uuid,
     sbom_external_node_ref: String,
     connection: &C,
 ) -> Result<Vec<ResolvedSbom>, Error> {
-    // find related checksum value(s) for the node, because any single component can be referred to by multiple
-    // sboms, this function returns a Vec<ResolvedSbom>.
-    Ok(
-        match sbom_node_checksum::Entity::find()
-            .filter(sbom_node_checksum::Column::NodeId.eq(sbom_external_node_ref.clone()))
-            .filter(sbom_node_checksum::Column::SbomId.eq(sbom_external_sbom_id))
-            .one(connection)
-            .await?
-        {
-            Some(entity) => {
-                // now find if there are any other nodes with the same checksums
-                sbom_node_checksum::Entity::find()
-                    .filter(sbom_node_checksum::Column::Value.eq(entity.value.to_string()))
-                    .filter(sbom_node_checksum::Column::SbomId.ne(entity.sbom_id))
-                    .all(connection)
-                    .await?
-                    .into_iter()
-                    .map(|matched| ResolvedSbom {
-                        sbom_id: matched.sbom_id,
-                        node_id: matched.node_id,
-                    })
-                    .collect()
-            }
-            _ => vec![],
-        },
-    )
+    let Some(entity) = sbom_node_checksum::Entity::find()
+        .filter(sbom_node_checksum::Column::NodeId.eq(sbom_external_node_ref.clone()))
+        .filter(sbom_node_checksum::Column::SbomId.eq(sbom_external_sbom_id))
+        .one(connection)
+        .await?
+    else {
+        return Ok(vec![]);
+    };
+
+    let rows = sbom_node_checksum::Entity::find()
+        .select_only()
+        .column(sbom_node_checksum::Column::SbomId)
+        .column(sbom_node_checksum::Column::NodeId)
+        .column_as(
+            Expr::cust(r#"COALESCE(array_agg("sbom_describing_cpe"."cpe_id") FILTER (WHERE "sbom_describing_cpe"."cpe_id" IS NOT NULL), ARRAY[]::uuid[])"#),
+            "cpe_ids",
+        )
+        .join(
+            JoinType::LeftJoin,
+            sbom_node_checksum::Relation::DescribingCpe.def(),
+        )
+        .filter(sbom_node_checksum::Column::Value.eq(entity.value.to_string()))
+        .filter(sbom_node_checksum::Column::SbomId.ne(entity.sbom_id))
+        .group_by(sbom_node_checksum::Column::SbomId)
+        .group_by(sbom_node_checksum::Column::NodeId)
+        .into_model::<ChecksumWithCpes>()
+        .all(connection)
+        .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| ResolvedSbom {
+            sbom_id: r.sbom_id,
+            node_id: r.node_id,
+            cpe_ids: r.cpe_ids,
+        })
+        .collect())
 }
 
 impl AnalysisService {
