@@ -4,15 +4,17 @@ use crate::{
     service::{ResolvedSbom, resolve_rh_external_sbom_ancestors},
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult,
+    ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult, JoinType,
     QueryFilter, QuerySelect, RelationTrait, Select, Statement, prelude::DateTimeWithTimeZone,
 };
-use sea_query::JoinType;
+use sea_query::Expr;
 use std::collections::{HashMap, HashSet};
 use tracing::{Instrument, instrument};
+#[cfg(test)]
+use trustify_entity::sbom_describing_cpe;
 use trustify_entity::{
     package_relates_to_package, relationship::Relationship, sbom, sbom_external_node, sbom_node,
-    sbom_node_checksum, sbom_node_cpe_ref,
+    sbom_node_checksum,
 };
 use uuid::Uuid;
 
@@ -299,69 +301,6 @@ ORDER BY start_idx, depth
     Ok(result)
 }
 
-// ─── CPE helpers ────────────────────────────────────────────────────
-
-/// Single-SBOM describing CPEs (kept for tests).
-#[cfg(test)]
-#[instrument(skip(connection), err(level=tracing::Level::INFO))]
-async fn describing_cpes(
-    connection: &(impl ConnectionTrait + Send),
-    sbom_id: Uuid,
-) -> Result<Vec<Uuid>, Error> {
-    Ok(sbom_node_cpe_ref::Entity::find()
-        .distinct()
-        .select_only()
-        .column(sbom_node_cpe_ref::Column::CpeId)
-        .filter(sbom_node_cpe_ref::Column::SbomId.eq(sbom_id))
-        .join(JoinType::Join, sbom_node_cpe_ref::Relation::Sbom.def())
-        .join(
-            JoinType::Join,
-            sbom::Relation::PackageRelatesToPackages.def(),
-        )
-        .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Describes))
-        .into_tuple::<Uuid>()
-        .all(connection)
-        .await?)
-}
-
-/// Batch-fetches describing CPEs for multiple SBOMs in a single query.
-#[instrument(
-    skip(connection, sbom_ids),
-    fields(count = sbom_ids.len()),
-    err(level = tracing::Level::INFO)
-)]
-async fn batch_describing_cpes(
-    connection: &(impl ConnectionTrait + Send),
-    sbom_ids: &[Uuid],
-) -> Result<HashMap<Uuid, Vec<Uuid>>, Error> {
-    if sbom_ids.is_empty() {
-        return Ok(HashMap::new());
-    }
-
-    let rows = sbom_node_cpe_ref::Entity::find()
-        .distinct()
-        .select_only()
-        .column(sbom_node_cpe_ref::Column::SbomId)
-        .column(sbom_node_cpe_ref::Column::CpeId)
-        .filter(sbom_node_cpe_ref::Column::SbomId.is_in(sbom_ids.to_vec()))
-        .join(JoinType::Join, sbom_node_cpe_ref::Relation::Sbom.def())
-        .join(
-            JoinType::Join,
-            sbom::Relation::PackageRelatesToPackages.def(),
-        )
-        .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Describes))
-        .into_tuple::<(Uuid, Uuid)>()
-        .all(connection)
-        .await?;
-
-    let mut result: HashMap<_, Vec<_>> = HashMap::new();
-    for (sbom_id, cpe_id) in rows {
-        result.entry(sbom_id).or_default().push(cpe_id);
-    }
-
-    Ok(result)
-}
-
 // ─── Batch checksum resolution ──────────────────────────────────────
 
 /// Batch-resolves checksum-based external SBOM ancestors for multiple
@@ -419,22 +358,51 @@ INNER JOIN UNNEST($1::uuid[], $2::text[]) AS t(sid, nid)
         source_sbom_ids.insert(ck.sbom_id);
     }
 
-    // Step 2: Find all other nodes sharing these checksum values
+    // Step 2: Find all other nodes sharing these checksum values,
+    // with CPE IDs aggregated per (sbom_id, node_id) via array_agg
     let checksum_values: Vec<_> = value_to_sources.keys().cloned().collect();
 
-    let matches = sbom_node_checksum::Entity::find()
+    #[derive(Debug, FromQueryResult)]
+    struct ChecksumWithValueAndCpes {
+        sbom_id: Uuid,
+        node_id: String,
+        value: String,
+        cpe_ids: Vec<Uuid>,
+    }
+
+    let rows = sbom_node_checksum::Entity::find()
+        .select_only()
+        .column(sbom_node_checksum::Column::SbomId)
+        .column(sbom_node_checksum::Column::NodeId)
+        .column(sbom_node_checksum::Column::Value)
+        .column_as(
+            Expr::cust(r#"COALESCE(array_agg("sbom_describing_cpe"."cpe_id") FILTER (WHERE "sbom_describing_cpe"."cpe_id" IS NOT NULL), ARRAY[]::uuid[])"#),
+            "cpe_ids",
+        )
+        .join(
+            JoinType::LeftJoin,
+            sbom_node_checksum::Relation::DescribingCpe.def(),
+        )
         .filter(sbom_node_checksum::Column::Value.is_in(checksum_values))
         .filter(
             sbom_node_checksum::Column::SbomId
                 .is_not_in(source_sbom_ids.into_iter().collect::<Vec<_>>()),
         )
+        .group_by(sbom_node_checksum::Column::SbomId)
+        .group_by(sbom_node_checksum::Column::NodeId)
+        .group_by(sbom_node_checksum::Column::Value)
+        .into_model::<ChecksumWithValueAndCpes>()
         .all(connection)
-        .instrument(tracing::info_span!("batch checksum reverse lookup").or_current())
+        .instrument(tracing::info_span!("batch checksum reverse lookup with cpes").or_current())
         .await?;
 
+    if rows.is_empty() {
+        return Ok(HashMap::new());
+    }
+
     let mut result: HashMap<_, Vec<_>> = HashMap::new();
-    for matched in matches {
-        let Some(sources) = value_to_sources.get(&matched.value) else {
+    for row in rows {
+        let Some(sources) = value_to_sources.get(&row.value) else {
             continue;
         };
         for source in sources {
@@ -442,8 +410,9 @@ INNER JOIN UNNEST($1::uuid[], $2::text[]) AS t(sid, nid)
                 .entry(source.clone())
                 .or_default()
                 .push(ResolvedSbom {
-                    sbom_id: matched.sbom_id,
-                    node_id: matched.node_id.clone(),
+                    sbom_id: row.sbom_id,
+                    node_id: row.node_id.clone(),
+                    cpe_ids: row.cpe_ids.clone(),
                 });
         }
     }
@@ -527,9 +496,8 @@ where
 
 /// Batch-resolves direct CPE matches for all rows at once.
 ///
-/// For each matched SBOM: gets its describing CPEs and external nodes,
-/// then maps them to `RankedSbom`s. Uses batch queries for CPEs,
-/// external nodes, and node lookups (3 queries total instead of 3*N).
+/// Joins external nodes with describing CPEs in a single query,
+/// then resolves node names in a second query.
 #[instrument(
     skip(rows, connection),
     fields(count = rows.len()),
@@ -545,25 +513,39 @@ async fn batch_resolve_direct_cpe_matches(
 
     let sbom_ids: Vec<_> = rows.iter().map(|r| r.sbom_id).collect();
 
-    // Concurrent batch: describing CPEs + external nodes
-    let cpe_map = batch_describing_cpes(connection, &sbom_ids).await?;
-    let all_external_nodes = sbom_external_node::Entity::find()
-        .filter(sbom_external_node::Column::SbomId.is_in(sbom_ids.clone()))
+    // Single query: external nodes with CPE IDs aggregated per (sbom_id, node_ref)
+    #[derive(Debug, FromQueryResult)]
+    struct ExternalNodeWithCpes {
+        sbom_id: Uuid,
+        external_node_ref: String,
+        cpe_ids: Vec<Uuid>,
+    }
+
+    let ext_cpe_rows = sbom_external_node::Entity::find()
+        .select_only()
+        .column(sbom_external_node::Column::SbomId)
+        .column(sbom_external_node::Column::ExternalNodeRef)
+        .column_as(
+            Expr::cust(r#"array_agg("sbom_describing_cpe"."cpe_id")"#),
+            "cpe_ids",
+        )
+        .join(
+            JoinType::Join,
+            sbom_external_node::Relation::DescribingCpe.def(),
+        )
+        .filter(sbom_external_node::Column::SbomId.is_in(sbom_ids))
+        .group_by(sbom_external_node::Column::SbomId)
+        .group_by(sbom_external_node::Column::ExternalNodeRef)
+        .into_model::<ExternalNodeWithCpes>()
         .all(connection)
-        .instrument(tracing::info_span!("batch find external sboms").or_current())
+        .instrument(tracing::info_span!("batch external nodes with cpes").or_current())
         .await
         .map_err(Error::from)?;
 
-    // Group external nodes by sbom_id
-    let mut ext_by_sbom: HashMap<_, Vec<_>> = HashMap::new();
-    for ext in &all_external_nodes {
-        ext_by_sbom.entry(ext.sbom_id).or_default().push(ext);
-    }
-
-    // Batch lookup all referenced external node IDs
-    let all_node_ids: Vec<_> = all_external_nodes
+    // Batch lookup node names for all referenced external node IDs
+    let all_node_ids: Vec<_> = ext_cpe_rows
         .iter()
-        .map(|e| e.external_node_ref.clone())
+        .map(|row| row.external_node_ref.clone())
         .collect::<HashSet<_>>()
         .into_iter()
         .collect();
@@ -582,24 +564,28 @@ async fn batch_resolve_direct_cpe_matches(
             .collect()
     };
 
+    // Group by sbom_id for lookup
+    let mut ext_cpes_by_sbom: HashMap<Uuid, Vec<(String, Vec<Uuid>)>> = HashMap::new();
+    for row in ext_cpe_rows {
+        ext_cpes_by_sbom
+            .entry(row.sbom_id)
+            .or_default()
+            .push((row.external_node_ref, row.cpe_ids));
+    }
+
     // Assemble results
     let mut matched_sboms = Vec::new();
     for matched in rows {
-        let direct_cpes = cpe_map.get(&matched.sbom_id).cloned().unwrap_or_default();
-        let ext_nodes = match ext_by_sbom.get(&matched.sbom_id) {
-            Some(nodes) => nodes.as_slice(),
-            None => continue,
-        };
-        if ext_nodes.is_empty() {
+        let Some(entries) = ext_cpes_by_sbom.get(&matched.sbom_id) else {
             continue;
-        }
+        };
 
-        for cpe_id in &direct_cpes {
-            for ext in ext_nodes {
-                let node = node_map.get(&ext.external_node_ref).ok_or_else(|| {
-                    Error::Data("Ranked matched node has no top ancestor sbom.".to_string())
-                })?;
+        for (node_ref, cpe_ids) in entries {
+            let node = node_map.get(node_ref).ok_or_else(|| {
+                Error::Data("Ranked matched node has no top ancestor sbom.".to_string())
+            })?;
 
+            for cpe_id in cpe_ids {
                 matched_sboms.push(RankedSbom {
                     matched_sbom_id: matched.sbom_id,
                     matched_name: node.name.clone(),
@@ -830,8 +816,7 @@ async fn batch_resolve_ancestor_externals(
 ///
 /// Processes all rows in phases to minimize database round-trips:
 /// 1. Batch direct CPE matches (when `cpe_search` is true)
-/// 2. Batch ancestor resolution + external SBOM discovery
-/// 3. Batch CPE enrichment for all discovered external SBOMs
+/// 2. Batch ancestor resolution + external SBOM discovery (includes CPEs)
 #[instrument(skip(connection, rows), fields(rows = rows.len()))]
 pub async fn resolve_sbom_cpes(
     cpe_search: bool,
@@ -850,28 +835,17 @@ pub async fn resolve_sbom_cpes(
     // ── Phase 2: batch ancestor + external resolution ──
     let all_externals = batch_resolve_ancestor_externals(&rows, connection, &mut context).await?;
 
-    // ── Phase 3: batch CPE enrichment ──
-    let external_sbom_ids: Vec<_> = all_externals
-        .iter()
-        .map(|(_, ext)| ext.sbom_id)
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
-
-    let cpe_map = batch_describing_cpes(connection, &external_sbom_ids).await?;
-
+    // ── Phase 3: map external SBOMs to RankedSboms via their CPEs ──
     for (idx, ext) in &all_externals {
         let matched = &rows[*idx];
-        if let Some(cpes) = cpe_map.get(&ext.sbom_id) {
-            results.extend(cpes.iter().map(|cpe_id| RankedSbom {
-                matched_sbom_id: matched.sbom_id,
-                matched_name: matched.name.clone(),
-                top_ancestor_sbom: ext.sbom_id,
-                cpe_id: *cpe_id,
-                sbom_date: matched.published,
-                rank: None,
-            }));
-        }
+        results.extend(ext.cpe_ids.iter().map(|cpe_id| RankedSbom {
+            matched_sbom_id: matched.sbom_id,
+            matched_name: matched.name.clone(),
+            top_ancestor_sbom: ext.sbom_id,
+            cpe_id: *cpe_id,
+            sbom_date: matched.published,
+            rank: None,
+        }));
     }
 
     log::info!("Cache stats: {context:?}");
@@ -971,7 +945,15 @@ mod test {
     ) -> Result<(), anyhow::Error> {
         let [product, _rpm] = ctx.ingest_documents(sources).await?.into_uuid();
 
-        let cpes = stream::iter(super::describing_cpes(&ctx.db, product).await?)
+        let cpe_ids = sbom_describing_cpe::Entity::find()
+            .select_only()
+            .column(sbom_describing_cpe::Column::CpeId)
+            .filter(sbom_describing_cpe::Column::SbomId.eq(product))
+            .into_tuple::<Uuid>()
+            .all(&ctx.db)
+            .await?;
+
+        let cpes = stream::iter(cpe_ids)
             .then(async |cpe| cpe::Entity::find_by_id(cpe).all(&ctx.db).await)
             .try_fold(Vec::new(), |mut acc, models| async move {
                 acc.extend(models.into_iter().map(|cpe| cpe.to_string()));
@@ -1120,10 +1102,12 @@ mod test {
                 ResolvedSbom {
                     sbom_id: id_a,
                     node_id: "SPDXRef-Leaf-A".into(),
+                    cpe_ids: vec![],
                 },
                 ResolvedSbom {
                     sbom_id: _id_b,
                     node_id: "SPDXRef-Leaf-B".into(),
+                    cpe_ids: vec![],
                 },
             ]
         );
