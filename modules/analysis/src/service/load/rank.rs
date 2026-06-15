@@ -1,8 +1,8 @@
+use crate::service::load::LoadContext;
 use crate::{
     Error,
     service::{ResolvedSbom, resolve_rh_external_sbom_ancestors},
 };
-use async_recursion::async_recursion;
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
     RelationTrait, Select, prelude::DateTimeWithTimeZone,
@@ -33,7 +33,6 @@ pub struct RankedSbom {
     pub matched_sbom_id: Uuid,
     pub matched_name: String,
     #[allow(dead_code)] // good for debugging
-    #[allow(dead_code)] // good for debugging
     pub top_ancestor_sbom: Uuid,
     pub cpe_id: Uuid,
     pub sbom_date: DateTimeWithTimeZone,
@@ -52,59 +51,82 @@ pub fn select() -> Select<sbom_node::Entity> {
         .left_join(sbom::Entity)
 }
 
-/// Recursively resolves external SBOM references to build a complete dependency graph across multiple SBOM files.
+/// Cached result for a single step of `find_external_refs`, storing both the resolved SBOMs
+/// and the child keys to push onto the DFS stack on replay.
+#[derive(Clone, Debug, Default)]
+pub(super) struct CachedExternalRefs {
+    pub resolved: Vec<ResolvedSbom>,
+    pub children: Vec<(Uuid, String)>,
+}
+
+/// Resolves external SBOM references using iterative DFS with caching.
 ///
-/// This function performs a **Depth-First Search (DFS)** starting from a specific node in a specific SBOM.
-/// It looks for "external references" (pointers to other SBOMs), resolves them, and then recursively
-/// traverses up the tree of the referenced SBOMs to find further ancestors.
-///
-/// # Arguments
-///
-/// * `sbom_id` - The UUID of the current SBOM being inspected.
-/// * `node_id` - The node ID within the current SBOM to search for external ancestors.
-/// * `connection` - The database connection.
-/// * `visited` - A `HashSet` used to track visited SBOM UUIDs and prevent infinite recursion in cyclic graphs.
-///
-/// # Returns
-///
-/// Returns a `Result` containing:
-/// * `Vec<ResolvedSbom>`: A flattened list of all resolved external SBOM ancestors found recursively.
-/// * `Error`: If a database error occurs.
-#[async_recursion]
-#[instrument(skip(connection, visited), fields(visisted_len=visited.len()), err(level=tracing::Level::INFO))]
+/// Walks the external-reference graph starting from (sbom_id, node_id). Each step resolves
+/// direct ancestors and finds their top-level packages, which become the next DFS entries.
+/// Results and children are cached per (sbom_id, node_id) so repeated calls with a shared
+/// `LoadContext` replay the traversal from cache.
+#[instrument(
+    skip(connection, context, visited),
+    fields(visited_len=visited.len()),
+    err(level=tracing::Level::INFO)
+)]
 async fn find_external_refs<C>(
     sbom_id: Uuid,
     node_id: String,
     connection: &C,
+    context: &mut LoadContext,
     visited: &mut HashSet<(Uuid, String)>,
 ) -> Result<Vec<ResolvedSbom>, Error>
 where
     C: ConnectionTrait + Send,
 {
-    if !visited.insert((sbom_id, node_id.clone())) {
-        log::debug!("cycle detected for SBOM {sbom_id} / {node_id}, skipping recursion");
-        return Ok(vec![]);
-    }
+    let mut all_resolved_sboms = Vec::new();
+    let mut stack = vec![(sbom_id, node_id)];
 
-    let mut all_resolved_sboms = vec![];
+    while let Some((sbom_id, node_id)) = stack.pop() {
+        let key = (sbom_id, node_id.clone());
 
-    // execute query and handle the result safely ONCE.
-    // usage: resolve_rh_external_sbom_ancestors likely returns Result<Vec<...>, Error>
-    let direct_ancestors = resolve_rh_external_sbom_ancestors(sbom_id, node_id, connection).await?;
-
-    for ancestor in direct_ancestors {
-        let top_package_of_sbom =
-            find_node_ancestors(ancestor.sbom_id, ancestor.node_id.clone(), connection).await?;
-
-        for package in top_package_of_sbom {
-            let deep_ancestors =
-                find_external_refs(package.sbom_id, package.left_node_id, connection, visited)
-                    .await?;
-
-            all_resolved_sboms.extend(deep_ancestors);
+        if !visited.insert(key.clone()) {
+            log::debug!("cycle detected for SBOM {sbom_id} / {node_id}, skipping");
+            continue;
         }
 
-        all_resolved_sboms.push(ancestor);
+        // On cache hit, replay resolved SBOMs and push cached children onto the stack
+        if let Some(cached) = context.find_external_refs.get_cached(&key) {
+            all_resolved_sboms.extend(cached.resolved);
+            stack.extend(cached.children);
+            continue;
+        }
+
+        let direct_ancestors =
+            resolve_rh_external_sbom_ancestors(sbom_id, node_id, connection).await?;
+
+        let mut children = Vec::new();
+        for ancestor in &direct_ancestors {
+            let top_packages = find_node_ancestors(
+                ancestor.sbom_id,
+                ancestor.node_id.clone(),
+                connection,
+                context,
+            )
+            .await?;
+
+            for package in top_packages {
+                children.push((package.sbom_id, package.left_node_id));
+            }
+        }
+
+        stack.extend(children.iter().cloned());
+
+        context.find_external_refs.insert(
+            key,
+            CachedExternalRefs {
+                resolved: direct_ancestors.clone(),
+                children,
+            },
+        );
+
+        all_resolved_sboms.extend(direct_ancestors);
     }
 
     Ok(all_resolved_sboms)
@@ -122,6 +144,7 @@ where
 /// # Arguments
 ///
 /// * `connection` - The database connection used to execute the query.
+/// * `context` - Caching context to avoid redundant DB queries.
 /// * `sbom_id` - The UUID of the SBOM to search within.
 ///
 /// # Returns
@@ -130,25 +153,94 @@ where
 /// * `Vec<Uuid>`: A list of unique CPE UUIDs found in the SBOM.
 /// * `Error`: If a database error occurs.
 ///
-#[instrument(skip(connection), err(level=tracing::Level::INFO))]
+#[instrument(skip(connection, context), err(level=tracing::Level::INFO))]
 async fn describing_cpes(
     connection: &(impl ConnectionTrait + Send),
+    context: &mut LoadContext,
     sbom_id: Uuid,
 ) -> Result<Vec<Uuid>, Error> {
-    Ok(sbom_node_cpe_ref::Entity::find()
+    Ok(context
+        .describing_cpes
+        .get(connection, sbom_id, async |connection, sbom_id| {
+            sbom_node_cpe_ref::Entity::find()
+                .distinct()
+                .select_only()
+                .column(sbom_node_cpe_ref::Column::CpeId)
+                .filter(sbom_node_cpe_ref::Column::SbomId.eq(sbom_id))
+                .join(JoinType::Join, sbom_node_cpe_ref::Relation::Sbom.def())
+                .join(
+                    JoinType::Join,
+                    sbom::Relation::PackageRelatesToPackages.def(),
+                )
+                .filter(
+                    package_relates_to_package::Column::Relationship.eq(Relationship::Describes),
+                )
+                .into_tuple::<Uuid>()
+                .all(connection)
+                .await
+        })
+        .await?)
+}
+
+/// Batch-fetches describing CPEs for multiple SBOMs in a single query.
+///
+/// Checks the cache first and only queries the database for uncached SBOM IDs.
+/// Results are inserted into the cache and returned as a map from SBOM ID to CPE IDs.
+#[instrument(
+    skip(connection, context, sbom_ids),
+    fields(sbom_ids = sbom_ids.len()),
+    err(level=tracing::Level::INFO))
+]
+async fn describing_cpes_batch(
+    connection: &(impl ConnectionTrait + Send),
+    context: &mut LoadContext,
+    sbom_ids: &[Uuid],
+) -> Result<HashMap<Uuid, Vec<Uuid>>, Error> {
+    let mut result = HashMap::with_capacity(sbom_ids.len());
+    let mut seen = HashSet::new();
+    let mut uncached_ids = Vec::new();
+
+    for &sbom_id in sbom_ids {
+        if let Some(cpes) = context.describing_cpes.get_cached(&sbom_id) {
+            result.insert(sbom_id, cpes);
+        } else if seen.insert(sbom_id) {
+            uncached_ids.push(sbom_id);
+        }
+    }
+
+    if uncached_ids.is_empty() {
+        return Ok(result);
+    }
+
+    let rows = sbom_node_cpe_ref::Entity::find()
         .distinct()
         .select_only()
+        .column(sbom_node_cpe_ref::Column::SbomId)
         .column(sbom_node_cpe_ref::Column::CpeId)
-        .filter(sbom_node_cpe_ref::Column::SbomId.eq(sbom_id))
+        .filter(sbom_node_cpe_ref::Column::SbomId.is_in(uncached_ids.clone()))
         .join(JoinType::Join, sbom_node_cpe_ref::Relation::Sbom.def())
         .join(
             JoinType::Join,
             sbom::Relation::PackageRelatesToPackages.def(),
         )
         .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Describes))
-        .into_tuple::<Uuid>()
+        .into_tuple::<(Uuid, Uuid)>()
         .all(connection)
-        .await?)
+        .await?;
+
+    let mut fetched: HashMap<_, Vec<_>> = HashMap::new();
+    for (sbom_id, cpe_id) in rows {
+        fetched.entry(sbom_id).or_default().push(cpe_id);
+    }
+
+    // Cache all results, including empty vecs for IDs that returned no rows
+    for sbom_id in uncached_ids {
+        let cpes = fetched.remove(&sbom_id).unwrap_or_default();
+        context.describing_cpes.insert(sbom_id, cpes.clone());
+        result.insert(sbom_id, cpes);
+    }
+
+    Ok(result)
 }
 
 /// Retrieves lineage (ancestors) of a specific node within an SBOM graph as represented
@@ -156,13 +248,14 @@ async fn describing_cpes(
 ///
 /// This function performs an iterative upstream traversal starting from the `start_node_id`.
 /// It walks the `package_relates_to_package` table from Child to Parent until it reaches
-/// a root node (no further parents) or hits a hard-coded recursion depth limit.
+/// a root node (no further parents).
 ///
 /// # Arguments
 ///
 /// * `sbom_id` - The unique identifier of the SBOM to scope the search within.
 /// * `start_node_id` - The identifier of the child node to begin the traversal from.
 /// * `connection` - The database connection used to execute the queries.
+/// * `context` - Caching context to avoid redundant DB queries.
 ///
 /// # Returns
 ///
@@ -177,11 +270,12 @@ async fn describing_cpes(
 ///   currently selects *a single random* parent returned by the database and ignores others.
 /// * **Cycle Protection**: Records visited nodes of the SBOM to prevent infinite loops in
 ///   cyclic graphs (e.g., A -> B -> A).
-#[instrument(skip(connection), err(level=tracing::Level::INFO))]
+#[instrument(skip(connection, context), err(level=tracing::Level::INFO))]
 pub async fn find_node_ancestors<C: ConnectionTrait>(
     sbom_id: Uuid,
     start_node_id: String,
     connection: &C,
+    context: &mut LoadContext,
 ) -> Result<Vec<package_relates_to_package::Model>, DbErr> {
     let mut ancestors = Vec::new();
     let mut current_child_id = start_node_id;
@@ -189,25 +283,34 @@ pub async fn find_node_ancestors<C: ConnectionTrait>(
     // guard to prevent infinite loops (e.g. cycles A->B->A)
     let mut visited = HashSet::new();
 
+    let mut iterations = 0;
     loop {
         if !visited.insert(current_child_id.clone()) {
-            log::warn!("recursion detected (node: {current_child_id}, sbom: {sbom_id})",);
+            log::warn!("recursion detected (node: {current_child_id}, sbom: {sbom_id})");
             break;
         }
 
-        // Find relationship where current node is the CHILD (Right Side).
-        // The LEFT side is the parent/container node.
-        let parents = package_relates_to_package::Entity::find()
-            .filter(package_relates_to_package::Column::SbomId.eq(sbom_id))
-            .filter(package_relates_to_package::Column::RightNodeId.eq(&current_child_id))
-            // We are interested in retrieving information (ex. CPE) from top level sbom
-            // so we filter out the 'tippity top' upstream node which use AncestorOf
-            // relationship type.
-            .filter(package_relates_to_package::Column::Relationship.ne(Relationship::AncestorOf))
-            .all(connection)
+        // Individual parent lookups are cached so that different starting nodes
+        // sharing ancestor paths benefit from previously resolved steps.
+        let parents = context
+            .find_node_ancestors
+            .get(
+                connection,
+                (sbom_id, current_child_id.clone()),
+                async |connection, (sbom_id, child_id)| {
+                    package_relates_to_package::Entity::find()
+                        .filter(package_relates_to_package::Column::SbomId.eq(sbom_id))
+                        .filter(package_relates_to_package::Column::RightNodeId.eq(&child_id))
+                        .filter(
+                            package_relates_to_package::Column::Relationship
+                                .ne(Relationship::AncestorOf),
+                        )
+                        .all(connection)
+                        .await
+                },
+            )
             .await?;
 
-        // no parents found
         if parents.is_empty() {
             break;
         }
@@ -215,9 +318,15 @@ pub async fn find_node_ancestors<C: ConnectionTrait>(
         let parent_rel = &parents[0];
         ancestors.push(parent_rel.clone());
         current_child_id = parent_rel.left_node_id.clone();
+
+        iterations += 1;
     }
 
-    log::debug!("Found {} ancestors for node", ancestors.len());
+    log::debug!(
+        "Took {iterations} iterations, found {} ancestors for node",
+        ancestors.len()
+    );
+
     Ok(ancestors)
 }
 
@@ -241,9 +350,14 @@ pub async fn resolve_sbom_cpes(
 ) -> Result<Vec<RankedSbom>, Error> {
     let mut matched_sboms = Vec::new();
 
+    let mut context = LoadContext::default();
+
     for matched in rows {
-        matched_sboms.extend(resolve_sbom_cpe(matched, cpe_search, connection).await?);
+        matched_sboms
+            .extend(resolve_sbom_cpe(matched, cpe_search, connection, &mut context).await?);
     }
+
+    log::info!("Cache stats: {context:?}");
 
     Ok(matched_sboms)
 }
@@ -254,8 +368,9 @@ pub async fn resolve_sbom_cpes(
 async fn resolve_direct_cpe_matches(
     matched: &Row,
     connection: &(impl ConnectionTrait + Send),
+    context: &mut LoadContext,
 ) -> Result<Vec<RankedSbom>, Error> {
-    let direct = describing_cpes(connection, matched.sbom_id);
+    let direct = describing_cpes(connection, context, matched.sbom_id);
     let direct_external = async {
         sbom_external_node::Entity::find()
             .filter(sbom_external_node::Column::SbomId.eq(matched.sbom_id))
@@ -312,9 +427,17 @@ async fn resolve_direct_cpe_matches(
 async fn resolve_ancestor_external_sboms(
     matched: &Row,
     connection: &(impl ConnectionTrait + Send),
+    context: &mut LoadContext,
 ) -> Result<Vec<ResolvedSbom>, Error> {
-    let top_packages =
-        find_node_ancestors(matched.sbom_id, matched.node_id.clone(), connection).await?;
+    let top_packages = find_node_ancestors(
+        matched.sbom_id,
+        matched.node_id.clone(),
+        connection,
+        context,
+    )
+    .await?;
+
+    log::debug!("Top packages found? {:?}", top_packages.is_empty());
 
     if top_packages.is_empty() {
         // the matched node IS the top-level package
@@ -331,6 +454,7 @@ async fn resolve_ancestor_external_sboms(
                     package.sbom_id,
                     package.left_node_id,
                     connection,
+                    context,
                     &mut visited,
                 )
                 .await?,
@@ -340,18 +464,35 @@ async fn resolve_ancestor_external_sboms(
     }
 }
 
-/// Expands a list of External SBOMs into RankedSboms by fetching their CPEs.
-#[instrument(skip(external_sboms, connection), err(level=tracing::Level::INFO))]
+/// Expands a list of External SBOMs into RankedSboms by fetching their CPEs in a single batch.
+#[instrument(
+    skip(external_sboms, connection),
+    fields(num_external_sboms = external_sboms.len()),
+    err(level=tracing::Level::INFO))
+]
 async fn enrich_external_sboms(
     matched: &Row,
     external_sboms: Vec<ResolvedSbom>,
     connection: &(impl ConnectionTrait + Send),
+    context: &mut LoadContext,
 ) -> Result<Vec<RankedSbom>, Error> {
+    let sbom_ids: Vec<Uuid> = external_sboms.iter().map(|s| s.sbom_id).collect();
+    let cpes_by_sbom = describing_cpes_batch(connection, context, &sbom_ids).await?;
+
     let mut results = Vec::new();
 
-    for external_sbom in external_sboms {
-        let cpes = describing_cpes(connection, external_sbom.sbom_id).await?;
-        log::debug!("Cpes: {:?}", cpes);
+    for external_sbom in &external_sboms {
+        let cpes = cpes_by_sbom
+            .get(&external_sbom.sbom_id)
+            .cloned()
+            .unwrap_or_default();
+
+        log::debug!(
+            "{:?}/{} -> CPEs: {:?}",
+            external_sbom.sbom_id,
+            external_sbom.node_id,
+            cpes
+        );
 
         results.extend(cpes.into_iter().map(|cpe_id| RankedSbom {
             matched_sbom_id: matched.sbom_id,
@@ -378,25 +519,27 @@ async fn enrich_external_sboms(
 ///
 /// * A Vec of nodes matching, filled with their CPE.
 ///
-#[instrument(skip(connection), err(level=tracing::Level::INFO))]
+#[instrument(skip(connection, context), err(level=tracing::Level::INFO))]
 async fn resolve_sbom_cpe(
     matched: Row,
     cpe_search: bool,
     connection: &(impl ConnectionTrait + Send),
+    context: &mut LoadContext,
 ) -> Result<Vec<RankedSbom>, Error> {
     let mut results = Vec::new();
 
     if cpe_search {
-        let direct_matches = resolve_direct_cpe_matches(&matched, connection).await?;
+        let direct_matches = resolve_direct_cpe_matches(&matched, connection, context).await?;
         results.extend(direct_matches);
     }
 
     // find external SBOMs linked to ancestors
-    let external_sboms = resolve_ancestor_external_sboms(&matched, connection).await?;
-    log::debug!("external_sboms {:?}", external_sboms);
+    let external_sboms = resolve_ancestor_external_sboms(&matched, connection, context).await?;
+    log::debug!("external_sboms {:?}", external_sboms.len());
 
     // expand external SBOMs into RankedSboms with CPEs
-    let ancestor_matches = enrich_external_sboms(&matched, external_sboms, connection).await?;
+    let ancestor_matches =
+        enrich_external_sboms(&matched, external_sboms, connection, context).await?;
     results.extend(ancestor_matches);
 
     Ok(results)
@@ -487,7 +630,8 @@ mod test {
             .await?
             .into_uuid();
 
-        let result = super::find_node_ancestors(id, "C".into(), &ctx.db).await?;
+        let result =
+            super::find_node_ancestors(id, "C".into(), &ctx.db, &mut Default::default()).await?;
         let result = result
             .iter()
             .map(|rel| (rel.left_node_id.as_str(), rel.right_node_id.as_str()))
@@ -509,13 +653,14 @@ mod test {
     ) -> Result<(), anyhow::Error> {
         let [product, _rpm] = ctx.ingest_documents(sources).await?.into_uuid();
 
-        let cpes = stream::iter(super::describing_cpes(&ctx.db, product).await?)
-            .then(async |cpe| cpe::Entity::find_by_id(cpe).all(&ctx.db).await)
-            .try_fold(Vec::new(), |mut acc, models| async move {
-                acc.extend(models.into_iter().map(|cpe| cpe.to_string()));
-                Ok(acc)
-            })
-            .await?;
+        let cpes =
+            stream::iter(super::describing_cpes(&ctx.db, &mut Default::default(), product).await?)
+                .then(async |cpe| cpe::Entity::find_by_id(cpe).all(&ctx.db).await)
+                .try_fold(Vec::new(), |mut acc, models| async move {
+                    acc.extend(models.into_iter().map(|cpe| cpe.to_string()));
+                    Ok(acc)
+                })
+                .await?;
 
         assert_eq!(cpes.as_slice(), expected);
 
@@ -629,12 +774,19 @@ mod test {
             .into_uuid();
 
         let mut visited = HashSet::new();
+        let mut context = LoadContext::default();
 
         // no native test timeout in Rust, using tokio's timeout as a deadlock guard
 
         let mut result = timeout(
             Duration::from_secs(10),
-            find_external_refs(id_a, "SPDXRef-Root-A".into(), &ctx.db, &mut visited),
+            find_external_refs(
+                id_a,
+                "SPDXRef-Root-A".into(),
+                &ctx.db,
+                &mut context,
+                &mut visited,
+            ),
         )
         .await
         .expect("find_external_refs should not loop infinitely")?;
