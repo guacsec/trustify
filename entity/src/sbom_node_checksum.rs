@@ -32,6 +32,12 @@ pub enum Relation {
         to = "(Column::Value, Column::Type)"
     )]
     SelfRef,
+    #[sea_orm(
+        belongs_to = "super::sbom_describing_cpe::Entity",
+        from = "Column::SbomId",
+        to = "super::sbom_describing_cpe::Column::SbomId"
+    )]
+    DescribingCpe,
 }
 
 impl Related<super::sbom::Entity> for Entity {

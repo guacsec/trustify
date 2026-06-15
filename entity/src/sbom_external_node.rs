@@ -84,6 +84,12 @@ pub enum Relation {
         on_condition = r#"super::package_relates_to_package::Column::Relationship.eq(crate::relationship::Relationship::Describes)"#
     )]
     DescribesSbom,
+    #[sea_orm(
+        belongs_to = "super::sbom_describing_cpe::Entity",
+        from = "Column::SbomId",
+        to = "super::sbom_describing_cpe::Column::SbomId"
+    )]
+    DescribingCpe,
 }
 
 impl Related<super::sbom::Entity> for Entity {
