@@ -790,6 +790,7 @@ where
     V: Clone,
 {
     /// Load a value from the cache or compute it using the loader.
+    #[allow(dead_code)]
     pub async fn get<P, E>(
         &mut self,
         parameters: P,
@@ -842,7 +843,6 @@ where
 
 #[derive(Default)]
 struct LoadContext {
-    pub describing_cpes: Cache<Uuid, Vec<Uuid>>,
     pub find_node_ancestors: Cache<(Uuid, String), Vec<package_relates_to_package::Model>>,
     pub find_external_refs: Cache<(Uuid, String), rank::CachedExternalRefs>,
 }
@@ -850,7 +850,6 @@ struct LoadContext {
 impl Debug for LoadContext {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LoadContext")
-            .field("describing_cpes", &self.describing_cpes)
             .field("find_node_ancestors", &self.find_node_ancestors)
             .field("find_external_refs", &self.find_external_refs)
             .finish()
