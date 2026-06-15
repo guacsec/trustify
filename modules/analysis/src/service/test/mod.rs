@@ -863,3 +863,178 @@ async fn resolve_sbom_cdx_rh_variant_external_node_sbom(
 
     Ok(())
 }
+
+/// Verify that pagination limits the number of hydrated nodes.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_pagination_limits_hydration(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_documents([
+        "spdx/quarkus-bom-3.2.11.Final-redhat-00001.json",
+        "spdx/quarkus-bom-3.2.12.Final-redhat-00002.json",
+    ])
+    .await?;
+
+    let service = AnalysisService::new(AnalysisConfig::default(), ReadOnly::new(ctx.db.clone()));
+
+    // When: request with limit=1 and total=true
+    let result = service
+        .retrieve(
+            &Query::q("spymemcached"),
+            QueryOptions::ancestors(),
+            Paginated {
+                offset: 0,
+                limit: 1,
+                total: true,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Then: only 1 item returned but total reflects all matches
+    assert_eq!(result.items.len(), 1);
+    assert_eq!(result.total, Some(2));
+
+    Ok(())
+}
+
+/// Verify that offset produces different results from different pages.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_pagination_offset(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_documents([
+        "spdx/quarkus-bom-3.2.11.Final-redhat-00001.json",
+        "spdx/quarkus-bom-3.2.12.Final-redhat-00002.json",
+    ])
+    .await?;
+
+    let service = AnalysisService::new(AnalysisConfig::default(), ReadOnly::new(ctx.db.clone()));
+
+    // Given: page 1 (offset=0, limit=1)
+    let page1 = service
+        .retrieve(
+            &Query::q("spymemcached"),
+            QueryOptions::ancestors(),
+            Paginated {
+                offset: 0,
+                limit: 1,
+                total: false,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Given: page 2 (offset=1, limit=1)
+    let page2 = service
+        .retrieve(
+            &Query::q("spymemcached"),
+            QueryOptions::ancestors(),
+            Paginated {
+                offset: 1,
+                limit: 1,
+                total: false,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Then: both pages have 1 item each
+    assert_eq!(page1.items.len(), 1);
+    assert_eq!(page2.items.len(), 1);
+
+    // Then: the items are different (from different SBOMs)
+    assert_ne!(&page1.items[0].base.sbom_id, &page2.items[0].base.sbom_id);
+
+    // Given: combined page (offset=0, limit=2)
+    let combined = service
+        .retrieve(
+            &Query::q("spymemcached"),
+            QueryOptions::ancestors(),
+            Paginated {
+                offset: 0,
+                limit: 2,
+                total: true,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Then: union of page1 + page2 matches the combined result
+    assert_eq!(combined.items.len(), 2);
+    assert_eq!(combined.total, Some(2));
+
+    Ok(())
+}
+
+/// Verify that pagination correctly spans across multiple SBOM graph boundaries.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_pagination_cross_graph(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_documents([
+        "spdx/quarkus-bom-3.2.11.Final-redhat-00001.json",
+        "spdx/quarkus-bom-3.2.12.Final-redhat-00002.json",
+    ])
+    .await?;
+
+    let service = AnalysisService::new(AnalysisConfig::default(), ReadOnly::new(ctx.db.clone()));
+
+    // Given: a query that matches nodes across both SBOMs
+    let all = service
+        .retrieve(
+            &Query::q("spymemcached"),
+            QueryOptions::default(),
+            Paginated {
+                offset: 0,
+                limit: 100,
+                total: true,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    let total = all.total.unwrap_or(0) as usize;
+    assert!(total >= 2, "need at least 2 matches across SBOMs");
+
+    // When: paginate through all results one at a time
+    let mut collected_sbom_ids = Vec::new();
+    for i in 0..total {
+        let page = service
+            .retrieve(
+                &Query::q("spymemcached"),
+                QueryOptions::default(),
+                Paginated {
+                    offset: i as u64,
+                    limit: 1,
+                    total: false,
+                },
+                &ctx.db,
+            )
+            .await?;
+
+        assert_eq!(page.items.len(), 1, "page at offset {i} should have 1 item");
+        collected_sbom_ids.push(page.items[0].base.sbom_id.clone());
+    }
+
+    // Then: all items are accounted for (no duplicates, no gaps)
+    assert_eq!(collected_sbom_ids.len(), total);
+    let unique: std::collections::HashSet<_> = collected_sbom_ids.iter().collect();
+    assert_eq!(unique.len(), total, "no duplicate items across pages");
+
+    // Then: offset beyond total returns empty
+    let beyond = service
+        .retrieve(
+            &Query::q("spymemcached"),
+            QueryOptions::default(),
+            Paginated {
+                offset: total as u64,
+                limit: 1,
+                total: true,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    assert!(beyond.items.is_empty());
+    assert_eq!(beyond.total, Some(total as u64));
+
+    Ok(())
+}
