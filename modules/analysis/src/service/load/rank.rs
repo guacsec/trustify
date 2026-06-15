@@ -385,8 +385,8 @@ async fn batch_resolve_rh_external_sbom_ancestors(
     // Step 1: Fetch checksums for all requested (sbom_id, node_id)
     // using UNNEST arrays to avoid deeply nested Condition trees
     // that overflow sea_query's recursive serializer.
-    let sbom_ids_arr: Vec<Uuid> = pairs.iter().map(|(sid, _)| *sid).collect();
-    let node_ids_arr: Vec<String> = pairs.iter().map(|(_, nid)| nid.clone()).collect();
+    let sbom_ids_arr: Vec<_> = pairs.iter().map(|(sid, _)| *sid).collect();
+    let node_ids_arr: Vec<_> = pairs.iter().map(|(_, nid)| nid.clone()).collect();
 
     let stmt = Statement::from_sql_and_values(
         DatabaseBackend::Postgres,
