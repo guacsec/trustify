@@ -93,7 +93,7 @@ pub struct AnalysisService {
     concurrency: usize,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct ResolvedSbom {
     // The ID of the SBOM the node was found in
     pub sbom_id: Uuid,

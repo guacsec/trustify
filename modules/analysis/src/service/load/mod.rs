@@ -23,7 +23,8 @@ use sea_query::{JoinType, SelectStatement};
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
-    fmt::Debug,
+    fmt::{Debug, Display, Formatter},
+    hash::Hash,
     str::FromStr,
     sync::Arc,
 };
@@ -406,13 +407,15 @@ impl InnerService {
             ),
         };
 
-        log::debug!("test latest sbom ids: {}", matched_sbom_ids.len());
+        log::debug!("SBOM IDs to evaluate: {}", matched_sbom_ids.len());
 
         let mut ranked_sboms = resolve_sbom_cpes(cpe_search, connection, matched_sbom_ids).await?;
 
+        log::debug!("{} SBOMs to rank", ranked_sboms.len());
+
         // apply rank
         apply_rank(&mut ranked_sboms);
-        log::debug!("ranked sboms: {:?}", ranked_sboms);
+        log::trace!("ranked sboms: {:?}", ranked_sboms);
 
         // retrieve only ranked_sboms with rank = 1
         let latest_ids: HashSet<_> = ranked_sboms
@@ -421,7 +424,8 @@ impl InnerService {
             .map(|item| item.matched_sbom_id)
             .collect();
 
-        log::debug!("latest sboms: {:?}", latest_ids);
+        log::debug!("latest sboms: {:?}", latest_ids.len());
+        log::trace!("latest sboms: {:?}", latest_ids);
 
         self.load_graphs(connection, latest_ids).await
     }
@@ -653,6 +657,11 @@ impl InnerService {
     ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
         let mut results = Vec::new();
 
+        let distinct_sbom_ids = distinct_sbom_ids.into_iter();
+        if let (_, Some(len)) = distinct_sbom_ids.size_hint() {
+            log::debug!("Number of IDs: {len}")
+        }
+
         for distinct_sbom_id in distinct_sbom_ids {
             if log::log_enabled!(log::Level::Debug) {
                 let sbom = sbom_id(distinct_sbom_id, connection).await?;
@@ -722,10 +731,128 @@ fn q_columns() -> Columns {
         })
 }
 
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn sbom_id(id: Uuid, connection: &impl ConnectionTrait) -> anyhow::Result<Option<String>> {
     Ok(sbom::Entity::find_by_id(id)
         .one(connection)
         .await?
         .ok_or_else(|| anyhow!("Unable to find SBOM: {id}"))?
         .document_id)
+}
+
+#[derive(Default, Clone, Copy)]
+struct HitAndMiss {
+    total: usize,
+    hits: usize,
+}
+
+impl HitAndMiss {
+    pub fn hit(&mut self) {
+        self.total += 1;
+        self.hits += 1;
+    }
+
+    pub fn miss(&mut self) {
+        self.total += 1;
+    }
+}
+
+impl Display for HitAndMiss {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} of {} ({:.1}%)",
+            self.hits,
+            self.total,
+            self.hits as f64 / self.total as f64 * 100.0
+        )
+    }
+}
+
+impl Debug for HitAndMiss {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
+    }
+}
+
+#[derive(Default)]
+struct Cache<K, V>
+where
+    K: Eq + Hash,
+{
+    cache: HashMap<K, V>,
+    hnm: HitAndMiss,
+}
+
+impl<K, V> Cache<K, V>
+where
+    K: Eq + Hash + Clone,
+    V: Clone,
+{
+    /// Load a value from the cache or compute it using the loader.
+    pub async fn get<P, E>(
+        &mut self,
+        parameters: P,
+        key: K,
+        loader: impl AsyncFnOnce(P, K) -> Result<V, E>,
+    ) -> Result<V, E> {
+        Ok(match self.cache.entry(key.clone()) {
+            Entry::Occupied(entry) => {
+                self.hnm.hit();
+                entry.get().clone()
+            }
+            Entry::Vacant(entry) => {
+                self.hnm.miss();
+                entry.insert(loader(parameters, key).await?).clone()
+            }
+        })
+    }
+
+    /// Return a cached value if present, recording hit/miss stats.
+    pub fn get_cached(&mut self, key: &K) -> Option<V> {
+        match self.cache.get(key) {
+            Some(v) => {
+                self.hnm.hit();
+                Some(v.clone())
+            }
+            None => {
+                self.hnm.miss();
+                None
+            }
+        }
+    }
+
+    /// Insert a value into the cache.
+    pub fn insert(&mut self, key: K, value: V) {
+        self.cache.insert(key, value);
+    }
+}
+
+impl<K, V> Debug for Cache<K, V>
+where
+    K: Eq + Hash,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoadContext")
+            .field("cache", &self.cache.len())
+            .field("hnm", &self.hnm)
+            .finish()
+    }
+}
+
+#[derive(Default)]
+struct LoadContext {
+    pub describing_cpes: Cache<Uuid, Vec<Uuid>>,
+    pub find_node_ancestors: Cache<(Uuid, String), Vec<package_relates_to_package::Model>>,
+    pub find_external_refs: Cache<(Uuid, String), rank::CachedExternalRefs>,
+}
+
+impl Debug for LoadContext {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoadContext")
+            .field("describing_cpes", &self.describing_cpes)
+            .field("find_node_ancestors", &self.find_node_ancestors)
+            .field("find_external_refs", &self.find_external_refs)
+            .finish()
+    }
 }
