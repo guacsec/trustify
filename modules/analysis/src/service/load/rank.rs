@@ -3,9 +3,8 @@ use crate::{
     Error,
     service::{ResolvedSbom, resolve_rh_external_sbom_ancestors},
 };
-use async_recursion::async_recursion;
 use sea_orm::{
-    ColumnTrait, Condition, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult,
+    ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult,
     QueryFilter, QuerySelect, RelationTrait, Select, Statement, prelude::DateTimeWithTimeZone,
 };
 use sea_query::JoinType;
@@ -384,17 +383,23 @@ async fn batch_resolve_rh_external_sbom_ancestors(
     }
 
     // Step 1: Fetch checksums for all requested (sbom_id, node_id)
-    let mut condition = Condition::any();
-    for (sid, nid) in pairs {
-        condition = condition.add(
-            Condition::all()
-                .add(sbom_node_checksum::Column::SbomId.eq(*sid))
-                .add(sbom_node_checksum::Column::NodeId.eq(nid.as_str())),
-        );
-    }
+    // using UNNEST arrays to avoid deeply nested Condition trees
+    // that overflow sea_query's recursive serializer.
+    let sbom_ids_arr: Vec<Uuid> = pairs.iter().map(|(sid, _)| *sid).collect();
+    let node_ids_arr: Vec<String> = pairs.iter().map(|(_, nid)| nid.clone()).collect();
 
-    let checksums = sbom_node_checksum::Entity::find()
-        .filter(condition)
+    let stmt = Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        r#"
+SELECT snc.sbom_id, snc.node_id, snc.type, snc.value
+FROM sbom_node_checksum snc
+INNER JOIN UNNEST($1::uuid[], $2::text[]) AS t(sid, nid)
+  ON snc.sbom_id = t.sid AND snc.node_id = t.nid
+"#,
+        [sbom_ids_arr.into(), node_ids_arr.into()],
+    );
+
+    let checksums = sbom_node_checksum::Model::find_by_statement(stmt)
         .all(connection)
         .instrument(tracing::info_span!("batch checksum lookup").or_current())
         .await?;
@@ -448,12 +453,11 @@ async fn batch_resolve_rh_external_sbom_ancestors(
 
 // ─── External-ref DFS (recursive, for deeper levels) ────────────────
 
-/// Recursively resolves external SBOM references via DFS.
+/// Resolves external SBOM references via iterative DFS.
 ///
-/// This is only used for deeper levels of cross-SBOM traversal after
-/// the first level has been batch-resolved. Uses `context.find_external_refs`
-/// cache to avoid redundant traversals.
-#[async_recursion]
+/// Walks cross-SBOM links discovered through checksum matching,
+/// using an explicit stack instead of recursion.
+/// Uses `context.find_external_refs` cache to avoid redundant traversals.
 #[instrument(
     skip(connection, context, visited),
     fields(visited_len = visited.len()),
@@ -469,62 +473,54 @@ async fn find_external_refs<C>(
 where
     C: ConnectionTrait + Send,
 {
-    let key = (sbom_id, node_id.clone());
+    let mut all_resolved = vec![];
+    let mut stack = vec![(sbom_id, node_id)];
 
-    if !visited.insert(key.clone()) {
-        log::debug!("cycle detected for SBOM {sbom_id} / {node_id}, skipping recursion");
-        return Ok(vec![]);
-    }
+    while let Some((current_sbom, current_node)) = stack.pop() {
+        let key = (current_sbom, current_node.clone());
 
-    if let Some(cached) = context.find_external_refs.get_cached(&key) {
-        // Replay cached children onto the DFS
-        let mut all = cached.resolved.clone();
-        for child in cached.children {
-            all.extend(find_external_refs(child.0, child.1, connection, context, visited).await?);
+        if !visited.insert(key.clone()) {
+            continue;
         }
-        return Ok(all);
-    }
 
-    let mut all_resolved_sboms = vec![];
+        if let Some(cached) = context.find_external_refs.get_cached(&key) {
+            all_resolved.extend(cached.resolved.clone());
+            stack.extend(cached.children);
+            continue;
+        }
 
-    let direct_ancestors = resolve_rh_external_sbom_ancestors(sbom_id, node_id, connection).await?;
+        let direct_ancestors =
+            resolve_rh_external_sbom_ancestors(current_sbom, current_node, connection).await?;
 
-    let mut children = Vec::new();
-    for ancestor in &direct_ancestors {
-        let top_packages = find_node_ancestors(
-            ancestor.sbom_id,
-            ancestor.node_id.clone(),
-            connection,
-            context,
-        )
-        .await?;
-
-        for package in top_packages {
-            children.push((package.sbom_id, package.left_node_id.clone()));
-
-            let deep = find_external_refs(
-                package.sbom_id,
-                package.left_node_id,
+        let mut children = Vec::new();
+        for ancestor in &direct_ancestors {
+            let top_packages = find_node_ancestors(
+                ancestor.sbom_id,
+                ancestor.node_id.clone(),
                 connection,
                 context,
-                visited,
             )
             .await?;
-            all_resolved_sboms.extend(deep);
+
+            for package in top_packages {
+                let child = (package.sbom_id, package.left_node_id);
+                children.push(child.clone());
+                stack.push(child);
+            }
         }
+
+        context.find_external_refs.insert(
+            key,
+            CachedExternalRefs {
+                resolved: direct_ancestors.clone(),
+                children,
+            },
+        );
+
+        all_resolved.extend(direct_ancestors);
     }
 
-    context.find_external_refs.insert(
-        key,
-        CachedExternalRefs {
-            resolved: direct_ancestors.clone(),
-            children,
-        },
-    );
-
-    all_resolved_sboms.extend(direct_ancestors);
-
-    Ok(all_resolved_sboms)
+    Ok(all_resolved)
 }
 
 // ─── Phase 1: batch direct CPE matches ──────────────────────────────
