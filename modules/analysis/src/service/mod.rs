@@ -285,6 +285,77 @@ async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
     )
 }
 
+/// Batch version of [`resolve_rh_external_sbom_ancestors`] — resolves external SBOM
+/// ancestors for multiple `(sbom_id, node_id)` pairs in two queries instead of 2N.
+#[instrument(skip_all, err(level = tracing::Level::INFO))]
+async fn resolve_rh_external_sbom_ancestors_batch<C: ConnectionTrait>(
+    inputs: &[(Uuid, String)],
+    connection: &C,
+) -> Result<HashMap<(Uuid, String), Vec<ResolvedSbom>>, Error> {
+    if inputs.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Query 1: Batch-fetch checksums for all input (sbom_id, node_id) pairs.
+    // SeaORM can't express multi-column IN, so use Condition::any() with compound filters.
+    let cond = inputs
+        .iter()
+        .fold(sea_orm::Condition::any(), |acc, (sid, nid)| {
+            acc.add(
+                sea_orm::Condition::all()
+                    .add(sbom_node_checksum::Column::SbomId.eq(*sid))
+                    .add(sbom_node_checksum::Column::NodeId.eq(nid.clone())),
+            )
+        });
+
+    let checksums = sbom_node_checksum::Entity::find()
+        .filter(cond)
+        .all(connection)
+        .await?;
+
+    if checksums.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Build a map: checksum_value → Vec<(input_sbom_id, input_node_id)>
+    let mut checksum_to_inputs: HashMap<String, Vec<(Uuid, String)>> = HashMap::new();
+    for c in &checksums {
+        checksum_to_inputs
+            .entry(c.value.clone())
+            .or_default()
+            .push((c.sbom_id, c.node_id.clone()));
+    }
+
+    let checksum_values: Vec<String> = checksum_to_inputs.keys().cloned().collect();
+
+    // Query 2: Find all nodes matching those checksum values
+    let matches = sbom_node_checksum::Entity::find()
+        .filter(sbom_node_checksum::Column::Value.is_in(checksum_values))
+        .all(connection)
+        .await?;
+
+    // Build result: for each matched node, find which input(s) it resolves,
+    // excluding matches where the SBOM is the same as the input SBOM.
+    let mut result: HashMap<(Uuid, String), Vec<ResolvedSbom>> = HashMap::new();
+    for m in matches {
+        if let Some(input_pairs) = checksum_to_inputs.get(&m.value) {
+            for (input_sbom_id, input_node_id) in input_pairs {
+                if m.sbom_id != *input_sbom_id {
+                    result
+                        .entry((*input_sbom_id, input_node_id.clone()))
+                        .or_default()
+                        .push(ResolvedSbom {
+                            sbom_id: m.sbom_id,
+                            node_id: m.node_id.clone(),
+                        });
+                }
+            }
+        }
+    }
+
+    Ok(result)
+}
+
 impl AnalysisService {
     /// Create a new analysis service instance with the configured cache size.
     ///
