@@ -3,16 +3,17 @@ use crate::{
     Error,
     service::{ResolvedSbom, resolve_rh_external_sbom_ancestors},
 };
+use async_recursion::async_recursion;
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, QueryFilter, QuerySelect,
-    RelationTrait, Select, prelude::DateTimeWithTimeZone,
+    ColumnTrait, Condition, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult,
+    QueryFilter, QuerySelect, RelationTrait, Select, Statement, prelude::DateTimeWithTimeZone,
 };
 use sea_query::JoinType;
 use std::collections::{HashMap, HashSet};
 use tracing::{Instrument, instrument};
 use trustify_entity::{
     package_relates_to_package, relationship::Relationship, sbom, sbom_external_node, sbom_node,
-    sbom_node_cpe_ref,
+    sbom_node_checksum, sbom_node_cpe_ref,
 };
 use uuid::Uuid;
 
@@ -39,7 +40,7 @@ pub struct RankedSbom {
     pub rank: Option<usize>,
 }
 
-/// prepare a select statement, returning [`Row`]s.
+/// Prepare a select statement, returning [`Row`]s.
 pub fn select() -> Select<sbom_node::Entity> {
     sbom_node::Entity::find()
         .distinct()
@@ -59,16 +60,404 @@ pub(super) struct CachedExternalRefs {
     pub children: Vec<(Uuid, String)>,
 }
 
-/// Resolves external SBOM references using iterative DFS with caching.
+// ─── Ancestor walking ───────────────────────────────────────────────
+
+/// Retrieves lineage (ancestors) of a specific node within an SBOM
+/// graph using a single recursive CTE query instead of iterative DB
+/// round-trips.
 ///
-/// Walks the external-reference graph starting from (sbom_id, node_id). Each step resolves
-/// direct ancestors and finds their top-level packages, which become the next DFS entries.
-/// Results and children are cached per (sbom_id, node_id) so repeated calls with a shared
-/// `LoadContext` replay the traversal from cache.
+/// Walks `package_relates_to_package` from child to parent
+/// (right_node_id -> left_node_id), excluding `AncestorOf`
+/// relationships. The CTE handles cycle detection via a `visited`
+/// path array, capped at depth 100.
+///
+/// Results are cached in `context.find_node_ancestors`.
+#[instrument(skip(connection, context), err(level=tracing::Level::INFO))]
+pub async fn find_node_ancestors<C: ConnectionTrait>(
+    sbom_id: Uuid,
+    start_node_id: String,
+    connection: &C,
+    context: &mut LoadContext,
+) -> Result<Vec<package_relates_to_package::Model>, DbErr> {
+    let key = (sbom_id, start_node_id.clone());
+
+    if let Some(cached) = context.find_node_ancestors.get_cached(&key) {
+        return Ok(cached);
+    }
+
+    let ancestor_of_value = 9i32;
+
+    let sql = r#"
+WITH RECURSIVE ancestors AS (
+    SELECT
+        p.sbom_id,
+        p.left_node_id,
+        p.relationship,
+        p.right_node_id,
+        1 AS depth,
+        ARRAY[p.right_node_id] AS visited
+    FROM package_relates_to_package p
+    WHERE p.sbom_id = $1
+      AND p.right_node_id = $2
+      AND p.relationship != $3
+
+    UNION ALL
+
+    SELECT
+        p.sbom_id,
+        p.left_node_id,
+        p.relationship,
+        p.right_node_id,
+        a.depth + 1,
+        a.visited || p.right_node_id
+    FROM package_relates_to_package p
+    JOIN ancestors a ON p.sbom_id = a.sbom_id
+        AND p.right_node_id = a.left_node_id
+        AND p.relationship != $3
+    WHERE a.depth < 100
+      AND NOT (p.right_node_id = ANY(a.visited))
+)
+SELECT DISTINCT ON (depth)
+    sbom_id,
+    left_node_id,
+    relationship,
+    right_node_id
+FROM ancestors
+ORDER BY depth
+"#;
+
+    let stmt = Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        sql,
+        [
+            sbom_id.into(),
+            start_node_id.into(),
+            ancestor_of_value.into(),
+        ],
+    );
+
+    let rows = package_relates_to_package::Entity::find()
+        .from_raw_sql(stmt)
+        .all(connection)
+        .await?;
+
+    log::debug!("Found {} ancestors for node", rows.len());
+
+    context.find_node_ancestors.insert(key, rows.clone());
+
+    Ok(rows)
+}
+
+/// Result row for the multi-start ancestor CTE.
+#[derive(Debug, FromQueryResult)]
+struct AncestorRow {
+    /// Index into the input array (which start-point produced this)
+    start_idx: i32,
+    sbom_id: Uuid,
+    left_node_id: String,
+    relationship: Relationship,
+    right_node_id: String,
+}
+
+/// Batch version of [`find_node_ancestors`]: walks ancestors for every
+/// `(sbom_id, node_id)` pair in a single recursive CTE by passing the
+/// start points through an `UNNEST` values list.
+///
+/// Checks `context.find_node_ancestors` cache first; only queries
+/// uncached pairs. Results are stored back into the cache.
+#[instrument(
+    skip(connection, context, pairs),
+    fields(count = pairs.len()),
+    err(level = tracing::Level::INFO)
+)]
+async fn batch_find_ancestors<C: ConnectionTrait>(
+    connection: &C,
+    context: &mut LoadContext,
+    pairs: &[(Uuid, String)],
+) -> Result<HashMap<usize, Vec<package_relates_to_package::Model>>, DbErr> {
+    if pairs.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let mut result = HashMap::new();
+    let mut uncached_indices = Vec::new();
+
+    for (idx, pair) in pairs.iter().enumerate() {
+        if let Some(cached) = context.find_node_ancestors.get_cached(pair) {
+            result.insert(idx, cached);
+        } else {
+            uncached_indices.push(idx);
+        }
+    }
+
+    if uncached_indices.is_empty() {
+        return Ok(result);
+    }
+
+    let ancestor_of_value = 9i32;
+
+    // Build parallel arrays for UNNEST, only for uncached pairs
+    let uncached_sbom_ids: Vec<_> = uncached_indices.iter().map(|&i| pairs[i].0).collect();
+    let uncached_node_ids: Vec<_> = uncached_indices
+        .iter()
+        .map(|&i| pairs[i].1.clone())
+        .collect();
+
+    let sql = r#"
+WITH RECURSIVE
+start_points AS (
+    SELECT
+        row_number() OVER () - 1 AS idx,
+        s AS sbom_id,
+        n AS node_id
+    FROM UNNEST($1::uuid[], $2::text[]) AS t(s, n)
+),
+ancestors AS (
+    SELECT
+        sp.idx::int4 AS start_idx,
+        p.sbom_id,
+        p.left_node_id,
+        p.relationship,
+        p.right_node_id,
+        1 AS depth,
+        ARRAY[p.right_node_id] AS visited
+    FROM start_points sp
+    JOIN package_relates_to_package p
+        ON p.sbom_id = sp.sbom_id
+       AND p.right_node_id = sp.node_id
+       AND p.relationship != $3
+
+    UNION ALL
+
+    SELECT
+        a.start_idx,
+        p.sbom_id,
+        p.left_node_id,
+        p.relationship,
+        p.right_node_id,
+        a.depth + 1,
+        a.visited || p.right_node_id
+    FROM package_relates_to_package p
+    JOIN ancestors a
+        ON p.sbom_id = a.sbom_id
+       AND p.right_node_id = a.left_node_id
+       AND p.relationship != $3
+    WHERE a.depth < 100
+      AND NOT (p.right_node_id = ANY(a.visited))
+)
+SELECT DISTINCT ON (start_idx, depth)
+    start_idx,
+    sbom_id,
+    left_node_id,
+    relationship,
+    right_node_id
+FROM ancestors
+ORDER BY start_idx, depth
+"#;
+
+    let stmt = Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        sql,
+        [
+            uncached_sbom_ids.into(),
+            uncached_node_ids.into(),
+            ancestor_of_value.into(),
+        ],
+    );
+
+    let rows = AncestorRow::find_by_statement(stmt).all(connection).await?;
+
+    // Group by the local uncached index
+    let mut by_local_idx: HashMap<usize, Vec<_>> = HashMap::new();
+    for row in rows {
+        let local_idx = row.start_idx as usize;
+        by_local_idx
+            .entry(local_idx)
+            .or_default()
+            .push(package_relates_to_package::Model {
+                sbom_id: row.sbom_id,
+                left_node_id: row.left_node_id,
+                relationship: row.relationship,
+                right_node_id: row.right_node_id,
+            });
+    }
+
+    // Map local uncached indices back to original indices and populate cache
+    for (local_idx, &original_idx) in uncached_indices.iter().enumerate() {
+        let chain = by_local_idx.remove(&local_idx).unwrap_or_default();
+        context
+            .find_node_ancestors
+            .insert(pairs[original_idx].clone(), chain.clone());
+        result.insert(original_idx, chain);
+    }
+
+    log::debug!(
+        "batch_find_ancestors: {} inputs ({} uncached) -> {} total ancestor rows",
+        pairs.len(),
+        uncached_indices.len(),
+        result.values().map(Vec::len).sum::<usize>()
+    );
+    Ok(result)
+}
+
+// ─── CPE helpers ────────────────────────────────────────────────────
+
+/// Single-SBOM describing CPEs (kept for tests).
+#[cfg(test)]
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
+async fn describing_cpes(
+    connection: &(impl ConnectionTrait + Send),
+    sbom_id: Uuid,
+) -> Result<Vec<Uuid>, Error> {
+    Ok(sbom_node_cpe_ref::Entity::find()
+        .distinct()
+        .select_only()
+        .column(sbom_node_cpe_ref::Column::CpeId)
+        .filter(sbom_node_cpe_ref::Column::SbomId.eq(sbom_id))
+        .join(JoinType::Join, sbom_node_cpe_ref::Relation::Sbom.def())
+        .join(
+            JoinType::Join,
+            sbom::Relation::PackageRelatesToPackages.def(),
+        )
+        .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Describes))
+        .into_tuple::<Uuid>()
+        .all(connection)
+        .await?)
+}
+
+/// Batch-fetches describing CPEs for multiple SBOMs in a single query.
+#[instrument(
+    skip(connection, sbom_ids),
+    fields(count = sbom_ids.len()),
+    err(level = tracing::Level::INFO)
+)]
+async fn batch_describing_cpes(
+    connection: &(impl ConnectionTrait + Send),
+    sbom_ids: &[Uuid],
+) -> Result<HashMap<Uuid, Vec<Uuid>>, Error> {
+    if sbom_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let rows = sbom_node_cpe_ref::Entity::find()
+        .distinct()
+        .select_only()
+        .column(sbom_node_cpe_ref::Column::SbomId)
+        .column(sbom_node_cpe_ref::Column::CpeId)
+        .filter(sbom_node_cpe_ref::Column::SbomId.is_in(sbom_ids.to_vec()))
+        .join(JoinType::Join, sbom_node_cpe_ref::Relation::Sbom.def())
+        .join(
+            JoinType::Join,
+            sbom::Relation::PackageRelatesToPackages.def(),
+        )
+        .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Describes))
+        .into_tuple::<(Uuid, Uuid)>()
+        .all(connection)
+        .await?;
+
+    let mut result: HashMap<_, Vec<_>> = HashMap::new();
+    for (sbom_id, cpe_id) in rows {
+        result.entry(sbom_id).or_default().push(cpe_id);
+    }
+
+    Ok(result)
+}
+
+// ─── Batch checksum resolution ──────────────────────────────────────
+
+/// Batch-resolves checksum-based external SBOM ancestors for multiple
+/// `(sbom_id, node_id)` pairs in two queries instead of 2*N.
+///
+/// Returns a map from input `(sbom_id, node_id)` to the resolved
+/// external SBOMs found via matching checksums.
+#[instrument(
+    skip(connection, pairs),
+    fields(count = pairs.len()),
+    err(level = tracing::Level::INFO)
+)]
+async fn batch_resolve_rh_external_sbom_ancestors(
+    connection: &(impl ConnectionTrait + Send),
+    pairs: &[(Uuid, String)],
+) -> Result<HashMap<(Uuid, String), Vec<ResolvedSbom>>, Error> {
+    if pairs.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Step 1: Fetch checksums for all requested (sbom_id, node_id)
+    let mut condition = Condition::any();
+    for (sid, nid) in pairs {
+        condition = condition.add(
+            Condition::all()
+                .add(sbom_node_checksum::Column::SbomId.eq(*sid))
+                .add(sbom_node_checksum::Column::NodeId.eq(nid.as_str())),
+        );
+    }
+
+    let checksums = sbom_node_checksum::Entity::find()
+        .filter(condition)
+        .all(connection)
+        .instrument(tracing::info_span!("batch checksum lookup").or_current())
+        .await?;
+
+    if checksums.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    // Index: checksum value -> source (sbom_id, node_id) pairs
+    let mut value_to_sources: HashMap<_, Vec<_>> = HashMap::new();
+    let mut source_sbom_ids = HashSet::new();
+    for ck in &checksums {
+        value_to_sources
+            .entry(ck.value.clone())
+            .or_default()
+            .push((ck.sbom_id, ck.node_id.clone()));
+        source_sbom_ids.insert(ck.sbom_id);
+    }
+
+    // Step 2: Find all other nodes sharing these checksum values
+    let checksum_values: Vec<_> = value_to_sources.keys().cloned().collect();
+
+    let matches = sbom_node_checksum::Entity::find()
+        .filter(sbom_node_checksum::Column::Value.is_in(checksum_values))
+        .filter(
+            sbom_node_checksum::Column::SbomId
+                .is_not_in(source_sbom_ids.into_iter().collect::<Vec<_>>()),
+        )
+        .all(connection)
+        .instrument(tracing::info_span!("batch checksum reverse lookup").or_current())
+        .await?;
+
+    let mut result: HashMap<_, Vec<_>> = HashMap::new();
+    for matched in matches {
+        let Some(sources) = value_to_sources.get(&matched.value) else {
+            continue;
+        };
+        for source in sources {
+            result
+                .entry(source.clone())
+                .or_default()
+                .push(ResolvedSbom {
+                    sbom_id: matched.sbom_id,
+                    node_id: matched.node_id.clone(),
+                });
+        }
+    }
+
+    Ok(result)
+}
+
+// ─── External-ref DFS (recursive, for deeper levels) ────────────────
+
+/// Recursively resolves external SBOM references via DFS.
+///
+/// This is only used for deeper levels of cross-SBOM traversal after
+/// the first level has been batch-resolved. Uses `context.find_external_refs`
+/// cache to avoid redundant traversals.
+#[async_recursion]
 #[instrument(
     skip(connection, context, visited),
-    fields(visited_len=visited.len()),
-    err(level=tracing::Level::INFO)
+    fields(visited_len = visited.len()),
+    err(level = tracing::Level::INFO)
 )]
 async fn find_external_refs<C>(
     sbom_id: Uuid,
@@ -80,503 +469,441 @@ async fn find_external_refs<C>(
 where
     C: ConnectionTrait + Send,
 {
-    let mut all_resolved_sboms = Vec::new();
-    let mut stack = vec![(sbom_id, node_id)];
+    let key = (sbom_id, node_id.clone());
 
-    while let Some((sbom_id, node_id)) = stack.pop() {
-        let key = (sbom_id, node_id.clone());
+    if !visited.insert(key.clone()) {
+        log::debug!("cycle detected for SBOM {sbom_id} / {node_id}, skipping recursion");
+        return Ok(vec![]);
+    }
 
-        if !visited.insert(key.clone()) {
-            log::debug!("cycle detected for SBOM {sbom_id} / {node_id}, skipping");
-            continue;
+    if let Some(cached) = context.find_external_refs.get_cached(&key) {
+        // Replay cached children onto the DFS
+        let mut all = cached.resolved.clone();
+        for child in cached.children {
+            all.extend(find_external_refs(child.0, child.1, connection, context, visited).await?);
         }
+        return Ok(all);
+    }
 
-        // On cache hit, replay resolved SBOMs and push cached children onto the stack
-        if let Some(cached) = context.find_external_refs.get_cached(&key) {
-            all_resolved_sboms.extend(cached.resolved);
-            stack.extend(cached.children);
-            continue;
-        }
+    let mut all_resolved_sboms = vec![];
 
-        let direct_ancestors =
-            resolve_rh_external_sbom_ancestors(sbom_id, node_id, connection).await?;
+    let direct_ancestors = resolve_rh_external_sbom_ancestors(sbom_id, node_id, connection).await?;
 
-        let mut children = Vec::new();
-        for ancestor in &direct_ancestors {
-            let top_packages = find_node_ancestors(
-                ancestor.sbom_id,
-                ancestor.node_id.clone(),
+    let mut children = Vec::new();
+    for ancestor in &direct_ancestors {
+        let top_packages = find_node_ancestors(
+            ancestor.sbom_id,
+            ancestor.node_id.clone(),
+            connection,
+            context,
+        )
+        .await?;
+
+        for package in top_packages {
+            children.push((package.sbom_id, package.left_node_id.clone()));
+
+            let deep = find_external_refs(
+                package.sbom_id,
+                package.left_node_id,
                 connection,
                 context,
+                visited,
             )
             .await?;
-
-            for package in top_packages {
-                children.push((package.sbom_id, package.left_node_id));
-            }
+            all_resolved_sboms.extend(deep);
         }
-
-        stack.extend(children.iter().cloned());
-
-        context.find_external_refs.insert(
-            key,
-            CachedExternalRefs {
-                resolved: direct_ancestors.clone(),
-                children,
-            },
-        );
-
-        all_resolved_sboms.extend(direct_ancestors);
     }
+
+    context.find_external_refs.insert(
+        key,
+        CachedExternalRefs {
+            resolved: direct_ancestors.clone(),
+            children,
+        },
+    );
+
+    all_resolved_sboms.extend(direct_ancestors);
 
     Ok(all_resolved_sboms)
 }
 
-/// Retrieves the distinct list of CPE (Common Platform Enumeration) UUIDs associated with a specific SBOM,
-/// specifically the "describing component" of an SBOM.
-///
-/// This means: all CPEs of all nodes which have the SBOM's node ID on the right side of a "describes" relationship
-///
-/// This function queries the `sbom_node_cpe_ref` linking table to find all CPEs tied
-/// to the given `sbom_id`. It includes validation joins to ensure the SBOM exists and
-/// properly contains a "Describes" relationship (indicating a valid root package structure).
-///
-/// # Arguments
-///
-/// * `connection` - The database connection used to execute the query.
-/// * `context` - Caching context to avoid redundant DB queries.
-/// * `sbom_id` - The UUID of the SBOM to search within.
-///
-/// # Returns
-///
-/// Returns a `Result` containing:
-/// * `Vec<Uuid>`: A list of unique CPE UUIDs found in the SBOM.
-/// * `Error`: If a database error occurs.
-///
-#[instrument(skip(connection, context), err(level=tracing::Level::INFO))]
-async fn describing_cpes(
-    connection: &(impl ConnectionTrait + Send),
-    context: &mut LoadContext,
-    sbom_id: Uuid,
-) -> Result<Vec<Uuid>, Error> {
-    Ok(context
-        .describing_cpes
-        .get(connection, sbom_id, async |connection, sbom_id| {
-            sbom_node_cpe_ref::Entity::find()
-                .distinct()
-                .select_only()
-                .column(sbom_node_cpe_ref::Column::CpeId)
-                .filter(sbom_node_cpe_ref::Column::SbomId.eq(sbom_id))
-                .join(JoinType::Join, sbom_node_cpe_ref::Relation::Sbom.def())
-                .join(
-                    JoinType::Join,
-                    sbom::Relation::PackageRelatesToPackages.def(),
-                )
-                .filter(
-                    package_relates_to_package::Column::Relationship.eq(Relationship::Describes),
-                )
-                .into_tuple::<Uuid>()
-                .all(connection)
-                .await
-        })
-        .await?)
-}
+// ─── Phase 1: batch direct CPE matches ──────────────────────────────
 
-/// Batch-fetches describing CPEs for multiple SBOMs in a single query.
+/// Batch-resolves direct CPE matches for all rows at once.
 ///
-/// Checks the cache first and only queries the database for uncached SBOM IDs.
-/// Results are inserted into the cache and returned as a map from SBOM ID to CPE IDs.
+/// For each matched SBOM: gets its describing CPEs and external nodes,
+/// then maps them to `RankedSbom`s. Uses batch queries for CPEs,
+/// external nodes, and node lookups (3 queries total instead of 3*N).
 #[instrument(
-    skip(connection, context, sbom_ids),
-    fields(sbom_ids = sbom_ids.len()),
-    err(level=tracing::Level::INFO))
-]
-async fn describing_cpes_batch(
+    skip(rows, connection),
+    fields(count = rows.len()),
+    err(level = tracing::Level::INFO)
+)]
+async fn batch_resolve_direct_cpe_matches(
+    rows: &[Row],
+    connection: &(impl ConnectionTrait + Send),
+) -> Result<Vec<RankedSbom>, Error> {
+    if rows.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let sbom_ids: Vec<_> = rows.iter().map(|r| r.sbom_id).collect();
+
+    // Concurrent batch: describing CPEs + external nodes
+    let cpe_map = batch_describing_cpes(connection, &sbom_ids).await?;
+    let all_external_nodes = sbom_external_node::Entity::find()
+        .filter(sbom_external_node::Column::SbomId.is_in(sbom_ids.clone()))
+        .all(connection)
+        .instrument(tracing::info_span!("batch find external sboms").or_current())
+        .await
+        .map_err(Error::from)?;
+
+    // Group external nodes by sbom_id
+    let mut ext_by_sbom: HashMap<_, Vec<_>> = HashMap::new();
+    for ext in &all_external_nodes {
+        ext_by_sbom.entry(ext.sbom_id).or_default().push(ext);
+    }
+
+    // Batch lookup all referenced external node IDs
+    let all_node_ids: Vec<_> = all_external_nodes
+        .iter()
+        .map(|e| e.external_node_ref.clone())
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    let node_map: HashMap<_, _> = if all_node_ids.is_empty() {
+        HashMap::new()
+    } else {
+        sbom_node::Entity::find()
+            .filter(sbom_node::Column::NodeId.is_in(all_node_ids))
+            .all(connection)
+            .instrument(tracing::info_span!("batch lookup nodes").or_current())
+            .await
+            .map_err(Error::from)?
+            .into_iter()
+            .map(|n| (n.node_id.clone(), n))
+            .collect()
+    };
+
+    // Assemble results
+    let mut matched_sboms = Vec::new();
+    for matched in rows {
+        let direct_cpes = cpe_map.get(&matched.sbom_id).cloned().unwrap_or_default();
+        let ext_nodes = match ext_by_sbom.get(&matched.sbom_id) {
+            Some(nodes) => nodes.as_slice(),
+            None => continue,
+        };
+        if ext_nodes.is_empty() {
+            continue;
+        }
+
+        for cpe_id in &direct_cpes {
+            for ext in ext_nodes {
+                let node = node_map.get(&ext.external_node_ref).ok_or_else(|| {
+                    Error::Data("Ranked matched node has no top ancestor sbom.".to_string())
+                })?;
+
+                matched_sboms.push(RankedSbom {
+                    matched_sbom_id: matched.sbom_id,
+                    matched_name: node.name.clone(),
+                    top_ancestor_sbom: node.sbom_id,
+                    cpe_id: *cpe_id,
+                    sbom_date: matched.published,
+                    rank: None,
+                });
+            }
+        }
+    }
+
+    Ok(matched_sboms)
+}
+
+// ─── Phase 2: batch ancestor + external resolution ──────────────────
+
+/// Batch-resolves ancestor external SBOMs for all rows.
+///
+/// 1. One multi-start CTE to find ancestors for all rows
+/// 2. Splits rows into top-level vs nested
+/// 3. Batch checksum resolution for top-level nodes
+/// 4. Batch checksum resolution for root nodes of nested rows,
+///    then only recurses deeper via DFS for discovered nodes
+///
+/// Returns `(row_index, ResolvedSbom)` pairs.
+#[instrument(
+    skip(connection, context, rows),
+    fields(count = rows.len()),
+    err(level = tracing::Level::INFO)
+)]
+async fn batch_resolve_ancestor_externals(
+    rows: &[Row],
     connection: &(impl ConnectionTrait + Send),
     context: &mut LoadContext,
-    sbom_ids: &[Uuid],
-) -> Result<HashMap<Uuid, Vec<Uuid>>, Error> {
-    let mut result = HashMap::with_capacity(sbom_ids.len());
-    let mut seen = HashSet::new();
-    let mut uncached_ids = Vec::new();
+) -> Result<Vec<(usize, ResolvedSbom)>, Error> {
+    if rows.is_empty() {
+        return Ok(vec![]);
+    }
 
-    for &sbom_id in sbom_ids {
-        if let Some(cpes) = context.describing_cpes.get_cached(&sbom_id) {
-            result.insert(sbom_id, cpes);
-        } else if seen.insert(sbom_id) {
-            uncached_ids.push(sbom_id);
+    // ── Step 1: batch find_node_ancestors for ALL rows ──
+    let pairs: Vec<_> = rows
+        .iter()
+        .map(|r| (r.sbom_id, r.node_id.clone()))
+        .collect();
+
+    let ancestors_by_idx = batch_find_ancestors(connection, context, &pairs).await?;
+
+    // Split rows: top-level (no ancestors) vs nested (has ancestors).
+    let mut top_level_pairs = Vec::new();
+    let mut nested_entry_points = Vec::new();
+
+    for (idx, row) in rows.iter().enumerate() {
+        match ancestors_by_idx.get(&idx) {
+            Some(chain) if !chain.is_empty() => {
+                for ancestor in chain {
+                    nested_entry_points.push((
+                        idx,
+                        ancestor.sbom_id,
+                        ancestor.left_node_id.clone(),
+                    ));
+                }
+            }
+            _ => {
+                top_level_pairs.push((idx, row.sbom_id, row.node_id.clone()));
+            }
         }
     }
 
-    if uncached_ids.is_empty() {
-        return Ok(result);
+    let mut all_externals = Vec::new();
+
+    // ── Step 2: batch checksum for top-level nodes ──
+    if !top_level_pairs.is_empty() {
+        let checksum_pairs: Vec<_> = top_level_pairs
+            .iter()
+            .map(|(_, sid, nid)| (*sid, nid.clone()))
+            .collect();
+
+        let resolved =
+            batch_resolve_rh_external_sbom_ancestors(connection, &checksum_pairs).await?;
+
+        for (i, (idx, _, _)) in top_level_pairs.iter().enumerate() {
+            let key = (checksum_pairs[i].0, checksum_pairs[i].1.clone());
+            if let Some(externals) = resolved.get(&key) {
+                for ext in externals {
+                    all_externals.push((*idx, ext.clone()));
+                }
+            }
+        }
     }
 
-    let rows = sbom_node_cpe_ref::Entity::find()
-        .distinct()
-        .select_only()
-        .column(sbom_node_cpe_ref::Column::SbomId)
-        .column(sbom_node_cpe_ref::Column::CpeId)
-        .filter(sbom_node_cpe_ref::Column::SbomId.is_in(uncached_ids.clone()))
-        .join(JoinType::Join, sbom_node_cpe_ref::Relation::Sbom.def())
-        .join(
-            JoinType::Join,
-            sbom::Relation::PackageRelatesToPackages.def(),
-        )
-        .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Describes))
-        .into_tuple::<(Uuid, Uuid)>()
-        .all(connection)
-        .await?;
+    // ── Step 3: batch checksum for nested entry points ──
+    if !nested_entry_points.is_empty() {
+        // 3a. Deduplicate entry points
+        let unique_pairs: Vec<_> = nested_entry_points
+            .iter()
+            .map(|(_, sid, nid)| (*sid, nid.clone()))
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
 
-    let mut fetched: HashMap<_, Vec<_>> = HashMap::new();
-    for (sbom_id, cpe_id) in rows {
-        fetched.entry(sbom_id).or_default().push(cpe_id);
+        let resolved = batch_resolve_rh_external_sbom_ancestors(connection, &unique_pairs).await?;
+
+        // 3b. Collect first-level ancestors, then batch find_node_ancestors
+        let mut all_first_level = Vec::new();
+        for ancestors in resolved.values() {
+            for a in ancestors {
+                all_first_level.push(a.clone());
+            }
+        }
+
+        let unique_ancestors: Vec<_> = all_first_level
+            .iter()
+            .map(|a| (a.sbom_id, a.node_id.clone()))
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        let ancestor_roots = batch_find_ancestors(connection, context, &unique_ancestors).await?;
+
+        // Build lookup: (ancestor_sbom_id, ancestor_node_id) -> root packages
+        let mut roots_by_ancestor = HashMap::new();
+        for (i, key) in unique_ancestors.iter().enumerate() {
+            if let Some(chain) = ancestor_roots.get(&i) {
+                roots_by_ancestor.insert(key.clone(), chain);
+            }
+        }
+
+        // 3c. Collect DFS entry points from root nodes
+        let mut dfs_entries = Vec::new();
+        for (key, chain) in &roots_by_ancestor {
+            if chain.is_empty() {
+                dfs_entries.push(key.clone());
+            } else {
+                for pkg in *chain {
+                    dfs_entries.push((pkg.sbom_id, pkg.left_node_id.clone()));
+                }
+            }
+        }
+
+        let unique_dfs: Vec<_> = dfs_entries
+            .into_iter()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        let dfs_first_level =
+            batch_resolve_rh_external_sbom_ancestors(connection, &unique_dfs).await?;
+
+        // 3d. Fan results back to input rows, recurse deeper via DFS
+        let mut entries_by_row: HashMap<_, Vec<_>> = HashMap::new();
+        for (idx, sid, nid) in &nested_entry_points {
+            entries_by_row
+                .entry(*idx)
+                .or_default()
+                .push((*sid, nid.clone()));
+        }
+
+        for (idx, entry_keys) in &entries_by_row {
+            let mut visited = HashSet::new();
+
+            for entry_key in entry_keys {
+                let first_level = resolved.get(entry_key).cloned().unwrap_or_default();
+
+                for ancestor in first_level {
+                    let ancestor_key = (ancestor.sbom_id, ancestor.node_id.clone());
+
+                    let root_chain = roots_by_ancestor.get(&ancestor_key).copied();
+
+                    let root_entries: Vec<_> = match root_chain {
+                        Some(chain) if !chain.is_empty() => chain
+                            .iter()
+                            .map(|p| (p.sbom_id, p.left_node_id.clone()))
+                            .collect(),
+                        _ => vec![ancestor_key],
+                    };
+
+                    for root_key in &root_entries {
+                        let dfs_results =
+                            dfs_first_level.get(root_key).cloned().unwrap_or_default();
+
+                        for deep_ancestor in dfs_results {
+                            if !visited
+                                .insert((deep_ancestor.sbom_id, deep_ancestor.node_id.clone()))
+                            {
+                                continue;
+                            }
+
+                            // Recurse for level 2+ (rare)
+                            let top_pkgs = find_node_ancestors(
+                                deep_ancestor.sbom_id,
+                                deep_ancestor.node_id.clone(),
+                                connection,
+                                context,
+                            )
+                            .await?;
+
+                            for pkg in top_pkgs {
+                                let deep = find_external_refs(
+                                    pkg.sbom_id,
+                                    pkg.left_node_id,
+                                    connection,
+                                    context,
+                                    &mut visited,
+                                )
+                                .await?;
+                                for ext in deep {
+                                    all_externals.push((*idx, ext));
+                                }
+                            }
+
+                            all_externals.push((*idx, deep_ancestor));
+                        }
+                    }
+
+                    all_externals.push((*idx, ancestor));
+                }
+            }
+        }
     }
 
-    // Cache all results, including empty vecs for IDs that returned no rows
-    for sbom_id in uncached_ids {
-        let cpes = fetched.remove(&sbom_id).unwrap_or_default();
-        context.describing_cpes.insert(sbom_id, cpes.clone());
-        result.insert(sbom_id, cpes);
-    }
-
-    Ok(result)
+    Ok(all_externals)
 }
 
-/// Retrieves lineage (ancestors) of a specific node within an SBOM graph as represented
-/// in sql data (NOT in memory graph).
-///
-/// This function performs an iterative upstream traversal starting from the `start_node_id`.
-/// It walks the `package_relates_to_package` table from Child to Parent until it reaches
-/// a root node (no further parents).
-///
-/// # Arguments
-///
-/// * `sbom_id` - The unique identifier of the SBOM to scope the search within.
-/// * `start_node_id` - The identifier of the child node to begin the traversal from.
-/// * `connection` - The database connection used to execute the queries.
-/// * `context` - Caching context to avoid redundant DB queries.
-///
-/// # Returns
-///
-/// Returns a `Result` containing:
-/// * `Vec<package_relates_to_package::Model>`: A vector of relationship entities ordered
-///   from the immediate parent up to the root ancestor.
-/// * `DbErr`: If a database error occurs during traversal.
-///
-/// # Behavior & Limitations
-///
-/// * **Single Path Traversal**: If a node has multiple parents (DAG structure), this function
-///   currently selects *a single random* parent returned by the database and ignores others.
-/// * **Cycle Protection**: Records visited nodes of the SBOM to prevent infinite loops in
-///   cyclic graphs (e.g., A -> B -> A).
-#[instrument(skip(connection, context), err(level=tracing::Level::INFO))]
-pub async fn find_node_ancestors<C: ConnectionTrait>(
-    sbom_id: Uuid,
-    start_node_id: String,
-    connection: &C,
-    context: &mut LoadContext,
-) -> Result<Vec<package_relates_to_package::Model>, DbErr> {
-    let mut ancestors = Vec::new();
-    let mut current_child_id = start_node_id;
+// ─── Top-level orchestrator ─────────────────────────────────────────
 
-    // guard to prevent infinite loops (e.g. cycles A->B->A)
-    let mut visited = HashSet::new();
-
-    let mut iterations = 0;
-    loop {
-        if !visited.insert(current_child_id.clone()) {
-            log::warn!("recursion detected (node: {current_child_id}, sbom: {sbom_id})");
-            break;
-        }
-
-        // Individual parent lookups are cached so that different starting nodes
-        // sharing ancestor paths benefit from previously resolved steps.
-        let parents = context
-            .find_node_ancestors
-            .get(
-                connection,
-                (sbom_id, current_child_id.clone()),
-                async |connection, (sbom_id, child_id)| {
-                    package_relates_to_package::Entity::find()
-                        .filter(package_relates_to_package::Column::SbomId.eq(sbom_id))
-                        .filter(package_relates_to_package::Column::RightNodeId.eq(&child_id))
-                        .filter(
-                            package_relates_to_package::Column::Relationship
-                                .ne(Relationship::AncestorOf),
-                        )
-                        .all(connection)
-                        .await
-                },
-            )
-            .await?;
-
-        if parents.is_empty() {
-            break;
-        }
-
-        let parent_rel = &parents[0];
-        ancestors.push(parent_rel.clone());
-        current_child_id = parent_rel.left_node_id.clone();
-
-        iterations += 1;
-    }
-
-    log::debug!(
-        "Took {iterations} iterations, found {} ancestors for node",
-        ancestors.len()
-    );
-
-    Ok(ancestors)
-}
-
-/// Resolve CPEs for matched SBOMs.
+/// Resolve CPEs for matched SBOMs using batched queries.
 ///
-/// The CPEs of an SBOM are the CPEs of the describing component.
-///
-/// ## Input
-///
-/// * `rows`: the nodes matching the initial search
-///
-/// ## Output
-///
-/// * A Vec of nodes matching, filled with their CPE.
-///
-#[instrument(skip(connection, rows), fields(rows=rows.len()))]
+/// Processes all rows in phases to minimize database round-trips:
+/// 1. Batch direct CPE matches (when `cpe_search` is true)
+/// 2. Batch ancestor resolution + external SBOM discovery
+/// 3. Batch CPE enrichment for all discovered external SBOMs
+#[instrument(skip(connection, rows), fields(rows = rows.len()))]
 pub async fn resolve_sbom_cpes(
     cpe_search: bool,
     connection: &(impl ConnectionTrait + Send),
     rows: Vec<Row>,
 ) -> Result<Vec<RankedSbom>, Error> {
-    let mut matched_sboms = Vec::new();
-
+    let mut results = Vec::new();
     let mut context = LoadContext::default();
 
-    for matched in rows {
-        matched_sboms
-            .extend(resolve_sbom_cpe(matched, cpe_search, connection, &mut context).await?);
+    // ── Phase 1: batch direct CPE matches (cpe_search only) ──
+    if cpe_search {
+        let direct = batch_resolve_direct_cpe_matches(&rows, connection).await?;
+        results.extend(direct);
+    }
+
+    // ── Phase 2: batch ancestor + external resolution ──
+    let all_externals = batch_resolve_ancestor_externals(&rows, connection, &mut context).await?;
+
+    // ── Phase 3: batch CPE enrichment ──
+    let external_sbom_ids: Vec<_> = all_externals
+        .iter()
+        .map(|(_, ext)| ext.sbom_id)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    let cpe_map = batch_describing_cpes(connection, &external_sbom_ids).await?;
+
+    for (idx, ext) in &all_externals {
+        let matched = &rows[*idx];
+        if let Some(cpes) = cpe_map.get(&ext.sbom_id) {
+            results.extend(cpes.iter().map(|cpe_id| RankedSbom {
+                matched_sbom_id: matched.sbom_id,
+                matched_name: matched.name.clone(),
+                top_ancestor_sbom: ext.sbom_id,
+                cpe_id: *cpe_id,
+                sbom_date: matched.published,
+                rank: None,
+            }));
+        }
     }
 
     log::info!("Cache stats: {context:?}");
 
-    Ok(matched_sboms)
-}
-
-/// Resolves direct CPE matches by joining external nodes to SBOM nodes.
-/// (hopefully avoiding N+1 queries).
-#[instrument(skip(connection), err(level=tracing::Level::INFO))]
-async fn resolve_direct_cpe_matches(
-    matched: &Row,
-    connection: &(impl ConnectionTrait + Send),
-    context: &mut LoadContext,
-) -> Result<Vec<RankedSbom>, Error> {
-    let direct = describing_cpes(connection, context, matched.sbom_id);
-    let direct_external = async {
-        sbom_external_node::Entity::find()
-            .filter(sbom_external_node::Column::SbomId.eq(matched.sbom_id))
-            .all(connection)
-            .instrument(tracing::info_span!("find external sboms").or_current())
-            .await
-            .map_err(Error::from)
-    };
-
-    let (direct_cpes, direct_external_sboms) = tokio::try_join!(direct, direct_external)?;
-
-    if direct_external_sboms.is_empty() {
-        return Ok(vec![]);
-    }
-
-    let node_ids: Vec<_> = direct_external_sboms
-        .iter()
-        .map(|e| e.external_node_ref.clone())
-        .collect();
-
-    let nodes = sbom_node::Entity::find()
-        .filter(sbom_node::Column::NodeId.is_in(node_ids))
-        .all(connection)
-        .instrument(tracing::info_span!("lookup nodes").or_current())
-        .await
-        .map_err(Error::from)?;
-
-    let node_map: HashMap<_, _> = nodes.into_iter().map(|n| (n.node_id.clone(), n)).collect();
-
-    let mut matched_sboms = Vec::with_capacity(direct_cpes.len() * direct_external_sboms.len());
-
-    for direct_cpe in direct_cpes {
-        for ext_sbom in &direct_external_sboms {
-            let node = node_map.get(&ext_sbom.external_node_ref).ok_or_else(|| {
-                Error::Data("Ranked matched node has no top ancestor sbom.".to_string())
-            })?;
-
-            matched_sboms.push(RankedSbom {
-                matched_sbom_id: matched.sbom_id,
-                matched_name: node.name.clone(),
-                top_ancestor_sbom: node.sbom_id,
-                cpe_id: direct_cpe,
-                sbom_date: matched.published,
-                rank: None,
-            });
-        }
-    }
-
-    Ok(matched_sboms)
-}
-
-/// Finds external SBOMs that are ancestors of the matched node.
-#[instrument(skip(connection), err(level=tracing::Level::INFO))]
-async fn resolve_ancestor_external_sboms(
-    matched: &Row,
-    connection: &(impl ConnectionTrait + Send),
-    context: &mut LoadContext,
-) -> Result<Vec<ResolvedSbom>, Error> {
-    let top_packages = find_node_ancestors(
-        matched.sbom_id,
-        matched.node_id.clone(),
-        connection,
-        context,
-    )
-    .await?;
-
-    log::debug!("Top packages found? {:?}", top_packages.is_empty());
-
-    if top_packages.is_empty() {
-        // the matched node IS the top-level package
-        resolve_rh_external_sbom_ancestors(matched.sbom_id, matched.node_id.clone(), connection)
-            .await
-    } else {
-        // the matched node is nested; resolve ancestors recursively
-        let mut external_sboms = Vec::new();
-        let mut visited = HashSet::new(); // Reused allocation
-
-        for package in top_packages {
-            external_sboms.extend(
-                find_external_refs(
-                    package.sbom_id,
-                    package.left_node_id,
-                    connection,
-                    context,
-                    &mut visited,
-                )
-                .await?,
-            );
-        }
-        Ok(external_sboms)
-    }
-}
-
-/// Expands a list of External SBOMs into RankedSboms by fetching their CPEs in a single batch.
-#[instrument(
-    skip(external_sboms, connection),
-    fields(num_external_sboms = external_sboms.len()),
-    err(level=tracing::Level::INFO))
-]
-async fn enrich_external_sboms(
-    matched: &Row,
-    external_sboms: Vec<ResolvedSbom>,
-    connection: &(impl ConnectionTrait + Send),
-    context: &mut LoadContext,
-) -> Result<Vec<RankedSbom>, Error> {
-    let sbom_ids: Vec<Uuid> = external_sboms.iter().map(|s| s.sbom_id).collect();
-    let cpes_by_sbom = describing_cpes_batch(connection, context, &sbom_ids).await?;
-
-    let mut results = Vec::new();
-
-    for external_sbom in &external_sboms {
-        let cpes = cpes_by_sbom
-            .get(&external_sbom.sbom_id)
-            .cloned()
-            .unwrap_or_default();
-
-        log::debug!(
-            "{:?}/{} -> CPEs: {:?}",
-            external_sbom.sbom_id,
-            external_sbom.node_id,
-            cpes
-        );
-
-        results.extend(cpes.into_iter().map(|cpe_id| RankedSbom {
-            matched_sbom_id: matched.sbom_id,
-            matched_name: matched.name.clone(),
-            top_ancestor_sbom: external_sbom.sbom_id,
-            cpe_id,
-            sbom_date: matched.published,
-            rank: None,
-        }));
-    }
-
     Ok(results)
 }
 
-/// Resolve CPEs for matched SBOMs.
-///
-/// The CPEs of an SBOM are the CPEs of the describing component.
-///
-/// ## Input
-///
-/// * `matched`: single matched row of the initial search
-///
-/// ## Output
-///
-/// * A Vec of nodes matching, filled with their CPE.
-///
-#[instrument(skip(connection, context), err(level=tracing::Level::INFO))]
-async fn resolve_sbom_cpe(
-    matched: Row,
-    cpe_search: bool,
-    connection: &(impl ConnectionTrait + Send),
-    context: &mut LoadContext,
-) -> Result<Vec<RankedSbom>, Error> {
-    let mut results = Vec::new();
+// ─── Ranking ────────────────────────────────────────────────────────
 
-    if cpe_search {
-        let direct_matches = resolve_direct_cpe_matches(&matched, connection, context).await?;
-        results.extend(direct_matches);
-    }
-
-    // find external SBOMs linked to ancestors
-    let external_sboms = resolve_ancestor_external_sboms(&matched, connection, context).await?;
-    log::debug!("external_sboms {:?}", external_sboms.len());
-
-    // expand external SBOMs into RankedSboms with CPEs
-    let ancestor_matches =
-        enrich_external_sboms(&matched, external_sboms, connection, context).await?;
-    results.extend(ancestor_matches);
-
-    Ok(results)
-}
-
-/// Assigns a rank to SBOMs within their specific CPE groups based on creation date which
-/// embodies the latest filter heuristics.
+/// Assigns a rank to SBOMs within their specific CPE groups based on
+/// creation date which embodies the latest filter heuristics.
 ///
-/// This function simulates a SQL Window Function:
+/// Simulates a SQL Window Function:
 /// `DENSE_RANK() OVER (PARTITION BY cpe_id ORDER BY sbom_date DESC)`.
 ///
-/// # Logic
-/// 1. **Sort**: The list is sorted primarily by `cpe_id`, `name` (to group items) and secondarily
-///    by `sbom_date` in descending order (newest first).
-/// 2. **Rank**: It iterates through the sorted list:
-///    - **New Group**: If the `cpe_id`, `name` changes, the rank resets to 1.
-///    - **Ties**: If the `sbom_date` is identical to the previous item in the same group,
-///      they share the same rank.
-///    - **Progression**: If the date is older, the rank increments by 1 (creating a "Dense" rank,
-///      meaning no numbers are skipped after ties: 1, 1, 2).
-///
-/// # Arguments
-/// * `items` - A mutable slice of `RankedSbom` that will be sorted and updated in-place.
+/// 1. **Sort** by `cpe_id`, `name`, then `sbom_date` descending.
+/// 2. **Rank**: resets on group boundary, ties share rank, otherwise increments (dense rank).
 pub fn apply_rank(items: &mut [RankedSbom]) {
-    // group by (cpe_id, matched_name) before ordering by date.
     items.sort_by(|a, b| {
         a.cpe_id
-            .cmp(&b.cpe_id) // partition: CPE
-            .then(a.matched_name.cmp(&b.matched_name)) // partition: Name
-            // .then(a.matched_group.cmp(&b.matched_group)) // partition: Group
-            .then(b.sbom_date.cmp(&a.sbom_date)) // Ordering: Date DESC
+            .cmp(&b.cpe_id)
+            .then(a.matched_name.cmp(&b.matched_name))
+            .then(b.sbom_date.cmp(&a.sbom_date))
     });
 
     let mut current_rank = 1;
 
     for i in 0..items.len() {
-        // first item is always Rank 1
         if i == 0 {
             items[i].rank = Some(1);
             continue;
@@ -585,14 +912,9 @@ pub fn apply_rank(items: &mut [RankedSbom]) {
         let prev = &items[i - 1];
         let curr = &items[i];
 
-        // we are in the same group only if BOTH
-        // the CPE and the Name match the previous item.
         let same_partition = curr.cpe_id == prev.cpe_id && curr.matched_name == prev.matched_name;
-        // curr.matched_group == prev.matched_group &&
-        // curr.matched_name == prev.matched_name;
 
         if same_partition {
-            // dense rank logic
             if curr.sbom_date == prev.sbom_date {
                 items[i].rank = items[i - 1].rank;
             } else {
@@ -600,13 +922,13 @@ pub fn apply_rank(items: &mut [RankedSbom]) {
                 items[i].rank = Some(current_rank);
             }
         } else {
-            // partition boundary detected (eg. CPE changed OR Name changed).
-            // reset rank counter.
             current_rank = 1;
             items[i].rank = Some(1);
         }
     }
 }
+
+// ─── Tests ──────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod test {
@@ -653,14 +975,13 @@ mod test {
     ) -> Result<(), anyhow::Error> {
         let [product, _rpm] = ctx.ingest_documents(sources).await?.into_uuid();
 
-        let cpes =
-            stream::iter(super::describing_cpes(&ctx.db, &mut Default::default(), product).await?)
-                .then(async |cpe| cpe::Entity::find_by_id(cpe).all(&ctx.db).await)
-                .try_fold(Vec::new(), |mut acc, models| async move {
-                    acc.extend(models.into_iter().map(|cpe| cpe.to_string()));
-                    Ok(acc)
-                })
-                .await?;
+        let cpes = stream::iter(super::describing_cpes(&ctx.db, product).await?)
+            .then(async |cpe| cpe::Entity::find_by_id(cpe).all(&ctx.db).await)
+            .try_fold(Vec::new(), |mut acc, models| async move {
+                acc.extend(models.into_iter().map(|cpe| cpe.to_string()));
+                Ok(acc)
+            })
+            .await?;
 
         assert_eq!(cpes.as_slice(), expected);
 
