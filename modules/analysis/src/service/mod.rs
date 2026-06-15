@@ -501,9 +501,14 @@ impl AnalysisService {
         connection: &C,
     ) -> Result<Vec<Node>, Error> {
         let relationships = options.relationships;
-        log::debug!("relations: {:?}", relationships);
+        tracing::debug!(?relationships, "relations");
 
         let loader = &GraphLoader::new(self.clone());
+
+        let sbom_ids: Vec<Uuid> = graphs.iter().map(|(id, _)| *id).collect();
+        let external_cache = Arc::new(
+            prefetch_external_resolution_data(&sbom_ids, connection).await?,
+        );
 
         self.collect_graph(
             query,
@@ -512,8 +517,9 @@ impl AnalysisService {
             |graph, node_index, node| {
                 let graph_cache = self.inner.graph_cache.clone();
                 let relationships = relationships.clone();
+                let external_cache = external_cache.clone();
                 async move {
-                    log::trace!(
+                    tracing::trace!(
                         "Discovered node - sbom: {}, node: {}",
                         node.sbom_id,
                         node.node_id
@@ -531,6 +537,7 @@ impl AnalysisService {
                         connection,
                         self.concurrency,
                         loader,
+                        external_cache.clone(),
                     )
                     .collect();
 
@@ -546,6 +553,7 @@ impl AnalysisService {
                         connection,
                         self.concurrency,
                         loader,
+                        external_cache.clone(),
                     )
                     .collect();
 

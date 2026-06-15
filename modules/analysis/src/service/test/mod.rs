@@ -863,3 +863,54 @@ async fn resolve_sbom_cdx_rh_variant_external_node_sbom(
 
     Ok(())
 }
+
+/// Verify that the ExternalResolutionCache produces correct cross-SBOM resolution
+/// during collection. Ingests RH product + component SPDX fixtures, then calls
+/// retrieve with ancestor traversal. The collect_package path uses the cache for
+/// checksum-based external resolution instead of per-node DB queries.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_external_resolution_cache_cross_sbom(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given: RH product SBOM referencing an external component SBOM via checksums
+    ctx.ingest_document("spdx/rh/product_component/rhel-9.2-eus.spdx.json")
+        .await?;
+    ctx.ingest_document("spdx/rh/product_component/openssl-3.0.7-18.el9_2.spdx.json")
+        .await?;
+
+    let service = AnalysisService::new(AnalysisConfig::default(), ReadOnly::new(ctx.db.clone()));
+
+    // When: retrieve with ancestors — triggers collect_package → external resolution
+    let result = service
+        .retrieve(
+            &Query::q("openssl"),
+            QueryOptions::ancestors(),
+            Paginated {
+                total: true,
+                ..Paginated::default()
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Then: at least one ancestor must have a different sbom_id, proving it came
+    // from the product SBOM via cross-SBOM checksum resolution.
+    let has_cross_sbom_ancestor = result.items.iter().any(|node| {
+        let node_sbom_id = &node.base.sbom_id;
+        node.ancestors
+            .iter()
+            .flatten()
+            .any(|anc| &anc.base.sbom_id != node_sbom_id)
+    });
+    assert!(
+        has_cross_sbom_ancestor,
+        "expected at least one ancestor from a different SBOM (product SBOM), \
+         but all ancestors had the same sbom_id as the matched node. \
+         This means cross-SBOM resolution via the pre-fetch cache did not produce results."
+    );
+
+    Ok(())
+}
+
+

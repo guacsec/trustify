@@ -2,10 +2,97 @@ use super::*;
 use crate::model::graph::{ExternalNode, PackageNode};
 use futures::stream::{self, StreamExt};
 use parking_lot::Mutex;
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 use std::{
     collections::{HashMap, hash_map::Entry},
     sync::Arc,
 };
+use trustify_entity::{sbom_external_node, sbom_node_checksum};
+
+/// Pre-fetched cross-SBOM resolution data for in-memory lookups during collection.
+///
+/// Built via a two-pass pre-fetch: Pass 1 fetches checksums for initially loaded SBOMs,
+/// then a cross-SBOM derive step discovers ancestor SBOMs by matching checksum values
+/// across all SBOMs. Pass 2 fetches external node entries for all discovered SBOMs.
+#[derive(Clone, Default)]
+pub(crate) struct ExternalResolutionCache {
+    checksums: HashMap<(Uuid, String), String>,
+    reverse_checksums: HashMap<String, Vec<(Uuid, String)>>,
+    external_nodes: HashMap<(Uuid, String), sbom_external_node::Model>,
+}
+
+/// Two-pass pre-fetch of external resolution data for the given SBOMs.
+#[instrument(skip_all, err(level = tracing::Level::INFO))]
+pub(crate) async fn prefetch_external_resolution_data<C: ConnectionTrait>(
+    initial_sbom_ids: &[Uuid],
+    connection: &C,
+) -> Result<ExternalResolutionCache, Error> {
+    if initial_sbom_ids.is_empty() {
+        return Ok(ExternalResolutionCache::default());
+    }
+
+    // Pass 1: forward checksums for initial SBOMs
+    let initial_checksums = sbom_node_checksum::Entity::find()
+        .filter(sbom_node_checksum::Column::SbomId.is_in(initial_sbom_ids.to_vec()))
+        .all(connection)
+        .await?;
+
+    let mut checksums: HashMap<(Uuid, String), String> = HashMap::new();
+    let mut unique_values: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for c in &initial_checksums {
+        checksums
+            .entry((c.sbom_id, c.node_id.clone()))
+            .or_insert_with(|| c.value.clone());
+        unique_values.insert(c.value.clone());
+    }
+
+    if unique_values.is_empty() {
+        return Ok(ExternalResolutionCache::default());
+    }
+
+    // Derive: cross-SBOM reverse lookup by checksum value
+    let values_vec: Vec<String> = unique_values.into_iter().collect();
+    let all_matching = sbom_node_checksum::Entity::find()
+        .filter(sbom_node_checksum::Column::Value.is_in(values_vec))
+        .all(connection)
+        .await?;
+
+    let mut reverse_checksums: HashMap<String, Vec<(Uuid, String)>> = HashMap::new();
+    let mut all_sbom_ids: std::collections::HashSet<Uuid> =
+        initial_sbom_ids.iter().copied().collect();
+
+    for m in &all_matching {
+        reverse_checksums
+            .entry(m.value.clone())
+            .or_default()
+            .push((m.sbom_id, m.node_id.clone()));
+        all_sbom_ids.insert(m.sbom_id);
+        checksums
+            .entry((m.sbom_id, m.node_id.clone()))
+            .or_insert_with(|| m.value.clone());
+    }
+
+    // Pass 2: external node entries for all discovered SBOMs
+    let all_sbom_ids_vec: Vec<Uuid> = all_sbom_ids.into_iter().collect();
+    let external_node_rows = sbom_external_node::Entity::find()
+        .filter(sbom_external_node::Column::SbomId.is_in(all_sbom_ids_vec))
+        .all(connection)
+        .await?;
+
+    let mut external_nodes: HashMap<(Uuid, String), sbom_external_node::Model> = HashMap::new();
+    for e in external_node_rows {
+        external_nodes
+            .entry((e.sbom_id, e.external_node_ref.clone()))
+            .or_insert(e);
+    }
+
+    Ok(ExternalResolutionCache {
+        checksums,
+        reverse_checksums,
+        external_nodes,
+    })
+}
 
 /// Tracker for visited nodes, across graphs.
 #[derive(Default, Clone)]
@@ -37,6 +124,7 @@ pub struct Collector<'a, C: ConnectionTrait> {
     depth: u64,
     discovered: DiscoveredTracker,
     loaded_graphs: Arc<Mutex<HashMap<Uuid, Arc<PackageGraph>>>>,
+    external_cache: Arc<ExternalResolutionCache>,
     relationships: &'a HashSet<Relationship>,
     connection: &'a C,
     concurrency: usize,
@@ -55,6 +143,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             depth: self.depth,
             discovered: self.discovered.clone(),
             loaded_graphs: self.loaded_graphs.clone(),
+            external_cache: self.external_cache.clone(),
             relationships: self.relationships,
             connection: self.connection,
             concurrency: self.concurrency,
@@ -64,7 +153,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
 
     /// Create a new collector, with a new visited set.
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         graph_cache: &'a Arc<GraphMap>,
         graphs: &'a [(Uuid, Arc<PackageGraph>)],
         sbom_id: Uuid,
@@ -76,6 +165,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         connection: &'a C,
         concurrency: usize,
         loader: &'a GraphLoader,
+        external_cache: Arc<ExternalResolutionCache>,
     ) -> Self {
         Self {
             graph_cache,
@@ -87,6 +177,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             depth,
             discovered: Default::default(),
             loaded_graphs: Default::default(),
+            external_cache,
             relationships,
             connection,
             concurrency,
@@ -120,11 +211,37 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             depth: self.depth - 1,
             discovered: self.discovered.clone(),
             loaded_graphs: self.loaded_graphs.clone(),
+            external_cache: self.external_cache.clone(),
             relationships: self.relationships,
             connection: self.connection,
             concurrency: self.concurrency,
             loader: self.loader,
         }
+    }
+
+    /// Resolve external ancestors from the pre-fetched cache.
+    /// Returns `Some(results)` on cache hit, `None` on cache miss (fall back to DB).
+    fn resolve_from_cache(&self, sbom_id: Uuid, node_id: &str) -> Option<Vec<ResolvedSbom>> {
+        let checksum_value = self
+            .external_cache
+            .checksums
+            .get(&(sbom_id, node_id.to_string()))?;
+        Some(
+            self.external_cache
+                .reverse_checksums
+                .get(checksum_value)
+                .map(|entries| {
+                    entries
+                        .iter()
+                        .filter(|(sid, _)| *sid != sbom_id)
+                        .map(|(sid, nid)| ResolvedSbom {
+                            sbom_id: *sid,
+                            node_id: nid.clone(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+        )
     }
 
     /// Load an external SBOM graph, checking the local cache first.
@@ -249,12 +366,18 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         let current_sbom_uuid = *current_sbom_id;
         let current_node_id = &current_node.node_id;
 
-        let find_sbom_externals = resolve_rh_external_sbom_ancestors(
-            current_sbom_uuid,
-            current_node.node_id.clone().to_string(),
-            self.connection,
-        )
-        .await?;
+        let find_sbom_externals =
+            match self.resolve_from_cache(current_sbom_uuid, &current_node.node_id) {
+                Some(cached) => cached,
+                None => {
+                    resolve_rh_external_sbom_ancestors(
+                        current_sbom_uuid,
+                        current_node.node_id.clone().to_string(),
+                        self.connection,
+                    )
+                    .await?
+                }
+            };
 
         let resolved_external_nodes: Vec<Node> = stream::iter(find_sbom_externals)
             .map(async |sbom_external_node| {
@@ -266,14 +389,30 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
 
                 // check this is a valid external relationship
 
-                let Some(matched) = sbom_external_node::Entity::find()
-                    .filter(sbom_external_node::Column::SbomId.eq(sbom_external_node.sbom_id))
-                    .filter(
-                        sbom_external_node::Column::ExternalNodeRef.eq(&sbom_external_node.node_id),
-                    )
-                    .one(self.connection)
-                    .await?
-                else {
+                let cached_ext = self
+                    .external_cache
+                    .external_nodes
+                    .get(&(sbom_external_node.sbom_id, sbom_external_node.node_id.clone()))
+                    .cloned();
+
+                let matched_opt = match cached_ext {
+                    Some(model) => Some(model),
+                    None => {
+                        sbom_external_node::Entity::find()
+                            .filter(
+                                sbom_external_node::Column::SbomId
+                                    .eq(sbom_external_node.sbom_id),
+                            )
+                            .filter(
+                                sbom_external_node::Column::ExternalNodeRef
+                                    .eq(&sbom_external_node.node_id),
+                            )
+                            .one(self.connection)
+                            .await?
+                    }
+                };
+
+                let Some(matched) = matched_opt else {
                     log::debug!("no external sbom sbom_external_node {sbom_external_node:?}");
                     return Ok(vec![]);
                 };
