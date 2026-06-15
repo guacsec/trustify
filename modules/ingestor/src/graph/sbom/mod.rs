@@ -21,8 +21,9 @@ use crate::{
 use cpe::uri::OwnedUri;
 use entity::{product, product_version};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, ModelTrait, QueryFilter,
-    QuerySelect, RelationTrait, Select, Set, TransactionTrait, prelude::Uuid,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, ModelTrait,
+    QueryFilter, QuerySelect, RelationTrait, Select, Set, Statement, TransactionTrait,
+    prelude::Uuid,
 };
 use sea_query::{Condition, Expr, Func, JoinType, Query, SimpleExpr, extension::postgres::PgExpr};
 use std::{
@@ -581,6 +582,30 @@ impl SbomContext {
             connection,
         )
         .await?;
+        Ok(())
+    }
+
+    /// Materializes describing CPE associations from the relationship and CPE ref
+    /// data already inserted for this SBOM into the `sbom_describing_cpe` table.
+    pub async fn populate_describing_cpes<C: ConnectionTrait>(&self, db: &C) -> Result<(), Error> {
+        db.execute(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"
+            INSERT INTO sbom_describing_cpe (sbom_id, cpe_id)
+            SELECT DISTINCT spcr.sbom_id, spcr.cpe_id
+            FROM sbom_node_cpe_ref spcr
+            JOIN package_relates_to_package prtp
+              ON prtp.sbom_id = spcr.sbom_id
+             AND (prtp.right_node_id = spcr.node_id OR prtp.left_node_id = spcr.node_id)
+            WHERE prtp.sbom_id = $1
+              AND prtp.relationship = 13
+            ON CONFLICT DO NOTHING
+            "#,
+            [self.sbom.sbom_id.into()],
+        ))
+        .await
+        .map_err(Error::Database)?;
+
         Ok(())
     }
 

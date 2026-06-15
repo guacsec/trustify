@@ -361,6 +361,8 @@ impl SbomContext {
         // Populate expanded license tables
         populate_expanded_license(self.sbom.sbom_id, db).await?;
 
+        self.populate_describing_cpes(db).await?;
+
         // done
 
         Ok(())
