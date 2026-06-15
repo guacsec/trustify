@@ -724,6 +724,7 @@ async fn resolve_sbom_cdx_external_node_sbom(ctx: &TrustifyContext) -> Result<()
     if let Some(ResolvedSbom {
         sbom_id: _,
         node_id: external_node_id,
+        cpe_ids: _,
     }) = get_external_sbom
     {
         assert_eq!(external_node_id, "a");
@@ -747,6 +748,7 @@ async fn resolve_sbom_spdx_external_node_sbom(ctx: &TrustifyContext) -> Result<(
     if let Some(ResolvedSbom {
         sbom_id: _,
         node_id: external_node_id,
+        cpe_ids: _,
     }) = get_external_sbom
     {
         assert_eq!(external_node_id, "SPDXRef-A");
@@ -783,6 +785,7 @@ async fn resolve_sbom_spdx_rh_variant_external_node_sbom(
     if let Some(ResolvedSbom {
         sbom_id: external_sbom_id,
         node_id: external_node_id,
+        cpe_ids: _,
     }) = get_external_sbom
     {
         assert_eq!(external_node_id, "SPDXRef-SRPM".to_string());
@@ -828,6 +831,7 @@ async fn resolve_sbom_cdx_rh_variant_external_node_sbom(
     if let Some(ResolvedSbom {
         sbom_id: external_sbom_id,
         node_id: external_node_id,
+        cpe_ids: _,
     }) = get_external_sbom
     {
         assert_eq!(

@@ -357,6 +357,8 @@ impl SbomContext {
         files.create(db).await?;
         relationships.create(db).await?;
 
+        self.populate_describing_cpes(db).await?;
+
         // done
 
         Ok(())
