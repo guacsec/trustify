@@ -22,7 +22,7 @@ use sea_orm::{
 use sea_query::{JoinType, SelectStatement};
 use serde_json::Value;
 use std::{
-    collections::{HashMap, HashSet, hash_map::Entry},
+    collections::{BTreeSet, HashMap, HashSet, hash_map::Entry},
     fmt::Debug,
     str::FromStr,
     sync::Arc,
@@ -403,13 +403,11 @@ impl InnerService {
         log::debug!("ranked sboms: {:?}", ranked_sboms);
 
         // retrieve only ranked_sboms with rank = 1, sorted for deterministic pagination
-        let mut latest_ids: Vec<_> = ranked_sboms
+        let latest_ids: BTreeSet<_> = ranked_sboms
             .into_iter()
             .filter(|item| item.rank == Some(1))
             .map(|item| item.matched_sbom_id)
             .collect();
-        latest_ids.sort();
-        latest_ids.dedup();
 
         tracing::debug!("latest sboms: {:?}", latest_ids);
 
