@@ -506,9 +506,8 @@ impl AnalysisService {
         let loader = &GraphLoader::new(self.clone());
 
         let sbom_ids: Vec<Uuid> = graphs.iter().map(|(id, _)| *id).collect();
-        let external_cache = Arc::new(
-            prefetch_external_resolution_data(&sbom_ids, connection).await?,
-        );
+        let external_cache =
+            Arc::new(prefetch_external_resolution_data(&sbom_ids, connection).await?);
 
         self.collect_graph(
             query,

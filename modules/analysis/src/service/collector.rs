@@ -392,7 +392,10 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                 let cached_ext = self
                     .external_cache
                     .external_nodes
-                    .get(&(sbom_external_node.sbom_id, sbom_external_node.node_id.clone()))
+                    .get(&(
+                        sbom_external_node.sbom_id,
+                        sbom_external_node.node_id.clone(),
+                    ))
                     .cloned();
 
                 let matched_opt = match cached_ext {
@@ -400,8 +403,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                     None => {
                         sbom_external_node::Entity::find()
                             .filter(
-                                sbom_external_node::Column::SbomId
-                                    .eq(sbom_external_node.sbom_id),
+                                sbom_external_node::Column::SbomId.eq(sbom_external_node.sbom_id),
                             )
                             .filter(
                                 sbom_external_node::Column::ExternalNodeRef

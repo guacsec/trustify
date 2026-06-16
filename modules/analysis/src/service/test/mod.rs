@@ -912,5 +912,3 @@ async fn test_external_resolution_cache_cross_sbom(
 
     Ok(())
 }
-
-
