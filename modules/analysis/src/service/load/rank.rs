@@ -152,8 +152,10 @@ ORDER BY depth
 /// Result row for the multi-start ancestor CTE.
 #[derive(Debug, FromQueryResult)]
 struct AncestorRow {
-    /// Index into the input array (which start-point produced this)
-    start_idx: i32,
+    /// The sbom_id of the starting pair that produced this ancestor
+    start_sbom_id: Uuid,
+    /// The node_id of the starting pair that produced this ancestor
+    start_node_id: String,
     sbom_id: Uuid,
     left_node_id: String,
     relationship: Relationship,
@@ -161,8 +163,7 @@ struct AncestorRow {
 }
 
 /// Batch version of [`find_node_ancestors`]: walks ancestors for every
-/// `(sbom_id, node_id)` pair in a single recursive CTE by passing the
-/// start points through an `UNNEST` values list.
+/// `(sbom_id, node_id)` pair in a single recursive CTE.
 ///
 /// Checks `context.find_node_ancestors` cache first; only queries
 /// uncached pairs. Results are stored back into the cache.
@@ -175,54 +176,44 @@ async fn batch_find_ancestors<C: ConnectionTrait>(
     connection: &C,
     context: &mut LoadContext,
     pairs: &[(Uuid, String)],
-) -> Result<HashMap<usize, Vec<package_relates_to_package::Model>>, DbErr> {
+) -> Result<HashMap<(Uuid, String), Vec<package_relates_to_package::Model>>, DbErr> {
     if pairs.is_empty() {
         return Ok(HashMap::new());
     }
 
     let mut result = HashMap::new();
-    let mut uncached_indices = Vec::new();
+    let mut uncached_pairs = Vec::new();
 
-    for (idx, pair) in pairs.iter().enumerate() {
+    for pair in pairs {
         if let Some(cached) = context.find_node_ancestors.get_cached(pair) {
-            result.insert(idx, cached);
+            result.insert(pair.clone(), cached);
         } else {
-            uncached_indices.push(idx);
+            uncached_pairs.push(pair.clone());
         }
     }
 
-    if uncached_indices.is_empty() {
+    if uncached_pairs.is_empty() {
         return Ok(result);
     }
 
     let ancestor_of_value = 9i32;
 
-    // Build parallel arrays for UNNEST, only for uncached pairs
-    let uncached_sbom_ids: Vec<_> = uncached_indices.iter().map(|&i| pairs[i].0).collect();
-    let uncached_node_ids: Vec<_> = uncached_indices
-        .iter()
-        .map(|&i| pairs[i].1.clone())
-        .collect();
+    let uncached_sbom_ids: Vec<_> = uncached_pairs.iter().map(|(sid, _)| *sid).collect();
+    let uncached_node_ids: Vec<_> = uncached_pairs.iter().map(|(_, nid)| nid.clone()).collect();
 
     let sql = r#"
 WITH RECURSIVE
-start_points AS (
-    SELECT
-        row_number() OVER () - 1 AS idx,
-        s AS sbom_id,
-        n AS node_id
-    FROM UNNEST($1::uuid[], $2::text[]) AS t(s, n)
-),
 ancestors AS (
     SELECT
-        sp.idx::int4 AS start_idx,
+        sp.sbom_id AS start_sbom_id,
+        sp.node_id AS start_node_id,
         p.sbom_id,
         p.left_node_id,
         p.relationship,
         p.right_node_id,
         1 AS depth,
         ARRAY[p.right_node_id] AS visited
-    FROM start_points sp
+    FROM UNNEST($1::uuid[], $2::text[]) AS sp(sbom_id, node_id)
     JOIN package_relates_to_package p
         ON p.sbom_id = sp.sbom_id
        AND p.right_node_id = sp.node_id
@@ -231,7 +222,8 @@ ancestors AS (
     UNION ALL
 
     SELECT
-        a.start_idx,
+        a.start_sbom_id,
+        a.start_node_id,
         p.sbom_id,
         p.left_node_id,
         p.relationship,
@@ -246,14 +238,15 @@ ancestors AS (
     WHERE a.depth < 100
       AND NOT (p.right_node_id = ANY(a.visited))
 )
-SELECT DISTINCT ON (start_idx, depth)
-    start_idx,
+SELECT DISTINCT ON (start_sbom_id, start_node_id, depth)
+    start_sbom_id,
+    start_node_id,
     sbom_id,
     left_node_id,
     relationship,
     right_node_id
 FROM ancestors
-ORDER BY start_idx, depth
+ORDER BY start_sbom_id, start_node_id, depth
 "#;
 
     let stmt = Statement::from_sql_and_values(
@@ -268,12 +261,12 @@ ORDER BY start_idx, depth
 
     let rows = AncestorRow::find_by_statement(stmt).all(connection).await?;
 
-    // Group by the local uncached index
-    let mut by_local_idx: HashMap<usize, Vec<_>> = HashMap::new();
+    // Group by the starting pair key
+    let mut by_key: HashMap<(Uuid, String), Vec<_>> = HashMap::new();
     for row in rows {
-        let local_idx = row.start_idx as usize;
-        by_local_idx
-            .entry(local_idx)
+        let key = (row.start_sbom_id, row.start_node_id);
+        by_key
+            .entry(key)
             .or_default()
             .push(package_relates_to_package::Model {
                 sbom_id: row.sbom_id,
@@ -283,19 +276,19 @@ ORDER BY start_idx, depth
             });
     }
 
-    // Map local uncached indices back to original indices and populate cache
-    for (local_idx, &original_idx) in uncached_indices.iter().enumerate() {
-        let chain = by_local_idx.remove(&local_idx).unwrap_or_default();
+    // Populate cache and results
+    for pair in &uncached_pairs {
+        let chain = by_key.remove(pair).unwrap_or_default();
         context
             .find_node_ancestors
-            .insert(pairs[original_idx].clone(), chain.clone());
-        result.insert(original_idx, chain);
+            .insert(pair.clone(), chain.clone());
+        result.insert(pair.clone(), chain);
     }
 
     log::debug!(
         "batch_find_ancestors: {} inputs ({} uncached) -> {} total ancestor rows",
         pairs.len(),
-        uncached_indices.len(),
+        uncached_pairs.len(),
         result.values().map(Vec::len).sum::<usize>()
     );
     Ok(result)
@@ -646,14 +639,14 @@ async fn batch_resolve_ancestor_externals(
         .map(|r| (r.sbom_id, r.node_id.clone()))
         .collect();
 
-    let ancestors_by_idx = batch_find_ancestors(connection, context, &pairs).await?;
+    let ancestors = batch_find_ancestors(connection, context, &pairs).await?;
 
     // Split rows: top-level (no ancestors) vs nested (has ancestors).
     let mut top_level_pairs = Vec::new();
     let mut nested_entry_points = Vec::new();
 
     for (idx, row) in rows.iter().enumerate() {
-        match ancestors_by_idx.get(&idx) {
+        match ancestors.get(&(row.sbom_id, row.node_id.clone())) {
             Some(chain) if !chain.is_empty() => {
                 for ancestor in chain {
                     nested_entry_points.push((
@@ -718,15 +711,8 @@ async fn batch_resolve_ancestor_externals(
             .into_iter()
             .collect();
 
-        let ancestor_roots = batch_find_ancestors(connection, context, &unique_ancestors).await?;
-
-        // Build lookup: (ancestor_sbom_id, ancestor_node_id) -> root packages
-        let mut roots_by_ancestor = HashMap::new();
-        for (i, key) in unique_ancestors.iter().enumerate() {
-            if let Some(chain) = ancestor_roots.get(&i) {
-                roots_by_ancestor.insert(key.clone(), chain);
-            }
-        }
+        let roots_by_ancestor =
+            batch_find_ancestors(connection, context, &unique_ancestors).await?;
 
         // 3c. Collect DFS entry points from root nodes
         let mut dfs_entries = Vec::new();
@@ -734,7 +720,7 @@ async fn batch_resolve_ancestor_externals(
             if chain.is_empty() {
                 dfs_entries.push(key.clone());
             } else {
-                for pkg in *chain {
+                for pkg in chain {
                     dfs_entries.push((pkg.sbom_id, pkg.left_node_id.clone()));
                 }
             }
@@ -767,7 +753,7 @@ async fn batch_resolve_ancestor_externals(
                 for ancestor in first_level {
                     let ancestor_key = (ancestor.sbom_id, ancestor.node_id.clone());
 
-                    let root_chain = roots_by_ancestor.get(&ancestor_key).copied();
+                    let root_chain = roots_by_ancestor.get(&ancestor_key);
 
                     let root_entries: Vec<_> = match root_chain {
                         Some(chain) if !chain.is_empty() => chain
