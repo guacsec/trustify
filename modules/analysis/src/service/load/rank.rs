@@ -4,10 +4,10 @@ use crate::{
     service::{ResolvedSbom, resolve_rh_external_sbom_ancestors},
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult, JoinType,
-    QueryFilter, QuerySelect, RelationTrait, Select, Statement, prelude::DateTimeWithTimeZone,
+    ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult, JoinType, QueryFilter,
+    QuerySelect, RelationTrait, Select, Statement, prelude::DateTimeWithTimeZone,
 };
-use sea_query::Expr;
+use sea_query::{Expr, PgFunc};
 use std::collections::{HashMap, HashSet};
 use tracing::{Instrument, instrument};
 #[cfg(test)]
@@ -383,10 +383,10 @@ INNER JOIN UNNEST($1::uuid[], $2::text[]) AS t(sid, nid)
             JoinType::LeftJoin,
             sbom_node_checksum::Relation::DescribingCpe.def(),
         )
-        .filter(sbom_node_checksum::Column::Value.is_in(checksum_values))
+        .filter(Expr::col((sbom_node_checksum::Entity, sbom_node_checksum::Column::Value)).eq(PgFunc::any(checksum_values)))
         .filter(
-            sbom_node_checksum::Column::SbomId
-                .is_not_in(source_sbom_ids.into_iter().collect::<Vec<_>>()),
+            Expr::col((sbom_node_checksum::Entity, sbom_node_checksum::Column::SbomId))
+                .ne(PgFunc::all(source_sbom_ids.into_iter().collect::<Vec<_>>())),
         )
         .group_by(sbom_node_checksum::Column::SbomId)
         .group_by(sbom_node_checksum::Column::NodeId)
@@ -511,7 +511,12 @@ async fn batch_resolve_direct_cpe_matches(
         return Ok(vec![]);
     }
 
-    let sbom_ids: Vec<_> = rows.iter().map(|r| r.sbom_id).collect();
+    let sbom_ids: Vec<_> = rows
+        .iter()
+        .map(|r| r.sbom_id)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
 
     // Single query: external nodes with CPE IDs aggregated per (sbom_id, node_ref)
     #[derive(Debug, FromQueryResult)]
@@ -533,7 +538,13 @@ async fn batch_resolve_direct_cpe_matches(
             JoinType::Join,
             sbom_external_node::Relation::DescribingCpe.def(),
         )
-        .filter(sbom_external_node::Column::SbomId.is_in(sbom_ids))
+        .filter(
+            Expr::col((
+                sbom_external_node::Entity,
+                sbom_external_node::Column::SbomId,
+            ))
+            .eq(PgFunc::any(sbom_ids)),
+        )
         .group_by(sbom_external_node::Column::SbomId)
         .group_by(sbom_external_node::Column::ExternalNodeRef)
         .into_model::<ExternalNodeWithCpes>()
@@ -554,7 +565,10 @@ async fn batch_resolve_direct_cpe_matches(
         HashMap::new()
     } else {
         sbom_node::Entity::find()
-            .filter(sbom_node::Column::NodeId.is_in(all_node_ids))
+            .filter(
+                Expr::col((sbom_node::Entity, sbom_node::Column::NodeId))
+                    .eq(PgFunc::any(all_node_ids)),
+            )
             .all(connection)
             .instrument(tracing::info_span!("batch lookup nodes").or_current())
             .await
@@ -907,6 +921,7 @@ mod test {
     use chrono::{TimeZone, Utc};
     use futures::{StreamExt, TryStreamExt, stream};
     use rstest::rstest;
+    use sea_orm::ColumnTrait;
     use std::time::Duration;
     use test_context::test_context;
     use tokio::time::timeout;
