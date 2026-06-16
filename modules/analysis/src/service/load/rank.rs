@@ -1,13 +1,12 @@
 use crate::{
     Error,
     service::{
-        ResolvedSbom, resolve_rh_external_sbom_ancestors,
-        resolve_rh_external_sbom_ancestors_batch,
+        ResolvedSbom, resolve_rh_external_sbom_ancestors, resolve_rh_external_sbom_ancestors_batch,
     },
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult, QueryFilter,
-    QuerySelect, RelationTrait, Select, Statement, prelude::DateTimeWithTimeZone,
+    ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, FromQueryResult,
+    QueryFilter, QuerySelect, RelationTrait, Select, Statement, prelude::DateTimeWithTimeZone,
 };
 use sea_query::JoinType;
 use std::collections::{HashMap, HashSet};
@@ -101,8 +100,7 @@ where
             break;
         }
 
-        let resolved_map =
-            resolve_rh_external_sbom_ancestors_batch(&frontier, connection).await?;
+        let resolved_map = resolve_rh_external_sbom_ancestors_batch(&frontier, connection).await?;
 
         let mut ancestor_inputs = Vec::new();
         for ancestors in resolved_map.values() {
@@ -116,8 +114,7 @@ where
             break;
         }
 
-        let ancestor_chains =
-            find_node_ancestors_batch(&ancestor_inputs, connection).await?;
+        let ancestor_chains = find_node_ancestors_batch(&ancestor_inputs, connection).await?;
 
         let mut next_frontier = Vec::new();
         for chain in ancestor_chains.values() {
@@ -258,7 +255,7 @@ SELECT sbom_id, left_node_id, relationship::int4, right_node_id FROM ancestors
 
     let rows = AncestorRow::find_by_statement(stmt).all(connection).await?;
 
-        let ancestors = rows
+    let ancestors = rows
         .into_iter()
         .map(|r| package_relates_to_package::Model {
             sbom_id: r.sbom_id,
@@ -825,11 +822,9 @@ mod test {
         let individual_a = super::find_node_ancestors(id, "A".into(), &ctx.db).await?;
 
         // When: batch call with both inputs
-        let batch_result = super::find_node_ancestors_batch(
-            &[(id, "C".into()), (id, "A".into())],
-            &ctx.db,
-        )
-        .await?;
+        let batch_result =
+            super::find_node_ancestors_batch(&[(id, "C".into()), (id, "A".into())], &ctx.db)
+                .await?;
 
         // Then: batch results match individual calls
         let to_pairs = |rels: &[package_relates_to_package::Model]| -> Vec<(String, String)> {
