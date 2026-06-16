@@ -172,9 +172,7 @@ async fn test_quarkus_retrieve_analysis_endpoint(
 /// Verify pagination through the HTTP endpoint returns correct total and limited items.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn test_pagination_through_endpoint(
-    ctx: &TrustifyContext,
-) -> Result<(), anyhow::Error> {
+async fn test_pagination_through_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
     ctx.ingest_documents([
         "spdx/quarkus-bom-3.2.11.Final-redhat-00001.json",
