@@ -52,18 +52,39 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // Backfill from existing data: two SBOMs are linked when they share
-        // a node with the same checksum value (RH-specific cross-SBOM linking).
+        // Composite index on (value, sbom_id) for efficient lookups when
+        // finding SBOMs that share a given checksum value.
+        manager
+            .get_connection()
+            .execute_unprepared(
+                r#"
+                CREATE INDEX IF NOT EXISTS sbom_node_checksum_value_sbom_id_idx
+                ON sbom_node_checksum (value, sbom_id)
+                "#,
+            )
+            .await
+            .map(|_| ())?;
+
+        // Backfill from existing data using LATERAL to deduplicate early.
+        // For each SBOM, the inner query finds related SBOMs via shared
+        // checksum values and collapses to distinct sbom_ids immediately,
+        // avoiding the massive intermediate row explosion of a global
+        // self-join.
         manager
             .get_connection()
             .execute_unprepared(
                 r#"
                 INSERT INTO sbom_ancestor (sbom_id, ancestor_sbom_id)
-                SELECT DISTINCT snc1.sbom_id, snc2.sbom_id
-                FROM sbom_node_checksum snc1
-                JOIN sbom_node_checksum snc2
-                  ON snc1.value = snc2.value
-                WHERE snc1.sbom_id != snc2.sbom_id
+                SELECT s.sbom_id, related.related_sbom_id
+                FROM (SELECT DISTINCT sbom_id FROM sbom_node_checksum) s
+                CROSS JOIN LATERAL (
+                    SELECT DISTINCT snc2.sbom_id AS related_sbom_id
+                    FROM sbom_node_checksum snc1
+                    JOIN sbom_node_checksum snc2
+                      ON snc1.value = snc2.value
+                    WHERE snc1.sbom_id = s.sbom_id
+                      AND snc2.sbom_id != s.sbom_id
+                ) related
                 ON CONFLICT DO NOTHING
                 "#,
             )
@@ -82,6 +103,12 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
+
+        manager
+            .get_connection()
+            .execute_unprepared("DROP INDEX IF EXISTS sbom_node_checksum_value_sbom_id_idx")
+            .await
+            .map(|_| ())?;
 
         Ok(())
     }
