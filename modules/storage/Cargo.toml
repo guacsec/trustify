@@ -27,7 +27,7 @@ tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
-uuid = { version = "1.16.0", features = ["v4"] }
+uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
 rand = { workspace = true }
