@@ -609,6 +609,30 @@ impl SbomContext {
         Ok(())
     }
 
+    /// Materializes cross-SBOM ancestor links by finding other SBOMs that share
+    /// checksum values with this SBOM's nodes. Both directions are stored since
+    /// the checksum match is symmetric.
+    pub async fn populate_ancestors<C: ConnectionTrait>(&self, db: &C) -> Result<(), Error> {
+        db.execute(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"
+            INSERT INTO sbom_ancestor (sbom_id, ancestor_sbom_id)
+            SELECT DISTINCT snc1.sbom_id, snc2.sbom_id
+            FROM sbom_node_checksum snc1
+            JOIN sbom_node_checksum snc2
+              ON snc1.value = snc2.value
+            WHERE snc1.sbom_id != snc2.sbom_id
+              AND (snc1.sbom_id = $1 OR snc2.sbom_id = $1)
+            ON CONFLICT DO NOTHING
+            "#,
+            [self.sbom.sbom_id.into()],
+        ))
+        .await
+        .map_err(Error::Database)?;
+
+        Ok(())
+    }
+
     /// Ingest a single package for this SBOM.
     ///
     /// **NOTE:** This function ingests a single package, and is terribly slow.

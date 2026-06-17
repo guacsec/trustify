@@ -240,6 +240,7 @@ impl SbomContext {
         creator.create(connection, &mut processors).await?;
 
         self.populate_describing_cpes(connection).await?;
+        self.populate_ancestors(connection).await?;
 
         // done
 
