@@ -91,7 +91,7 @@ lzma-rust2 = "0.16.1"
 libz-sys = "*"
 log = "0.4.19"
 mime = "0.3.17"
-moka = "0.12.10"
+moka = "0.12.15"
 native-tls = "0.2"
 num-traits = "0.2"
 oci-client = "0.17.0"
@@ -117,7 +117,7 @@ rstest = "0.26.1"
 sanitize-filename = "0.6.0"
 sbom-walker = { version = "0.17.0", default-features = false, features = ["crypto-openssl", "serde-cyclonedx", "spdx-rs"] }
 schemars = "1.0"
-sea-orm = { version = "1.1.12", features = ["debug-print"] }
+sea-orm = { version = "1.1.20", features = ["debug-print"] }
 sea-orm-migration = "1"
 sea-query = "0.32.0" # keep aligned with sea-orm
 semver = "1"
@@ -139,7 +139,7 @@ test-context = "0.5"
 test-log = "0.2.16"
 thiserror = "2"
 time = "0.3"
-tokio = "1.43"
+tokio = "1.52"
 tokio-util = "0.7"
 tokio_schedule = "0.3"
 tracing = "0.1"
@@ -156,7 +156,7 @@ utoipa-actix-web = { version = "0.1.0" }
 utoipa-rapidoc = { version = "6.0.0", features = ["actix-web"] }
 utoipa-redoc = { version = "6.0.0", features = ["actix-web"] }
 utoipa-swagger-ui = "9.0.0"
-uuid = "1.7.0"
+uuid = "1.23.3"
 walkdir = "2.5"
 walker-common = "0.17.0"
 which = "8"
