@@ -5,7 +5,7 @@ use migration::Migrator;
 use migration::data::Runner;
 use postgresql_commands::{CommandBuilder, psql::PsqlBuilder};
 use sea_orm::{ConnectionTrait, Statement};
-use sea_orm_migration::prelude::MigratorTrait;
+use sea_orm_migration::prelude::{MigrationTrait, MigratorTrait};
 use std::process::Stdio;
 use tokio::io::{self, AsyncRead, AsyncWriteExt};
 use tracing::instrument;
@@ -19,6 +19,31 @@ impl<'a> Database<'a> {
         log::debug!("applying migrations");
         Migrator::up(self.0, None).await?;
         log::debug!("applied migrations");
+
+        Ok(())
+    }
+
+    /// Apply migrations up to and including the one matching the given name.
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
+    pub async fn migrate_up_to(&self, name: &str) -> Result<(), anyhow::Error> {
+        let all_migrations = Migrator::migrations();
+
+        let target_pos = find_migration_position(&all_migrations, name)?;
+        let target_name = all_migrations[target_pos].name().to_string();
+
+        let applied = Migrator::get_applied_migrations(self.0).await?;
+        let applied_count = applied.len() as u32;
+        let target_count = (target_pos as u32) + 1;
+
+        if target_count <= applied_count {
+            log::info!("migration '{target_name}' is already applied");
+            return Ok(());
+        }
+
+        let steps = target_count - applied_count;
+        log::debug!("applying {steps} migration(s) up to '{target_name}'");
+        Migrator::up(self.0, Some(steps)).await?;
+        log::debug!("applied migrations up to '{target_name}'");
 
         Ok(())
     }
@@ -126,5 +151,34 @@ impl<'a> Database<'a> {
 
     pub async fn data_migrate(&self, runner: Runner) -> Result<(), anyhow::Error> {
         runner.run::<Migrator>().await
+    }
+}
+
+/// Find a migration's position by name, trying exact match first, then substring.
+fn find_migration_position(
+    migrations: &[Box<dyn MigrationTrait>],
+    name: &str,
+) -> Result<usize, anyhow::Error> {
+    if let Some(pos) = migrations.iter().position(|m| m.name() == name) {
+        return Ok(pos);
+    }
+
+    let matches: Vec<(usize, String)> = migrations
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| m.name().contains(name))
+        .map(|(i, m)| (i, m.name().to_string()))
+        .collect();
+
+    match matches.len() {
+        0 => anyhow::bail!("no migration found matching '{name}'"),
+        1 => Ok(matches[0].0),
+        _ => {
+            let names: Vec<&str> = matches.iter().map(|(_, n)| n.as_str()).collect();
+            anyhow::bail!(
+                "ambiguous migration name '{name}', matches: {}",
+                names.join(", ")
+            );
+        }
     }
 }
