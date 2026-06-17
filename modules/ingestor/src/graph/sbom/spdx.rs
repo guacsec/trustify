@@ -362,6 +362,7 @@ impl SbomContext {
         populate_expanded_license(self.sbom.sbom_id, db).await?;
 
         self.populate_describing_cpes(db).await?;
+        self.populate_ancestors(db).await?;
 
         // done
 
