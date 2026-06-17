@@ -19,7 +19,12 @@ pub enum Command {
     /// Create database
     Create,
     /// Run migrations (up)
-    Migrate,
+    Migrate {
+        /// Run migrations up to and including the named migration, then stop.
+        /// Accepts a full or partial migration name (e.g. "m0002120_sbom_ancestor" or "sbom_ancestor").
+        #[arg(long)]
+        up_to: Option<String>,
+    },
     /// Remove all migrations and re-apply them (DANGER)
     Refresh,
     /// Run specific data migrations
@@ -29,24 +34,24 @@ pub enum Command {
 impl Run {
     pub async fn run(self) -> anyhow::Result<ExitCode> {
         init_tracing("db-run", Tracing::Disabled);
-        use Command::*;
-        match self.command {
-            Create => self.create().await,
-            Migrate => self.migrate().await,
-            Refresh => self.refresh().await,
-            Data(data) => data.run(Direction::Up, self.database).await,
+        let Run { command, database } = self;
+        match command {
+            Command::Create => Run::create(database).await,
+            Command::Migrate { up_to } => Run::migrate(database, up_to).await,
+            Command::Refresh => Run::refresh(database).await,
+            Command::Data(data) => data.run(Direction::Up, database).await,
         }
     }
 
-    async fn create(self) -> anyhow::Result<ExitCode> {
-        match trustify_db::Database::bootstrap(&self.database).await {
+    async fn create(database: Database) -> anyhow::Result<ExitCode> {
+        match trustify_db::Database::bootstrap(&database).await {
             Ok(_) => Ok(ExitCode::SUCCESS),
             Err(e) => Err(e),
         }
     }
 
-    async fn refresh(self) -> anyhow::Result<ExitCode> {
-        match db::Database::new(&self.database).await {
+    async fn refresh(database: Database) -> anyhow::Result<ExitCode> {
+        match db::Database::new(&database).await {
             Ok(db) => {
                 trustify_db::Database(&db).refresh().await?;
                 Ok(ExitCode::SUCCESS)
@@ -55,10 +60,15 @@ impl Run {
         }
     }
 
-    async fn migrate(self) -> anyhow::Result<ExitCode> {
-        match db::Database::new(&self.database).await {
+    /// Apply database migrations, optionally stopping at a specific migration.
+    async fn migrate(database: Database, up_to: Option<String>) -> anyhow::Result<ExitCode> {
+        match db::Database::new(&database).await {
             Ok(db) => {
-                trustify_db::Database(&db).migrate().await?;
+                let db = trustify_db::Database(&db);
+                match up_to {
+                    Some(name) => db.migrate_up_to(&name).await?,
+                    None => db.migrate().await?,
+                }
                 Ok(ExitCode::SUCCESS)
             }
             Err(e) => Err(e),
