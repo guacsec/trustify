@@ -51,6 +51,7 @@ mod m0002090_vulnerability_id_sort_index;
 mod m0002100_analysis_perf_indexes;
 mod m0002110_license_query_performance;
 mod m0002110_sbom_describing_cpe;
+mod m0002120_ancestor_walk_index;
 mod m0002120_normalize_expanded_license;
 mod m0002130_add_csaf_product_id;
 mod m0002140_p2p_right_index;
@@ -64,7 +65,6 @@ pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
 
     fn into_migrations() -> Vec<Box<dyn MigrationTrait>> {
-        // Get all migrations, wrap data migrations. This will initialize the storage config.
         Self::build_migrations()
             .into_iter()
             .map(|migration| match migration {
@@ -134,6 +134,7 @@ impl MigratorExt for Migrator {
             .normal(m0002180_advisory_fk_indexes::Migration)
             .normal(m0002190_vulnerability_base_score_advisory::Migration)
             .normal(m0002110_sbom_describing_cpe::Migration)
+            .normal(m0002120_ancestor_walk_index::Migration)
     }
 }
 
