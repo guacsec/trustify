@@ -54,6 +54,7 @@ mod m0002110_sbom_describing_cpe;
 mod m0002120_ancestor_walk_index;
 mod m0002120_normalize_expanded_license;
 mod m0002130_add_csaf_product_id;
+mod m0002130_sbom_ancestor;
 mod m0002140_p2p_right_index;
 mod m0002150_fix_advisory_labels_index;
 mod m0002160_fix_ref_fk;
@@ -135,6 +136,7 @@ impl MigratorExt for Migrator {
             .normal(m0002190_vulnerability_base_score_advisory::Migration)
             .normal(m0002110_sbom_describing_cpe::Migration)
             .normal(m0002120_ancestor_walk_index::Migration)
+            .normal(m0002130_sbom_ancestor::Migration)
     }
 }
 

@@ -24,6 +24,7 @@ pub mod remediation_product_status;
 pub mod remediation_purl_status;
 pub mod sbom;
 pub mod sbom_ai;
+pub mod sbom_ancestor;
 pub mod sbom_crypto;
 pub mod sbom_describing_cpe;
 pub mod sbom_external_node;

@@ -11,7 +11,8 @@ use ::cpe::{
     cpe::{Cpe, CpeType, Language},
     uri::OwnedUri,
 };
-use futures::{FutureExt, StreamExt, TryStreamExt, stream};
+use anyhow::anyhow;
+use futures::FutureExt;
 use opentelemetry::KeyValue;
 use petgraph::{Graph, prelude::NodeIndex};
 use sea_orm::{
@@ -22,8 +23,7 @@ use sea_query::{JoinType, SelectStatement};
 use serde_json::Value;
 use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
-    fmt::{Debug, Display, Formatter},
-    hash::Hash,
+    fmt::Debug,
     str::FromStr,
     sync::Arc,
 };
@@ -266,15 +266,11 @@ impl AnalysisService {
     }
 
     /// Load all SBOMs by the provided IDs
-    #[instrument(
-        skip_all,
-        fields(distinct_sbom_ids = ?TruncatedIter(&distinct_sbom_ids)),
-        err(level=tracing::Level::INFO),
-    )]
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn load_graphs<C: ConnectionTrait>(
         &self,
         connection: &C,
-        distinct_sbom_ids: Vec<Uuid>,
+        distinct_sbom_ids: impl IntoIterator<Item = Uuid> + Debug,
     ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
         self.inner.load_graphs(connection, distinct_sbom_ids).await
     }
@@ -429,11 +425,11 @@ impl InnerService {
 
         let mut ranked_sboms = resolve_sbom_cpes(cpe_search, connection, matched_sbom_ids).await?;
 
-        log::debug!("SBOMs to rank: {}", TruncatedIter(&ranked_sboms));
+        log::debug!("{} SBOMs to rank", ranked_sboms.len());
 
         // apply rank
         apply_rank(&mut ranked_sboms);
-        log::trace!("ranked sboms: {:?}", TruncatedIter(&ranked_sboms));
+        log::trace!("ranked sboms: {:?}", ranked_sboms);
 
         // retrieve only ranked_sboms with rank = 1
         let latest_ids: HashSet<_> = ranked_sboms
@@ -443,10 +439,9 @@ impl InnerService {
             .collect();
 
         log::debug!("latest sboms: {:?}", latest_ids.len());
-        log::trace!("latest sboms: {:?}", TruncatedIter(&latest_ids));
+        log::trace!("latest sboms: {:?}", latest_ids);
 
-        self.load_graphs(connection, latest_ids.into_iter().collect())
-            .await
+        self.load_graphs(connection, latest_ids).await
     }
 
     /// Take a select for sboms, and ensure they are loaded and return their IDs.
@@ -461,8 +456,7 @@ impl InnerService {
             .all(connection)
             .await?
             .into_iter()
-            .map(|record| record.sbom_id)
-            .collect();
+            .map(|record| record.sbom_id);
 
         self.load_graphs(connection, distinct_sbom_ids).await
     }
@@ -652,32 +646,57 @@ impl InnerService {
 
     /// Load all SBOMs by the provided IDs, also resolve external references and load them too
     #[instrument(
-        skip_all,
-        fields(distinct_sbom_ids = ?TruncatedIter(&distinct_sbom_ids)),
-        err(level=tracing::Level::INFO),
-    )]
+        skip(self, connection, distinct_sbom_ids),
+        err(level=tracing::Level::INFO))
+    ]
     pub async fn load_graphs<C: ConnectionTrait>(
         &self,
         connection: &C,
-        distinct_sbom_ids: Vec<Uuid>,
+        distinct_sbom_ids: impl IntoIterator<Item = Uuid> + Debug,
     ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
-        // Deduplicate IDs upfront while preserving order
-        let mut seen = HashSet::new();
-        let unique_ids: Vec<Uuid> = distinct_sbom_ids
-            .into_iter()
-            .filter(|id| seen.insert(*id))
-            .collect();
-
-        log::debug!("Number of unique IDs: {}", unique_ids.len());
-
-        stream::iter(unique_ids)
-            .map(|id| async move {
-                let graph = self.load_graph(connection, id).await?;
-                Ok::<_, Error>((id, graph))
-            })
-            .buffered(self.concurrency)
-            .try_collect()
+        self.load_graphs_inner(connection, distinct_sbom_ids, &mut HashSet::new())
             .await
+    }
+
+    /// Load a list of graphs, and also load related graphs.
+    #[instrument(
+        skip_all,
+        err(level=tracing::Level::INFO)
+    )]
+    pub async fn load_graphs_inner<C: ConnectionTrait>(
+        &self,
+        connection: &C,
+        distinct_sbom_ids: impl IntoIterator<Item = Uuid>,
+        seen_sbom_ids: &mut HashSet<Uuid>,
+    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
+        let mut results = Vec::new();
+
+        let distinct_sbom_ids = distinct_sbom_ids.into_iter();
+        if let (_, Some(len)) = distinct_sbom_ids.size_hint() {
+            log::debug!("Number of IDs: {len}")
+        }
+
+        for distinct_sbom_id in distinct_sbom_ids {
+            if log::log_enabled!(log::Level::Debug) {
+                let sbom = sbom_id(distinct_sbom_id, connection).await?;
+                log::debug!("loading sbom: {distinct_sbom_id} / {sbom:?}");
+            }
+
+            // if we can insert into the seen map, we need to process...
+            if !seen_sbom_ids.insert(distinct_sbom_id) {
+                // ... otherwise, we already did and can move on.
+                log::debug!("Skipping duplicate SBOM ID: {distinct_sbom_id}");
+                continue;
+            }
+
+            // load and remember the result
+            results.push((
+                distinct_sbom_id,
+                self.load_graph(connection, distinct_sbom_id).await?,
+            ));
+        }
+
+        Ok(results)
     }
 }
 
@@ -726,118 +745,11 @@ fn q_columns() -> Columns {
         })
 }
 
-#[derive(Default, Clone, Copy)]
-struct HitAndMiss {
-    total: usize,
-    hits: usize,
-}
-
-impl HitAndMiss {
-    pub fn hit(&mut self) {
-        self.total += 1;
-        self.hits += 1;
-    }
-
-    pub fn miss(&mut self) {
-        self.total += 1;
-    }
-}
-
-impl Display for HitAndMiss {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{} of {} ({:.1}%)",
-            self.hits,
-            self.total,
-            self.hits as f64 / self.total as f64 * 100.0
-        )
-    }
-}
-
-impl Debug for HitAndMiss {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(self, f)
-    }
-}
-
-#[derive(Default)]
-struct Cache<K, V>
-where
-    K: Eq + Hash,
-{
-    cache: HashMap<K, V>,
-    hnm: HitAndMiss,
-}
-
-impl<K, V> Cache<K, V>
-where
-    K: Eq + Hash + Clone,
-    V: Clone,
-{
-    /// Load a value from the cache or compute it using the loader.
-    #[allow(dead_code)]
-    pub async fn get<P, E>(
-        &mut self,
-        parameters: P,
-        key: K,
-        loader: impl AsyncFnOnce(P, K) -> Result<V, E>,
-    ) -> Result<V, E> {
-        Ok(match self.cache.entry(key.clone()) {
-            Entry::Occupied(entry) => {
-                self.hnm.hit();
-                entry.get().clone()
-            }
-            Entry::Vacant(entry) => {
-                self.hnm.miss();
-                entry.insert(loader(parameters, key).await?).clone()
-            }
-        })
-    }
-
-    /// Return a cached value if present, recording hit/miss stats.
-    pub fn get_cached(&mut self, key: &K) -> Option<V> {
-        match self.cache.get(key) {
-            Some(v) => {
-                self.hnm.hit();
-                Some(v.clone())
-            }
-            None => {
-                self.hnm.miss();
-                None
-            }
-        }
-    }
-
-    /// Insert a value into the cache.
-    pub fn insert(&mut self, key: K, value: V) {
-        self.cache.insert(key, value);
-    }
-}
-
-impl<K, V> Debug for Cache<K, V>
-where
-    K: Eq + Hash,
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LoadContext")
-            .field("cache", &self.cache.len())
-            .field("hnm", &self.hnm)
-            .finish()
-    }
-}
-
-#[derive(Default)]
-struct LoadContext {
-    pub find_node_ancestors: Cache<(Uuid, String), Vec<package_relates_to_package::Model>>,
-    pub find_external_refs: Cache<(Uuid, String), rank::CachedExternalRefs>,
-}
-
-impl Debug for LoadContext {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LoadContext")
-            .field("find_node_ancestors", &self.find_node_ancestors)
-            .field("find_external_refs", &self.find_external_refs)
-            .finish()
-    }
+#[instrument(skip(connection), err(level=tracing::Level::INFO))]
+async fn sbom_id(id: Uuid, connection: &impl ConnectionTrait) -> anyhow::Result<Option<String>> {
+    Ok(sbom::Entity::find_by_id(id)
+        .one(connection)
+        .await?
+        .ok_or_else(|| anyhow!("Unable to find SBOM: {id}"))?
+        .document_id)
 }
