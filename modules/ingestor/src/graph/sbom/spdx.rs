@@ -358,6 +358,7 @@ impl SbomContext {
         relationships.create(db).await?;
 
         self.populate_describing_cpes(db).await?;
+        self.populate_ancestors(db).await?;
 
         // done
 

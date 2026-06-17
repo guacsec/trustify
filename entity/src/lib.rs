@@ -20,6 +20,7 @@ pub mod purl_status;
 pub mod qualified_purl;
 pub mod relationship;
 pub mod sbom;
+pub mod sbom_ancestor;
 pub mod sbom_describing_cpe;
 pub mod sbom_external_node;
 pub mod sbom_file;
