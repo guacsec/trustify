@@ -1,0 +1,7 @@
+/target
+/.containerignore
+/Containerfile
+/.trustify
+/.git
+/.serena
+/data
