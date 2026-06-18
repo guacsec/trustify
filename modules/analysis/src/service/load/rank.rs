@@ -449,7 +449,8 @@ mod test {
     }
 
     /// Verify that ingesting linked SBOMs populates the `sbom_ancestor` table
-    /// with bidirectional entries based on shared checksums.
+    /// with a unidirectional (child, ancestor) entry based on external node
+    /// checksum matching.
     #[test_context(TrustifyContext)]
     #[test_log::test(actix_web::test)]
     async fn populate_ancestors(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -463,12 +464,13 @@ mod test {
         let has_forward = ancestors
             .iter()
             .any(|a| a.sbom_id == rpm && a.ancestor_sbom_id == product);
-        let has_reverse = ancestors
-            .iter()
-            .any(|a| a.sbom_id == product && a.ancestor_sbom_id == rpm);
 
         assert!(has_forward, "expected rpm -> product link");
-        assert!(has_reverse, "expected product -> rpm link");
+        assert_eq!(
+            ancestors.len(),
+            1,
+            "expected exactly one unidirectional link"
+        );
 
         Ok(())
     }
