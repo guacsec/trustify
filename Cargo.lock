@@ -8575,7 +8575,6 @@ dependencies = [
  "anyhow",
  "bytes",
  "bytesize",
- "chrono",
  "clap",
  "cpe",
  "csaf",
