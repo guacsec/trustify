@@ -241,7 +241,7 @@ async fn batch_resolve_ancestor_cpes(
         DatabaseBackend::Postgres,
         r#"
         WITH RECURSIVE transitive AS (
-            SELECT sa.sbom_id, sa.ancestor_sbom_id
+            SELECT sa.sbom_id, sa.ancestor_sbom_id, 1 AS depth
             FROM sbom_ancestor sa
             WHERE sa.sbom_id = ANY($1)
               AND NOT EXISTS (
@@ -249,10 +249,11 @@ async fn batch_resolve_ancestor_cpes(
                   WHERE own.sbom_id = sa.sbom_id
               )
             UNION
-            SELECT t.sbom_id, sa.ancestor_sbom_id
+            SELECT t.sbom_id, sa.ancestor_sbom_id, t.depth + 1
             FROM transitive t
             JOIN sbom_ancestor sa ON sa.sbom_id = t.ancestor_sbom_id
             WHERE t.sbom_id != sa.ancestor_sbom_id
+              AND t.depth < 10
         )
         SELECT DISTINCT t.sbom_id, sdc.cpe_id
         FROM transitive t
