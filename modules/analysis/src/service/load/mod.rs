@@ -16,12 +16,12 @@ use opentelemetry::KeyValue;
 use petgraph::{Graph, prelude::NodeIndex};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityOrSelect, EntityTrait,
-    FromQueryResult, QueryFilter, QuerySelect, QueryTrait, RelationTrait, Statement,
+    FromQueryResult, QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
 };
 use sea_query::{JoinType, SelectStatement};
 use serde_json::Value;
 use std::{
-    collections::{HashMap, HashSet, hash_map::Entry},
+    collections::{BTreeSet, HashMap, HashSet, hash_map::Entry},
     fmt::{Debug, Display, Formatter},
     hash::Hash,
     str::FromStr,
@@ -449,8 +449,8 @@ impl InnerService {
         apply_rank(&mut ranked_sboms);
         log::trace!("ranked sboms: {:?}", TruncatedIter(&ranked_sboms));
 
-        // retrieve only ranked_sboms with rank = 1
-        let latest_ids: HashSet<_> = ranked_sboms
+        // retrieve only ranked_sboms with rank = 1, sorted for deterministic pagination
+        let latest_ids: BTreeSet<_> = ranked_sboms
             .into_iter()
             .filter(|item| item.rank == Some(1))
             .map(|item| item.matched_sbom_id)
@@ -471,6 +471,7 @@ impl InnerService {
     ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
         let distinct_sbom_ids = sbom::Entity::find()
             .filter(sbom::Column::SbomId.in_subquery(subquery))
+            .order_by_asc(sbom::Column::SbomId)
             .select()
             .all(connection)
             .await?

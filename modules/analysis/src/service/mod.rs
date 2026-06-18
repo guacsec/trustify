@@ -502,6 +502,169 @@ impl AnalysisService {
             .await
     }
 
+    /// Count nodes matching the query across all graphs, without hydrating them.
+    fn count_matching_nodes(query: &GraphQuery, graphs: &[(Uuid, Arc<PackageGraph>)]) -> u64 {
+        graphs
+            .iter()
+            .map(|(_, graph)| {
+                graph
+                    .node_indices()
+                    .filter(|&i| Self::filter(graph, query, i))
+                    .count() as u64
+            })
+            .sum()
+    }
+
+    /// Collect nodes from the graph, applying pagination at the index level.
+    ///
+    /// Flattens matching nodes across ALL graphs into a single sequence, sorts
+    /// by `(sbom_id, node_id)` for deterministic ordering, then applies skip/take
+    /// globally. Only the paged subset runs through the expensive `create` closure.
+    #[instrument(skip(self, create, graphs))]
+    async fn collect_graph_paged<'a, 'g, F, Fut>(
+        &self,
+        query: impl Into<GraphQuery<'a>> + Debug,
+        graphs: &'g [(Uuid, Arc<PackageGraph>)],
+        concurrency: usize,
+        offset: usize,
+        limit: usize,
+        create: F,
+    ) -> Result<Vec<Node>, Error>
+    where
+        F: Fn(&'g Graph<graph::Node, Relationship>, NodeIndex, &'g graph::Node) -> Fut + Clone,
+        Fut: Future<Output = Result<Node, Error>>,
+    {
+        let query = query.into();
+
+        let mut matching: Vec<_> = graphs
+            .iter()
+            .flat_map(|(_, graph)| {
+                graph
+                    .node_indices()
+                    .filter(|&i| Self::filter(graph, &query, i))
+                    .filter_map(|i| graph.node_weight(i).map(|w| (graph.as_ref(), i, w)))
+            })
+            .collect();
+
+        matching.sort_by(|a, b| {
+            a.2.sbom_id
+                .cmp(&b.2.sbom_id)
+                .then_with(|| a.2.node_id.cmp(&b.2.node_id))
+        });
+
+        let matching: Vec<_> = if limit == 0 {
+            matching.into_iter().skip(offset).collect()
+        } else {
+            matching.into_iter().skip(offset).take(limit).collect()
+        };
+
+        stream::iter(matching)
+            .map(|(graph, node_index, package_node)| {
+                let create = create.clone();
+                create(graph, node_index, package_node)
+            })
+            .buffer_unordered(concurrency)
+            .try_collect::<Vec<_>>()
+            .await
+    }
+
+    /// Run graph query with pagination applied before hydration.
+    #[instrument(skip(self, connection, graphs))]
+    async fn run_graph_query_paged<'a, C: ConnectionTrait>(
+        &self,
+        query: impl Into<GraphQuery<'a>> + Debug,
+        options: QueryOptions,
+        graphs: &[(Uuid, Arc<PackageGraph>)],
+        paginated: Paginated,
+        connection: &C,
+    ) -> Result<PaginatedResults<Node>, Error> {
+        let query = query.into();
+        let relationships = options.relationships;
+        tracing::debug!(?relationships, "relations");
+
+        let total = Self::count_matching_nodes(&query, graphs);
+
+        let limit = paginated.limit as usize;
+        let offset = paginated.offset as usize;
+
+        if offset as u64 >= total {
+            return Ok(PaginatedResults {
+                items: vec![],
+                total,
+            });
+        }
+
+        let loader = &GraphLoader::new(self.clone());
+
+        let items = self
+            .collect_graph_paged(
+                query,
+                graphs,
+                self.concurrency,
+                offset,
+                limit,
+                |graph, node_index, node| {
+                    let graph_cache = self.inner.graph_cache.clone();
+                    let relationships = relationships.clone();
+                    async move {
+                        tracing::trace!(
+                            "Discovered node - sbom: {}, node: {}",
+                            node.sbom_id,
+                            node.node_id
+                        );
+
+                        let ancestors = Collector::new(
+                            &graph_cache,
+                            graphs,
+                            node.sbom_id,
+                            graph,
+                            node_index,
+                            Direction::Incoming,
+                            options.ancestors,
+                            &relationships,
+                            connection,
+                            self.concurrency,
+                            loader,
+                        )
+                        .collect();
+
+                        let descendants = Collector::new(
+                            &graph_cache,
+                            graphs,
+                            node.sbom_id,
+                            graph,
+                            node_index,
+                            Direction::Outgoing,
+                            options.descendants,
+                            &relationships,
+                            connection,
+                            self.concurrency,
+                            loader,
+                        )
+                        .collect();
+
+                        let (ancestors, descendants) = futures::join!(ancestors, descendants);
+                        let ancestors = ancestors?;
+                        let descendants = descendants?;
+
+                        let mut warnings = ancestors.1;
+                        warnings.extend(descendants.1);
+
+                        Ok(Node {
+                            base: node.into(),
+                            relationship: None,
+                            ancestors: ancestors.0,
+                            descendants: descendants.0,
+                            warnings,
+                        })
+                    }
+                },
+            )
+            .await?;
+
+        Ok(PaginatedResults { items, total })
+    }
+
     #[instrument(skip(self, connection, graphs))]
     pub async fn run_graph_query<'a, C: ConnectionTrait>(
         &self,
@@ -602,11 +765,8 @@ impl AnalysisService {
         let options = options.into();
 
         let graphs = self.load_graphs(connection, distinct_sbom_ids).await?;
-        let components = self
-            .run_graph_query(query, options, &graphs, connection)
-            .await?;
-
-        Ok(paginated.paginate_array(&components))
+        self.run_graph_query_paged(query, options, &graphs, paginated, connection)
+            .await
     }
 
     /// locate components, retrieve dependency information
@@ -623,11 +783,8 @@ impl AnalysisService {
 
         let graphs = self.load_graphs_query(connection, query).await?;
 
-        let components = self
-            .run_graph_query(query, options, &graphs, connection)
-            .await?;
-
-        Ok(paginated.paginate_array(&components))
+        self.run_graph_query_paged(query, options, &graphs, paginated, connection)
+            .await
     }
 
     pub(crate) async fn load_graphs_query(
@@ -649,19 +806,15 @@ impl AnalysisService {
         let query = query.into();
         let options = options.into();
 
-        // load only latest graphs
         let graphs = self
             .inner
             .load_latest_graphs_query(connection, query)
             .await?;
 
-        log::debug!("graph sbom count: {:?}", graphs.len());
+        tracing::debug!("graph sbom count: {:?}", graphs.len());
 
-        let components = self
-            .run_graph_query(query, options, &graphs, connection)
-            .await?;
-
-        Ok(paginated.paginate_array(&components))
+        self.run_graph_query_paged(query, options, &graphs, paginated, connection)
+            .await
     }
 
     /// check if a node in the graph matches the provided query

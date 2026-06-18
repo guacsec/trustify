@@ -852,3 +852,100 @@ async fn resolve_sbom_cdx_rh_variant_external_node_sbom(
 
     Ok(())
 }
+
+/// Verify that pagination limits the number of hydrated nodes.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_pagination_limits_hydration(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_documents([
+        "spdx/quarkus-bom-3.2.11.Final-redhat-00001.json",
+        "spdx/quarkus-bom-3.2.12.Final-redhat-00002.json",
+    ])
+    .await?;
+
+    let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+
+    // When: request with limit=1
+    let result = service
+        .retrieve(
+            &Query::q("spymemcached"),
+            QueryOptions::ancestors(),
+            Paginated {
+                offset: 0,
+                limit: 1,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Then: only 1 item returned but total reflects all matches
+    assert_eq!(result.items.len(), 1);
+    assert_eq!(result.total, 2);
+
+    Ok(())
+}
+
+/// Verify that offset produces different results from different pages.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_pagination_offset(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_documents([
+        "spdx/quarkus-bom-3.2.11.Final-redhat-00001.json",
+        "spdx/quarkus-bom-3.2.12.Final-redhat-00002.json",
+    ])
+    .await?;
+
+    let service = AnalysisService::new(AnalysisConfig::default(), ctx.db.clone());
+
+    // Given: page 1 (offset=0, limit=1)
+    let page1 = service
+        .retrieve(
+            &Query::q("spymemcached"),
+            QueryOptions::ancestors(),
+            Paginated {
+                offset: 0,
+                limit: 1,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Given: page 2 (offset=1, limit=1)
+    let page2 = service
+        .retrieve(
+            &Query::q("spymemcached"),
+            QueryOptions::ancestors(),
+            Paginated {
+                offset: 1,
+                limit: 1,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Then: both pages have 1 item each
+    assert_eq!(page1.items.len(), 1);
+    assert_eq!(page2.items.len(), 1);
+
+    // Then: the items are different (from different SBOMs)
+    assert_ne!(&page1.items[0].base.sbom_id, &page2.items[0].base.sbom_id);
+
+    // Given: combined page (offset=0, limit=2)
+    let combined = service
+        .retrieve(
+            &Query::q("spymemcached"),
+            QueryOptions::ancestors(),
+            Paginated {
+                offset: 0,
+                limit: 2,
+            },
+            &ctx.db,
+        )
+        .await?;
+
+    // Then: combined contains both items
+    assert_eq!(combined.items.len(), 2);
+    assert_eq!(combined.total, 2);
+
+    Ok(())
+}
