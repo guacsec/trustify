@@ -609,27 +609,40 @@ impl SbomContext {
         Ok(())
     }
 
-    /// Materializes cross-SBOM ancestor links by finding other SBOMs that share
-    /// checksum values with this SBOM's nodes. Uses UNION to allow each half
-    /// to use the sbom_id index independently, avoiding the OR anti-pattern.
+    /// Materializes unidirectional cross-SBOM ancestor links scoped to actual
+    /// external node references. The SBOM holding the `sbom_external_node`
+    /// entry is the ancestor (product); the checksum-matched SBOM is the
+    /// child (component). Rows are `(child, ancestor)`.
     pub async fn populate_ancestors<C: ConnectionTrait>(&self, db: &C) -> Result<(), Error> {
         db.execute(Statement::from_sql_and_values(
             DbBackend::Postgres,
             r#"
+            WITH linked_as_child AS (
+                SELECT DISTINCT snc_other.sbom_id AS child_id
+                FROM sbom_external_node sen
+                JOIN sbom_node_checksum snc_ref
+                  ON snc_ref.sbom_id = sen.sbom_id
+                 AND snc_ref.node_id = sen.external_node_ref
+                JOIN sbom_node_checksum snc_other
+                  ON snc_other.value = snc_ref.value
+                 AND snc_other.sbom_id != $1
+                WHERE sen.sbom_id = $1
+            ),
+            linked_as_ancestor AS (
+                SELECT DISTINCT sen.sbom_id AS ancestor_id
+                FROM sbom_external_node sen
+                JOIN sbom_node_checksum snc_ref
+                  ON snc_ref.sbom_id = sen.sbom_id
+                 AND snc_ref.node_id = sen.external_node_ref
+                JOIN sbom_node_checksum snc_self
+                  ON snc_self.value = snc_ref.value
+                 AND snc_self.sbom_id = $1
+                WHERE sen.sbom_id != $1
+            )
             INSERT INTO sbom_ancestor (sbom_id, ancestor_sbom_id)
-            SELECT DISTINCT $1, snc2.sbom_id
-            FROM sbom_node_checksum snc1
-            JOIN sbom_node_checksum snc2
-              ON snc1.value = snc2.value
-            WHERE snc1.sbom_id = $1
-              AND snc2.sbom_id != $1
+            SELECT child_id, $1 FROM linked_as_child
             UNION
-            SELECT DISTINCT snc1.sbom_id, $1
-            FROM sbom_node_checksum snc1
-            JOIN sbom_node_checksum snc2
-              ON snc1.value = snc2.value
-            WHERE snc2.sbom_id = $1
-              AND snc1.sbom_id != $1
+            SELECT $1, ancestor_id FROM linked_as_ancestor
             ON CONFLICT DO NOTHING
             "#,
             [self.sbom.sbom_id.into()],
