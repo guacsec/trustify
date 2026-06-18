@@ -9,7 +9,7 @@ rust-version.workspace = true
 [dependencies]
 actix-web = { workspace = true }
 anyhow = { workspace = true }
-async-compression = { workspace = true, features = ["gzip", "lzma"] }
+async-compression = { workspace = true, features = ["gzip", "lzma", "tokio"] }
 bytes = { workspace = true }
 bytesize = { workspace = true, features = ["serde"] }
 chrono = { workspace = true }
