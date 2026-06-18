@@ -41,8 +41,8 @@ uuid = { workspace = true }
 actix-http = { workspace = true }
 bytes = { workspace = true }
 bytesize = { workspace = true }
-chrono = { workspace = true }
 csaf = { workspace = true }
+time = { workspace = true, features = ["macros"] }
 futures = { workspace = true }
 hex = { workspace = true }
 humantime = { workspace = true }
