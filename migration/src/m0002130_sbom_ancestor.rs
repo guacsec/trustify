@@ -65,26 +65,22 @@ impl MigrationTrait for Migration {
             .await
             .map(|_| ())?;
 
-        // Backfill from existing data using LATERAL to deduplicate early.
-        // For each SBOM, the inner query finds related SBOMs via shared
-        // checksum values and collapses to distinct sbom_ids immediately,
-        // avoiding the massive intermediate row explosion of a global
-        // self-join.
+        // Backfill from existing data, scoped to actual external node references.
+        // The SBOM with the external_node_ref is the ancestor (product);
+        // the checksum-matched SBOM is the child (component).
         manager
             .get_connection()
             .execute_unprepared(
                 r#"
                 INSERT INTO sbom_ancestor (sbom_id, ancestor_sbom_id)
-                SELECT s.sbom_id, related.related_sbom_id
-                FROM (SELECT DISTINCT sbom_id FROM sbom_node_checksum) s
-                CROSS JOIN LATERAL (
-                    SELECT DISTINCT snc2.sbom_id AS related_sbom_id
-                    FROM sbom_node_checksum snc1
-                    JOIN sbom_node_checksum snc2
-                      ON snc1.value = snc2.value
-                    WHERE snc1.sbom_id = s.sbom_id
-                      AND snc2.sbom_id != s.sbom_id
-                ) related
+                SELECT DISTINCT snc_other.sbom_id, sen.sbom_id
+                FROM sbom_external_node sen
+                JOIN sbom_node_checksum snc_ref
+                  ON snc_ref.sbom_id = sen.sbom_id
+                 AND snc_ref.node_id = sen.external_node_ref
+                JOIN sbom_node_checksum snc_other
+                  ON snc_other.value = snc_ref.value
+                 AND snc_other.sbom_id != sen.sbom_id
                 ON CONFLICT DO NOTHING
                 "#,
             )
