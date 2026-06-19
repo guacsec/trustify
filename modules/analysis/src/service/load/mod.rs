@@ -687,7 +687,7 @@ impl InnerService {
                 let graph = self.load_graph(connection, id).await?;
                 Ok::<_, Error>((id, graph))
             })
-            .buffer_unordered(self.concurrency)
+            .buffered(self.concurrency)
             .try_collect()
             .await
     }

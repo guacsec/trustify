@@ -28,7 +28,7 @@ pub struct AnalysisConfig {
         env = "TRUSTIFY_ANALYSIS_CONCURRENCY",
         default_value = "10",
         value_parser = parse_concurrency,
-        help = "The number of concurrent graph loading tasks for analysis (must be > 0)."
+        help = "The number of concurrent tasks for analysis (must be > 0)."
     )]
     pub concurrency: NonZeroUsize,
 }
