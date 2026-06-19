@@ -414,6 +414,7 @@ mod test {
     use rstest::rstest;
     use sea_orm::ColumnTrait;
     use test_context::test_context;
+    use time::macros::datetime;
     use trustify_entity::cpe;
     use trustify_test_context::{IngestionResult, TrustifyContext};
 
@@ -476,7 +477,7 @@ mod test {
         Ok(())
     }
 
-    /// create a simple [`RankedSbom`] for testing
+    /// Create a simple [`RankedSbom`] for testing.
     fn ranked(
         sbom: Uuid,
         name: &str,
@@ -505,7 +506,7 @@ mod test {
     }
 
     fn utc(day: u8) -> OffsetDateTime {
-        time::macros::datetime!(2025-01-01 0:00 UTC) + time::Duration::days((day - 1) as i64)
+        datetime!(2025-01-01 0:00 UTC) + time::Duration::days(i64::from(day) - 1)
     }
 
     /// Testing the [`super::apply_rank`] function.
