@@ -33,6 +33,7 @@ use tracing::{Instrument, Level, info_span, instrument};
 use trustify_common::{
     cpe::Cpe as TrustifyCpe,
     db::query::{Columns, Filtering, IntoColumns},
+    fmt::TruncatedIter,
     purl::Purl,
 };
 use trustify_entity::{
@@ -265,7 +266,11 @@ impl AnalysisService {
     }
 
     /// Load all SBOMs by the provided IDs
-    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
+    #[instrument(
+        skip_all,
+        fields(distinct_sbom_ids = ?TruncatedIter(&distinct_sbom_ids)),
+        err(level=tracing::Level::INFO),
+    )]
     pub async fn load_graphs<C: ConnectionTrait>(
         &self,
         connection: &C,
@@ -421,7 +426,7 @@ impl InnerService {
             ),
         };
 
-        log::debug!("SBOM IDs to evaluate: {}", matched_sbom_ids.len());
+        log::debug!("SBOM IDs to evaluate: {}", TruncatedIter(&matched_sbom_ids));
 
         // filter by published-date cutoff
         let cutoff = sbom_published_cutoff();
@@ -436,11 +441,11 @@ impl InnerService {
 
         let mut ranked_sboms = resolve_sbom_cpes(cpe_search, connection, matched_sbom_ids).await?;
 
-        log::debug!("{} SBOMs to rank", ranked_sboms.len());
+        log::debug!("SBOMs to rank: {}", TruncatedIter(&ranked_sboms));
 
         // apply rank
         apply_rank(&mut ranked_sboms);
-        log::trace!("ranked sboms: {:?}", ranked_sboms);
+        log::trace!("ranked sboms: {:?}", TruncatedIter(&ranked_sboms));
 
         // retrieve only ranked_sboms with rank = 1
         let latest_ids: HashSet<_> = ranked_sboms
@@ -450,7 +455,7 @@ impl InnerService {
             .collect();
 
         log::debug!("latest sboms: {:?}", latest_ids.len());
-        log::trace!("latest sboms: {:?}", latest_ids);
+        log::trace!("latest sboms: {:?}", TruncatedIter(&latest_ids));
 
         self.load_graphs(connection, latest_ids.into_iter().collect())
             .await
@@ -659,9 +664,10 @@ impl InnerService {
 
     /// Load all SBOMs by the provided IDs, also resolve external references and load them too
     #[instrument(
-        skip(self, connection, distinct_sbom_ids),
-        err(level=tracing::Level::INFO))
-    ]
+        skip_all,
+        fields(distinct_sbom_ids = ?TruncatedIter(&distinct_sbom_ids)),
+        err(level=tracing::Level::INFO),
+    )]
     pub async fn load_graphs<C: ConnectionTrait>(
         &self,
         connection: &C,
