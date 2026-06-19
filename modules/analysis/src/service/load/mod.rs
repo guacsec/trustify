@@ -11,8 +11,7 @@ use ::cpe::{
     cpe::{Cpe, CpeType, Language},
     uri::OwnedUri,
 };
-use anyhow::anyhow;
-use futures::FutureExt;
+use futures::{FutureExt, StreamExt, TryStreamExt, stream};
 use opentelemetry::KeyValue;
 use petgraph::{Graph, prelude::NodeIndex};
 use sea_orm::{
@@ -270,7 +269,7 @@ impl AnalysisService {
     pub async fn load_graphs<C: ConnectionTrait>(
         &self,
         connection: &C,
-        distinct_sbom_ids: impl IntoIterator<Item = Uuid> + Debug,
+        distinct_sbom_ids: Vec<Uuid>,
     ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
         self.inner.load_graphs(connection, distinct_sbom_ids).await
     }
@@ -453,7 +452,8 @@ impl InnerService {
         log::debug!("latest sboms: {:?}", latest_ids.len());
         log::trace!("latest sboms: {:?}", latest_ids);
 
-        self.load_graphs(connection, latest_ids).await
+        self.load_graphs(connection, latest_ids.into_iter().collect())
+            .await
     }
 
     /// Take a select for sboms, and ensure they are loaded and return their IDs.
@@ -468,7 +468,8 @@ impl InnerService {
             .all(connection)
             .await?
             .into_iter()
-            .map(|record| record.sbom_id);
+            .map(|record| record.sbom_id)
+            .collect();
 
         self.load_graphs(connection, distinct_sbom_ids).await
     }
@@ -664,51 +665,25 @@ impl InnerService {
     pub async fn load_graphs<C: ConnectionTrait>(
         &self,
         connection: &C,
-        distinct_sbom_ids: impl IntoIterator<Item = Uuid> + Debug,
+        distinct_sbom_ids: Vec<Uuid>,
     ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
-        self.load_graphs_inner(connection, distinct_sbom_ids, &mut HashSet::new())
+        // Deduplicate IDs upfront while preserving order
+        let mut seen = HashSet::new();
+        let unique_ids: Vec<Uuid> = distinct_sbom_ids
+            .into_iter()
+            .filter(|id| seen.insert(*id))
+            .collect();
+
+        log::debug!("Number of unique IDs: {}", unique_ids.len());
+
+        stream::iter(unique_ids)
+            .map(|id| async move {
+                let graph = self.load_graph(connection, id).await?;
+                Ok::<_, Error>((id, graph))
+            })
+            .buffer_unordered(self.concurrency)
+            .try_collect()
             .await
-    }
-
-    /// Load a list of graphs, and also load related graphs.
-    #[instrument(
-        skip_all,
-        err(level=tracing::Level::INFO)
-    )]
-    pub async fn load_graphs_inner<C: ConnectionTrait>(
-        &self,
-        connection: &C,
-        distinct_sbom_ids: impl IntoIterator<Item = Uuid>,
-        seen_sbom_ids: &mut HashSet<Uuid>,
-    ) -> Result<Vec<(Uuid, Arc<PackageGraph>)>, Error> {
-        let mut results = Vec::new();
-
-        let distinct_sbom_ids = distinct_sbom_ids.into_iter();
-        if let (_, Some(len)) = distinct_sbom_ids.size_hint() {
-            log::debug!("Number of IDs: {len}")
-        }
-
-        for distinct_sbom_id in distinct_sbom_ids {
-            if log::log_enabled!(log::Level::Debug) {
-                let sbom = sbom_id(distinct_sbom_id, connection).await?;
-                log::debug!("loading sbom: {distinct_sbom_id} / {sbom:?}");
-            }
-
-            // if we can insert into the seen map, we need to process...
-            if !seen_sbom_ids.insert(distinct_sbom_id) {
-                // ... otherwise, we already did and can move on.
-                log::debug!("Skipping duplicate SBOM ID: {distinct_sbom_id}");
-                continue;
-            }
-
-            // load and remember the result
-            results.push((
-                distinct_sbom_id,
-                self.load_graph(connection, distinct_sbom_id).await?,
-            ));
-        }
-
-        Ok(results)
     }
 }
 
@@ -755,15 +730,6 @@ fn q_columns() -> Columns {
                 _ => None,
             }
         })
-}
-
-#[instrument(skip(connection), err(level=tracing::Level::INFO))]
-async fn sbom_id(id: Uuid, connection: &impl ConnectionTrait) -> anyhow::Result<Option<String>> {
-    Ok(sbom::Entity::find_by_id(id)
-        .one(connection)
-        .await?
-        .ok_or_else(|| anyhow!("Unable to find SBOM: {id}"))?
-        .document_id)
 }
 
 #[derive(Default, Clone, Copy)]
