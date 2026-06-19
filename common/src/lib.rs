@@ -5,6 +5,7 @@ pub mod db;
 pub mod decompress;
 pub mod endpoints;
 pub mod error;
+pub mod fmt;
 pub mod hashing;
 pub mod id;
 pub mod memo;
