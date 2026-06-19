@@ -366,6 +366,7 @@ impl AnalysisService {
             loading_ops,
             cache_hit: meter.u64_counter("cache_hits").build(),
             cache_miss: meter.u64_counter("cache_miss").build(),
+            concurrency: config.concurrency.get(),
         };
 
         let loader = {
@@ -772,6 +773,7 @@ struct InnerService {
     loading_ops: Arc<Mutex<HashMap<Uuid, LoadingOp>>>,
     cache_hit: Counter<u64>,
     cache_miss: Counter<u64>,
+    concurrency: usize,
 }
 
 impl InnerService {

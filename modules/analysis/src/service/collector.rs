@@ -401,7 +401,7 @@ impl GraphLoader {
         connection: &impl ConnectionTrait,
         sbom_id: Uuid,
     ) -> Result<Option<Arc<PackageGraph>>, Error> {
-        let result = self.service.load_graphs(connection, [sbom_id]).await?;
+        let result = self.service.load_graphs(connection, vec![sbom_id]).await?;
 
         Ok(result
             .into_iter()
