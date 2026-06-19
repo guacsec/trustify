@@ -1,10 +1,10 @@
-pub mod fmt;
 pub mod advisory;
 pub mod config;
 pub mod cpe;
 pub mod db;
 pub mod decompress;
 pub mod error;
+pub mod fmt;
 pub mod hashing;
 pub mod id;
 pub mod memo;
