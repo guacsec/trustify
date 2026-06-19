@@ -590,9 +590,6 @@ impl InnerService {
             match nodes.entry(node.node_id.clone()) {
                 Entry::Vacant(entry) => {
                     let index = g.add_node(node.into_graph_node(&mut ctx));
-
-                    log::trace!("Inserting - id: {}, index: {index:?}", entry.key());
-
                     entry.insert(index);
                 }
                 Entry::Occupied(_) => {}
@@ -612,8 +609,6 @@ impl InnerService {
         let mut describedby_node_id: HashSet<NodeIndex> = Default::default();
 
         for edge in edges {
-            log::trace!("Adding edge {:?}", edge);
-
             // insert edge into the graph
             if let (Some(left), Some(right)) = (
                 nodes.get(&edge.left_node_id),
@@ -631,8 +626,11 @@ impl InnerService {
             }
         }
 
-        log::debug!("Describing nodes: {describedby_node_id:?}");
-        log::debug!("Unconnected nodes: {detected_nodes:?}");
+        log::debug!(
+            "Describing nodes: {:?}",
+            TruncatedIter(&describedby_node_id)
+        );
+        log::debug!("Unconnected nodes: {:?}", TruncatedIter(&detected_nodes));
 
         if !describedby_node_id.is_empty() {
             // search of unconnected nodes and create undefined relationships
