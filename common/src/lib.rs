@@ -1,3 +1,4 @@
+pub mod fmt;
 pub mod advisory;
 pub mod config;
 pub mod cpe;
