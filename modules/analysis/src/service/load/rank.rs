@@ -1,10 +1,11 @@
 use crate::Error;
 use sea_orm::{
     ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult, JoinType, QueryFilter,
-    QuerySelect, RelationTrait, Select, Statement, prelude::DateTimeWithTimeZone,
+    QuerySelect, RelationTrait, Select, Statement,
 };
 use sea_query::{Expr, PgFunc};
 use std::collections::{HashMap, HashSet};
+use time::OffsetDateTime;
 use tracing::{Instrument, instrument};
 #[cfg(test)]
 use trustify_entity::sbom_describing_cpe;
@@ -21,7 +22,7 @@ pub struct Row {
     /// name of the matched node
     pub name: String,
     /// publish time of the SBOM that matched
-    pub published: DateTimeWithTimeZone,
+    pub published: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,7 +32,7 @@ pub struct RankedSbom {
     #[allow(dead_code)] // good for debugging
     pub top_ancestor_sbom: Uuid,
     pub cpe_id: Uuid,
-    pub sbom_date: DateTimeWithTimeZone,
+    pub sbom_date: OffsetDateTime,
     pub rank: Option<usize>,
 }
 
@@ -409,10 +410,10 @@ pub fn apply_rank(items: &mut [RankedSbom]) {
 mod test {
     use super::*;
     use crate::test::data::*;
-    use chrono::{TimeZone, Utc};
     use futures::{StreamExt, TryStreamExt, stream};
     use rstest::rstest;
     use sea_orm::ColumnTrait;
+    use time::macros::datetime;
     use test_context::test_context;
     use trustify_entity::cpe;
     use trustify_test_context::{IngestionResult, TrustifyContext};
@@ -476,12 +477,12 @@ mod test {
         Ok(())
     }
 
-    /// create a simple [`RankedSbom`] for testing
+    /// Create a simple [`RankedSbom`] for testing.
     fn ranked(
         sbom: Uuid,
         name: &str,
         cpe_id: Uuid,
-        date: chrono::DateTime<Utc>,
+        date: OffsetDateTime,
         rank: usize,
     ) -> RankedSbom {
         RankedSbom {
@@ -489,7 +490,7 @@ mod test {
             matched_name: name.to_string(),
             top_ancestor_sbom: Default::default(),
             cpe_id,
-            sbom_date: date.into(),
+            sbom_date: date,
             rank: Some(rank),
         }
     }
@@ -504,11 +505,10 @@ mod test {
         Uuid::new_v8([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, i])
     }
 
-    /// Create a timestamp based on a day, all timestamps created will only very by this day.
-    ///
-    /// The idea is to create timestamps for a stream of days: day 1, day 2, day x, ..
-    fn utc(day: u32) -> chrono::DateTime<Utc> {
-        Utc.with_ymd_and_hms(2025, 1, day, 0, 0, 0).unwrap()
+    /// Create a timestamp based on a day offset from 2025-01-01.
+    fn utc(day: u8) -> OffsetDateTime {
+        datetime!(2025-01-01 0:00 UTC)
+            + time::Duration::days(i64::from(day) - 1)
     }
 
     /// Testing the [`super::apply_rank`] function.
