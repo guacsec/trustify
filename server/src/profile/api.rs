@@ -386,6 +386,11 @@ impl InitData {
 
     #[allow(unused_mut)]
     async fn run(mut self) -> anyhow::Result<()> {
+        // Recovery for orphaned exploit intelligence jobs is handled inside
+        // the EI endpoints `configure()`, which spawns a background task.
+        // This avoids needing the IngestorService here (it is only available
+        // inside the module configuration).
+
         let ui = Arc::new(UiResources::new(&self.ui)?);
 
         let http = {

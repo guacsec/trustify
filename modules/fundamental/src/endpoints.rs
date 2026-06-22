@@ -27,7 +27,7 @@ pub fn configure(
     ei_config: Option<ExploitIntelligenceConfig>,
 ) {
     let ingestor_service = IngestorService::new(Graph::new(), storage, Some(analysis));
-    svc.app_data(web::Data::new(ingestor_service));
+    svc.app_data(web::Data::new(ingestor_service.clone()));
 
     crate::advisory::endpoints::configure(
         svc,
@@ -58,7 +58,13 @@ pub fn configure(
     );
 
     let ei_service = ExploitIntelligenceService::new(ei_config);
-    crate::exploit_intelligence::endpoints::configure(svc, db_rw, db_ro, ei_service);
+    crate::exploit_intelligence::endpoints::configure(
+        svc,
+        db_rw,
+        db_ro,
+        ei_service,
+        ingestor_service,
+    );
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, ToSchema, serde::Deserialize, IntoParams)]
