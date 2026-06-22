@@ -106,8 +106,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
     // must be 2, as we consider deprecated ones too
 
     assert_eq!(purl.advisories.len(), 2);
-    purl.advisories
-        .sort_unstable_by(|a, b| a.head.modified.cmp(&b.head.modified));
+    purl.advisories.sort_unstable_by_key(|a| a.head.modified);
     let adv1 = &purl.advisories[0];
     let adv2 = &purl.advisories[1];
 

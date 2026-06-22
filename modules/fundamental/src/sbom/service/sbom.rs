@@ -312,7 +312,7 @@ impl SbomService {
         let total = limiter.total().await?;
         let sboms = limiter.fetch().await?;
 
-        let items = stream::iter(sboms.into_iter())
+        let items = stream::iter(sboms)
             .then(|row| async { SbomSummary::from_entity(row, self, connection).await })
             .try_filter_map(futures_util::future::ok)
             .try_collect()
