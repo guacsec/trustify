@@ -1,7 +1,7 @@
 /target
 /.containerignore
 /Containerfile
-/.trustify
+.trustify
 /.git
 /.serena
 /data
