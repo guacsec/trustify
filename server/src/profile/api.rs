@@ -112,9 +112,21 @@ pub struct Run {
     )]
     pub exploit_intelligence_max_poll_duration_secs: u64,
 
-    /// Authentication token for the Exploit Intelligence service.
+    /// Authentication token for the Exploit Intelligence service (static token, for backward compatibility).
     #[arg(long, env = "EXPLOIT_INTELLIGENCE_AUTH_TOKEN")]
     pub exploit_intelligence_auth_token: Option<String>,
+
+    /// OIDC token endpoint URL for EI service authentication (client credentials flow).
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_OIDC_TOKEN_URL")]
+    pub exploit_intelligence_oidc_token_url: Option<String>,
+
+    /// OIDC client ID for EI service authentication.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID")]
+    pub exploit_intelligence_oidc_client_id: Option<String>,
+
+    /// OIDC client secret for EI service authentication.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET")]
+    pub exploit_intelligence_oidc_client_secret: Option<String>,
 
     // flattened commands must go last
     //
@@ -326,11 +338,28 @@ impl InitData {
         };
 
         let ei_config = run.exploit_intelligence_url.map(|url| {
+            use trustify_module_fundamental::exploit_intelligence::auth::TokenProvider;
+
+            // Build token provider: prefer OIDC if all three vars are set,
+            // fall back to static token, or None.
+            let token_provider = match (
+                run.exploit_intelligence_oidc_token_url,
+                run.exploit_intelligence_oidc_client_id,
+                run.exploit_intelligence_oidc_client_secret,
+            ) {
+                (Some(token_url), Some(client_id), Some(client_secret)) => {
+                    Some(TokenProvider::oidc(token_url, client_id, client_secret))
+                }
+                _ => run
+                    .exploit_intelligence_auth_token
+                    .map(TokenProvider::static_token),
+            };
+
             trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig {
                 url,
                 poll_interval_secs: run.exploit_intelligence_poll_interval_secs,
                 max_poll_duration_secs: run.exploit_intelligence_max_poll_duration_secs,
-                auth_token: run.exploit_intelligence_auth_token,
+                token_provider,
             }
         });
 
