@@ -280,21 +280,6 @@ impl AnalysisService {
     }
 }
 
-/// Returns the SBOM published-date cutoff from the
-/// `TRUSTIFY_LATEST_SBOM_PUBLISHED_CUTOFF_DAYS` env var. The value is
-/// interpreted as a number of days before the current time. Defaults
-/// to 1000 days when the variable is unset or cannot be parsed.
-fn sbom_published_cutoff() -> OffsetDateTime {
-    const DEFAULT_DAYS: i64 = 1000;
-    let days = std::env::var("TRUSTIFY_LATEST_SBOM_PUBLISHED_CUTOFF_DAYS")
-        .ok()
-        .and_then(|v| v.parse::<i64>().ok())
-        .unwrap_or(DEFAULT_DAYS);
-    let cutoff = OffsetDateTime::now_utc() - time::Duration::days(days);
-    log::info!("SBOM published cutoff: {} ({}d ago)", cutoff, days);
-    cutoff
-}
-
 impl InnerService {
     /// Take a [`GraphQuery`] and load all required SBOMs
     #[instrument(skip(self, connection), err(level=Level::INFO))]
@@ -428,16 +413,19 @@ impl InnerService {
 
         log::debug!("SBOM IDs to evaluate: {}", TruncatedIter(&matched_sbom_ids));
 
-        // filter by published-date cutoff
-        let cutoff = sbom_published_cutoff();
-        let matched_sbom_ids: Vec<Row> = matched_sbom_ids
-            .into_iter()
-            .filter(|row| row.published >= cutoff)
-            .collect();
-        log::debug!(
-            "SBOM IDs after published-date cutoff: {}",
-            matched_sbom_ids.len()
-        );
+        // filter by published-date cutoff (only when configured)
+        let matched_sbom_ids = if let Some(days) = self.sbom_published_cutoff_days {
+            let cutoff = OffsetDateTime::now_utc() - time::Duration::days(days.get() as i64);
+            log::info!("SBOM published cutoff: {} ({}d ago)", cutoff, days);
+            let filtered: Vec<_> = matched_sbom_ids
+                .into_iter()
+                .filter(|row| row.published >= cutoff)
+                .collect();
+            log::debug!("SBOM IDs after published-date cutoff: {}", filtered.len());
+            filtered
+        } else {
+            matched_sbom_ids
+        };
 
         let mut ranked_sboms = resolve_sbom_cpes(cpe_search, connection, matched_sbom_ids).await?;
 

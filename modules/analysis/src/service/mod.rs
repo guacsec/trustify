@@ -36,6 +36,7 @@ use sea_query::{Expr, JoinType};
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
+    num::NonZeroU64,
     pin::Pin,
     sync::Arc,
     task::{Context, Poll},
@@ -367,6 +368,7 @@ impl AnalysisService {
             cache_hit: meter.u64_counter("cache_hits").build(),
             cache_miss: meter.u64_counter("cache_miss").build(),
             concurrency: config.concurrency.get(),
+            sbom_published_cutoff_days: config.sbom_published_cutoff_days,
         };
 
         let loader = {
@@ -774,6 +776,7 @@ struct InnerService {
     cache_hit: Counter<u64>,
     cache_miss: Counter<u64>,
     concurrency: usize,
+    sbom_published_cutoff_days: Option<NonZeroU64>,
 }
 
 impl InnerService {
