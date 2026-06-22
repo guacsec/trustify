@@ -52,8 +52,7 @@ impl MigrationTrait for Migration {
                 ON CONFLICT DO NOTHING
                 "#,
             )
-            .await
-            .map(|_| ())?;
+            .await?;
 
         Ok(())
     }
