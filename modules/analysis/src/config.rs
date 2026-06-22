@@ -1,5 +1,5 @@
 use bytesize::ByteSize;
-use std::num::NonZeroUsize;
+use std::num::{NonZeroU64, NonZeroUsize};
 use trustify_common::model::BinaryByteSize;
 
 fn parse_concurrency(s: &str) -> Result<NonZeroUsize, String> {
@@ -31,6 +31,13 @@ pub struct AnalysisConfig {
         help = "The number of concurrent tasks for analysis (must be > 0)."
     )]
     pub concurrency: NonZeroUsize,
+
+    #[arg(
+        long,
+        env = "TRUSTIFY_LATEST_SBOM_PUBLISHED_CUTOFF_DAYS",
+        help = "Only consider SBOMs published within this many days. Disabled by default."
+    )]
+    pub sbom_published_cutoff_days: Option<NonZeroU64>,
 }
 
 impl Default for AnalysisConfig {
@@ -38,6 +45,7 @@ impl Default for AnalysisConfig {
         Self {
             max_cache_size: BinaryByteSize(ByteSize::mib(200)),
             concurrency: DEFAULT_CONCURRENCY,
+            sbom_published_cutoff_days: None,
         }
     }
 }
