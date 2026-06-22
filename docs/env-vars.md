@@ -49,7 +49,7 @@
 | `TRUSTD_PAGINATION_TOTAL_CACHE_TTL`      | TTL for cached pagination total counts (humantime)                                  | `60s`                                   |
 | `TRUSTD_ISSUER_URL`                      | Issuer URL for `--devmode`                                                          | `http://localhost:8090/realms/trustify` |
 | `TRUSTD_MAX_CACHE_SIZE`                  | Maximum size of the graph cache.                                                    | `200 MiB`                               |
-| `TRUSTIFY_LATEST_SBOM_PUBLISHED_CUTOFF_DAYS` | Number of days before now used as a published-date cutoff when finding latest SBOMs | `1000`                                  |
+| `TRUSTIFY_LATEST_SBOM_PUBLISHED_CUTOFF_DAYS` | Number of days before now used as a published-date cutoff when finding latest SBOMs [disabled by default] |                                         |
 | `TRUSTD_READ_ONLY`                       | Enable read-only mode, rejecting all mutating API requests                          | `false`                                 |
 | `TRUSTD_S3_ACCESS_KEY`                   | S3 access key                                                                       |                                         |
 | `TRUSTD_S3_BUCKET`                       | S3 bucket name                                                                      |                                         |
