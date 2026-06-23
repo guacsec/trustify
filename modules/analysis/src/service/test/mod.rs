@@ -1,4 +1,5 @@
 mod cache_eviction;
+mod external_depth;
 mod query;
 mod recursive;
 mod warnings;

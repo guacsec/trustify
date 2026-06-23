@@ -96,12 +96,13 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
 
     /// Continue with another graph and node as an entry point.
     ///
-    /// Shares the visited set.
+    /// Decreases depth by one and keeps the visited set.
     pub fn with(self, sbom_id: Uuid, graph: &'a NodeGraph, node: NodeIndex) -> Self {
         Self {
             sbom_id,
             graph,
             node,
+            depth: self.depth.saturating_sub(1),
             ..self
         }
     }
@@ -117,7 +118,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             graph: self.graph,
             node,
             direction: self.direction,
-            depth: self.depth - 1,
+            depth: self.depth.saturating_sub(1),
             discovered: self.discovered.clone(),
             loaded_graphs: self.loaded_graphs.clone(),
             relationships: self.relationships,
