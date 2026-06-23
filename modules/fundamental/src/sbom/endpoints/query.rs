@@ -1,7 +1,6 @@
 use crate::sbom::model::SbomExternalPackageReference;
 use actix_http::body::BoxBody;
 use actix_web::{HttpResponse, ResponseError};
-use std::fmt::{Display, Formatter};
 use trustify_common::{cpe::Cpe, error::ErrorInformation, purl::Purl};
 
 #[derive(Clone, Debug, serde::Deserialize, utoipa::IntoParams, utoipa::ToSchema)]
@@ -14,18 +13,9 @@ pub struct ExternalReferenceQuery {
     pub cpe: Option<Cpe>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("Requires either `purl` or `cpe` (got - purl: {:?}, cpe: {:?})", self.0.purl, self.0.cpe)]
 pub struct ExternalReferenceQueryParseError(ExternalReferenceQuery);
-
-impl Display for ExternalReferenceQueryParseError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Requires either `purl` or `cpe` (got - purl: {:?}, cpe: {:?})",
-            self.0.purl, self.0.cpe
-        )
-    }
-}
 
 impl ResponseError for ExternalReferenceQueryParseError {
     fn error_response(&self) -> HttpResponse<BoxBody> {

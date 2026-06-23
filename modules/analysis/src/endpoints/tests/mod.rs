@@ -14,7 +14,7 @@ use rstest::rstest;
 use serde_json::{Value, json};
 use test_context::test_context;
 use test_log::test;
-use trustify_test_context::{TrustifyContext, call::CallService, subset::ContainsSubset};
+use trustify_test_context::{LazyPool, TrustifyContext, call::CallService, subset::ContainsSubset};
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -606,6 +606,46 @@ async fn test_retrieve_query_params_endpoint_sbom_id(
         })
         .await?;
     assert_eq!(&response["total"], 9);
+
+    Ok(())
+}
+
+/// Verify that deep descendant queries only use a single pool connection.
+///
+/// The `LazyPool` context creates a pool with `min_conn=0` so connections are created lazily.
+/// With the read-only transaction fix, all queries are pinned to one connection, so
+/// `pool.size()` stays at 1. Without the fix, `buffer_unordered(concurrency)` would open
+/// multiple concurrent connections.
+#[test_context(LazyPool<TrustifyContext>)]
+#[test(actix_web::test)]
+async fn deep_descendants_lazy_pool(ctx: &LazyPool<TrustifyContext>) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let leaves: Vec<_> = (1..=20)
+        .map(|i| format!("spdx/pool-exhaustion/leaf-{i}.json"))
+        .collect();
+    ctx.ingest_documents(&leaves).await?;
+    ctx.ingest_documents(["spdx/pool-exhaustion/main.json"])
+        .await?;
+
+    let pool = ctx.db.get_postgres_connection_pool();
+    let before = pool.size();
+
+    let response: Value = app
+        .req(Req {
+            what: What::Q("pool-exhaustion-root"),
+            descendants: Some(10),
+            total: true,
+            ..Req::default()
+        })
+        .await?;
+
+    assert!(response["total"].as_u64().unwrap() > 0);
+    let used = pool.size() - before;
+    assert!(
+        used <= 1,
+        "expected at most 1 new pool connection, but {used} were created (total: {})",
+        pool.size()
+    );
 
     Ok(())
 }

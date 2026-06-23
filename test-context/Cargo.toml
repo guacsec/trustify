@@ -27,7 +27,7 @@ indicatif = { workspace = true }
 log = { workspace = true }
 peak_alloc = { workspace = true }
 postgresql_embedded = { workspace = true }
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["stream"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

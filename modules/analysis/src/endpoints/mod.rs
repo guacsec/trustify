@@ -6,6 +6,7 @@ mod tests;
 use super::service::{AnalysisService, QueryOptions};
 use crate::{
     endpoints::query::OwnedComponentReference,
+    error::Error,
     model::{AnalysisStatus, Node},
     parse_sbom_id,
     service::render::Renderer,
@@ -90,7 +91,7 @@ pub async fn get_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
     let tx = db.begin().await?;
 
@@ -217,7 +218,7 @@ pub async fn get_latest_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
     let tx = db.begin().await?;
 
