@@ -25,7 +25,7 @@ pub enum Error {
     #[error(transparent)]
     Authorization(#[from] AuthorizationError),
     #[error(transparent)]
-    ExternalReferenceQuery(#[from] ExternalReferenceQueryParseError),
+    ExternalReferenceQuery(Box<ExternalReferenceQueryParseError>),
     #[error("Bad request: {0}")]
     BadRequest(String),
     #[error("Not found: {0}")]
@@ -54,6 +54,12 @@ pub enum Error {
     Label(#[from] labels::Error),
     #[error("unavailable")]
     Unavailable,
+}
+
+impl From<ExternalReferenceQueryParseError> for Error {
+    fn from(value: ExternalReferenceQueryParseError) -> Self {
+        Self::ExternalReferenceQuery(Box::new(value))
+    }
 }
 
 impl From<DbErr> for Error {
