@@ -8,7 +8,6 @@
 /.idea
 /.claude
 /docs/book
-/download
 /vendor
 **/node_modules
 **/.terraform
