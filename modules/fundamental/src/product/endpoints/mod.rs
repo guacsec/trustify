@@ -99,7 +99,7 @@ pub async fn delete(
     db: web::Data<db::ReadWrite>,
     id: web::Path<Uuid>,
     _: Require<DeleteMetadata>,
-) -> Result<impl Responder, Error> {
+) -> actix_web::Result<impl Responder, Error> {
     let tx = db.begin().await?;
     state.delete_product(*id, &tx).await?;
     tx.commit().await?;

@@ -46,7 +46,7 @@ pub async fn all(
     web::Query(query): web::Query<LabelQuery>,
     authorizer: web::Data<Authorizer>,
     user: UserInformation,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     authorizer.require(&user, Permission::ReadAdvisory)?;
 
     let tx = db.begin().await?;
@@ -75,7 +75,7 @@ pub async fn set(
     id: web::Path<Id>,
     web::Json(labels): web::Json<Labels>,
     _: Require<UpdateAdvisory>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     Ok(
         match advisory
             .set_labels(id.into_inner(), labels, db.as_ref())
