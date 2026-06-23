@@ -30,7 +30,7 @@ pub enum Error {
     #[error(transparent)]
     Authorization(#[from] AuthorizationError),
     #[error(transparent)]
-    ExternalReferenceQuery(#[from] ExternalReferenceQueryParseError),
+    ExternalReferenceQuery(Box<ExternalReferenceQueryParseError>),
     #[error("Bad request: {0}: {1:?}")]
     BadRequest(Cow<'static, str>, Option<Cow<'static, str>>),
     #[error("Conflict: {0}")]
@@ -73,6 +73,12 @@ impl Error {
         details: Option<impl Into<Cow<'static, str>>>,
     ) -> Self {
         Self::BadRequest(message.into(), details.map(|d| d.into()))
+    }
+}
+
+impl From<ExternalReferenceQueryParseError> for Error {
+    fn from(value: ExternalReferenceQueryParseError) -> Self {
+        Self::ExternalReferenceQuery(Box::new(value))
     }
 }
 
