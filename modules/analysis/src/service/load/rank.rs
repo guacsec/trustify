@@ -365,7 +365,7 @@ pub async fn resolve_sbom_cpes(
 /// creation date which embodies the latest filter heuristics.
 ///
 /// Simulates a SQL Window Function:
-/// `DENSE_RANK() OVER (PARTITION BY cpe_id ORDER BY sbom_date DESC)`.
+/// `DENSE_RANK() OVER (PARTITION BY (cpe_id, matched_name) ORDER BY sbom_date DESC)`.
 ///
 /// 1. **Sort** by `cpe_id`, `name`, then `sbom_date` descending.
 /// 2. **Rank**: resets on group boundary, ties share rank, otherwise increments (dense rank).
