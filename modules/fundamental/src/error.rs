@@ -1,5 +1,7 @@
+use crate::sbom::endpoints::ExternalReferenceQueryParseError;
 use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use sea_orm::DbErr;
+use trustify_auth::authenticator::error::AuthorizationError;
 use trustify_common::{
     db::DatabaseErrors, decompress, error::ErrorInformation, id::IdError, purl::PurlErr,
 };
@@ -20,6 +22,10 @@ pub enum Error {
     Ingestor(#[from] trustify_module_ingestor::service::Error),
     #[error(transparent)]
     Purl(#[from] PurlErr),
+    #[error(transparent)]
+    Authorization(#[from] AuthorizationError),
+    #[error(transparent)]
+    ExternalReferenceQuery(#[from] ExternalReferenceQueryParseError),
     #[error("Bad request: {0}")]
     BadRequest(String),
     #[error("Not found: {0}")]
@@ -73,6 +79,8 @@ impl ResponseError for Error {
                 HttpResponse::NotFound().json(ErrorInformation::new("NotFound", msg))
             }
             Self::Ingestor(inner) => inner.error_response(),
+            Self::Authorization(inner) => inner.error_response(),
+            Self::ExternalReferenceQuery(inner) => inner.error_response(),
             Self::Query(err) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("QueryError", err))
             }

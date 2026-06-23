@@ -6,6 +6,7 @@ mod tests;
 use super::service::{AnalysisService, QueryOptions};
 use crate::{
     endpoints::query::OwnedComponentReference,
+    error::Error,
     model::{AnalysisStatus, Node},
     parse_sbom_id,
     service::render::Renderer,
@@ -19,7 +20,7 @@ use trustify_auth::{
     utoipa::AuthResponse,
 };
 use trustify_common::{
-    db::{Database, query::Query},
+    db::{Database, DatabaseExt, query::Query},
     model::{Paginated, PaginatedResults},
 };
 use utoipa_actix_web::service_config::ServiceConfig;
@@ -89,14 +90,11 @@ pub async fn get_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
+    let tx = db.begin_read().await?;
 
-    Ok(HttpResponse::Ok().json(
-        service
-            .retrieve(&query, options, paginated, db.as_ref())
-            .await?,
-    ))
+    Ok(HttpResponse::Ok().json(service.retrieve(&query, options, paginated, &tx).await?))
 }
 
 #[utoipa::path(
@@ -121,12 +119,10 @@ pub async fn search_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
-    Ok(HttpResponse::Ok().json(
-        service
-            .retrieve(&search, options, paginated, db.as_ref())
-            .await?,
-    ))
+) -> actix_web::Result<impl Responder, Error> {
+    let tx = db.begin_read().await?;
+
+    Ok(HttpResponse::Ok().json(service.retrieve(&search, options, paginated, &tx).await?))
 }
 
 #[utoipa::path(
@@ -190,10 +186,12 @@ pub async fn search_latest_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
+    let tx = db.begin_read().await?;
+
     Ok(HttpResponse::Ok().json(
         service
-            .retrieve_latest(&search, options, paginated, db.as_ref())
+            .retrieve_latest(&search, options, paginated, &tx)
             .await?,
     ))
 }
@@ -220,12 +218,13 @@ pub async fn get_latest_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
+    let tx = db.begin_read().await?;
 
     Ok(HttpResponse::Ok().json(
         service
-            .retrieve_latest(&query, options, paginated, db.as_ref())
+            .retrieve_latest(&query, options, paginated, &tx)
             .await?,
     ))
 }

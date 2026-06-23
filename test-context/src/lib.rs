@@ -10,7 +10,7 @@ pub mod migration;
 pub mod spdx;
 pub mod subset;
 
-pub use ctx::{ReadOnly, TrustifyContext, TrustifyMigrationContext};
+pub use ctx::{LazyPool, ReadOnly, TrustifyContext, TrustifyMigrationContext};
 
 use ::migration::{
     ConnectionTrait, DbErr,
@@ -133,6 +133,28 @@ $$;
                 log::info!("{c}: {:?}", row.try_get_by::<String, _>(c.as_str()));
             }
         }
+
+        Ok(Self { db, ..self })
+    }
+
+    /// Create a new database connection to the same PostgreSQL instance with a small pool.
+    pub async fn lazy_pool(self) -> Result<Self, anyhow::Error> {
+        let mut config = if let Some(ref postgresql) = self.postgresql {
+            let mut config = trustify_common::config::Database::from_env()?;
+            config.username = "postgres".into();
+            config.password = "trustify".into();
+            config.host = "localhost".into();
+            config.name = self.db.name().into();
+            config.port = postgresql.settings().port;
+            config
+        } else {
+            trustify_common::config::Database::from_env()?
+        };
+
+        config.max_conn = 10;
+        config.min_conn = 0;
+
+        let db = Database::new(&config).await?;
 
         Ok(Self { db, ..self })
     }

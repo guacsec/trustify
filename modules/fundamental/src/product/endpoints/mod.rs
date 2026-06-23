@@ -46,7 +46,7 @@ pub async fn all(
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadMetadata>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
     Ok(HttpResponse::Ok().json(state.fetch_products(search, paginated, &tx).await?))
 }
@@ -68,7 +68,7 @@ pub async fn get(
     db: web::Data<Database>,
     id: web::Path<Uuid>,
     _: Require<ReadMetadata>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
     let fetched = state.fetch_product(*id, &tx).await?;
     if let Some(fetched) = fetched {
@@ -95,7 +95,7 @@ pub async fn delete(
     db: web::Data<Database>,
     id: web::Path<Uuid>,
     _: Require<DeleteMetadata>,
-) -> Result<impl Responder, Error> {
+) -> actix_web::Result<impl Responder, Error> {
     let tx = db.begin().await?;
 
     match state.fetch_product(*id, &tx).await? {

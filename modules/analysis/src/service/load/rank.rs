@@ -413,8 +413,8 @@ mod test {
     use futures::{StreamExt, TryStreamExt, stream};
     use rstest::rstest;
     use sea_orm::ColumnTrait;
-    use time::macros::datetime;
     use test_context::test_context;
+    use time::macros::datetime;
     use trustify_entity::cpe;
     use trustify_test_context::{IngestionResult, TrustifyContext};
 
@@ -507,8 +507,7 @@ mod test {
 
     /// Create a timestamp based on a day offset from 2025-01-01.
     fn utc(day: u8) -> OffsetDateTime {
-        datetime!(2025-01-01 0:00 UTC)
-            + time::Duration::days(i64::from(day) - 1)
+        datetime!(2025-01-01 0:00 UTC) + time::Duration::days(i64::from(day) - 1)
     }
 
     /// Testing the [`super::apply_rank`] function.

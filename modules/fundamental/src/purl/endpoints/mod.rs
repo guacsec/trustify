@@ -55,7 +55,7 @@ pub async fn get(
     key: web::Path<String>,
     web::Query(Deprecation { deprecated }): web::Query<Deprecation>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
     if key.starts_with("pkg") {
         let purl = Purl::from_str(&key).map_err(Error::Purl)?;
@@ -85,7 +85,7 @@ pub async fn all(
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
     Ok(HttpResponse::Ok().json(service.purls(search, paginated, &tx).await?))
 }
@@ -104,7 +104,7 @@ pub async fn recommend(
     db: web::Data<Database>,
     request: web::Json<RecommendRequest>,
     _: Require<ReadAdvisory>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
     let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 

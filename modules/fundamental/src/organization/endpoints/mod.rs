@@ -2,6 +2,7 @@
 mod test;
 
 use crate::{
+    Error,
     db::DatabaseExt,
     organization::{
         model::{OrganizationDetails, OrganizationSummary},
@@ -44,7 +45,7 @@ pub async fn all(
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadMetadata>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
     Ok(HttpResponse::Ok().json(state.fetch_organizations(search, paginated, &tx).await?))
 }
@@ -67,7 +68,7 @@ pub async fn get(
     db: web::Data<Database>,
     id: web::Path<Uuid>,
     _: Require<ReadMetadata>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
     let fetched = state.fetch_organization(*id, &tx).await?;
 

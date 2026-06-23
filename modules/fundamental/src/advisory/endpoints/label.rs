@@ -1,4 +1,5 @@
 use crate::{
+    Error,
     advisory::service::AdvisoryService,
     common::{service::DocumentType, service::fetch_labels},
     db::DatabaseExt,
@@ -45,7 +46,7 @@ pub async fn all(
     web::Query(query): web::Query<LabelQuery>,
     authorizer: web::Data<Authorizer>,
     user: UserInformation,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     authorizer.require(&user, Permission::ReadAdvisory)?;
 
     let tx = db.begin_read().await?;
@@ -74,7 +75,7 @@ pub async fn set(
     id: web::Path<Id>,
     web::Json(labels): web::Json<Labels>,
     _: Require<UpdateAdvisory>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     Ok(
         match advisory
             .set_labels(id.into_inner(), labels, db.as_ref())
@@ -105,7 +106,7 @@ pub async fn update(
     id: web::Path<Id>,
     web::Json(update): web::Json<Update>,
     _: Require<UpdateAdvisory>,
-) -> actix_web::Result<impl Responder> {
+) -> actix_web::Result<impl Responder, Error> {
     Ok(
         match advisory
             .update_labels(id.into_inner(), |labels| update.apply_to(labels))
