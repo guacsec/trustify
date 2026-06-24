@@ -29,7 +29,7 @@ pub struct Row {
 pub struct RankedSbom {
     pub matched_sbom_id: Uuid,
     pub matched_name: String,
-    #[allow(dead_code)] // good for debugging
+    #[cfg(test)]
     pub top_ancestor_sbom: Uuid,
     pub cpe_id: Uuid,
     pub sbom_date: OffsetDateTime,
@@ -167,6 +167,7 @@ async fn batch_resolve_direct_cpe_matches(
                 matched_sboms.push(RankedSbom {
                     matched_sbom_id: matched.sbom_id,
                     matched_name: node.name.clone(),
+                    #[cfg(test)]
                     top_ancestor_sbom: node.sbom_id,
                     cpe_id: *cpe_id,
                     sbom_date: matched.published,
@@ -325,6 +326,7 @@ pub async fn resolve_sbom_cpes(
                 results.push(RankedSbom {
                     matched_sbom_id: matched.sbom_id,
                     matched_name: matched.name.clone(),
+                    #[cfg(test)]
                     top_ancestor_sbom: Uuid::nil(),
                     cpe_id: ancestor_cpe.cpe_id,
                     sbom_date: matched.published,
@@ -355,6 +357,7 @@ pub async fn resolve_sbom_cpes(
                 results.push(RankedSbom {
                     matched_sbom_id: matched.sbom_id,
                     matched_name: matched.name.clone(),
+                    #[cfg(test)]
                     top_ancestor_sbom: Uuid::nil(),
                     cpe_id: ancestor_cpe.cpe_id,
                     sbom_date: matched.published,
