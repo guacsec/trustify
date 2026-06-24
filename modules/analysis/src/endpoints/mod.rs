@@ -90,7 +90,7 @@ pub async fn get_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
     let tx = db.begin_read().await?;
 
@@ -119,7 +119,7 @@ pub async fn search_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
 
     Ok(HttpResponse::Ok().json(service.retrieve(&search, options, paginated, &tx).await?))
@@ -186,7 +186,7 @@ pub async fn search_latest_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
 
     Ok(HttpResponse::Ok().json(
@@ -218,7 +218,7 @@ pub async fn get_latest_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
     let tx = db.begin_read().await?;
 

@@ -52,7 +52,7 @@ pub async fn list_licenses(
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
     Ok(HttpResponse::Ok().json(service.licenses(search, paginated, &tx).await?))
 }

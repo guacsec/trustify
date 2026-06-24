@@ -93,7 +93,7 @@ pub async fn all(
     web::Query(paginated): web::Query<Paginated>,
     web::Query(Deprecation { deprecated }): web::Query<Deprecation>,
     _: Require<ReadAdvisory>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin_read().await?;
     Ok(HttpResponse::Ok().json(
         state
@@ -120,7 +120,7 @@ pub async fn get(
     db: web::Data<Database>,
     key: web::Path<String>,
     _: Require<ReadAdvisory>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let hash_key = Id::from_str(&key).map_err(Error::IdKey)?;
     let tx = db.begin_read().await?;
     let fetched = state.fetch_advisory(hash_key, &tx).await?;
@@ -151,7 +151,7 @@ pub async fn delete(
     db: web::Data<Database>,
     key: web::Path<String>,
     _: Require<DeleteAdvisory>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
 
     let id = Id::from_str(&key)?;
@@ -213,7 +213,7 @@ pub async fn upload(
     content_type: Option<web::Header<header::ContentType>>,
     bytes: web::Bytes,
     _: Require<CreateAdvisory>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let bytes = decompress_async(bytes, content_type.map(|ct| ct.0), config.upload_limit).await??;
     let result = service
         .ingest(
@@ -247,7 +247,7 @@ pub async fn download(
     advisory: web::Data<AdvisoryService>,
     key: web::Path<String>,
     _: Require<ReadAdvisory>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     // the user requested id
     let id = Id::from_str(&key).map_err(Error::IdKey)?;
     let tx = db.begin_read().await?;
