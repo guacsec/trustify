@@ -1,9 +1,12 @@
 #[cfg(test)]
 mod test;
 
-use crate::organization::{
-    model::{OrganizationDetails, OrganizationSummary},
-    service::OrganizationService,
+use crate::{
+    Error,
+    organization::{
+        model::{OrganizationDetails, OrganizationSummary},
+        service::OrganizationService,
+    },
 };
 use actix_web::{HttpResponse, Responder, get, web};
 use trustify_auth::{ReadMetadata, authorizer::Require};
@@ -45,7 +48,7 @@ pub async fn all(
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadMetadata>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(state.fetch_organizations(search, paginated, &tx).await?))
 }
@@ -68,7 +71,7 @@ pub async fn get(
     db: web::Data<db::ReadOnly>,
     id: web::Path<Uuid>,
     _: Require<ReadMetadata>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     let fetched = state.fetch_organization(*id, &tx).await?;
 

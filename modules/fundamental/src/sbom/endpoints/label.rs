@@ -47,7 +47,7 @@ pub async fn all(
     web::Query(query): web::Query<LabelQuery>,
     authorizer: web::Data<Authorizer>,
     user: UserInformation,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     authorizer.require(&user, Permission::ReadSbom)?;
 
     let tx = db.begin().await?;
@@ -109,7 +109,7 @@ pub async fn set(
     id: web::Path<Id>,
     web::Json(labels): web::Json<Labels>,
     _: Require<UpdateSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     Ok(
         match sbom
             .set_labels(id.into_inner(), labels, db.as_ref())

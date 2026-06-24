@@ -109,7 +109,7 @@ pub async fn get_unique_licenses(
     db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let parsed_id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin().await?;
     let all_licenses_info = fetcher.get_all_license_info(parsed_id, &tx).await?;
@@ -135,7 +135,7 @@ pub async fn get_license_export(
     fetcher: web::Data<LicenseService>,
     db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin().await?;
 
@@ -200,7 +200,7 @@ mod v2 {
         QsQuery(group_filter): QsQuery<GroupFilterQuery>,
         authorizer: web::Data<Authorizer>,
         user: UserInformation,
-    ) -> actix_web::Result<impl Responder> {
+    ) -> Result<impl Responder, Error> {
         authorizer.require(&user, Permission::ReadSbom)?;
 
         let tx = db.begin().await?;
@@ -243,7 +243,7 @@ mod v3 {
         QsQuery(group_filter): QsQuery<GroupFilterQuery>,
         authorizer: web::Data<Authorizer>,
         user: UserInformation,
-    ) -> actix_web::Result<impl Responder> {
+    ) -> Result<impl Responder, Error> {
         authorizer.require(&user, Permission::ReadSbom)?;
 
         let tx = db.begin().await?;
@@ -285,7 +285,7 @@ pub async fn all_related(
     web::Query(all_related): web::Query<ExternalReferenceQuery>,
     authorizer: web::Data<Authorizer>,
     user: UserInformation,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     authorizer.require(&user, Permission::ReadSbom)?;
 
     let id = (&all_related).try_into()?;
@@ -316,7 +316,7 @@ pub async fn count_related(
     db: web::Data<db::ReadOnly>,
     web::Json(ids): web::Json<Vec<ExternalReferenceQuery>>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let ids = ids
         .iter()
         .map(SbomExternalPackageReference::try_from)
@@ -346,7 +346,7 @@ pub async fn get(
     db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
 
     let tx = db.begin().await?;
@@ -375,7 +375,7 @@ pub async fn get_sbom_advisories(
     db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
     _: Require<GetSbomAdvisories>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin().await?;
 
@@ -420,7 +420,7 @@ pub async fn delete(
     db: web::Data<db::ReadWrite>,
     id: web::Path<String>,
     _: Require<DeleteSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
 
     let id = Id::from_str(&id)?;
@@ -454,7 +454,7 @@ pub async fn delete_many(
     db: web::Data<db::ReadWrite>,
     web::Json(body): web::Json<Vec<String>>,
     _: Require<DeleteSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
 
     let ids = body
@@ -494,7 +494,7 @@ pub async fn packages(
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin().await?;
 
@@ -532,7 +532,7 @@ pub async fn models(
     web::Query(paginated): web::Query<Paginated>,
     web::Query(ModelGetParams { counts }): web::Query<ModelGetParams>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     let result = fetch
         .fetch_sbom_models(Some(id.into_inner()), search, paginated, counts, &tx)
@@ -561,7 +561,7 @@ pub async fn all_models(
     web::Query(paginated): web::Query<Paginated>,
     web::Query(ModelGetParams { counts }): web::Query<ModelGetParams>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     let result = fetch
         .fetch_sbom_models(None, search, paginated, counts, &tx)
@@ -606,7 +606,7 @@ pub async fn related(
     web::Query(paginated): web::Query<Paginated>,
     web::Query(related): web::Query<RelatedQuery>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin().await?;
 
@@ -692,7 +692,7 @@ pub async fn upload(
     content_type: Option<web::Header<header::ContentType>>,
     bytes: web::Bytes,
     _: Require<CreateSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let bytes = decompress_async(bytes, content_type.map(|ct| ct.0), config.upload_limit).await??;
 
     let tx = db.begin().await?;
@@ -739,7 +739,7 @@ pub async fn download(
     sbom: web::Data<SbomService>,
     key: web::Path<String>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let id = Id::from_str(&key).map_err(Error::IdKey)?;
     let tx = db.begin().await?;
 

@@ -33,7 +33,7 @@ pub async fn get_base_purl(
     db: web::Data<db::ReadOnly>,
     key: web::Path<String>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     if key.starts_with("pkg:") {
         let purl = Purl::from_str(&key).map_err(|e| Error::IdKey(IdError::Purl(e)))?;
@@ -62,7 +62,7 @@ pub async fn all_base_purls(
     db: web::Data<db::ReadOnly>,
     web::Query(search): web::Query<Query>,
     web::Query(paginated): web::Query<Paginated>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(service.base_purls(search, paginated, &tx).await?))
 }

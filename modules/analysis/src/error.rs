@@ -4,6 +4,7 @@ use actix_web::{HttpResponse, ResponseError};
 use cpe::uri::OwnedUri;
 use sea_orm::DbErr;
 use std::str::FromStr;
+use trustify_auth::authenticator::error::AuthorizationError;
 use trustify_common::db::{DatabaseErrors, DbError};
 use trustify_common::error::ErrorInformation;
 use trustify_common::id::IdError;
@@ -21,6 +22,8 @@ pub enum Error {
     Purl(#[from] PurlErr),
     #[error(transparent)]
     Cpe(<OwnedUri as FromStr>::Err),
+    #[error(transparent)]
+    Authorization(#[from] AuthorizationError),
     #[error(transparent)]
     Actix(#[from] actix_web::Error),
     #[error("Invalid request {msg}")]
@@ -76,6 +79,7 @@ impl ResponseError for Error {
             Self::Query(err) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("QueryError", err))
             }
+            Self::Authorization(inner) => inner.error_response(),
             Self::Unavailable => {
                 HttpResponse::ServiceUnavailable().json(ErrorInformation::new("Unavailable", self))
             }
