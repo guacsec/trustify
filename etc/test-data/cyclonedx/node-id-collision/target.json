@@ -1,0 +1,28 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:cdx:node-id-collision-target",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-01-01T00:00:00Z",
+    "component": {
+      "name": "TargetBOM",
+      "type": "library",
+      "bom-ref": "target-root"
+    }
+  },
+  "components": [
+    {
+      "name": "SharedComponent",
+      "bom-ref": "shared-ref",
+      "type": "library",
+      "version": "1.0"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "target-root",
+      "dependsOn": ["shared-ref"]
+    }
+  ]
+}
