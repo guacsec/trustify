@@ -63,7 +63,7 @@ pub async fn analysis_status(
     authorizer: web::Data<Authorizer>,
     web::Query(StatusQuery { details }): web::Query<StatusQuery>,
     _: Require<ReadSystemInformation>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     authorizer.require(&user, Permission::ReadSystemInformation)?;
     let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(service.status(&tx, details).await?))
@@ -91,7 +91,7 @@ pub async fn get_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
     let tx = db.begin().await?;
 
@@ -120,7 +120,7 @@ pub async fn search_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(service.retrieve(&search, options, paginated, &tx).await?))
 }
@@ -146,7 +146,7 @@ pub async fn render_sbom_graph(
     db: web::Data<db::ReadOnly>,
     path: web::Path<(String, String)>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     let (sbom, ext) = path.into_inner();
 
     let Ok(ext) = serde_json::from_value::<Renderer>(json!(ext)) else {
@@ -187,7 +187,7 @@ pub async fn search_latest_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder> {
+) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     Ok(HttpResponse::Ok().json(
         service
@@ -218,7 +218,7 @@ pub async fn get_latest_component(
     web::Query(options): web::Query<QueryOptions>,
     web::Query(paginated): web::Query<Paginated>,
     _: Require<ReadSbom>,
-) -> actix_web::Result<impl Responder, Error> {
+) -> Result<impl Responder, Error> {
     let query = OwnedComponentReference::try_from(key.as_str())?;
     let tx = db.begin().await?;
 
