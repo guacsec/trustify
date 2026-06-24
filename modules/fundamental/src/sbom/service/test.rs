@@ -3,7 +3,7 @@ use crate::{
     purl::service::PurlService, sbom::model::SbomExternalPackageReference,
     sbom::service::SbomService,
 };
-use sea_orm::TransactionTrait;
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, TransactionTrait};
 use std::{collections::HashMap, str::FromStr};
 use test_context::test_context;
 use test_log::test;
@@ -17,8 +17,8 @@ use trustify_common::{
     model::{Limit, Paginated},
     purl::Purl,
 };
-use trustify_entity::labels::Labels;
-use trustify_test_context::TrustifyContext;
+use trustify_entity::{labels::Labels, sbom_ancestor, sbom_describing_cpe};
+use trustify_test_context::{IngestionResult, TrustifyContext};
 use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
@@ -884,6 +884,115 @@ async fn test_sbom_package_license_not_null_filter(
             );
         }
     }
+
+    Ok(())
+}
+
+/// Test data: a product SBOM (with CPEs) and a component RPM SBOM linked
+/// via shared checksums.  Ingesting both populates the materialized tables
+/// `sbom_describing_cpe` (CPEs on the product's DESCRIBES packages) and
+/// `sbom_ancestor` (rpm → product link discovered through checksum matching).
+const RPM_TEST_DATA: [&str; 2] = [
+    "cyclonedx/rh/latest_filters/TC-3278/rpm/webkit2gtk3/older/product-2025-11-11-7764C2C0C91542B.json",
+    "cyclonedx/rh/latest_filters/TC-3278/rpm/webkit2gtk3/older/rpm-2025-10-14-CC595A02EB3545E.json",
+];
+
+/// Verify that deleting an SBOM cascades to its `sbom_describing_cpe` rows.
+///
+/// The product SBOM carries CPEs on its DESCRIBES packages; after deletion
+/// the materialized CPE associations must be gone.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn delete_sbom_cleans_describing_cpes(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let [product, _rpm] = ctx.ingest_documents(RPM_TEST_DATA).await?.into_uuid();
+
+    let cpes_before = sbom_describing_cpe::Entity::find()
+        .filter(sbom_describing_cpe::Column::SbomId.eq(product))
+        .all(&ctx.db)
+        .await?;
+    assert!(
+        !cpes_before.is_empty(),
+        "expected describing CPEs after ingestion"
+    );
+
+    let sbom_service = SbomService::new(PaginationCache::for_test());
+    let tx = ctx.db.begin().await?;
+    sbom_service.delete_sboms(vec![product], &tx).await?;
+    tx.commit().await?;
+
+    let cpes_after = sbom_describing_cpe::Entity::find()
+        .filter(sbom_describing_cpe::Column::SbomId.eq(product))
+        .all(&ctx.db)
+        .await?;
+    assert!(
+        cpes_after.is_empty(),
+        "describing CPEs should be cleaned up after SBOM deletion"
+    );
+
+    Ok(())
+}
+
+/// Verify that deleting the *child* SBOM cascades to its `sbom_ancestor` row.
+///
+/// The rpm SBOM is linked as a child of the product SBOM via checksum
+/// matching.  Deleting the child must remove the (child, ancestor) link
+/// through the CASCADE on `sbom_ancestor.sbom_id`.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn delete_child_sbom_cleans_ancestor_link(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let [product, rpm] = ctx.ingest_documents(RPM_TEST_DATA).await?.into_uuid();
+
+    let ancestors = sbom_ancestor::Entity::find().all(&ctx.db).await?;
+    assert!(
+        ancestors
+            .iter()
+            .any(|a| a.sbom_id == rpm && a.ancestor_sbom_id == product),
+        "expected rpm -> product ancestor link"
+    );
+
+    let sbom_service = SbomService::new(PaginationCache::for_test());
+    let tx = ctx.db.begin().await?;
+    sbom_service.delete_sboms(vec![rpm], &tx).await?;
+    tx.commit().await?;
+
+    let ancestors_after = sbom_ancestor::Entity::find().all(&ctx.db).await?;
+    assert!(
+        ancestors_after.is_empty(),
+        "ancestor link should be removed after child SBOM deletion"
+    );
+
+    Ok(())
+}
+
+/// Verify that deleting the *ancestor* SBOM cascades to its `sbom_ancestor` row.
+///
+/// Same setup as the child test, but the product (ancestor) SBOM is deleted.
+/// The CASCADE on `sbom_ancestor.ancestor_sbom_id` must remove the link.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn delete_ancestor_sbom_cleans_ancestor_link(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let [product, rpm] = ctx.ingest_documents(RPM_TEST_DATA).await?.into_uuid();
+
+    let ancestors = sbom_ancestor::Entity::find().all(&ctx.db).await?;
+    assert!(
+        ancestors
+            .iter()
+            .any(|a| a.sbom_id == rpm && a.ancestor_sbom_id == product),
+        "expected rpm -> product ancestor link"
+    );
+
+    let sbom_service = SbomService::new(PaginationCache::for_test());
+    let tx = ctx.db.begin().await?;
+    sbom_service.delete_sboms(vec![product], &tx).await?;
+    tx.commit().await?;
+
+    let ancestors_after = sbom_ancestor::Entity::find().all(&ctx.db).await?;
+    assert!(
+        ancestors_after.is_empty(),
+        "ancestor link should be removed after ancestor SBOM deletion"
+    );
 
     Ok(())
 }
