@@ -1,41 +1,47 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:node-id-collision-product",
+  "serialNumber": "urn:uuid:rh-node-id-collision-product",
   "version": 1,
   "metadata": {
     "timestamp": "2025-01-01T00:00:00Z",
+    "supplier": {
+      "name": "Red Hat"
+    },
     "component": {
       "name": "TestProduct",
-      "type": "application",
+      "type": "framework",
       "bom-ref": "product-root",
       "version": "1.0",
       "evidence": {
         "identity": [
           {
             "field": "cpe",
-            "concludedValue": "cpe:/a:example:test-product:1"
+            "concludedValue": "cpe:/a:redhat:test-product:1"
           }
         ]
+      },
+      "supplier": {
+        "name": "Red Hat"
       }
     }
   },
   "components": [
     {
-      "name": "ComponentA",
-      "bom-ref": "comp-a",
+      "name": "shared-lib",
+      "bom-ref": "shared-comp",
       "type": "library",
-      "version": "1.0"
+      "version": "1.0",
+      "supplier": {
+        "name": "Red Hat"
+      }
     }
   ],
   "dependencies": [
     {
       "ref": "product-root",
-      "dependsOn": ["comp-a"]
-    },
-    {
-      "ref": "comp-a",
-      "dependsOn": ["urn:cdx:node-id-collision-target/1#shared-ref"]
+      "provides": ["shared-comp"],
+      "dependsOn": []
     }
   ]
 }
