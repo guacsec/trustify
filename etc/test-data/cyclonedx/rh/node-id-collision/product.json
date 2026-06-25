@@ -32,6 +32,12 @@
       "bom-ref": "shared-comp",
       "type": "library",
       "version": "1.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233"
+        }
+      ],
       "supplier": {
         "name": "Red Hat"
       }

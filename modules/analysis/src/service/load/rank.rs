@@ -99,7 +99,7 @@ async fn batch_resolve_direct_cpe_matches(
                 sbom_external_node::Entity,
                 sbom_external_node::Column::SbomId,
             ))
-            .eq(PgFunc::any(sbom_ids)),
+            .eq(PgFunc::any(sbom_ids.clone())),
         )
         .group_by(sbom_external_node::Column::SbomId)
         .group_by(sbom_external_node::Column::ExternalNodeRef)
@@ -110,8 +110,17 @@ async fn batch_resolve_direct_cpe_matches(
         .map_err(Error::from)?;
 
     // Batch lookup node names for all referenced external node IDs.
-    // Collect all matches per node_id so we can resolve the right target
-    // when multiple SBOMs share the same node_id string.
+    // LEFT JOIN sbom_ancestor so each result carries an optional
+    // ancestor_sbom_id — used to prefer candidates that are known
+    // children of the product SBOM over arbitrary same-node_id matches.
+    #[derive(Debug, FromQueryResult)]
+    struct NodeWithAncestor {
+        sbom_id: Uuid,
+        node_id: String,
+        name: String,
+        ancestor_sbom_id: Option<Uuid>,
+    }
+
     let all_node_ids: Vec<_> = ext_cpe_rows
         .iter()
         .map(|row| row.external_node_ref.clone())
@@ -119,17 +128,25 @@ async fn batch_resolve_direct_cpe_matches(
         .into_iter()
         .collect();
 
-    let mut node_map: HashMap<_, Vec<_>> = HashMap::new();
+    let mut node_map: HashMap<String, Vec<NodeWithAncestor>> = HashMap::new();
     if !all_node_ids.is_empty() {
-        let nodes = sbom_node::Entity::find()
-            .filter(
-                Expr::col((sbom_node::Entity, sbom_node::Column::NodeId))
-                    .eq(PgFunc::any(all_node_ids)),
-            )
-            .all(connection)
-            .instrument(tracing::info_span!("batch lookup nodes").or_current())
-            .await
-            .map_err(Error::from)?;
+        let nodes = NodeWithAncestor::find_by_statement(Statement::from_sql_and_values(
+            DatabaseBackend::Postgres,
+            r#"
+            SELECT sn.sbom_id, sn.node_id, sn.name,
+                   sa.ancestor_sbom_id
+            FROM sbom_node sn
+            LEFT JOIN sbom_ancestor sa
+              ON sa.sbom_id = sn.sbom_id
+             AND sa.ancestor_sbom_id = ANY($2)
+            WHERE sn.node_id = ANY($1)
+            "#,
+            [all_node_ids.into(), sbom_ids.into()],
+        ))
+        .all(connection)
+        .instrument(tracing::info_span!("batch lookup nodes").or_current())
+        .await
+        .map_err(Error::from)?;
 
         for n in nodes {
             node_map.entry(n.node_id.clone()).or_default().push(n);
@@ -146,8 +163,8 @@ async fn batch_resolve_direct_cpe_matches(
     }
 
     // Assemble results. When looking up the node for an external_node_ref,
-    // prefer a match outside the source SBOM (the actual target), falling
-    // back to the first available match.
+    // prefer a candidate linked via sbom_ancestor (checksum-verified),
+    // then any non-source SBOM, then fall back to the first candidate.
     let mut matched_sboms = Vec::new();
     for matched in rows {
         let Some(entries) = ext_cpes_by_sbom.get(&matched.sbom_id) else {
@@ -161,7 +178,8 @@ async fn batch_resolve_direct_cpe_matches(
 
             let node = candidates
                 .iter()
-                .find(|n| n.sbom_id != matched.sbom_id)
+                .find(|n| n.ancestor_sbom_id == Some(matched.sbom_id))
+                .or_else(|| candidates.iter().find(|n| n.sbom_id != matched.sbom_id))
                 .unwrap_or(&candidates[0]);
 
             for cpe_id in cpe_ids {
@@ -586,7 +604,6 @@ mod test {
     /// The decoy SBOM is ingested first, so its node appears earlier
     /// in the sbom_node table. The code must still resolve the correct
     /// target (component.json), not the decoy.
-    #[ignore = "node_id collision — resolution is insertion-order dependent"]
     #[test_context(TrustifyContext)]
     #[test_log::test(tokio::test)]
     async fn rh_node_id_collision(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {

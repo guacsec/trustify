@@ -9,7 +9,13 @@
       "name": "DecoyLib",
       "type": "library",
       "bom-ref": "shared-comp",
-      "version": "1.0"
+      "version": "1.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ffff000011112222ffff000011112222ffff000011112222ffff000011112222"
+        }
+      ]
     }
   },
   "components": [],

@@ -9,7 +9,13 @@
       "name": "SharedLib",
       "type": "library",
       "bom-ref": "shared-comp",
-      "version": "1.0"
+      "version": "1.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "aabbccdd00112233aabbccdd00112233aabbccdd00112233aabbccdd00112233"
+        }
+      ]
     }
   },
   "components": [],
