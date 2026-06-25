@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781719828609,
+  "lastUpdate": 1782417714629,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19190,6 +19190,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/01eb2bf988047653ae259a8d200b8c0b2cf6e01b"
         },
         "date": 1781719826167,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "b5c7762e978e1a72c43051461964682c87c73ec2",
+          "message": "test: add SBOM lifecycle integration test for ancestor tracking\n\nExercises the full ingest → verify → delete → re-ingest cycle,\nconfirming that sbom_ancestor links and the latest endpoint stay\nconsistent across document additions and removals.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-25T17:33:15Z",
+          "tree_id": "5b87d24071d48978540477e1d874e645fe82e947",
+          "url": "https://github.com/guacsec/trustify/commit/b5c7762e978e1a72c43051461964682c87c73ec2"
+        },
+        "date": 1782417712298,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
