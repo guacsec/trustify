@@ -1,0 +1,12 @@
+{
+  // RHOSE-4.14 seems to be the biggest (by packages)
+  "get_sbom": "sha256:f293eb898192085804419f9dd40a738f20d67dd81846e88c6720f692ec5f3081",
+  "get_sbom_advisories": "sha256:f293eb898192085804419f9dd40a738f20d67dd81846e88c6720f692ec5f3081",
+  "get_sbom_packages": "0195baea-42e3-7842-a0e3-4c7874263954",
+  "get_sbom_related": "0195baea-42e3-7842-a0e3-4c7874263954",
+  "get_vulnerability": "CVE-2023-39325",
+  "sbom_by_package": "pkg:maven/io.quarkus/quarkus-smallrye-metrics@2.13.8.Final-redhat-00004?type=jar&repository_url=https%3a%2f%2fmaven.repository.redhat.com%2fga%2f",
+  "sbom_license_ids": "urn:uuid:0195baea-42e3-7842-a0e3-4c7874263954",
+  "analyze_purl": "pkg:rpm/redhat/eap7-activemq-artemis-native@1.0.2-3.redhat_00004.1.el7eap?arch=noarch&epoch=1",
+  "get_recommendations": ["pkg:rpm/redhat/eap7-activemq-artemis-native@1.0.2", "pkg:maven/io.quarkus/quarkus-smallrye-metrics@2.13.8"]
+}

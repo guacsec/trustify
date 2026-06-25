@@ -1,0 +1,210 @@
+name: perf-test
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  perf-test:
+    if: github.event.comment.body == '/perf-test' && github.event.issue.pull_request != null
+    runs-on: ubuntu-24.04
+
+    steps:
+
+      - name: Check if Commenter is a Collaborator
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENTER: ${{ github.event.comment.user.login }}
+          REPO: ${{ github.repository }}
+        run: |
+          PERMISSIONS=$(gh api repos/$REPO/collaborators/$COMMENTER/permission --jq '.permission')
+          echo "User Permission: $PERMISSIONS"
+
+          if [[ "$PERMISSIONS" != "admin" && "$PERMISSIONS" != "write" && "$PERMISSIONS" != "maintain" ]]; then
+            echo "❌ User does not have permission to trigger this action."
+            exit 1
+          fi
+
+      - name: Acknowledge Command
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMENT_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+            -f body="🛠️ Perf test has started! Follow the progress here: [Workflow Run]($COMMENT_URL)"
+
+      - name: Maximize build space
+        run: |
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo rm -Rf ${JAVA_HOME_8_X64}
+          sudo rm -Rf ${JAVA_HOME_11_X64}
+          sudo rm -Rf ${JAVA_HOME_17_X64}
+          sudo rm -Rf ${RUBY_PATH}
+          df -h
+
+      - name: Get PR head ref
+        id: pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_JSON=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
+          HEAD_SHA=$(echo "$PR_JSON" | jq -r '.head.sha')
+          HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
+          echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Setup cargo-binstall
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+
+      - name: Install oidc CLI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cargo binstall -y --force oidc-cli
+
+      - name: Install HTTPie
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install httpie
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Build
+        run: |
+          cargo build --bin trustd --release
+
+      - name: Start trustd
+        env:
+          NO_COLOR: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run:
+          nohup cargo run --bin trustd --release &> trustd.log &
+
+      - name: Wait for the backend to be up
+        run: |
+          URL="http://localhost:8080/.well-known/trustify"
+          TIMEOUT=300  # 5 minutes
+          INTERVAL=5   # Interval between retries in seconds
+          START_TIME=$(date +%s)
+
+          while true; do
+            # Check if the endpoint is up
+            if curl -s --fail "$URL"; then
+              echo
+              echo "Endpoint is up!"
+              exit 0
+            fi
+
+            # Check if timeout has passed
+            CURRENT_TIME=$(date +%s)
+            ELAPSED_TIME=$((CURRENT_TIME - START_TIME))
+
+            if [ "$ELAPSED_TIME" -ge "$TIMEOUT" ]; then
+              echo "Timeout reached. Endpoint is still down."
+              exit 1
+            fi
+
+            echo "Endpoint is down. Retrying in $INTERVAL seconds..."
+            sleep "$INTERVAL"
+          done
+
+      - name: Setup OIDC
+        run: |
+          oidc create confidential trustify --issuer http://localhost:8090/realms/trustify --client-id walker --client-secret R8A6KFeyxJsMDBhjfHbpZTIF0GWt43HP --force # no-secret
+
+      - name: Ingest DS3 dataset
+        run: |
+          .github/scripts/benchmark.sh
+
+      - name: Run perf tests
+        working-directory: tools/perf
+        env:
+          TOOLS_PERF_SCENARIO_FILE: etc/scenarios/empty.json5
+        run: |
+          uv run locust \
+            --host http://localhost:8080 \
+            -u 10 -r 2 -t 5m \
+            --headless \
+            --html=report.html \
+            --csv=results
+
+      - name: Upload trustd logs
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: logs
+          path: |
+            trustd.log
+          if-no-files-found: error
+
+      - name: Upload perf report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: report
+          path: |
+            tools/perf/report.html
+            tools/perf/results_*.csv
+          if-no-files-found: warn
+
+      - name: Post comment
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ARTIFACT_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ -f tools/perf/results_stats.csv ]; then
+            # Build a markdown table from the CSV stats
+            STATS_TABLE=$(python3 -c "
+          import csv, io, sys
+          with open('tools/perf/results_stats.csv') as f:
+              reader = csv.reader(f)
+              rows = list(reader)
+          if not rows:
+              sys.exit(0)
+          header = rows[0]
+          # Select useful columns: Type, Name, # Requests, # Failures,
+          # Median, Average, Min, Max, Avg size, RPS
+          cols = [0, 1, 2, 3, 5, 6, 7, 8, 9, 10]
+          hdr = [header[c] for c in cols]
+          print('| ' + ' | '.join(hdr) + ' |')
+          print('| ' + ' | '.join(['---'] * len(hdr)) + ' |')
+          for row in rows[1:]:
+              vals = [row[c] if c < len(row) else '' for c in cols]
+              print('| ' + ' | '.join(vals) + ' |')
+          ")
+          else
+            STATS_TABLE="No stats CSV produced."
+          fi
+
+          COMMENT_BODY=$(cat <<__EOF__
+          <details><summary>Perf Test Report (Locust)</summary>
+
+          $STATS_TABLE
+
+          </details>
+
+          📄 **[Full Report]($ARTIFACT_URL)** (Go to "Artifacts" and download **report**)
+
+          __EOF__
+          )
+          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+            -f body="$COMMENT_BODY"
