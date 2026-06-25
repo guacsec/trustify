@@ -65,7 +65,10 @@
 | `EXPLOIT_INTELLIGENCE_URL`               | Base URL of the Exploit Intelligence client service                                 |                                         |
 | `EXPLOIT_INTELLIGENCE_POLL_INTERVAL_SECS`| Polling interval in seconds for EI analysis completion                              | `30`                                    |
 | `EXPLOIT_INTELLIGENCE_MAX_POLL_DURATION_SECS`| Maximum duration in seconds before EI polling is considered timed out           | `1800`                                  |
-| `EXPLOIT_INTELLIGENCE_AUTH_TOKEN`        | Authentication token for the Exploit Intelligence service                           |                                         |
+| `EXPLOIT_INTELLIGENCE_AUTH_TOKEN`        | Static authentication token for the Exploit Intelligence service (used when OIDC is not configured) |                                         |
+| `EXPLOIT_INTELLIGENCE_OIDC_TOKEN_URL`   | OIDC token endpoint URL for EI service authentication (client credentials flow)     |                                         |
+| `EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID`   | OIDC client ID for EI service authentication                                       |                                         |
+| `EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET`| OIDC client secret for EI service authentication                                   |                                         |
 
 ## Data Migration
 
