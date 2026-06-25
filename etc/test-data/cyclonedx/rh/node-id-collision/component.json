@@ -1,0 +1,17 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:rh-node-id-collision-component",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-01-01T00:00:00Z",
+    "component": {
+      "name": "SharedLib",
+      "type": "library",
+      "bom-ref": "shared-comp",
+      "version": "1.0"
+    }
+  },
+  "components": [],
+  "dependencies": []
+}

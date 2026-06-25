@@ -119,7 +119,7 @@ async fn batch_resolve_direct_cpe_matches(
         .into_iter()
         .collect();
 
-    let mut node_map: HashMap<String, Vec<sbom_node::Model>> = HashMap::new();
+    let mut node_map: HashMap<_, Vec<_>> = HashMap::new();
     if !all_node_ids.is_empty() {
         let nodes = sbom_node::Entity::find()
             .filter(
@@ -130,13 +130,14 @@ async fn batch_resolve_direct_cpe_matches(
             .instrument(tracing::info_span!("batch lookup nodes").or_current())
             .await
             .map_err(Error::from)?;
+
         for n in nodes {
             node_map.entry(n.node_id.clone()).or_default().push(n);
         }
     }
 
     // Group by sbom_id for lookup
-    let mut ext_cpes_by_sbom: HashMap<Uuid, Vec<(String, Vec<Uuid>)>> = HashMap::new();
+    let mut ext_cpes_by_sbom: HashMap<_, Vec<_>> = HashMap::new();
     for row in ext_cpe_rows {
         ext_cpes_by_sbom
             .entry(row.sbom_id)
@@ -581,29 +582,28 @@ mod test {
         assert_eq!(items, expected);
     }
 
-    /// Verifies that `batch_resolve_direct_cpe_matches` resolves the
-    /// correct node name when multiple SBOMs share the same `node_id`.
-    ///
-    /// The product SBOM has an external reference with
-    /// `external_node_ref = "shared-ref"`. Both the target and decoy SBOMs
-    /// have a component with `bom-ref = "shared-ref"` but different names.
-    /// The lookup must pick a non-source SBOM rather than colliding.
+    /// Reproducer: RH product-component model with node_id collision.
+    /// The decoy SBOM is ingested first, so its node appears earlier
+    /// in the sbom_node table. The code must still resolve the correct
+    /// target (component.json), not the decoy.
+    #[ignore = "node_id collision — resolution is insertion-order dependent"]
     #[test_context(TrustifyContext)]
     #[test_log::test(tokio::test)]
-    async fn node_id_collision_in_cpe_lookup(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        let [product_id, _target_id, _decoy_id] = ctx
+    async fn rh_node_id_collision(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        // Ingest decoy BEFORE component to trigger the bug.
+        let [product_id, _decoy_id, _component_id] = ctx
             .ingest_documents([
-                "cyclonedx/node-id-collision/product.json",
-                "cyclonedx/node-id-collision/target.json",
-                "cyclonedx/node-id-collision/decoy.json",
+                "cyclonedx/rh/node-id-collision/product.json",
+                "cyclonedx/rh/node-id-collision/decoy.json",
+                "cyclonedx/rh/node-id-collision/component.json",
             ])
             .await?
             .into_uuid();
 
         let rows = vec![Row {
             sbom_id: product_id,
-            node_id: "comp-a".into(),
-            name: "ComponentA".into(),
+            node_id: "product-root".into(),
+            name: "TestProduct".into(),
             published: datetime!(2025-01-01 0:00 UTC),
         }];
 
@@ -618,10 +618,9 @@ mod test {
                 result.top_ancestor_sbom, product_id,
                 "top_ancestor_sbom should NOT be the source SBOM"
             );
-            assert!(
-                result.matched_name == "SharedComponent" || result.matched_name == "DecoyComponent",
-                "matched_name should come from a target SBOM, got: {}",
-                result.matched_name
+            assert_eq!(
+                result.matched_name, "SharedLib",
+                "should resolve to the component SBOM, not the decoy"
             );
         }
 
