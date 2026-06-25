@@ -96,6 +96,10 @@ pub struct Run {
     #[arg(long, env = "EXPLOIT_INTELLIGENCE_URL")]
     pub exploit_intelligence_url: Option<String>,
 
+    /// Base URL of the Exploit Intelligence web UI for deep-linking to reports.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_UI_URL")]
+    pub exploit_intelligence_ui_url: Option<String>,
+
     /// Polling interval in seconds for EI analysis completion (default: 30).
     #[arg(
         long,
@@ -357,6 +361,7 @@ impl InitData {
 
             trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig {
                 url,
+                ui_url: run.exploit_intelligence_ui_url,
                 poll_interval_secs: run.exploit_intelligence_poll_interval_secs,
                 max_poll_duration_secs: run.exploit_intelligence_max_poll_duration_secs,
                 token_provider,
