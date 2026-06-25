@@ -11,6 +11,9 @@ pub struct Model {
     pub external_doc_ref: String,
     pub external_node_ref: String,
     pub external_type: ExternalType,
+    /// Intended to cache the resolved target SBOM for SPDX/CycloneDX external
+    /// references, but never populated. The RH product-component model resolves
+    /// targets via checksum matching at query time instead.
     pub target_sbom_id: Option<Uuid>,
     pub discriminator_type: Option<DiscriminatorType>,
     pub discriminator_value: Option<String>,
