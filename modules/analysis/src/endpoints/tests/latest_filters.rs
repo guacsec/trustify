@@ -1,11 +1,30 @@
 use super::req::*;
-use crate::test::caller;
+use crate::test::{caller, data::rpm};
 use jsonpath_rust::JsonPath;
 use rstest::*;
+use sea_orm::{ConnectionTrait, EntityTrait, Statement};
 use serde_json::{Value, json};
 use std::cmp;
 use test_context::test_context;
-use trustify_test_context::{Join, TrustifyContext, subset::ContainsSubset};
+use trustify_entity::sbom_ancestor;
+use trustify_test_context::{IngestionResult, Join, TrustifyContext, subset::ContainsSubset};
+use uuid::Uuid;
+
+async fn delete_sbom(db: &impl ConnectionTrait, sbom_id: Uuid) -> Result<(), anyhow::Error> {
+    let stmt = Statement::from_sql_and_values(
+        db.get_database_backend(),
+        r#"
+        WITH deleted AS (
+            DELETE FROM sbom WHERE sbom_id = $1
+            RETURNING source_document_id
+        )
+        DELETE FROM source_document WHERE id IN (SELECT source_document_id FROM deleted)
+        "#,
+        vec![sbom_id.into()],
+    );
+    db.execute(stmt).await?;
+    Ok(())
+}
 
 #[test_context(TrustifyContext)]
 #[rstest]
@@ -1023,6 +1042,141 @@ async fn test_tc3624(
 
     log::info!("{response:#?}");
     assert_eq!(total, response["total"]);
+
+    Ok(())
+}
+
+/// Full SBOM lifecycle: ingest → verify ancestors + latest → ingest newer →
+/// verify latest switches → delete → verify cleanup → re-ingest → verify recovery.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[test_log::test(actix_web::test)]
+async fn sbom_lifecycle(
+    ctx: &TrustifyContext,
+    #[values(false, true)] prime_cache: bool,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let cpe_req = Req {
+        latest: true,
+        what: What::Id("cpe:/a:redhat:enterprise_linux:9.7::appstream"),
+        total: true,
+        ..Req::default()
+    };
+
+    // ── Phase 1: ingest older set, verify baseline ──
+
+    let [older_product, older_rpm] = ctx.ingest_documents(rpm::older()).await?.into_uuid();
+
+    let ancestors = sbom_ancestor::Entity::find().all(&ctx.db).await?;
+    assert_eq!(
+        ancestors,
+        vec![sbom_ancestor::Model {
+            sbom_id: older_rpm,
+            ancestor_sbom_id: older_product,
+        }]
+    );
+
+    if prime_cache {
+        let _ = app.req(Req::default()).await?;
+    }
+
+    let response = app.req(cpe_req).await?;
+    assert_eq!(response["total"], 1, "phase 1: expected 1 latest result");
+    let phase1_published = response["items"][0]["published"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // ── Phase 2: ingest newer set, verify latest switches ──
+
+    let [newer_product, newer_rpm] = ctx.ingest_documents(rpm::later()).await?.into_uuid();
+
+    let mut ancestors = sbom_ancestor::Entity::find().all(&ctx.db).await?;
+    ancestors.sort_by_key(|a| a.sbom_id);
+    let mut expected = vec![
+        sbom_ancestor::Model {
+            sbom_id: older_rpm,
+            ancestor_sbom_id: older_product,
+        },
+        sbom_ancestor::Model {
+            sbom_id: newer_rpm,
+            ancestor_sbom_id: newer_product,
+        },
+    ];
+    expected.sort_by_key(|a| a.sbom_id);
+    assert_eq!(ancestors, expected);
+
+    let response = app.req(cpe_req).await?;
+    assert_eq!(response["total"], 1, "phase 2: still 1 latest result");
+    let phase2_published = response["items"][0]["published"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert_ne!(
+        phase1_published, phase2_published,
+        "latest should have switched to the newer product"
+    );
+
+    // ── Phase 3: delete older product, verify cleanup ──
+
+    delete_sbom(&ctx.db, older_product).await?;
+
+    let ancestors = sbom_ancestor::Entity::find().all(&ctx.db).await?;
+    assert_eq!(
+        ancestors,
+        vec![sbom_ancestor::Model {
+            sbom_id: newer_rpm,
+            ancestor_sbom_id: newer_product,
+        }]
+    );
+
+    let response = app.req(cpe_req).await?;
+    assert_eq!(response["total"], 1, "phase 3: still 1 latest result");
+    assert_eq!(
+        response["items"][0]["published"].as_str().unwrap(),
+        phase2_published,
+        "phase 3: latest should still be the newer product"
+    );
+
+    // ── Phase 4: delete newer product, verify empty ──
+
+    delete_sbom(&ctx.db, newer_product).await?;
+
+    let ancestors = sbom_ancestor::Entity::find().all(&ctx.db).await?;
+    assert!(
+        ancestors.is_empty(),
+        "phase 4: all ancestor links should be gone"
+    );
+
+    let response = app.req(cpe_req).await?;
+    assert_eq!(
+        response["total"], 0,
+        "phase 4: no latest results after all products deleted"
+    );
+
+    // ── Phase 5: re-ingest older set, verify recovery ──
+
+    let [recovered_product, recovered_rpm] = ctx.ingest_documents(rpm::older()).await?.into_uuid();
+
+    let ancestors = sbom_ancestor::Entity::find().all(&ctx.db).await?;
+    assert_eq!(
+        ancestors,
+        vec![sbom_ancestor::Model {
+            sbom_id: recovered_rpm,
+            ancestor_sbom_id: recovered_product,
+        }]
+    );
+
+    let response = app.req(cpe_req).await?;
+    assert_eq!(
+        response["total"], 1,
+        "phase 5: latest result should be back"
+    );
+    assert_eq!(
+        response["items"][0]["published"].as_str().unwrap(),
+        phase1_published,
+        "phase 5: should return the older product's published date again"
+    );
 
     Ok(())
 }
