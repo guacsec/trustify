@@ -62,8 +62,7 @@ impl MigrationTrait for Migration {
                 ON sbom_node_checksum (value, sbom_id)
                 "#,
             )
-            .await
-            .map(|_| ())?;
+            .await?;
 
         // Backfill from existing data, scoped to actual external node references.
         // The SBOM with the external_node_ref is the ancestor (product);
@@ -84,8 +83,7 @@ impl MigrationTrait for Migration {
                 ON CONFLICT DO NOTHING
                 "#,
             )
-            .await
-            .map(|_| ())?;
+            .await?;
 
         Ok(())
     }
@@ -103,8 +101,7 @@ impl MigrationTrait for Migration {
         manager
             .get_connection()
             .execute_unprepared("DROP INDEX IF EXISTS sbom_node_checksum_value_sbom_id_idx")
-            .await
-            .map(|_| ())?;
+            .await?;
 
         Ok(())
     }
