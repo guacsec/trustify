@@ -939,7 +939,9 @@ async fn delete_sbom_cleans_describing_cpes(ctx: &TrustifyContext) -> Result<(),
 /// through the CASCADE on `sbom_ancestor.sbom_id`.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn delete_child_sbom_cleans_ancestor_link(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+async fn delete_child_sbom_cleans_ancestor_link(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
     let [product, rpm] = ctx.ingest_documents(RPM_TEST_DATA).await?.into_uuid();
 
     let ancestors = sbom_ancestor::Entity::find().all(&ctx.db).await?;
