@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782417714629,
+  "lastUpdate": 1782498608359,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19224,6 +19224,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "e8784e594113a38d494d9b66e57e1c9978f15e8b",
+          "message": "fix: keep health checks alive when infrastructure endpoint is disabled\n\nWith Rust edition 2021+ disjoint capture, the async move block in the\ndisabled path did not capture self.health, causing the Arc<HealthChecks>\nto be dropped immediately. This dropped all registered health checks\n(including their Shutdown handles), killing the health check loops while\nthe server was still running.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-26T12:13:46Z",
+          "tree_id": "528c0ace384a53017dc1219c8c291d0a55b8aafc",
+          "url": "https://github.com/guacsec/trustify/commit/e8784e594113a38d494d9b66e57e1c9978f15e8b"
+        },
+        "date": 1782498606035,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
