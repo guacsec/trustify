@@ -42,6 +42,7 @@ impl<T> Local<T> {
         Fut: Future<Output = ()> + 'static,
     {
         let state = Arc::new(AtomicBool::new(false));
+        let error: Cow<'static, str> = error.into();
 
         let rt = Builder::new_current_thread()
             .enable_all()
@@ -50,6 +51,7 @@ impl<T> Local<T> {
 
         {
             let state = state.clone();
+            let error = error.clone();
             std::thread::spawn(move || {
                 let local = LocalSet::new();
                 {
@@ -59,7 +61,9 @@ impl<T> Local<T> {
 
                 rt.block_on(local);
 
-                log::info!("check future returned");
+                log::warn!(
+                    "health check future returned, will report failure from now on: {error}"
+                );
 
                 // if the check loop ends, the check defaults to false
                 state.store(false, Ordering::Release);
@@ -67,7 +71,7 @@ impl<T> Local<T> {
         }
 
         Ok(Local {
-            error: error.into(),
+            error,
             state,
             _handle: (),
         })
