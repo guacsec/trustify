@@ -46,6 +46,7 @@ time = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-futures = { workspace = true, features = ["futures-03"] }
+urlencoding = { workspace = true }
 utoipa = { workspace = true, features = ["actix_extras", "uuid", "time"] }
 utoipa-actix-web = { workspace = true }
 uuid = { workspace = true }

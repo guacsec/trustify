@@ -100,11 +100,12 @@ pub struct Run {
     #[arg(long, env = "EXPLOIT_INTELLIGENCE_UI_URL")]
     pub exploit_intelligence_ui_url: Option<String>,
 
-    /// Polling interval in seconds for EI analysis completion (default: 30).
+    /// Polling interval in seconds for EI analysis completion (default: 30, minimum: 5).
     #[arg(
         long,
         env = "EXPLOIT_INTELLIGENCE_POLL_INTERVAL_SECS",
-        default_value_t = 30
+        default_value_t = 30,
+        value_parser = clap::value_parser!(u64).range(5..)
     )]
     pub exploit_intelligence_poll_interval_secs: u64,
 
@@ -346,17 +347,30 @@ impl InitData {
 
             // Build token provider: prefer OIDC if all three vars are set,
             // fall back to static token, or None.
-            let token_provider = match (
+            let oidc_args = (
                 run.exploit_intelligence_oidc_token_url,
                 run.exploit_intelligence_oidc_client_id,
                 run.exploit_intelligence_oidc_client_secret,
-            ) {
+            );
+
+            let token_provider = match oidc_args {
                 (Some(token_url), Some(client_id), Some(client_secret)) => {
                     Some(TokenProvider::oidc(token_url, client_id, client_secret))
                 }
-                _ => run
+                (None, None, None) => run
                     .exploit_intelligence_auth_token
                     .map(TokenProvider::static_token),
+                _ => {
+                    log::warn!(
+                        "Incomplete EI OIDC configuration: all three of \
+                         EXPLOIT_INTELLIGENCE_OIDC_TOKEN_URL, \
+                         EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID, and \
+                         EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET must be set together. \
+                         Falling back to static token or no auth."
+                    );
+                    run.exploit_intelligence_auth_token
+                        .map(TokenProvider::static_token)
+                }
             };
 
             trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig {

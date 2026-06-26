@@ -1050,6 +1050,12 @@ paths:
               $ref: '#/components/schemas/AnalyzeRequest'
         required: true
       responses:
+        '200':
+          description: Active analysis job already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
         '201':
           description: Analysis job created
           content:
@@ -4697,6 +4703,57 @@ components:
         period:
           type: string
           description: The period the importer should be run.
+    ComponentResult:
+      type: object
+      description: Per-component analysis result within a multi-component product job.
+      required:
+      - id
+      - component_purl
+      - component_name
+      - status
+      - created
+      - updated
+      properties:
+        advisory_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: FK to advisory — set when a VEX document is ingested from the result.
+        component_name:
+          type: string
+          description: Human-readable name of the component.
+        component_purl:
+          type: string
+          description: Package URL (purl) of the component being analysed.
+        created:
+          type: string
+          description: Timestamp when the component record was created.
+        error_message:
+          type:
+          - string
+          - 'null'
+          description: Error details for failed component analyses.
+        finding:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JobFinding'
+            description: Analysis result from Exploit Intelligence, if completed.
+        id:
+          type: string
+          format: uuid
+          description: The unique component record identifier.
+        report_url:
+          type:
+          - string
+          - 'null'
+          description: Link to the EI human-readable justification report for this component.
+        status:
+          $ref: '#/components/schemas/JobStatus'
+          description: Current lifecycle status of this component's analysis.
+        updated:
+          type: string
+          description: Timestamp when the component record was last updated.
     Cpe:
       type: string
       format: uri
@@ -4780,6 +4837,7 @@ components:
       - id
       - vulnerability_id
       - status
+      - components
       - created
       - updated
       properties:
@@ -4789,6 +4847,17 @@ components:
           - 'null'
           format: uuid
           description: FK to advisory — set when a VEX document is ingested from the result.
+        completed_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components (computed at query time, not stored).
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComponentResult'
+          description: Per-component analysis results (populated for multi-component jobs).
         created:
           type: string
           description: Timestamp when the job was created.
@@ -4797,15 +4866,32 @@ components:
           - string
           - 'null'
           description: Error details for failed analyses.
-        finding:
+        failed_components:
           type:
-          - string
+          - integer
           - 'null'
-          description: 'Analysis result: "vulnerable", "not_vulnerable", or "uncertain".'
+          format: int32
+          description: Number of failed/excluded components (computed at query time, not stored).
+        finding:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JobFinding'
+            description: Analysis result from Exploit Intelligence.
         id:
           type: string
           format: uuid
           description: The unique job identifier.
+        not_vulnerable_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with NotVulnerable finding (computed at query time).
+        product_id:
+          type:
+          - string
+          - 'null'
+          description: EI product ID for multi-component SPDX flow.
         report_url:
           type:
           - string
@@ -4820,12 +4906,30 @@ components:
         status:
           $ref: '#/components/schemas/JobStatus'
           description: Current lifecycle status of the job.
+        total_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Total components in the product.
+        uncertain_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with Uncertain finding (computed at query time).
         updated:
           type: string
           description: Timestamp when the job was last updated.
         vulnerability_id:
           type: string
           description: CVE identifier.
+        vulnerable_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with Vulnerable finding (computed at query time).
     ExploitIntelligenceJobSummary:
       type: object
       description: Summary of an Exploit Intelligence analysis job.
@@ -4836,13 +4940,46 @@ components:
       - created
       - updated
       properties:
+        completed_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components (computed at query time, not stored).
         created:
           type: string
           description: Timestamp when the job was created.
+        failed_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of failed/excluded components (computed at query time, not stored).
+        finding:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JobFinding'
+            description: Analysis result from Exploit Intelligence.
         id:
           type: string
           format: uuid
           description: The unique job identifier.
+        not_vulnerable_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with NotVulnerable finding (computed at query time).
+        product_id:
+          type:
+          - string
+          - 'null'
+          description: EI product ID for multi-component SPDX flow.
+        report_url:
+          type:
+          - string
+          - 'null'
+          description: Link to the EI human-readable justification report.
         sbom_id:
           type:
           - string
@@ -4852,12 +4989,30 @@ components:
         status:
           $ref: '#/components/schemas/JobStatus'
           description: Current lifecycle status of the job.
+        total_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Total components in the product.
+        uncertain_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with Uncertain finding (computed at query time).
         updated:
           type: string
           description: Timestamp when the job was last updated.
         vulnerability_id:
           type: string
           description: CVE identifier.
+        vulnerable_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with Vulnerable finding (computed at query time).
     ExternalReferenceQuery:
       type: object
       properties:
@@ -5133,6 +5288,13 @@ components:
           items:
             type: string
           description: Warnings that occurred during the import process
+    JobFinding:
+      type: string
+      description: Analysis finding from Exploit Intelligence (API representation).
+      enum:
+      - vulnerable
+      - not_vulnerable
+      - uncertain
     JobStatus:
       type: string
       description: Lifecycle status of an Exploit Intelligence analysis job (API representation).
@@ -5379,13 +5541,46 @@ components:
             - created
             - updated
             properties:
+              completed_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of completed components (computed at query time, not stored).
               created:
                 type: string
                 description: Timestamp when the job was created.
+              failed_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of failed/excluded components (computed at query time, not stored).
+              finding:
+                oneOf:
+                - type: 'null'
+                - $ref: '#/components/schemas/JobFinding'
+                  description: Analysis result from Exploit Intelligence.
               id:
                 type: string
                 format: uuid
                 description: The unique job identifier.
+              not_vulnerable_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of completed components with NotVulnerable finding (computed at query time).
+              product_id:
+                type:
+                - string
+                - 'null'
+                description: EI product ID for multi-component SPDX flow.
+              report_url:
+                type:
+                - string
+                - 'null'
+                description: Link to the EI human-readable justification report.
               sbom_id:
                 type:
                 - string
@@ -5395,12 +5590,30 @@ components:
               status:
                 $ref: '#/components/schemas/JobStatus'
                 description: Current lifecycle status of the job.
+              total_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Total components in the product.
+              uncertain_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of completed components with Uncertain finding (computed at query time).
               updated:
                 type: string
                 description: Timestamp when the job was last updated.
               vulnerability_id:
                 type: string
                 description: CVE identifier.
+              vulnerable_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of completed components with Vulnerable finding (computed at query time).
         total:
           type:
           - integer

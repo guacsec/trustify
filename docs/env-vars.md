@@ -63,6 +63,7 @@
 | `UI_LOAD_USER`                           | Whether to load user info                                                           | `true`                                  |
 | `UI_SCOPE`                               | Scopes to request                                                                   | `openid`                                |
 | `EXPLOIT_INTELLIGENCE_URL`               | Base URL of the Exploit Intelligence client service                                 |                                         |
+| `EXPLOIT_INTELLIGENCE_UI_URL`            | Base URL of the EI web UI for deep-linking to reports                               |                                         |
 | `EXPLOIT_INTELLIGENCE_POLL_INTERVAL_SECS`| Polling interval in seconds for EI analysis completion                              | `30`                                    |
 | `EXPLOIT_INTELLIGENCE_MAX_POLL_DURATION_SECS`| Maximum duration in seconds before EI polling is considered timed out           | `1800`                                  |
 | `EXPLOIT_INTELLIGENCE_AUTH_TOKEN`        | Static authentication token for the Exploit Intelligence service (used when OIDC is not configured) |                                         |
