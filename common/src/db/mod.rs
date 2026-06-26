@@ -105,7 +105,7 @@ pub struct Database {
 }
 
 impl Database {
-    #[instrument(err(level=tracing::Level::INFO))]
+    #[instrument(skip(database), fields(database = ?crate::redact::HideString(database, &database.password.0)), err(level=tracing::Level::INFO))]
     pub async fn new(database: &crate::config::Database) -> Result<Self, anyhow::Error> {
         let url = database.to_url();
 
