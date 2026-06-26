@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782498608359,
+  "lastUpdate": 1782499128527,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19253,6 +19253,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": true,
+          "id": "0bb36740bcc88e53d674ac3a494fe75076ca9ec3",
+          "message": "fix: redact database password from tracing span output\n\nAdd HideString newtype that wraps a Debug value and replaces all\noccurrences of a given string with \"***\" in the Debug output. Use it\nin the #[instrument] on Database::new to prevent the password from\nleaking through the url field in tracing spans.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-26T15:48:03Z",
+          "tree_id": "0cbcefa518f5017d9650f5a60f1c90e68c6b100d",
+          "url": "https://github.com/guacsec/trustify/commit/0bb36740bcc88e53d674ac3a494fe75076ca9ec3"
+        },
+        "date": 1782499126226,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
             "unit": "s"
           }
         ]
