@@ -16,7 +16,7 @@ pub fn spawn_db_check(db: Database) -> anyhow::Result<impl Check> {
                     async move { db.ping().await.is_ok() },
                 )
                 .await
-                .is_ok()
+                .unwrap_or(false)
             }
         }
     })
