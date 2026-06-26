@@ -138,7 +138,10 @@ impl Infrastructure {
     ) -> anyhow::Result<Pin<Box<dyn Future<Output = anyhow::Result<()>>>>> {
         if !self.config.infrastructure_enabled {
             log::info!("Infrastructure endpoint is disabled");
+            // Keep self.health alive so that registered health checks (e.g. database)
+            // are not dropped while the server is still running.
             return Ok(Box::pin(async move {
+                let _health = self.health;
                 loop {
                     tokio::time::sleep(tokio::time::Duration::from_secs(3600)).await
                 }
