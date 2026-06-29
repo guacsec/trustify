@@ -15,7 +15,12 @@ use futures_util::{
 use indicatif::{ProgressBar, ProgressStyle};
 use sea_orm::{ConnectionTrait, DatabaseTransaction, DbErr, TransactionTrait};
 use sea_orm_migration::{MigrationTrait, SchemaManager};
-use std::{num::NonZeroU64, num::NonZeroUsize, sync::Arc, thread::available_parallelism};
+use std::{
+    num::{NonZeroU64, NonZeroUsize},
+    sync::{Arc, Mutex},
+    thread::available_parallelism,
+    time::{Duration, Instant},
+};
 use tracing::log;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
@@ -114,6 +119,51 @@ impl From<&Options> for Partition {
     }
 }
 
+/// Periodically logs processing progress at info level, throttled to a configurable interval.
+struct ProgressLogger {
+    total: u64,
+    start: Instant,
+    interval: Duration,
+    last_log: Mutex<Instant>,
+}
+
+impl ProgressLogger {
+    fn new(total: usize, interval: Duration) -> Self {
+        let now = Instant::now();
+        Self {
+            total: total as u64,
+            start: now,
+            interval,
+            last_log: Mutex::new(now),
+        }
+    }
+
+    /// Record that a unit of work completed and log rate/ETA if the interval has elapsed.
+    fn tick(&self, processed: u64) {
+        if let Ok(mut last) = self.last_log.try_lock() {
+            if last.elapsed() < self.interval {
+                return;
+            }
+            *last = Instant::now();
+
+            let elapsed = self.start.elapsed().as_secs_f64();
+            let rate = processed as f64 / elapsed;
+            let remaining = self.total.saturating_sub(processed);
+            let eta = Duration::from_secs_f64(if rate > 0.0 {
+                remaining as f64 / rate
+            } else {
+                0.0
+            });
+
+            log::info!(
+                "Progress: {processed}/{} ({rate:.1}/s, ETA: {})",
+                self.total,
+                humantime::format_duration(eta),
+            );
+        }
+    }
+}
+
 /// A trait for processing documents using a [`Handler`].
 pub trait DocumentProcessor {
     fn process<D>(
@@ -205,6 +255,8 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
 
         log::info!("Running {concurrent} parallel operations");
 
+        let progress = ProgressLogger::new(count, Duration::from_secs(60));
+
         stream::iter(all)
             .map(async |model| {
                 let tx = db.begin().await?;
@@ -226,6 +278,7 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
 
                 if let Some(pb) = &pb {
                     pb.inc(1);
+                    progress.tick(pb.position());
                 }
 
                 Ok::<_, DbErr>(())
