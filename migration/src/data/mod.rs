@@ -68,7 +68,12 @@ pub struct Options {
     pub skip_all: bool,
 
     /// Skip the provided list of data migrations
-    #[arg(long, env = "MIGRATION_DATA_SKIP", conflicts_with = "skip_all")]
+    #[arg(
+        long,
+        env = "MIGRATION_DATA_SKIP",
+        conflicts_with = "skip_all",
+        value_delimiter = ','
+    )]
     pub skip: Vec<String>,
 }
 
