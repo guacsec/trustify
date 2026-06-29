@@ -25,36 +25,72 @@ CREATE TABLE IF NOT EXISTS sbom_license_expanded (
 CREATE INDEX IF NOT EXISTS idx_sle_expanded_license_id
 ON sbom_license_expanded (expanded_license_id);
 
+-- Update planner statistics before backfill for accurate cost estimates
+ANALYZE sbom_package_license;
+ANALYZE licensing_infos;
+ANALYZE sbom_license_expanded;
+ANALYZE license;
+
 -- Backfill Step 1: Insert unique expanded texts into dictionary
--- Pre-deduplicate by (text, sbom_id) to avoid millions of redundant function calls
+-- Split into two passes to avoid the expensive LEFT JOIN with licensing_infos
+-- and PL/pgSQL function calls for the majority of rows that don't contain LicenseRef-.
+
+-- Pass 1a: Texts WITHOUT LicenseRef- (majority, no expansion needed)
+-- Skips the LEFT JOIN with licensing_infos and the function call entirely.
+-- Subquery is flattened so the planner can push the anti-join before the sort.
+INSERT INTO expanded_license (expanded_text)
+SELECT DISTINCT l.text
+FROM sbom_package_license spl
+JOIN license l ON l.id = spl.license_id
+WHERE l.text NOT LIKE '%LicenseRef-%'
+  AND NOT EXISTS (
+      SELECT 1 FROM sbom_license_expanded sle
+      WHERE sle.sbom_id = spl.sbom_id
+  )
+ON CONFLICT (text_hash) DO NOTHING;
+
+-- Pass 1b: Texts WITH LicenseRef- (minority, needs expansion via license mappings)
 INSERT INTO expanded_license (expanded_text)
 SELECT DISTINCT expand_license_expression_with_mappings(
-    uls.text,
+    l.text,
     COALESCE(lim.license_mapping, ARRAY[]::license_mapping[])
 )
-FROM (
-    SELECT DISTINCT l.text, spl.sbom_id
-    FROM sbom_package_license spl
-    JOIN license l ON l.id = spl.license_id
-) uls
+FROM sbom_package_license spl
+JOIN license l ON l.id = spl.license_id
 LEFT JOIN (
     SELECT array_agg(ROW(license_id, name)::license_mapping) AS license_mapping, sbom_id
     FROM licensing_infos
     GROUP BY sbom_id
-) lim ON lim.sbom_id = uls.sbom_id
--- Filter at SBOM level (not per-license-id) since SBOMs are immutable once ingested.
--- If ANY license from an SBOM has been backfilled, all have been backfilled.
-WHERE NOT EXISTS (
-    SELECT 1 FROM sbom_license_expanded sle
-    WHERE sle.sbom_id = uls.sbom_id
-)
+) lim ON lim.sbom_id = spl.sbom_id
+WHERE l.text LIKE '%LicenseRef-%'
+  AND NOT EXISTS (
+      SELECT 1 FROM sbom_license_expanded sle
+      WHERE sle.sbom_id = spl.sbom_id
+  )
 ON CONFLICT (text_hash) DO NOTHING;
 
 -- Backfill Step 2: Insert junction rows
--- Use a CTE (license_expansions) to call expand_license_expression_with_mappings() only once per
--- (sbom_id, license_id) pair; the result is then joined against the already-populated
--- expanded_license dictionary by md5 hash, avoiding a second expensive function call.
-WITH license_expansions AS (
+-- Split into two passes matching Step 1's LicenseRef- split.
+
+-- Pass 2a: Texts WITHOUT LicenseRef- (direct hash join, no function call)
+INSERT INTO sbom_license_expanded (sbom_id, license_id, expanded_license_id)
+SELECT DISTINCT spl.sbom_id, spl.license_id, el.id
+FROM sbom_package_license spl
+JOIN license l ON l.id = spl.license_id
+JOIN expanded_license el ON el.text_hash = md5(l.text)
+WHERE l.text NOT LIKE '%LicenseRef-%'
+  AND NOT EXISTS (
+      SELECT 1 FROM sbom_license_expanded sle
+      WHERE sle.sbom_id = spl.sbom_id AND sle.license_id = spl.license_id
+  )
+ON CONFLICT (sbom_id, license_id) DO UPDATE
+SET expanded_license_id = EXCLUDED.expanded_license_id;
+
+-- Pass 2b: Texts WITH LicenseRef- (CTE calls expansion function once per pair)
+-- MATERIALIZED prevents PostgreSQL from inlining the CTE, which would cause
+-- expand_license_expression_with_mappings() to be evaluated twice per row
+-- (once for DISTINCT, once for the md5 join with expanded_license).
+WITH license_expansions AS MATERIALIZED (
     SELECT DISTINCT
         spl.sbom_id,
         spl.license_id,
@@ -69,10 +105,11 @@ WITH license_expansions AS (
         FROM licensing_infos
         GROUP BY sbom_id
     ) lim ON lim.sbom_id = spl.sbom_id
-    WHERE NOT EXISTS (
-        SELECT 1 FROM sbom_license_expanded sle
-        WHERE sle.sbom_id = spl.sbom_id AND sle.license_id = spl.license_id
-    )
+    WHERE l.text LIKE '%LicenseRef-%'
+      AND NOT EXISTS (
+          SELECT 1 FROM sbom_license_expanded sle
+          WHERE sle.sbom_id = spl.sbom_id AND sle.license_id = spl.license_id
+      )
 )
 INSERT INTO sbom_license_expanded (sbom_id, license_id, expanded_license_id)
 SELECT ne.sbom_id, ne.license_id, el.id
