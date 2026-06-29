@@ -8,6 +8,7 @@ use sea_orm::{DatabaseConnection, DbErr};
 use sea_orm_migration::{MigrationName, MigrationTrait, SchemaManager};
 use std::{ffi::OsString, ops::Deref, sync::LazyLock};
 use tokio::task_local;
+use tracing::log;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 
 /// A migration which also processes data.
@@ -102,6 +103,7 @@ impl<'c> SchemaDataManager<'c> {
         storage: &'c DispatchBackend,
         options: &'c Options,
     ) -> Self {
+        log::info!("Options: {options:#?}");
         Self {
             manager,
             db,
