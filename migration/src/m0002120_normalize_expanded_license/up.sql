@@ -25,6 +25,48 @@ CREATE TABLE IF NOT EXISTS sbom_license_expanded (
 CREATE INDEX IF NOT EXISTS idx_sle_expanded_license_id
 ON sbom_license_expanded (expanded_license_id);
 
+-- Replace regex-based expansion with faster string replace.
+-- SPDX expressions have well-defined delimiters (space, parentheses, +), so we can
+-- use replace() with all valid boundary combinations instead of regexp_replace()
+-- with dynamically compiled patterns.
+CREATE OR REPLACE FUNCTION expand_license_expression_with_mappings(
+    license_text TEXT,
+    license_mappings license_mapping[]
+) RETURNS TEXT AS $$
+DECLARE
+    result_text TEXT;
+    mapping license_mapping;
+BEGIN
+    IF license_text IS NULL
+       OR POSITION('LicenseRef-' IN license_text) = 0
+       OR license_mappings IS NULL
+       OR array_length(license_mappings, 1) IS NULL THEN
+        RETURN license_text;
+    END IF;
+
+    -- Sentinel spaces handle start/end-of-string boundaries uniformly
+    result_text := ' ' || license_text || ' ';
+
+    FOREACH mapping IN ARRAY license_mappings
+    LOOP
+        IF POSITION('LicenseRef-' IN result_text) = 0 THEN
+            EXIT;
+        END IF;
+
+        -- Replace whole-token matches using all valid SPDX boundary pairs.
+        -- Before: space or '('  |  After: space, ')', or '+'
+        result_text := replace(result_text, ' ' || mapping.license_id || ' ',  ' ' || mapping.name || ' ');
+        result_text := replace(result_text, ' ' || mapping.license_id || ')',  ' ' || mapping.name || ')');
+        result_text := replace(result_text, ' ' || mapping.license_id || '+',  ' ' || mapping.name || '+');
+        result_text := replace(result_text, '(' || mapping.license_id || ' ',  '(' || mapping.name || ' ');
+        result_text := replace(result_text, '(' || mapping.license_id || ')',  '(' || mapping.name || ')');
+        result_text := replace(result_text, '(' || mapping.license_id || '+',  '(' || mapping.name || '+');
+    END LOOP;
+
+    RETURN substring(result_text FROM 2 FOR length(result_text) - 2);
+END;
+$$ LANGUAGE plpgsql IMMUTABLE PARALLEL SAFE;
+
 -- Update planner statistics before backfill for accurate cost estimates
 ANALYZE sbom_package_license;
 ANALYZE licensing_infos;
