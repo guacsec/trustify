@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782499128527,
+  "lastUpdate": 1782740710163,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19282,6 +19282,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "5be4eddcc5e3e749b288891b5b62efe9c42f214a",
+          "message": "chore: show progress during data migration\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-06-29T10:57:53Z",
+          "tree_id": "b702efedd30d801a1b956e24024e247d39d96555",
+          "url": "https://github.com/guacsec/trustify/commit/5be4eddcc5e3e749b288891b5b62efe9c42f214a"
+        },
+        "date": 1782740707842,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
