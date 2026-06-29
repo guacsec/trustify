@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782740710163,
+  "lastUpdate": 1782746877778,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19306,6 +19306,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/5be4eddcc5e3e749b288891b5b62efe9c42f214a"
         },
         "date": 1782740707842,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "34c0312fe109cf2b97bec38c175c6263a486c524",
+          "message": "fix: enable comma-separated values for MIGRATION_DATA_SKIP env var\n\nAdd `value_delimiter` so clap splits the env var on commas, and log\nthe resolved options at startup for easier debugging.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-29T12:46:52Z",
+          "tree_id": "9961ae4d050f362c3e9e4321003651f935951465",
+          "url": "https://github.com/guacsec/trustify/commit/34c0312fe109cf2b97bec38c175c6263a486c524"
+        },
+        "date": 1782746874707,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
