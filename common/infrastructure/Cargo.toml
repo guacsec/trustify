@@ -34,7 +34,6 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "ansi", "trac
 url = { workspace = true }
 utoipa = { workspace = true }
 utoipa-actix-web = { workspace = true }
-utoipa-rapidoc = { workspace = true }
 
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }

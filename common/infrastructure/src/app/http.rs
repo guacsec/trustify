@@ -6,7 +6,7 @@ use crate::{
 use actix_cors::Cors;
 use actix_tls::{accept::openssl::reexports::SslAcceptor, connect::openssl::reexports::SslMethod};
 use actix_web::{
-    App, HttpResponse, HttpServer,
+    App, HttpServer,
     dev::{ServiceFactory, ServiceRequest},
     web::{self, JsonConfig},
 };
@@ -32,7 +32,6 @@ use trustify_auth::{
 use trustify_common::model::BinaryByteSize;
 use utoipa::openapi::Info;
 use utoipa_actix_web::AppExt;
-use utoipa_rapidoc::RapiDoc;
 
 const DEFAULT_ADDR: SocketAddr = SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 8080);
 
@@ -749,31 +748,9 @@ where
 
         // register OpenAPI UIs
 
-        let app = app
-            .service({
-                if let Some(oidc) = &swagger_ui_oidc {
-                    oidc.apply_to_schema(&mut openapi);
-                }
-                RapiDoc::with_openapi("/openapi.json", openapi.clone()).path("/openapi/")
-            })
-            .service(web::redirect("/openapi", "/openapi/"))
-            .route(
-                "/openapi/oauth-receiver.html",
-                web::get().to(|| async {
-                    HttpResponse::Ok().content_type(mime::TEXT_HTML).body(
-                        r#"<!doctype html>
-<head>
-  <script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"></script>
-</head>
-
-<body>
-  <oauth-receiver> </oauth-receiver>
-</body>"#,
-                    )
-                }),
-            );
-
         app.service(swagger_ui_with_auth(openapi, swagger_ui_oidc))
+            .service(web::redirect("/openapi", "/swagger-ui/"))
+            .service(web::redirect("/openapi/", "/swagger-ui/"))
             .service(web::redirect("/swagger-ui", "/swagger-ui/"))
     }
 }
