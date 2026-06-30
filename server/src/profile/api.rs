@@ -543,12 +543,13 @@ mod test {
         let text = std::str::from_utf8(&body)?;
         assert!(text.contains("<title>Trustification</title>"));
 
-        // rapidoc UI
+        // openapi redirects to swagger-ui
 
         let req = TestRequest::get().uri("/openapi/").to_request();
-        let body = call_and_read_body(&app, req).await;
-        let text = std::str::from_utf8(&body)?;
-        assert!(text.contains("<rapi-doc"));
+        let resp = call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::TEMPORARY_REDIRECT);
+        let loc = resp.headers().get(header::LOCATION);
+        assert!(loc.is_some_and(|x| x.eq("/swagger-ui/")));
 
         // swagger ui
 
