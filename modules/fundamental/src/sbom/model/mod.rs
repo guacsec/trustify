@@ -104,6 +104,45 @@ impl<P: IntoPackage> SbomSummary<P> {
             described_by,
         })
     }
+
+    /// Batch-convert multiple SBOM entity tuples into summaries, using two
+    /// queries total instead of two per SBOM.
+    #[instrument(skip_all, err(level=tracing::Level::INFO), fields(count=entities.len()))]
+    pub async fn from_entities<C: ConnectionTrait>(
+        entities: Vec<(sbom::Model, sbom_node::Model, source_document::Model)>,
+        service: &SbomService,
+        db: &C,
+    ) -> Result<Vec<Self>, Error> {
+        if entities.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let sbom_ids: Vec<Uuid> = entities.iter().map(|(s, _, _)| s.sbom_id).collect();
+
+        let mut describes_map = service.batch_describes_packages(&sbom_ids, db).await?;
+        let counts_map = service.batch_package_counts(&sbom_ids, db).await?;
+
+        let results = entities
+            .into_iter()
+            .map(|(sbom, node, source_document)| SbomSummary {
+                head: SbomHead {
+                    id: sbom.sbom_id,
+                    document_id: sbom.document_id,
+                    labels: sbom.labels,
+                    published: sbom.published,
+                    authors: sbom.authors,
+                    suppliers: sbom.suppliers,
+                    name: node.name,
+                    data_licenses: sbom.data_licenses,
+                    number_of_packages: counts_map.get(&sbom.sbom_id).copied().unwrap_or(0),
+                },
+                source_document: SourceDocument::from_entity(&source_document),
+                described_by: describes_map.remove(&sbom.sbom_id).unwrap_or_default(),
+            })
+            .collect();
+
+        Ok(results)
+    }
 }
 
 #[derive(FromQueryResult)]

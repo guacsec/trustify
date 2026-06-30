@@ -8,7 +8,6 @@ use crate::{
         SbomPackageRelation, SbomPackageSummary, SbomSummary, Which, details::SbomDetails,
     },
 };
-use futures_util::{StreamExt, TryStreamExt, stream};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromJsonQueryResult, FromQueryResult,
     IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
@@ -296,15 +295,14 @@ impl SbomService {
         } = limiter.fetch().await?;
         let total = total.requested(paginated.total()).await?;
 
-        let items = stream::iter(
-            sboms
-                .into_iter()
-                .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?))),
-        )
-        .then(|row| async { SbomSummary::from_entity(row, self, connection).await })
-        .try_collect()
-        .instrument(info_span!("from_entity"))
-        .await?;
+        let filtered: Vec<_> = sboms
+            .into_iter()
+            .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?)))
+            .collect();
+
+        let items = SbomSummary::from_entities(filtered, self, connection)
+            .instrument(info_span!("from_entities"))
+            .await?;
 
         Ok(PaginatedResults { total, items })
     }
@@ -560,6 +558,91 @@ impl SbomService {
         .map(|r| r.map_all(|rel| rel.package))
     }
 
+    /// Count packages for multiple SBOMs in a single query.
+    #[instrument(skip(self, db), err(level=tracing::Level::INFO))]
+    pub async fn batch_package_counts<C: ConnectionTrait>(
+        &self,
+        sbom_ids: &[Uuid],
+        db: &C,
+    ) -> Result<HashMap<Uuid, u64>, Error> {
+        if sbom_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let counts: Vec<(Uuid, i64)> = sbom_package::Entity::find()
+            .select_only()
+            .column(sbom_package::Column::SbomId)
+            .column_as(sbom_package::Column::NodeId.count(), "count")
+            .filter(sbom_package::Column::SbomId.is_in(sbom_ids.to_vec()))
+            .group_by(sbom_package::Column::SbomId)
+            .into_tuple()
+            .all(db)
+            .await?;
+        Ok(counts.into_iter().map(|(id, c)| (id, c as u64)).collect())
+    }
+
+    /// Fetch describing packages for multiple SBOMs in a single batch query.
+    #[instrument(skip(self, db), err(level=tracing::Level::INFO))]
+    pub async fn batch_describes_packages<C, P>(
+        &self,
+        sbom_ids: &[Uuid],
+        db: &C,
+    ) -> Result<HashMap<Uuid, Vec<P>>, Error>
+    where
+        C: ConnectionTrait,
+        P: IntoPackage,
+    {
+        if sbom_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let mut query = package_relates_to_package::Entity::find()
+            .filter(package_relates_to_package::Column::SbomId.is_in(sbom_ids.to_vec()))
+            .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Describes))
+            .select_only()
+            .select_column(package_relates_to_package::Column::SbomId)
+            .select_column_as(sbom_node::Column::NodeId, "id")
+            .select_column_as(sbom_node::Column::Name, "name")
+            .select_column_as(sbom_package::Column::Group, "group")
+            .select_column_as(sbom_package::Column::Version, "version")
+            // join the right side (the described node) → package
+            .join(
+                JoinType::Join,
+                package_relates_to_package::Relation::Right.def(),
+            )
+            .join(JoinType::Join, sbom_node::Relation::Package.def())
+            .join(JoinType::Join, sbom_node::Relation::Sbom.def());
+
+        query = P::build_query(query);
+
+        // All selected columns must appear in GROUP BY. For SbomPackage,
+        // P::build_query already adds most of these (duplicates are harmless);
+        // for SbomPackageSummary (no-op build_query), these are essential.
+        query = query
+            .group_by(package_relates_to_package::Column::SbomId)
+            .group_by(sbom_node::Column::NodeId)
+            .group_by(sbom_node::Column::Name)
+            .group_by(sbom_package::Column::Group)
+            .group_by(sbom_package::Column::Version);
+
+        #[derive(FromQueryResult)]
+        struct BatchRow<R: FromQueryResult> {
+            sbom_id: Uuid,
+            #[sea_orm(nested)]
+            package: R,
+        }
+
+        let rows: Vec<BatchRow<P::Row>> = query.into_model().all(db).await?;
+
+        let mut result: HashMap<Uuid, Vec<P>> = HashMap::new();
+        for row in rows {
+            result
+                .entry(row.sbom_id)
+                .or_default()
+                .push(P::from_row(row.package));
+        }
+        Ok(result)
+    }
+
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn count_related_sboms<C: ConnectionTrait>(
         &self,
@@ -681,16 +764,14 @@ impl SbomService {
         } = limiter.fetch().await?;
         let total = total.requested(paginated.total()).await?;
 
-        // collect results
+        let filtered: Vec<_> = sboms
+            .into_iter()
+            .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?)))
+            .collect();
 
-        let items = stream::iter(
-            sboms
-                .into_iter()
-                .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?))),
-        )
-        .then(|row| async { SbomSummary::from_entity(row, self, connection).await })
-        .try_collect()
-        .await?;
+        let items = SbomSummary::from_entities(filtered, self, connection)
+            .instrument(info_span!("from_entities"))
+            .await?;
 
         Ok(PaginatedResults { items, total })
     }
