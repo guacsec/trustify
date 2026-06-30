@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782819683248,
+  "lastUpdate": 1782839710334,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19369,6 +19369,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "8f77e11ed6ad3b3d569a63b709fb87be15284c7e",
+          "message": "fix!: Serve swagger UI on the /openapi endpoint\n\nDrop redoc and rapidoc dependencies, which was loading content from a\nCDN.",
+          "timestamp": "2026-06-30T14:24:34Z",
+          "tree_id": "7900b9e4a413ca6b686e93417d3721139385ca1a",
+          "url": "https://github.com/guacsec/trustify/commit/8f77e11ed6ad3b3d569a63b709fb87be15284c7e"
+        },
+        "date": 1782839708831,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
