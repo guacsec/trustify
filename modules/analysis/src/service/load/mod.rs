@@ -408,6 +408,7 @@ impl InnerService {
                     .instrument(info_span!("finding matching sboms", mode = "query"))
                     .await?,
             ),
+
         };
 
         log::debug!("SBOM IDs to evaluate: {}", TruncatedIter(&matched_sbom_ids));
@@ -426,20 +427,8 @@ impl InnerService {
             matched_sbom_ids
         };
 
-        let mut ranked_sboms = resolve_sbom_cpes(cpe_search, connection, matched_sbom_ids).await?;
-
-        log::debug!("SBOMs to rank: {}", TruncatedIter(&ranked_sboms));
-
-        // apply rank
-        apply_rank(&mut ranked_sboms);
-        log::trace!("ranked sboms: {:?}", TruncatedIter(&ranked_sboms));
-
-        // retrieve only ranked_sboms with rank = 1
-        let latest_ids: HashSet<_> = ranked_sboms
-            .into_iter()
-            .filter(|item| item.rank == Some(1))
-            .map(|item| item.matched_sbom_id)
-            .collect();
+        let latest_ids =
+            resolve_latest_sbom_ids(cpe_search, connection, &matched_sbom_ids).await?;
 
         log::debug!("latest sboms: {:?}", latest_ids.len());
         log::trace!("latest sboms: {:?}", TruncatedIter(&latest_ids));

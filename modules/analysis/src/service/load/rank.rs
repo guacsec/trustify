@@ -25,11 +25,19 @@ pub struct Row {
     pub published: OffsetDateTime,
 }
 
+/// An intermediate CPE-resolved row before ranking.
+struct ResolvedCpe {
+    matched_sbom_id: Uuid,
+    matched_name: String,
+    cpe_id: Uuid,
+    sbom_date: OffsetDateTime,
+}
+
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RankedSbom {
     pub matched_sbom_id: Uuid,
     pub matched_name: String,
-    #[cfg(test)]
     pub top_ancestor_sbom: Uuid,
     pub cpe_id: Uuid,
     pub sbom_date: OffsetDateTime,
@@ -62,7 +70,7 @@ pub fn select() -> Select<sbom_node::Entity> {
 async fn batch_resolve_direct_cpe_matches(
     rows: &[Row],
     connection: &(impl ConnectionTrait + Send),
-) -> Result<Vec<RankedSbom>, Error> {
+) -> Result<Vec<ResolvedCpe>, Error> {
     if rows.is_empty() {
         return Ok(vec![]);
     }
@@ -183,14 +191,11 @@ async fn batch_resolve_direct_cpe_matches(
                 .unwrap_or(&candidates[0]);
 
             for cpe_id in cpe_ids {
-                matched_sboms.push(RankedSbom {
+                matched_sboms.push(ResolvedCpe {
                     matched_sbom_id: matched.sbom_id,
                     matched_name: node.name.clone(),
-                    #[cfg(test)]
-                    top_ancestor_sbom: node.sbom_id,
                     cpe_id: *cpe_id,
                     sbom_date: matched.published,
-                    rank: None,
                 });
             }
         }
@@ -213,11 +218,11 @@ struct AncestorCpeRow {
 ///
 /// Phase 2a (non-recursive): for all matched SBOMs without own
 /// describing CPEs, find direct ancestors with CPEs. Handles the
-/// common case of image-index → product (one hop).
+/// common case of image-index -> product (one hop).
 ///
 /// Phase 2b (recursive): for SBOMs where 2a found nothing, walk
-/// the full ancestor chain. Handles multi-hop paths like binary →
-/// image-index → product. Results are returned separately so the
+/// the full ancestor chain. Handles multi-hop paths like binary ->
+/// image-index -> product. Results are returned separately so the
 /// caller can dedup Phase 2b against Phase 1.
 #[instrument(skip(connection, sbom_ids), fields(count = sbom_ids.len()))]
 async fn batch_resolve_ancestor_cpes(
@@ -300,24 +305,95 @@ async fn batch_resolve_ancestor_cpes(
 
 // ─── Top-level orchestrator ─────────────────────────────────────────
 
-/// Resolve CPEs for matched SBOMs using the materialized `sbom_ancestor` table.
+/// SQL that applies DENSE_RANK to pre-resolved CPE rows and returns
+/// only SBOM IDs where rank = 1.
 ///
-/// Processes all rows in two phases:
-/// 1. Batch direct CPE matches (when `cpe_search` is true) — explicit
-///    `sbom_external_node` references where the matched SBOM itself has CPEs
-/// 2. Ancestor CPE lookup via `sbom_ancestor` + `sbom_describing_cpe` — replaces
-///    the expensive runtime graph walking and checksum matching
+/// Parameters:
+///   $1: UUID[]        — matched_sbom_id (parallel arrays)
+///   $2: text[]        — matched_name
+///   $3: UUID[]        — cpe_id
+///   $4: timestamptz[] — sbom_date
+const RANK_AND_FILTER_SQL: &str = r#"
+WITH
+items AS (
+    SELECT *
+    FROM unnest($1::uuid[], $2::text[], $3::uuid[], $4::timestamptz[])
+        AS t(matched_sbom_id, matched_name, cpe_id, sbom_date)
+),
+ranked AS (
+    SELECT matched_sbom_id,
+        DENSE_RANK() OVER (
+            PARTITION BY cpe_id, matched_name
+            ORDER BY sbom_date DESC
+        ) AS rank
+    FROM items
+)
+SELECT DISTINCT matched_sbom_id AS sbom_id
+FROM ranked
+WHERE rank = 1
+"#;
+
+/// Result row from the ranking query.
+#[derive(Debug, FromQueryResult)]
+struct LatestSbomId {
+    sbom_id: Uuid,
+}
+
+/// Applies DENSE_RANK to resolved CPE rows in the database and
+/// returns only SBOM IDs where rank = 1.
+#[instrument(skip(connection, items), fields(items = items.len()))]
+async fn rank_and_filter(
+    connection: &(impl ConnectionTrait + Send),
+    items: &[ResolvedCpe],
+) -> Result<HashSet<Uuid>, Error> {
+    if items.is_empty() {
+        return Ok(HashSet::new());
+    }
+
+    let mut sbom_ids = Vec::with_capacity(items.len());
+    let mut names = Vec::with_capacity(items.len());
+    let mut cpe_ids = Vec::with_capacity(items.len());
+    let mut dates = Vec::with_capacity(items.len());
+
+    for item in items {
+        sbom_ids.push(item.matched_sbom_id);
+        names.push(item.matched_name.clone());
+        cpe_ids.push(item.cpe_id);
+        dates.push(item.sbom_date);
+    }
+
+    let stmt = Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        RANK_AND_FILTER_SQL,
+        [sbom_ids.into(), names.into(), cpe_ids.into(), dates.into()],
+    );
+
+    let results = LatestSbomId::find_by_statement(stmt)
+        .all(connection)
+        .instrument(tracing::info_span!("rank and filter").or_current())
+        .await?;
+
+    Ok(results.into_iter().map(|r| r.sbom_id).collect())
+}
+
+/// Resolves CPEs for matched SBOMs using the 3-query approach
+/// (Phase 1, Phase 2a, Phase 2b), then applies DENSE_RANK in SQL
+/// and returns only SBOM IDs where rank = 1.
 #[instrument(skip(connection, rows), fields(rows = rows.len()))]
-pub async fn resolve_sbom_cpes(
+pub async fn resolve_latest_sbom_ids(
     cpe_search: bool,
     connection: &(impl ConnectionTrait + Send),
-    rows: Vec<Row>,
-) -> Result<Vec<RankedSbom>, Error> {
-    let mut results = Vec::new();
+    rows: &[Row],
+) -> Result<HashSet<Uuid>, Error> {
+    if rows.is_empty() {
+        return Ok(HashSet::new());
+    }
+
+    let mut results: Vec<ResolvedCpe> = Vec::new();
 
     // ── Phase 1: batch direct CPE matches (cpe_search only) ──
     if cpe_search {
-        results.extend(batch_resolve_direct_cpe_matches(&rows, connection).await?);
+        results.extend(batch_resolve_direct_cpe_matches(rows, connection).await?);
     }
 
     // ── Phase 2: ancestor CPEs via materialized table ──
@@ -332,7 +408,7 @@ pub async fn resolve_sbom_cpes(
 
     let rows_by_sbom: HashMap<Uuid, Vec<&Row>> = {
         let mut map: HashMap<Uuid, Vec<&Row>> = HashMap::new();
-        for row in &rows {
+        for row in rows {
             map.entry(row.sbom_id).or_default().push(row);
         }
         map
@@ -342,54 +418,70 @@ pub async fn resolve_sbom_cpes(
     for ancestor_cpe in &phase2a {
         if let Some(matched_rows) = rows_by_sbom.get(&ancestor_cpe.sbom_id) {
             for matched in matched_rows {
-                results.push(RankedSbom {
+                results.push(ResolvedCpe {
                     matched_sbom_id: matched.sbom_id,
                     matched_name: matched.name.clone(),
-                    #[cfg(test)]
-                    top_ancestor_sbom: Uuid::nil(),
                     cpe_id: ancestor_cpe.cpe_id,
                     sbom_date: matched.published,
-                    rank: None,
                 });
             }
         }
     }
 
-    // Build dedup set from Phase 1 + Phase 2a using owned strings
-    // to avoid borrowing `results` while we push to it below
+    // Build dedup set from Phase 1 + Phase 2a
     let existing: HashSet<(Uuid, String)> = results
         .iter()
         .map(|r| (r.cpe_id, r.matched_name.clone()))
         .collect();
 
-    // Phase 2b results are deduped against the combined set — only
-    // genuinely new (cpe, name) pairs pass through. This prevents
-    // recursive traversal from re-adding entries that Phase 1 already
-    // covers (e.g. binary SBOMs sharing a name with product SBOMs),
-    // while allowing novel components like nested RPMs through.
+    // Phase 2b results are deduped against the combined set
     for ancestor_cpe in &phase2b {
         if let Some(matched_rows) = rows_by_sbom.get(&ancestor_cpe.sbom_id) {
             for matched in matched_rows {
                 if existing.contains(&(ancestor_cpe.cpe_id, matched.name.clone())) {
                     continue;
                 }
-                results.push(RankedSbom {
+                results.push(ResolvedCpe {
                     matched_sbom_id: matched.sbom_id,
                     matched_name: matched.name.clone(),
-                    #[cfg(test)]
-                    top_ancestor_sbom: Uuid::nil(),
                     cpe_id: ancestor_cpe.cpe_id,
                     sbom_date: matched.published,
-                    rank: None,
                 });
             }
         }
     }
 
-    Ok(results)
+    // ── Rank in SQL and return only rank = 1 ──
+    rank_and_filter(connection, &results).await
 }
 
-// ─── Ranking ────────────────────────────────────────────────────────
+// ─── Test-only functions ────────────────────────────────────────────
+
+/// Resolve CPEs for matched SBOMs (test-only, used by
+/// `rh_node_id_collision` test).
+#[cfg(test)]
+pub async fn resolve_sbom_cpes(
+    cpe_search: bool,
+    connection: &(impl ConnectionTrait + Send),
+    rows: Vec<Row>,
+) -> Result<Vec<RankedSbom>, Error> {
+    let mut results = Vec::new();
+
+    if cpe_search {
+        for r in batch_resolve_direct_cpe_matches(&rows, connection).await? {
+            results.push(RankedSbom {
+                matched_sbom_id: r.matched_sbom_id,
+                matched_name: r.matched_name,
+                top_ancestor_sbom: Uuid::nil(),
+                cpe_id: r.cpe_id,
+                sbom_date: r.sbom_date,
+                rank: None,
+            });
+        }
+    }
+
+    Ok(results)
+}
 
 /// Assigns a rank to SBOMs within their specific CPE groups based on
 /// creation date which embodies the latest filter heuristics.
@@ -397,8 +489,9 @@ pub async fn resolve_sbom_cpes(
 /// Simulates a SQL Window Function:
 /// `DENSE_RANK() OVER (PARTITION BY (cpe_id, matched_name) ORDER BY sbom_date DESC)`.
 ///
-/// 1. **Sort** by `cpe_id`, `name`, then `sbom_date` descending.
-/// 2. **Rank**: resets on group boundary, ties share rank, otherwise increments (dense rank).
+/// Test-only: the production path uses `rank_and_filter` which
+/// performs ranking in SQL.
+#[cfg(test)]
 pub fn apply_rank(items: &mut [RankedSbom]) {
     items.sort_by(|a, b| {
         a.cpe_id
