@@ -39,8 +39,6 @@ tokio_schedule = { workspace = true }
 url = { workspace = true }
 utoipa = { workspace = true, features = ["actix_extras", "yaml"] }
 utoipa-actix-web = { workspace = true }
-utoipa-rapidoc = { workspace = true }
-utoipa-redoc = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
