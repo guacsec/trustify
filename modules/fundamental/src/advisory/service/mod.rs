@@ -44,7 +44,7 @@ impl AdvisoryService {
     ) -> Result<PaginatedResults<AdvisorySummary>, Error> {
         let limiter = advisory::Entity::find()
             .with_deprecation(deprecation)
-            .left_join(source_document::Entity)
+            .join(JoinType::InnerJoin, advisory::Relation::SourceDocument.def())
             .join(JoinType::LeftJoin, advisory::Relation::Issuer.def())
             .filtering_with(
                 search,
