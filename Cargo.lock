@@ -8936,7 +8936,6 @@ dependencies = [
  "url",
  "utoipa",
  "utoipa-actix-web",
- "utoipa-rapidoc",
 ]
 
 [[package]]
@@ -9349,8 +9348,6 @@ dependencies = [
  "urlencoding",
  "utoipa",
  "utoipa-actix-web",
- "utoipa-rapidoc",
- "utoipa-redoc",
 ]
 
 [[package]]
@@ -9605,30 +9602,6 @@ dependencies = [
  "syn 2.0.119",
  "url",
  "uuid",
-]
-
-[[package]]
-name = "utoipa-rapidoc"
-version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5f8f5abd341cce16bb4f09a8bafc087d4884a004f25fb980e538d51d6501dab"
-dependencies = [
- "actix-web",
- "serde",
- "serde_json",
- "utoipa",
-]
-
-[[package]]
-name = "utoipa-redoc"
-version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6427547f6db7ec006cbbef95f7565952a16f362e298b416d2d497d9706fef72d"
-dependencies = [
- "actix-web",
- "serde",
- "serde_json",
- "utoipa",
 ]
 
 [[package]]
