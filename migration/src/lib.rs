@@ -61,6 +61,7 @@ mod m0002160_fix_ref_fk;
 mod m0002170_drop_cvss_tables;
 mod m0002180_advisory_fk_indexes;
 mod m0002190_vulnerability_base_score_advisory;
+mod m0002200_source_document_ingested_index;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -137,6 +138,7 @@ impl MigratorExt for Migrator {
             .normal(m0002110_sbom_describing_cpe::Migration)
             .normal(m0002120_ancestor_walk_index::Migration)
             .normal(m0002130_sbom_ancestor::Migration)
+            .normal(m0002200_source_document_ingested_index::Migration)
     }
 }
 
