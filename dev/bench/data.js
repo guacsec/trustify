@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782746877778,
+  "lastUpdate": 1782819683248,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19340,6 +19340,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "6ed61ac415687ef6e0dd703fa352ea8936f47199",
+          "message": "perf: replace regexp_replace with string replace in license expansion\n\nReplace the dynamically compiled regex pattern in\nexpand_license_expression_with_mappings() with 6 boundary-aware\nreplace() calls covering all valid SPDX delimiter combinations\n(space/paren before, space/paren/+ after).\n\nEach regexp_replace() call compiles a fresh NFA from a concatenated\npattern; replace() uses simple string search (Boyer-Moore-like) and\navoids the compilation overhead entirely.\n\nBenchmark results (17 expression patterns x 1000 iterations, 8 mappings):\n\n  regex   : run1=226.3 ms  run2=226.8 ms  run3=226.4 ms  avg=226.5 ms\n  replace : run1=105.3 ms  run2=104.8 ms  run3=104.6 ms  avg=104.9 ms\n  speedup : 2.16x\n\nThe benchmark script (bench_expand.sql) verifies both implementations\nproduce identical results before timing, and cleans up after itself.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-30T08:54:42Z",
+          "tree_id": "b1ecf90b5752ad0a108c0f07163c7bbe05c67f7f",
+          "url": "https://github.com/guacsec/trustify/commit/6ed61ac415687ef6e0dd703fa352ea8936f47199"
+        },
+        "date": 1782819681863,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
