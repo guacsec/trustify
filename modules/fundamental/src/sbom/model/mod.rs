@@ -11,6 +11,7 @@ use crate::{
 };
 use sea_orm::{ConnectionTrait, FromQueryResult, ModelTrait, PaginatorTrait, prelude::Uuid};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use time::OffsetDateTime;
 use tracing::{info_span, instrument};
 use tracing_futures::Instrument;
@@ -63,7 +64,19 @@ impl SbomHead {
             .count(db)
             .instrument(info_span!("counting packages"))
             .await?;
-        Ok(Self {
+        Ok(Self::from_parts(sbom, sbom_node, number_of_packages))
+    }
+
+    /// Build an `SbomHead` without issuing a database query.
+    ///
+    /// Use this when the package count has already been fetched in
+    /// a batch (see [`SbomService::batch_package_counts`]).
+    pub fn from_parts(
+        sbom: &sbom::Model,
+        sbom_node: &sbom_node::Model,
+        number_of_packages: u64,
+    ) -> Self {
+        Self {
             id: sbom.sbom_id,
             document_id: sbom.document_id.clone(),
             labels: sbom.labels.clone(),
@@ -73,7 +86,7 @@ impl SbomHead {
             name: sbom_node.name.clone(),
             data_licenses: sbom.data_licenses.clone(),
             number_of_packages,
-        })
+        }
     }
 }
 
@@ -95,7 +108,6 @@ impl<P: IntoPackage> SbomSummary<P> {
         service: &SbomService,
         db: &C,
     ) -> Result<Self, Error> {
-        // TODO: consider improving the n-select issues here
         let described_by = service.describes_packages(sbom.sbom_id, (), db).await?;
 
         Ok(SbomSummary {
@@ -103,6 +115,45 @@ impl<P: IntoPackage> SbomSummary<P> {
             source_document: SourceDocument::from_entity(&source_document),
             described_by,
         })
+    }
+
+    /// Convert a batch of entity tuples into `SbomSummary` values using
+    /// only two queries (one for package counts, one for describes
+    /// packages) instead of 2*N.
+    #[instrument(skip(rows, service, db), err(level=tracing::Level::INFO))]
+    pub async fn from_entities_batch<C: ConnectionTrait>(
+        rows: Vec<(sbom::Model, sbom_node::Model, source_document::Model)>,
+        service: &SbomService,
+        db: &C,
+    ) -> Result<Vec<Self>, Error> {
+        if rows.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let sbom_ids: Vec<Uuid> = rows.iter().map(|(s, _, _)| s.sbom_id).collect();
+
+        let counts = service.batch_package_counts(&sbom_ids, db).await?;
+        let mut describes: HashMap<Uuid, Vec<P>> =
+            service.batch_describes_packages(&sbom_ids, db).await?;
+
+        let items = rows
+            .into_iter()
+            .map(|(sbom, node, source_document)| {
+                let count = counts.get(&sbom.sbom_id).copied().unwrap_or(0);
+                let described_by = describes
+                    .remove(&sbom.sbom_id)
+                    .unwrap_or_default();
+                SbomSummary {
+                    head: SbomHead::from_parts(&sbom, &node, count),
+                    source_document: SourceDocument::from_entity(
+                        &source_document,
+                    ),
+                    described_by,
+                }
+            })
+            .collect();
+
+        Ok(items)
     }
 }
 

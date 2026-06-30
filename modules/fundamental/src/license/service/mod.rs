@@ -306,7 +306,6 @@ impl LicenseService {
         // Build query for SPDX licenses (from expanded_license dictionary)
         let mut spdx_query = expanded_license::Entity::find()
             .select_only()
-            .distinct()
             .column_as(expanded_license::Column::ExpandedText, LICENSE_TEXT);
 
         // Build query for licenses not yet linked to any SBOM: includes both
@@ -329,7 +328,6 @@ impl LicenseService {
 
         let mut non_sbom_query = license::Entity::find()
             .select_only()
-            .distinct()
             .column_as(license::Column::Text, LICENSE_TEXT)
             .filter(Expr::exists(exists_subquery).not());
 
@@ -358,22 +356,25 @@ impl LicenseService {
         non_sbom_query = non_sbom_query.filtering_with(filter_only, non_sbom_columns)?;
 
         // Union the two queries
-        QueryTrait::query(&mut spdx_query).union(UnionType::Distinct, non_sbom_query.into_query());
+        QueryTrait::query(&mut spdx_query).union(UnionType::All, non_sbom_query.into_query());
         // Add an expression for the license field and use it as the default sort
         let expr = SimpleExpr::Custom(LICENSE_TEXT.into());
-        spdx_query = spdx_query
-            .filtering_with(
-                q("").sort(&search.sort),
-                Columns::default().add_expr("license", expr.clone(), sea_orm::ColumnType::Text),
-            )?
-            .order_by_asc(expr);
+        spdx_query = spdx_query.filtering_with(
+            q("").sort(&search.sort),
+            Columns::default().add_expr("license", expr.clone(), sea_orm::ColumnType::Text),
+        )?;
+        if search.sort.is_empty() {
+            spdx_query = spdx_query.order_by_asc(expr);
+        }
 
         let mut union_query = spdx_query.into_query();
 
-        // Count total results
+        // Count total results (strip ORDER BY — it's meaningless inside COUNT)
+        let mut count_subquery = union_query.clone();
+        count_subquery.clear_order_by();
         let count_query = sea_query::Query::select()
             .expr_as(Func::count(Expr::col(Asterisk)), "num_items")
-            .from_subquery(union_query.clone(), "subquery")
+            .from_subquery(count_subquery, "subquery")
             .to_owned();
 
         #[derive(Debug, Default, Clone, Serialize, Deserialize, ToSchema, FromQueryResult)]
