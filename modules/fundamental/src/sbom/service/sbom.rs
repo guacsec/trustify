@@ -4,8 +4,9 @@ use crate::{
     common::license_filtering::{LICENSE, license_text_coalesce},
     purl::model::summary::purl::PurlSummary,
     sbom::model::{
-        ModelCatcher, SbomExternalPackageReference, SbomModel, SbomNodeReference, SbomPackage,
-        SbomPackageRelation, SbomPackageSummary, SbomSummary, Which, details::SbomDetails,
+        AffectedSeverity, ModelCatcher, SbomAdvisorySummary, SbomExternalPackageReference,
+        SbomModel, SbomNodeReference, SbomPackage, SbomPackageRelation, SbomPackageSummary,
+        SbomSummary, Which, details::SbomDetails, raw_sql,
     },
 };
 use sea_orm::{
@@ -46,6 +47,7 @@ use trustify_entity::{
 pub struct FetchOptions {
     labels: Labels,
     groups: Option<Vec<Uuid>>,
+    pub advisories: bool,
 }
 
 impl FetchOptions {
@@ -61,6 +63,12 @@ impl FetchOptions {
                 .filter_map(|s| Uuid::parse_str(s.as_ref()).ok())
                 .collect(),
         );
+        self
+    }
+
+    /// Include advisory severity summary counts in the response.
+    pub fn advisories(mut self, advisories: bool) -> Self {
+        self.advisories = advisories;
         self
     }
 }
@@ -305,7 +313,7 @@ impl SbomService {
             .collect();
 
         let items =
-            SbomSummary::from_entities(filtered, self, connection).await?;
+            SbomSummary::from_entities(filtered, self, options.advisories, connection).await?;
 
         Ok(PaginatedResults { total, items })
     }
@@ -646,6 +654,50 @@ impl SbomService {
         Ok(result)
     }
 
+    /// Count affected vulnerabilities grouped by severity for multiple SBOMs
+    /// in a single batch query, combining both PURL and CPE matching paths.
+    #[instrument(skip(self, db), err(level=tracing::Level::INFO))]
+    pub async fn batch_advisory_severity_counts<C: ConnectionTrait>(
+        &self,
+        sbom_ids: &[Uuid],
+        db: &C,
+    ) -> Result<HashMap<Uuid, SbomAdvisorySummary>, Error> {
+        if sbom_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let stmt = Statement::from_sql_and_values(
+            db.get_database_backend(),
+            raw_sql::batch_severity_counts_sql(),
+            vec![sbom_ids.to_vec().into()],
+        );
+
+        let rows = db.query_all(stmt).await?;
+
+        let mut result: HashMap<Uuid, SbomAdvisorySummary> = HashMap::new();
+        for row in rows {
+            let sbom_id: Uuid = row.try_get("", "sbom_id")?;
+            let severity_str: String = row.try_get("", "severity")?;
+            let count: i64 = row.try_get("", "count")?;
+
+            let severity = match severity_str.as_str() {
+                "none" => AffectedSeverity::None,
+                "low" => AffectedSeverity::Low,
+                "medium" => AffectedSeverity::Medium,
+                "high" => AffectedSeverity::High,
+                "critical" => AffectedSeverity::Critical,
+                _ => AffectedSeverity::Unknown,
+            };
+
+            result
+                .entry(sbom_id)
+                .or_default()
+                .insert(severity, count as u64);
+        }
+
+        Ok(result)
+    }
+
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn count_related_sboms<C: ConnectionTrait>(
         &self,
@@ -772,9 +824,7 @@ impl SbomService {
             .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?)))
             .collect();
 
-        let items = SbomSummary::from_entities(filtered, self, connection)
-            .instrument(info_span!("from_entities"))
-            .await?;
+        let items = SbomSummary::from_entities(filtered, self, false, connection).await?;
 
         Ok(PaginatedResults { items, total })
     }
