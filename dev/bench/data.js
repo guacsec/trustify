@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782839710334,
+  "lastUpdate": 1782907586506,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19393,6 +19393,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/8f77e11ed6ad3b3d569a63b709fb87be15284c7e"
         },
         "date": 1782839708831,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "mrizzi@users.noreply.github.com",
+            "name": "Marco Rizzi",
+            "username": "mrizzi"
+          },
+          "distinct": true,
+          "id": "19bbf41f2044efa93e2050b5e3573705d78cdc2c",
+          "message": "ci: enable CI workflows for feature branch PRs\n\nAdd `feature/**` to the `pull_request` branch filters of ci, benchmark,\nand codecov workflows so PRs targeting feature branches receive the same\nCI treatment as PRs targeting main.\n\nOnly the `pull_request` trigger is updated — `push` triggers are left\nunchanged to avoid overriding baselines or publishing from WIP branches.\n\nResolves: TC-4517\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-01T09:21:22Z",
+          "tree_id": "e51d4c2a50f6cb35366bf98f5de244fe93adf3ad",
+          "url": "https://github.com/guacsec/trustify/commit/19bbf41f2044efa93e2050b5e3573705d78cdc2c"
+        },
+        "date": 1782907585059,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
