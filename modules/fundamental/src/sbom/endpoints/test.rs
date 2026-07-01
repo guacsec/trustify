@@ -2228,3 +2228,89 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+/// Verify the optional `?advisories=true` enrichment on the SBOM list endpoint.
+///
+/// The `expected` array contains the expected `advisories` value for each SBOM,
+/// sorted alphabetically by SBOM name.
+#[test_context(TrustifyContext)]
+#[rstest]
+// Without ?advisories param, the field should be absent from the response
+#[case::without_param(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json"],
+    false,
+    json!([null]),
+)]
+// With ?advisories=true but no matching advisory data, the field is present but empty
+#[case::no_advisory_data(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json"],
+    true,
+    json!([{}]),
+)]
+// CSAF advisory with CVSS 5.3 produces a medium severity count
+#[case::medium_severity(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json"],
+    true,
+    json!([{"medium": 1}]),
+)]
+// CVE without CVSS scores maps to unknown severity
+#[case::unknown_severity(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "cve/CVE-2024-26308.json"],
+    true,
+    json!([{"unknown": 1}]),
+)]
+// Multiple CVSS versions (v2 low + v3.1 medium) should pick the highest severity
+#[case::multi_score_highest_wins(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044-multi-score.json"],
+    true,
+    json!([{"medium": 1}]),
+)]
+// Multiple severities from different advisories for the same SBOM
+#[case::multiple_severities(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json", "cve/CVE-2024-26308.json"],
+    true,
+    json!([{"medium": 1, "unknown": 1}]),
+)]
+// Multiple SBOMs: only one matches the advisory (sorted by name: quarkus, zookeeper)
+#[case::multiple_sboms_one_match(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "zookeeper-3.9.2-cyclonedx.json", "csaf/cve-2023-0044.json"],
+    true,
+    json!([{"medium": 1}, {}]),
+)]
+// Multiple SBOMs: both match different advisories with different severities
+#[case::multiple_sboms_both_match(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "zookeeper-3.9.2-cyclonedx.json", "csaf/cve-2023-0044.json", "csaf/cve-2099-0001.json"],
+    true,
+    json!([{"medium": 1}, {"high": 1}]),
+)]
+#[test_log::test(actix_web::test)]
+async fn list_sboms_advisory_summary(
+    ctx: &TrustifyContext,
+    #[case] docs: &[&str],
+    #[case] advisories_param: bool,
+    #[case] expected: Value,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_documents(docs).await?;
+
+    let advisories_query = if advisories_param {
+        "&advisories=true"
+    } else {
+        ""
+    };
+    let uri = format!("/api/v3/sbom?sort=name{advisories_query}");
+    let response: Value = app
+        .call_and_read_body_json(TestRequest::get().uri(&uri).to_request())
+        .await;
+
+    let items = response["items"]
+        .as_array()
+        .expect("items should be an array");
+    let actual = items
+        .iter()
+        .map(|i| i["advisories"].clone())
+        .collect::<Vec<_>>();
+    assert_eq!(Value::Array(actual), expected);
+
+    Ok(())
+}
