@@ -2668,6 +2668,12 @@ paths:
           type: array
           items:
             type: string
+      - name: advisories
+        in: query
+        description: Include advisory severity summary per SBOM
+        required: false
+        schema:
+          type: boolean
       responses:
         '200':
           description: Matching SBOMs
@@ -5550,6 +5556,8 @@ components:
               required:
               - described_by
               properties:
+                advisories:
+                  $ref: '#/components/schemas/RequestedField_HashMap_HashMap'
                 described_by:
                   type: array
                   items:
@@ -5575,6 +5583,8 @@ components:
               required:
               - described_by
               properties:
+                advisories:
+                  $ref: '#/components/schemas/RequestedField_HashMap_HashMap'
                 described_by:
                   type: array
                   items:
@@ -5650,6 +5660,8 @@ components:
               required:
               - described_by
               properties:
+                advisories:
+                  $ref: '#/components/schemas/RequestedField_HashMap_HashMap'
                 described_by:
                   type: array
                   items:
@@ -6095,6 +6107,26 @@ components:
           type: string
           format: date-time
           description: Start of the import run
+    RequestedField_HashMap_HashMap:
+      oneOf:
+      - type: 'null'
+      - type: object
+        additionalProperties:
+          type: integer
+          format: int64
+          minimum: 0
+        propertyNames:
+          type: string
+          description: |-
+            Severity level for affected vulnerabilities, extending the shared `Severity`
+            enum with an `Unknown` variant for vulnerabilities that have no CVSS score.
+          enum:
+          - unknown
+          - none
+          - low
+          - medium
+          - high
+          - critical
     RequestedField_Vec_Vec_ScoredVector:
       oneOf:
       - type: 'null'
@@ -6371,6 +6403,8 @@ components:
         required:
         - described_by
         properties:
+          advisories:
+            $ref: '#/components/schemas/RequestedField_HashMap_HashMap'
           described_by:
             type: array
             items:

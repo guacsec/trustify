@@ -217,6 +217,13 @@ mod v2 {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Default, serde::Deserialize, IntoParams)]
+pub struct SbomListParams {
+    /// Include advisory severity summary per SBOM
+    #[serde(default)]
+    pub advisories: bool,
+}
+
 mod v3 {
     use super::*;
     use crate::sbom::model::SbomPackageSummary;
@@ -229,17 +236,20 @@ mod v3 {
             Query,
             Paginated,
             GroupFilterQuery,
+            SbomListParams,
         ),
         responses(
             (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary<SbomPackageSummary>>),
         ),
     )]
     #[get("/v3/sbom")]
+    #[allow(clippy::too_many_arguments)]
     pub async fn all(
         fetch: web::Data<SbomService>,
         db: web::Data<db::ReadOnly>,
         web::Query(search): web::Query<Query>,
         web::Query(paginated): web::Query<Paginated>,
+        web::Query(params): web::Query<SbomListParams>,
         QsQuery(group_filter): QsQuery<GroupFilterQuery>,
         authorizer: web::Data<Authorizer>,
         user: UserInformation,
@@ -247,7 +257,7 @@ mod v3 {
         authorizer.require(&user, Permission::ReadSbom)?;
 
         let tx = db.begin().await?;
-        let mut options = FetchOptions::default();
+        let mut options = FetchOptions::default().advisories(params.advisories);
         if !group_filter.group.is_empty() {
             options = options.groups(group_filter.group);
         }

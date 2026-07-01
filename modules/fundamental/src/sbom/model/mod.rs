@@ -4,21 +4,56 @@ pub mod raw_sql;
 use super::service::SbomService;
 use crate::{
     Error,
-    common::{LicenseInfo, LicenseRefMapping},
+    common::{LicenseInfo, LicenseRefMapping, model::Severity},
     purl::model::summary::purl::PurlSummary,
     sbom::service::sbom::IntoPackage,
     source_document::model::SourceDocument,
 };
+use isx::IsDefault;
 use sea_orm::{ConnectionTrait, FromQueryResult, ModelTrait, PaginatorTrait, prelude::Uuid};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use time::OffsetDateTime;
 use tracing::{info_span, instrument};
 use tracing_futures::Instrument;
-use trustify_common::{cpe::Cpe, purl::Purl, requested_field::RequestedField};
+use trustify_common::{
+    cpe::Cpe,
+    purl::Purl,
+    requested_field::{BoolRequestedField, RequestedField},
+};
 use trustify_entity::{
     labels::Labels, relationship::Relationship, sbom, sbom_node, sbom_package, source_document,
 };
 use utoipa::ToSchema;
+
+/// Severity level for affected vulnerabilities, extending the shared `Severity`
+/// enum with an `Unknown` variant for vulnerabilities that have no CVSS score.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AffectedSeverity {
+    Unknown,
+    None,
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+impl From<Option<Severity>> for AffectedSeverity {
+    fn from(value: Option<Severity>) -> Self {
+        match value {
+            Option::None => AffectedSeverity::Unknown,
+            Some(Severity::None) => AffectedSeverity::None,
+            Some(Severity::Low) => AffectedSeverity::Low,
+            Some(Severity::Medium) => AffectedSeverity::Medium,
+            Some(Severity::High) => AffectedSeverity::High,
+            Some(Severity::Critical) => AffectedSeverity::Critical,
+        }
+    }
+}
+
+/// Per-SBOM summary of affected vulnerability counts grouped by severity.
+pub type SbomAdvisorySummary = HashMap<AffectedSeverity, u64>;
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, Default)]
 pub struct SbomHead {
@@ -86,6 +121,9 @@ pub struct SbomSummary<P: IntoPackage = SbomPackage> {
     pub source_document: SourceDocument,
 
     pub described_by: Vec<P>,
+
+    #[serde(default, skip_serializing_if = "IsDefault::is_default")]
+    pub advisories: RequestedField<SbomAdvisorySummary>,
 }
 
 impl<P: IntoPackage> SbomSummary<P> {
@@ -102,6 +140,7 @@ impl<P: IntoPackage> SbomSummary<P> {
             head: SbomHead::from_entity(&sbom, &node, db).await?,
             source_document: SourceDocument::from_entity(&source_document),
             described_by,
+            advisories: RequestedField::NotRequested,
         })
     }
 
@@ -111,6 +150,7 @@ impl<P: IntoPackage> SbomSummary<P> {
     pub async fn from_entities<C: ConnectionTrait>(
         entities: Vec<(sbom::Model, sbom_node::Model, source_document::Model)>,
         service: &SbomService,
+        include_advisories: bool,
         db: &C,
     ) -> Result<Vec<Self>, Error> {
         if entities.is_empty() {
@@ -121,23 +161,39 @@ impl<P: IntoPackage> SbomSummary<P> {
 
         let mut describes_map = service.batch_describes_packages(&sbom_ids, db).await?;
         let counts_map = service.batch_package_counts(&sbom_ids, db).await?;
+        let advisories_map = if include_advisories {
+            Some(
+                service
+                    .batch_advisory_severity_counts(&sbom_ids, db)
+                    .await?,
+            )
+        } else {
+            None
+        };
 
         let results = entities
             .into_iter()
-            .map(|(sbom, node, source_document)| SbomSummary {
-                head: SbomHead {
-                    id: sbom.sbom_id,
-                    document_id: sbom.document_id,
-                    labels: sbom.labels,
-                    published: sbom.published,
-                    authors: sbom.authors,
-                    suppliers: sbom.suppliers,
-                    name: node.name,
-                    data_licenses: sbom.data_licenses,
-                    number_of_packages: counts_map.get(&sbom.sbom_id).copied().unwrap_or(0),
-                },
-                source_document: SourceDocument::from_entity(&source_document),
-                described_by: describes_map.remove(&sbom.sbom_id).unwrap_or_default(),
+            .map(|(sbom, node, source_document)| {
+                let advisory_summary = advisories_map
+                    .as_ref()
+                    .and_then(|m| m.get(&sbom.sbom_id).cloned());
+                SbomSummary {
+                    head: SbomHead {
+                        id: sbom.sbom_id,
+                        document_id: sbom.document_id,
+                        labels: sbom.labels,
+                        published: sbom.published,
+                        authors: sbom.authors,
+                        suppliers: sbom.suppliers,
+                        name: node.name,
+                        data_licenses: sbom.data_licenses,
+                        number_of_packages: counts_map.get(&sbom.sbom_id).copied().unwrap_or(0),
+                    },
+                    source_document: SourceDocument::from_entity(&source_document),
+                    described_by: describes_map.remove(&sbom.sbom_id).unwrap_or_default(),
+                    advisories: include_advisories
+                        .then_requested(|| Some(advisory_summary.unwrap_or_default())),
+                }
             })
             .collect();
 
