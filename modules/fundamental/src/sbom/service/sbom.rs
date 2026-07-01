@@ -269,14 +269,14 @@ impl SbomService {
         }
 
         let limiter = query
-            .find_also_linked(sbom::SbomNodeLink)
+            .join(JoinType::InnerJoin, sbom::Relation::SbomNode.def())
+            .select_also(sbom_node::Entity)
             .find_also_related(source_document::Entity)
             .filtering_with(
                 search,
                 Columns::from_entity::<sbom::Entity>()
                     .add_columns(sbom_node::Entity)
                     .add_columns(source_document::Entity)
-                    .alias("sbom_node", "r0")
                     .translator(|f, op, v| match f.split_once(':') {
                         Some(("label", key)) => Some(format!("labels:{key}{op}{v}")),
                         _ => match f {
