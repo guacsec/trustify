@@ -624,6 +624,7 @@ impl ReadOnly {
     }
 
     /// Begins a read-only transaction.
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn begin(&self) -> Result<DatabaseTransaction, DbError> {
         Ok(self
             .0
@@ -634,6 +635,7 @@ impl ReadOnly {
     /// Begins a read-only transaction with the given isolation level.
     ///
     /// The access mode is always forced to `ReadOnly`; passing `ReadWrite` returns an error.
+    #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn begin_with_config(
         &self,
         isolation_level: Option<IsolationLevel>,
