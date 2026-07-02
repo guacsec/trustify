@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782907586506,
+  "lastUpdate": 1782990606329,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19422,6 +19422,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/19bbf41f2044efa93e2050b5e3573705d78cdc2c"
         },
         "date": 1782907585059,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2582866+carlosthe19916@users.noreply.github.com",
+            "name": "Carlos Feria",
+            "username": "carlosthe19916"
+          },
+          "committer": {
+            "email": "carlosthe19916@gmail.com",
+            "name": "Carlos Feria",
+            "username": "carlosthe19916"
+          },
+          "distinct": false,
+          "id": "db01ffe952ce7bfdf9191c68ca566267003ce94d",
+          "message": "fix: set conventional commit title to the auto generated openapi PR\n\nSigned-off-by: Carlos Feria <2582866+carlosthe19916@users.noreply.github.com>",
+          "timestamp": "2026-07-02T08:18:52Z",
+          "tree_id": "4bdf1b87ad940765b1a0cd7e1a71e16f1e9559b2",
+          "url": "https://github.com/guacsec/trustify/commit/db01ffe952ce7bfdf9191c68ca566267003ce94d"
+        },
+        "date": 1782990603983,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
