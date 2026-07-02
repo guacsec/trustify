@@ -191,6 +191,10 @@ impl SbomService {
     }
 
     /// fetch all SBOMs
+    #[instrument(
+        skip(self, connection),
+        err(level=tracing::Level::INFO)
+    )]
     pub async fn fetch_sboms<C, P>(
         &self,
         search: Query,
@@ -300,9 +304,8 @@ impl SbomService {
             .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?)))
             .collect();
 
-        let items = SbomSummary::from_entities(filtered, self, connection)
-            .instrument(info_span!("from_entities"))
-            .await?;
+        let items =
+            SbomSummary::from_entities(filtered, self, connection).await?;
 
         Ok(PaginatedResults { total, items })
     }
