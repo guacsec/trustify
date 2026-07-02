@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782997918942,
+  "lastUpdate": 1783001389115,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19480,6 +19480,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/813be83289607e4412cbc0307357d01e4910ae03"
         },
         "date": 1782997917050,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "551117a8fc791faac5a27d22bc34772980ac1690",
+          "message": "perf: remove gist indexes on qualified_purl to ensure query planner chooses optimal plan when searching for components",
+          "timestamp": "2026-07-02T11:19:35Z",
+          "tree_id": "15935c866ca3f974e1e1a98d61fba0e9935c11e1",
+          "url": "https://github.com/guacsec/trustify/commit/551117a8fc791faac5a27d22bc34772980ac1690"
+        },
+        "date": 1783001386836,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
