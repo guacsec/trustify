@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use moka::future::Cache;
 use opentelemetry::{global, metrics::Counter};
 use std::{sync::Arc, time::Duration};
+use tracing::instrument;
 
 use crate::error::ErrorInformation;
 
@@ -57,6 +58,7 @@ impl PaginationCache {
     }
 
     /// Return a cached total count, computing it at most once for concurrent requests with the same key.
+    #[instrument(skip(self, compute), fields(cache_hit = true))]
     pub async fn cached_total(
         &self,
         key: String,
@@ -67,6 +69,7 @@ impl PaginationCache {
         self.cache
             .try_get_with(key, async {
                 misses.add(1, &[]);
+                tracing::Span::current().record("cache_hit", false);
                 compute().await
             })
             .await
