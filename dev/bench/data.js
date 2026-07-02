@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783001389115,
+  "lastUpdate": 1783011519535,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19509,6 +19509,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/551117a8fc791faac5a27d22bc34772980ac1690"
         },
         "date": 1783001386836,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "7a07281f56b722d255ea983a3cd29a5ec9f24ce4",
+          "message": "perf: add optional advisory severity summary to SBOM list endpoint\n\nAdd `?advisories=true` query parameter to `GET /v3/sbom` that includes\nper-SBOM vulnerability severity counts in the response. This eliminates\nthe N+1 request pattern where the UI makes separate `GET /sbom/{id}/advisory`\ncalls for each row to display severity badges.\n\nThe batch SQL query combines both PURL-based (via `purl_status` +\n`version_matches()`) and CPE-based (via `product_status` + package name\nmatching) advisory matching into a single query across all listed SBOMs.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-07-02T14:19:06Z",
+          "tree_id": "d071cfd0b25a6909b27ccd5e819059951e005bfb",
+          "url": "https://github.com/guacsec/trustify/commit/7a07281f56b722d255ea983a3cd29a5ec9f24ce4"
+        },
+        "date": 1783011517884,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
