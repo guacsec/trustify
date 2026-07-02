@@ -309,29 +309,13 @@ impl LicenseService {
             .distinct()
             .column_as(expanded_license::Column::ExpandedText, LICENSE_TEXT);
 
-        // Build query for licenses not yet linked to any SBOM: includes both
-        //   (a) pre-loaded SPDX dictionary entries with no SBOM connection yet, AND
-        //   (b) licenses from older SBOMs ingested before license expansion was implemented.
-        // Use NOT EXISTS instead of LEFT JOIN + IS NULL to find licenses without SBOMs.
-        // On large tables, LEFT JOIN scans all rows while NOT EXISTS
-        // uses a Nested Loop Anti Join with index-only scan.
-        let exists_subquery = sea_query::Query::select()
-            .expr(Expr::val(1))
-            .from(sbom_license_expanded::Entity)
-            .and_where(
-                Expr::col((
-                    sbom_license_expanded::Entity,
-                    sbom_license_expanded::Column::LicenseId,
-                ))
-                .equals((license::Entity, license::Column::Id)),
-            )
-            .to_owned();
-
+        // Include all license texts. The UNION (not UNION ALL) with
+        // expanded_license above already deduplicates, so no need to
+        // filter out licenses that have entries in sbom_license_expanded.
         let mut non_sbom_query = license::Entity::find()
             .select_only()
             .distinct()
-            .column_as(license::Column::Text, LICENSE_TEXT)
-            .filter(Expr::exists(exists_subquery).not());
+            .column_as(license::Column::Text, LICENSE_TEXT);
 
         // Apply filtering to both queries (without sorting - that's applied to the UNION result)
         let filter_only = Query {
@@ -359,22 +343,27 @@ impl LicenseService {
 
         // Union the two queries
         QueryTrait::query(&mut spdx_query).union(UnionType::Distinct, non_sbom_query.into_query());
-        // Add an expression for the license field and use it as the default sort
-        let expr = SimpleExpr::Custom(LICENSE_TEXT.into());
-        spdx_query = spdx_query
-            .filtering_with(
-                q("").sort(&search.sort),
-                Columns::default().add_expr("license", expr.clone(), sea_orm::ColumnType::Text),
-            )?
-            .order_by_asc(expr);
 
-        let mut union_query = spdx_query.into_query();
-
-        // Count total results
+        // Clone for count BEFORE adding ORDER BY (sorting is unnecessary for COUNT)
+        let count_subquery = spdx_query.clone().into_query();
         let count_query = sea_query::Query::select()
             .expr_as(Func::count(Expr::col(Asterisk)), "num_items")
-            .from_subquery(union_query.clone(), "subquery")
+            .from_subquery(count_subquery, "subquery")
             .to_owned();
+
+        // Add an expression for the license field and use it as the default sort
+        let expr = SimpleExpr::Custom(LICENSE_TEXT.into());
+        spdx_query = spdx_query.filtering_with(
+            q("").sort(&search.sort),
+            Columns::default().add_expr("license", expr.clone(), sea_orm::ColumnType::Text),
+        )?;
+        // Only add default sort when the user didn't provide one
+        // (avoids duplicate ORDER BY text ASC, text ASC)
+        if search.sort.is_empty() {
+            spdx_query = spdx_query.order_by_asc(expr);
+        }
+
+        let mut union_query = spdx_query.into_query();
 
         #[derive(Debug, Default, Clone, Serialize, Deserialize, ToSchema, FromQueryResult)]
         struct Count {
