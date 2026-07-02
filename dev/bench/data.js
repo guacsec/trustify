@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1782990606329,
+  "lastUpdate": 1782997918942,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19451,6 +19451,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/db01ffe952ce7bfdf9191c68ca566267003ce94d"
         },
         "date": 1782990603983,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "813be83289607e4412cbc0307357d01e4910ae03",
+          "message": "perf: add locust based perf testing.",
+          "timestamp": "2026-07-02T10:23:22Z",
+          "tree_id": "227f90f23b0b46c88d1263d4f01f2bda0266593d",
+          "url": "https://github.com/guacsec/trustify/commit/813be83289607e4412cbc0307357d01e4910ae03"
+        },
+        "date": 1782997917050,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
