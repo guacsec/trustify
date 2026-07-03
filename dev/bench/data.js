@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783011519535,
+  "lastUpdate": 1783071904063,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19538,6 +19538,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/7a07281f56b722d255ea983a3cd29a5ec9f24ce4"
         },
         "date": 1783011517884,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "cf5466c572ca55793c74383d11777eea6b78f48e",
+          "message": "chore: add cache hit/miss instrumentation to pagination total cache\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-07-03T06:55:05Z",
+          "tree_id": "6d4c069953a5a281b463e70c61379fc13cdb7ae5",
+          "url": "https://github.com/guacsec/trustify/commit/cf5466c572ca55793c74383d11777eea6b78f48e"
+        },
+        "date": 1783071902850,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
