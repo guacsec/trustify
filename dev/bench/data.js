@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783078647086,
+  "lastUpdate": 1783098238653,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19596,6 +19596,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/d9bf2e63eec671a905a3f503424e3dac7308227d"
         },
         "date": 1783078644948,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "5ac9f8c200c0cd2c60fccfaa1f64d2e028f0ff2e",
+          "message": "perf: fix /perf-test CI job.",
+          "timestamp": "2026-07-03T14:14:37Z",
+          "tree_id": "b2144ca22a781269eed792c161e7d300a2c022be",
+          "url": "https://github.com/guacsec/trustify/commit/5ac9f8c200c0cd2c60fccfaa1f64d2e028f0ff2e"
+        },
+        "date": 1783098237079,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
