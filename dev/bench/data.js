@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783098238653,
+  "lastUpdate": 1783366161454,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19630,6 +19630,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "ca4fab8463b60338419b9e15e78e049cb4fd9d88",
+          "message": "ci: upgrade ubuntu to 22.04\n\nThis is required due to OpenSSL being\ntoo old on the Ubuntu runner image.",
+          "timestamp": "2026-07-06T16:46:27Z",
+          "tree_id": "8d7a76263db8f2fb8cd724bda9cc3d7676523906",
+          "url": "https://github.com/guacsec/trustify/commit/ca4fab8463b60338419b9e15e78e049cb4fd9d88"
+        },
+        "date": 1783366159867,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
