@@ -9,7 +9,7 @@ use crate::Error;
 use actix_web::{
     HttpRequest, HttpResponse, Responder, delete, get,
     http::header::{self, ETag, EntityTag, IfMatch},
-    post, put, web,
+    patch, post, put, web,
 };
 use sea_orm::TransactionTrait;
 use serde::Serialize;
@@ -45,7 +45,8 @@ pub fn configure(
         .service(delete)
         .service(read_assignments)
         .service(update_assignments)
-        .service(bulk_update_assignments);
+        .service(bulk_update_assignments)
+        .service(patch_assignments);
 }
 
 #[utoipa::path(
@@ -330,6 +331,34 @@ async fn bulk_update_assignments(
     let tx = db.begin().await?;
     service
         .bulk_update_assignments(request.sbom_ids, request.group_ids, &tx)
+        .await?;
+    tx.commit().await?;
+
+    Ok(HttpResponse::NoContent().finish())
+}
+
+#[utoipa::path(
+    tag = "sbomGroup",
+    operation_id = "patchSbomGroupAssignments",
+    request_body = PatchAssignmentRequest,
+    responses(
+        (status = 204, description = "The SBOM assignments were updated"),
+        (status = 400, description = "The request was not valid"),
+        (status = 401, description = "The user was not authenticated"),
+        (status = 403, description = "The user authenticated, but not authorized for this operation"),
+    )
+)]
+#[patch("/v3/group/sbom-assignment")]
+/// Partially update SBOM group assignments
+async fn patch_assignments(
+    service: web::Data<SbomGroupService>,
+    db: web::Data<db::ReadWrite>,
+    web::Json(request): web::Json<PatchAssignmentRequest>,
+    _: Require<UpdateSbom>,
+) -> Result<impl Responder, Error> {
+    let tx = db.begin().await?;
+    service
+        .patch_assignments(request.sbom_ids, request.add, request.remove, &tx)
         .await?;
     tx.commit().await?;
 
