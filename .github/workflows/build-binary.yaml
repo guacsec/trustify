@@ -51,11 +51,11 @@ jobs:
 
         include:
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             install: |
               sudo apt install -y libssl-dev
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-22.04-arm
+            os: ubuntu-24.04-arm
             install: |
               sudo apt install -y libssl-dev
 
