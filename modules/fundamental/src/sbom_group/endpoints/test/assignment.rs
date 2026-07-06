@@ -1,7 +1,7 @@
 use crate::{
     common::test::{
-        Create, Group, GroupResponse, IfMatchType, UpdateAssignments, create_groups, locate_id,
-        locate_ids, read_assignments,
+        Create, Group, GroupResponse, IfMatchType, PatchAssignments, UpdateAssignments,
+        create_groups, locate_id, locate_ids, read_assignments,
     },
     sbom_group::model::BulkAssignmentRequest,
     test::caller,
@@ -435,6 +435,220 @@ async fn concurrent_sbom_group_assignment_race(
     let actual = read_assignments(&app, &sbom_result.id).await?.group_ids;
     assert_eq!(actual.len(), 1, "exactly one group must be present");
     assert!(in_expected.contains(&actual[0]));
+
+    Ok(())
+}
+
+// --- PATCH assignment tests ---
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn patch_sbom_group_assignments_add(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let group1: GroupResponse = Create::new("Group 1").execute(&app).await?;
+    let group2: GroupResponse = Create::new("Group 2").execute(&app).await?;
+
+    let sbom = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let sbom_id = sbom.id.to_string();
+
+    PatchAssignments::new(vec![sbom_id.clone()])
+        .add_groups(vec![group1.id.clone(), group2.id.clone()])
+        .execute(&app)
+        .await?;
+
+    assert_assigned_groups(&app, &sbom_id, &[&group1.id, &group2.id]).await?;
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn patch_sbom_group_assignments_remove(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let group1: GroupResponse = Create::new("Group 1").execute(&app).await?;
+    let group2: GroupResponse = Create::new("Group 2").execute(&app).await?;
+
+    let sbom = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let sbom_id = sbom.id.to_string();
+
+    // Set up initial assignments via PUT
+    let assignments = read_assignments(&app, &sbom_id).await?;
+    UpdateAssignments::new(&sbom_id)
+        .etag(&assignments.etag)
+        .group_ids(vec![group1.id.clone(), group2.id.clone()])
+        .execute(&app)
+        .await?;
+
+    // Remove one group via PATCH
+    PatchAssignments::new(vec![sbom_id.clone()])
+        .remove_groups(vec![group1.id.clone()])
+        .execute(&app)
+        .await?;
+
+    assert_assigned_groups(&app, &sbom_id, &[&group2.id]).await?;
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn patch_sbom_group_assignments_add_and_remove(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let group1: GroupResponse = Create::new("Group 1").execute(&app).await?;
+    let group2: GroupResponse = Create::new("Group 2").execute(&app).await?;
+    let group3: GroupResponse = Create::new("Group 3").execute(&app).await?;
+
+    let sbom = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let sbom_id = sbom.id.to_string();
+
+    // Set up initial assignment to group1 and group2
+    let assignments = read_assignments(&app, &sbom_id).await?;
+    UpdateAssignments::new(&sbom_id)
+        .etag(&assignments.etag)
+        .group_ids(vec![group1.id.clone(), group2.id.clone()])
+        .execute(&app)
+        .await?;
+
+    // PATCH: add group3, remove group1
+    PatchAssignments::new(vec![sbom_id.clone()])
+        .add_groups(vec![group3.id.clone()])
+        .remove_groups(vec![group1.id.clone()])
+        .execute(&app)
+        .await?;
+
+    assert_assigned_groups(&app, &sbom_id, &[&group2.id, &group3.id]).await?;
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn patch_sbom_group_assignments_idempotent(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let group: GroupResponse = Create::new("Group 1").execute(&app).await?;
+
+    let sbom = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let sbom_id = sbom.id.to_string();
+
+    // Add group
+    PatchAssignments::new(vec![sbom_id.clone()])
+        .add_groups(vec![group.id.clone()])
+        .execute(&app)
+        .await?;
+
+    // Add same group again (idempotent, should not error)
+    PatchAssignments::new(vec![sbom_id.clone()])
+        .add_groups(vec![group.id.clone()])
+        .execute(&app)
+        .await?;
+
+    assert_assigned_groups(&app, &sbom_id, &[&group.id]).await?;
+
+    // Remove a group that is not assigned (idempotent, should not error)
+    PatchAssignments::new(vec![sbom_id.clone()])
+        .remove_groups(vec!["00000000-0000-0000-0000-000000000099".to_string()])
+        .execute(&app)
+        .await?;
+
+    assert_assigned_groups(&app, &sbom_id, &[&group.id]).await?;
+
+    Ok(())
+}
+
+/// Core regression test for TC-5036: adding Group B must preserve existing Group A.
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn patch_sbom_group_assignments_preserves_existing(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let group_a: GroupResponse = Create::new("Group A").execute(&app).await?;
+    let group_b: GroupResponse = Create::new("Group B").execute(&app).await?;
+
+    let sbom = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let sbom_id = sbom.id.to_string();
+
+    // Assign to Group A
+    PatchAssignments::new(vec![sbom_id.clone()])
+        .add_groups(vec![group_a.id.clone()])
+        .execute(&app)
+        .await?;
+
+    // Now add to Group B -- Group A must be preserved
+    PatchAssignments::new(vec![sbom_id.clone()])
+        .add_groups(vec![group_b.id.clone()])
+        .execute(&app)
+        .await?;
+
+    assert_assigned_groups(&app, &sbom_id, &[&group_a.id, &group_b.id]).await?;
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::nonexistent_sbom(
+    vec!["00000000-0000-0000-0000-000000000000"],
+    vec![],
+    StatusCode::NOT_FOUND
+)]
+#[case::invalid_sbom_uuid(
+    vec!["not-a-valid-uuid"],
+    vec![],
+    StatusCode::NOT_FOUND
+)]
+#[case::empty_sbom_ids(
+    vec![],
+    vec![],
+    StatusCode::NO_CONTENT
+)]
+#[test_log::test(actix_web::test)]
+async fn patch_sbom_group_assignments_errors(
+    ctx: &TrustifyContext,
+    #[case] sbom_ids: Vec<&str>,
+    #[case] add_groups: Vec<&str>,
+    #[case] expected_status: StatusCode,
+) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    PatchAssignments::new(sbom_ids.into_iter().map(String::from).collect())
+        .add_groups(add_groups.into_iter().map(String::from).collect())
+        .expect_status(expected_status)
+        .execute(&app)
+        .await?;
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn patch_sbom_group_assignments_invalid_group(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let sbom = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+
+    PatchAssignments::new(vec![sbom.id.to_string()])
+        .add_groups(vec!["00000000-0000-0000-0000-000000000099".to_string()])
+        .expect_status(StatusCode::BAD_REQUEST)
+        .execute(&app)
+        .await?;
 
     Ok(())
 }
