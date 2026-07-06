@@ -8,7 +8,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QuerySelect,
     SelectGetableTuple, Selector, Set, Statement, query::QueryFilter,
 };
-use sea_query::{ArrayType, Expr, SimpleExpr, Value};
+use sea_query::{ArrayType, Expr, OnConflict, SimpleExpr, Value};
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
@@ -711,6 +711,87 @@ WHERE parent IS NULL
                     err.into()
                 }
             })?;
+
+        Ok(())
+    }
+
+    /// Partially update SBOM group assignments by adding and/or removing specific groups.
+    ///
+    /// Unlike `bulk_update_assignments`, this preserves existing assignments that are not
+    /// explicitly listed in `remove`. Uses ON CONFLICT DO NOTHING for idempotent adds
+    /// and silently ignores removals of non-existent assignments.
+    pub async fn patch_assignments(
+        &self,
+        sbom_ids: Vec<String>,
+        add_group_ids: Vec<String>,
+        remove_group_ids: Vec<String>,
+        db: &impl ConnectionTrait,
+    ) -> Result<(), Error> {
+        if sbom_ids.is_empty() {
+            return Ok(());
+        }
+
+        let sbom_uuids: HashSet<Uuid> = sbom_ids
+            .iter()
+            .map(|id| Uuid::parse_str(id).map_err(|_| Error::NotFound(id.to_string())))
+            .collect::<Result<_, _>>()?;
+
+        let add_uuids = parse_group_ids(&add_group_ids)?;
+        let remove_uuids = parse_group_ids(&remove_group_ids)?;
+
+        let result = sbom::Entity::update_many()
+            .filter(sbom::Column::SbomId.is_in(sbom_uuids.clone()))
+            .col_expr(sbom::Column::Revision, Expr::value(Uuid::now_v7()))
+            .exec(db)
+            .await?;
+
+        if result.rows_affected != sbom_uuids.len() as u64 {
+            return Err(Error::NotFound(
+                "One or more SBOMs do not exist".to_string(),
+            ));
+        }
+
+        if !remove_uuids.is_empty() {
+            sbom_group_assignment::Entity::delete_many()
+                .filter(sbom_group_assignment::Column::SbomId.is_in(sbom_uuids.clone()))
+                .filter(sbom_group_assignment::Column::GroupId.is_in(remove_uuids))
+                .exec(db)
+                .await?;
+        }
+
+        if !add_uuids.is_empty() {
+            let assignments: Vec<_> = sbom_uuids
+                .iter()
+                .flat_map(|sbom_uuid| {
+                    add_uuids
+                        .iter()
+                        .map(move |group_uuid| sbom_group_assignment::ActiveModel {
+                            sbom_id: Set(*sbom_uuid),
+                            group_id: Set(*group_uuid),
+                        })
+                })
+                .collect();
+
+            sbom_group_assignment::Entity::insert_many(assignments)
+                .on_conflict(
+                    OnConflict::columns([
+                        sbom_group_assignment::Column::SbomId,
+                        sbom_group_assignment::Column::GroupId,
+                    ])
+                    .do_nothing()
+                    .to_owned(),
+                )
+                .do_nothing()
+                .exec(db)
+                .await
+                .map_err(|err| {
+                    if err.is_foreign_key_violation() {
+                        Error::BadRequest("One or more group IDs do not exist".into(), None)
+                    } else {
+                        err.into()
+                    }
+                })?;
+        }
 
         Ok(())
     }

@@ -113,3 +113,19 @@ pub struct BulkAssignmentRequest {
     /// The group IDs to assign to each SBOM (replaces existing assignments).
     pub group_ids: Vec<String>,
 }
+
+/// Request to partially update SBOM group assignments (add and/or remove).
+///
+/// Applies cartesian product semantics: each SBOM in `sbom_ids` gets all `add` groups
+/// added and all `remove` groups removed, while preserving other existing assignments.
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]
+pub struct PatchAssignmentRequest {
+    /// The IDs of the SBOMs to update.
+    pub sbom_ids: Vec<String>,
+    /// Group IDs to add to each SBOM's assignments.
+    #[serde(default)]
+    pub add: Vec<String>,
+    /// Group IDs to remove from each SBOM's assignments.
+    #[serde(default)]
+    pub remove: Vec<String>,
+}

@@ -258,6 +258,54 @@ impl UpdateAssignments {
     }
 }
 
+pub struct PatchAssignments {
+    sbom_ids: Vec<String>,
+    add: Vec<String>,
+    remove: Vec<String>,
+    expected_status: StatusCode,
+}
+
+impl PatchAssignments {
+    pub fn new(sbom_ids: Vec<String>) -> Self {
+        Self {
+            sbom_ids,
+            add: vec![],
+            remove: vec![],
+            expected_status: StatusCode::NO_CONTENT,
+        }
+    }
+
+    pub fn add_groups(mut self, group_ids: Vec<String>) -> Self {
+        self.add = group_ids;
+        self
+    }
+
+    pub fn remove_groups(mut self, group_ids: Vec<String>) -> Self {
+        self.remove = group_ids;
+        self
+    }
+
+    pub fn expect_status(mut self, status: StatusCode) -> Self {
+        self.expected_status = status;
+        self
+    }
+
+    pub async fn execute(self, app: &impl CallService) -> anyhow::Result<()> {
+        let request = TestRequest::patch()
+            .uri("/api/v3/group/sbom-assignment")
+            .set_json(json!({
+                "sbom_ids": self.sbom_ids,
+                "add": self.add,
+                "remove": self.remove,
+            }));
+
+        let response = app.call_service(request.to_request()).await;
+        assert_eq!(response.status(), self.expected_status);
+
+        Ok(())
+    }
+}
+
 pub struct Group {
     pub name: String,
     pub description: Option<String>,
