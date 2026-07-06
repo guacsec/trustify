@@ -1223,6 +1223,26 @@ paths:
           description: The user was not authenticated
         '403':
           description: The user authenticated, but not authorized for this operation
+    patch:
+      tags:
+      - sbomGroup
+      summary: Partially update SBOM group assignments
+      operationId: patchSbomGroupAssignments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchAssignmentRequest'
+        required: true
+      responses:
+        '204':
+          description: The SBOM assignments were updated
+        '400':
+          description: The request was not valid
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
   /api/v3/group/sbom-assignment/{id}:
     get:
       tags:
@@ -5731,6 +5751,31 @@ components:
           - 'null'
           format: int64
           minimum: 0
+    PatchAssignmentRequest:
+      type: object
+      description: |-
+        Request to partially update SBOM group assignments (add and/or remove).
+
+        Applies cartesian product semantics: each SBOM in `sbom_ids` gets all `add` groups
+        added and all `remove` groups removed, while preserving other existing assignments.
+      required:
+      - sbom_ids
+      properties:
+        add:
+          type: array
+          items:
+            type: string
+          description: Group IDs to add to each SBOM's assignments.
+        remove:
+          type: array
+          items:
+            type: string
+          description: Group IDs to remove from each SBOM's assignments.
+        sbom_ids:
+          type: array
+          items:
+            type: string
+          description: The IDs of the SBOMs to update.
     ProductDetails:
       allOf:
       - $ref: '#/components/schemas/ProductHead'
