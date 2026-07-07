@@ -5,12 +5,21 @@ inputs:
   image_tag:
     description: The tag of the container image
     required: true
+  platforms:
+    description: Target platforms for the container build
+    required: false
+    default: 'linux/amd64, linux/arm64'
+  build_gensbom:
+    description: Whether to build the gensbom container
+    required: false
+    default: 'true'
 
 runs:
   using: "composite"
 
   steps:
     - name: Install qemu dependency
+      if: contains(inputs.platforms, 'arm64')
       shell: bash
       run: |
         sudo apt-get update
@@ -26,7 +35,7 @@ runs:
           TAG=${{ inputs.image_tag }}
         build-args: |
           tag=${{ inputs.image_tag }}
-        platforms: linux/amd64, linux/arm64
+        platforms: ${{ inputs.platforms }}
         containerfiles: |
           .github/scripts/Containerfile
 
@@ -40,11 +49,12 @@ runs:
           TAG=${{ inputs.image_tag }}
         build-args: |
           tag=${{ inputs.image_tag }}
-        platforms: linux/amd64, linux/arm64
+        platforms: ${{ inputs.platforms }}
         containerfiles: |
           .github/scripts/Containerfile.xtask
 
     - name: Build Image (gensbom)
+      if: inputs.build_gensbom == 'true'
       id: build-image-gensbom
       uses: redhat-actions/buildah-build@v2
       with:
@@ -54,7 +64,7 @@ runs:
           TAG=${{ inputs.image_tag }}
         build-args: |
           tag=${{ inputs.image_tag }}
-        platforms: linux/amd64, linux/arm64
+        platforms: ${{ inputs.platforms }}
         containerfiles: |
           etc/gensbom/Containerfile
         context: ./etc/gensbom
@@ -72,12 +82,18 @@ runs:
       run: podman run --rm xtask:${{ inputs.image_tag }} --help
 
     # We save the container image here. But when loading it, the multi-arch aspect of it will be gone.
-    - name: Save image
+    - name: Save image (trustd)
       shell: bash
-      run: |
-        podman save --multi-image-archive trustd:${{ inputs.image_tag }} > trustd.tar
-        podman save --multi-image-archive xtask:${{ inputs.image_tag }} > xtask.tar
-        podman save --multi-image-archive gensbom:${{ inputs.image_tag }} > gensbom.tar
+      run: podman save --multi-image-archive trustd:${{ inputs.image_tag }} > trustd.tar
+
+    - name: Save image (xtask)
+      shell: bash
+      run: podman save --multi-image-archive xtask:${{ inputs.image_tag }} > xtask.tar
+
+    - name: Save image (gensbom)
+      if: inputs.build_gensbom == 'true'
+      shell: bash
+      run: podman save --multi-image-archive gensbom:${{ inputs.image_tag }} > gensbom.tar
 
     - uses: actions/upload-artifact@v7
       with:
@@ -92,6 +108,7 @@ runs:
         if-no-files-found: error
 
     - uses: actions/upload-artifact@v7
+      if: inputs.build_gensbom == 'true'
       with:
         name: container-gensbom
         path: gensbom.tar
