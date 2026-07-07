@@ -28,7 +28,9 @@ use utoipa::ToSchema;
 
 /// Severity level for affected vulnerabilities, extending the shared `Severity`
 /// enum with an `Unknown` variant for vulnerabilities that have no CVSS score.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ToSchema)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ToSchema,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum AffectedSeverity {
     Unknown,

@@ -2315,13 +2315,11 @@ async fn list_sboms_advisory_summary(
     Ok(())
 }
 
-/// Verify that `?advisories=true` batch severity counts match the counts
-/// derived from the per-SBOM `GET /v3/sbom/{id}/advisory` endpoint.
+/// Verify that `?advisories=true` batch severity counts deduplicate
+/// vulnerabilities across advisories.
 ///
 /// When two different advisories reference the same CVE, the batch query
-/// should count that CVE once (deduplicating across advisories), matching
-/// the per-SBOM endpoint behavior where the UI groups by unique
-/// vulnerability identifier.
+/// should count that CVE once (not once per advisory).
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn batch_vs_per_sbom_advisory_severity_counts(
@@ -2346,18 +2344,21 @@ async fn batch_vs_per_sbom_advisory_severity_counts(
         )
         .await;
 
-    let batch_counts: SbomAdvisorySummary = serde_json::from_value(
-        batch_response["items"]
-            .as_array()
-            .expect("items should be an array")[0]["advisories"]
-            .clone(),
-    )?;
+    let sbom_item = batch_response["items"]
+        .as_array()
+        .expect("items should be an array")
+        .iter()
+        .find(|item| {
+            item["name"]
+                .as_str()
+                .is_some_and(|n| n.contains("quarkus-bom"))
+        })
+        .expect("quarkus-bom SBOM should be present");
 
-    assert_eq!(
-        batch_counts,
-        HashMap::from([(AffectedSeverity::Medium, 1)]),
-    );
+    let batch_counts: SbomAdvisorySummary =
+        serde_json::from_value(sbom_item["advisories"].clone())?;
+
+    assert_eq!(batch_counts, HashMap::from([(AffectedSeverity::Medium, 1)]),);
 
     Ok(())
 }
-
