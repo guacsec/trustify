@@ -168,18 +168,18 @@ pub fn batch_severity_counts_sql() -> &'static str {
         SELECT * FROM cpe_matches_ns
     ),
 
-    -- Pick the highest severity per (sbom, advisory, vulnerability),
-    -- collapsing multiple CVSS versions (e.g. v2 + v3.1) into one row.
+    -- Pick the highest severity per (sbom, vulnerability), collapsing
+    -- across advisories and CVSS versions into one row per unique vuln.
     -- Unknown (no CVSS score) is treated as the highest severity.
     scored AS (
-        SELECT DISTINCT ON (a.sbom_id, a.advisory_id, a.vulnerability_id)
+        SELECT DISTINCT ON (a.sbom_id, a.vulnerability_id)
             a.sbom_id,
             COALESCE(avs.severity::text, 'unknown') AS severity
         FROM all_affected a
         LEFT JOIN advisory_vulnerability_score avs
             ON avs.advisory_id = a.advisory_id
             AND avs.vulnerability_id = a.vulnerability_id
-        ORDER BY a.sbom_id, a.advisory_id, a.vulnerability_id,
+        ORDER BY a.sbom_id, a.vulnerability_id,
             CASE avs.severity::text
                 WHEN 'critical' THEN 5
                 WHEN 'high' THEN 4
