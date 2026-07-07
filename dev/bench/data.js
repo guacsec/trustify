@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783366161454,
+  "lastUpdate": 1783432550684,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19654,6 +19654,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/ca4fab8463b60338419b9e15e78e049cb4fd9d88"
         },
         "date": 1783366159867,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "722f0046cba673c7a8216ac10dc1d8b56c7b8721",
+          "message": "ci: add container smoke test and switch to UBI 10\n\nAdd smoke test steps (podman run --help) for trustd and xtask containers\nafter build but before save/push, catching glibc or shared library\nmismatches in CI.\n\nSwitch the trustd Containerfile from UBI 9 (glibc 2.34) to UBI 10\n(glibc 2.40) to fix the glibc linker error with binaries compiled on\nUbuntu 24.04 (glibc 2.39).\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-07-07T11:25:49Z",
+          "tree_id": "eacaecbeab6c9327195a5b6557591f024797e622",
+          "url": "https://github.com/guacsec/trustify/commit/722f0046cba673c7a8216ac10dc1d8b56c7b8721"
+        },
+        "date": 1783432549007,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
