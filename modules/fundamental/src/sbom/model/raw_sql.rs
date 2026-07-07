@@ -170,7 +170,8 @@ pub fn batch_severity_counts_sql() -> &'static str {
 
     -- Pick the highest severity per (sbom, vulnerability), collapsing
     -- across advisories and CVSS versions into one row per unique vuln.
-    -- Unknown (no CVSS score) is treated as the highest severity.
+    -- Unknown (no CVSS score) is treated as the lowest severity so that
+    -- a real score from any advisory always wins.
     scored AS (
         SELECT DISTINCT ON (a.sbom_id, a.vulnerability_id)
             a.sbom_id,
@@ -186,7 +187,7 @@ pub fn batch_severity_counts_sql() -> &'static str {
                 WHEN 'medium' THEN 3
                 WHEN 'low' THEN 2
                 WHEN 'none' THEN 1
-                ELSE 6
+                ELSE 0
             END DESC
     )
 
