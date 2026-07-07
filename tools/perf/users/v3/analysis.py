@@ -10,15 +10,16 @@ from __future__ import annotations
 import itertools
 from urllib.parse import quote
 
-from locust import HttpUser, tag, task
+from locust import tag, task
 from config import WAIT_TIME
+from users.base import AuthenticatedHttpUser
 
 from scenario import SCENARIO
 
 _HARDCODED_CPE = "cpe:/a:redhat:openshift_container_platform:4.17::el9"
 
 
-class AnalysisUserV3(HttpUser):
+class AnalysisUserV3(AuthenticatedHttpUser):
     """Exercises trustify v3 analysis and graph endpoints."""
 
     weight = 2

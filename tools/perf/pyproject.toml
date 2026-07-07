@@ -16,5 +16,6 @@ build-backend = "hatchling.build"
 packages = ["users"]
 
 [tool.hatch.build.targets.wheel.force-include]
+"auth.py" = "auth.py"
 "config.py" = "config.py"
 "scenario.py" = "scenario.py"

@@ -5,11 +5,12 @@ Hits the main HTML pages a real user would navigate through.
 
 from __future__ import annotations
 
-from locust import HttpUser, tag, task
+from locust import tag, task
 from config import WAIT_TIME
+from users.base import AuthenticatedHttpUser
 
 
-class WebsiteUser(HttpUser):
+class WebsiteUser(AuthenticatedHttpUser):
     """Simulates a user browsing the trustify web UI."""
 
     weight = 1

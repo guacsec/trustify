@@ -9,19 +9,21 @@ from __future__ import annotations
 import random
 from urllib.parse import quote
 
-from locust import HttpUser, tag, task
+from locust import tag, task
 from config import WAIT_TIME
+from users.base import AuthenticatedHttpUser
 
 from scenario import SCENARIO
 
 
-class AdvisoryLabelUserV3(HttpUser):
+class AdvisoryLabelUserV3(AuthenticatedHttpUser):
     """Finds random advisories and mutates their v3 labels."""
 
     weight = 2
     wait_time = WAIT_TIME
 
     def on_start(self) -> None:
+        super().on_start()
         self._advisory_uuid: str | None = None
 
     def _find_random_advisory(self) -> str | None:
@@ -101,7 +103,7 @@ class AdvisoryLabelUserV3(HttpUser):
         )
 
 
-class SBOMLabelUserV3(HttpUser):
+class SBOMLabelUserV3(AuthenticatedHttpUser):
     """Mutates SBOM labels using scenario-provided SBOM IDs (v3)."""
 
     weight = 2

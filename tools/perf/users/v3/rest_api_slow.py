@@ -6,11 +6,12 @@ sets, producing heavier database load.
 
 from __future__ import annotations
 
-from locust import HttpUser, tag, task
+from locust import tag, task
 from config import WAIT_TIME
+from users.base import AuthenticatedHttpUser
 
 
-class RestAPIUserSlowV3(HttpUser):
+class RestAPIUserSlowV3(AuthenticatedHttpUser):
     """Slow license-related queries against the trustify v3 REST API."""
 
     weight = 2

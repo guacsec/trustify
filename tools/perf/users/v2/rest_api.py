@@ -9,13 +9,14 @@ from __future__ import annotations
 
 from urllib.parse import quote
 
-from locust import HttpUser, tag, task
+from locust import tag, task
 from config import WAIT_TIME
+from users.base import AuthenticatedHttpUser
 
 from scenario import SCENARIO
 
 
-class RestAPIUserV2(HttpUser):
+class RestAPIUserV2(AuthenticatedHttpUser):
     """Exercises the trustify v2 REST API with realistic query patterns."""
 
     weight = 10

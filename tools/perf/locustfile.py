@@ -29,7 +29,13 @@ Environment variables:
     TOOLS_PERF_SCENARIO_FILE   Path to a JSON5 scenario file with pre-computed IDs.
                                If unset, scenario-dependent tests are skipped.
 
-See scenario.py and the users/ modules for details.
+    ISSUER_URL                 OIDC issuer URL (required unless AUTH_DISABLED).
+    CLIENT_ID                  OAuth2 client ID (required unless AUTH_DISABLED).
+    CLIENT_SECRET              OAuth2 client secret (required unless AUTH_DISABLED).
+    OIDC_REFRESH_BEFORE        Seconds before expiry to refresh token (default: 30).
+    AUTH_DISABLED              Set to "true" or "1" to skip OIDC auth.
+
+See auth.py, scenario.py, and the users/ modules for details.
 """
 
 import os

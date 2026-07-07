@@ -9,6 +9,7 @@ coverage from [trustify-scale-testing](https://github.com/guacsec/trustify-scale
 - Python 3.13+
 - [uv](https://docs.astral.sh/uv/)
 - A running trustify instance
+- OIDC credentials (unless running with `AUTH_DISABLED=true`)
 
 ## Quickstart (Makefile)
 
@@ -165,6 +166,39 @@ uv run locust --host http://localhost:8080 -u 10 --tags sbom detail
 uv run locust --host http://localhost:8080 -u 10 --exclude-tags slow labels
 ```
 
+## Authentication (OIDC)
+
+By default, the perf tool authenticates against the trustify instance using
+OIDC client credentials. Set the following environment variables:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ISSUER_URL` | Yes | -- | OIDC issuer URL (e.g. `https://sso.example.com/realms/trustify`) |
+| `CLIENT_ID` | Yes | -- | OAuth2 client ID |
+| `CLIENT_SECRET` | Yes | -- | OAuth2 client secret |
+| `OIDC_REFRESH_BEFORE` | No | `30` | Seconds before token expiry to proactively refresh |
+| `AUTH_DISABLED` | No | `false` | Set to `true` to skip OIDC and run unauthenticated |
+
+The tool performs OIDC discovery (`/.well-known/openid-configuration`),
+acquires a token via the `client_credentials` grant, and injects it as
+`Authorization: Bearer <token>` on every request. Tokens are cached and
+refreshed automatically before expiry.
+
+### Authenticated run
+
+```bash
+export ISSUER_URL=https://sso.example.com/realms/trustify
+export CLIENT_ID=testing
+export CLIENT_SECRET=s3cret
+make test HOST=https://trustify.example.com
+```
+
+### Unauthenticated run (local dev)
+
+```bash
+AUTH_DISABLED=true make test
+```
+
 ## Environment variables
 
 | Variable | Default | Description |
@@ -173,6 +207,11 @@ uv run locust --host http://localhost:8080 -u 10 --exclude-tags slow labels
 | `TOOLS_PERF_WAIT_TIME_FROM` | `1` | Min seconds between requests per user |
 | `TOOLS_PERF_WAIT_TIME_TO` | `3` | Max seconds between requests per user |
 | `TOOLS_PERF_SCENARIO_FILE` | (unset) | Path to a JSON5 scenario file with pre-computed IDs |
+| `ISSUER_URL` | (unset) | OIDC issuer URL |
+| `CLIENT_ID` | (unset) | OAuth2 client ID |
+| `CLIENT_SECRET` | (unset) | OAuth2 client secret |
+| `OIDC_REFRESH_BEFORE` | `30` | Seconds before token expiry to refresh |
+| `AUTH_DISABLED` | `false` | Set to `true` to skip OIDC auth |
 
 Set both wait time variables to `0` for max throughput (no delay between requests).
 
@@ -273,10 +312,11 @@ version-agnostic):
 ```python
 # users/v3/my_feature.py
 
-from locust import HttpUser, tag, task
+from locust import tag, task
 from config import WAIT_TIME
+from users.base import AuthenticatedHttpUser
 
-class MyFeatureUserV3(HttpUser):
+class MyFeatureUserV3(AuthenticatedHttpUser):
     weight = 2
     wait_time = WAIT_TIME
 
@@ -348,6 +388,7 @@ def validated_get(self) -> None:
 tools/perf/
 ├── pyproject.toml      # Dependencies (locust, json5)
 ├── locustfile.py       # Entry point -- API version dispatch
+├── auth.py             # OIDC token provider (client_credentials)
 ├── config.py           # Shared wait time configuration
 ├── scenario.py         # Scenario data loader (JSON5)
 ├── etc/
@@ -364,6 +405,7 @@ tools/perf/
 │               └── full-20260412_qe_atlas.json5 # QE Atlas analysis-only
 └── users/
     ├── __init__.py
+    ├── base.py              # AuthenticatedHttpUser (OIDC base class)
     ├── website.py           # WebsiteUser (version-agnostic)
     ├── v3/
     │   ├── __init__.py

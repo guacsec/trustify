@@ -10,8 +10,9 @@ from __future__ import annotations
 import random
 from urllib.parse import quote
 
-from locust import HttpUser, tag, task
+from locust import tag, task
 from config import WAIT_TIME
+from users.base import AuthenticatedHttpUser
 
 from scenario import SCENARIO
 
@@ -19,7 +20,7 @@ from scenario import SCENARIO
 # not exist in v2, so there is no equivalent task here.
 
 
-class AnalysisUserV2(HttpUser):
+class AnalysisUserV2(AuthenticatedHttpUser):
     """Exercises trustify v2 analysis and graph endpoints."""
 
     weight = 1
