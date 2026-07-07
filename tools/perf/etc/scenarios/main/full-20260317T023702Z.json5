@@ -2,6 +2,7 @@
   "get_sbom": "sha256:a04260d90fbbbc5f4e1f25754bbfa46771140c06c2bc351ea6046a828fcd17e5",
   // FIXME: "get_sbom_advisories": "sha256:a04260d90fbbbc5f4e1f25754bbfa46771140c06c2bc351ea6046a828fcd17e5",
   "get_sbom_advisories": null,
+  "get_sbom_advisories_by_uuid": null,
   // "get_sbom_packages": null,
   "get_sbom_packages": "urn:uuid:019cf03d-89b1-7aa1-876e-43a3bfd8a2f5",
   // "get_sbom_related": null,

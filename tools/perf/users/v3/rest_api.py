@@ -82,6 +82,14 @@ class RestAPIUserV3(AuthenticatedHttpUser):
 
     @tag("v3", "advisory", "list")
     @task
+    def list_advisory_sorted_ingested(self) -> None:
+        self.client.get(
+            "/api/v3/advisory?limit=10&offset=0&sort=ingested:desc&q=&total=true",
+            name="/api/v3/advisory?limit=10&sort=ingested:desc&total=true",
+        )
+
+    @tag("v3", "advisory", "list")
+    @task
     def list_advisory_deprecated(self) -> None:
         self.client.get(
             "/api/v3/advisory?deprecated=Consider&total=true",
@@ -182,6 +190,14 @@ class RestAPIUserV3(AuthenticatedHttpUser):
 
     @tag("v3", "sbom", "list")
     @task
+    def list_sbom_sorted_name(self) -> None:
+        self.client.get(
+            "/api/v3/sbom?limit=10&offset=0&sort=name:asc&q=&total=true",
+            name="/api/v3/sbom?limit=10&sort=name:asc&total=true",
+        )
+
+    @tag("v3", "sbom", "list")
+    @task
     def list_sbom_by_label(self) -> None:
         self.client.get(
             "/api/v3/sbom?q=label:type=product&total=true",
@@ -194,6 +210,14 @@ class RestAPIUserV3(AuthenticatedHttpUser):
         self.client.get(
             "/api/v3/sbom-labels?total=true",
             name="/api/v3/sbom-labels?total=true",
+        )
+
+    @tag("v3", "sbom", "list")
+    @task
+    def list_sbom_labels_filtered(self) -> None:
+        self.client.get(
+            "/api/v3/sbom-labels?limit=10&filter_text=&total=true",
+            name="/api/v3/sbom-labels?limit=10&filter_text=&total=true",
         )
 
     # -- PURL list endpoints --------------------------------------------
@@ -350,6 +374,14 @@ class RestAPIUserV3(AuthenticatedHttpUser):
 
     @tag("v3", "license", "list")
     @task
+    def list_license_sorted(self) -> None:
+        self.client.get(
+            "/api/v3/license?limit=10&offset=0&q=&sort=license:asc&total=true",
+            name="/api/v3/license?limit=10&sort=license:asc&total=true",
+        )
+
+    @tag("v3", "license", "list")
+    @task
     def list_spdx_license(self) -> None:
         self.client.get(
             "/api/v3/license/spdx/license?total=true",
@@ -495,6 +527,20 @@ class RestAPIUserV3(AuthenticatedHttpUser):
         with self.client.get(
             f"/api/v3/sbom/{quote(key, safe='')}/advisory",
             name=f"get_sbom_advisories[{key[:16]}...]",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code != 200:
+                resp.failure(f"status {resp.status_code}")
+
+    @tag("v3", "sbom", "detail")
+    @task
+    def get_sbom_advisories_by_uuid(self) -> None:
+        if not SCENARIO.get_sbom_advisories_by_uuid:
+            return
+        uid = SCENARIO.get_sbom_advisories_by_uuid
+        with self.client.get(
+            f"/api/v3/sbom/urn%3Auuid%3A{uid}/advisory",
+            name=f"get_sbom_advisories_by_uuid[{uid[:12]}...]",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

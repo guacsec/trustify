@@ -40,6 +40,7 @@ class Scenario:
 
     get_sbom: str | None = None
     get_sbom_advisories: str | None = None
+    get_sbom_advisories_by_uuid: str | None = None
     get_sbom_packages: str | None = None
     get_sbom_related: str | None = None
     get_vulnerability: str | None = None

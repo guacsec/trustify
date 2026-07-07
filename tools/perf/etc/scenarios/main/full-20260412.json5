@@ -1,6 +1,7 @@
 {
   "get_sbom": "sha256:b42cf13f3318f5293a41bf0dc0cb9ec1333fde8b0d3f4bb79a6ed3916d3b06d6",
   "get_sbom_advisories": "sha256:b42cf13f3318f5293a41bf0dc0cb9ec1333fde8b0d3f4bb79a6ed3916d3b06d6",
+  "get_sbom_advisories_by_uuid": "019cbe1f-fdf6-7131-8169-19f37b0cfa63",
   "get_sbom_packages": "019a4555-a1ae-7830-85aa-bc505cdd1de8",
   "get_sbom_related": "019a4555-a1ae-7830-85aa-bc505cdd1de8",
   "get_vulnerability": "CVE-2023-39325",
