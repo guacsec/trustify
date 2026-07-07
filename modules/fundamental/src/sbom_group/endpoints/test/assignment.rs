@@ -652,3 +652,30 @@ async fn patch_sbom_group_assignments_invalid_group(ctx: &TrustifyContext) -> an
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[test_log::test(actix_web::test)]
+async fn patch_sbom_group_assignments_bulk(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let app = caller(ctx).await?;
+
+    let group1: GroupResponse = Create::new("Bulk Group 1").execute(&app).await?;
+    let group2: GroupResponse = Create::new("Bulk Group 2").execute(&app).await?;
+
+    let sbom1 = ctx
+        .ingest_document("zookeeper-3.9.2-cyclonedx.json")
+        .await?;
+    let sbom2 = ctx.ingest_document("spdx/simple.json").await?;
+
+    let sbom1_id = sbom1.id.to_string();
+    let sbom2_id = sbom2.id.to_string();
+
+    PatchAssignments::new(vec![sbom1_id.clone(), sbom2_id.clone()])
+        .add_groups(vec![group1.id.clone(), group2.id.clone()])
+        .execute(&app)
+        .await?;
+
+    assert_assigned_groups(&app, &sbom1_id, &[&group1.id, &group2.id]).await?;
+    assert_assigned_groups(&app, &sbom2_id, &[&group1.id, &group2.id]).await?;
+
+    Ok(())
+}
