@@ -2314,3 +2314,50 @@ async fn list_sboms_advisory_summary(
 
     Ok(())
 }
+
+/// Verify that `?advisories=true` batch severity counts match the counts
+/// derived from the per-SBOM `GET /v3/sbom/{id}/advisory` endpoint.
+///
+/// When two different advisories reference the same CVE, the batch query
+/// should count that CVE once (deduplicating across advisories), matching
+/// the per-SBOM endpoint behavior where the UI groups by unique
+/// vulnerability identifier.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn batch_vs_per_sbom_advisory_severity_counts(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    use crate::sbom::model::{AffectedSeverity, SbomAdvisorySummary};
+
+    let app = caller(ctx).await?;
+
+    ctx.ingest_documents([
+        "quarkus-bom-2.13.8.Final-redhat-00004.json",
+        "csaf/cve-2023-0044.json",
+        "csaf/advisory-dedup/cve-2023-0044-second-advisory.json",
+    ])
+    .await?;
+
+    let batch_response: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri("/api/v3/sbom?advisories=true")
+                .to_request(),
+        )
+        .await;
+
+    let batch_counts: SbomAdvisorySummary = serde_json::from_value(
+        batch_response["items"]
+            .as_array()
+            .expect("items should be an array")[0]["advisories"]
+            .clone(),
+    )?;
+
+    assert_eq!(
+        batch_counts,
+        HashMap::from([(AffectedSeverity::Medium, 1)]),
+    );
+
+    Ok(())
+}
+
