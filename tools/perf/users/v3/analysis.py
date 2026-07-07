@@ -22,7 +22,7 @@ _HARDCODED_CPE = "cpe:/a:redhat:openshift_container_platform:4.17::el9"
 class AnalysisUserV3(AuthenticatedHttpUser):
     """Exercises trustify v3 analysis and graph endpoints."""
 
-    weight = 2
+    weight = 3
     wait_time = WAIT_TIME
     _component_cycle = itertools.cycle(
         SCENARIO.get_analysis_component

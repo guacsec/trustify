@@ -149,7 +149,9 @@
   "get_organization": "9410ac75-c8fb-483b-ae03-f8c26732d7fc",
   "get_base_purl": "pkg:maven/io.quarkus/quarkus-smallrye-fault-tolerance-deployment",
   "get_analysis_component": [
-    "stratisd", "sankit", "nbdkit", "tang", "clevis", "libqb"
+    "stratisd", "sankit", "nbdkit", "tang", "clevis", "libqb",
+    "pkg:oci/quay-builder-qemu-rhcos-rhel8", "pkg:pypi/pypdf", "pkg:pypi/requests", "pkg:rpm/redhat/libsoup", "pkg:rpm/redhat/harfbuzz", "pkg:rpm/redhat/python-setuptools", "pkg:maven/com.fasterxml.jackson.core/jackson-databind", "pkg:golang/crypto/x509", "pkg:golang/k8s.io/api",
+    "glibc", "openssl", "bash", "coreutils", "systemd", "kernel", "zlib"
   ],
   "render_sbom_graph": "urn:uuid:019a4555-a1ae-7830-85aa-bc505cdd1de8",
   "get_importer": null,

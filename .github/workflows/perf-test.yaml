@@ -142,11 +142,13 @@ jobs:
       - name: Run perf tests
         working-directory: tools/perf
         env:
-          TOOLS_PERF_SCENARIO_FILE: etc/scenarios/empty.json5
+          TOOLS_PERF_SCENARIO_FILE: etc/scenarios/main/full-20260412.json5
+          TOOLS_PERF_WAIT_TIME_FROM: "0"
+          TOOLS_PERF_WAIT_TIME_TO: "0"
         run: |
           uv run locust \
             --host http://localhost:8080 \
-            -u 10 -r 2 -t 5m \
+            -u 10 -r 2 -t 10m \
             --headless \
             --html=report.html \
             --csv=results
