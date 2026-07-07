@@ -63,6 +63,14 @@ runs:
       shell: bash
       run: buildah images
 
+    - name: Smoke test container (trustd)
+      shell: bash
+      run: podman run --rm trustd:${{ inputs.image_tag }} --help
+
+    - name: Smoke test container (xtask)
+      shell: bash
+      run: podman run --rm xtask:${{ inputs.image_tag }} --help
+
     # We save the container image here. But when loading it, the multi-arch aspect of it will be gone.
     - name: Save image
       shell: bash

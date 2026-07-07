@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/ubi:latest as builder
+FROM registry.access.redhat.com/ubi10/ubi:latest as builder
 
 ARG tag
 
@@ -30,7 +30,7 @@ RUN cp -av /unpack/trustd /stage/usr/local/bin
 RUN find /stage
 RUN du -h /stage
 
-FROM registry.access.redhat.com/ubi9/ubi-micro:latest
+FROM registry.access.redhat.com/ubi10/ubi-micro:latest
 
 LABEL \
     org.opencontainers.image.description="Trustify - Main server binary" \
