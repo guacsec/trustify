@@ -346,6 +346,7 @@ async fn bulk_update_assignments(
         (status = 400, description = "The request was not valid"),
         (status = 401, description = "The user was not authenticated"),
         (status = 403, description = "The user authenticated, but not authorized for this operation"),
+        (status = 404, description = "One or more SBOMs were not found"),
     )
 )]
 #[patch("/v3/group/sbom-assignment")]

@@ -1243,6 +1243,8 @@ paths:
           description: The user was not authenticated
         '403':
           description: The user authenticated, but not authorized for this operation
+        '404':
+          description: One or more SBOMs were not found
   /api/v3/group/sbom-assignment/{id}:
     get:
       tags:
