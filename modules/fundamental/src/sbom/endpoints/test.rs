@@ -2283,6 +2283,18 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     true,
     json!([{"medium": 1}, {"high": 1}]),
 )]
+// Two advisories for the same CVE should deduplicate to a single count
+#[case::dedup_same_cve_across_advisories(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json", "csaf/advisory-dedup/cve-2023-0044-second-advisory.json"],
+    true,
+    json!([{"medium": 1}]),
+)]
+// An advisory without CVSS scores should not mask a real score from another advisory
+#[case::unknown_does_not_mask_real_score(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json", "csaf/advisory-dedup/cve-2023-0044-no-score.json"],
+    true,
+    json!([{"medium": 1}]),
+)]
 #[test_log::test(actix_web::test)]
 async fn list_sboms_advisory_summary(
     ctx: &TrustifyContext,
@@ -2311,54 +2323,6 @@ async fn list_sboms_advisory_summary(
         .map(|i| i["advisories"].clone())
         .collect::<Vec<_>>();
     assert_eq!(Value::Array(actual), expected);
-
-    Ok(())
-}
-
-/// Verify that `?advisories=true` batch severity counts deduplicate
-/// vulnerabilities across advisories.
-///
-/// When two different advisories reference the same CVE, the batch query
-/// should count that CVE once (not once per advisory).
-#[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn batch_vs_per_sbom_advisory_severity_counts(
-    ctx: &TrustifyContext,
-) -> Result<(), anyhow::Error> {
-    use crate::sbom::model::{AffectedSeverity, SbomAdvisorySummary};
-
-    let app = caller(ctx).await?;
-
-    ctx.ingest_documents([
-        "quarkus-bom-2.13.8.Final-redhat-00004.json",
-        "csaf/cve-2023-0044.json",
-        "csaf/advisory-dedup/cve-2023-0044-second-advisory.json",
-    ])
-    .await?;
-
-    let batch_response: Value = app
-        .call_and_read_body_json(
-            TestRequest::get()
-                .uri("/api/v3/sbom?advisories=true")
-                .to_request(),
-        )
-        .await;
-
-    let sbom_item = batch_response["items"]
-        .as_array()
-        .expect("items should be an array")
-        .iter()
-        .find(|item| {
-            item["name"]
-                .as_str()
-                .is_some_and(|n| n.contains("quarkus-bom"))
-        })
-        .expect("quarkus-bom SBOM should be present");
-
-    let batch_counts: SbomAdvisorySummary =
-        serde_json::from_value(sbom_item["advisories"].clone())?;
-
-    assert_eq!(batch_counts, HashMap::from([(AffectedSeverity::Medium, 1)]),);
 
     Ok(())
 }
