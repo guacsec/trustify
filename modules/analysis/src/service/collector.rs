@@ -54,17 +54,11 @@ impl AncestorCache {
     ) -> Result<AncestorResult, Error> {
         let cell = {
             let mut map = self.cache.lock();
-            map.entry((sbom_id, node_id.clone()))
-                .or_default()
-                .clone()
+            map.entry((sbom_id, node_id.clone())).or_default().clone()
         };
 
         cell.get_or_try_init(|| async {
-            let result =
-                resolve_rh_external_sbom_ancestors(
-                    sbom_id, node_id, connection,
-                )
-                .await?;
+            let result = resolve_rh_external_sbom_ancestors(sbom_id, node_id, connection).await?;
             Ok(Arc::new(result))
         })
         .await
@@ -327,36 +321,25 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                 // When `graph_node_id` is populated (RH ancestor path), we
                 // already know both values from the single SQL query and can
                 // skip the follow-up `sbom_external_node` lookup entirely.
-                let (ext_sbom_id, ext_graph_node_id) =
-                    if let Some(gid) = &resolved.graph_node_id {
-                        (resolved.sbom_id, gid.clone())
-                    } else {
-                        // Fallback: verify via sbom_external_node (SPDX / CDX path)
-                        let Some(matched) = sbom_external_node::Entity::find()
-                            .filter(
-                                sbom_external_node::Column::SbomId
-                                    .eq(resolved.sbom_id),
-                            )
-                            .filter(
-                                sbom_external_node::Column::ExternalNodeRef
-                                    .eq(&resolved.node_id),
-                            )
-                            .one(self.connection)
-                            .await?
-                        else {
-                            log::debug!(
-                                "no external sbom sbom_external_node {resolved:?}"
-                            );
-                            return Ok(vec![]);
-                        };
-                        (matched.sbom_id, matched.node_id)
+                let (ext_sbom_id, ext_graph_node_id) = if let Some(gid) = &resolved.graph_node_id {
+                    (resolved.sbom_id, gid.clone())
+                } else {
+                    // Fallback: verify via sbom_external_node (SPDX / CDX path)
+                    let Some(matched) = sbom_external_node::Entity::find()
+                        .filter(sbom_external_node::Column::SbomId.eq(resolved.sbom_id))
+                        .filter(sbom_external_node::Column::ExternalNodeRef.eq(&resolved.node_id))
+                        .one(self.connection)
+                        .await?
+                    else {
+                        log::debug!("no external sbom sbom_external_node {resolved:?}");
+                        return Ok(vec![]);
                     };
+                    (matched.sbom_id, matched.node_id)
+                };
 
                 // get the external sbom graph
 
-                let Some(external_graph) =
-                    self.load_external_graph(ext_sbom_id).await?
-                else {
+                let Some(external_graph) = self.load_external_graph(ext_sbom_id).await? else {
                     log::warn!(
                         "external sbom graph {ext_sbom_id} not found \
                          in graph cache or database",
@@ -368,9 +351,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
 
                 let Some(external_node_index) = external_graph
                     .node_indices()
-                    .find(|&node| {
-                        external_graph[node].node_id.eq(&ext_graph_node_id)
-                    })
+                    .find(|&node| external_graph[node].node_id.eq(&ext_graph_node_id))
                 else {
                     log::warn!(
                         "Node with ID {current_node_id} not found \
@@ -382,11 +363,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                 // recurse into those external sbom nodes and save
 
                 collector
-                    .with(
-                        ext_sbom_id,
-                        external_graph.as_ref(),
-                        external_node_index,
-                    )
+                    .with(ext_sbom_id, external_graph.as_ref(), external_node_index)
                     .collect_graph()
                     .await
             })

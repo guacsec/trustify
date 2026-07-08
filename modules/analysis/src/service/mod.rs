@@ -315,10 +315,7 @@ async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
         WHERE sa.sbom_id = $1
         GROUP BY sen.sbom_id, sen.external_node_ref, sen.node_id
         "#,
-        [
-            sbom_external_sbom_id.into(),
-            sbom_external_node_ref.into(),
-        ],
+        [sbom_external_sbom_id.into(), sbom_external_node_ref.into()],
     ))
     .all(connection)
     .await?;
