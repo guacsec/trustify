@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783432550684,
+  "lastUpdate": 1783469466637,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19683,6 +19683,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/722f0046cba673c7a8216ac10dc1d8b56c7b8721"
         },
         "date": 1783432549007,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": false,
+          "id": "daeb058e3a56145ff0c8e6ac4e56faf7e3bde9ed",
+          "message": "ci: add container build and smoke test to PR checks\n\nAdd a container job to the CI workflow that builds trustd and xtask\nbinaries, assembles container images (single-arch), and runs smoke\ntests (--help) to catch glibc or shared library mismatches before merge.\n\n- Extract disk cleanup into reusable maximize-build-space action\n- Make build-container action flexible: optional platforms and gensbom inputs\n- Add smoke test steps to build-container action\n- New container job runs in parallel with ci, after check passes\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-07-07T17:44:24Z",
+          "tree_id": "80221a01b177a58c554aaa7577f0e70a3ad60317",
+          "url": "https://github.com/guacsec/trustify/commit/daeb058e3a56145ff0c8e6ac4e56faf7e3bde9ed"
+        },
+        "date": 1783469464856,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
