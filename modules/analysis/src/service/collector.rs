@@ -127,6 +127,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         connection: &'a C,
         concurrency: usize,
         loader: &'a GraphLoader,
+        ancestor_cache: AncestorCache,
     ) -> Self {
         Self {
             graph_cache,
@@ -138,7 +139,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             depth,
             discovered: Default::default(),
             loaded_graphs: Default::default(),
-            ancestor_cache: Default::default(),
+            ancestor_cache,
             relationships,
             connection,
             concurrency,
