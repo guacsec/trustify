@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783475500840,
+  "lastUpdate": 1783498165002,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19770,6 +19770,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/c5ca43c49be4bf5316b7732211a6a9c160294371"
         },
         "date": 1783475499569,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "3d164dabe8fb2290c285b17095c6b724c91d551b",
+          "message": "test: add rstest cases for advisory dedup and unknown severity masking\n\nFold the standalone batch_vs_per_sbom_advisory_severity_counts test into\nthe list_sboms_advisory_summary rstest and add a new case verifying that\nan advisory without CVSS scores does not mask a real score from another\nadvisory for the same CVE.\n\nAssisted-by: Claude Code\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-07-08T05:41:53Z",
+          "tree_id": "33cdfaa13398b3ea913ff375caf5d9d355f54700",
+          "url": "https://github.com/guacsec/trustify/commit/3d164dabe8fb2290c285b17095c6b724c91d551b"
+        },
+        "date": 1783498163146,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
