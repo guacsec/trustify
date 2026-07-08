@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783536740853,
+  "lastUpdate": 1783537199412,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19891,6 +19891,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "d511ac80fc079f705569437c5c8d32d354f1b944",
+          "message": "docs: ensure resolve_rh_external_sbom_ancestors code comments are up to date",
+          "timestamp": "2026-07-08T16:18:19Z",
+          "tree_id": "b28ec18ec506238256113ced58f7c86a77113364",
+          "url": "https://github.com/guacsec/trustify/commit/d511ac80fc079f705569437c5c8d32d354f1b944"
+        },
+        "date": 1783537197004,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
