@@ -27,31 +27,52 @@ type AncestorResult = Arc<Vec<ResolvedSbom>>;
 type AncestorCell = Arc<tokio::sync::OnceCell<AncestorResult>>;
 type AncestorMap = HashMap<(Uuid, String), AncestorCell>;
 
-/// Cache for `resolve_rh_external_sbom_ancestors` results.
+/// Request-scoped cache for [`resolve_rh_external_sbom_ancestors`] results.
 ///
-/// Keyed by `(sbom_id, node_id)` so that repeated lookups for the
-/// same node during ancestor traversal are served from memory.
+/// # Why this exists
 ///
-/// Uses `tokio::sync::OnceCell` per key so that concurrent callers
-/// for the same key coalesce onto a single in-flight DB query
-/// instead of each hitting the database independently.
+/// During ancestor traversal (`Direction::Incoming`) every
+/// `PackageNode` visited triggers a call to
+/// `resolve_rh_external_sbom_ancestors`.  A single component SBOM
+/// can contain hundreds of package nodes, many of which share the
+/// same `(sbom_id, node_id)` coordinates across different graph
+/// traversal paths.  Without caching, the same expensive SQL query
+/// is issued for each visit.
+///
+/// # Coalescing
+///
+/// A `tokio::sync::OnceCell` is stored per unique key.  When
+/// multiple concurrent tasks (spawned by `buffer_unordered`) request
+/// the same key simultaneously, the `OnceCell`'s internal semaphore
+/// ensures only one task executes the query; the others await its
+/// result.
+///
+/// # Scope
+///
+/// One `AncestorCache` is created per top-level `run_graph_query`
+/// call (i.e. per HTTP request) and shared across **all** collector
+/// instances via `Arc`.  This means results computed while
+/// processing one result-set node are reused by later nodes and by
+/// both the ancestor and descendant collectors.
 #[derive(Default, Clone)]
 pub struct AncestorCache {
     cache: Arc<Mutex<AncestorMap>>,
 }
 
 impl AncestorCache {
-    /// Look up or compute ancestor resolution for a node.
+    /// Resolve ancestors for `(sbom_id, node_id)`, returning a cached
+    /// result when available.
     ///
-    /// Concurrent calls with the same `(sbom_id, node_id)` share a
-    /// single DB query; the first caller drives the query and all
-    /// others await its result.
+    /// The first caller for a given key drives the DB query; concurrent
+    /// and subsequent callers receive a cheap `Arc` clone of the result.
     async fn resolve<C: ConnectionTrait>(
         &self,
         sbom_id: Uuid,
         node_id: String,
         connection: &C,
     ) -> Result<AncestorResult, Error> {
+        // Acquire or create the per-key OnceCell under the lock,
+        // then immediately drop the lock before awaiting the query.
         let cell = {
             let mut map = self.cache.lock();
             map.entry((sbom_id, node_id.clone())).or_default().clone()
@@ -290,15 +311,36 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         ))
     }
 
+    /// Collect ancestor (or descendant) nodes for a `PackageNode`,
+    /// including any cross-SBOM links discovered through RH-style
+    /// checksum matching.
+    ///
+    /// Two things happen here:
+    ///
+    /// 1. **Cross-SBOM ancestors** — For every `PackageNode`, we ask
+    ///    "does any *other* SBOM claim to be an ancestor of the SBOM
+    ///    that contains this node?"  If so, we load that ancestor
+    ///    SBOM's graph, find the entry-point node, and recursively
+    ///    collect its graph.  This is what makes product→component
+    ///    relationships visible in the API response.
+    ///
+    /// 2. **Intra-SBOM traversal** — We then call `collect_graph` to
+    ///    walk the edges of the *current* SBOM's graph from this node
+    ///    in the configured direction (ancestors or descendants).
+    ///
+    /// The results from both steps are merged into the output.
     async fn collect_package(
         self,
         current_node: &PackageNode,
     ) -> Result<(Option<Vec<Node>>, Vec<String>), Error> {
-        // collect external sbom ancestor nodes
         let current_sbom_id = &current_node.sbom_id;
         let current_sbom_uuid = *current_sbom_id;
         let current_node_id = &current_node.node_id;
 
+        // Step 1: find ancestor SBOMs that reference this node via
+        // shared checksums.  Results are cached per (sbom_id,
+        // node_id) so repeated visits to the same node (common
+        // during recursive graph traversal) do not hit the DB.
         let find_sbom_externals = self
             .ancestor_cache
             .resolve(
@@ -308,23 +350,31 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             )
             .await?;
 
+        // For each ancestor SBOM found, load its graph and recurse.
         let resolved_external_nodes: Vec<Node> = stream::iter(find_sbom_externals.iter().cloned())
             .map(async |resolved| {
                 let collector = self.clone();
 
+                // Skip self-references (the current SBOM can appear
+                // in its own ancestor set due to how checksums are
+                // shared).
                 if &resolved.sbom_id == current_sbom_id {
                     return Ok::<_, Error>(vec![]);
                 }
 
-                // Determine the ancestor SBOM id and graph node id.
+                // Determine the ancestor SBOM id and the node_id to
+                // look up in its in-memory graph.
                 //
-                // When `graph_node_id` is populated (RH ancestor path), we
-                // already know both values from the single SQL query and can
-                // skip the follow-up `sbom_external_node` lookup entirely.
+                // The RH ancestor path (`graph_node_id` populated)
+                // already resolved both values in the single SQL
+                // query, so no extra DB round-trip is needed.
+                //
+                // The SPDX/CycloneDX path (`graph_node_id` is None)
+                // must fall back to a `sbom_external_node` lookup to
+                // map the external_node_ref to the graph's node_id.
                 let (ext_sbom_id, ext_graph_node_id) = if let Some(gid) = &resolved.graph_node_id {
                     (resolved.sbom_id, gid.clone())
                 } else {
-                    // Fallback: verify via sbom_external_node (SPDX / CDX path)
                     let Some(matched) = sbom_external_node::Entity::find()
                         .filter(sbom_external_node::Column::SbomId.eq(resolved.sbom_id))
                         .filter(sbom_external_node::Column::ExternalNodeRef.eq(&resolved.node_id))
@@ -337,8 +387,8 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                     (matched.sbom_id, matched.node_id)
                 };
 
-                // get the external sbom graph
-
+                // Load the ancestor SBOM's in-memory graph (from the
+                // request-scoped or global graph cache).
                 let Some(external_graph) = self.load_external_graph(ext_sbom_id).await? else {
                     log::warn!(
                         "external sbom graph {ext_sbom_id} not found \
@@ -347,8 +397,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                     return Ok(vec![]);
                 };
 
-                // find the node in retrieved external graph
-
+                // Find the entry-point node in the ancestor graph.
                 let Some(external_node_index) = external_graph
                     .node_indices()
                     .find(|&node| external_graph[node].node_id.eq(&ext_graph_node_id))
@@ -360,8 +409,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                     return Ok(vec![]);
                 };
 
-                // recurse into those external sbom nodes and save
-
+                // Recurse: collect the ancestor graph from this node.
                 collector
                     .with(ext_sbom_id, external_graph.as_ref(), external_node_index)
                     .collect_graph()
@@ -373,6 +421,8 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             .try_collect()
             .await?;
 
+        // Step 2: walk the current SBOM's own graph edges and merge
+        // the cross-SBOM results.
         let mut result = self.collect_graph().await?;
         result.extend(resolved_external_nodes);
 
