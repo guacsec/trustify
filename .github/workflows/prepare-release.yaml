@@ -20,7 +20,7 @@ on:
         default: ""
 
 concurrency:
-  group: prepare-release
+  group: prepare-release-${{ github.ref_name }}
   cancel-in-progress: true
 
 env:
@@ -84,8 +84,9 @@ jobs:
       - name: Install cargo-binstall
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-binstall
 
       - name: Install cargo-release
         env:
@@ -143,5 +144,5 @@ jobs:
           - Updated dependencies (\`cargo update\`)
           - Regenerated schemas and OpenAPI spec
 
-          After merging, follow [RELEASE.md](../blob/main/RELEASE.md) for tagging." \
+          After merging, follow [RELEASE.md](https://github.com/guacsec/trustify/blob/main/RELEASE.md) for tagging." \
             --base "${BASE}"

@@ -75,7 +75,7 @@ Congratulations, the release is now building - [monitor](https://github.com/guac
 
 If the automated workflow is unavailable, you can prepare the release manually.
 
-### Pre-requisites
+### Prerequisites
 
 * You have some common developer tools for Rust installed (e.g. `cargo`, `git`)
 * Your local `main` branch is in sync with the upstream `main` branch. The git remote for upstream is named `upstream`.
