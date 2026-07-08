@@ -32,7 +32,7 @@ jobs:
         uses: guacsec/trustify-release-tools/.github/actions/create-pr@main
         with:
           path: ./trustify-ui
-          commit-message: "update client/openapi/trustd.yaml"
+          commit-message: "chore(openapi): update client/openapi/trustd.yaml"
           title: "chore(openapi): [${{ github.ref_name }}] update client/openapi/trustd.yaml"
           body: |
             The openapi.yaml of trustify has changed
