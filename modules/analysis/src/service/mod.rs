@@ -94,15 +94,33 @@ pub struct AnalysisService {
     concurrency: usize,
 }
 
+/// A cross-SBOM link resolved by checksum or document-reference matching.
+///
+/// Represents a target SBOM (and entry-point node within it) that was
+/// found to reference the same component as the node being analysed.
+/// Used by both the descendant path (SPDX/CycloneDX external
+/// references) and the ancestor path (Red Hat product→component
+/// checksum matching).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct ResolvedSbom {
+    /// The SBOM that contains the external reference.
     pub sbom_id: Uuid,
+    /// The `external_node_ref` value from `sbom_external_node` — this
+    /// is the identifier the referencing SBOM uses to point at the
+    /// component (e.g. a pURL, SPDX ref, or checksum-based ref).
     pub node_id: String,
+    /// CPE IDs that describe the referencing SBOM, aggregated from
+    /// `sbom_describing_cpe`.
     pub cpe_ids: Vec<Uuid>,
-    /// The graph-internal node ID within the ancestor SBOM.
+    /// The internal `sbom_external_node.node_id` within the ancestor
+    /// SBOM's in-memory graph.
     ///
-    /// When populated by `resolve_rh_external_sbom_ancestors`, the
-    /// collector can skip the follow-up `sbom_external_node` lookup.
+    /// When populated (the RH ancestor path fills this from SQL), the
+    /// collector can look up the node directly in the graph and skip
+    /// the extra `sbom_external_node` query that would otherwise be
+    /// needed to map `node_id` (the external ref) back to the graph
+    /// node.  `None` for SPDX/CycloneDX paths, which resolve via a
+    /// different mechanism.
     pub graph_node_id: Option<String>,
 }
 
@@ -262,33 +280,82 @@ async fn resolve_rh_external_sbom_descendants<C: ConnectionTrait>(
         }))
 }
 
-/// Result row from a checksum lookup with aggregated CPE IDs.
+/// A single row returned by `resolve_rh_external_sbom_ancestors`.
+///
+/// Maps directly to the SQL SELECT list: one row per ancestor SBOM
+/// that references the queried node through a shared checksum, with
+/// CPE IDs aggregated via `array_agg`.
 #[derive(Debug, FromQueryResult)]
 struct ChecksumWithCpes {
+    /// `sbom_external_node.sbom_id` — the ancestor (product) SBOM.
     sbom_id: Uuid,
+    /// `sbom_external_node.external_node_ref` — the ref the ancestor
+    /// SBOM uses to point at the component.
     node_id: String,
+    /// Aggregated `sbom_describing_cpe.cpe_id` values for the
+    /// ancestor SBOM (empty array when none exist).
     cpe_ids: Vec<Uuid>,
+    /// `sbom_external_node.node_id` — the graph-internal node ID
+    /// within the ancestor SBOM, used to skip a follow-up query.
     graph_node_id: Option<String>,
 }
 
-/// Resolves external SBOM ancestors using the materialized `sbom_ancestor` table.
+/// Find ancestor (product) SBOMs that reference a given component node.
 ///
-/// Finds ancestor SBOMs for the current node's SBOM through the pre-computed
-/// `sbom_ancestor` links, then joins with `sbom_external_node` to get the
-/// external node references and with `sbom_describing_cpe` for CPE IDs.
+/// # Background — Red Hat product→component model
 ///
-/// This replaces an earlier implementation that performed expensive runtime
-/// checksum matching (two sequential queries per node) with a single query
-/// against the materialized table.
+/// Red Hat product SBOMs reference component SBOMs indirectly: the
+/// product SBOM contains an `sbom_external_node` row whose
+/// `external_node_ref` is a package identifier (pURL / SPDX ref).
+/// That identifier is linked to the component SBOM through a shared
+/// checksum stored in `sbom_node_checksum`.
+///
+/// At ingest time, these cross-SBOM links are materialized into the
+/// `sbom_ancestor` table (see migration `m0002130_sbom_ancestor`).
+/// This function reads those pre-computed links at query time rather
+/// than re-discovering them through expensive runtime checksum scans.
+///
+/// # Parameters
+///
+/// * `sbom_external_sbom_id` — the SBOM that contains the component
+///   node we are analysing (the "child" / component SBOM).
+/// * `sbom_external_node_ref` — the `node_id` of the specific node
+///   within that SBOM (e.g. `SPDXRef-SRPM`, a pURL, etc.).
+///
+/// # Query walkthrough
+///
+/// ```text
+///   sbom_ancestor          "which product SBOMs are ancestors of $1?"
+///       │
+///       ▼
+///   sbom_external_node     "what external-node entries exist in those
+///       │                   ancestor SBOMs?"
+///       ▼
+///   sbom_node_checksum     "does the external_node_ref in the ancestor
+///   (snc_ref + snc_self)    share a checksum with node $2 in SBOM $1?"
+///       │
+///       ▼
+///   sbom_describing_cpe    "what CPEs describe the ancestor SBOM?"
+/// ```
+///
+/// The result is one row per matching ancestor, carrying:
+/// - the ancestor SBOM ID and its external_node_ref (for the caller),
+/// - aggregated CPE IDs from `sbom_describing_cpe`,
+/// - the graph-internal `node_id` from `sbom_external_node` so the
+///   collector can look the node up in the in-memory graph without a
+///   follow-up DB query.
+///
+/// # Caching
+///
+/// This function is called once per unique `(sbom_id, node_id)` pair
+/// thanks to [`AncestorCache`], which coalesces concurrent requests
+/// and caches results across the entire request.
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
     sbom_external_sbom_id: Uuid,
     sbom_external_node_ref: String,
     connection: &C,
 ) -> Result<Vec<ResolvedSbom>, Error> {
-    // Single query: look up ancestor SBOMs from the materialized table,
-    // join with sbom_external_node to find the external_node_ref matching
-    // the current node via checksum, and aggregate CPE IDs.
     let rows = ChecksumWithCpes::find_by_statement(Statement::from_sql_and_values(
         DatabaseBackend::Postgres,
         r#"
@@ -299,17 +366,27 @@ async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
                        FILTER (WHERE sdc.cpe_id IS NOT NULL),
                    ARRAY[]::uuid[]
                ) AS cpe_ids,
+               -- The graph-internal node_id from sbom_external_node.
+               -- This lets the collector skip the follow-up
+               -- sbom_external_node lookup when walking ancestors.
                sen.node_id AS graph_node_id
         FROM sbom_ancestor sa
+        -- Find external-node entries in each ancestor SBOM.
         JOIN sbom_external_node sen
           ON sen.sbom_id = sa.ancestor_sbom_id
+        -- Look up the checksum the ancestor recorded for its
+        -- external_node_ref (the package it points at).
         JOIN sbom_node_checksum snc_ref
           ON snc_ref.sbom_id = sen.sbom_id
          AND snc_ref.node_id = sen.external_node_ref
+        -- Match that checksum against the node we are analysing.
+        -- This is the join that proves "ancestor's external ref
+        -- points at the same artefact as node $2 in SBOM $1".
         JOIN sbom_node_checksum snc_self
           ON snc_self.sbom_id = $1
          AND snc_self.node_id = $2
          AND snc_self.value = snc_ref.value
+        -- Optionally pick up CPEs that describe the ancestor SBOM.
         LEFT JOIN sbom_describing_cpe sdc
           ON sdc.sbom_id = sen.sbom_id
         WHERE sa.sbom_id = $1
