@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783469909040,
+  "lastUpdate": 1783475500840,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19741,6 +19741,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/9c94f089a7aafc8d7d9963349614c2aa8498bf04"
         },
         "date": 1783469907625,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "c5ca43c49be4bf5316b7732211a6a9c160294371",
+          "message": "perf: small tweaks",
+          "timestamp": "2026-07-07T23:02:41Z",
+          "tree_id": "a4d95f80c0ce6fffb0055ea2dcae7315a160e4bd",
+          "url": "https://github.com/guacsec/trustify/commit/c5ca43c49be4bf5316b7732211a6a9c160294371"
+        },
+        "date": 1783475499569,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
