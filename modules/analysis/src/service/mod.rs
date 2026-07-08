@@ -99,6 +99,11 @@ struct ResolvedSbom {
     pub sbom_id: Uuid,
     pub node_id: String,
     pub cpe_ids: Vec<Uuid>,
+    /// The graph-internal node ID within the ancestor SBOM.
+    ///
+    /// When populated by `resolve_rh_external_sbom_ancestors`, the
+    /// collector can skip the follow-up `sbom_external_node` lookup.
+    pub graph_node_id: Option<String>,
 }
 
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
@@ -160,6 +165,7 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
                     sbom_id: entity.sbom_id,
                     node_id: sbom_external_node.external_node_ref,
                     cpe_ids: vec![],
+                    graph_node_id: None,
                 }))
         }
         ExternalType::CycloneDx => {
@@ -187,6 +193,7 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
                     sbom_id: entity.sbom_id,
                     node_id: sbom_external_node.external_node_ref,
                     cpe_ids: vec![],
+                    graph_node_id: None,
                 }))
         }
         ExternalType::RedHatProductComponent => {
@@ -251,6 +258,7 @@ async fn resolve_rh_external_sbom_descendants<C: ConnectionTrait>(
             sbom_id: matched_model.sbom_id,
             node_id: matched_model.node_id,
             cpe_ids: vec![],
+            graph_node_id: None,
         }))
 }
 
@@ -260,6 +268,7 @@ struct ChecksumWithCpes {
     sbom_id: Uuid,
     node_id: String,
     cpe_ids: Vec<Uuid>,
+    graph_node_id: Option<String>,
 }
 
 /// Resolves external SBOM ancestors using the materialized `sbom_ancestor` table.
@@ -289,7 +298,8 @@ async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
                    array_agg(sdc.cpe_id)
                        FILTER (WHERE sdc.cpe_id IS NOT NULL),
                    ARRAY[]::uuid[]
-               ) AS cpe_ids
+               ) AS cpe_ids,
+               sen.node_id AS graph_node_id
         FROM sbom_ancestor sa
         JOIN sbom_external_node sen
           ON sen.sbom_id = sa.ancestor_sbom_id
@@ -303,7 +313,7 @@ async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
         LEFT JOIN sbom_describing_cpe sdc
           ON sdc.sbom_id = sen.sbom_id
         WHERE sa.sbom_id = $1
-        GROUP BY sen.sbom_id, sen.external_node_ref
+        GROUP BY sen.sbom_id, sen.external_node_ref, sen.node_id
         "#,
         [
             sbom_external_sbom_id.into(),
@@ -319,6 +329,7 @@ async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
             sbom_id: r.sbom_id,
             node_id: r.node_id,
             cpe_ids: r.cpe_ids,
+            graph_node_id: r.graph_node_id,
         })
         .collect())
 }
