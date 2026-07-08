@@ -23,7 +23,59 @@ We also don't publish to crates.io, only release a tag, binary artifacts and con
 
 For `1.0.0` and beyond, this should work differently. Maybe even before. However, there are no plans for that yet.
 
-## Pre-requisites
+## Performing the release
+
+### 1. Prepare release (automated)
+
+The [prepare-release](https://github.com/guacsec/trustify/actions/workflows/prepare-release.yaml) workflow automates
+the release preparation. It bumps versions, updates dependencies, and regenerates schemas and the OpenAPI spec.
+
+1. Go to [Actions → prepare-release](https://github.com/guacsec/trustify/actions/workflows/prepare-release.yaml)
+2. Click **"Run workflow"**
+3. Select the target branch (`main` or a `release/*` branch)
+4. Choose the bump type (`rc`, `patch`, `minor`, `alpha`, `beta`) or provide a full version override
+5. Click **"Run workflow"**
+
+The workflow creates a PR against the selected branch. Review, pass CI, and merge.
+
+> [!NOTE]
+> On `release/*` branches, only `alpha`, `beta`, `rc`, and `patch` bumps are allowed. Minor bumps would break the
+> release stream.
+
+> [!NOTE]
+> Only maintainers can trigger this workflow.
+
+### 2. Update release branch
+
+* Cherry-pick the commits from the release preparation PR to the release branch
+* Update the versions again, ensuring that `trustify-ui` gets updated from the corresponding release branch
+* Create (and merge) another PR against the release branch
+
+### 3. Tag and publish
+
+Switch to release branch and make sure your local checkout is up-to-date.
+```shell
+> git switch release/<stream>
+> git fetch --all
+> git rebase upstream/<stream>
+```
+
+Create (signed) tag.
+```shell
+> git tag -S v0.0.0-alpha.1
+```
+
+Push tag, which triggers GitHub release workflow.
+```shell
+> git push upstream v0.0.0-alpha.1
+```
+Congratulations, the release is now building - [monitor](https://github.com/guacsec/trustify/actions) the outcome!
+
+## Manual release preparation (fallback)
+
+If the automated workflow is unavailable, you can prepare the release manually.
+
+### Pre-requisites
 
 * You have some common developer tools for Rust installed (e.g. `cargo`, `git`)
 * Your local `main` branch is in sync with the upstream `main` branch. The git remote for upstream is named `upstream`.
@@ -31,27 +83,7 @@ For `1.0.0` and beyond, this should work differently. Maybe even before. However
     * This includes having backported all relevant changes to this branch
 * You have `cargo release` installed. This can be done using `cargo install cargo-release`.
 
-## Performing the release
-
-In a nutshell, the steps are:
-
-* Prepare release on `main`
-    * Ensure the cargo versions are aligned with the release tag that we create next
-    * Re-generate the OpenAPI spec, as it contains the version
-    * Update dependencies
-    * Create a PR, merging changes into `main`
-* Port release preparation to `release/<stream>`
-    * Tag the release
-    * Push the tag
-
-To clarify what got released and what is part of the next release, it makes sense to create a PR *before*
-pushing the release tag. This will also make step 1 easier for the *next* release, as that's already been taken care of.
-
-The following instructions walk you through the process on the example of releasing `0.0.0-alpha.1`, which you need
-to replace with the actual release. Note that during release process we should avoid merging any other PRs to `main`
-branch.
-
-### 1. Prepare Branch
+### Steps
 
 Switch to main branch and make sure your local checkout is up-to-date.
 ```shell
@@ -62,12 +94,8 @@ Switch to main branch and make sure your local checkout is up-to-date.
 
 Checkout branch to prepare release from.
 ```shell
-> git checkout -b 0.0.0-alpha.1-prepare
+> git checkout -b prepare/0.0.0-alpha.1
 ```
-
-_Note - This is not a release branch!_
-
-### 2. Create Pull Request
 
 Dry run to check that we can safely bump release.
 ```shell
@@ -96,44 +124,10 @@ Commit (and sign) changes.
 
 Push commit.
 ```shell
-> git push upstream 0.0.0-alpha.1-prepare
+> git push upstream prepare/0.0.0-alpha.1
 ```
 
-### 3. Raise PR, pass CI, review and merge
-
-Goto [github](https://github.com/guacsec/trustify/pulls) and raise PR.
-
-PR should pass CI.
-
-Get a friend to review.
-
-On successful review go ahead and merge!
-
-### 4. Update release branch
-
-* Cherry-pick the commits from the release preparation PR to the release branch
-* Update the versions again, ensuring that `trustify-ui` gets updated from the corresponding release branch
-* Create (and merge) another PR against the release branch
-
-### 4. Create release
-
-Switch to release branch and make sure your local checkout is up-to-date.
-```shell
-> git switch release/<stream>
-> git fetch --all
-> git rebase upstream/<stream>
-```
-
-Create (signed) tag.
-```shell
-> git tag -S v0.0.0-alpha.1
-```
-
-Push tag, which triggers GitHub release workflow.
-```shell
-> git push upstream v0.0.0-alpha.1
-```
-Congratulations, the release is now building - [monitor](https://github.com/guacsec/trustify/actions) the outcome! 🎂
+Raise a PR, pass CI, review and merge.
 
 ## If things go wrong
 

@@ -1,0 +1,147 @@
+name: prepare-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - rc
+          - patch
+          - minor
+          - alpha
+          - beta
+      version-override:
+        description: "Full version override (e.g., 0.6.0-alpha.1). Takes precedence over bump type."
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  prepare:
+    if: github.repository_owner == 'guacsec'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check permissions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PERMISSION=$(gh api "repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission" --jq '.permission')
+          if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" ]]; then
+            echo "::error::Only maintainers can trigger this workflow. Your permission level: $PERMISSION"
+            exit 1
+          fi
+
+      - name: Validate bump type for release branches
+        run: |
+          REF="${{ github.ref_name }}"
+          BUMP="${{ inputs.bump }}"
+          OVERRIDE="${{ inputs.version-override }}"
+
+          if [[ "$REF" != release/* ]]; then
+            exit 0
+          fi
+
+          if [[ -z "$OVERRIDE" && "$BUMP" == "minor" ]]; then
+            echo "::error::Cannot use 'minor' bump on a release branch. Only alpha, beta, rc, and patch are allowed."
+            exit 1
+          fi
+
+          if [[ -n "$OVERRIDE" ]]; then
+            CURRENT_VERSION=$(grep -m1 '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+            CURRENT_MINOR=$(echo "$CURRENT_VERSION" | cut -d. -f2)
+            OVERRIDE_MINOR=$(echo "$OVERRIDE" | cut -d. -f2)
+            if [[ "$CURRENT_MINOR" != "$OVERRIDE_MINOR" ]]; then
+              echo "::error::Version override changes minor version ($CURRENT_MINOR -> $OVERRIDE_MINOR), which is not allowed on release branches."
+              exit 1
+            fi
+          fi
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.TRUSTIFICATION_BOT_ID }}
+          private-key: ${{ secrets.TRUSTIFICATION_BOT_KEY }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-binstall
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
+
+      - name: Install cargo-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: cargo binstall -y cargo-release
+
+      - name: Bump version
+        run: |
+          VERSION_ARG="${{ inputs.version-override || inputs.bump }}"
+          echo "Bumping version with: $VERSION_ARG"
+          cargo release version "${VERSION_ARG}" -x
+
+      - name: Determine new version
+        id: version
+        run: |
+          VERSION=$(grep -m1 '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "New version: ${VERSION}"
+
+      - name: Update dependencies
+        run: cargo update
+
+      - name: Regenerate schemas
+        run: cargo xtask generate-schemas
+
+      - name: Regenerate OpenAPI spec
+        run: cargo xtask openapi
+
+      - name: Create branch, commit, and push
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          git config user.name "trustification-ci-bot[bot]"
+          git config user.email "199085543+trustification-ci-bot[bot]@users.noreply.github.com"
+          git checkout -b "prepare/${VERSION}"
+          git add -A
+          git commit -m "chore: prepare release ${VERSION}"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git push origin "prepare/${VERSION}"
+
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BASE="${{ github.ref_name }}"
+
+          gh pr create \
+            --title "chore: prepare release ${VERSION}" \
+            --body "Automated release preparation:
+
+          - Bumped workspace version to \`${VERSION}\`
+          - Updated dependencies (\`cargo update\`)
+          - Regenerated schemas and OpenAPI spec
+
+          After merging, follow [RELEASE.md](../blob/main/RELEASE.md) for tagging." \
+            --base "${BASE}"
