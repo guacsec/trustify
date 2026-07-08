@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783526173183,
+  "lastUpdate": 1783536740853,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19862,6 +19862,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "4e16ebacbe4e88b34c087ca835cb00491ae928ac",
+          "message": "fix: address review feedback for prepare-release workflow\n\n- Use per-branch concurrency group to allow parallel runs across branches\n- Use taiki-e/install-action for cargo-binstall instead of piping curl to bash\n- Fix broken RELEASE.md link in PR body to use absolute URL\n- Fix \"Pre-requisites\" typo to \"Prerequisites\"\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-07-08T16:04:17Z",
+          "tree_id": "979e4e1b7c1b3c97f60814b377a6e47fb94dbf43",
+          "url": "https://github.com/guacsec/trustify/commit/4e16ebacbe4e88b34c087ca835cb00491ae928ac"
+        },
+        "date": 1783536739222,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
             "unit": "s"
           }
         ]
