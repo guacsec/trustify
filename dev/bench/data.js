@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783469466637,
+  "lastUpdate": 1783469909040,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19712,6 +19712,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/daeb058e3a56145ff0c8e6ac4e56faf7e3bde9ed"
         },
         "date": 1783469464856,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "9c94f089a7aafc8d7d9963349614c2aa8498bf04",
+          "message": "fix: add missing 404 response to PATCH endpoint and bulk assignment test\n\nAddress review comments: declare 404 in the OpenAPI annotation for\npatchSbomGroupAssignments, and add a multi-SBOM PATCH test to verify\ncartesian product semantics.\n\nAssisted-by: Claude Code\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-07-07T20:27:45Z",
+          "tree_id": "a4ddc21e45c16a0c1dfe1c298dc041644b2c4e47",
+          "url": "https://github.com/guacsec/trustify/commit/9c94f089a7aafc8d7d9963349614c2aa8498bf04"
+        },
+        "date": 1783469907625,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
