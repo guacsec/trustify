@@ -29,10 +29,10 @@ use petgraph::{
     visit::{VisitMap, Visitable},
 };
 use sea_orm::{
-    ColumnTrait, EntityOrSelect, EntityTrait, FromQueryResult, PaginatorTrait, QueryFilter,
-    QueryOrder, QuerySelect, RelationTrait, prelude::ConnectionTrait,
+    ColumnTrait, DatabaseBackend, EntityOrSelect, EntityTrait, FromQueryResult, PaginatorTrait,
+    QueryFilter, QueryOrder, QuerySelect, RelationTrait, Statement, prelude::ConnectionTrait,
 };
-use sea_query::{Expr, JoinType};
+use sea_query::JoinType;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
@@ -262,44 +262,56 @@ struct ChecksumWithCpes {
     cpe_ids: Vec<Uuid>,
 }
 
-/// Resolves external SBOM ancestors by checksum matching, including their describing CPEs.
+/// Resolves external SBOM ancestors using the materialized `sbom_ancestor` table.
 ///
-/// Uses `array_agg` to collect CPE IDs per `(sbom_id, node_id)` directly in the database
-/// rather than expanding rows per CPE and grouping in Rust.
+/// Finds ancestor SBOMs for the current node's SBOM through the pre-computed
+/// `sbom_ancestor` links, then joins with `sbom_external_node` to get the
+/// external node references and with `sbom_describing_cpe` for CPE IDs.
+///
+/// This replaces an earlier implementation that performed expensive runtime
+/// checksum matching (two sequential queries per node) with a single query
+/// against the materialized table.
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
     sbom_external_sbom_id: Uuid,
     sbom_external_node_ref: String,
     connection: &C,
 ) -> Result<Vec<ResolvedSbom>, Error> {
-    let Some(entity) = sbom_node_checksum::Entity::find()
-        .filter(sbom_node_checksum::Column::NodeId.eq(sbom_external_node_ref.clone()))
-        .filter(sbom_node_checksum::Column::SbomId.eq(sbom_external_sbom_id))
-        .one(connection)
-        .await?
-    else {
-        return Ok(vec![]);
-    };
-
-    let rows = sbom_node_checksum::Entity::find()
-        .select_only()
-        .column(sbom_node_checksum::Column::SbomId)
-        .column(sbom_node_checksum::Column::NodeId)
-        .column_as(
-            Expr::cust(r#"COALESCE(array_agg("sbom_describing_cpe"."cpe_id") FILTER (WHERE "sbom_describing_cpe"."cpe_id" IS NOT NULL), ARRAY[]::uuid[])"#),
-            "cpe_ids",
-        )
-        .join(
-            JoinType::LeftJoin,
-            sbom_node_checksum::Relation::DescribingCpe.def(),
-        )
-        .filter(sbom_node_checksum::Column::Value.eq(entity.value.to_string()))
-        .filter(sbom_node_checksum::Column::SbomId.ne(entity.sbom_id))
-        .group_by(sbom_node_checksum::Column::SbomId)
-        .group_by(sbom_node_checksum::Column::NodeId)
-        .into_model::<ChecksumWithCpes>()
-        .all(connection)
-        .await?;
+    // Single query: look up ancestor SBOMs from the materialized table,
+    // join with sbom_external_node to find the external_node_ref matching
+    // the current node via checksum, and aggregate CPE IDs.
+    let rows = ChecksumWithCpes::find_by_statement(Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        r#"
+        SELECT sen.sbom_id,
+               sen.external_node_ref AS node_id,
+               COALESCE(
+                   array_agg(sdc.cpe_id)
+                       FILTER (WHERE sdc.cpe_id IS NOT NULL),
+                   ARRAY[]::uuid[]
+               ) AS cpe_ids
+        FROM sbom_ancestor sa
+        JOIN sbom_external_node sen
+          ON sen.sbom_id = sa.ancestor_sbom_id
+        JOIN sbom_node_checksum snc_ref
+          ON snc_ref.sbom_id = sen.sbom_id
+         AND snc_ref.node_id = sen.external_node_ref
+        JOIN sbom_node_checksum snc_self
+          ON snc_self.sbom_id = $1
+         AND snc_self.node_id = $2
+         AND snc_self.value = snc_ref.value
+        LEFT JOIN sbom_describing_cpe sdc
+          ON sdc.sbom_id = sen.sbom_id
+        WHERE sa.sbom_id = $1
+        GROUP BY sen.sbom_id, sen.external_node_ref
+        "#,
+        [
+            sbom_external_sbom_id.into(),
+            sbom_external_node_ref.into(),
+        ],
+    ))
+    .all(connection)
+    .await?;
 
     Ok(rows
         .into_iter()
