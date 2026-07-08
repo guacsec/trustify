@@ -555,6 +555,7 @@ impl AnalysisService {
         log::debug!("relations: {:?}", relationships);
 
         let loader = &GraphLoader::new(self.clone());
+        let ancestor_cache = AncestorCache::default();
 
         self.collect_graph(
             query,
@@ -563,6 +564,7 @@ impl AnalysisService {
             |graph, node_index, node| {
                 let graph_cache = self.inner.graph_cache.clone();
                 let relationships = relationships.clone();
+                let ancestor_cache = ancestor_cache.clone();
                 async move {
                     log::trace!(
                         "Discovered node - sbom: {}, node: {}",
@@ -582,6 +584,7 @@ impl AnalysisService {
                         connection,
                         self.concurrency,
                         loader,
+                        ancestor_cache.clone(),
                     )
                     .collect();
 
@@ -597,6 +600,7 @@ impl AnalysisService {
                         connection,
                         self.concurrency,
                         loader,
+                        ancestor_cache,
                     )
                     .collect();
 
