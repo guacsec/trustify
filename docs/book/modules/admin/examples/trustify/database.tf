@@ -50,6 +50,18 @@ variable "db-user" {
   description = "Username of the trustify user of the database"
 }
 
+variable "db-engine-version" {
+  type        = string
+  default     = "17.2"
+  description = "PostgreSQL version"
+}
+
+variable "db-instance-class" {
+  type        = string
+  default     = "db.m7g.large"
+  description = "RDS Instance class (defines cpu/mem/network resources available)"
+}
+
 locals {
   # name of the database:
   # > * Must contain 1 to 63 letters, numbers, or underscores.
@@ -117,8 +129,8 @@ resource "aws_db_instance" "trustify" {
 
   db_name             = "postgres"
   engine              = "postgres"
-  engine_version      = "17.2"
-  instance_class      = "db.m7g.large"
+  engine_version      = var.db-engine-version
+  instance_class      = var.db-instance-class
   username            = var.db-master-user
   password            = random_password.trustify-db-admin-password.result
   ca_cert_identifier  = "rds-ca-rsa4096-g1"
