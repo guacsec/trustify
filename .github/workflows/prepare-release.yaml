@@ -8,11 +8,11 @@ on:
         required: true
         type: choice
         options:
+          - alpha
+          - beta
           - rc
           - patch
           - minor
-          - alpha
-          - beta
       version-override:
         description: "Full version override (e.g., 0.6.0-alpha.1). Takes precedence over bump type."
         required: false
@@ -29,7 +29,7 @@ env:
 jobs:
   prepare:
     if: github.repository_owner == 'guacsec'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
