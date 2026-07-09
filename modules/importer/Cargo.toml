@@ -34,6 +34,7 @@ sbom-walker = { workspace = true }
 schemars = { workspace = true, features = ["url2"] }
 sea-orm = { workspace = true, features = ["sea-query-binder", "sqlx-postgres", "runtime-tokio-rustls", "macros", "debug-print"] }
 sea-query = { workspace = true }
+sequoia-openpgp = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_yml = { workspace = true }

@@ -20,7 +20,6 @@ http = { workspace = true }
 log = { workspace = true }
 mime = { workspace = true }
 openssl = { workspace = true }
-openssl-sys = { workspace = true } # FIXME: issue with bindgen and clang
 opentelemetry = { workspace = true }
 opentelemetry-otlp = { workspace = true, features = ["grpc-tonic"] }
 opentelemetry_sdk = { workspace = true, features = ["metrics"] }

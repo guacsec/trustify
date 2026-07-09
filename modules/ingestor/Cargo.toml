@@ -35,6 +35,7 @@ sbom-walker = { workspace = true }
 sea-orm = { workspace = true }
 sea-query = { workspace = true }
 semver = { workspace = true }
+sequoia-openpgp = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde-cyclonedx = { workspace = true }
 serde_json = { workspace = true }
