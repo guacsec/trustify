@@ -73,29 +73,6 @@ pub fn batch_severity_counts_sql() -> &'static str {
         JOIN base_purl bp ON vp.base_purl_id = bp.id
     ),
 
-    -- PURL-based matching: version_matches called only for SBOM's packages,
-    -- advisory filter deferred to avoid unnecessary lookups.
-    purl_version_matches AS (
-        SELECT DISTINCT
-            sp.sbom_id,
-            pst.advisory_id,
-            pst.vulnerability_id
-        FROM sbom_purl_info sp
-        JOIN purl_status pst ON pst.base_purl_id = sp.base_purl_id
-        JOIN version_range vr ON pst.version_range_id = vr.id
-        JOIN status ON pst.status_id = status.id
-        WHERE status.slug = 'affected'
-          AND version_matches(sp.version, vr.*)
-    ),
-    purl_matches AS (
-        SELECT pm.sbom_id, pm.advisory_id, pm.vulnerability_id
-        FROM purl_version_matches pm
-        WHERE NOT EXISTS (
-            SELECT 1 FROM advisory a
-            WHERE a.id = pm.advisory_id AND a.deprecated
-        )
-    ),
-
     -- CPE-based matching: per-SBOM allowed CPE IDs with generalized matching
     sbom_cpes AS (
         SELECT i.sbom_id, cpe.*
@@ -118,6 +95,34 @@ pub fn batch_severity_counts_sql() -> &'static str {
     ),
     sbom_has_cpes AS (
         SELECT DISTINCT sbom_id FROM sbom_cpes
+    ),
+
+    -- PURL-based matching: version_matches called only for SBOM's packages,
+    -- advisory filter deferred to avoid unnecessary lookups.
+    purl_version_matches AS (
+        SELECT DISTINCT
+            sp.sbom_id,
+            pst.advisory_id,
+            pst.vulnerability_id
+        FROM sbom_purl_info sp
+        JOIN purl_status pst ON pst.base_purl_id = sp.base_purl_id
+        JOIN version_range vr ON pst.version_range_id = vr.id
+        JOIN status ON pst.status_id = status.id
+        WHERE status.slug = 'affected'
+          AND version_matches(sp.version, vr.*)
+          AND (
+              pst.context_cpe_id IS NULL
+              OR pst.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
+              OR sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)
+          )
+    ),
+    purl_matches AS (
+        SELECT pm.sbom_id, pm.advisory_id, pm.vulnerability_id
+        FROM purl_version_matches pm
+        WHERE NOT EXISTS (
+            SELECT 1 FROM advisory a
+            WHERE a.id = pm.advisory_id AND a.deprecated
+        )
     ),
 
     -- CPE product_status matches by name
