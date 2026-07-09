@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783606260781,
+  "lastUpdate": 1783617837151,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19978,6 +19978,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "committer": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "distinct": false,
+          "id": "6969f01428833a60761f722d9f385318f88556a7",
+          "message": "chore: removing unused Containerfile.pmmode",
+          "timestamp": "2026-07-09T14:42:56Z",
+          "tree_id": "e5722f44cc7f0dba3e68be6ccc22ba249fb47c78",
+          "url": "https://github.com/guacsec/trustify/commit/6969f01428833a60761f722d9f385318f88556a7"
+        },
+        "date": 1783617834971,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
