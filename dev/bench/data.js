@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783596597829,
+  "lastUpdate": 1783606260781,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19944,6 +19944,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/c81076fb45ce27a4f7cea8005b4adb679ff6bfe2"
         },
         "date": 1783596596044,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "19d22efbc5865423712cb421042e25727d1e11c8",
+          "message": "build: drop removing the toolchain file",
+          "timestamp": "2026-07-09T12:03:42Z",
+          "tree_id": "a1ad0eb1eb895076cba71f051f6cb397c49fee85",
+          "url": "https://github.com/guacsec/trustify/commit/19d22efbc5865423712cb421042e25727d1e11c8"
+        },
+        "date": 1783606259278,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
