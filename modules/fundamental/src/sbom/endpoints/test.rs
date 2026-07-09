@@ -17,7 +17,12 @@ use flate2::bufread::GzDecoder;
 use futures::future::join_all;
 use rstest::rstest;
 use serde_json::{Value, json};
-use std::{collections::HashMap, io::Read, str::FromStr};
+use std::{
+    collections::HashMap,
+    io::Read,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use test_context::test_context;
 use test_log::test;
 use trustify_common::{id::Id, model::PaginatedResults};
@@ -2229,7 +2234,7 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn ds6_docs() -> Result<Vec<String>, anyhow::Error> {
+fn ds6_docs() -> Result<Vec<PathBuf>, anyhow::Error> {
     let ds6_dir = trustify_test_context::absolute("../datasets/ds6")?;
     anyhow::ensure!(
         ds6_dir.exists(),
@@ -2239,10 +2244,7 @@ fn ds6_docs() -> Result<Vec<String>, anyhow::Error> {
     for entry in walkdir::WalkDir::new(&ds6_dir) {
         let entry = entry?;
         if entry.file_type().is_file() {
-            let rel = entry.path().strip_prefix(&ds6_dir)?;
-            if let Some(rel_str) = rel.to_str() {
-                docs.push(format!("../datasets/ds6/{rel_str}"));
-            }
+            docs.push(entry.into_path());
         }
     }
     Ok(docs)
@@ -2341,7 +2343,7 @@ fn ds6_docs() -> Result<Vec<String>, anyhow::Error> {
 #[test_log::test(actix_web::test)]
 async fn list_sboms_advisory_summary(
     ctx: &TrustifyContext,
-    #[case] docs: impl IntoIterator<Item = impl AsRef<str>>,
+    #[case] docs: impl IntoIterator<Item = impl AsRef<Path>>,
     #[case] advisories_param: bool,
     #[case] q: &str,
     #[case] expected: Value,

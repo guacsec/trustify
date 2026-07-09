@@ -155,10 +155,10 @@ $$;
         Ok(Self { db, ..self })
     }
 
-    /// The paths are relative to `<workspace>/etc/test-data`.
-    pub async fn ingest_documents<P: IntoIterator<Item = impl AsRef<str>>>(
+    /// The paths are relative to `<workspace>/etc/test-data`, or absolute.
+    pub async fn ingest_documents(
         &self,
-        paths: P,
+        paths: impl IntoIterator<Item = impl AsRef<Path>>,
     ) -> Result<Vec<IngestResult>, anyhow::Error> {
         let mut results = Vec::new();
         for path in paths {
@@ -169,8 +169,11 @@ $$;
 
     /// Same as [`Self::ingest_document_as`], but with a format of [`Format::Unknown`].
     ///
-    /// The path is relative to `<workspace>/etc/test-data`.
-    pub async fn ingest_document(&self, path: &str) -> Result<IngestResult, anyhow::Error> {
+    /// The path is relative to `<workspace>/etc/test-data`, or absolute.
+    pub async fn ingest_document(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> Result<IngestResult, anyhow::Error> {
         self.ingest_document_as(path, Format::Unknown, ("source", "TrustifyContext"))
             .await
     }
@@ -196,14 +199,14 @@ $$;
 
     /// Ingest a document with a specific format and labels
     ///
-    /// The path is relative to `<workspace>/etc/test-data`.
+    /// The path is relative to `<workspace>/etc/test-data`, or absolute.
     pub async fn ingest_document_as(
         &self,
-        path: &str,
+        path: impl AsRef<Path>,
         format: Format,
         labels: impl Into<Labels> + Debug,
     ) -> Result<IngestResult, anyhow::Error> {
-        let bytes = document_bytes(path).await?;
+        let bytes = document_bytes(path.as_ref()).await?;
 
         self.ingest_bytes_as(&bytes, format, labels).await
     }
@@ -228,9 +231,9 @@ $$;
         absolute(path)
     }
 
-    pub async fn ingest_parallel<const N: usize>(
+    pub async fn ingest_parallel<P: AsRef<Path>, const N: usize>(
         &self,
-        paths: [&str; N],
+        paths: [P; N],
     ) -> Result<[IngestResult; N], anyhow::Error> {
         let mut f = vec![];
 
@@ -246,7 +249,7 @@ $$;
 
     pub async fn ingest_parallel_vec(
         &self,
-        paths: impl IntoIterator<Item = impl AsRef<str>>,
+        paths: impl IntoIterator<Item = impl AsRef<Path>>,
     ) -> Result<Vec<IngestResult>, anyhow::Error> {
         // hold on to paths for the async part
 
@@ -369,7 +372,9 @@ pub fn absolute(path: impl AsRef<Path>) -> Result<PathBuf, anyhow::Error> {
 }
 
 /// Load a test document and decompress it, if necessary.
-pub async fn document_bytes(path: &str) -> Result<Bytes, anyhow::Error> {
+///
+/// The path is relative to `<workspace>/etc/test-data`, or absolute.
+pub async fn document_bytes(path: impl AsRef<Path>) -> Result<Bytes, anyhow::Error> {
     let bytes = document_bytes_raw(path).await?;
     let bytes = decompress_async(bytes, None, 0).await??;
     Ok(bytes)
@@ -377,27 +382,33 @@ pub async fn document_bytes(path: &str) -> Result<Bytes, anyhow::Error> {
 
 /// Load a test document as-is, no decompression.
 ///
-/// The path is relative to `<workspace>/etc/test-data`.
-pub async fn document_bytes_raw(path: &str) -> Result<Bytes, anyhow::Error> {
+/// The path is relative to `<workspace>/etc/test-data`, or absolute.
+pub async fn document_bytes_raw(path: impl AsRef<Path>) -> Result<Bytes, anyhow::Error> {
     let bytes = tokio::fs::read(absolute(path)?).await?;
     Ok(bytes.into())
 }
 
-/// Get a stream for a document from the test-data directory
+/// Get a stream for a document from the test-data directory.
+///
+/// The path is relative to `<workspace>/etc/test-data`, or absolute.
 pub async fn document_stream(
-    path: &str,
+    path: impl AsRef<Path>,
 ) -> Result<impl Stream<Item = Result<Bytes, std::io::Error>>, anyhow::Error> {
     let file = tokio::fs::File::open(absolute(path)?).await?;
     Ok(ReaderStream::new(file))
 }
 
 /// Read a document from the test-data directory. Does not decompress.
-pub fn document_read(path: &str) -> Result<impl Read + Seek, anyhow::Error> {
+///
+/// The path is relative to `<workspace>/etc/test-data`, or absolute.
+pub fn document_read(path: impl AsRef<Path>) -> Result<impl Read + Seek, anyhow::Error> {
     Ok(std::fs::File::open(absolute(path)?)?)
 }
 
 /// Read a document and parse it as JSON.
-pub async fn document<T>(path: &str) -> Result<(T, Digests), anyhow::Error>
+///
+/// The path is relative to `<workspace>/etc/test-data`, or absolute.
+pub async fn document<T>(path: impl AsRef<Path>) -> Result<(T, Digests), anyhow::Error>
 where
     T: serde::de::DeserializeOwned + Send + 'static,
 {
