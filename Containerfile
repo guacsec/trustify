@@ -13,8 +13,6 @@ WORKDIR /build
 
 RUN ls
 
-RUN rm rust-toolchain.toml
-
 RUN cargo build --release
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
