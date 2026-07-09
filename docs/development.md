@@ -50,7 +50,7 @@ By default, authentication is enabled. For development, you have two options:
 - **Disable auth:** `--auth-disabled` flag or `AUTH_DISABLED=true` env var
 - **Dev mode:** `--devmode` uses the Keycloak instance from the compose deployment
 
-For full OIDC setup, see [docs/oidc.md](oidc.md).
+For full OIDC setup, see [oidc.md](oidc.md).
 
 ### Using bearer tokens
 
