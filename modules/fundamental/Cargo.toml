@@ -57,7 +57,6 @@ actix-http = { workspace = true }
 bytes = { workspace = true }
 bytesize = { workspace = true }
 chrono = { workspace = true }
-criterion = { workspace = true, features = ["html_reports", "async_tokio"] }
 csaf = { workspace = true }
 csv = { workspace = true }
 cve = { workspace = true }
@@ -95,14 +94,3 @@ trustify-test-context = { workspace = true }
 urlencoding = { workspace = true }
 walkdir = { workspace = true }
 zip = { workspace = true }
-
-[[bench]]
-name = "bench"
-path = "benches/bench.rs"
-harness = false
-
-[[bench]]
-name = "bench-otel"
-path = "benches/bench-otel.rs"
-harness = false
-
