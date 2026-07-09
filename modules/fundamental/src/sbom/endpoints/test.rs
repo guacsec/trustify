@@ -2229,6 +2229,25 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+fn ds6_docs() -> Result<Vec<String>, anyhow::Error> {
+    let ds6_dir = trustify_test_context::absolute("../datasets/ds6")?;
+    anyhow::ensure!(
+        ds6_dir.exists(),
+        "DS6 dataset not found at {ds6_dir:?}. Run 'make ds6' in etc/datasets/"
+    );
+    let mut docs = Vec::new();
+    for entry in walkdir::WalkDir::new(&ds6_dir) {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+            let rel = entry.path().strip_prefix(&ds6_dir)?;
+            if let Some(rel_str) = rel.to_str() {
+                docs.push(format!("../datasets/ds6/{rel_str}"));
+            }
+        }
+    }
+    Ok(docs)
+}
+
 /// Verify the optional `?advisories=true` enrichment on the SBOM list endpoint.
 ///
 /// The `expected` array contains the expected `advisories` value for each SBOM,
@@ -2239,67 +2258,92 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[case::without_param(
     &["quarkus-bom-2.13.8.Final-redhat-00004.json"],
     false,
+    "",
     json!([null]),
 )]
 // With ?advisories=true but no matching advisory data, the field is present but empty
 #[case::no_advisory_data(
     &["quarkus-bom-2.13.8.Final-redhat-00004.json"],
     true,
+    "",
     json!([{}]),
 )]
 // CSAF advisory with CVSS 5.3 produces a medium severity count
 #[case::medium_severity(
     &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json"],
     true,
+    "",
     json!([{"medium": 1}]),
 )]
 // CVE without CVSS scores maps to unknown severity
 #[case::unknown_severity(
     &["quarkus-bom-2.13.8.Final-redhat-00004.json", "cve/CVE-2024-26308.json"],
     true,
+    "",
     json!([{"unknown": 1}]),
 )]
 // Multiple CVSS versions (v2 low + v3.1 medium) should pick the highest severity
 #[case::multi_score_highest_wins(
     &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044-multi-score.json"],
     true,
+    "",
     json!([{"medium": 1}]),
 )]
 // Multiple severities from different advisories for the same SBOM
 #[case::multiple_severities(
     &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json", "cve/CVE-2024-26308.json"],
     true,
+    "",
     json!([{"medium": 1, "unknown": 1}]),
 )]
 // Multiple SBOMs: only one matches the advisory (sorted by name: quarkus, zookeeper)
 #[case::multiple_sboms_one_match(
     &["quarkus-bom-2.13.8.Final-redhat-00004.json", "zookeeper-3.9.2-cyclonedx.json", "csaf/cve-2023-0044.json"],
     true,
+    "",
     json!([{"medium": 1}, {}]),
 )]
 // Multiple SBOMs: both match different advisories with different severities
 #[case::multiple_sboms_both_match(
     &["quarkus-bom-2.13.8.Final-redhat-00004.json", "zookeeper-3.9.2-cyclonedx.json", "csaf/cve-2023-0044.json", "csaf/cve-2099-0001.json"],
     true,
+    "",
     json!([{"medium": 1}, {"high": 1}]),
 )]
 // Two advisories for the same CVE should deduplicate to a single count
 #[case::dedup_same_cve_across_advisories(
     &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json", "csaf/advisory-dedup/cve-2023-0044-second-advisory.json"],
     true,
+    "",
     json!([{"medium": 1}]),
 )]
 // An advisory without CVSS scores should not mask a real score from another advisory
 #[case::unknown_does_not_mask_real_score(
     &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json", "csaf/advisory-dedup/cve-2023-0044-no-score.json"],
     true,
+    "",
     json!([{"medium": 1}]),
+)]
+// PURLs overlap but CPE contexts don't (quarkus:2.13 vs quarkus:3.2) — should exclude
+#[case::purl_cpe_context_mismatch(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/rhsa-2024-2705.json"],
+    true,
+    "",
+    json!([{}]),
+)]
+// DS6 dataset: full UI e2e test data validates exact severity counts for quarkus-bom
+#[case::ds6_quarkus_severity(
+    ds6_docs().expect("DS6 dataset required"),
+    true,
+    "quarkus-bom",
+    json!([{"high": 2, "medium": 13, "low": 1}]),
 )]
 #[test_log::test(actix_web::test)]
 async fn list_sboms_advisory_summary(
     ctx: &TrustifyContext,
-    #[case] docs: &[&str],
+    #[case] docs: impl IntoIterator<Item = impl AsRef<str>>,
     #[case] advisories_param: bool,
+    #[case] q: &str,
     #[case] expected: Value,
 ) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
@@ -2310,7 +2354,12 @@ async fn list_sboms_advisory_summary(
     } else {
         ""
     };
-    let uri = format!("/api/v3/sbom?sort=name{advisories_query}");
+    let q_param = if q.is_empty() {
+        String::new()
+    } else {
+        format!("&q={}", encode(q))
+    };
+    let uri = format!("/api/v3/sbom?sort=name{advisories_query}{q_param}");
     let response: Value = app
         .call_and_read_body_json(TestRequest::get().uri(&uri).to_request())
         .await;
