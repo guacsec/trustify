@@ -362,7 +362,7 @@ $$;
 }
 
 /// return an absolute part, relative to `<workspace>/etc/test-data`.
-fn absolute(path: impl AsRef<Path>) -> Result<PathBuf, anyhow::Error> {
+pub fn absolute(path: impl AsRef<Path>) -> Result<PathBuf, anyhow::Error> {
     let workspace_root: PathBuf = env!("CARGO_WORKSPACE_ROOT").into();
     let test_data = workspace_root.join("etc/test-data");
     Ok(test_data.join(path))
