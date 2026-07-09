@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783537199412,
+  "lastUpdate": 1783596597829,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -19915,6 +19915,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/d511ac80fc079f705569437c5c8d32d354f1b944"
         },
         "date": 1783537197004,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "c81076fb45ce27a4f7cea8005b4adb679ff6bfe2",
+          "message": "refactor: generalize test-context path APIs from &str to impl AsRef<Path>\n\nAllows ds6_docs() to return Vec<PathBuf> with absolute paths directly,\neliminating the strip-prefix-and-re-add pattern flagged in review.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-07-09T13:13:26+02:00",
+          "tree_id": "5a35021043ae47c2cc2e1557a5d0e73c767740ae",
+          "url": "https://github.com/guacsec/trustify/commit/c81076fb45ce27a4f7cea8005b4adb679ff6bfe2"
+        },
+        "date": 1783596596044,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
