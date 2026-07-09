@@ -21,6 +21,7 @@ trustify-query-derive = { workspace = true }
 
 actix-http = { workspace = true }
 actix-web = { workspace = true }
+backon = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 cpe = { workspace = true }
