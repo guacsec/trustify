@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783670183964,
+  "lastUpdate": 1783690766425,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20031,6 +20031,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/7c757bdb521f3868b6f4056d6a8e88c86f32192e"
         },
         "date": 1783670181938,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "4d9c41b52e9c16ac5f843edb929fd81fd2f50c7a",
+          "message": "fix(deps): Disable aws-sdk-s3 default rustls feature which activated the legacy\nhyper-0.14 + rustls-0.21 path, pulling in rustls-webpki 0.101.7 (fixed\nin 0.103.13). The modern TLS path via aws-smithy-http-client with\nrustls-aws-lc (rustls 0.23) is already configured.\n\nBump aws-smithy-http-client from 1.1.11 to 1.2.0.",
+          "timestamp": "2026-07-10T11:07:50Z",
+          "tree_id": "15b5bc816206fd45c5f180c726b5150d1898b857",
+          "url": "https://github.com/guacsec/trustify/commit/4d9c41b52e9c16ac5f843edb929fd81fd2f50c7a"
+        },
+        "date": 1783690763972,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
