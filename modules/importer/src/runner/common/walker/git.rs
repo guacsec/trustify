@@ -179,7 +179,7 @@ where
     /// Sync version, as all git functions are sync
     #[instrument(skip(self), err)]
     fn run_sync(self) -> Result<Continuation, Error> {
-        log::debug!("Starting run for: {}", self.source);
+        tracing::debug!("Starting run for: {}", self.source);
 
         let working_dir = self
             .working_dir
@@ -190,7 +190,7 @@ where
 
         // clone or open repository
         let repo = self.clone_or_update_repo(path)?;
-        log::info!("Repository cloned or updated");
+        tracing::info!("Repository cloned or updated");
 
         // discover files between "then" and now
         let changes = self.find_changes(&repo)?;
@@ -201,8 +201,8 @@ where
         if let Some(base) = &self.path {
             let new_path = path.join(base);
 
-            log::debug!("  Base: {}", path.display());
-            log::debug!("Target: {}", new_path.display());
+            tracing::debug!("  Base: {}", path.display());
+            tracing::debug!("Target: {}", new_path.display());
 
             // ensure that self.path was a relative sub-directory of the repository
             let _ = new_path
@@ -216,7 +216,7 @@ where
 
         let head = repo.head()?;
         let commit = head.peel_to_commit()?.id();
-        log::info!("Most recent commit: {commit}");
+        tracing::info!("Most recent commit: {commit}");
 
         // only drop when we are done, as this might delete the working directory
 
@@ -231,7 +231,7 @@ where
         match self.clone_repo(path) {
             Ok(repo) => Ok(repo),
             Err(err) if err.code() == ErrorCode::Exists && err.class() == ErrorClass::Invalid => {
-                log::info!("Already exists, opening ...");
+                tracing::info!("Already exists, opening ...");
                 let repo = info_span!("open repository").in_scope(|| Repository::open(path))?;
 
                 let repo = info_span!("fetching updates").in_scope(move || {
@@ -260,7 +260,7 @@ where
                         remote.disconnect()?;
                     }
 
-                    log::info!("Fetched, resetting");
+                    tracing::info!("Fetched, resetting");
 
                     {
                         let head = repo.find_reference("FETCH_HEAD")?;
@@ -276,7 +276,7 @@ where
                 Ok(repo)
             }
             Err(err) => {
-                log::info!(
+                tracing::info!(
                     "Clone failed - code: {:?}, class: {:?}",
                     err.code(),
                     err.class()
@@ -308,7 +308,7 @@ where
     fn find_changes(&self, repo: &Repository) -> Result<Option<HashSet<PathBuf>>, Error> {
         let result = match &self.continuation.0 {
             Some(commit) => {
-                log::info!("Continuing from: {commit}");
+                tracing::info!("Continuing from: {commit}");
 
                 info_span!("continue from", commit).in_scope(|| {
                     let start = match repo.find_commit(repo.revparse_single(commit)?.id()) {
@@ -343,7 +343,7 @@ where
                             };
 
                             if let Some(path) = path {
-                                log::debug!("Record {} as changed file", path.display());
+                                tracing::debug!("Record {} as changed file", path.display());
                                 files.insert(path);
                             }
                         }
@@ -357,10 +357,10 @@ where
 
         match &result {
             Some(result) => {
-                log::info!("Detected {} changed files", result.len());
+                tracing::info!("Detected {} changed files", result.len());
             }
             None => {
-                log::info!("Ingesting all files");
+                tracing::info!("Ingesting all files");
             }
         }
 
@@ -374,15 +374,15 @@ where
             let total = progress.total_objects();
             let bytes = progress.received_bytes();
 
-            log::trace!("Progress - objects: {received} of {total}, bytes: {bytes}");
+            tracing::trace!("Progress - objects: {received} of {total}, bytes: {bytes}");
 
             !self.handler.is_canceled()
         });
         cb.update_tips(|refname, a, b| {
             if a.is_zero() {
-                log::debug!("[new]     {b:20} {refname}");
+                tracing::debug!("[new]     {b:20} {refname}");
             } else {
-                log::debug!("[updated] {a:10}..{b:10} {refname}");
+                tracing::debug!("[updated] {a:10}..{b:10} {refname}");
             }
             !self.handler.is_canceled()
         });
@@ -417,7 +417,7 @@ where
         {
             let entry = entry?;
 
-            log::trace!("Checking: {entry:?}");
+            tracing::trace!("Checking: {entry:?}");
 
             if !entry.file_type().is_file() {
                 continue;
@@ -431,7 +431,7 @@ where
             if let Some(changes) = changes
                 && !changes.contains(path)
             {
-                log::trace!("Skipping {}, as file did not change", path.display());
+                tracing::trace!("Skipping {}, as file did not change", path.display());
                 continue;
             }
 
