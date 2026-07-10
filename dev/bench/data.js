@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783690766425,
+  "lastUpdate": 1783697484490,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20065,6 +20065,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "mrrajan",
+            "username": "mrrajan"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "3eba74d1e5b222d1b9ded372a93d15066b2c4bfe",
+          "message": "refactor(importer): migrate log:: to tracing:: in git walker\n\nReplace all log::debug!, log::info!, and log::trace! calls with their\ntracing:: equivalents in the git walker module. The tracing crate is\nalready imported for #[instrument] and info_span! usage.\n\nPer CONVENTIONS.md: \"Use tracing:: for all new code; migrate log:: when\ntouching a file.\"\n\nImplements TC-5175\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-07-10T13:00:13Z",
+          "tree_id": "2d1e62cfe0cb04ad7ae21a9eb8230fc27631b271",
+          "url": "https://github.com/guacsec/trustify/commit/3eba74d1e5b222d1b9ded372a93d15066b2c4bfe"
+        },
+        "date": 1783697482469,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
