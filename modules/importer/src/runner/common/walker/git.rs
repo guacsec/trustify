@@ -1,8 +1,8 @@
 use crate::runner::common::walker::WorkingDirectory;
 use anyhow::anyhow;
 use git2::{
-    Cred, ErrorClass, ErrorCode, FetchOptions, RemoteCallbacks, Repository, ResetType,
-    build::RepoBuilder,
+    Cred, ErrorClass, ErrorCode, FetchOptions, ProxyOptions, RemoteCallbacks, Repository,
+    ResetType, build::RepoBuilder,
 };
 use std::{
     borrow::Cow,
@@ -404,6 +404,9 @@ where
         let mut fo = FetchOptions::new();
         fo.remote_callbacks(cb);
         fo.depth(i32::MAX);
+        let mut proxy_opts = ProxyOptions::new();
+        proxy_opts.auto();
+        fo.proxy_options(proxy_opts);
         fo
     }
 
@@ -543,5 +546,60 @@ mod test {
 
         // must fail as we try to escape the repository root
         assert!(r.is_err());
+    }
+
+    /// Verifies that git clone honors proxy configuration when ProxyOptions::auto()
+    /// is set. Uses a subprocess trampoline to avoid modifying process-global env vars:
+    /// the outer test spawns itself as a child process with HTTPS_PROXY pointing to a
+    /// non-routable address; the inner run performs the actual clone attempt.
+    #[test]
+    fn test_walker_honors_proxy() {
+        // When the sentinel env var is set, we are the inner subprocess — run the
+        // actual clone and let the result (panic or success) determine the exit code.
+        if std::env::var("__TRUSTIFY_TEST_PROXY_INNER").is_ok() {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                let path = PathBuf::from(format!(
+                    "{}target/test.data/test_walker_honors_proxy.git",
+                    env!("CARGO_WORKSPACE_ROOT")
+                ));
+                if path.exists() {
+                    std::fs::remove_dir_all(&path).unwrap();
+                }
+                let walker =
+                    GitWalker::new("https://github.com/RConsortium/r-advisory-database", ())
+                        .continuation(Continuation::default())
+                        .working_dir(path)
+                        .depth(1);
+                walker.run().await.expect("clone should succeed");
+            });
+            return;
+        }
+
+        // Outer test: spawn ourselves as a subprocess with proxy env vars isolated
+        // to the child process only.
+        let exe = std::env::current_exe().expect("failed to get test binary path");
+        let output = std::process::Command::new(exe)
+            .arg("--exact")
+            .arg("runner::common::walker::git::test::test_walker_honors_proxy")
+            .arg("--nocapture")
+            .env("__TRUSTIFY_TEST_PROXY_INNER", "1")
+            .env("HTTPS_PROXY", "http://127.0.0.1:1")
+            .env("HTTP_PROXY", "http://127.0.0.1:1")
+            .output()
+            .expect("failed to spawn subprocess");
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            !output.status.success(),
+            "expected clone to fail through unreachable proxy, but it succeeded"
+        );
+        let stderr_lower = stderr.to_lowercase();
+        assert!(
+            stderr_lower.contains("proxy")
+                || stderr_lower.contains("connect")
+                || stderr_lower.contains("connection refused"),
+            "expected proxy-related error, got: {stderr}"
+        );
     }
 }
