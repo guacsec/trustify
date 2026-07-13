@@ -4,7 +4,9 @@ pub mod sbom;
 pub mod weakness;
 
 mod format;
+mod json;
 pub use format::Format;
+pub use json::JsonSource;
 
 use crate::graph::Graph;
 use crate::{
