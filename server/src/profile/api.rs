@@ -100,22 +100,25 @@ pub struct Run {
     #[arg(long, env = "EXPLOIT_INTELLIGENCE_UI_URL")]
     pub exploit_intelligence_ui_url: Option<String>,
 
-    /// Polling interval in seconds for EI analysis completion (default: 30, minimum: 5).
-    #[arg(
-        long,
-        env = "EXPLOIT_INTELLIGENCE_POLL_INTERVAL_SECS",
-        default_value_t = 30,
-        value_parser = clap::value_parser!(u64).range(5..)
-    )]
-    pub exploit_intelligence_poll_interval_secs: u64,
+    /// Polling interval for EI analysis completion (humantime, e.g. "30s").
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_POLL_INTERVAL", default_value = "30s")]
+    pub exploit_intelligence_poll_interval: humantime::Duration,
 
-    /// Maximum duration in seconds before EI polling is considered timed out (default: 1800 = 30 minutes).
-    #[arg(
-        long,
-        env = "EXPLOIT_INTELLIGENCE_MAX_POLL_DURATION_SECS",
-        default_value_t = 1800
-    )]
-    pub exploit_intelligence_max_poll_duration_secs: u64,
+    /// Maximum duration before EI polling is considered timed out (humantime, e.g. "30m").
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_MAX_POLL_DURATION", default_value = "30m")]
+    pub exploit_intelligence_max_poll_duration: humantime::Duration,
+
+    /// Maximum number of upload retry attempts for EI analysis.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_UPLOAD_MAX_RETRIES", default_value_t = 3)]
+    pub exploit_intelligence_upload_max_retries: usize,
+
+    /// Initial delay between upload retries (humantime, exponential backoff).
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_UPLOAD_RETRY_DELAY", default_value = "1s")]
+    pub exploit_intelligence_upload_retry_delay: humantime::Duration,
+
+    /// Maximum consecutive poll failures before giving up.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_MAX_CONSECUTIVE_POLL_FAILURES", default_value_t = 5)]
+    pub exploit_intelligence_max_consecutive_poll_failures: u32,
 
     /// Authentication token for the Exploit Intelligence service (static token, for backward compatibility).
     #[arg(long, env = "EXPLOIT_INTELLIGENCE_AUTH_TOKEN")]
@@ -376,8 +379,11 @@ impl InitData {
             trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig {
                 url,
                 ui_url: run.exploit_intelligence_ui_url,
-                poll_interval_secs: run.exploit_intelligence_poll_interval_secs,
-                max_poll_duration_secs: run.exploit_intelligence_max_poll_duration_secs,
+                poll_interval: run.exploit_intelligence_poll_interval.into(),
+                max_poll_duration: run.exploit_intelligence_max_poll_duration.into(),
+                upload_max_retries: run.exploit_intelligence_upload_max_retries,
+                upload_retry_delay: run.exploit_intelligence_upload_retry_delay.into(),
+                max_consecutive_poll_failures: run.exploit_intelligence_max_consecutive_poll_failures,
                 token_provider,
             }
         });

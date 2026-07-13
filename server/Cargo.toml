@@ -26,6 +26,7 @@ bytesize = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 futures = { workspace = true }
 garage-door = { workspace = true, optional = true }
+humantime = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }

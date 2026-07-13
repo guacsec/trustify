@@ -8794,6 +8794,7 @@ dependencies = [
  "clap",
  "futures",
  "garage-door",
+ "humantime",
  "log",
  "rand 0.10.2",
  "rstest",

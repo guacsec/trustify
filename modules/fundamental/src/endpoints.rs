@@ -57,7 +57,8 @@ pub fn configure(
         cache,
     );
 
-    let ei_service = ExploitIntelligenceService::new(ei_config);
+    let ei_service = ExploitIntelligenceService::new(ei_config)
+        .unwrap_or_else(|e| panic!("failed to create ExploitIntelligenceService: {e}"));
     crate::exploit_intelligence::endpoints::configure(
         svc,
         db_rw,
