@@ -332,22 +332,143 @@ impl From<OwnedUri> for Cpe {
     }
 }
 
+/// Split a CPE 2.3 formatted string body into its components, honoring `\`-escapes.
+fn split_cpe23(s: &str) -> Vec<String> {
+    let mut parts = vec![String::new()];
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => {
+                let cur = parts.last_mut().expect("parts is never empty");
+                cur.push(c);
+                if let Some(next) = chars.next() {
+                    cur.push(next);
+                }
+            }
+            ':' => parts.push(String::new()),
+            _ => parts.last_mut().expect("parts is never empty").push(c),
+        }
+    }
+    parts
+}
+
+/// Remove `\`-escapes from a CPE 2.3 formatted string component.
+fn unescape_cpe23(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            if let Some(next) = chars.next() {
+                out.push(next);
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Percent-encode a decoded component value using CPE 2.2 URI syntax,
+/// mapping the `?`/`*` wildcards to their `%01`/`%02` special encodings.
+fn encode_uri_component(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for c in value.chars() {
+        match c {
+            '?' => out.push_str("%01"),
+            '*' => out.push_str("%02"),
+            c if c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.') => out.push(c),
+            c => {
+                let mut buf = [0u8; 4];
+                for b in c.encode_utf8(&mut buf).as_bytes() {
+                    out.push_str(&format!("%{b:02x}"));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Turn a raw (still escaped) CPE 2.3 component into its CPE 2.2 URI form.
+fn cpe23_component_to_uri(raw: &str) -> String {
+    match raw {
+        // ANY is the empty component in URI syntax
+        "*" => String::new(),
+        "-" => "-".to_string(),
+        _ => encode_uri_component(&unescape_cpe23(raw)),
+    }
+}
+
+/// Convert a CPE 2.3 formatted string (`cpe:2.3:part:vendor:...`, 11 attribute
+/// components) into a CPE 2.2 URI, packing the extended attributes
+/// (sw_edition, target_sw, target_hw, other) into the edition component.
+fn cpe23_to_uri(value: &str, body: &str) -> Result<OwnedUri, cpe::error::CpeError> {
+    let invalid = || cpe::error::CpeError::InvalidUri {
+        value: value.to_owned(),
+    };
+
+    let raw = split_cpe23(body);
+    if raw.len() != 11 {
+        return Err(invalid());
+    }
+
+    let part = match raw[0].as_str() {
+        "*" | "-" => "",
+        part => part,
+    };
+
+    let [vendor, product, version, update, edition] =
+        [&raw[1], &raw[2], &raw[3], &raw[4], &raw[5]].map(|c| cpe23_component_to_uri(c));
+    let [sw_edition, target_sw, target_hw, other] =
+        [&raw[7], &raw[8], &raw[9], &raw[10]].map(|c| cpe23_component_to_uri(c));
+
+    let edition = if [&sw_edition, &target_sw, &target_hw, &other]
+        .iter()
+        .all(|c| c.is_empty())
+    {
+        edition
+    } else {
+        format!("~{edition}~{sw_edition}~{target_sw}~{target_hw}~{other}")
+    };
+
+    let language = match raw[6].as_str() {
+        "*" | "-" => String::new(),
+        lang => unescape_cpe23(lang),
+    };
+
+    let mut components = vec![
+        part.to_string(),
+        vendor,
+        product,
+        version,
+        update,
+        edition,
+        language,
+    ];
+    // the URI parser treats empty components in the middle as ANY, but fails on
+    // an empty trailing language component
+    while components.last().is_some_and(|c| c.is_empty()) {
+        components.pop();
+    }
+
+    OwnedUri::from_str(&format!("cpe:/{}", components.join(":")))
+}
+
 impl FromStr for Cpe {
     type Err = <OwnedUri as FromStr>::Err;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self {
-            uri: OwnedUri::from_str(s)?,
-        })
+        let uri = match s.strip_prefix("cpe:2.3:") {
+            Some(body) => cpe23_to_uri(s, body)?,
+            None => OwnedUri::from_str(s)?,
+        };
+        Ok(Self { uri })
     }
 }
 
 impl TryFrom<&str> for Cpe {
     type Error = <OwnedUri as FromStr>::Err;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(Self {
-            uri: OwnedUri::from_str(value)?,
-        })
+        Self::from_str(value)
     }
 }
 
@@ -570,6 +691,88 @@ mod test {
         assert_eq!(
             cpe.uuid().to_string(),
             "61bca16a-febc-5d79-8b4d-f51fa37c876d"
+        );
+    }
+
+    #[test]
+    fn cpe23_simple() {
+        let cpe = Cpe::from_str("cpe:2.3:a:openssl:openssl:0.9.8w:*:*:*:*:*:*:*")
+            .expect("must parse");
+        assert!(matches!(cpe.part(), CpeType::Application));
+        assert_eq!(cpe.vendor().as_ref(), "openssl");
+        assert_eq!(cpe.product().as_ref(), "openssl");
+        assert_eq!(cpe.version().as_ref(), "0.9.8w");
+        assert!(matches!(cpe.update(), Component::Any));
+        assert!(matches!(cpe.edition(), Component::Any));
+        assert!(matches!(cpe.language(), Language::Any));
+    }
+
+    #[test]
+    fn cpe23_same_uuid_as_cpe22() {
+        let cpe23 = Cpe::from_str("cpe:2.3:a:redhat:enterprise_linux:9:*:crb:*:*:*:*:*")
+            .expect("must parse");
+        assert_eq!(
+            cpe23.uuid().to_string(),
+            "61bca16a-febc-5d79-8b4d-f51fa37c876d"
+        );
+    }
+
+    #[test]
+    fn cpe23_not_applicable() {
+        let cpe = Cpe::from_str("cpe:2.3:a:busybox:busybox:-:*:*:*:*:*:*:*").expect("must parse");
+        assert!(matches!(cpe.version(), Component::NotApplicable));
+    }
+
+    #[test]
+    fn cpe23_escaped_characters() {
+        let cpe = Cpe::from_str(r"cpe:2.3:a:foo\:bar:some\+product:1.0:*:*:*:*:*:*:*")
+            .expect("must parse");
+        assert_eq!(cpe.vendor().as_ref(), "foo:bar");
+        assert_eq!(cpe.product().as_ref(), "some+product");
+        assert_eq!(cpe.version().as_ref(), "1.0");
+    }
+
+    #[test]
+    fn cpe23_embedded_wildcard() {
+        let cpe =
+            Cpe::from_str("cpe:2.3:a:openssl:openssl:0.9.8*:*:*:*:*:*:*:*").expect("must parse");
+        assert_eq!(cpe.version().as_ref(), "0.9.8*");
+    }
+
+    #[test]
+    fn cpe23_extended_attributes() {
+        let cpe = Cpe::from_str("cpe:2.3:o:microsoft:windows_10:1607:*:*:*:*:*:x64:*")
+            .expect("must parse");
+        assert!(matches!(cpe.part(), CpeType::OperatingSystem));
+        assert_eq!(cpe.vendor().as_ref(), "microsoft");
+        assert_eq!(cpe.product().as_ref(), "windows_10");
+        assert_eq!(cpe.version().as_ref(), "1607");
+        // extended attributes end up in the packed edition component of the URI
+        assert_eq!(
+            cpe.to_string(),
+            "cpe:/o:microsoft:windows_10:1607:*~*~*~*~x64~*:*"
+        );
+    }
+
+    #[test]
+    fn cpe23_language() {
+        let cpe = Cpe::from_str("cpe:2.3:a:vendor:product:1.0:*:*:en-us:*:*:*:*")
+            .expect("must parse");
+        assert_eq!(cpe.language().as_ref(), "en-US");
+    }
+
+    #[test]
+    fn cpe23_wrong_component_count() {
+        assert!(Cpe::from_str("cpe:2.3:a:openssl:openssl:0.9.8w").is_err());
+        assert!(Cpe::from_str("cpe:2.3:a:openssl:openssl:0.9.8w:*:*:*:*:*:*:*:*").is_err());
+    }
+
+    #[test]
+    fn cpe23_garbage_rejected() {
+        // unescapable garbage (spaces are not valid in any CPE component)
+        assert!(
+            Cpe::from_str("cpe:2.3:a:libfoo.a(bar.o): in function `baz':1.0:-:*:*:*:*:*:*:*")
+                .is_err()
         );
     }
 }
