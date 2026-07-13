@@ -3,6 +3,7 @@ pub mod advisory_vulnerability;
 pub mod advisory_vulnerability_score;
 pub mod base_purl;
 pub mod cpe;
+pub mod cpe_status;
 pub mod expanded_license;
 pub mod importer;
 pub mod importer_report;
