@@ -179,13 +179,19 @@ impl<'g> CveLoader<'g> {
                     continue;
                 };
                 let identity_cpe = cpe.with_any_version();
-                cpes.insert(identity_cpe.clone());
 
                 if !product.versions.is_empty() {
                     for version in &product.versions {
-                        let (version_spec, version_type, status) =
-                            version_spec_and_status(version);
+                        let (version_spec, version_type, status) = version_spec_and_status(version);
 
+                        // `unknown` has no row in the `status` table and
+                        // carries no applicability information; skip it
+                        // instead of failing the whole document.
+                        if matches!(status, Status::Unknown) {
+                            continue;
+                        }
+
+                        cpes.insert(identity_cpe.clone());
                         cpe_status_creator.add(CpeStatusEntry {
                             advisory_id: advisory_vuln.advisory.advisory.id,
                             vulnerability_id: advisory_vuln
@@ -207,6 +213,17 @@ impl<'g> CveLoader<'g> {
                 } else if let trustify_common::cpe::Component::Value(version) = cpe.version() {
                     // no explicit versions list: fall back to the concrete
                     // version carried by the CPE itself.
+                    let status = product.default_status.clone().unwrap_or(Status::Unknown);
+
+                    // `unknown` (also the fallback for a missing
+                    // `defaultStatus`) has no row in the `status` table and
+                    // carries no applicability information; skip it instead
+                    // of failing the whole document.
+                    if matches!(status, Status::Unknown) {
+                        continue;
+                    }
+
+                    cpes.insert(identity_cpe.clone());
                     cpe_status_creator.add(CpeStatusEntry {
                         advisory_id: advisory_vuln.advisory.advisory.id,
                         vulnerability_id: advisory_vuln
@@ -214,9 +231,7 @@ impl<'g> CveLoader<'g> {
                             .vulnerability_id
                             .clone(),
                         cpe: identity_cpe.clone(),
-                        status: status_slug(
-                            &product.default_status.clone().unwrap_or(Status::Unknown),
-                        ),
+                        status: status_slug(&status),
                         version_info: VersionInfo {
                             scheme: VersionScheme::Generic,
                             spec: VersionSpec::Exact(version),
@@ -864,14 +879,22 @@ mod test {
         // Re-ingest idempotency: loading the same document again must not
         // create duplicate cpe_status rows (deterministic v5 UUIDs).
         ctx.db
-            .transaction(async |tx| loader.load(("file", "CVE-2099-0001.json"), cve, &digests, tx).await)
+            .transaction(async |tx| {
+                loader
+                    .load(("file", "CVE-2099-0001.json"), cve, &digests, tx)
+                    .await
+            })
             .await?;
 
         let rows_after_reingest = cpe_status::Entity::find()
             .filter(cpe_status::Column::AdvisoryId.eq(advisory.advisory.id))
             .all(&ctx.db)
             .await?;
-        assert_eq!(rows_after_reingest.len(), 3, "re-ingest must not duplicate rows");
+        assert_eq!(
+            rows_after_reingest.len(),
+            3,
+            "re-ingest must not duplicate rows"
+        );
 
         Ok(())
     }
