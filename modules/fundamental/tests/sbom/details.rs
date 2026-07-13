@@ -209,6 +209,92 @@ async fn sbom_details_cyclonedx_osv(ctx: &TrustifyContext) -> Result<(), anyhow:
     Ok(())
 }
 
+/// End-to-end test of the CPE-based matching path added in
+/// `raw_sql::cpe_advisory_info_sql`: package-level CPEs harvested from an
+/// SPDX SBOM (`sbom_node_cpe_ref`) matched against `cpe_status` rows written
+/// by the CVE loader from `affected[].cpes`.
+///
+/// Ingests the synthetic firmware SBOM (OpenSSL 0.9.8w, BusyBox 1.19.4, and
+/// a package with an unparseable/junk CPE) plus three synthetic CVE fixtures:
+/// - CVE-2099-0001: affects openssl (exact `0.9.8w` + semver range) and
+///   busybox (concrete-CPE-version fallback, no `versions` list).
+/// - CVE-2099-0002: ADP-only, targets `denx:u-boot`, which this SBOM does not
+///   contain -- must not surface any advisory here.
+/// - CVE-2099-0003: affects openssl only in the `2.0.0..3.0.0` semver range,
+///   which does NOT include `0.9.8w` -- the negative-match case that
+///   differentiates this path from name-only `product_status` matching.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+async fn sbom_details_cpe_matching(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(PaginationCache::for_test());
+
+    let result = ctx.ingest_document("spdx/cpe23-firmware.json").await?;
+
+    let cve1 = ctx.ingest_document("cve/CVE-2099-0001.json").await?;
+    assert_eq!(cve1.document_id, Some("CVE-2099-0001".to_string()));
+
+    let cve2 = ctx.ingest_document("cve/CVE-2099-0002.json").await?;
+    assert_eq!(cve2.document_id, Some("CVE-2099-0002".to_string()));
+
+    let cve3 = ctx.ingest_document("cve/CVE-2099-0003.json").await?;
+    assert_eq!(cve3.document_id, Some("CVE-2099-0003".to_string()));
+
+    let details = sbom
+        .fetch_sbom_details(Id::parse_uuid(result.id)?, vec![], &ctx.db)
+        .await?
+        .expect("SBOM details must be found");
+    log::info!("SBOM details: {details:?}");
+
+    // CVE-2099-0001 must show up, with OpenSSL (via the exact version match)
+    // and BusyBox (via the concrete-CPE-version fallback) as affected
+    // packages.
+    let advisory_1 = details
+        .advisories
+        .iter()
+        .find(|a| a.head.document_id == "CVE-2099-0001")
+        .expect("CVE-2099-0001 advisory must be present");
+    assert_eq!(1, advisory_1.status.len());
+    assert_eq!("affected", advisory_1.status[0].status);
+    let package_names: std::collections::BTreeSet<String> = advisory_1.status[0]
+        .packages
+        .iter()
+        .map(|p| p.name.clone())
+        .collect();
+    assert!(
+        package_names.contains("OpenSSL"),
+        "expected OpenSSL among matched packages, got {package_names:?}"
+    );
+    assert!(
+        package_names.contains("BusyBox"),
+        "expected BusyBox among matched packages, got {package_names:?}"
+    );
+
+    // CVE-2099-0002 (ADP-only, denx:u-boot) must NOT match -- this SBOM
+    // contains no u-boot package.
+    assert!(
+        !details
+            .advisories
+            .iter()
+            .any(|a| a.head.document_id == "CVE-2099-0002"),
+        "CVE-2099-0002 (u-boot) must not match any package in this SBOM"
+    );
+
+    // CVE-2099-0003 (openssl, 2.0.0..3.0.0) must NOT match -- 0.9.8w falls
+    // outside that range. This is the key false-positive guard: vendor+
+    // product identity alone (as name-only product_status matching would
+    // use) is not sufficient, version_matches() must also hold.
+    assert!(
+        !details
+            .advisories
+            .iter()
+            .any(|a| a.head.document_id == "CVE-2099-0003"),
+        "CVE-2099-0003 (openssl 2.0.0..3.0.0) must not match openssl 0.9.8w"
+    );
+
+    Ok(())
+}
+
 /// Constructs a `ScoredVector` from its parts, deriving the severity from the type and value.
 fn sv(r#type: ScoreType, value: f64, vector: impl Into<String>) -> ScoredVector {
     ScoredVector {

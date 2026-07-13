@@ -171,13 +171,35 @@ impl SbomDetails {
             .query_all(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 raw_sql::product_advisory_info_sql(),
-                [sbom.sbom_id.into(), statuses.into()],
+                [sbom.sbom_id.into(), statuses.clone().into()],
             ))
             .instrument(info_span!("product_advisory_info_sql"))
             .await?;
 
         // Convert raw SQL results to IdSet objects
         for row in raw_results {
+            match IdSet::from_query_result(&row, "") {
+                Ok(result) => id_sets.push(result),
+                Err(err) => return Err(Error::from(err)),
+            }
+        }
+
+        // Raw SQL query 2: CPE-based vulnerability matching through
+        // sbom_node_cpe_ref x cpe_status (package-level CPE identity,
+        // populated by the CVE loader from affected[].cpes). Deliberately
+        // does not apply CONTEXT_CPE_FILTER_SQL: that filter encodes Red Hat
+        // product-stream membership, which is unrelated to component-level
+        // CPEs harvested from third-party SBOMs.
+        let cpe_raw_results = tx
+            .query_all(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                raw_sql::cpe_advisory_info_sql(),
+                [sbom.sbom_id.into(), statuses.into()],
+            ))
+            .instrument(info_span!("cpe_advisory_info_sql"))
+            .await?;
+
+        for row in cpe_raw_results {
             match IdSet::from_query_result(&row, "") {
                 Ok(result) => id_sets.push(result),
                 Err(err) => return Err(Error::from(err)),

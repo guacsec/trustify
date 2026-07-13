@@ -205,6 +205,93 @@ pub fn batch_severity_counts_sql() -> &'static str {
     "#
 }
 
+/// Returns SQL that finds advisory/vulnerability matches for a single SBOM
+/// through package-level CPE identity, keyed by `cpe_status` (populated by the
+/// CVE loader from `affected[].cpes`). Takes `$1 = sbom_id (uuid)`,
+/// `$2 = statuses (text[])`, and returns rows shaped like
+/// [`product_advisory_info_sql`] so callers can merge the two result sets
+/// through the same row-assembly code (`IdSet`).
+///
+/// Matching is vendor+product identity (`part = 'a'`) plus `version_matches()`
+/// against the version range recorded on `cpe_status` -- deliberately *not*
+/// filtered by the `sbom_describing_cpe` context filter
+/// ([`CONTEXT_CPE_FILTER_SQL`]): that concept encodes Red Hat product-stream
+/// membership and is meaningless for component-level CPEs harvested from
+/// third-party SBOMs (e.g. SPDX `cpe23Type` external references).
+///
+/// Nodes without a `qualified_purl_id` are skipped (`IdSet::qualified_purl_id`
+/// is a mandatory `Uuid`); making it optional is left as a follow-up.
+pub fn cpe_advisory_info_sql() -> String {
+    r#"
+        WITH
+        -- Package-level CPEs referenced by this SBOM, joined back to the
+        -- owning package for its purl and (fallback) version.
+        sbom_cpe_pkgs AS (
+            SELECT
+                scr.sbom_id,
+                scr.node_id,
+                c.vendor,
+                c.product,
+                c.part,
+                COALESCE(NULLIF(c.version, '*'), sp.version) AS version,
+                spr.qualified_purl_id
+            FROM sbom_node_cpe_ref scr
+            JOIN cpe c ON scr.cpe_id = c.id
+            JOIN sbom_package sp ON sp.sbom_id = scr.sbom_id AND sp.node_id = scr.node_id
+            LEFT JOIN sbom_node_purl_ref spr ON spr.sbom_id = scr.sbom_id AND spr.node_id = scr.node_id
+            WHERE scr.sbom_id = $1
+        ),
+
+        -- CPE-status matches: identity by vendor+product (application CPEs
+        -- only), affected version range checked via version_matches().
+        cpe_status_matches AS (
+            SELECT DISTINCT
+                cs.advisory_id,
+                cs.vulnerability_id,
+                cs.status_id,
+                cs.context_cpe_id,
+                p.qualified_purl_id,
+                p.sbom_id,
+                p.node_id
+            FROM cpe_status cs
+            JOIN cpe sc ON cs.cpe_id = sc.id
+            JOIN sbom_cpe_pkgs p
+                ON p.vendor = sc.vendor
+               AND p.product = sc.product
+               AND sc.part = 'a'
+               AND p.part = 'a'
+            JOIN version_range vr ON cs.version_range_id = vr.id
+            WHERE p.qualified_purl_id IS NOT NULL
+              AND version_matches(p.version, vr.*)
+        )
+
+        -- Final query joins to get all required fields (mirrors the tail of
+        -- product_advisory_info_sql).
+        SELECT DISTINCT
+            "advisory"."id" AS "advisory_id",
+            "advisory_vulnerability"."advisory_id" AS "av_advisory_id",
+            "advisory_vulnerability"."vulnerability_id" AS "av_vulnerability_id",
+            "vulnerability"."id" AS "vulnerability_id",
+            m.qualified_purl_id AS "qualified_purl_id",
+            m.sbom_id AS "sbom_id",
+            m.node_id AS "node_id",
+            "status"."id" AS "status_id",
+            "cpe"."id" AS "cpe_id",
+            "organization"."id" AS "organization_id"
+        FROM cpe_status_matches m
+        JOIN "status" ON m.status_id = "status"."id"
+        JOIN "advisory" ON m.advisory_id = "advisory"."id"
+        LEFT JOIN "organization" ON "advisory"."issuer_id" = "organization"."id"
+        JOIN "advisory_vulnerability" ON m.advisory_id = "advisory_vulnerability"."advisory_id"
+            AND m.vulnerability_id = "advisory_vulnerability"."vulnerability_id"
+        JOIN "vulnerability" ON "advisory_vulnerability"."vulnerability_id" = "vulnerability"."id"
+        LEFT JOIN "cpe" ON m.context_cpe_id = "cpe"."id"
+        WHERE ($2::text[] = ARRAY[]::text[] OR "status"."slug" = ANY($2::text[]))
+          AND "advisory"."deprecated" = false
+        "#
+    .to_string()
+}
+
 pub fn product_advisory_info_sql() -> String {
     r#"
         WITH
