@@ -238,7 +238,7 @@ impl SbomContext {
                             log::info!("Failed to parse PURL ({}): {err}", r.reference_locator);
                         }
                     },
-                    "cpe22Type" => match Cpe::from_str(&r.reference_locator) {
+                    "cpe22Type" | "cpe23Type" => match Cpe::from_str(&r.reference_locator) {
                         Ok(cpe) => {
                             refs.push(PackageReference::Cpe(cpe.uuid()));
                             cpes.add(cpe.clone());

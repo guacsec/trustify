@@ -166,6 +166,54 @@ async fn ingest_spdx_broken_refs(ctx: &TrustifyContext) -> Result<(), anyhow::Er
     Ok(())
 }
 
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn ingest_spdx_cpe23_refs(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    test_with_spdx(
+        ctx,
+        "spdx/cpe23-firmware.json",
+        |WithContext { service, sbom, .. }| async move {
+            let packages = service
+                .fetch_sbom_packages(
+                    sbom.sbom.sbom_id,
+                    Default::default(),
+                    Paginated {
+                        offset: 0,
+                        limit: 100,
+                        total: true,
+                    },
+                    &ctx.db,
+                )
+                .await?;
+
+            let find = |name: &str| {
+                packages
+                    .items
+                    .iter()
+                    .find(|p| p.name == name)
+                    .unwrap_or_else(|| panic!("package {name} must exist"))
+            };
+
+            let openssl = find("OpenSSL");
+            assert_eq!(openssl.cpe, vec!["cpe:/a:openssl:openssl:0.9.8w:*:*:*"]);
+
+            let busybox = find("BusyBox");
+            assert_eq!(busybox.cpe, vec!["cpe:/a:busybox:busybox:1.19.4:*:*:*"]);
+
+            // the unparseable CPE reference is skipped, but the package is still ingested
+            let garbage = packages
+                .items
+                .iter()
+                .find(|p| p.name.starts_with("libfoo"))
+                .expect("package with broken CPE must exist");
+            assert!(garbage.cpe.is_empty());
+
+            Ok(())
+        },
+    )
+    .await
+}
+
 #[instrument(skip(ctx, f))]
 pub async fn test_with_spdx<F>(ctx: &TrustifyContext, sbom: &str, f: F) -> anyhow::Result<()>
 where
