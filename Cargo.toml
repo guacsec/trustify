@@ -98,7 +98,6 @@ num-traits = "0.2"
 oci-client = "0.17.0"
 openid = "0.23.0"
 openssl = "0.10"
-sequoia-openpgp = { version = ">=2, <2.4", default-features = false } # pin below 2.4 which pulls in ossl/bindgen
 opentelemetry = "0.32"
 opentelemetry-otlp = "0.32"
 opentelemetry_sdk = "0.32"
