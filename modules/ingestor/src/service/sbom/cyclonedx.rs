@@ -36,7 +36,7 @@ impl<'g> CyclonedxLoader<'g> {
     }
 
     /// Ingest a pre-parsed CycloneDX document.
-    async fn ingest(
+    pub(crate) async fn ingest(
         &self,
         labels: Labels,
         cdx: Box<serde_cyclonedx::cyclonedx::v_1_6::CycloneDx>,

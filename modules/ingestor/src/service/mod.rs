@@ -1,10 +1,12 @@
 pub mod advisory;
 pub mod dataset;
+mod detect;
 pub mod sbom;
 pub mod weakness;
 
 mod format;
 mod json;
+pub use detect::{DetectedDocument, DocumentDetector, WireFormat};
 pub use format::Format;
 pub use json::JsonSource;
 
@@ -225,15 +227,8 @@ impl IngestorService {
     ) -> Result<IngestResult, Error> {
         let start = Instant::now();
 
-        // We want to resolve the format first to avoid storing a
-        // document that we can't subsequently retrieve and load into
-        // the database.
-        let fmt = match format {
-            Format::Advisory => Format::advisory_from_bytes(bytes)?,
-            Format::SBOM => Format::sbom_from_bytes(bytes)?,
-            Format::Unknown => Format::from_bytes(bytes)?,
-            v => v,
-        };
+        let detector = DocumentDetector::detect_as(bytes, format)?;
+        let fmt = detector.format();
 
         let result = self
             .storage
@@ -241,15 +236,8 @@ impl IngestorService {
             .await
             .map_err(|err| Error::Storage(anyhow!("{err}")))?;
 
-        let result = fmt
-            .load(
-                &self.graph,
-                labels.into(),
-                issuer,
-                &result.digests,
-                bytes,
-                tx,
-            )
+        let result = detector
+            .load(&self.graph, labels.into(), issuer, &result.digests, tx)
             .await?;
 
         if let Some(wait) = cache.into() {
@@ -257,7 +245,7 @@ impl IngestorService {
         }
 
         let duration = start.elapsed();
-        log::debug!(
+        tracing::debug!(
             "Ingested: {} ({:?}): took {}",
             result.id,
             result.document_id,
@@ -297,7 +285,7 @@ impl IngestorService {
             Ok(r) if wait => {
                 // queued ok, await processing
                 if let Err(err) = r.await {
-                    log::warn!("Failed to await queue load: {err}");
+                    tracing::warn!("Failed to await queue load: {err}");
                 }
             }
             Ok(_) => {
@@ -305,7 +293,7 @@ impl IngestorService {
             }
             Err(e) => {
                 // failed to queue
-                log::warn!("Error queuing graph load for SBOM {}: {e}", result.id);
+                tracing::warn!("Error queuing graph load for SBOM {}: {e}", result.id);
             }
         }
     }

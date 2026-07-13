@@ -22,7 +22,6 @@ cve = { workspace = true }
 cvss = { workspace = true }
 hex = { workspace = true }
 humantime = { workspace = true }
-jsn = { workspace = true }
 jsonpath-rust = { workspace = true }
 lenient_semver = { workspace = true }
 log = { workspace = true }
@@ -56,9 +55,16 @@ trustify-auth = { workspace = true }
 trustify-test-context = { workspace = true }
 
 actix-http = { workspace = true }
+criterion = { workspace = true }
 rand = { workspace = true }
 rstest = { workspace = true }
 serde_yml = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
+tokio = { workspace = true, features = ["full"] }
 zip = { workspace = true }
+
+[[bench]]
+name = "detect"
+path = "benches/detect.rs"
+harness = false
