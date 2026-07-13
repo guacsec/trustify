@@ -35,9 +35,12 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
 "#;
 
 /// Returns SQL that counts affected vulnerabilities grouped by severity for
-/// multiple SBOMs in a single query. Combines both PURL-based matching (via
-/// `purl_status` + `version_matches()`) and CPE-based matching (via
-/// `product_status` + package name matching). Takes `$1 = Uuid[]` and returns
+/// multiple SBOMs in a single query. Combines PURL-based matching (via
+/// `purl_status` + `version_matches()`), name-keyed CPE matching (via
+/// `product_status` + package name matching), and package-level CPE-identity
+/// matching (via `cpe_status` + `version_matches()`, mirroring
+/// [`cpe_advisory_info_sql`] so SBOM-list severity counts agree with the
+/// details endpoint). Takes `$1 = Uuid[]` and returns
 /// `(sbom_id, severity, count)` rows.
 ///
 /// Uses a shared `sbom_purl_info` CTE (referenced 3x) that PostgreSQL
@@ -164,6 +167,44 @@ pub fn batch_severity_counts_sql() -> &'static str {
           )
     ),
 
+    -- Package-level CPEs harvested from SBOMs (e.g. SPDX cpe23Type refs),
+    -- joined back to the owning package for its (fallback) version. Mirrors
+    -- sbom_cpe_pkgs in cpe_advisory_info_sql().
+    sbom_cpe_pkgs AS (
+        SELECT
+            scr.sbom_id,
+            c.vendor,
+            c.product,
+            c.part,
+            COALESCE(NULLIF(c.version, '*'), sp.version) AS version
+        FROM input_sboms i
+        JOIN sbom_node_cpe_ref scr ON scr.sbom_id = i.sbom_id
+        JOIN cpe c ON scr.cpe_id = c.id
+        JOIN sbom_package sp ON sp.sbom_id = scr.sbom_id AND sp.node_id = scr.node_id
+    ),
+
+    -- CPE-based matching via cpe_status (package-level CPE identity, as
+    -- opposed to cpe_matches_name/_ns above which key off product_status by
+    -- package name). Vendor+product identity ('a' part only) plus
+    -- version_matches() against the affected version range -- no
+    -- sbom_describing_cpe context filter, matching cpe_advisory_info_sql().
+    cpe_version_matches AS (
+        SELECT DISTINCT
+            p.sbom_id,
+            cs.advisory_id,
+            cs.vulnerability_id
+        FROM sbom_cpe_pkgs p
+        JOIN cpe sc ON sc.vendor = p.vendor AND sc.product = p.product AND sc.part = 'a'
+        JOIN cpe_status cs ON cs.cpe_id = sc.id
+        JOIN version_range vr ON cs.version_range_id = vr.id
+        JOIN status ON cs.status_id = status.id
+        JOIN advisory ON cs.advisory_id = advisory.id
+        WHERE p.part = 'a'
+          AND status.slug = 'affected'
+          AND advisory.deprecated = false
+          AND version_matches(p.version, vr.*)
+    ),
+
     -- Union all matches
     all_affected AS (
         SELECT * FROM purl_matches
@@ -171,6 +212,8 @@ pub fn batch_severity_counts_sql() -> &'static str {
         SELECT * FROM cpe_matches_name
         UNION
         SELECT * FROM cpe_matches_ns
+        UNION
+        SELECT * FROM cpe_version_matches
     ),
 
     -- Pick the highest severity per (sbom, vulnerability), collapsing

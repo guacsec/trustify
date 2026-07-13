@@ -3,7 +3,10 @@ use test_log::test;
 use tracing::instrument;
 use trustify_common::{db::pagination_cache::PaginationCache, id::Id};
 use trustify_module_fundamental::common::model::{Score, ScoreType, ScoredVector, Severity};
-use trustify_module_fundamental::sbom::{model::details::SbomDetails, service::SbomService};
+use trustify_module_fundamental::sbom::{
+    model::{AffectedSeverity, details::SbomDetails},
+    service::SbomService,
+};
 use trustify_test_context::TrustifyContext;
 
 #[test_context(TrustifyContext)]
@@ -290,6 +293,71 @@ async fn sbom_details_cpe_matching(ctx: &TrustifyContext) -> Result<(), anyhow::
             .iter()
             .any(|a| a.head.document_id == "CVE-2099-0003"),
         "CVE-2099-0003 (openssl 2.0.0..3.0.0) must not match openssl 0.9.8w"
+    );
+
+    Ok(())
+}
+
+/// Parity test for PR-7: `batch_advisory_severity_counts` (used by the SBOM
+/// list endpoint) must agree with `fetch_sbom_details` (the details
+/// endpoint) once CPE-status matches are included in its `all_affected`
+/// UNION. Before PR-7, this CPE-matched vulnerability was invisible to the
+/// batch/list severity counts even though the details endpoint already
+/// surfaced it (PR-6), a discrepancy this test guards against regressing.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+async fn sbom_severity_counts_cpe_matching(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(PaginationCache::for_test());
+
+    let result = ctx.ingest_document("spdx/cpe23-firmware.json").await?;
+    ctx.ingest_document("cve/CVE-2099-0001.json").await?;
+    ctx.ingest_document("cve/CVE-2099-0002.json").await?;
+    ctx.ingest_document("cve/CVE-2099-0003.json").await?;
+
+    let sbom_id = Id::parse_uuid(result.id)?;
+    let Id::Uuid(sbom_uuid) = sbom_id else {
+        panic!("expected a UUID sbom id");
+    };
+
+    let details = sbom
+        .fetch_sbom_details(sbom_id, vec![], &ctx.db)
+        .await?
+        .expect("SBOM details must be found");
+
+    // Non-zero: the details endpoint (PR-6) already showed CVE-2099-0001 as
+    // affected via the CPE path (OpenSSL + BusyBox); the batch counts must
+    // see it too.
+    assert_eq!(
+        1,
+        details.advisories.len(),
+        "expected exactly CVE-2099-0001 to match, got {:?}",
+        details
+            .advisories
+            .iter()
+            .map(|a| &a.head.document_id)
+            .collect::<Vec<_>>()
+    );
+
+    let counts = sbom
+        .batch_advisory_severity_counts(&[sbom_uuid], &ctx.db)
+        .await?;
+    let sbom_counts = counts
+        .get(&sbom_uuid)
+        .expect("severity counts must be present for this SBOM");
+
+    // CVE-2099-0001 carries a single CVSS v3.1 CRITICAL score; the ADP-only
+    // (u-boot) and version-excluded (openssl 2.0.0..3.0.0) CVEs must not
+    // contribute any count.
+    assert_eq!(
+        1,
+        sbom_counts.values().sum::<u64>(),
+        "expected exactly one counted vulnerability, got {sbom_counts:?}"
+    );
+    assert_eq!(
+        Some(&1),
+        sbom_counts.get(&AffectedSeverity::Critical),
+        "expected one critical-severity vulnerability, got {sbom_counts:?}"
     );
 
     Ok(())
