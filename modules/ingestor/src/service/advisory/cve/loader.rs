@@ -6,6 +6,8 @@ use crate::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
             version::{Version, VersionInfo, VersionSpec},
         },
+        cpe::CpeCreator,
+        cpe_status_creator::{CpeStatusCreator, CpeStatusEntry},
         cvss::ScoreCreator,
         purl::{
             self,
@@ -30,7 +32,7 @@ use std::str::FromStr;
 use std::{collections::HashSet, fmt::Debug};
 use time::OffsetDateTime;
 use tracing::instrument;
-use trustify_common::hashing::Digests;
+use trustify_common::{cpe::Cpe, hashing::Digests};
 use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
 use trustify_entity::{labels::Labels, version_scheme::VersionScheme, vulnerability};
 
@@ -131,9 +133,11 @@ impl<'g> CveLoader<'g> {
             .exec(tx)
             .await?;
 
-        // Initialize batch creator for efficient status ingestion
+        // Initialize batch creators for efficient status ingestion
         let mut purl_status_creator = PurlStatusCreator::new();
+        let mut cpe_status_creator = CpeStatusCreator::new();
         let mut base_purls = HashSet::new();
+        let mut cpes = HashSet::new();
 
         if let Some(affected) = affected {
             for product in affected {
@@ -144,31 +148,7 @@ impl<'g> CveLoader<'g> {
                     // okay! we have a purl, now
                     // sort out version bounds & status
                     for version in &product.versions {
-                        let (version_spec, version_type, status) = match version {
-                            cve::common::Version::Single(version) => (
-                                VersionSpec::Exact(version.version.clone()),
-                                version.version_type.clone(),
-                                &version.status,
-                            ),
-                            cve::common::Version::Range(range) => match &range.range {
-                                VersionRange::LessThan(upper) => (
-                                    VersionSpec::Range(
-                                        Version::Inclusive(range.version.clone()),
-                                        Version::Exclusive(upper.clone()),
-                                    ),
-                                    Some(range.version_type.clone()),
-                                    &range.status,
-                                ),
-                                VersionRange::LessThanOrEqual(upper) => (
-                                    VersionSpec::Range(
-                                        Version::Inclusive(range.version.clone()),
-                                        Version::Inclusive(upper.clone()),
-                                    ),
-                                    Some(range.version_type.clone()),
-                                    &range.status,
-                                ),
-                            },
-                        };
+                        let (version_spec, version_type, status) = version_spec_and_status(version);
 
                         // Add package status entry to batch creator
                         purl_status_creator.add(PurlStatusEntry {
@@ -178,11 +158,7 @@ impl<'g> CveLoader<'g> {
                                 .vulnerability_id
                                 .clone(),
                             purl: purl.clone(),
-                            status: match status {
-                                Status::Affected => "affected".to_string(),
-                                Status::Unaffected => "not_affected".to_string(),
-                                Status::Unknown => "unknown".to_string(),
-                            },
+                            status: status_slug(status),
                             version_info: VersionInfo {
                                 scheme: version_type
                                     .as_deref()
@@ -194,14 +170,78 @@ impl<'g> CveLoader<'g> {
                         });
                     }
                 }
+
+                // CPE-keyed applicability: every parseable CPE in `cpes` is
+                // stored as a vendor/product identity (version normalized to
+                // ANY), with the affected version(s) expressed via
+                // version_range, mirroring the purl path above.
+                for cpe_str in &product.cpes {
+                    let Ok(cpe) = Cpe::from_str(cpe_str) else {
+                        continue;
+                    };
+                    let identity_cpe = cpe.with_any_version();
+                    cpes.insert(identity_cpe.clone());
+
+                    if !product.versions.is_empty() {
+                        for version in &product.versions {
+                            let (version_spec, version_type, status) =
+                                version_spec_and_status(version);
+
+                            cpe_status_creator.add(CpeStatusEntry {
+                                advisory_id: advisory_vuln.advisory.advisory.id,
+                                vulnerability_id: advisory_vuln
+                                    .advisory_vulnerability
+                                    .vulnerability_id
+                                    .clone(),
+                                cpe: identity_cpe.clone(),
+                                status: status_slug(status),
+                                version_info: VersionInfo {
+                                    scheme: version_type
+                                        .as_deref()
+                                        .map(VersionScheme::from)
+                                        .unwrap_or(VersionScheme::Generic),
+                                    spec: version_spec,
+                                },
+                                context_cpe: None,
+                            });
+                        }
+                    } else if let trustify_common::cpe::Component::Value(version) = cpe.version() {
+                        // no explicit versions list: fall back to the concrete
+                        // version carried by the CPE itself.
+                        cpe_status_creator.add(CpeStatusEntry {
+                            advisory_id: advisory_vuln.advisory.advisory.id,
+                            vulnerability_id: advisory_vuln
+                                .advisory_vulnerability
+                                .vulnerability_id
+                                .clone(),
+                            cpe: identity_cpe.clone(),
+                            status: status_slug(
+                                &product.default_status.clone().unwrap_or(Status::Unknown),
+                            ),
+                            version_info: VersionInfo {
+                                scheme: VersionScheme::Generic,
+                                spec: VersionSpec::Exact(version),
+                            },
+                            context_cpe: None,
+                        });
+                    }
+                }
             }
         }
 
         // Batch create base PURLs (without versions/qualifiers)
         purl::batch_create_base_purls(base_purls, tx).await?;
 
+        // Batch create CPEs (vendor/product identity, version normalized to ANY)
+        let mut cpe_creator = CpeCreator::new();
+        for cpe in cpes {
+            cpe_creator.add(cpe);
+        }
+        cpe_creator.create(tx).await?;
+
         // Batch create statuses
         purl_status_creator.create(tx).await?;
+        cpe_status_creator.create(tx).await?;
 
         // Manage vulnerability descriptions without needing to query the vulnerability
         Graph::drop_vulnerability_descriptions_for_advisory(advisory.advisory.id, tx).await?;
@@ -384,6 +424,49 @@ fn get_score(cvss: &Value) -> Option<(ScoreType, f64, Severity)> {
             Some((r#type, score, (score, ScoreType::V2_0).into()))
         }
         _ => Some((r#type, score, severity?)),
+    }
+}
+
+/// Maps a CVE 5.x `versions[]` entry to its version bound and CVE status.
+///
+/// Shared by both the purl and CPE ingestion paths so that any future change
+/// to the version-range mapping stays consistent between the two.
+fn version_spec_and_status(
+    version: &cve::common::Version,
+) -> (VersionSpec, Option<String>, &Status) {
+    match version {
+        cve::common::Version::Single(version) => (
+            VersionSpec::Exact(version.version.clone()),
+            version.version_type.clone(),
+            &version.status,
+        ),
+        cve::common::Version::Range(range) => match &range.range {
+            VersionRange::LessThan(upper) => (
+                VersionSpec::Range(
+                    Version::Inclusive(range.version.clone()),
+                    Version::Exclusive(upper.clone()),
+                ),
+                Some(range.version_type.clone()),
+                &range.status,
+            ),
+            VersionRange::LessThanOrEqual(upper) => (
+                VersionSpec::Range(
+                    Version::Inclusive(range.version.clone()),
+                    Version::Inclusive(upper.clone()),
+                ),
+                Some(range.version_type.clone()),
+                &range.status,
+            ),
+        },
+    }
+}
+
+/// Maps a CVE 5.x affected-version status to the trustify status slug.
+fn status_slug(status: &Status) -> String {
+    match status {
+        Status::Affected => "affected".to_string(),
+        Status::Unaffected => "not_affected".to_string(),
+        Status::Unknown => "unknown".to_string(),
     }
 }
 
@@ -672,6 +755,109 @@ mod test {
         assert_eq!(purl.r#type, "maven");
         assert_eq!(purl.namespace, Some("org.apache.commons".to_string()));
         assert_eq!(purl.name, "commons-compress");
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn cve_loader_stores_cpe_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        use trustify_entity::{cpe as cpe_entity, cpe_status, status, version_range};
+
+        let graph = Graph::new();
+
+        let (cve, digests): (Cve, _) = document("cve/CVE-2099-0001.json").await?;
+
+        let loader = CveLoader::new(&graph);
+        ctx.db
+            .transaction(async |tx| {
+                loader
+                    .load(("file", "CVE-2099-0001.json"), cve.clone(), &digests, tx)
+                    .await
+            })
+            .await?;
+
+        let advisory = graph
+            .get_advisory_by_digest(&digests.sha256.encode_hex::<String>(), &ctx.db)
+            .await?
+            .expect("advisory must be ingested");
+
+        // Join cpe_status -> cpe -> status -> version_range so we can assert
+        // on human-readable vendor/product/status/version_range values.
+        let rows = cpe_status::Entity::find()
+            .filter(cpe_status::Column::AdvisoryId.eq(advisory.advisory.id))
+            .all(&ctx.db)
+            .await?;
+
+        // openssl: 1 exact version + 1 range = 2 rows; busybox: no `versions`
+        // list, falls back to the concrete CPE version = 1 row. Total 3.
+        assert_eq!(rows.len(), 3, "expected 3 cpe_status rows, got {rows:?}");
+
+        let mut by_vendor: std::collections::HashMap<String, Vec<cpe_status::Model>> =
+            std::collections::HashMap::new();
+        for row in rows {
+            let cpe = cpe_entity::Entity::find_by_id(row.cpe_id)
+                .one(&ctx.db)
+                .await?
+                .expect("referenced cpe must exist");
+            by_vendor
+                .entry(cpe.vendor.clone().unwrap_or_default())
+                .or_default()
+                .push(row);
+
+            // the identity cpe is version-normalized to ANY
+            assert_eq!(
+                cpe.version.as_deref(),
+                Some("*"),
+                "cpe_status.cpe_id must be version-ANY"
+            );
+        }
+
+        let openssl_rows = by_vendor.get("openssl").expect("openssl rows");
+        assert_eq!(openssl_rows.len(), 2);
+        for row in openssl_rows {
+            let st = status::Entity::find_by_id(row.status_id)
+                .one(&ctx.db)
+                .await?
+                .expect("status must exist");
+            assert_eq!(st.slug, "affected");
+
+            let vr = version_range::Entity::find_by_id(row.version_range_id)
+                .one(&ctx.db)
+                .await?
+                .expect("version_range must exist");
+            assert!(
+                vr.low_version.as_deref() == Some("0.9.8w")
+                    || vr.low_version.as_deref() == Some("1.0.0"),
+                "unexpected version_range: {vr:?}"
+            );
+        }
+
+        let busybox_rows = by_vendor.get("busybox").expect("busybox rows");
+        assert_eq!(busybox_rows.len(), 1);
+        let busybox_row = &busybox_rows[0];
+        let st = status::Entity::find_by_id(busybox_row.status_id)
+            .one(&ctx.db)
+            .await?
+            .expect("status must exist");
+        assert_eq!(st.slug, "affected");
+        let vr = version_range::Entity::find_by_id(busybox_row.version_range_id)
+            .one(&ctx.db)
+            .await?
+            .expect("version_range must exist");
+        assert_eq!(vr.low_version.as_deref(), Some("1.19.4"));
+
+        // Re-ingest idempotency: loading the same document again must not
+        // create duplicate cpe_status rows (deterministic v5 UUIDs).
+        ctx.db
+            .transaction(async |tx| loader.load(("file", "CVE-2099-0001.json"), cve, &digests, tx).await)
+            .await?;
+
+        let rows_after_reingest = cpe_status::Entity::find()
+            .filter(cpe_status::Column::AdvisoryId.eq(advisory.advisory.id))
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(rows_after_reingest.len(), 3, "re-ingest must not duplicate rows");
 
         Ok(())
     }

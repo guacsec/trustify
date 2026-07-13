@@ -310,6 +310,64 @@ impl Cpe {
     pub fn language(&self) -> Language {
         self.uri.language().clone().into()
     }
+
+    /// Return a copy of this CPE with the version component normalized to ANY.
+    ///
+    /// Useful for deriving a vendor/product identity key when the concrete
+    /// version is carried separately (e.g. via a `version_range`).
+    ///
+    /// Known limitation: the extended attributes packed into the URI edition
+    /// component (`sw_edition`/`target_sw`/`target_hw`/`other`) are not
+    /// exposed by this wrapper's accessors and are therefore dropped by this
+    /// normalization. In practice CVE `affected[].cpes` entries are plain
+    /// `part:vendor:product:version` tuples, so this does not affect the
+    /// CVE-loader use case this method was added for.
+    pub fn with_any_version(&self) -> Self {
+        fn field(component: &Component) -> String {
+            match component {
+                Component::Any => String::new(),
+                Component::NotApplicable => "-".to_string(),
+                Component::Value(value) => encode_uri_component(value),
+            }
+        }
+
+        let part = match self.part().as_ref() {
+            "*" => String::new(),
+            other => other.to_string(),
+        };
+        let vendor = field(&self.vendor());
+        let product = field(&self.product());
+        let update = field(&self.update());
+        let edition = field(&self.edition());
+        let language = match self.language() {
+            Language::Any => String::new(),
+            Language::Language(value) => value,
+        };
+
+        let mut components = vec![
+            part,
+            vendor,
+            product,
+            String::new(),
+            update,
+            edition,
+            language,
+        ];
+        // trailing empty (ANY) components must be dropped: the URI parser
+        // treats empty components in the middle as ANY, but rejects a
+        // trailing empty language component.
+        while components.last().is_some_and(|c| c.is_empty()) {
+            components.pop();
+        }
+
+        // Reconstructed from an already-valid CPE with only the version blanked,
+        // so re-parsing cannot fail; keep the original on the unreachable error
+        // path rather than propagate an impossible failure through the signature.
+        match OwnedUri::from_str(&format!("cpe:/{}", components.join(":"))) {
+            Ok(uri) => Self { uri },
+            Err(_) => self.clone(),
+        }
+    }
 }
 
 impl Debug for Cpe {
@@ -334,21 +392,22 @@ impl From<OwnedUri> for Cpe {
 
 /// Split a CPE 2.3 formatted string body into its components, honoring `\`-escapes.
 fn split_cpe23(s: &str) -> Vec<String> {
-    let mut parts = vec![String::new()];
+    let mut parts = Vec::new();
+    let mut cur = String::new();
     let mut chars = s.chars();
     while let Some(c) = chars.next() {
         match c {
             '\\' => {
-                let cur = parts.last_mut().expect("parts is never empty");
                 cur.push(c);
                 if let Some(next) = chars.next() {
                     cur.push(next);
                 }
             }
-            ':' => parts.push(String::new()),
-            _ => parts.last_mut().expect("parts is never empty").push(c),
+            ':' => parts.push(std::mem::take(&mut cur)),
+            _ => cur.push(c),
         }
     }
+    parts.push(cur);
     parts
 }
 
@@ -696,8 +755,8 @@ mod test {
 
     #[test]
     fn cpe23_simple() {
-        let cpe = Cpe::from_str("cpe:2.3:a:openssl:openssl:0.9.8w:*:*:*:*:*:*:*")
-            .expect("must parse");
+        let cpe =
+            Cpe::from_str("cpe:2.3:a:openssl:openssl:0.9.8w:*:*:*:*:*:*:*").expect("must parse");
         assert!(matches!(cpe.part(), CpeType::Application));
         assert_eq!(cpe.vendor().as_ref(), "openssl");
         assert_eq!(cpe.product().as_ref(), "openssl");
@@ -756,8 +815,8 @@ mod test {
 
     #[test]
     fn cpe23_language() {
-        let cpe = Cpe::from_str("cpe:2.3:a:vendor:product:1.0:*:*:en-us:*:*:*:*")
-            .expect("must parse");
+        let cpe =
+            Cpe::from_str("cpe:2.3:a:vendor:product:1.0:*:*:en-us:*:*:*:*").expect("must parse");
         assert_eq!(cpe.language().as_ref(), "en-US");
     }
 
@@ -774,5 +833,52 @@ mod test {
             Cpe::from_str("cpe:2.3:a:libfoo.a(bar.o): in function `baz':1.0:-:*:*:*:*:*:*:*")
                 .is_err()
         );
+    }
+
+    #[test]
+    fn with_any_version_normalizes_concrete_version() {
+        let cpe =
+            Cpe::from_str("cpe:2.3:a:openssl:openssl:0.9.8w:*:*:*:*:*:*:*").expect("must parse");
+        let normalized = cpe.with_any_version();
+
+        assert!(matches!(normalized.part(), CpeType::Application));
+        assert_eq!(normalized.vendor().as_ref(), "openssl");
+        assert_eq!(normalized.product().as_ref(), "openssl");
+        assert!(matches!(normalized.version(), Component::Any));
+
+        // vendor/product identity is unchanged, only the version differs
+        assert_ne!(cpe.uuid(), normalized.uuid());
+    }
+
+    #[test]
+    fn with_any_version_is_idempotent_for_already_any_version() {
+        let cpe = Cpe::from_str("cpe:2.3:a:busybox:busybox:*:*:*:*:*:*:*:*").expect("must parse");
+        let normalized = cpe.with_any_version();
+        assert_eq!(cpe.uuid(), normalized.uuid());
+    }
+
+    #[test]
+    fn with_any_version_preserves_special_characters() {
+        let cpe = Cpe::from_str(r"cpe:2.3:a:foo\:bar:some\+product:1.0:*:*:*:*:*:*:*")
+            .expect("must parse");
+        let normalized = cpe.with_any_version();
+        assert_eq!(normalized.vendor().as_ref(), "foo:bar");
+        assert_eq!(normalized.product().as_ref(), "some+product");
+        assert!(matches!(normalized.version(), Component::Any));
+    }
+
+    #[test]
+    fn with_any_version_drops_unexposed_extended_attributes() {
+        // known limitation: sw_edition/target_sw/target_hw/other are packed
+        // into the URI edition component and aren't reachable through this
+        // wrapper's accessors, so with_any_version can't round-trip them.
+        // CVE affected[].cpes entries never carry these, so this doesn't
+        // affect the CVE-loader use case.
+        let cpe = Cpe::from_str("cpe:2.3:o:microsoft:windows_10:1607:*:*:*:*:*:x64:*")
+            .expect("must parse");
+        let normalized = cpe.with_any_version();
+        assert!(matches!(normalized.version(), Component::Any));
+        assert_eq!(normalized.vendor().as_ref(), "microsoft");
+        assert_eq!(normalized.product().as_ref(), "windows_10");
     }
 }
