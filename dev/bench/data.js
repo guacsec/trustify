@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784031996387,
+  "lastUpdate": 1784036632971,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20152,6 +20152,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "43a9314aa72de4b97a07e6e11d5c9fd3f33782db",
+          "message": "docs(ingestor): document wire format to content format constraints\n\nAdd doc comment to WireFormat enum explaining which content formats are\nvalid for each wire format (JSON/YAML/XML).\n\nAddresses review feedback from sourcery-ai.\n\nAssisted-by: Claude Code\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-07-14T10:57:30Z",
+          "tree_id": "1db35deb7781f75182145570f9b043e8913a3adb",
+          "url": "https://github.com/guacsec/trustify/commit/43a9314aa72de4b97a07e6e11d5c9fd3f33782db"
+        },
+        "date": 1784036630991,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
