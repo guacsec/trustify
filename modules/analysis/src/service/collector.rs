@@ -27,6 +27,15 @@ type AncestorResult = Arc<Vec<ResolvedSbom>>;
 type AncestorCell = Arc<tokio::sync::OnceCell<AncestorResult>>;
 type AncestorMap = HashMap<(Uuid, String), AncestorCell>;
 
+/// Coalescing barrier for [`AncestorCache::prefetch`].
+///
+/// When multiple concurrent tasks call `prefetch` for the same
+/// `sbom_id`, only the first executes the batch SQL query — the
+/// rest await the same `OnceCell` and then find the per-node cache
+/// already populated.
+type PrefetchCell = Arc<tokio::sync::OnceCell<()>>;
+type PrefetchMap = HashMap<Uuid, PrefetchCell>;
+
 /// Request-scoped cache for [`resolve_rh_external_sbom_ancestors`] results.
 ///
 /// # Why this exists
@@ -47,6 +56,11 @@ type AncestorMap = HashMap<(Uuid, String), AncestorCell>;
 /// ensures only one task executes the query; the others await its
 /// result.
 ///
+/// Prefetch calls are also coalesced per `sbom_id` — if several
+/// concurrent graph walks discover the same external SBOM, only the
+/// first caller executes the batch query; the others await its
+/// completion and find the per-node cache warm.
+///
 /// # Scope
 ///
 /// One `AncestorCache` is created per top-level `run_graph_query`
@@ -57,6 +71,7 @@ type AncestorMap = HashMap<(Uuid, String), AncestorCell>;
 #[derive(Default, Clone)]
 pub struct AncestorCache {
     cache: Arc<Mutex<AncestorMap>>,
+    prefetch_barriers: Arc<Mutex<PrefetchMap>>,
 }
 
 impl AncestorCache {
@@ -95,10 +110,33 @@ impl AncestorCache {
     /// the cache with the results.  Subsequent per-node `resolve`
     /// calls for these keys become cheap cache hits.
     ///
-    /// Node IDs already present in the cache are skipped — this is
-    /// safe because entries are immutable once written (backed by
-    /// `OnceCell`).
+    /// Concurrent callers for the same `sbom_id` are coalesced: the
+    /// first caller runs the batch query while others await the same
+    /// barrier, then all find the per-node cache already populated.
     pub(super) async fn prefetch<C: ConnectionTrait>(
+        &self,
+        sbom_id: Uuid,
+        graph: &NodeGraph,
+        connection: &C,
+    ) -> Result<(), Error> {
+        // Acquire or create the per-sbom_id coalescing barrier.
+        // All concurrent callers for the same sbom_id share one
+        // OnceCell; only the first will execute the query.
+        let barrier = {
+            let mut barriers = self.prefetch_barriers.lock();
+            barriers.entry(sbom_id).or_default().clone()
+        };
+
+        barrier
+            .get_or_try_init(|| async { self.do_prefetch(sbom_id, graph, connection).await })
+            .await?;
+
+        Ok(())
+    }
+
+    /// Inner prefetch logic, executed exactly once per `sbom_id`
+    /// thanks to the coalescing barrier in [`Self::prefetch`].
+    async fn do_prefetch<C: ConnectionTrait>(
         &self,
         sbom_id: Uuid,
         graph: &NodeGraph,
