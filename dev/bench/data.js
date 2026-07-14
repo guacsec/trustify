@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784022904232,
+  "lastUpdate": 1784031996387,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20118,6 +20118,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/401921a50edefc6f72eb7c08ead2f4fe8691d8dc"
         },
         "date": 1784022902577,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "mrrajan",
+            "username": "mrrajan"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "6dc6344edbb4bf452753b84b8d1c0620358b100c",
+          "message": "fix(importer): remove test_walker_honors_proxy per maintainer feedback\n\nThe test's maintenance cost outweighs the regression risk for a 3-line\nproxy fix: it depends on network access to an external GitHub repository,\nits stderr assertion is fragile across platforms, and the subprocess\ntrampoline is disproportionately complex. The git2 FetchOptions API does\nnot expose proxy state, so there is no clean way to unit-test the\nconfiguration without hitting the network. This is consistent with\nHTTP-based importers (reqwest), which also rely on implicit proxy\nauto-detection with no proxy-specific tests.\n\nImplements TC-5176\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-07-14T07:35:03Z",
+          "tree_id": "6556963feba03a5fb7d23a6459e6d954d108350a",
+          "url": "https://github.com/guacsec/trustify/commit/6dc6344edbb4bf452753b84b8d1c0620358b100c"
+        },
+        "date": 1784031994730,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
