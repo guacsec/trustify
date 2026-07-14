@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/ubi:latest as builder
+FROM registry.access.redhat.com/ubi10/ubi:latest as builder
 
 ARG tag
 
@@ -14,7 +14,7 @@ RUN cd unpack && \
 
 RUN chmod a+x /unpack/xtask
 
-FROM registry.access.redhat.com/ubi9/ubi:latest
+FROM registry.access.redhat.com/ubi10/ubi:latest
 
 LABEL \
     org.opencontainers.image.description="Trustify - xtask binary" \
