@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783697484490,
+  "lastUpdate": 1784022904232,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20089,6 +20089,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/3eba74d1e5b222d1b9ded372a93d15066b2c4bfe"
         },
         "date": 1783697482469,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "401921a50edefc6f72eb7c08ead2f4fe8691d8dc",
+          "message": "ci: extract prepare-release workflow to release-tools\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-07-14T11:38:44+02:00",
+          "tree_id": "7b5c21e1cf0e92d821a97813177a3037d1fb8ba6",
+          "url": "https://github.com/guacsec/trustify/commit/401921a50edefc6f72eb7c08ead2f4fe8691d8dc"
+        },
+        "date": 1784022902577,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
