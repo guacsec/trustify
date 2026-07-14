@@ -300,6 +300,28 @@ struct ChecksumWithCpes {
     graph_node_id: Option<String>,
 }
 
+/// Extended version of [`ChecksumWithCpes`] used by the batch query.
+///
+/// Includes `input_node_id` so results from a multi-node query can be
+/// partitioned back into per-node cache entries.
+#[derive(Debug, FromQueryResult)]
+struct BatchChecksumWithCpes {
+    /// The `node_id` value from the input array that produced this
+    /// row (i.e. `snc_self.node_id`).
+    input_node_id: String,
+    /// `sbom_external_node.sbom_id` — the ancestor (product) SBOM.
+    sbom_id: Uuid,
+    /// `sbom_external_node.external_node_ref` — the ref the ancestor
+    /// SBOM uses to point at the component.
+    node_id: String,
+    /// Aggregated `sbom_describing_cpe.cpe_id` values for the
+    /// ancestor SBOM (empty array when none exist).
+    cpe_ids: Vec<Uuid>,
+    /// `sbom_external_node.node_id` — the graph-internal node ID
+    /// within the ancestor SBOM, used to skip a follow-up query.
+    graph_node_id: Option<String>,
+}
+
 /// Find ancestor (product) SBOMs that reference a given component node.
 ///
 /// # Background — Red Hat product→component model
@@ -406,6 +428,84 @@ async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
             graph_node_id: r.graph_node_id,
         })
         .collect())
+}
+
+/// Batch variant of [`resolve_rh_external_sbom_ancestors`].
+///
+/// Resolves ancestor SBOMs for **multiple** node IDs within a single
+/// component SBOM in one SQL query, instead of issuing one query per
+/// node.  The query is identical to the single-node version except
+/// that the `snc_self.node_id = $2` equality is replaced with
+/// `snc_self.node_id = ANY($2)`, and the `snc_self.node_id` column
+/// is included in the SELECT list (as `input_node_id`) and GROUP BY
+/// so the caller can partition results per input node.
+///
+/// Returns a map from each input `node_id` to its resolved ancestors.
+/// Node IDs with no ancestors are mapped to an empty `Vec`.
+#[instrument(
+    skip(node_refs, connection),
+    fields(node_count = node_refs.len()),
+    err(level = tracing::Level::INFO)
+)]
+async fn resolve_rh_external_sbom_ancestors_batch<C: ConnectionTrait>(
+    sbom_id: Uuid,
+    node_refs: &[String],
+    connection: &C,
+) -> Result<HashMap<String, Vec<ResolvedSbom>>, Error> {
+    if node_refs.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let rows = BatchChecksumWithCpes::find_by_statement(Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        r#"
+            SELECT snc_self.node_id AS input_node_id,
+                   sen.sbom_id,
+                   sen.external_node_ref AS node_id,
+                   COALESCE(
+                       array_agg(sdc.cpe_id)
+                           FILTER (WHERE sdc.cpe_id IS NOT NULL),
+                       ARRAY[]::uuid[]
+                   ) AS cpe_ids,
+                   sen.node_id AS graph_node_id
+            FROM sbom_ancestor sa
+            JOIN sbom_external_node sen
+              ON sen.sbom_id = sa.ancestor_sbom_id
+            JOIN sbom_node_checksum snc_ref
+              ON snc_ref.sbom_id = sen.sbom_id
+             AND snc_ref.node_id = sen.external_node_ref
+            JOIN sbom_node_checksum snc_self
+              ON snc_self.sbom_id = $1
+             AND snc_self.node_id = ANY($2)
+             AND snc_self.value = snc_ref.value
+            LEFT JOIN sbom_describing_cpe sdc
+              ON sdc.sbom_id = sen.sbom_id
+            WHERE sa.sbom_id = $1
+            GROUP BY snc_self.node_id,
+                     sen.sbom_id,
+                     sen.external_node_ref,
+                     sen.node_id
+            "#,
+        [sbom_id.into(), node_refs.to_vec().into()],
+    ))
+    .all(connection)
+    .await?;
+
+    let mut result = HashMap::<String, Vec<ResolvedSbom>>::with_capacity(node_refs.len());
+
+    for r in rows {
+        result
+            .entry(r.input_node_id)
+            .or_default()
+            .push(ResolvedSbom {
+                sbom_id: r.sbom_id,
+                node_id: r.node_id,
+                cpe_ids: r.cpe_ids,
+                graph_node_id: r.graph_node_id,
+            });
+    }
+
+    Ok(result)
 }
 
 impl AnalysisService {
@@ -630,6 +730,15 @@ impl AnalysisService {
 
         let loader = &GraphLoader::new(self.clone());
         let ancestor_cache = AncestorCache::default();
+
+        // Batch-prefetch ancestor results for all PackageNodes in
+        // the initial set of graphs.  This replaces N individual
+        // SQL queries (one per node) with one batched query per SBOM,
+        // dramatically reducing DB round-trips for the first level
+        // of ancestor resolution.
+        for (sbom_id, graph) in graphs {
+            ancestor_cache.prefetch(*sbom_id, graph, connection).await?;
+        }
 
         self.collect_graph(
             query,

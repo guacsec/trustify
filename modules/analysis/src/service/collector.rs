@@ -85,6 +85,71 @@ impl AncestorCache {
         .await
         .cloned()
     }
+
+    /// Batch-prefetch ancestor results for all `PackageNode`s in a
+    /// graph that share the given `sbom_id`.
+    ///
+    /// Collects every `PackageNode.node_id` from the graph that is
+    /// not already cached, issues a single batched SQL query via
+    /// [`resolve_rh_external_sbom_ancestors_batch`], and populates
+    /// the cache with the results.  Subsequent per-node `resolve`
+    /// calls for these keys become cheap cache hits.
+    ///
+    /// Node IDs already present in the cache are skipped — this is
+    /// safe because entries are immutable once written (backed by
+    /// `OnceCell`).
+    pub(super) async fn prefetch<C: ConnectionTrait>(
+        &self,
+        sbom_id: Uuid,
+        graph: &NodeGraph,
+        connection: &C,
+    ) -> Result<(), Error> {
+        // Collect uncached node_ids under the lock, then release it.
+        let uncached_node_ids: Vec<String> = {
+            let map = self.cache.lock();
+            graph
+                .node_weights()
+                .filter_map(|node| match node {
+                    graph::Node::Package(pkg) if pkg.sbom_id == sbom_id => {
+                        let key = (sbom_id, pkg.node_id.clone());
+                        if map.contains_key(&key) {
+                            None
+                        } else {
+                            Some(pkg.node_id.clone())
+                        }
+                    }
+                    _ => None,
+                })
+                .collect()
+        };
+
+        if uncached_node_ids.is_empty() {
+            return Ok(());
+        }
+
+        // Batch-resolve all uncached node_ids in a single SQL query
+        // (chunked to stay under the PostgreSQL bind-parameter limit).
+        let chunk_size = ((u16::MAX - 128) as usize / 2).max(1);
+        for chunk in uncached_node_ids.chunks(chunk_size) {
+            let batch_result =
+                resolve_rh_external_sbom_ancestors_batch(sbom_id, chunk, connection).await?;
+
+            // Populate the cache with results.
+            let mut map = self.cache.lock();
+            for node_id in chunk {
+                let key = (sbom_id, node_id.clone());
+                if map.contains_key(&key) {
+                    continue;
+                }
+                let results = batch_result.get(node_id).cloned().unwrap_or_default();
+                let cell: AncestorCell =
+                    Arc::new(tokio::sync::OnceCell::new_with(Some(Arc::new(results))));
+                map.insert(key, cell);
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// Collector, helping on collector nodes from a graph.
@@ -283,6 +348,11 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             ));
         };
 
+        // Batch-prefetch ancestor results before recursing.
+        self.ancestor_cache
+            .prefetch(external_sbom_id, &external_graph, self.connection)
+            .await?;
+
         // find the node in retrieved external graph
         let Some(external_node_index) = external_graph
             .node_indices()
@@ -396,6 +466,17 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
                     );
                     return Ok(vec![]);
                 };
+
+                // Batch-prefetch ancestor results for all
+                // PackageNodes in this external graph.  This
+                // collapses N per-node SQL queries into a single
+                // batched query, so the recursive walk below finds
+                // warm cache entries instead of issuing individual
+                // queries.
+                collector
+                    .ancestor_cache
+                    .prefetch(ext_sbom_id, &external_graph, collector.connection)
+                    .await?;
 
                 // Find the entry-point node in the ancestor graph.
                 let Some(external_node_index) = external_graph
