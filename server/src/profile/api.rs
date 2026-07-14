@@ -101,23 +101,43 @@ pub struct Run {
     pub exploit_intelligence_ui_url: Option<String>,
 
     /// Polling interval for EI analysis completion (humantime, e.g. "30s").
-    #[arg(long, env = "EXPLOIT_INTELLIGENCE_POLL_INTERVAL", default_value = "30s")]
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_POLL_INTERVAL",
+        default_value = "30s"
+    )]
     pub exploit_intelligence_poll_interval: humantime::Duration,
 
     /// Maximum duration before EI polling is considered timed out (humantime, e.g. "30m").
-    #[arg(long, env = "EXPLOIT_INTELLIGENCE_MAX_POLL_DURATION", default_value = "30m")]
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_MAX_POLL_DURATION",
+        default_value = "30m"
+    )]
     pub exploit_intelligence_max_poll_duration: humantime::Duration,
 
     /// Maximum number of upload retry attempts for EI analysis.
-    #[arg(long, env = "EXPLOIT_INTELLIGENCE_UPLOAD_MAX_RETRIES", default_value_t = 3)]
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_UPLOAD_MAX_RETRIES",
+        default_value_t = 3
+    )]
     pub exploit_intelligence_upload_max_retries: usize,
 
     /// Initial delay between upload retries (humantime, exponential backoff).
-    #[arg(long, env = "EXPLOIT_INTELLIGENCE_UPLOAD_RETRY_DELAY", default_value = "1s")]
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_UPLOAD_RETRY_DELAY",
+        default_value = "1s"
+    )]
     pub exploit_intelligence_upload_retry_delay: humantime::Duration,
 
     /// Maximum consecutive poll failures before giving up.
-    #[arg(long, env = "EXPLOIT_INTELLIGENCE_MAX_CONSECUTIVE_POLL_FAILURES", default_value_t = 5)]
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_MAX_CONSECUTIVE_POLL_FAILURES",
+        default_value_t = 5
+    )]
     pub exploit_intelligence_max_consecutive_poll_failures: u32,
 
     /// Authentication token for the Exploit Intelligence service (static token, for backward compatibility).
@@ -345,7 +365,7 @@ impl InitData {
             },
         };
 
-        let ei_config = run.exploit_intelligence_url.map(|url| {
+        let ei_config = if let Some(url) = run.exploit_intelligence_url {
             use trustify_module_fundamental::exploit_intelligence::auth::TokenProvider;
 
             // Build token provider: prefer OIDC if all three vars are set,
@@ -358,7 +378,7 @@ impl InitData {
 
             let token_provider = match oidc_args {
                 (Some(token_url), Some(client_id), Some(client_secret)) => {
-                    Some(TokenProvider::oidc(token_url, client_id, client_secret))
+                    Some(TokenProvider::oidc(token_url, client_id, client_secret)?)
                 }
                 (None, None, None) => run
                     .exploit_intelligence_auth_token
@@ -376,7 +396,7 @@ impl InitData {
                 }
             };
 
-            trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig {
+            Some(trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig {
                 url,
                 ui_url: run.exploit_intelligence_ui_url,
                 poll_interval: run.exploit_intelligence_poll_interval.into(),
@@ -385,8 +405,10 @@ impl InitData {
                 upload_retry_delay: run.exploit_intelligence_upload_retry_delay.into(),
                 max_consecutive_poll_failures: run.exploit_intelligence_max_consecutive_poll_failures,
                 token_provider,
-            }
-        });
+            })
+        } else {
+            None
+        };
 
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
