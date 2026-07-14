@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784051124874,
+  "lastUpdate": 1784060630747,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20210,6 +20210,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "d4ebf5c1db5c218ee1e8962a807a541897fd9fd4",
+          "message": "fix(ci): upgrade xtask container builder to UBI 10\n\nThe CI upgrade to UBI 10 missed the builder stage of the xtask\nContainerfile, which was still referencing UBI 9.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-07-14T17:58:19Z",
+          "tree_id": "d28263fbaec4bd94ba574e519d1dcac70fea5080",
+          "url": "https://github.com/guacsec/trustify/commit/d4ebf5c1db5c218ee1e8962a807a541897fd9fd4"
+        },
+        "date": 1784060628757,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
