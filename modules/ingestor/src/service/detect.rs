@@ -71,7 +71,14 @@ impl DocumentDetector {
                     let value = parse_to_value(bytes, wire)?;
                     parse_format(value, hint)?
                 }
-                WireFormat::Xml => DetectedDocument::CweCatalog(bytes.to_vec()),
+                WireFormat::Xml => {
+                    if hint != Format::CweCatalog {
+                        return Err(Error::UnsupportedFormat(format!(
+                            "XML documents can only be parsed as CweCatalog, not {hint}"
+                        )));
+                    }
+                    DetectedDocument::CweCatalog(bytes.to_vec())
+                }
             };
             return Ok(Self {
                 wire_format: wire,
