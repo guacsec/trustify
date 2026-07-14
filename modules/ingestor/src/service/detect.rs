@@ -25,6 +25,11 @@ use trustify_entity::labels::Labels;
 use super::Format;
 
 /// The wire-level serialization format of a document.
+///
+/// Wire format constrains which content formats are valid:
+/// - **Json**: all formats except `CweCatalog`
+/// - **Yaml**: `OSV` and `ClearlyDefinedCuration` only
+/// - **Xml**: `CweCatalog` only
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WireFormat {
     Json,
