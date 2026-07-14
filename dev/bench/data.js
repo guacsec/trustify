@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784036632971,
+  "lastUpdate": 1784051124874,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20181,6 +20181,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "20ea6f03eef80d5600b45a0a7b41c2957ba1dae2",
+          "message": "perf: mitigate api/v3/license query performance",
+          "timestamp": "2026-07-14T14:59:12Z",
+          "tree_id": "d646c0ddc37c658006af03e6459de813c39cacb1",
+          "url": "https://github.com/guacsec/trustify/commit/20ea6f03eef80d5600b45a0a7b41c2957ba1dae2"
+        },
+        "date": 1784051122345,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
