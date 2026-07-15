@@ -390,6 +390,47 @@ async fn sbom_details_nvd_cpe_range_matching(ctx: &TrustifyContext) -> Result<()
         .await?;
     assert_eq!(miss.document_id, Some("CVE-2099-2001".to_string()));
 
+    // Unbounded range: only a lower bound (`versionStartIncluding` 1.0.0, no
+    // upper bound). Exercises `Version::Unbounded` on the end side; 1.19.4 >=
+    // 1.0.0 so this matches.
+    let unbounded_start_hit = ctx
+        .ingest_document_as("nvd/CVE-2099-2002.json", Format::NVD, ("source", "nvd"))
+        .await?;
+    assert_eq!(
+        unbounded_start_hit.document_id,
+        Some("CVE-2099-2002".to_string())
+    );
+    // Unbounded range: only an upper bound (`versionEndExcluding` 2.0.0, no
+    // lower bound). Exercises `Version::Unbounded` on the start side; 1.19.4 <
+    // 2.0.0 so this matches.
+    let unbounded_end_hit = ctx
+        .ingest_document_as("nvd/CVE-2099-2003.json", Format::NVD, ("source", "nvd"))
+        .await?;
+    assert_eq!(
+        unbounded_end_hit.document_id,
+        Some("CVE-2099-2003".to_string())
+    );
+    // Inclusive lower boundary: the component version equals
+    // `versionStartIncluding` (1.19.4 == 1.19.4). Must match -- catches an
+    // off-by-one that treats the inclusive start as exclusive.
+    let inclusive_start_hit = ctx
+        .ingest_document_as("nvd/CVE-2099-2004.json", Format::NVD, ("source", "nvd"))
+        .await?;
+    assert_eq!(
+        inclusive_start_hit.document_id,
+        Some("CVE-2099-2004".to_string())
+    );
+    // Exclusive upper boundary: the component version equals
+    // `versionEndExcluding` (1.19.4 == 1.19.4). Must NOT match -- catches an
+    // off-by-one that treats the exclusive end as inclusive.
+    let exclusive_end_miss = ctx
+        .ingest_document_as("nvd/CVE-2099-2005.json", Format::NVD, ("source", "nvd"))
+        .await?;
+    assert_eq!(
+        exclusive_end_miss.document_id,
+        Some("CVE-2099-2005".to_string())
+    );
+
     let details = sbom
         .fetch_sbom_details(Id::parse_uuid(result.id)?, vec![], &ctx.db)
         .await?
@@ -422,6 +463,46 @@ async fn sbom_details_nvd_cpe_range_matching(ctx: &TrustifyContext) -> Result<()
             .iter()
             .any(|a| a.head.document_id == "CVE-2099-2001"),
         "CVE-2099-2001 (busybox 2.0.0..3.0.0) must not match busybox 1.19.4"
+    );
+
+    // Asserts that `document_id` matches busybox 1.19.4 in this SBOM, i.e. its
+    // version range covers the component version.
+    let matches_busybox = |document_id: &str| {
+        details
+            .advisories
+            .iter()
+            .find(|a| a.head.document_id == document_id)
+            .is_some_and(|advisory| {
+                advisory
+                    .status
+                    .iter()
+                    .flat_map(|status| status.packages.iter())
+                    .any(|p| p.name == "BusyBox")
+            })
+    };
+
+    // Unbounded end: [1.0.0, ∞) covers 1.19.4.
+    assert!(
+        matches_busybox("CVE-2099-2002"),
+        "CVE-2099-2002 (busybox >= 1.0.0, unbounded end) must match busybox 1.19.4"
+    );
+    // Unbounded start: (∞, 2.0.0) covers 1.19.4.
+    assert!(
+        matches_busybox("CVE-2099-2003"),
+        "CVE-2099-2003 (busybox < 2.0.0, unbounded start) must match busybox 1.19.4"
+    );
+    // Inclusive lower bound sits exactly on the component version.
+    assert!(
+        matches_busybox("CVE-2099-2004"),
+        "CVE-2099-2004 (busybox [1.19.4, 2.0.0)) must match busybox 1.19.4 at the inclusive lower bound"
+    );
+    // Exclusive upper bound sits exactly on the component version -- excluded.
+    assert!(
+        !details
+            .advisories
+            .iter()
+            .any(|a| a.head.document_id == "CVE-2099-2005"),
+        "CVE-2099-2005 (busybox [1.0.0, 1.19.4)) must not match busybox 1.19.4 at the exclusive upper bound"
     );
 
     Ok(())
