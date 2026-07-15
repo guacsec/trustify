@@ -5,7 +5,12 @@ use git2::{BranchType, Repository};
 use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::StatusCode;
 use sha2::Digest;
-use std::{env, fs::File, path::Path, path::PathBuf};
+use std::{
+    collections::HashSet,
+    env,
+    fs::File,
+    path::{Path, PathBuf},
+};
 use tokio::{
     fs,
     io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
@@ -106,39 +111,58 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
         }
     }
 
-    // Collect candidate parent branches: local branches named `main` or starting with `release/`.
+    // GitHub Actions sets GITHUB_BASE_REF to the PR target branch (e.g. "release/0.5.z")
+    if let Ok(base_ref) = env::var("GITHUB_BASE_REF")
+        && is_relevant(&base_ref)
+    {
+        log::info!("Using GITHUB_BASE_REF: {base_ref}");
+        return Ok(base_ref);
+    }
 
+    // Collect candidate parent branches named `main` or starting with `release/`.
+    // Include remote-tracking branches so that e.g. `origin/release/0.5.z` is found
+    // even when the branch is not checked out locally (common in CI shallow clones).
+
+    let mut seen = HashSet::new();
     let mut candidates = Vec::new();
-    for branch_res in repo.branches(Some(BranchType::Local))? {
-        let (branch, _branch_type) = branch_res?;
-        let Some(name) = branch.name()? else {
-            continue;
+    for branch_res in repo.branches(None)? {
+        let (branch, branch_type) = branch_res?;
+        let raw_name = match branch.name()? {
+            Some(n) => n.to_string(),
+            None => continue,
         };
 
-        if is_relevant(name) {
-            candidates.push(branch);
+        // Strip remote prefix (e.g. "origin/release/0.5.z" → "release/0.5.z")
+        let name = if branch_type == BranchType::Remote {
+            raw_name
+                .split_once('/')
+                .map(|(_, rest)| rest.to_string())
+                .unwrap_or(raw_name)
+        } else {
+            raw_name
+        };
+
+        if is_relevant(&name) && seen.insert(name.clone()) {
+            candidates.push((branch, name));
         }
     }
 
     // Try to find if HEAD matches any branch tip exactly
 
-    for candidate in &candidates {
-        let Ok(commit) = candidate.get().peel_to_commit() else {
+    for (branch, name) in &candidates {
+        let Ok(commit) = branch.get().peel_to_commit() else {
             continue;
         };
 
         if commit.id() == head_commit.id() {
-            return Ok(candidate.name()?.unwrap_or("unknown").to_string());
+            return Ok(name.clone());
         }
     }
 
     if log::log_enabled!(log::Level::Info) {
         log::info!(
             "Candidate: {:?}",
-            candidates
-                .iter()
-                .map(|b| format!("{:?}", b.name()))
-                .collect::<Vec<_>>()
+            candidates.iter().map(|(_, n)| n).collect::<Vec<_>>()
         );
     }
 
@@ -147,8 +171,8 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
     let mut best_branch: Option<String> = None;
     let mut best_time: i64 = i64::MIN;
 
-    for candidate in candidates {
-        let Ok(candidate_commit) = candidate.get().peel_to_commit() else {
+    for (branch, name) in &candidates {
+        let Ok(candidate_commit) = branch.get().peel_to_commit() else {
             continue;
         };
 
@@ -163,7 +187,7 @@ fn current_branch(path: impl AsRef<Path>) -> anyhow::Result<String> {
         let t = ancestor_commit.time().seconds();
         if t > best_time {
             best_time = t;
-            best_branch = candidate.name().ok().flatten().map(String::from);
+            best_branch = Some(name.clone());
             log::info!("New best branch: {best_branch:?}");
         }
     }
