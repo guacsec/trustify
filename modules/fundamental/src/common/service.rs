@@ -23,25 +23,19 @@ pub async fn fetch_labels<C: ConnectionTrait>(
 ) -> Result<Vec<serde_json::Value>, Error> {
     let sql = format!(
         r#"
-SELECT DISTINCT ON (kv.key, kv.value)
-    kv.key,
+SELECT DISTINCT ON (key, value)
+    key,
     CASE
-        WHEN kv.value IS NULL OR kv.value = '' THEN NULL
-        ELSE kv.value
+        WHEN value = '' THEN NULL
+        ELSE value
     END AS value
-FROM {table},
-    LATERAL jsonb_each_text(labels) AS kv
-WHERE
-    CASE
-        WHEN kv.value IS NULL THEN kv.key
-        ELSE kv.key || '=' || kv.value
-    END ILIKE $1 ESCAPE '\'
-ORDER BY
-    kv.key, kv.value
+FROM {label_table}
+WHERE key_value ILIKE $1 ESCAPE '\'
+ORDER BY key, value
 "#,
-        table = match r#type {
-            DocumentType::Advisory => "advisory",
-            DocumentType::Sbom => "sbom",
+        label_table = match r#type {
+            DocumentType::Advisory => "advisory_label",
+            DocumentType::Sbom => "sbom_label",
         }
     );
 
