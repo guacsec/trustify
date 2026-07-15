@@ -5,6 +5,7 @@ use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
 use bytesize::ByteSize;
 use futures::FutureExt;
+use trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig;
 use std::{env, process::ExitCode, sync::Arc};
 use trustify_auth::{
     auth::AuthConfigArguments,
@@ -144,17 +145,8 @@ pub struct Run {
     #[arg(long, env = "EXPLOIT_INTELLIGENCE_AUTH_TOKEN")]
     pub exploit_intelligence_auth_token: Option<String>,
 
-    /// OIDC token endpoint URL for EI service authentication (client credentials flow).
-    #[arg(long, env = "EXPLOIT_INTELLIGENCE_OIDC_TOKEN_URL")]
-    pub exploit_intelligence_oidc_token_url: Option<String>,
-
-    /// OIDC client ID for EI service authentication.
-    #[arg(long, env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID")]
-    pub exploit_intelligence_oidc_client_id: Option<String>,
-
-    /// OIDC client secret for EI service authentication.
-    #[arg(long, env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET")]
-    pub exploit_intelligence_oidc_client_secret: Option<String>,
+    #[command(flatten)]
+    pub exploit_intelligence_oidc: EiOidcArguments,
 
     // flattened commands must go last
     //
@@ -191,6 +183,78 @@ pub struct Run {
 
     #[command(flatten)]
     pub ui: UiConfig,
+}
+
+/// Clap arguments for EI-specific OIDC credentials.
+///
+/// Separate from the main Trustify OIDC config because the EI service may
+/// use a different IdP or client registration.
+#[derive(clap::Args, Debug, Clone)]
+#[command(next_help_heading = "Exploit Intelligence OIDC")]
+pub struct EiOidcArguments {
+    #[arg(
+        id = "ei_oidc_client_id",
+        long = "ei-oidc-client-id",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID"
+    )]
+    pub client_id: Option<String>,
+
+    #[arg(
+        id = "ei_oidc_client_secret",
+        long = "ei-oidc-client-secret",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET"
+    )]
+    pub client_secret: Option<String>,
+
+    #[arg(
+        id = "ei_oidc_issuer_url",
+        long = "ei-oidc-issuer-url",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL"
+    )]
+    pub issuer_url: Option<String>,
+
+    #[arg(
+        id = "ei_oidc_refresh_before",
+        long = "ei-oidc-refresh-before",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_REFRESH_BEFORE",
+        default_value = "30s"
+    )]
+    pub refresh_before: humantime::Duration,
+
+    #[arg(
+        id = "ei_oidc_tls_insecure",
+        long = "ei-oidc-tls-insecure",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_TLS_INSECURE",
+        default_value = "false"
+    )]
+    pub tls_insecure: bool,
+}
+
+impl EiOidcArguments {
+    fn into_config(self) -> Option<trustify_auth::client::OpenIdTokenProviderConfig> {
+        match (self.client_id, self.client_secret, self.issuer_url) {
+            (Some(client_id), Some(client_secret), Some(issuer_url)) => {
+                Some(trustify_auth::client::OpenIdTokenProviderConfig {
+                    client_id,
+                    client_secret,
+                    issuer_url,
+                    refresh_before: self.refresh_before,
+                    tls_insecure: self.tls_insecure,
+                })
+            }
+            (None, None, None) => None,
+            _ => {
+                log::warn!(
+                    "Incomplete EI OIDC configuration: all three of \
+                     EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID, \
+                     EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET, and \
+                     EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL must be set together. \
+                     Falling back to static token or no auth."
+                );
+                None
+            }
+        }
+    }
 }
 
 mod default {
@@ -258,9 +322,7 @@ struct InitData {
     config: ModuleConfig,
     analysis: AnalysisService,
     read_only: bool,
-    ei_config: Option<
-        trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig,
-    >,
+    ei_config: Option<ExploitIntelligenceConfig>,
 }
 
 /// Groups all module configurations.
@@ -366,37 +428,14 @@ impl InitData {
         };
 
         let ei_config = if let Some(url) = run.exploit_intelligence_url {
-            use trustify_module_fundamental::exploit_intelligence::auth::TokenProvider;
+            let token_provider =
+                trustify_module_fundamental::exploit_intelligence::auth::build_provider(
+                    run.exploit_intelligence_oidc.into_config(),
+                    run.exploit_intelligence_auth_token,
+                )
+                .await?;
 
-            // Build token provider: prefer OIDC if all three vars are set,
-            // fall back to static token, or None.
-            let oidc_args = (
-                run.exploit_intelligence_oidc_token_url,
-                run.exploit_intelligence_oidc_client_id,
-                run.exploit_intelligence_oidc_client_secret,
-            );
-
-            let token_provider = match oidc_args {
-                (Some(token_url), Some(client_id), Some(client_secret)) => {
-                    Some(TokenProvider::oidc(token_url, client_id, client_secret)?)
-                }
-                (None, None, None) => run
-                    .exploit_intelligence_auth_token
-                    .map(TokenProvider::static_token),
-                _ => {
-                    log::warn!(
-                        "Incomplete EI OIDC configuration: all three of \
-                         EXPLOIT_INTELLIGENCE_OIDC_TOKEN_URL, \
-                         EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID, and \
-                         EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET must be set together. \
-                         Falling back to static token or no auth."
-                    );
-                    run.exploit_intelligence_auth_token
-                        .map(TokenProvider::static_token)
-                }
-            };
-
-            Some(trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig {
+            Some(ExploitIntelligenceConfig {
                 url,
                 ui_url: run.exploit_intelligence_ui_url,
                 poll_interval: run.exploit_intelligence_poll_interval.into(),
@@ -510,9 +549,7 @@ pub(crate) struct Config {
     pub(crate) analysis: AnalysisService,
     pub(crate) auth: Option<Arc<Authenticator>>,
     pub(crate) read_only: bool,
-    pub(crate) ei_config: Option<
-        trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig,
-    >,
+    pub(crate) ei_config: Option<ExploitIntelligenceConfig>,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
