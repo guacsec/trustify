@@ -59,13 +59,7 @@ pub fn configure(
 
     let ei_service = ExploitIntelligenceService::new(ei_config)
         .unwrap_or_else(|e| panic!("failed to create ExploitIntelligenceService: {e}"));
-    crate::exploit_intelligence::endpoints::configure(
-        svc,
-        db_rw,
-        db_ro,
-        ei_service,
-        ingestor_service,
-    );
+    crate::exploit_intelligence::endpoints::configure(svc, db_rw, db_ro, ei_service);
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, ToSchema, serde::Deserialize, IntoParams)]

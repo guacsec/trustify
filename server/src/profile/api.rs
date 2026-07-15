@@ -6,7 +6,7 @@ use actix_web::web;
 use bytesize::ByteSize;
 use futures::FutureExt;
 use trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig;
-use std::{env, process::ExitCode, sync::Arc};
+use std::{env, process::ExitCode, sync::Arc, time::Duration};
 use trustify_auth::{
     auth::AuthConfigArguments,
     authenticator::Authenticator,
@@ -472,12 +472,43 @@ impl InitData {
 
     #[allow(unused_mut)]
     async fn run(mut self) -> anyhow::Result<()> {
-        // Recovery for orphaned exploit intelligence jobs is handled inside
-        // the EI endpoints `configure()`, which spawns a background task.
-        // This avoids needing the IngestorService here (it is only available
-        // inside the module configuration).
-
         let ui = Arc::new(UiResources::new(&self.ui)?);
+
+        // Build the EI worker task before the HTTP server captures `self`.
+        // The worker needs an IngestorService, which is also created inside
+        // the module configuration — build one here and clone it for the worker.
+        let ei_worker_task = if let Some(ref ei_config) = self.ei_config {
+            if !self.read_only {
+                let ei_service = trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceService::new(
+                    Some(ei_config.clone()),
+                )?;
+                let ingestor_for_worker = trustify_module_ingestor::service::IngestorService::new(
+                    Graph::new(),
+                    self.storage.clone(),
+                    Some(self.analysis.clone()),
+                );
+                let db_rw = self.db_rw.clone();
+                let db_ro = self.db_ro.clone();
+
+                Some(
+                    async move {
+                        trustify_module_fundamental::exploit_intelligence::runner::worker::run_worker(
+                            ei_service,
+                            ingestor_for_worker,
+                            db_rw,
+                            db_ro,
+                            Duration::from_secs(5), // worker poll interval
+                        )
+                        .await
+                    }
+                    .boxed_local(),
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         let http = {
             HttpServerBuilder::try_from(self.http)?
@@ -508,6 +539,10 @@ impl InitData {
 
         #[allow(unused_mut)]
         let mut tasks = vec![http];
+
+        if let Some(worker) = ei_worker_task {
+            tasks.push(worker);
+        }
 
         // track the embedded OIDC server task
         #[cfg(feature = "garage-door")]
