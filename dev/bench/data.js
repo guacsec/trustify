@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784106847314,
+  "lastUpdate": 1784115993624,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20291,6 +20291,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/23a72ec4d17bd68abf1128d51784deb13e769239"
         },
         "date": 1784106845651,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "abdf999e7297e77b8531e0cc824bf94ff9b7515e",
+          "message": "perf: add index on product_version.sbom_id\n\nThe SBOM detail query joins product_version on sbom_id but there is\nno index on that column. This forces a sequential scan of the entire\nproduct_version table (140k+ rows) to find a single match, adding\n~8ms per call. With ~2600 calls this query accounts for 40% of total\nDB time.\n\nAdd a btree index on product_version(sbom_id) to convert the seq\nscan into an index lookup.",
+          "timestamp": "2026-07-15T08:54:58Z",
+          "tree_id": "415d81f834bd0f7619636bd324a782229bc9fbb5",
+          "url": "https://github.com/guacsec/trustify/commit/abdf999e7297e77b8531e0cc824bf94ff9b7515e"
+        },
+        "date": 1784115991734,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
