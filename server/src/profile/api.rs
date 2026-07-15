@@ -5,6 +5,7 @@ use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
 use bytesize::ByteSize;
 use futures::FutureExt;
+use regex::Regex;
 use std::{env, process::ExitCode, sync::Arc};
 use tokio::sync::oneshot;
 use trustify_auth::{
@@ -81,6 +82,15 @@ pub struct Run {
     /// The maximum group name length
     #[arg(long, env = "TRUSTD_MAX_GROUP_NAME_LENGTH", default_value_t = 255)]
     pub max_group_name_length: usize,
+
+    /// Comma-separated regex patterns for matching vendor-rebuilt PURL versions in recommendations.
+    #[arg(
+        long,
+        env = "TRUSTD_RECOMMEND_PATTERNS",
+        value_delimiter = ',',
+        default_value = "redhat-[0-9]+$"
+    )]
+    pub recommend_patterns: Vec<String>,
 
     /// The size limit of documents in a dataset, uncompressed.
     #[arg(
@@ -436,11 +446,20 @@ impl InitData {
             oidc_load_user: run.ui.load_user.to_string(),
         };
 
+        let recommend_patterns: Vec<Regex> = run
+            .recommend_patterns
+            .iter()
+            .map(|p| {
+                Regex::new(p).unwrap_or_else(|e| panic!("invalid recommend pattern '{p}': {e}"))
+            })
+            .collect();
+
         let config = ModuleConfig {
             fundamental: trustify_module_fundamental::endpoints::Config {
                 sbom_upload_limit: run.sbom_upload_limit.into(),
                 advisory_upload_limit: run.advisory_upload_limit.into(),
                 max_group_name_length: run.max_group_name_length,
+                recommend_patterns,
             },
             ingestor: trustify_module_ingestor::endpoints::Config {
                 dataset_entry_limit: run.dataset_entry_limit.into(),

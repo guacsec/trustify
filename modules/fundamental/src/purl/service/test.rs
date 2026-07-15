@@ -26,7 +26,7 @@ async fn ingest_extra_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn types(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     let log4j = ctx
         .graph
@@ -83,7 +83,7 @@ async fn types(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn packages_for_type(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     let log4j = ctx
         .graph
@@ -147,7 +147,7 @@ async fn packages_for_type(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn packages_for_type_with_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     let log4j = ctx
         .graph
@@ -204,7 +204,7 @@ async fn packages_for_type_with_filtering(ctx: &TrustifyContext) -> Result<(), a
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn package(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     let log4j = ctx
         .graph
@@ -285,7 +285,7 @@ async fn package(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn package_version(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     let log4j = ctx
         .graph
@@ -375,7 +375,7 @@ async fn package_version(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn package_version_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     let log4j = ctx
         .graph
@@ -459,7 +459,7 @@ async fn package_version_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Er
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     let log4j = ctx
         .graph
@@ -557,7 +557,7 @@ async fn packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn qualified_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     let log4j = ctx
         .graph
@@ -638,7 +638,7 @@ async fn qualified_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn qualified_packages_filter_by_license(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     let _mtv = ctx.ingest_document("spdx/mtv-2.6.json").await?;
 
@@ -791,7 +791,7 @@ async fn qualified_packages_filter_by_license(ctx: &TrustifyContext) -> Result<(
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
     ctx.ingest_documents(["osv/RUSTSEC-2021-0079.json", "cve/CVE-2021-32714.json"])
         .await?;
 
@@ -803,9 +803,15 @@ async fn statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .purls(Query::default(), Paginated::default(), &ctx.db)
         .await?;
 
-    assert_eq!(1, results.items.len());
+    assert_eq!(2, results.items.len());
 
-    let uuid = results.items[0].head.uuid;
+    let uuid = results
+        .items
+        .iter()
+        .find(|p| p.head.purl.version.as_deref() == Some("0.14.1"))
+        .expect("should find 0.14.1")
+        .head
+        .uuid;
 
     let results = service
         .purl_by_uuid(&uuid, Default::default(), &ctx.db)
@@ -819,7 +825,7 @@ async fn statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn contextual_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     ctx.ingest_document("csaf/rhsa-2024_3666.json").await?;
 
@@ -920,7 +926,7 @@ async fn ingest_some_log4j_data(ctx: &TrustifyContext) -> Result<(), anyhow::Err
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn unqualified_purl_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     ingest_some_log4j_data(ctx).await?;
 
@@ -941,7 +947,7 @@ async fn unqualified_purl_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::E
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn base_purl_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     ingest_some_log4j_data(ctx).await?;
 
@@ -960,7 +966,7 @@ async fn base_purl_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn versioned_base_purl_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     ingest_some_log4j_data(ctx).await?;
 

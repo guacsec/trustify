@@ -10,6 +10,7 @@ use crate::{
     },
 };
 use actix_web::{HttpResponse, Responder, get, post, web};
+use regex::Regex;
 use sea_orm::prelude::Uuid;
 use std::str::FromStr;
 use trustify_auth::{ReadAdvisory, ReadSbom, authorizer::Require};
@@ -29,8 +30,9 @@ pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
     db: db::ReadOnly,
     cache: PaginationCache,
+    recommend_patterns: Vec<Regex>,
 ) {
-    let purl_service = PurlService::new(cache);
+    let purl_service = PurlService::new(cache, recommend_patterns);
 
     config
         .app_data(web::Data::new(db))

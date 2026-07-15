@@ -122,11 +122,22 @@ impl InputPurl {
 
 pub struct PurlService {
     cache: PaginationCache,
+    recommend_patterns: Vec<Regex>,
 }
 
 impl PurlService {
-    pub fn new(cache: PaginationCache) -> Self {
-        Self { cache }
+    pub fn new(cache: PaginationCache, recommend_patterns: Vec<Regex>) -> Self {
+        Self {
+            cache,
+            recommend_patterns,
+        }
+    }
+
+    pub fn with_default_patterns(cache: PaginationCache) -> Self {
+        Self::new(
+            cache,
+            vec![Regex::new("redhat-[0-9]+$").expect("default pattern")],
+        )
     }
 
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
@@ -515,9 +526,6 @@ impl PurlService {
             .map(|bp| (PurlKey::from_base_purl(bp), bp))
             .collect();
 
-        #[allow(clippy::unwrap_used)]
-        let pattern = Regex::new("redhat-[0-9]+$").unwrap();
-
         let mut winners = Vec::new();
 
         for ip in &input_purls {
@@ -527,11 +535,13 @@ impl PurlService {
                 continue;
             };
 
-            let highest = Self::find_highest_redhat_patch(
-                &pattern,
-                &ip.input_version,
-                versioned_by_base.get(&base.id),
-            );
+            let highest = self.recommend_patterns.iter().find_map(|pattern| {
+                Self::find_highest_vendor_patch(
+                    pattern,
+                    &ip.input_version,
+                    versioned_by_base.get(&base.id),
+                )
+            });
 
             if let Some(winner_vp) = highest {
                 winners.push(Winner {
@@ -770,8 +780,8 @@ impl PurlService {
         Ok(by_base)
     }
 
-    /// Selects the versioned PURL with the highest Red Hat pre-release suffix matching the input version.
-    fn find_highest_redhat_patch<'a>(
+    /// Selects the versioned PURL with the highest vendor pre-release suffix matching the input version.
+    fn find_highest_vendor_patch<'a>(
         pattern: &Regex,
         input_version: &semver::Version,
         versioned_purls: Option<&'a Vec<versioned_purl::Model>>,

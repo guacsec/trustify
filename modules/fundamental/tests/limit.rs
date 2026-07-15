@@ -16,6 +16,7 @@ async fn upload_bomb_sbom(ctx: &TrustifyContext) -> anyhow::Result<()> {
             sbom_upload_limit: 1024 * 1024,
             advisory_upload_limit: 1024 * 1024,
             max_group_name_length: 32,
+            ..Default::default()
         },
         PaginationCache::for_test(),
     )
@@ -41,6 +42,7 @@ async fn upload_bomb_advisory(ctx: &TrustifyContext) -> anyhow::Result<()> {
             sbom_upload_limit: 1024 * 1024,
             advisory_upload_limit: 1024 * 1024,
             max_group_name_length: 32,
+            ..Default::default()
         },
         PaginationCache::for_test(),
     )

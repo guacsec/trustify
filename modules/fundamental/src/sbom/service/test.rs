@@ -504,7 +504,7 @@ async fn fetch_sbom_packages_filter_by_license(ctx: &TrustifyContext) -> Result<
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn delete_sbom_orphaned_purl_test(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let purl_service = PurlService::new(PaginationCache::for_test());
+    let purl_service = PurlService::with_default_patterns(PaginationCache::for_test());
     // use a high limit to fetch all items for count assertions
     let all = Limit(2000);
     assert_eq!(
@@ -603,7 +603,7 @@ async fn delete_sbom_preserves_advisory_referenced_packages(
         ])
         .await?;
 
-    let purl_service = PurlService::new(PaginationCache::for_test());
+    let purl_service = PurlService::with_default_patterns(PaginationCache::for_test());
 
     // Count all PURLs before deletion
     let paginated_with_total = Paginated {

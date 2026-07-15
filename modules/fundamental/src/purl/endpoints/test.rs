@@ -1,9 +1,10 @@
 use crate::{
+    Config,
     purl::model::{
         details::base_purl::BasePurlDetails,
         summary::{base_purl::BasePurlSummary, purl::PurlSummary},
     },
-    test::caller,
+    test::{caller, caller_with},
 };
 use actix_web::test::TestRequest;
 use rstest::rstest;
@@ -155,9 +156,15 @@ async fn package_with_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
 
-    assert_eq!(1, response.items.len());
+    assert_eq!(2, response.items.len());
 
-    let uuid = response.items[0].head.uuid;
+    let uuid = response
+        .items
+        .iter()
+        .find(|p| p.head.purl.version.as_deref() == Some("0.14.1"))
+        .expect("should find 0.14.1")
+        .head
+        .uuid;
 
     let uri = format!("/api/v3/purl/{uuid}");
 
@@ -692,6 +699,53 @@ async fn get_recommendations_fixed_status(ctx: &TrustifyContext) -> Result<(), a
         .unwrap();
 
     assert_eq!(vuln["status"], "Fixed");
+
+    Ok(())
+}
+
+/// Verifies that custom recommend patterns only match their own vendor suffix.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_custom_pattern(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use regex::Regex;
+    use trustify_common::db::pagination_cache::PaginationCache;
+
+    // Given both a redhat and a custom vendor-patched Maven package exist
+    ctx.graph
+        .ingest_qualified_package(
+            &Purl::from_str("pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002")?,
+            &ctx.db,
+        )
+        .await?;
+    ctx.graph
+        .ingest_qualified_package(
+            &Purl::from_str("pkg:maven/jakarta.el/jakarta.el-api@3.0.3.myorg-00001")?,
+            &ctx.db,
+        )
+        .await?;
+
+    ctx.ingest_documents(["cve/CVE-2022-45787.json", "cve/CVE-2023-28867.json"])
+        .await?;
+
+    // When requesting recommendations with only the custom pattern
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new("myorg-[0-9]+$").unwrap()],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+    let recommendations = recommend(&app, &["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"]).await;
+
+    log::info!("{recommendations:#?}");
+
+    // Then only the custom vendor package is recommended (not redhat)
+    assert_eq!(
+        recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"][0]["package"],
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.myorg-00001",
+    );
 
     Ok(())
 }

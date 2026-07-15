@@ -1,4 +1,5 @@
 use actix_web::web;
+use regex::Regex;
 use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_ingestor::graph::Graph;
@@ -6,11 +7,23 @@ use trustify_module_ingestor::service::IngestorService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 use utoipa::{IntoParams, ToSchema};
 
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
+#[derive(Clone, Debug)]
 pub struct Config {
     pub sbom_upload_limit: usize,
     pub advisory_upload_limit: usize,
     pub max_group_name_length: usize,
+    pub recommend_patterns: Vec<Regex>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            sbom_upload_limit: 0,
+            advisory_upload_limit: 0,
+            max_group_name_length: 0,
+            recommend_patterns: vec![Regex::new("redhat-[0-9]+$").expect("default pattern")],
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -36,7 +49,7 @@ pub fn configure(
     );
     crate::license::endpoints::configure(svc, db_ro.clone());
     crate::organization::endpoints::configure(svc, db_ro.clone(), cache.clone());
-    crate::purl::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    crate::purl::endpoints::configure(svc, db_ro.clone(), cache.clone(), config.recommend_patterns);
     crate::product::endpoints::configure(svc, db_rw.clone(), db_ro.clone(), cache.clone());
     crate::sbom::endpoints::configure(
         svc,
