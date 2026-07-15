@@ -74,6 +74,18 @@
         {
           "type": "object",
           "properties": {
+            "nvd": {
+              "$ref": "#/$defs/NvdImporter"
+            }
+          },
+          "required": [
+            "nvd"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "clearlyDefined": {
               "$ref": "#/$defs/ClearlyDefinedImporter"
             }
@@ -351,6 +363,58 @@
         "source": {
           "type": "string",
           "default": "https://github.com/CVEProject/cvelistV5"
+        },
+        "years": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0,
+            "maximum": 65535
+          }
+        },
+        "startYear": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "period"
+      ]
+    },
+    "NvdImporter": {
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "description": "A flag to disable the importer, without deleting it.",
+          "type": "boolean",
+          "default": false
+        },
+        "period": {
+          "description": "The period the importer should be run.",
+          "$ref": "#/$defs/HumantimeSerde"
+        },
+        "description": {
+          "description": "A description for users.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Labels which will be applied to the ingested documents.",
+          "$ref": "#/$defs/Labels"
+        },
+        "source": {
+          "description": "The base URL of the GitHub repository publishing NVD data as per-year\nrelease assets (`CVE-<year>.json.xz` + `.meta`), in the NVD-API JSON\nschema. The latest release is always used.",
+          "type": "string",
+          "default": "https://github.com/fkie-cad/nvd-json-data-feeds"
         },
         "years": {
           "type": "array",

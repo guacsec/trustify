@@ -322,6 +322,7 @@ paths:
           - osv
           - csaf
           - cve
+          - nvd
           - spdx
           - cyclonedx
           - clearlydefinedcuration
@@ -2728,6 +2729,7 @@ paths:
           - osv
           - csaf
           - cve
+          - nvd
           - spdx
           - cyclonedx
           - clearlydefinedcuration
@@ -4689,6 +4691,7 @@ components:
       - osv
       - csaf
       - cve
+      - nvd
       - spdx
       - cyclonedx
       - clearlydefinedcuration
@@ -4803,6 +4806,12 @@ components:
         properties:
           cve:
             $ref: '#/components/schemas/CveImporter'
+      - type: object
+        required:
+        - nvd
+        properties:
+          nvd:
+            $ref: '#/components/schemas/NvdImporter'
       - type: object
         required:
         - clearlyDefined
@@ -5013,6 +5022,30 @@ components:
             items:
               type: string
             description: Warnings when processing this node.
+    NvdImporter:
+      allOf:
+      - $ref: '#/components/schemas/CommonImporter'
+      - type: object
+        properties:
+          source:
+            type: string
+            description: |-
+              The base URL of the GitHub repository publishing NVD data as per-year
+              release assets (`CVE-<year>.json.xz` + `.meta`), in the NVD-API JSON
+              schema. The latest release is always used.
+          startYear:
+            type:
+            - integer
+            - 'null'
+            format: int32
+            minimum: 0
+          years:
+            type: array
+            items:
+              type: integer
+              format: int32
+              minimum: 0
+            uniqueItems: true
     OrganizationDetails:
       allOf:
       - $ref: '#/components/schemas/OrganizationHead'

@@ -6,6 +6,7 @@ pub mod context;
 pub mod csaf;
 pub mod cve;
 pub mod cwe;
+pub mod nvd;
 pub mod osv;
 pub mod progress;
 pub mod quay;
@@ -52,6 +53,7 @@ impl ImportRunner {
             }
             ImporterConfiguration::Osv(osv) => self.run_once_osv(context, osv, continuation).await,
             ImporterConfiguration::Cve(cve) => self.run_once_cve(context, cve, continuation).await,
+            ImporterConfiguration::Nvd(nvd) => self.run_once_nvd(context, nvd, continuation).await,
             ImporterConfiguration::ClearlyDefined(clearly_defined) => {
                 self.run_once_clearly_defined(context, clearly_defined, continuation)
                     .await
