@@ -3,7 +3,10 @@ use crate::{
     model::IngestResult,
     service::{
         Error, JsonSource,
-        advisory::{csaf::loader::CsafLoader, cve::loader::CveLoader, osv::loader::OsvLoader},
+        advisory::{
+            csaf::loader::CsafLoader, cve::loader::CveLoader, nvd::loader::NvdLoader,
+            nvd::schema::NvdCve, osv::loader::OsvLoader,
+        },
         sbom::{
             clearly_defined::ClearlyDefinedLoader,
             clearly_defined_curation::ClearlyDefinedCurationLoader, cyclonedx::CyclonedxLoader,
@@ -42,6 +45,10 @@ pub enum WireFormat {
 pub enum DetectedDocument {
     Csaf(Box<Csaf>),
     Cve(Box<Cve>),
+    /// A bare NVD CVE API `cve` object. NVD is never content-detected (it is
+    /// indistinguishable from OSV by sniffing), so it is only produced when
+    /// `Format::NVD` is passed explicitly as the hint.
+    Nvd(Box<NvdCve>),
     Osv(Box<Vulnerability>),
     /// SPDX keeps the raw Value because the loader applies license fixups before ingestion.
     Spdx(serde_json::Value),
@@ -158,6 +165,9 @@ impl DocumentDetector {
             }
             DetectedDocument::Cve(cve) => {
                 CveLoader::new(graph).load(labels, *cve, digests, tx).await
+            }
+            DetectedDocument::Nvd(cve) => {
+                NvdLoader::new(graph).load(labels, *cve, digests, tx).await
             }
             DetectedDocument::Osv(osv) => {
                 OsvLoader::new(graph)
@@ -296,6 +306,9 @@ fn parse_format(source: impl JsonSource, format: Format) -> Result<DetectedDocum
             source.parse_json().map_err(map_err)?,
         ))),
         Format::CVE => Ok(DetectedDocument::Cve(Box::new(
+            source.parse_json().map_err(map_err)?,
+        ))),
+        Format::NVD => Ok(DetectedDocument::Nvd(Box::new(
             source.parse_json().map_err(map_err)?,
         ))),
         Format::OSV => Ok(DetectedDocument::Osv(Box::new(

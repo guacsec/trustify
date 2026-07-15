@@ -19,6 +19,7 @@ pub enum Format {
     OSV,
     CSAF,
     CVE,
+    NVD,
     SPDX,
     CycloneDX,
     ClearlyDefinedCuration,

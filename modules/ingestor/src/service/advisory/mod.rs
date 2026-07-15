@@ -1,5 +1,6 @@
 pub mod csaf;
 pub mod cve;
+pub mod nvd;
 pub mod osv;
 
 #[cfg(test)]
