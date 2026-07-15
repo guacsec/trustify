@@ -6,6 +6,7 @@ mod cve;
 mod cwe;
 mod nvd;
 mod osv;
+mod pulp;
 mod quay;
 mod sbom;
 
@@ -17,6 +18,7 @@ pub use cve::*;
 pub use cwe::*;
 pub use nvd::*;
 pub use osv::*;
+pub use pulp::*;
 pub use quay::*;
 pub use sbom::*;
 
@@ -186,6 +188,7 @@ pub enum ImporterConfiguration {
     ClearlyDefinedCuration(ClearlyDefinedCurationImporter),
     Cwe(CweImporter),
     Quay(QuayImporter),
+    Pulp(PulpImporter),
 }
 
 impl Deref for ImporterConfiguration {
@@ -202,6 +205,7 @@ impl Deref for ImporterConfiguration {
             Self::ClearlyDefinedCuration(importer) => &importer.common,
             Self::Cwe(importer) => &importer.common,
             Self::Quay(importer) => &importer.common,
+            Self::Pulp(importer) => &importer.common,
         }
     }
 }
@@ -218,6 +222,7 @@ impl DerefMut for ImporterConfiguration {
             Self::ClearlyDefinedCuration(importer) => &mut importer.common,
             Self::Cwe(importer) => &mut importer.common,
             Self::Quay(importer) => &mut importer.common,
+            Self::Pulp(importer) => &mut importer.common,
         }
     }
 }

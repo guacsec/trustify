@@ -9,6 +9,7 @@ pub mod cwe;
 pub mod nvd;
 pub mod osv;
 pub mod progress;
+pub mod pulp;
 pub mod quay;
 pub mod report;
 pub mod sbom;
@@ -67,6 +68,9 @@ impl ImportRunner {
             }
             ImporterConfiguration::Quay(quay) => {
                 self.run_once_quay(context, quay, continuation).await
+            }
+            ImporterConfiguration::Pulp(pulp) => {
+                self.run_once_pulp(context, pulp, last_success).await
             }
         }
     }
