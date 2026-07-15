@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784106430455,
+  "lastUpdate": 1784106847314,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20262,6 +20262,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/e134a93dcaa98f63ecc40ba60eedc42808cef77c"
         },
         "date": 1784106429342,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "psedlak@redhat.com",
+            "name": "Pavel Sedlák",
+            "username": "queria"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "23a72ec4d17bd68abf1128d51784deb13e769239",
+          "message": "docs(terraform): use variable for DB version and instance class\n\nAvailability of RDS PostgreSQL engine version and instance class\nselections depends on the AWS Region.\n\nExposing these (engine version and instance class) as variables,\nmakes it easier to tweak the values for user selected region.",
+          "timestamp": "2026-07-15T06:39:04Z",
+          "tree_id": "84a4af3e47dc846fbea631528f63d895f577f5ff",
+          "url": "https://github.com/guacsec/trustify/commit/23a72ec4d17bd68abf1128d51784deb13e769239"
+        },
+        "date": 1784106845651,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
