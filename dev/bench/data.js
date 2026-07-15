@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784115993624,
+  "lastUpdate": 1784121915355,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20320,6 +20320,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/abdf999e7297e77b8531e0cc824bf94ff9b7515e"
         },
         "date": 1784115991734,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "9d0cd823de2c33027de214be6ad8b495a9c22174",
+          "message": "perf(analysis): coalesce concurrent prefetch calls per SBOM ID\n\nWhen multiple concurrent graph walks discover the same external SBOM\n(common with buffer_unordered concurrency), each calls\nAncestorCache::prefetch for that SBOM.\n\nAdd a per-sbom_id OnceCell barrier so only the first concurrent caller\nexecutes the batch query; the others await the same barrier and find\nthe per-node cache already populated.\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-07-15T10:38:05Z",
+          "tree_id": "8d2b1f6338707eeed67abe426f80d5111c62257c",
+          "url": "https://github.com/guacsec/trustify/commit/9d0cd823de2c33027de214be6ad8b495a9c22174"
+        },
+        "date": 1784121912890,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
