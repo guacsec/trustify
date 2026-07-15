@@ -200,6 +200,12 @@ async fn ingest_spdx_cpe23_refs(ctx: &TrustifyContext) -> Result<(), anyhow::Err
             let busybox = find("BusyBox");
             assert_eq!(busybox.cpe, vec!["cpe:/a:busybox:busybox:1.19.4:*:*:*"]);
 
+            let windows = find("Windows");
+            assert_eq!(
+                windows.cpe,
+                vec!["cpe:/o:microsoft:windows_10:1607:*~*~*~*~x64~*:en-US"]
+            );
+
             // the unparseable CPE reference is skipped, but the package is still ingested
             let garbage = packages
                 .items

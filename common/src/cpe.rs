@@ -311,6 +311,22 @@ impl Cpe {
         self.uri.language().clone().into()
     }
 
+    pub fn sw_edition(&self) -> Component {
+        self.uri.sw_edition().into()
+    }
+
+    pub fn target_sw(&self) -> Component {
+        self.uri.target_sw().into()
+    }
+
+    pub fn target_hw(&self) -> Component {
+        self.uri.target_hw().into()
+    }
+
+    pub fn other(&self) -> Component {
+        self.uri.other().into()
+    }
+
     /// Return a copy of this CPE with the version component normalized to ANY.
     ///
     /// Useful for deriving a vendor/product identity key when the concrete

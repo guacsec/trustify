@@ -57,6 +57,20 @@
       ]
     },
     {
+      "name": "Windows",
+      "SPDXID": "SPDXRef-Package-Windows",
+      "versionInfo": "1607",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:o:microsoft:windows_10:1607:*:*:en-US:*:*:x64:*"
+        }
+      ]
+    },
+    {
       "name": "libfoo.a(bar.o): in function `baz':",
       "SPDXID": "SPDXRef-Package-Garbage",
       "versionInfo": "2.0.0",
@@ -91,6 +105,11 @@
       "spdxElementId": "SPDXRef-Package-Main",
       "relationshipType": "CONTAINS",
       "relatedSpdxElement": "SPDXRef-Package-Garbage"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-Main",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-Windows"
     }
   ]
 }
