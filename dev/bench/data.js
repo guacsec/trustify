@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784060630747,
+  "lastUpdate": 1784106430455,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20239,6 +20239,34 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mnesuta@mnesuta-thinkpadp1gen7.rmtcz.csb",
+            "name": "Matej Nesuta"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "e134a93dcaa98f63ecc40ba60eedc42808cef77c",
+          "message": "chore: add callback URL for swagger-ui",
+          "timestamp": "2026-07-15T06:36:06Z",
+          "tree_id": "ee82288f52f8baa8e3cf5da9e04c5d7ce41e8be5",
+          "url": "https://github.com/guacsec/trustify/commit/e134a93dcaa98f63ecc40ba60eedc42808cef77c"
+        },
+        "date": 1784106429342,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
