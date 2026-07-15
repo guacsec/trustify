@@ -5,8 +5,48 @@ use serde_json::json;
 use test_context::test_context;
 use test_log::test;
 use trustify_common::db::pagination_cache::PaginationCache;
+use trustify_common::id::Id;
 use trustify_module_fundamental::vulnerability::service::VulnerabilityService;
+use trustify_module_ingestor::service::Format;
 use trustify_test_context::{Dataset, TrustifyContext, subset::ContainsSubset};
+
+/// Reverse of the SBOM-page CPE match: a vulnerability's details must backlink
+/// the SBOMs that match it via a package CPE (not just via PURL / product_status).
+/// Guards the asymmetry where an SBOM showed the vulnerability but the
+/// vulnerability page listed no related SBOMs.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn vuln_related_sboms_via_cpe(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Firmware SBOM carries busybox 1.19.4 (package CPE); the NVD advisory marks
+    // busybox affected in [1.0.0, 2.0.0), which includes 1.19.4 via semver range.
+    let sbom = ctx.ingest_document("spdx/cpe23-firmware.json").await?;
+    ctx.ingest_document_as("nvd/CVE-2099-2000.json", Format::NVD, ("source", "nvd"))
+        .await?;
+
+    let Id::Uuid(sbom_uuid) = Id::parse_uuid(sbom.id)? else {
+        panic!("expected a UUID sbom id");
+    };
+
+    let service = VulnerabilityService::new(PaginationCache::for_test());
+    let details = service
+        .fetch_vulnerability("CVE-2099-2000", Default::default(), false, &ctx.db)
+        .await?
+        .expect("vulnerability must exist");
+
+    let sbom_ids: Vec<_> = details
+        .advisories
+        .iter()
+        .flat_map(|a| a.sboms.iter())
+        .map(|s| s.head.id)
+        .collect();
+
+    assert!(
+        sbom_ids.contains(&sbom_uuid),
+        "firmware SBOM must be backlinked from CVE-2099-2000 via the CPE match, got {sbom_ids:?}"
+    );
+
+    Ok(())
+}
 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]

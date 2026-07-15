@@ -7,6 +7,7 @@ use trustify_module_fundamental::sbom::{
     model::{AffectedSeverity, details::SbomDetails},
     service::SbomService,
 };
+use trustify_module_ingestor::service::Format;
 use trustify_test_context::TrustifyContext;
 
 #[test_context(TrustifyContext)]
@@ -358,6 +359,69 @@ async fn sbom_severity_counts_cpe_matching(ctx: &TrustifyContext) -> Result<(), 
         Some(&1),
         sbom_counts.get(&AffectedSeverity::Critical),
         "expected one critical-severity vulnerability, got {sbom_counts:?}"
+    );
+
+    Ok(())
+}
+
+/// End-to-end test that NVD-sourced CPE applicability drives range-based SBOM
+/// matching. The whole reason for the NVD importer: NVD carries version *ranges*
+/// (`versionStartIncluding`/`versionEndExcluding`) which, stored under the
+/// `semver` scheme, match a component version that is neither range boundary --
+/// something the sparse cvelistv5 CPE data (stored under the exact-only `generic`
+/// scheme) cannot do.
+///
+/// NVD documents are ingested with an explicit `Format::NVD`: a bare NVD `cve`
+/// object is indistinguishable from OSV by content sniffing.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+async fn sbom_details_nvd_cpe_range_matching(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(PaginationCache::for_test());
+
+    let result = ctx.ingest_document("spdx/cpe23-firmware.json").await?;
+
+    let hit = ctx
+        .ingest_document_as("nvd/CVE-2099-2000.json", Format::NVD, ("source", "nvd"))
+        .await?;
+    assert_eq!(hit.document_id, Some("CVE-2099-2000".to_string()));
+    let miss = ctx
+        .ingest_document_as("nvd/CVE-2099-2001.json", Format::NVD, ("source", "nvd"))
+        .await?;
+    assert_eq!(miss.document_id, Some("CVE-2099-2001".to_string()));
+
+    let details = sbom
+        .fetch_sbom_details(Id::parse_uuid(result.id)?, vec![], &ctx.db)
+        .await?
+        .expect("SBOM details must be found");
+    log::info!("SBOM details: {details:?}");
+
+    // Positive: busybox 1.19.4 falls inside [1.0.0, 2.0.0). It is neither bound,
+    // so this only matches because the semver scheme does ordered range
+    // comparison -- the exact-only `generic` scheme would have missed it.
+    let advisory = details
+        .advisories
+        .iter()
+        .find(|a| a.head.document_id == "CVE-2099-2000")
+        .expect("CVE-2099-2000 must match busybox 1.19.4 via a semver range");
+    let package_names: std::collections::BTreeSet<String> = advisory.status[0]
+        .packages
+        .iter()
+        .map(|p| p.name.clone())
+        .collect();
+    assert!(
+        package_names.contains("BusyBox"),
+        "expected BusyBox among matched packages, got {package_names:?}"
+    );
+
+    // Negative: [2.0.0, 3.0.0) excludes 1.19.4. Vendor/product identity alone is
+    // not sufficient; the version bound must exclude it.
+    assert!(
+        !details
+            .advisories
+            .iter()
+            .any(|a| a.head.document_id == "CVE-2099-2001"),
+        "CVE-2099-2001 (busybox 2.0.0..3.0.0) must not match busybox 1.19.4"
     );
 
     Ok(())
