@@ -5,7 +5,6 @@ use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
 use bytesize::ByteSize;
 use futures::FutureExt;
-use trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceConfig;
 use std::{env, process::ExitCode, sync::Arc, time::Duration};
 use trustify_auth::{
     auth::AuthConfigArguments,
@@ -33,6 +32,11 @@ use trustify_infrastructure::{
     otel::{Metrics as OtelMetrics, Tracing},
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
+use trustify_module_fundamental::exploit_intelligence::{
+    auth::build_provider,
+    runner::worker::run_worker,
+    service::{ExploitIntelligenceConfig, ExploitIntelligenceService},
+};
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 use trustify_module_ui::{UI, endpoints::UiResources};
@@ -93,6 +97,51 @@ pub struct Run {
     )]
     pub scan_limit: BinaryByteSize,
 
+    /// Exploit Intelligence configuration
+    #[command(flatten)]
+    pub exploit_intelligence: ExploitIntelligenceArgs,
+
+    // flattened commands must go last
+    //
+    /// Analysis configuration
+    #[command(flatten)]
+    pub analysis: AnalysisConfig,
+
+    /// Database configuration
+    #[command(flatten)]
+    pub database: Database,
+
+    /// Read-only database configuration (optional, falls back to primary database)
+    #[command(flatten)]
+    pub database_ro: DatabaseReadOnly,
+
+    /// Location of the storage
+    #[command(flatten)]
+    pub storage: StorageConfig,
+
+    #[command(flatten)]
+    pub infra: InfrastructureConfig,
+
+    #[command(flatten)]
+    pub auth: AuthConfigArguments,
+
+    #[command(flatten)]
+    pub http: HttpServerConfig<Trustify>,
+
+    #[command(flatten)]
+    pub swagger_ui_oidc: SwaggerUiOidcConfig,
+
+    #[command(flatten)]
+    pub pagination: PaginationConfig,
+
+    #[command(flatten)]
+    pub ui: UiConfig,
+}
+
+/// All Exploit Intelligence CLI arguments.
+#[derive(clap::Args, Debug)]
+#[command(next_help_heading = "Exploit Intelligence")]
+pub struct ExploitIntelligenceArgs {
     /// Base URL of the Exploit Intelligence client service.
     #[arg(long, env = "EXPLOIT_INTELLIGENCE_URL")]
     pub exploit_intelligence_url: Option<String>,
@@ -146,43 +195,35 @@ pub struct Run {
     pub exploit_intelligence_auth_token: Option<String>,
 
     #[command(flatten)]
-    pub exploit_intelligence_oidc: EiOidcArguments,
+    pub oidc: EiOidcArguments,
+}
 
-    // flattened commands must go last
-    //
-    /// Analysis configuration
-    #[command(flatten)]
-    pub analysis: AnalysisConfig,
+impl ExploitIntelligenceArgs {
+    /// Convert CLI arguments into an optional `ExploitIntelligenceConfig`.
+    ///
+    /// Returns `None` when no EI URL is configured (feature disabled).
+    pub async fn into_config(self) -> Result<Option<ExploitIntelligenceConfig>, anyhow::Error> {
+        let Some(url) = self.exploit_intelligence_url else {
+            return Ok(None);
+        };
 
-    /// Database configuration
-    #[command(flatten)]
-    pub database: Database,
+        let token_provider = build_provider(
+            self.oidc.into_config(),
+            self.exploit_intelligence_auth_token,
+        )
+        .await?;
 
-    /// Read-only database configuration (optional, falls back to primary database)
-    #[command(flatten)]
-    pub database_ro: DatabaseReadOnly,
-
-    /// Location of the storage
-    #[command(flatten)]
-    pub storage: StorageConfig,
-
-    #[command(flatten)]
-    pub infra: InfrastructureConfig,
-
-    #[command(flatten)]
-    pub auth: AuthConfigArguments,
-
-    #[command(flatten)]
-    pub http: HttpServerConfig<Trustify>,
-
-    #[command(flatten)]
-    pub swagger_ui_oidc: SwaggerUiOidcConfig,
-
-    #[command(flatten)]
-    pub pagination: PaginationConfig,
-
-    #[command(flatten)]
-    pub ui: UiConfig,
+        Ok(Some(ExploitIntelligenceConfig {
+            url,
+            ui_url: self.exploit_intelligence_ui_url,
+            poll_interval: self.exploit_intelligence_poll_interval.into(),
+            max_poll_duration: self.exploit_intelligence_max_poll_duration.into(),
+            upload_max_retries: self.exploit_intelligence_upload_max_retries,
+            upload_retry_delay: self.exploit_intelligence_upload_retry_delay.into(),
+            max_consecutive_poll_failures: self.exploit_intelligence_max_consecutive_poll_failures,
+            token_provider,
+        }))
+    }
 }
 
 /// Clap arguments for EI-specific OIDC credentials.
@@ -427,27 +468,7 @@ impl InitData {
             },
         };
 
-        let ei_config = if let Some(url) = run.exploit_intelligence_url {
-            let token_provider =
-                trustify_module_fundamental::exploit_intelligence::auth::build_provider(
-                    run.exploit_intelligence_oidc.into_config(),
-                    run.exploit_intelligence_auth_token,
-                )
-                .await?;
-
-            Some(ExploitIntelligenceConfig {
-                url,
-                ui_url: run.exploit_intelligence_ui_url,
-                poll_interval: run.exploit_intelligence_poll_interval.into(),
-                max_poll_duration: run.exploit_intelligence_max_poll_duration.into(),
-                upload_max_retries: run.exploit_intelligence_upload_max_retries,
-                upload_retry_delay: run.exploit_intelligence_upload_retry_delay.into(),
-                max_consecutive_poll_failures: run.exploit_intelligence_max_consecutive_poll_failures,
-                token_provider,
-            })
-        } else {
-            None
-        };
+        let ei_config = run.exploit_intelligence.into_config().await?;
 
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
@@ -479,9 +500,7 @@ impl InitData {
         // the module configuration — build one here and clone it for the worker.
         let ei_worker_task = if let Some(ref ei_config) = self.ei_config {
             if !self.read_only {
-                let ei_service = trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceService::new(
-                    Some(ei_config.clone()),
-                )?;
+                let ei_service = ExploitIntelligenceService::new(Some(ei_config.clone()))?;
                 let ingestor_for_worker = trustify_module_ingestor::service::IngestorService::new(
                     Graph::new(),
                     self.storage.clone(),
@@ -492,7 +511,7 @@ impl InitData {
 
                 Some(
                     async move {
-                        trustify_module_fundamental::exploit_intelligence::runner::worker::run_worker(
+                        run_worker(
                             ei_service,
                             ingestor_for_worker,
                             db_rw,
