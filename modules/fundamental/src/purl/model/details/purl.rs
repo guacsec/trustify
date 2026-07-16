@@ -12,9 +12,9 @@ use crate::{
     vulnerability::model::VulnerabilityHead,
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, LoaderTrait, ModelTrait,
-    QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait, Select,
-    SelectColumns,
+    ColumnTrait, Condition, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, LoaderTrait,
+    ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
+    Select, SelectColumns,
 };
 use sea_query::{Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -28,8 +28,8 @@ use trustify_common::{
 use trustify_entity::{
     advisory, advisory_vulnerability_score, base_purl, cpe, license, organization, product,
     product_status, product_version, product_version_range, purl_status, qualified_purl, sbom,
-    sbom_license_expanded, sbom_node, sbom_node_purl_ref, sbom_package_license, status,
-    version_range, versioned_purl, vulnerability,
+    sbom_describing_cpe, sbom_license_expanded, sbom_node, sbom_node_purl_ref,
+    sbom_package_license, status, version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::{Deprecation, DeprecationForExt};
 use utoipa::ToSchema;
@@ -84,6 +84,24 @@ impl PurlDetails {
                 .ok_or(Error::Data("underlying package missing".to_string()))?
         };
 
+        let sbom_ids_for_purl = sbom_node_purl_ref::Entity::find()
+            .select_only()
+            .column(sbom_node_purl_ref::Column::SbomId)
+            .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(qualified_package.id))
+            .into_query();
+
+        let allowed_cpe_ids = sbom_describing_cpe::Entity::find()
+            .select_only()
+            .column(sbom_describing_cpe::Column::CpeId)
+            .filter(sbom_describing_cpe::Column::SbomId.in_subquery(sbom_ids_for_purl.clone()))
+            .into_query();
+
+        let sbom_has_cpes = sea_query::Query::select()
+            .expr(Expr::value(1i32))
+            .from(sbom_describing_cpe::Entity)
+            .and_where(sbom_describing_cpe::Column::SbomId.in_subquery(sbom_ids_for_purl))
+            .to_owned();
+
         let purl_statuses = purl_status::Entity::find()
             .filter(purl_status::Column::BasePurlId.eq(package.id))
             .left_join(version_range::Entity)
@@ -93,6 +111,12 @@ impl PurlDetails {
                     .arg(Expr::value(package_version.version.clone()))
                     .arg(Expr::col((version_range::Entity, Asterisk))),
             ))
+            .filter(
+                Condition::any()
+                    .add(purl_status::Column::ContextCpeId.is_null())
+                    .add(purl_status::Column::ContextCpeId.in_subquery(allowed_cpe_ids))
+                    .add(Expr::exists(sbom_has_cpes).not()),
+            )
             .distinct_on([ColumnRef::TableColumn(
                 purl_status::Entity.into_iden(),
                 purl_status::Column::Id.into_iden(),
