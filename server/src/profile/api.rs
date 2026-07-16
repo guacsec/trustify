@@ -32,6 +32,7 @@ use trustify_infrastructure::{
     otel::{Metrics as OtelMetrics, Tracing},
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
+use trustify_module_correlation::{config::CorrelationConfig, service::CorrelationService};
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 use trustify_module_ui::{UI, endpoints::UiResources};
@@ -97,6 +98,10 @@ pub struct Run {
     /// Analysis configuration
     #[command(flatten)]
     pub analysis: AnalysisConfig,
+
+    /// Correlation configuration
+    #[command(flatten)]
+    pub correlation: CorrelationConfig,
 
     /// Database configuration
     #[command(flatten)]
@@ -193,6 +198,7 @@ struct InitData {
     ui: UI,
     config: ModuleConfig,
     analysis: AnalysisService,
+    correlation: Option<CorrelationService>,
     read_only: bool,
 }
 
@@ -298,8 +304,15 @@ impl InitData {
             },
         };
 
+        let correlation = if run.correlation.correlation_enabled {
+            Some(CorrelationService::new(&run.correlation, db_ro.clone()).await?)
+        } else {
+            None
+        };
+
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
+            correlation,
             authenticator,
             authorizer,
             db_rw,
@@ -340,6 +353,7 @@ impl InitData {
                             storage: self.storage.clone(),
                             auth: self.authenticator.clone(),
                             analysis: self.analysis.clone(),
+                            correlation: self.correlation.clone(),
                             read_only: self.read_only,
                         },
                     );
@@ -389,6 +403,7 @@ pub(crate) struct Config {
     pub(crate) cache: PaginationCache,
     pub(crate) storage: DispatchBackend,
     pub(crate) analysis: AnalysisService,
+    pub(crate) correlation: Option<CorrelationService>,
     pub(crate) auth: Option<Arc<Authenticator>>,
     pub(crate) read_only: bool,
 }
@@ -407,6 +422,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         storage,
         auth,
         analysis,
+        correlation,
         read_only,
     } = config;
 
@@ -443,6 +459,13 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     cache,
                 );
                 trustify_module_analysis::endpoints::configure(svc, db_ro.clone(), analysis);
+                if let Some(correlation) = correlation {
+                    trustify_module_correlation::endpoints::configure(
+                        svc,
+                        db_ro.clone(),
+                        correlation,
+                    );
+                }
                 trustify_module_user::endpoints::configure(svc);
                 trustify_module_ui::endpoints::configure(svc, ui)
             }),
@@ -520,6 +543,7 @@ mod test {
                             storage: ctx.storage.clone().into(),
                             auth: None,
                             analysis,
+                            correlation: None,
                             read_only: false,
                         },
                     );
@@ -593,6 +617,7 @@ mod test {
                     cache: PaginationCache::for_test(),
                     auth: None,
                     analysis,
+                    correlation: None,
                     read_only,
                 },
             );
