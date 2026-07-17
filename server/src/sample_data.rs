@@ -4,7 +4,7 @@ use trustify_common::db::{ReadWrite, pagination_cache::PaginationCache};
 use trustify_module_importer::model::{
     ClearlyDefinedImporter, ClearlyDefinedPackageType, CveImporter, CweImporter,
     DEFAULT_SOURCE_CLEARLY_DEFINED_CURATION, DEFAULT_SOURCE_CVEPROJECT, DEFAULT_SOURCE_CWE_CATALOG,
-    DEFAULT_SOURCE_QUAY, QuayImporter,
+    DEFAULT_SOURCE_NVD, DEFAULT_SOURCE_QUAY, NvdImporter, QuayImporter,
 };
 use trustify_module_importer::{
     model::{
@@ -75,6 +75,30 @@ async fn add_cve(
                 labels: Default::default(),
             },
             source: DEFAULT_SOURCE_CVEPROJECT.into(),
+            years: HashSet::default(),
+            start_year,
+        }),
+    )
+    .await
+}
+
+async fn add_nvd(
+    importer: &ImporterService,
+    name: &str,
+    start_year: Option<u16>,
+    description: &str,
+) -> anyhow::Result<()> {
+    add(
+        importer,
+        name,
+        ImporterConfiguration::Nvd(NvdImporter {
+            common: CommonImporter {
+                disabled: true,
+                period: Duration::from_secs(300),
+                description: Some(description.into()),
+                labels: Default::default(),
+            },
+            source: DEFAULT_SOURCE_NVD.into(),
             years: HashSet::default(),
             start_year,
         }),
@@ -253,6 +277,14 @@ pub async fn sample_data(
     )
     .await?;
 
+    add_nvd(
+        &importer,
+        "nvd-from-2024",
+        Some(2024),
+        "NVD CVE feeds (starting 2024)",
+    )
+    .await?;
+
     add_clearly_defined_curations(
         &importer,
         "clearly-defined-curations",
@@ -359,7 +391,7 @@ mod test {
             ImporterService::new(ReadWrite::new(ctx.db.clone()), PaginationCache::for_test());
         let result = service.list().await?;
 
-        assert_eq!(result.len(), 16);
+        assert_eq!(result.len(), 17);
 
         Ok(())
     }
