@@ -8594,6 +8594,7 @@ dependencies = [
  "humantime",
  "humantime-serde",
  "json-merge-patch",
+ "liblzma",
  "log",
  "num-traits",
  "oci-client",
