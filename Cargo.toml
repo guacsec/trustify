@@ -131,7 +131,7 @@ sha2 = "0.11.0"
 spdx = "0.13.3"
 spdx-expression = "0.5.2"
 spdx-rs = "0.5.3"
-sqlx = { version = "0.8", features = ["tls-native-tls"] } # keep aligned with sea-orm
+sqlx = { version = "0.8", features = ["tls-native-tls", "postgres"] } # keep aligned with sea-orm
 strum = "0.28.0"
 tar = "0.4.45"
 temp-env = "0.3"

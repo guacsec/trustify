@@ -8511,6 +8511,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "clap",
+ "futures",
  "humantime",
  "lenient_semver",
  "log",

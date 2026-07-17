@@ -1,3 +1,4 @@
+pub mod change;
 pub mod chunk;
 pub mod limiter;
 pub mod multi_model;

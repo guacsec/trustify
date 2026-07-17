@@ -17,6 +17,8 @@ pub enum Error {
     NotReady,
     #[error("SBOM not found: {0}")]
     SbomNotFound(String),
+    #[error(transparent)]
+    Fundamental(trustify_module_fundamental::Error),
 }
 
 unsafe impl Send for Error {}
@@ -35,6 +37,12 @@ impl From<DbError> for Error {
             DbError::Database(err) => Self::Database(err),
             DbError::Unavailable | DbError::ReadOnly => Self::Any(anyhow::anyhow!("{value}")),
         }
+    }
+}
+
+impl From<trustify_module_fundamental::Error> for Error {
+    fn from(value: trustify_module_fundamental::Error) -> Self {
+        Self::Fundamental(value)
     }
 }
 

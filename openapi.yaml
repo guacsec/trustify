@@ -1005,6 +1005,19 @@ paths:
           description: The user did not provide valid authentication credentials
         '403':
           description: The user lacks the required permission
+  /api/v3/correlation/status:
+    get:
+      tags:
+      - correlation
+      summary: Get the status of the correlation service.
+      operationId: getCorrelationStatus
+      responses:
+        '200':
+          description: Correlation service status
+        '401':
+          description: The user did not provide valid authentication credentials
+        '403':
+          description: The user lacks the required permission
   /api/v3/dataset:
     post:
       tags:
@@ -3160,26 +3173,28 @@ paths:
   /api/v3/sbom/{id}/advisory:
     get:
       tags:
-      - sbom
-      summary: Get advisories for an SBOM
-      operationId: getSbomAdvisories
+      - correlation
+      summary: Find advisories affecting an SBOM using in-memory correlation.
+      operationId: getCorrelationSbomAdvisories
       parameters:
       - name: id
         in: path
+        description: SBOM ID
         required: true
         schema:
-          $ref: '#/components/schemas/Id'
+          type: string
+          format: uuid
       responses:
         '200':
-          description: Matching SBOM
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/SbomAdvisory'
+          description: Advisories affecting this SBOM
+        '401':
+          description: The user did not provide valid authentication credentials
+        '403':
+          description: The user lacks the required permission
         '404':
-          description: The SBOM could not be found
+          description: SBOM not found
+        '503':
+          description: Correlation service not ready
   /api/v3/sbom/{id}/all-license-ids:
     get:
       tags:
@@ -4094,6 +4109,29 @@ paths:
                 $ref: '#/components/schemas/LicenseSummary'
         '404':
           description: The weakness could not be found
+  /api/v3a/sbom/{id}/advisory:
+    get:
+      tags:
+      - sbom
+      summary: Get advisories for an SBOM (SQL-based, replaced by in-memory correlation on /v3)
+      operationId: getSbomAdvisoriesV3a
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: Matching SBOM
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SbomAdvisory'
+        '404':
+          description: The SBOM could not be found
 components:
   schemas:
     AdvisoryDetails:

@@ -1,14 +1,55 @@
 use crate::model::{
-    AdvisoryIndex, CorrelationState, PurlStatusEntry, SbomIndex, SbomPackageEntry, VersionRangeData,
+    AdvisoryIndex, AdvisoryPatch, CorrelationState, PackageCatalog, ProductStatusEntry, PurlKey,
+    PurlStatusEntry, SbomIndex, SbomPackageEntry, SbomPatch, VersionRangeData,
 };
-use sea_orm::{ConnectionTrait, FromQueryResult};
+use futures::TryStreamExt;
+use sea_orm::{
+    ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, JoinType, QueryFilter, QuerySelect,
+    RelationTrait, StreamTrait, sea_query::Expr,
+};
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::db::ReadOnly;
 use trustify_entity::version_scheme::VersionScheme;
+use trustify_entity::{
+    advisory, base_purl, product_status, purl_status, qualified_purl, sbom_node_purl_ref, status,
+    version_range,
+};
 use uuid::Uuid;
 
+/// Deduplicates strings into `Arc<str>` to reduce heap allocations.
+///
+/// Strings that appear across many rows (purl types, namespaces, vulnerability IDs,
+/// version bounds) are interned so identical values share a single allocation.
+struct StringInterner(HashMap<String, Arc<str>>);
+
+impl StringInterner {
+    fn new() -> Self {
+        Self(HashMap::new())
+    }
+
+    /// Interns a string, returning a shared reference.
+    fn intern(&mut self, s: String) -> Arc<str> {
+        if let Some(existing) = self.0.get(s.as_str()) {
+            Arc::clone(existing)
+        } else {
+            let arc: Arc<str> = Arc::from(s.as_str());
+            self.0.insert(s, Arc::clone(&arc));
+            arc
+        }
+    }
+
+    /// Interns an optional string.
+    fn intern_opt(&mut self, s: Option<String>) -> Option<Arc<str>> {
+        s.map(|s| self.intern(s))
+    }
+}
+
 /// Loads the complete correlation state from the database.
+///
+/// Advisory and SBOM indexes are loaded sequentially to avoid doubling peak memory
+/// from parallel materialization. Each uses streaming cursors to avoid intermediate Vecs.
 #[instrument(skip_all, err(level = tracing::Level::INFO))]
 pub async fn load_all(db: &ReadOnly) -> Result<CorrelationState, anyhow::Error> {
     let txn = db.begin().await?;
@@ -22,10 +63,11 @@ pub async fn load_all(db: &ReadOnly) -> Result<CorrelationState, anyhow::Error> 
         .await?;
 
     tracing::info!(
-        purl_entries = advisory_index.by_base_purl.len(),
+        purl_entries = advisory_index.by_purl.len(),
         statuses = advisory_index.statuses.len(),
-        deprecated = advisory_index.deprecated_advisories.len(),
+        product_entries = advisory_index.product_by_name.len(),
         sboms = sbom_index.by_sbom.len(),
+        cpe_sboms = sbom_index.describing_cpes.len(),
         "correlation state loaded"
     );
 
@@ -35,170 +77,21 @@ pub async fn load_all(db: &ReadOnly) -> Result<CorrelationState, anyhow::Error> 
     })
 }
 
-/// Raw row for purl_status + version_range join.
+/// Raw row for purl_status + version_range + base_purl join.
 #[derive(Debug, FromQueryResult)]
 struct PurlStatusRow {
     advisory_id: Uuid,
     vulnerability_id: String,
     status_id: Uuid,
-    base_purl_id: Uuid,
+    purl_type: String,
+    purl_namespace: Option<String>,
+    purl_name: String,
     context_cpe_id: Option<Uuid>,
-    version_scheme_id: String,
+    version_scheme_id: VersionScheme,
     low_version: Option<String>,
-    low_inclusive: bool,
+    low_inclusive: Option<bool>,
     high_version: Option<String>,
-    high_inclusive: bool,
-}
-
-/// Raw row for status slugs.
-#[derive(Debug, FromQueryResult)]
-struct StatusRow {
-    id: Uuid,
-    slug: String,
-}
-
-/// Raw row for deprecated advisory IDs.
-#[derive(Debug, FromQueryResult)]
-struct DeprecatedRow {
-    advisory_id: Uuid,
-}
-
-/// Loads the advisory index: purl_status entries + version ranges + statuses.
-async fn load_advisory_index(txn: &impl ConnectionTrait) -> Result<AdvisoryIndex, anyhow::Error> {
-    // Load all purl_status entries joined with version_range
-    let rows: Vec<PurlStatusRow> =
-        PurlStatusRow::find_by_statement(sea_orm::Statement::from_string(
-            sea_orm::DatabaseBackend::Postgres,
-            r#"
-            SELECT
-                ps.advisory_id,
-                ps.vulnerability_id,
-                ps.status_id,
-                ps.base_purl_id,
-                ps.context_cpe_id,
-                vr.version_scheme_id,
-                vr.low_version,
-                vr.low_inclusive,
-                vr.high_version,
-                vr.high_inclusive
-            FROM purl_status ps
-            JOIN version_range vr ON vr.id = ps.version_range_id
-            ORDER BY ps.base_purl_id
-            "#
-            .to_string(),
-        ))
-        .all(txn)
-        .await?;
-
-    let mut by_base_purl: HashMap<Uuid, Vec<PurlStatusEntry>> = HashMap::new();
-
-    for row in rows {
-        let version_scheme = parse_version_scheme(&row.version_scheme_id);
-
-        let entry = PurlStatusEntry {
-            advisory_id: row.advisory_id,
-            vulnerability_id: row.vulnerability_id,
-            status_id: row.status_id,
-            version_range: VersionRangeData {
-                version_scheme,
-                low_version: row.low_version,
-                low_inclusive: row.low_inclusive,
-                high_version: row.high_version,
-                high_inclusive: row.high_inclusive,
-            },
-            context_cpe_id: row.context_cpe_id,
-        };
-
-        by_base_purl
-            .entry(row.base_purl_id)
-            .or_default()
-            .push(entry);
-    }
-
-    // Load status slugs
-    let status_rows: Vec<StatusRow> =
-        StatusRow::find_by_statement(sea_orm::Statement::from_string(
-            sea_orm::DatabaseBackend::Postgres,
-            "SELECT id, slug FROM status".to_string(),
-        ))
-        .all(txn)
-        .await?;
-
-    let statuses: HashMap<Uuid, String> = status_rows.into_iter().map(|r| (r.id, r.slug)).collect();
-
-    // Load deprecated advisory IDs
-    let deprecated_rows: Vec<DeprecatedRow> =
-        DeprecatedRow::find_by_statement(sea_orm::Statement::from_string(
-            sea_orm::DatabaseBackend::Postgres,
-            "SELECT id as advisory_id FROM advisory WHERE deprecated = true".to_string(),
-        ))
-        .all(txn)
-        .await?;
-
-    let deprecated_advisories: HashSet<Uuid> =
-        deprecated_rows.into_iter().map(|r| r.advisory_id).collect();
-
-    // Load product_status entries indexed by package name
-    let product_rows: Vec<ProductStatusRow> =
-        ProductStatusRow::find_by_statement(sea_orm::Statement::from_string(
-            sea_orm::DatabaseBackend::Postgres,
-            r#"
-            SELECT
-                ps.advisory_id,
-                ps.vulnerability_id,
-                ps.status_id,
-                ps.context_cpe_id,
-                ps.package
-            FROM product_status ps
-            WHERE ps.package IS NOT NULL
-            "#
-            .to_string(),
-        ))
-        .all(txn)
-        .await?;
-
-    let mut product_by_name: HashMap<String, Vec<crate::model::ProductStatusEntry>> =
-        HashMap::new();
-    for row in product_rows {
-        if let Some(pkg) = row.package {
-            product_by_name
-                .entry(pkg)
-                .or_default()
-                .push(crate::model::ProductStatusEntry {
-                    advisory_id: row.advisory_id,
-                    vulnerability_id: row.vulnerability_id,
-                    status_id: row.status_id,
-                    context_cpe_id: row.context_cpe_id,
-                });
-        }
-    }
-
-    Ok(AdvisoryIndex {
-        by_base_purl,
-        product_by_name,
-        statuses,
-        deprecated_advisories,
-    })
-}
-
-/// Raw row for product_status entries.
-#[derive(Debug, FromQueryResult)]
-struct ProductStatusRow {
-    advisory_id: Uuid,
-    vulnerability_id: String,
-    status_id: Uuid,
-    context_cpe_id: Option<Uuid>,
-    package: Option<String>,
-}
-
-/// Raw row for SBOM package data.
-#[derive(Debug, FromQueryResult)]
-struct SbomPackageRow {
-    sbom_id: Uuid,
-    base_purl_id: Uuid,
-    version: String,
-    name: String,
-    namespace: Option<String>,
+    high_inclusive: Option<bool>,
 }
 
 /// Raw row for SBOM describing CPEs.
@@ -208,52 +101,455 @@ struct SbomCpeRow {
     cpe_id: Uuid,
 }
 
-/// Loads the SBOM index: packages and describing CPEs per SBOM.
-async fn load_sbom_index(txn: &impl ConnectionTrait) -> Result<SbomIndex, anyhow::Error> {
-    let pkg_rows: Vec<SbomPackageRow> =
-        SbomPackageRow::find_by_statement(sea_orm::Statement::from_string(
-            sea_orm::DatabaseBackend::Postgres,
-            r#"
-            SELECT DISTINCT
-                snpr.sbom_id,
-                vp.base_purl_id,
-                vp.version,
-                bp.name,
-                bp.namespace
-            FROM sbom_node_purl_ref snpr
-            JOIN qualified_purl qp ON qp.id = snpr.qualified_purl_id
-            JOIN versioned_purl vp ON vp.id = qp.versioned_purl_id
-            JOIN base_purl bp ON bp.id = vp.base_purl_id
-            WHERE vp.version IS NOT NULL AND vp.version != ''
-            ORDER BY snpr.sbom_id
-            "#
-            .to_string(),
-        ))
-        .all(txn)
+/// Loads the full advisory index using streaming cursors.
+///
+/// Queries run sequentially within a single transaction to share the server-side cursor.
+/// Deprecated advisories are filtered out at the SQL level.
+pub(crate) async fn load_advisory_index(
+    txn: &(impl ConnectionTrait + StreamTrait),
+) -> Result<AdvisoryIndex, anyhow::Error> {
+    let mut interner = StringInterner::new();
+
+    // Stream purl_status rows and build the by_purl index incrementally
+    let mut by_purl: HashMap<PurlKey, Vec<PurlStatusEntry>> = HashMap::new();
+    let mut purl_row_count: u64 = 0;
+
+    let mut stream = purl_status::Entity::find()
+        .join(
+            JoinType::InnerJoin,
+            purl_status::Relation::VersionRange.def(),
+        )
+        .join(JoinType::InnerJoin, purl_status::Relation::BasePurl.def())
+        .join(JoinType::InnerJoin, purl_status::Relation::Advisory.def())
+        .filter(advisory::Column::Deprecated.eq(false))
+        .select_only()
+        .column(purl_status::Column::AdvisoryId)
+        .column(purl_status::Column::VulnerabilityId)
+        .column(purl_status::Column::StatusId)
+        .column(purl_status::Column::ContextCpeId)
+        .column_as(base_purl::Column::Type, "purl_type")
+        .column_as(base_purl::Column::Namespace, "purl_namespace")
+        .column_as(base_purl::Column::Name, "purl_name")
+        .column(version_range::Column::VersionSchemeId)
+        .column(version_range::Column::LowVersion)
+        .column(version_range::Column::LowInclusive)
+        .column(version_range::Column::HighVersion)
+        .column(version_range::Column::HighInclusive)
+        .into_model::<PurlStatusRow>()
+        .stream(txn)
         .await?;
 
-    let mut by_sbom: HashMap<Uuid, Vec<SbomPackageEntry>> = HashMap::new();
-    for row in pkg_rows {
-        by_sbom
+    while let Some(row) = stream.try_next().await? {
+        purl_row_count += 1;
+        let key = PurlKey {
+            ty: interner.intern(row.purl_type),
+            namespace: interner.intern_opt(row.purl_namespace),
+            name: interner.intern(row.purl_name),
+        };
+        by_purl.entry(key).or_default().push(PurlStatusEntry {
+            advisory_id: row.advisory_id,
+            vulnerability_id: interner.intern(row.vulnerability_id),
+            status_id: row.status_id,
+            version_range: build_version_range(
+                &mut interner,
+                row.version_scheme_id,
+                row.low_version,
+                row.low_inclusive.unwrap_or(true),
+                row.high_version,
+                row.high_inclusive.unwrap_or(false),
+            ),
+            context_cpe_id: row.context_cpe_id,
+        });
+    }
+    drop(stream);
+
+    tracing::info!(
+        purl_keys = by_purl.len(),
+        purl_status_rows = purl_row_count,
+        interned_strings = interner.0.len(),
+        "advisory purl_status loaded"
+    );
+
+    // Status table is small — load all at once
+    let status_rows = status::Entity::find()
+        .all(txn)
+        .instrument(info_span!("load statuses"))
+        .await?;
+
+    let statuses: HashMap<_, _> = status_rows
+        .into_iter()
+        .map(|r| (r.id, interner.intern(r.slug)))
+        .collect();
+
+    // Stream product_status rows and build the product_by_name index
+    let mut product_by_name: HashMap<Arc<str>, Vec<ProductStatusEntry>> = HashMap::new();
+    let mut product_row_count: u64 = 0;
+
+    let mut stream = product_status::Entity::find()
+        .join(
+            JoinType::InnerJoin,
+            product_status::Relation::Advisory.def(),
+        )
+        .filter(advisory::Column::Deprecated.eq(false))
+        .filter(product_status::Column::Package.is_not_null())
+        .stream(txn)
+        .await?;
+
+    while let Some(row) = stream.try_next().await? {
+        if let Some(pkg) = row.package {
+            product_row_count += 1;
+            product_by_name
+                .entry(interner.intern(pkg))
+                .or_default()
+                .push(ProductStatusEntry {
+                    advisory_id: row.advisory_id,
+                    vulnerability_id: interner.intern(row.vulnerability_id),
+                    status_id: row.status_id,
+                    context_cpe_id: row.context_cpe_id,
+                });
+        }
+    }
+    drop(stream);
+
+    tracing::info!(
+        product_keys = product_by_name.len(),
+        product_rows = product_row_count,
+        "advisory product_status loaded"
+    );
+
+    Ok(AdvisoryIndex {
+        by_purl,
+        product_by_name,
+        statuses,
+    })
+}
+
+/// Row for streaming qualified_purl without unused columns.
+#[derive(Debug, FromQueryResult)]
+struct QualifiedPurlRow {
+    id: Uuid,
+    #[sea_orm(column_type = "JsonBinary")]
+    purl: qualified_purl::CanonicalPurl,
+}
+
+/// Aggregated row: one per SBOM, carrying all its qualified_purl_ids via `array_agg`.
+#[derive(Debug, FromQueryResult)]
+struct SbomPurlRefAgg {
+    sbom_id: Uuid,
+    purl_ids: Vec<Uuid>,
+}
+
+/// Loads the full SBOM index using a two-phase approach.
+///
+/// Phase 1: Stream qualified_purl to build a deduplicated package catalog.
+/// Phase 2: Stream sbom_node_purl_ref (no JOIN) to build per-SBOM index vectors.
+/// The CPE query uses a CTE with a self-join and `split_part()` — kept as raw SQL.
+pub(crate) async fn load_sbom_index(
+    txn: &(impl ConnectionTrait + StreamTrait),
+) -> Result<SbomIndex, anyhow::Error> {
+    let mut interner = StringInterner::new();
+
+    // Phase 1: Build package catalog from qualified_purl (~4M rows)
+    type DedupeKey = (Arc<str>, Option<Arc<str>>, Arc<str>, Arc<str>);
+    let mut dedup: HashMap<DedupeKey, u32> = HashMap::new();
+    let mut catalog_entries: Vec<SbomPackageEntry> = Vec::new();
+    let mut qp_to_catalog: HashMap<Uuid, u32> = HashMap::new();
+    let mut qp_total: u64 = 0;
+    let mut qp_count: u64 = 0;
+
+    let mut stream = qualified_purl::Entity::find()
+        .select_only()
+        .column(qualified_purl::Column::Id)
+        .column(qualified_purl::Column::Purl)
+        .into_model::<QualifiedPurlRow>()
+        .stream(txn)
+        .await?;
+
+    while let Some(qp) = stream.try_next().await? {
+        qp_total += 1;
+        if qp_total.is_multiple_of(1_000_000) {
+            tracing::info!(rows = qp_total, "phase 1 progress");
+        }
+
+        if let Some(version) = qp.purl.version
+            && !version.is_empty()
+        {
+            qp_count += 1;
+            let ty = interner.intern(qp.purl.ty);
+            let name = interner.intern(qp.purl.name);
+            let namespace = interner.intern_opt(qp.purl.namespace);
+            let version = interner.intern(version);
+
+            let key = (
+                Arc::clone(&ty),
+                namespace.as_ref().map(Arc::clone),
+                Arc::clone(&name),
+                Arc::clone(&version),
+            );
+
+            let catalog_idx = if let Some(&existing) = dedup.get(&key) {
+                existing
+            } else {
+                let idx = catalog_entries.len() as u32;
+                catalog_entries.push(SbomPackageEntry {
+                    ty,
+                    name,
+                    namespace,
+                    version,
+                });
+                dedup.insert(key, idx);
+                idx
+            };
+
+            qp_to_catalog.insert(qp.id, catalog_idx);
+        }
+    }
+    drop(stream);
+    drop(dedup);
+
+    tracing::info!(
+        catalog_entries = catalog_entries.len(),
+        qualified_purls = qp_count,
+        interned_strings = interner.0.len(),
+        "phase 1: package catalog built"
+    );
+
+    // Phase 2: Aggregated sbom_node_purl_ref via array_agg (~264K grouped rows)
+    let mut by_sbom: HashMap<Uuid, Arc<[u32]>> = HashMap::new();
+    let mut sbom_count: u64 = 0;
+    let mut ref_count: u64 = 0;
+    let mut skipped: u64 = 0;
+
+    let mut stream = sbom_node_purl_ref::Entity::find()
+        .select_only()
+        .column(sbom_node_purl_ref::Column::SbomId)
+        .column_as(
+            Expr::cust(r#"array_agg("sbom_node_purl_ref"."qualified_purl_id")"#),
+            "purl_ids",
+        )
+        .group_by(sbom_node_purl_ref::Column::SbomId)
+        .into_model::<SbomPurlRefAgg>()
+        .stream(txn)
+        .await?;
+
+    while let Some(row) = stream.try_next().await? {
+        sbom_count += 1;
+        let mut indices = Vec::with_capacity(row.purl_ids.len());
+        for purl_id in row.purl_ids {
+            ref_count += 1;
+            if let Some(&catalog_idx) = qp_to_catalog.get(&purl_id) {
+                indices.push(catalog_idx);
+            } else {
+                skipped += 1;
+            }
+        }
+        if !indices.is_empty() {
+            by_sbom.insert(row.sbom_id, Arc::from(indices.into_boxed_slice()));
+        }
+
+        if sbom_count.is_multiple_of(10_000) {
+            tracing::info!(
+                sboms = sbom_count,
+                purl_refs = ref_count,
+                "phase 2 progress"
+            );
+        }
+    }
+    drop(stream);
+    drop(qp_to_catalog);
+
+    tracing::info!(
+        sboms = by_sbom.len(),
+        purl_refs = ref_count,
+        skipped = skipped,
+        "phase 2: per-SBOM index built"
+    );
+
+    // Load CPE IDs per SBOM (direct + generalized, matching v3a SQL logic).
+    // Kept as raw SQL — CTE with self-join and split_part() doesn't map to SeaORM.
+    let mut describing_cpes: HashMap<Uuid, HashSet<Uuid>> = HashMap::new();
+
+    let mut stream = SbomCpeRow::find_by_statement(sea_orm::Statement::from_string(
+        sea_orm::DatabaseBackend::Postgres,
+        r#"
+        WITH filtered AS (
+            SELECT sdc.sbom_id, cpe.id AS cpe_id, cpe.vendor, cpe.product, cpe.version
+            FROM sbom_describing_cpe sdc
+            JOIN cpe ON sdc.cpe_id = cpe.id
+        ),
+        generalized AS (
+            SELECT f.sbom_id, c.id AS cpe_id
+            FROM filtered f
+            JOIN cpe c ON c.vendor = f.vendor
+                AND c.product = f.product
+                AND c.version = split_part(f.version, '.', 1)
+                AND (c.edition IS NULL OR c.edition = '*')
+        )
+        SELECT sbom_id, cpe_id FROM filtered
+        UNION
+        SELECT sbom_id, cpe_id FROM generalized
+        "#
+        .to_string(),
+    ))
+    .stream(txn)
+    .await?;
+
+    while let Some(row) = stream.try_next().await? {
+        describing_cpes
             .entry(row.sbom_id)
             .or_default()
-            .push(SbomPackageEntry {
-                base_purl_id: row.base_purl_id,
-                version: row.version,
-                name: row.name,
-                namespace: row.namespace,
+            .insert(row.cpe_id);
+    }
+    drop(stream);
+
+    tracing::info!(cpe_sboms = describing_cpes.len(), "sbom cpes loaded");
+
+    Ok(SbomIndex {
+        catalog: PackageCatalog::from_entries(catalog_entries),
+        by_sbom,
+        describing_cpes,
+    })
+}
+
+/// Loads advisory patches for a batch of advisory IDs.
+///
+/// Returns one AdvisoryPatch per advisory that has data. Uses SeaORM query builder
+/// with `.is_in()` for parameter binding.
+#[instrument(skip_all, fields(count = ids.len()), err(level = tracing::Level::INFO))]
+pub(crate) async fn load_advisory_patches(
+    ids: &[Uuid],
+    txn: &impl ConnectionTrait,
+) -> Result<HashMap<Uuid, AdvisoryPatch>, anyhow::Error> {
+    if ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let mut interner = StringInterner::new();
+
+    let purl_rows = purl_status::Entity::find()
+        .join(
+            JoinType::InnerJoin,
+            purl_status::Relation::VersionRange.def(),
+        )
+        .join(JoinType::InnerJoin, purl_status::Relation::BasePurl.def())
+        .join(JoinType::InnerJoin, purl_status::Relation::Advisory.def())
+        .filter(purl_status::Column::AdvisoryId.is_in(ids.iter().copied()))
+        .filter(advisory::Column::Deprecated.eq(false))
+        .select_only()
+        .column(purl_status::Column::AdvisoryId)
+        .column(purl_status::Column::VulnerabilityId)
+        .column(purl_status::Column::StatusId)
+        .column(purl_status::Column::ContextCpeId)
+        .column_as(base_purl::Column::Type, "purl_type")
+        .column_as(base_purl::Column::Namespace, "purl_namespace")
+        .column_as(base_purl::Column::Name, "purl_name")
+        .column(version_range::Column::VersionSchemeId)
+        .column(version_range::Column::LowVersion)
+        .column(version_range::Column::LowInclusive)
+        .column(version_range::Column::HighVersion)
+        .column(version_range::Column::HighInclusive)
+        .into_model::<PurlStatusRow>()
+        .all(txn)
+        .instrument(info_span!("load advisory purl_status patches"))
+        .await?;
+
+    let product_rows = product_status::Entity::find()
+        .join(
+            JoinType::InnerJoin,
+            product_status::Relation::Advisory.def(),
+        )
+        .filter(product_status::Column::AdvisoryId.is_in(ids.iter().copied()))
+        .filter(advisory::Column::Deprecated.eq(false))
+        .filter(product_status::Column::Package.is_not_null())
+        .all(txn)
+        .instrument(info_span!("load advisory product_status patches"))
+        .await?;
+
+    let mut patches: HashMap<Uuid, AdvisoryPatch> = HashMap::new();
+
+    for row in purl_rows {
+        let key = PurlKey {
+            ty: interner.intern(row.purl_type),
+            namespace: interner.intern_opt(row.purl_namespace),
+            name: interner.intern(row.purl_name),
+        };
+        patches
+            .entry(row.advisory_id)
+            .or_default()
+            .purl_statuses
+            .entry(key)
+            .or_default()
+            .push(PurlStatusEntry {
+                advisory_id: row.advisory_id,
+                vulnerability_id: interner.intern(row.vulnerability_id),
+                status_id: row.status_id,
+                version_range: build_version_range(
+                    &mut interner,
+                    row.version_scheme_id,
+                    row.low_version,
+                    row.low_inclusive.unwrap_or(true),
+                    row.high_version,
+                    row.high_inclusive.unwrap_or(false),
+                ),
+                context_cpe_id: row.context_cpe_id,
             });
     }
 
-    // Load allowed CPE IDs per SBOM (direct + generalized, matching v3 logic).
-    // Generalized CPEs share vendor/product/major-version with wildcard edition.
-    let cpe_rows: Vec<SbomCpeRow> = SbomCpeRow::find_by_statement(sea_orm::Statement::from_string(
+    for row in product_rows {
+        if let Some(pkg) = row.package {
+            patches
+                .entry(row.advisory_id)
+                .or_default()
+                .product_statuses
+                .entry(interner.intern(pkg))
+                .or_default()
+                .push(ProductStatusEntry {
+                    advisory_id: row.advisory_id,
+                    vulnerability_id: interner.intern(row.vulnerability_id),
+                    status_id: row.status_id,
+                    context_cpe_id: row.context_cpe_id,
+                });
+        }
+    }
+
+    Ok(patches)
+}
+
+/// Loads SBOM patches for a batch of SBOM IDs.
+///
+/// Returns one SbomPatch per SBOM that has data. Uses SeaORM query builder
+/// for packages and raw SQL for the CPE CTE query.
+#[instrument(skip_all, fields(count = ids.len()), err(level = tracing::Level::INFO))]
+pub(crate) async fn load_sbom_patches(
+    ids: &[Uuid],
+    txn: &impl ConnectionTrait,
+) -> Result<HashMap<Uuid, SbomPatch>, anyhow::Error> {
+    if ids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let mut interner = StringInterner::new();
+
+    let pkg_rows: Vec<(sbom_node_purl_ref::Model, Option<qualified_purl::Model>)> =
+        sbom_node_purl_ref::Entity::find()
+            .filter(sbom_node_purl_ref::Column::SbomId.is_in(ids.iter().copied()))
+            .find_also_related(qualified_purl::Entity)
+            .all(txn)
+            .instrument(info_span!("load sbom package patches"))
+            .await?;
+
+    let placeholders = build_placeholders(ids.len());
+    let values: Vec<sea_orm::Value> = ids.iter().copied().map(Into::into).collect();
+
+    let cpe_rows = SbomCpeRow::find_by_statement(sea_orm::Statement::from_sql_and_values(
         sea_orm::DatabaseBackend::Postgres,
-        r#"
+        format!(
+            r#"
             WITH filtered AS (
                 SELECT sdc.sbom_id, cpe.id AS cpe_id, cpe.vendor, cpe.product, cpe.version
                 FROM sbom_describing_cpe sdc
                 JOIN cpe ON sdc.cpe_id = cpe.id
+                WHERE sdc.sbom_id IN ({placeholders})
             ),
             generalized AS (
                 SELECT f.sbom_id, c.id AS cpe_id
@@ -266,43 +562,99 @@ async fn load_sbom_index(txn: &impl ConnectionTrait) -> Result<SbomIndex, anyhow
             SELECT sbom_id, cpe_id FROM filtered
             UNION
             SELECT sbom_id, cpe_id FROM generalized
-            "#
-        .to_string(),
+            "#,
+        ),
+        values,
     ))
     .all(txn)
+    .instrument(info_span!("load sbom cpe patches"))
     .await?;
 
-    let mut describing_cpes: HashMap<Uuid, HashSet<Uuid>> = HashMap::new();
+    let mut patches: HashMap<Uuid, SbomPatch> = HashMap::new();
+
+    for (snpr, qp_opt) in pkg_rows {
+        if let Some(qp) = qp_opt
+            && let Some(version) = qp.purl.version
+            && !version.is_empty()
+        {
+            patches
+                .entry(snpr.sbom_id)
+                .or_default()
+                .packages
+                .push(SbomPackageEntry {
+                    ty: interner.intern(qp.purl.ty),
+                    name: interner.intern(qp.purl.name),
+                    namespace: interner.intern_opt(qp.purl.namespace),
+                    version: interner.intern(version),
+                });
+        }
+    }
+
     for row in cpe_rows {
-        describing_cpes
+        patches
             .entry(row.sbom_id)
             .or_default()
+            .describing_cpes
             .insert(row.cpe_id);
     }
 
-    Ok(SbomIndex {
-        by_sbom,
-        describing_cpes,
-    })
+    Ok(patches)
 }
 
-/// Maps a version_scheme_id string to the VersionScheme enum.
-fn parse_version_scheme(s: &str) -> VersionScheme {
-    match s {
-        "semver" => VersionScheme::Semver,
-        "rpm" => VersionScheme::Rpm,
-        "maven" => VersionScheme::Maven,
-        "python" => VersionScheme::Python,
-        "npm" => VersionScheme::Npm,
-        "gem" => VersionScheme::Gem,
-        "golang" => VersionScheme::Golang,
-        "nuget" => VersionScheme::NuGet,
-        "packagist" => VersionScheme::Packagist,
-        "hex" => VersionScheme::Hex,
-        "swift" => VersionScheme::Swift,
-        "pub" => VersionScheme::Pub,
-        "cargo" => VersionScheme::Cargo,
-        "git" => VersionScheme::Git,
-        _ => VersionScheme::Generic,
+/// Builds a comma-separated placeholder list ($1, $2, ..., $n) for raw SQL queries.
+fn build_placeholders(count: usize) -> String {
+    (1..=count)
+        .map(|i| format!("${i}"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Builds a `VersionRangeData` with pre-parsed semver boundaries when applicable.
+fn build_version_range(
+    interner: &mut StringInterner,
+    scheme: VersionScheme,
+    low_version: Option<String>,
+    low_inclusive: bool,
+    high_version: Option<String>,
+    high_inclusive: bool,
+) -> VersionRangeData {
+    let (low_parsed, high_parsed) = if is_semver_family(scheme) {
+        (
+            low_version
+                .as_deref()
+                .and_then(|v| lenient_semver::parse(v).ok()),
+            high_version
+                .as_deref()
+                .and_then(|v| lenient_semver::parse(v).ok()),
+        )
+    } else {
+        (None, None)
+    };
+
+    VersionRangeData {
+        version_scheme: scheme,
+        low_version: interner.intern_opt(low_version),
+        low_inclusive,
+        high_version: interner.intern_opt(high_version),
+        high_inclusive,
+        low_parsed,
+        high_parsed,
     }
+}
+
+/// Returns true for version schemes that use semver-style comparison.
+fn is_semver_family(scheme: VersionScheme) -> bool {
+    matches!(
+        scheme,
+        VersionScheme::Semver
+            | VersionScheme::Npm
+            | VersionScheme::Gem
+            | VersionScheme::NuGet
+            | VersionScheme::Packagist
+            | VersionScheme::Hex
+            | VersionScheme::Swift
+            | VersionScheme::Pub
+            | VersionScheme::Cargo
+            | VersionScheme::Golang
+    )
 }

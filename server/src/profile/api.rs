@@ -198,7 +198,7 @@ struct InitData {
     ui: UI,
     config: ModuleConfig,
     analysis: AnalysisService,
-    correlation: Option<CorrelationService>,
+    correlation: CorrelationService,
     read_only: bool,
 }
 
@@ -304,11 +304,7 @@ impl InitData {
             },
         };
 
-        let correlation = if run.correlation.correlation_enabled {
-            Some(CorrelationService::new(&run.correlation, db_ro.clone()).await?)
-        } else {
-            None
-        };
+        let correlation = CorrelationService::new(&run.correlation, db_ro.clone(), &db_rw).await?;
 
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
@@ -403,7 +399,7 @@ pub(crate) struct Config {
     pub(crate) cache: PaginationCache,
     pub(crate) storage: DispatchBackend,
     pub(crate) analysis: AnalysisService,
-    pub(crate) correlation: Option<CorrelationService>,
+    pub(crate) correlation: CorrelationService,
     pub(crate) auth: Option<Arc<Authenticator>>,
     pub(crate) read_only: bool,
 }
@@ -459,13 +455,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     cache,
                 );
                 trustify_module_analysis::endpoints::configure(svc, db_ro.clone(), analysis);
-                if let Some(correlation) = correlation {
-                    trustify_module_correlation::endpoints::configure(
-                        svc,
-                        db_ro.clone(),
-                        correlation,
-                    );
-                }
+                trustify_module_correlation::endpoints::configure(svc, db_ro.clone(), correlation);
                 trustify_module_user::endpoints::configure(svc);
                 trustify_module_ui::endpoints::configure(svc, ui)
             }),
@@ -526,8 +516,11 @@ mod test {
     #[test(actix_web::test)]
     async fn routing(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
         let ui = Arc::new(UiResources::new(&UI::default())?);
-        let analysis =
-            AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
+        let db_ro = db::ReadOnly::new(ctx.db.clone());
+        let db_rw = db::ReadWrite::new(ctx.db.clone());
+        let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
+        let correlation =
+            CorrelationService::new(&CorrelationConfig::default(), db_ro.clone(), &db_rw).await?;
         let app = actix_web::test::init_service(
             App::new()
                 .into_utoipa_app()
@@ -543,7 +536,7 @@ mod test {
                             storage: ctx.storage.clone().into(),
                             auth: None,
                             analysis,
-                            correlation: None,
+                            correlation,
                             read_only: false,
                         },
                     );
@@ -604,8 +597,13 @@ mod test {
 
     /// Creates a fully configured test app with all server endpoints and standard middleware.
     async fn caller(ctx: &TrustifyContext, read_only: bool) -> impl CallService {
-        let analysis =
-            AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
+        let db_ro = db::ReadOnly::new(ctx.db.clone());
+        let db_rw = db::ReadWrite::new(ctx.db.clone());
+        let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
+        let correlation =
+            CorrelationService::new(&CorrelationConfig::default(), db_ro.clone(), &db_rw)
+                .await
+                .expect("failed to create correlation service");
         call::caller_app(move |svc| {
             configure(
                 svc,
@@ -617,7 +615,7 @@ mod test {
                     cache: PaginationCache::for_test(),
                     auth: None,
                     analysis,
-                    correlation: None,
+                    correlation,
                     read_only,
                 },
             );

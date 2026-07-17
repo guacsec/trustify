@@ -10,10 +10,12 @@ rust-version.workspace = true
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }
 trustify-entity = { workspace = true }
+trustify-module-fundamental = { workspace = true }
 
 actix-http = { workspace = true }
 actix-web = { workspace = true }
 anyhow = { workspace = true }
+futures = { workspace = true }
 arc-swap = { workspace = true }
 clap = { workspace = true }
 lenient_semver = { workspace = true }

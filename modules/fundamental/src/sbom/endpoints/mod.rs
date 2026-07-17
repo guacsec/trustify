@@ -35,6 +35,7 @@ use trustify_auth::{
     authenticator::user::UserInformation,
     authorizer::{Authorizer, Require},
 };
+use trustify_common::db::change::{ChangeEntity, ChangeOperation, record_change};
 use trustify_common::{
     db::{self, pagination_cache::PaginationCache, query::Query},
     decompress::decompress_async,
@@ -367,10 +368,10 @@ pub async fn get(
     }
 }
 
-/// Get advisories for an SBOM
+/// Get advisories for an SBOM (SQL-based, replaced by in-memory correlation on /v3)
 #[utoipa::path(
     tag = "sbom",
-    operation_id = "getSbomAdvisories",
+    operation_id = "getSbomAdvisoriesV3a",
     params(
         ("id" = Id, Path),
     ),
@@ -379,7 +380,7 @@ pub async fn get(
         (status = 404, description = "The SBOM could not be found"),
     ),
 )]
-#[get("/v3/sbom/{id}/advisory")]
+#[get("/v3a/sbom/{id}/advisory")]
 pub async fn get_sbom_advisories(
     fetcher: web::Data<SbomService>,
     db: web::Data<db::ReadOnly>,
@@ -438,6 +439,13 @@ pub async fn delete(
         && let digests = service.delete_sboms(vec![v.sbom_id], &tx).await?
         && !digests.is_empty()
     {
+        record_change(
+            &tx,
+            ChangeEntity::Sbom,
+            Some(v.sbom_id),
+            ChangeOperation::Deleted,
+        )
+        .await?;
         tx.commit().await?;
         delete_blobs(&digests, i.storage()).await;
     }
@@ -467,14 +475,17 @@ pub async fn delete_many(
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
 
-    let ids = body
+    let ids: Vec<Uuid> = body
         .into_iter()
         .filter_map(|x| Uuid::try_parse(&x).ok())
         .collect();
 
-    let digests = service.delete_sboms(ids, &tx).await?;
+    let digests = service.delete_sboms(ids.clone(), &tx).await?;
 
     if !digests.is_empty() {
+        for &id in &ids {
+            record_change(&tx, ChangeEntity::Sbom, Some(id), ChangeOperation::Deleted).await?;
+        }
         tx.commit().await?;
         delete_blobs(&digests, i.storage()).await;
     }

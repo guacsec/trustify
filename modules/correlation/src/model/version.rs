@@ -15,11 +15,11 @@ pub fn version_matches(candidate: &str, range: &VersionRangeData) -> bool {
         | VersionScheme::Hex
         | VersionScheme::Swift
         | VersionScheme::Pub
-        | VersionScheme::Cargo => range_check(semver_cmp, candidate, range),
+        | VersionScheme::Cargo => semver_range_check(candidate, range),
 
         VersionScheme::Golang => {
             let normalized = candidate.strip_prefix('v').unwrap_or(candidate);
-            range_check(semver_cmp, normalized, range)
+            semver_range_check(normalized, range)
         }
 
         VersionScheme::Rpm => range_check(rpm_cmp, candidate, range),
@@ -28,6 +28,48 @@ pub fn version_matches(candidate: &str, range: &VersionRangeData) -> bool {
 
         VersionScheme::Generic | VersionScheme::Git => generic_version_matches(candidate, range),
     }
+}
+
+/// Semver-specific range check that uses pre-parsed boundary versions when available.
+fn semver_range_check(candidate: &str, range: &VersionRangeData) -> bool {
+    let candidate_v = match lenient_semver::parse(candidate) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+
+    let low_cmp = match (&range.low_parsed, &range.low_version) {
+        (Some(parsed), _) => Some(candidate_v.cmp(parsed)),
+        (None, Some(raw)) => lenient_semver::parse(raw).ok().map(|v| candidate_v.cmp(&v)),
+        (None, None) => None,
+    };
+
+    if let Some(ord) = low_cmp {
+        if range.low_inclusive {
+            if ord == Ordering::Less {
+                return false;
+            }
+        } else if ord != Ordering::Greater {
+            return false;
+        }
+    }
+
+    let high_cmp = match (&range.high_parsed, &range.high_version) {
+        (Some(parsed), _) => Some(candidate_v.cmp(parsed)),
+        (None, Some(raw)) => lenient_semver::parse(raw).ok().map(|v| candidate_v.cmp(&v)),
+        (None, None) => None,
+    };
+
+    if let Some(ord) = high_cmp {
+        if range.high_inclusive {
+            if ord == Ordering::Greater {
+                return false;
+            }
+        } else if ord != Ordering::Less {
+            return false;
+        }
+    }
+
+    low_cmp.is_some() || high_cmp.is_some()
 }
 
 /// Applies low/high bound checks using the provided comparison function.
@@ -75,20 +117,9 @@ fn generic_version_matches(candidate: &str, range: &VersionRangeData) -> bool {
     if let Some(low) = &range.low_version
         && let Some(high) = &range.high_version
     {
-        return candidate == low.as_str() && candidate == high.as_str();
+        return candidate == &**low && candidate == &**high;
     }
     false
-}
-
-// --- Semver comparison ---
-// Ported from PL/pgSQL semver_cmp(). Uses lenient parsing to handle
-// versions like "1.2" or versions with 4+ segments.
-
-/// Compares two version strings using semver semantics with lenient parsing.
-fn semver_cmp(left: &str, right: &str) -> Option<Ordering> {
-    let left_v = lenient_semver::parse(left).ok()?;
-    let right_v = lenient_semver::parse(right).ok()?;
-    Some(left_v.cmp(&right_v))
 }
 
 // --- RPM comparison ---
@@ -464,8 +495,10 @@ fn extract_local(s: &str) -> Option<String> {
 mod test {
     use super::*;
     use crate::model::VersionRangeData;
+    use std::sync::Arc;
     use trustify_entity::version_scheme::VersionScheme;
 
+    /// Builds a test VersionRangeData with pre-parsed semver bounds when applicable.
     fn range(
         scheme: VersionScheme,
         low: Option<&str>,
@@ -473,13 +506,43 @@ mod test {
         high: Option<&str>,
         high_incl: bool,
     ) -> VersionRangeData {
+        let is_semver = matches!(
+            scheme,
+            VersionScheme::Semver
+                | VersionScheme::Npm
+                | VersionScheme::Gem
+                | VersionScheme::NuGet
+                | VersionScheme::Packagist
+                | VersionScheme::Hex
+                | VersionScheme::Swift
+                | VersionScheme::Pub
+                | VersionScheme::Cargo
+                | VersionScheme::Golang
+        );
         VersionRangeData {
             version_scheme: scheme,
-            low_version: low.map(String::from),
+            low_parsed: if is_semver {
+                low.and_then(|v| lenient_semver::parse(v).ok())
+            } else {
+                None
+            },
+            high_parsed: if is_semver {
+                high.and_then(|v| lenient_semver::parse(v).ok())
+            } else {
+                None
+            },
+            low_version: low.map(Arc::from),
             low_inclusive: low_incl,
-            high_version: high.map(String::from),
+            high_version: high.map(Arc::from),
             high_inclusive: high_incl,
         }
+    }
+
+    /// Compares two semver strings (test-only helper replacing the old semver_cmp function).
+    fn semver_cmp(left: &str, right: &str) -> Option<Ordering> {
+        let left_v = lenient_semver::parse(left).ok()?;
+        let right_v = lenient_semver::parse(right).ok()?;
+        Some(left_v.cmp(&right_v))
     }
 
     // --- Semver tests ---

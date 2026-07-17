@@ -19,7 +19,7 @@ struct MatchCheck {
     ns_name_match: Option<String>,
 }
 
-/// Diagnostic: show which advisories v3 finds vs v4 for quarkus-bom.
+/// Diagnostic: show which advisories v3a finds vs v3 for quarkus-bom.
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn diagnostic_advisory_diff(ctx: TrustifyContext) -> anyhow::Result<()> {
@@ -28,50 +28,52 @@ async fn diagnostic_advisory_diff(ctx: TrustifyContext) -> anyhow::Result<()> {
     let sbom = &result.files["spdx/quarkus-bom-2.13.8.Final-redhat-00004.json.bz2"];
     let sbom_id = Id::parse_uuid(&sbom.id)?;
 
-    // v3
+    // v3a
     let sbom_service = SbomService::new(PaginationCache::for_test());
-    let v3_details = sbom_service
+    let v3a_details = sbom_service
         .fetch_sbom_details(sbom_id.clone(), vec![], &ctx.db)
         .await?
         .expect("SBOM should exist");
 
-    let v3_advisory_ids: HashSet<_> = v3_details
+    let v3a_advisory_ids: HashSet<_> = v3a_details
         .advisories
         .iter()
         .map(|a| a.head.uuid.to_string())
         .collect();
 
-    // v4
+    // v3
     let db_ro = trustify_common::db::ReadOnly::new(ctx.db.clone());
+    let db_rw = trustify_common::db::ReadWrite::new(ctx.db.clone());
     let config = CorrelationConfig {
-        correlation_enabled: true,
+        correlation_poll_interval_secs: 30,
+        correlation_debounce_secs: 2,
     };
-    let correlation = CorrelationService::new(&config, db_ro).await?;
+    let correlation = CorrelationService::new(&config, db_ro, &db_rw).await?;
 
     let sbom_uuid = match sbom_id {
         Id::Uuid(u) => u,
         _ => panic!("expected UUID"),
     };
 
-    let v4_matches = correlation.correlate_sbom(sbom_uuid)?;
-    let v4_advisory_ids: HashSet<_> = v4_matches
+    let v3_matches = correlation.correlate_sbom(sbom_uuid)?;
+    let v3_advisory_ids: HashSet<_> = v3_matches
         .iter()
         .map(|m| m.advisory_id.to_string())
         .collect();
 
-    let only_v3: Vec<_> = v3_advisory_ids.difference(&v4_advisory_ids).collect();
+    let only_v3a: Vec<_> = v3a_advisory_ids.difference(&v3_advisory_ids).collect();
     log::info!(
-        "v3={}, v4={}, only_v3={}",
+        "v3a={}, v3={}, only_v3a={}",
+        v3a_advisory_ids.len(),
         v3_advisory_ids.len(),
-        v4_advisory_ids.len(),
-        only_v3.len()
+        only_v3a.len()
     );
 
     // State summary
     let state = correlation.state();
     log::info!(
-        "v4 state: {} base_purls, {} product_by_name, {} sbom packages for this SBOM",
-        state.advisory_index.by_base_purl.len(),
+        "v3 state: {} purl_keys, {} product_by_name, {} sbom packages for this SBOM",
+        state.advisory_index.by_purl.len(),
         state.advisory_index.product_by_name.len(),
         state
             .sbom_index
@@ -81,7 +83,7 @@ async fn diagnostic_advisory_diff(ctx: TrustifyContext) -> anyhow::Result<()> {
             .unwrap_or(0),
     );
 
-    // For one v3-only advisory (CVE-2023-33201), check if product_status.package
+    // For one v3a-only advisory (CVE-2023-33201), check if product_status.package
     // values match any SBOM base_purl name or namespace/name
     let checks: Vec<MatchCheck> = MatchCheck::find_by_statement(sea_orm::Statement::from_string(
         sea_orm::DatabaseBackend::Postgres,
@@ -126,22 +128,23 @@ async fn diagnostic_advisory_diff(ctx: TrustifyContext) -> anyhow::Result<()> {
         );
     }
 
-    // Check: does v4 product_by_name have these package names?
+    // Check: does v3 product_by_name have these package names?
     for c in &checks {
         let in_index = state
             .advisory_index
             .product_by_name
-            .contains_key(&c.package);
+            .contains_key(c.package.as_str());
         log::info!("  product_by_name[{:?}] exists: {}", c.package, in_index);
     }
 
     // What SBOM packages would match these product_status entries?
-    let sbom_packages = state.sbom_index.by_sbom.get(&sbom_uuid).unwrap();
-    let matching_pkgs: Vec<_> = sbom_packages
+    let package_indices = state.sbom_index.by_sbom.get(&sbom_uuid).unwrap();
+    let matching_pkgs: Vec<_> = package_indices
         .iter()
+        .map(|&idx| state.sbom_index.catalog.get(idx))
         .filter(|p| {
             checks.iter().any(|c| {
-                c.package == p.name
+                c.package.as_str() == &*p.name
                     || p.namespace
                         .as_ref()
                         .is_some_and(|ns| c.package == format!("{}/{}", ns, p.name))
