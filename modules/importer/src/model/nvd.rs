@@ -22,9 +22,14 @@ pub struct NvdImporter {
     #[serde(default = "default::source")]
     pub source: String,
 
+    /// An explicit set of feed years to import. When non-empty, exactly these
+    /// years are imported and `start_year` is ignored.
     #[serde(default, skip_serializing_if = "HashSet::is_empty")]
     pub years: HashSet<u16>,
 
+    /// The first feed year to import when `years` is empty; all years from
+    /// here through the current year are imported. Defaults to 1999, the
+    /// first year with NVD data.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_year: Option<u16>,
 }

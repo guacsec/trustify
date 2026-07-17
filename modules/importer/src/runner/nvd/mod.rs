@@ -156,8 +156,15 @@ impl super::ImportRunner {
 
 /// The set of years to process: the explicit `years` set if provided, otherwise
 /// `start_year` (default 1999) through the current UTC year, inclusive.
+///
+/// A non-empty `years` takes precedence; `start_year` is ignored in that case.
 fn resolve_years(nvd: &NvdImporter) -> BTreeSet<u16> {
     if !nvd.years.is_empty() {
+        if nvd.start_year.is_some() {
+            tracing::warn!(
+                "NVD importer has both `years` and `startYear` configured; using the explicit `years` set and ignoring `startYear`"
+            );
+        }
         return nvd.years.iter().copied().collect();
     }
 
