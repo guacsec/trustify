@@ -124,11 +124,6 @@ impl PurlDetails {
                                 .arg(Expr::value("."))
                                 .arg(Expr::value(1i32)),
                         )),
-                    )
-                    .add(
-                        Condition::any()
-                            .add(Expr::col((c.clone(), cpe::Column::Edition)).is_null())
-                            .add(Expr::col((c.clone(), cpe::Column::Edition)).eq("*")),
                     ),
             )
             .join_as(

@@ -1,8 +1,8 @@
 /// This constant is a SQL subquery that filters the context_cpe_id
 /// based on the given sbom_id. It reads from the materialized
 /// sbom_describing_cpe table instead of computing the join at query time.
-/// The generalized CPE logic expands matches to include CPEs without edition
-/// and with major-version-only matching.
+/// The generalized CPE logic expands matches to include all CPEs sharing
+/// the same vendor, product, and major version.
 pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
 (
     context_cpe_id IS NULL OR
@@ -16,8 +16,7 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
         generalized_cpes AS (
             SELECT *
             FROM cpe
-            WHERE (edition IS NULL OR edition = '*')
-              AND (vendor, product, version) IN (
+            WHERE (vendor, product, version) IN (
                   SELECT vendor, product, split_part(version, '.', 1)
                   FROM filtered_cpes
               )
@@ -86,7 +85,6 @@ pub fn batch_severity_counts_sql() -> &'static str {
         JOIN cpe c ON c.vendor = sc.vendor
             AND c.product = sc.product
             AND c.version = split_part(sc.version, '.', 1)
-            AND (c.edition IS NULL OR c.edition = '*')
     ),
     sbom_allowed_cpes AS (
         SELECT sbom_id, id AS cpe_id FROM sbom_cpes
@@ -218,8 +216,7 @@ pub fn product_advisory_info_sql() -> String {
         generalized_cpes AS (
             SELECT *
             FROM cpe
-            WHERE (edition IS NULL OR edition = '*')
-              AND (vendor, product, version) IN (
+            WHERE (vendor, product, version) IN (
                   SELECT vendor, product, split_part(version, '.', 1)
                   FROM filtered_cpes
               )
