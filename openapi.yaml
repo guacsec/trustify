@@ -1039,9 +1039,8 @@ paths:
       - exploit-intelligence
       summary: Trigger an Exploit Intelligence analysis for a CVE against an SBOM.
       description: |-
-        Creates a job record and spawns a background task that submits the SBOM
-        to the EI client service, polls for completion, and ingests any returned
-        VEX document.
+        Creates a job record that the background worker will pick up and
+        process. Returns immediately after persisting the job.
       operationId: analyzeExploitIntelligence
       requestBody:
         content:
@@ -4705,12 +4704,12 @@ components:
           description: The period the importer should be run.
     ComponentResult:
       type: object
-      description: Per-component analysis result within a multi-component product job.
+      description: Per-component analysis result within an analysis job.
       required:
       - id
-      - component_purl
-      - component_name
+      - component_ref
       - status
+      - excluded
       - created
       - updated
       properties:
@@ -4720,12 +4719,9 @@ components:
           - 'null'
           format: uuid
           description: FK to advisory — set when a VEX document is ingested from the result.
-        component_name:
+        component_ref:
           type: string
-          description: Human-readable name of the component.
-        component_purl:
-          type: string
-          description: Package URL (purl) of the component being analysed.
+          description: Identifier of the component (purl or container image reference).
         created:
           type: string
           description: Timestamp when the component record was created.
@@ -4734,6 +4730,11 @@ components:
           - string
           - 'null'
           description: Error details for failed component analyses.
+        excluded:
+          type: boolean
+          description: |-
+            Whether this component was excluded by the EI service (e.g.,
+            unsupported ecosystem) rather than genuinely failing.
         finding:
           oneOf:
           - type: 'null'
@@ -4835,18 +4836,13 @@ components:
       description: Detailed view of an Exploit Intelligence analysis job.
       required:
       - id
+      - sbom_id
       - vulnerability_id
       - status
       - components
       - created
       - updated
       properties:
-        advisory_id:
-          type:
-          - string
-          - 'null'
-          format: uuid
-          description: FK to advisory — set when a VEX document is ingested from the result.
         completed_components:
           type:
           - integer
@@ -4866,17 +4862,23 @@ components:
           - string
           - 'null'
           description: Error details for failed analyses.
+        excluded_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of components excluded by the EI service (computed at query time, not stored).
         failed_components:
           type:
           - integer
           - 'null'
           format: int32
-          description: Number of failed/excluded components (computed at query time, not stored).
+          description: Number of genuinely failed components (computed at query time, not stored).
         finding:
           oneOf:
           - type: 'null'
           - $ref: '#/components/schemas/JobFinding'
-            description: Analysis result from Exploit Intelligence.
+            description: Analysis result computed from component findings.
         id:
           type: string
           format: uuid
@@ -4898,9 +4900,7 @@ components:
           - 'null'
           description: Link to the EI human-readable justification report.
         sbom_id:
-          type:
-          - string
-          - 'null'
+          type: string
           format: uuid
           description: FK to the SBOM being analysed.
         status:
@@ -4935,6 +4935,7 @@ components:
       description: Summary of an Exploit Intelligence analysis job.
       required:
       - id
+      - sbom_id
       - vulnerability_id
       - status
       - created
@@ -4949,12 +4950,23 @@ components:
         created:
           type: string
           description: Timestamp when the job was created.
+        error_message:
+          type:
+          - string
+          - 'null'
+          description: Error details when the job has failed.
+        excluded_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of components excluded by the EI service (computed at query time, not stored).
         failed_components:
           type:
           - integer
           - 'null'
           format: int32
-          description: Number of failed/excluded components (computed at query time, not stored).
+          description: Number of genuinely failed components (computed at query time, not stored).
         finding:
           oneOf:
           - type: 'null'
@@ -4981,9 +4993,7 @@ components:
           - 'null'
           description: Link to the EI human-readable justification report.
         sbom_id:
-          type:
-          - string
-          - 'null'
+          type: string
           format: uuid
           description: FK to the SBOM being analysed.
         status:
@@ -5536,6 +5546,7 @@ components:
             description: Summary of an Exploit Intelligence analysis job.
             required:
             - id
+            - sbom_id
             - vulnerability_id
             - status
             - created
@@ -5550,12 +5561,23 @@ components:
               created:
                 type: string
                 description: Timestamp when the job was created.
+              error_message:
+                type:
+                - string
+                - 'null'
+                description: Error details when the job has failed.
+              excluded_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of components excluded by the EI service (computed at query time, not stored).
               failed_components:
                 type:
                 - integer
                 - 'null'
                 format: int32
-                description: Number of failed/excluded components (computed at query time, not stored).
+                description: Number of genuinely failed components (computed at query time, not stored).
               finding:
                 oneOf:
                 - type: 'null'
@@ -5582,9 +5604,7 @@ components:
                 - 'null'
                 description: Link to the EI human-readable justification report.
               sbom_id:
-                type:
-                - string
-                - 'null'
+                type: string
                 format: uuid
                 description: FK to the SBOM being analysed.
               status:
