@@ -16,7 +16,9 @@ use sea_orm::{
     ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
     Select, SelectColumns,
 };
-use sea_query::{Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr};
+use sea_query::{
+    Alias, Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr, UnionType,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, hash_map::Entry};
 use trustify_common::{
@@ -90,11 +92,58 @@ impl PurlDetails {
             .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(qualified_package.id))
             .into_query();
 
-        let allowed_cpe_ids = sbom_describing_cpe::Entity::find()
+        let mut allowed_cpe_ids = sbom_describing_cpe::Entity::find()
             .select_only()
             .column(sbom_describing_cpe::Column::CpeId)
             .filter(sbom_describing_cpe::Column::SbomId.in_subquery(sbom_ids_for_purl.clone()))
             .into_query();
+
+        let c = Alias::new("c");
+        let sc = Alias::new("sc");
+        let sdc = Alias::new("sdc");
+        let generalized_cpe_ids = sea_query::Query::select()
+            .expr(Expr::col((c.clone(), cpe::Column::Id)))
+            .from_as(cpe::Entity, c.clone())
+            .join_as(
+                JoinType::InnerJoin,
+                cpe::Entity,
+                sc.clone(),
+                Condition::all()
+                    .add(
+                        Expr::col((c.clone(), cpe::Column::Vendor))
+                            .equals((sc.clone(), cpe::Column::Vendor)),
+                    )
+                    .add(
+                        Expr::col((c.clone(), cpe::Column::Product))
+                            .equals((sc.clone(), cpe::Column::Product)),
+                    )
+                    .add(
+                        Expr::col((c.clone(), cpe::Column::Version)).eq(SimpleExpr::FunctionCall(
+                            Func::cust(Alias::new("split_part"))
+                                .arg(Expr::col((sc.clone(), cpe::Column::Version)))
+                                .arg(Expr::value("."))
+                                .arg(Expr::value(1i32)),
+                        )),
+                    )
+                    .add(
+                        Condition::any()
+                            .add(Expr::col((c.clone(), cpe::Column::Edition)).is_null())
+                            .add(Expr::col((c.clone(), cpe::Column::Edition)).eq("*")),
+                    ),
+            )
+            .join_as(
+                JoinType::InnerJoin,
+                sbom_describing_cpe::Entity,
+                sdc.clone(),
+                Expr::col((sdc.clone(), sbom_describing_cpe::Column::CpeId))
+                    .equals((sc.clone(), cpe::Column::Id)),
+            )
+            .and_where(
+                Expr::col((sdc.clone(), sbom_describing_cpe::Column::SbomId))
+                    .in_subquery(sbom_ids_for_purl.clone()),
+            )
+            .to_owned();
+        allowed_cpe_ids.union(UnionType::Distinct, generalized_cpe_ids);
 
         let sbom_has_cpes = sea_query::Query::select()
             .expr(Expr::value(1i32))
