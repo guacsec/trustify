@@ -141,8 +141,17 @@ impl<'g> NvdLoader<'g> {
                 continue;
             }
 
-            let Ok(cpe) = Cpe::from_str(&cpe_match.criteria) else {
-                continue;
+            let cpe = match Cpe::from_str(&cpe_match.criteria) {
+                Ok(cpe) => cpe,
+                Err(err) => {
+                    let msg = format!(
+                        "{id}: dropping unparseable CPE criteria {:?}: {err}",
+                        cpe_match.criteria
+                    );
+                    tracing::warn!("{msg}");
+                    warnings.add(msg);
+                    continue;
+                }
             };
             let identity_cpe = cpe.with_any_version();
 
@@ -150,6 +159,11 @@ impl<'g> NvdLoader<'g> {
                 // No version bounds and no concrete version in the criteria (an
                 // "all versions" statement). Ordered range matching can't express
                 // an unbounded-both-sides range, so this is not modeled yet.
+                tracing::debug!(
+                    vulnerability = id,
+                    criteria = cpe_match.criteria,
+                    "skipping unbounded 'all versions' CPE match"
+                );
                 continue;
             };
 

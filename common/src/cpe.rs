@@ -381,7 +381,12 @@ impl Cpe {
         // path rather than propagate an impossible failure through the signature.
         match OwnedUri::from_str(&format!("cpe:/{}", components.join(":"))) {
             Ok(uri) => Self { uri },
-            Err(_) => self.clone(),
+            Err(err) => {
+                log::warn!(
+                    "failed to normalize CPE {self:?} to any-version, keeping original: {err}"
+                );
+                self.clone()
+            }
         }
     }
 }
