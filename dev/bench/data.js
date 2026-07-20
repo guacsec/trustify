@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784121915355,
+  "lastUpdate": 1784578470318,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20349,6 +20349,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/9d0cd823de2c33027de214be6ad8b495a9c22174"
         },
         "date": 1784121912890,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "290facde44f8dd2933cabe1663fd141a5f1057ce",
+          "message": "test(purl): add product_status path version filtering test\n\nExercise the product_status → CPE → product → SBOM join chain with\nVersionMatches filtering, confirming the fix for false-positive\nvulnerability matches when a purl version falls outside the advisory\nrange.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-07-20T17:22:51Z",
+          "tree_id": "dc7cbd0ca4c262c40a38ff1d4636b60b434cb6b3",
+          "url": "https://github.com/guacsec/trustify/commit/290facde44f8dd2933cabe1663fd141a5f1057ce"
+        },
+        "date": 1784578467823,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
