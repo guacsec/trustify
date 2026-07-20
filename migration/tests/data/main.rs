@@ -1,4 +1,5 @@
 mod m0002010;
+mod m0002250;
 
 use migration::{
     Migrator, MigratorExt,
