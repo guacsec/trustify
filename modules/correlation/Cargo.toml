@@ -43,4 +43,5 @@ test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
 tokio = { workspace = true, features = ["full"] }
 trustify-module-fundamental = { workspace = true }
+trustify-module-ingestor = { workspace = true }
 trustify-test-context = { workspace = true }

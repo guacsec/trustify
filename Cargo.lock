@@ -8532,6 +8532,7 @@ dependencies = [
  "trustify-common",
  "trustify-entity",
  "trustify-module-fundamental",
+ "trustify-module-ingestor",
  "trustify-test-context",
  "utoipa",
  "utoipa-actix-web",
