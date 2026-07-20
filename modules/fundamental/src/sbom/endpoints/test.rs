@@ -447,7 +447,7 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
 
-    // badly formatted Id
+    // badly formatted Id -> 404 (not 400: the resource simply does not exist)
     let req = TestRequest::get()
         .uri("/api/v3/sbom/sha123:1234/all-license-ids")
         .to_request();
@@ -1121,6 +1121,34 @@ async fn get_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // assert expected fields
     assert_eq!(sbom["id"], format!("urn:uuid:{id}"));
     assert_eq!(sbom["number_of_packages"], 1053);
+
+    // Non-existent UUID -> 404
+    let req = TestRequest::get()
+        .uri("/api/v3/sbom/urn:uuid:00000000-0000-0000-0000-000000000000")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Non-existent hash -> 404
+    let req = TestRequest::get()
+        .uri("/api/v3/sbom/sha256:0000000000000000000000000000000000000000000000000000000000000000")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Invalid identifier (no prefix) -> 404 (not 400)
+    let req = TestRequest::get()
+        .uri("/api/v3/sbom/not-an-id")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Unsupported prefix -> 404 (not 400)
+    let req = TestRequest::get()
+        .uri("/api/v3/sbom/sha123:abcd")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
 
     Ok(())
 }
@@ -2176,6 +2204,15 @@ async fn packages_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
 
+    // Bad query parameter -> 400 (query errors remain bad requests)
+    let req = TestRequest::get()
+        .uri(&format!(
+            "/api/v3/sbom/urn:uuid:{id}/packages?sort=nonexistent_column:asc"
+        ))
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+
     Ok(())
 }
 
@@ -2230,6 +2267,15 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Bad query parameter -> 400 (query errors remain bad requests)
+    let req = TestRequest::get()
+        .uri(&format!(
+            "/api/v3/sbom/urn:uuid:{id}/related?sort=nonexistent_column:asc"
+        ))
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::BAD_REQUEST, response.status());
 
     Ok(())
 }
