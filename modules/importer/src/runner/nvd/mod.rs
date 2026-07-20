@@ -19,6 +19,12 @@ use trustify_module_ingestor::{
 /// The earliest CVE year published by NVD.
 const NVD_FIRST_YEAR: u16 = 1999;
 
+/// Maximum decompressed size of a single year feed, guarding against
+/// decompression bombs. Recent year feeds decompress to a few hundred MB of
+/// JSON and grow every year, so the 128 MiB advisory upload limit would be too
+/// tight; 1 GiB matches the server's SBOM upload and dataset entry limits.
+const DECOMPRESSED_FEED_LIMIT: usize = 1024 * 1024 * 1024;
+
 impl super::ImportRunner {
     #[instrument(skip(self, context), err(level=tracing::Level::INFO))]
     pub async fn run_once_nvd(
@@ -112,7 +118,13 @@ impl super::ImportRunner {
             .bytes()
             .await?;
 
-        let decompressed = walker_common::compression::decompress(compressed, &asset)?;
+        // No content type: detection falls back to magic bytes, which covers xz.
+        let decompressed = trustify_common::decompress::decompress_async(
+            compressed,
+            None,
+            DECOMPRESSED_FEED_LIMIT,
+        )
+        .await??;
         let feed: NvdYearFeed = serde_json::from_slice(decompressed.as_ref())?;
 
         // 3. Ingest each CVE record, one transaction per record (matches the
