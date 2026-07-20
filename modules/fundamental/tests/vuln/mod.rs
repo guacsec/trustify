@@ -114,3 +114,63 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+/// Proves that `version_matches` filtering works on the purl_status path:
+/// a version ABOVE the advisory's affected range must not be reported as affected.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn version_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    let service = VulnerabilityService::new(PaginationCache::for_test());
+
+    // Version BELOW the fix threshold — known affected by CVE-2024-28834
+    // (3.7.6-23.el9 < 3.7.6-23.el9_3.4, the fix version)
+    let affected_result = service
+        .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db)
+        .await?;
+
+    let affected_entry = &affected_result["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"];
+    let affected_count = affected_entry
+        .details
+        .iter()
+        .flat_map(|d| &d.purl_statuses)
+        .filter(|s| {
+            s.purl_status.status == "affected"
+                && s.purl_status.vulnerability.identifier == "CVE-2024-28834"
+        })
+        .count();
+    assert!(
+        affected_count > 0,
+        "affected version must have 'affected' statuses for CVE-2024-28834"
+    );
+
+    // Version ABOVE the fix threshold — not affected
+    // (3.8.3-5.el9 > 3.8.3-4.el9_4, the highest fix range, so version_matches returns false)
+    let fixed_result = service
+        .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.8.3-5.el9?arch=aarch64"], &ctx.db)
+        .await?;
+
+    let fixed_entry = fixed_result.get("pkg:rpm/redhat/gnutls@3.8.3-5.el9?arch=aarch64");
+    let fixed_affected_count = fixed_entry
+        .map(|entry| {
+            entry
+                .details
+                .iter()
+                .flat_map(|d| &d.purl_statuses)
+                .filter(|s| {
+                    s.purl_status.status == "affected"
+                        && s.purl_status.vulnerability.identifier == "CVE-2024-28834"
+                })
+                .count()
+        })
+        .unwrap_or(0);
+
+    assert_eq!(
+        fixed_affected_count, 0,
+        "fixed version must not have 'affected' statuses for CVE-2024-28834 \
+         (version_matches should filter them out)"
+    );
+
+    Ok(())
+}
