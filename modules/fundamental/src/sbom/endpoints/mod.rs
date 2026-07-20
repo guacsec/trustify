@@ -100,7 +100,7 @@ const CONTENT_TYPE_GZIP: &str = "application/gzip";
     ),
     responses(
         (status = 200, description = "fetch all unique license id and license info id", body = Vec<LicenseRefMapping>),
-        (status = 400, description = "Invalid UUID format."),
+        (status = 404, description = "The SBOM could not be found"),
     ),
 )]
 #[get("/v3/sbom/{id}/all-license-ids")]
