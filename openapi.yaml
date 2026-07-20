@@ -3201,8 +3201,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/LicenseRefMapping'
-        '400':
-          description: Invalid UUID format.
+        '404':
+          description: The SBOM could not be found
   /api/v3/sbom/{id}/label:
     put:
       tags:
