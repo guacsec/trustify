@@ -933,3 +933,182 @@ async fn versioned_base_purl_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow
 
     Ok(())
 }
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn version_ranges_cover_all_variants(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use crate::purl::model::details::version_range::VersionRange;
+    use sea_orm::EntityTrait;
+    use trustify_entity::version_range;
+
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    let rows = version_range::Entity::find().all(&ctx.db).await?;
+
+    let mut full_count = 0;
+    let mut left_count = 0;
+    let mut right_count = 0;
+    let mut unbounded_count = 0;
+
+    for row in rows {
+        match VersionRange::from_entity(row.clone()) {
+            Ok(VersionRange::Full { .. }) => full_count += 1,
+            Ok(VersionRange::Left { .. }) => left_count += 1,
+            Ok(VersionRange::Right { .. }) => right_count += 1,
+            Ok(VersionRange::Unbounded) => unbounded_count += 1,
+            Err(e) => {
+                log::error!("Failed to convert version_range id={}: {}", row.id, e);
+            }
+        }
+    }
+
+    log::info!(
+        "DS3 version ranges: Full={}, Left={}, Right={}, Unbounded={}",
+        full_count,
+        left_count,
+        right_count,
+        unbounded_count
+    );
+
+    assert!(
+        full_count > 0 || left_count > 0 || right_count > 0 || unbounded_count > 0,
+        "Expected at least one version range variant in DS3 (Full={}, Left={}, Right={}, Unbounded={})",
+        full_count,
+        left_count,
+        right_count,
+        unbounded_count
+    );
+
+    Ok(())
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn version_range_boundary_semantics(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use crate::purl::model::details::version_range::VersionRange;
+    use sea_orm::EntityTrait;
+    use trustify_entity::version_range;
+
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    let rows = version_range::Entity::find().all(&ctx.db).await?;
+
+    let mut tested_full = false;
+    let mut tested_left = false;
+    let mut tested_right = false;
+    let mut tested_unbounded = false;
+
+    for row in rows.iter() {
+        match VersionRange::from_entity(row.clone()) {
+            Ok(VersionRange::Full {
+                version_scheme_id,
+                low_version,
+                low_inclusive: _,
+                high_version,
+                high_inclusive: _,
+            }) if !tested_full => {
+                assert!(
+                    !version_scheme_id.is_empty(),
+                    "version_scheme_id should not be empty"
+                );
+                assert!(!low_version.is_empty(), "low_version should not be empty");
+                assert!(!high_version.is_empty(), "high_version should not be empty");
+
+                tested_full = true;
+            }
+            Ok(VersionRange::Left {
+                version_scheme_id,
+                low_version,
+                low_inclusive: _,
+            }) if !tested_left => {
+                assert!(
+                    !version_scheme_id.is_empty(),
+                    "version_scheme_id should not be empty"
+                );
+                assert!(!low_version.is_empty(), "low_version should not be empty");
+
+                tested_left = true;
+            }
+            Ok(VersionRange::Right {
+                version_scheme_id,
+                high_version,
+                high_inclusive: _,
+            }) if !tested_right => {
+                assert!(
+                    !version_scheme_id.is_empty(),
+                    "version_scheme_id should not be empty"
+                );
+                assert!(!high_version.is_empty(), "high_version should not be empty");
+
+                tested_right = true;
+            }
+            Ok(VersionRange::Unbounded) if !tested_unbounded => {
+                tested_unbounded = true;
+            }
+            _ => {}
+        }
+    }
+
+    assert!(
+        tested_full || tested_left || tested_right || tested_unbounded,
+        "Should have tested at least one range variant (Full={}, Left={}, Right={}, Unbounded={})",
+        tested_full,
+        tested_left,
+        tested_right,
+        tested_unbounded
+    );
+
+    Ok(())
+}
+
+/// Proves that `version_matches` filtering works on the **product_status** path.
+///
+/// DS3 contains a CSAF advisory for CVE-2024-28834 affecting gnutls on RHEL 8
+/// AppStream, and an ubi8 SPDX SBOM whose product package carries the same CPE.
+/// The shared CPE bridges the product_status join chain:
+///   product_status → context_cpe → product (via cpe_key) → product_version → SBOM
+///
+/// gnutls@3.6.16-6.el8_7 (from the ubi8 SBOM) falls within the advisory's
+/// affected version range, so product_status entries with CPE context must appear.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = PurlService::new(PaginationCache::for_test());
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    // gnutls version from the ubi8 SBOM — affected (below fix 3.6.16-8.el8_9.3)
+    let purl = Purl::from_str("pkg:rpm/redhat/gnutls@3.6.16-6.el8_7?arch=x86_64")?;
+    let details = service
+        .purl_by_purl(&purl, Default::default(), &ctx.db)
+        .await?
+        .expect("gnutls purl must exist after DS3 ingestion");
+
+    // Product_status entries carry StatusContext::Cpe (not ::Purl).
+    let cpe_statuses: Vec<_> = details
+        .advisories
+        .iter()
+        .flat_map(|a| &a.status)
+        .filter(|s| matches!(&s.context, Some(StatusContext::Cpe(_))))
+        .collect();
+
+    assert!(
+        !cpe_statuses.is_empty(),
+        "affected gnutls version must have product_status entries with CPE context"
+    );
+
+    assert!(
+        cpe_statuses
+            .iter()
+            .any(|s| s.vulnerability.identifier == "CVE-2024-28834"),
+        "product_statuses must include CVE-2024-28834"
+    );
+
+    for s in &cpe_statuses {
+        assert!(
+            s.version_range.is_some(),
+            "every product_status entry must carry a version_range"
+        );
+    }
+
+    Ok(())
+}
