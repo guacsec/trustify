@@ -1102,3 +1102,55 @@ async fn version_range_boundary_semantics(ctx: &TrustifyContext) -> Result<(), a
 
     Ok(())
 }
+
+/// Proves that `version_matches` filtering works on the **product_status** path.
+///
+/// DS3 contains a CSAF advisory for CVE-2024-28834 affecting gnutls on RHEL 8
+/// AppStream, and an ubi8 SPDX SBOM whose product package carries the same CPE.
+/// The shared CPE bridges the product_status join chain:
+///   product_status → context_cpe → product (via cpe_key) → product_version → SBOM
+///
+/// gnutls@3.6.16-6.el8_7 (from the ubi8 SBOM) falls within the advisory's
+/// affected version range, so product_status entries with CPE context must appear.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = PurlService::new(PaginationCache::for_test());
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    // gnutls version from the ubi8 SBOM — affected (below fix 3.6.16-8.el8_9.3)
+    let purl = Purl::from_str("pkg:rpm/redhat/gnutls@3.6.16-6.el8_7?arch=x86_64")?;
+    let details = service
+        .purl_by_purl(&purl, Default::default(), &ctx.db)
+        .await?
+        .expect("gnutls purl must exist after DS3 ingestion");
+
+    // Product_status entries carry StatusContext::Cpe (not ::Purl).
+    let cpe_statuses: Vec<_> = details
+        .advisories
+        .iter()
+        .flat_map(|a| &a.status)
+        .filter(|s| matches!(&s.context, Some(StatusContext::Cpe(_))))
+        .collect();
+
+    assert!(
+        !cpe_statuses.is_empty(),
+        "affected gnutls version must have product_status entries with CPE context"
+    );
+
+    assert!(
+        cpe_statuses
+            .iter()
+            .any(|s| s.vulnerability.identifier == "CVE-2024-28834"),
+        "product_statuses must include CVE-2024-28834"
+    );
+
+    for s in &cpe_statuses {
+        assert!(
+            s.version_range.is_some(),
+            "every product_status entry must carry a version_range"
+        );
+    }
+
+    Ok(())
+}
