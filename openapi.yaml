@@ -5038,6 +5038,10 @@ components:
             - integer
             - 'null'
             format: int32
+            description: |-
+              The first feed year to import when `years` is empty; all years from
+              here through the current year are imported. Defaults to 1999, the
+              first year with NVD data.
             minimum: 0
           years:
             type: array
@@ -5045,6 +5049,9 @@ components:
               type: integer
               format: int32
               minimum: 0
+            description: |-
+              An explicit set of feed years to import. When non-empty, exactly these
+              years are imported and `start_year` is ignored.
             uniqueItems: true
     OrganizationDetails:
       allOf:
