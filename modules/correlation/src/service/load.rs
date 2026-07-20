@@ -1,6 +1,7 @@
 use crate::model::{
     AdvisoryIndex, AdvisoryPatch, CorrelationState, PackageCatalog, ProductStatusEntry, PurlKey,
-    PurlStatusEntry, SbomIndex, SbomPackageEntry, SbomPatch, VersionRangeData,
+    PurlStatusEntry, SbomIndex, SbomPackageEntry, SbomPatch, SeverityIndex, VersionRangeData,
+    VulnEntrySource, VulnIndexEntry,
 };
 use futures::TryStreamExt;
 use sea_orm::{
@@ -11,10 +12,11 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::db::ReadOnly;
+use trustify_entity::advisory_vulnerability_score::Severity;
 use trustify_entity::version_scheme::VersionScheme;
 use trustify_entity::{
-    advisory, base_purl, product_status, purl_status, qualified_purl, sbom_node_purl_ref, status,
-    version_range,
+    advisory, advisory_vulnerability_score, base_purl, product_status, purl_status, qualified_purl,
+    sbom_node_purl_ref, status, version_range,
 };
 use uuid::Uuid;
 
@@ -48,8 +50,9 @@ impl StringInterner {
 
 /// Loads the complete correlation state from the database.
 ///
-/// Advisory and SBOM indexes are loaded sequentially to avoid doubling peak memory
-/// from parallel materialization. Each uses streaming cursors to avoid intermediate Vecs.
+/// Advisory and SBOM indexes are loaded sequentially to avoid doubling peak
+/// memory from parallel materialization. Each uses streaming cursors to avoid
+/// intermediate Vecs.
 #[instrument(skip_all, err(level = tracing::Level::INFO))]
 pub async fn load_all(db: &ReadOnly) -> Result<CorrelationState, anyhow::Error> {
     let txn = db.begin().await?;
@@ -80,6 +83,7 @@ pub async fn load_all(db: &ReadOnly) -> Result<CorrelationState, anyhow::Error> 
 /// Raw row for purl_status + version_range + base_purl join.
 #[derive(Debug, FromQueryResult)]
 struct PurlStatusRow {
+    purl_status_id: Uuid,
     advisory_id: Uuid,
     vulnerability_id: String,
     status_id: Uuid,
@@ -92,6 +96,14 @@ struct PurlStatusRow {
     low_inclusive: Option<bool>,
     high_version: Option<String>,
     high_inclusive: Option<bool>,
+}
+
+/// Raw row for advisory_vulnerability_score (severity lookup).
+#[derive(Debug, FromQueryResult)]
+struct SeverityRow {
+    advisory_id: Uuid,
+    vulnerability_id: String,
+    severity: Severity,
 }
 
 /// Raw row for SBOM describing CPEs.
@@ -123,6 +135,7 @@ pub(crate) async fn load_advisory_index(
         .join(JoinType::InnerJoin, purl_status::Relation::Advisory.def())
         .filter(advisory::Column::Deprecated.eq(false))
         .select_only()
+        .column_as(purl_status::Column::Id, "purl_status_id")
         .column(purl_status::Column::AdvisoryId)
         .column(purl_status::Column::VulnerabilityId)
         .column(purl_status::Column::StatusId)
@@ -147,6 +160,7 @@ pub(crate) async fn load_advisory_index(
             name: interner.intern(row.purl_name),
         };
         by_purl.entry(key).or_default().push(PurlStatusEntry {
+            purl_status_id: row.purl_status_id,
             advisory_id: row.advisory_id,
             vulnerability_id: interner.intern(row.vulnerability_id),
             status_id: row.status_id,
@@ -202,6 +216,7 @@ pub(crate) async fn load_advisory_index(
                 .entry(interner.intern(pkg))
                 .or_default()
                 .push(ProductStatusEntry {
+                    product_status_id: row.id,
                     advisory_id: row.advisory_id,
                     vulnerability_id: interner.intern(row.vulnerability_id),
                     status_id: row.status_id,
@@ -217,10 +232,27 @@ pub(crate) async fn load_advisory_index(
         "advisory product_status loaded"
     );
 
+    // Load severity index from advisory_vulnerability_score
+    let severity = load_severity_index(&mut interner, txn)
+        .instrument(info_span!("load severity index"))
+        .await?;
+
+    tracing::info!(severity_entries = severity.len(), "severity index loaded");
+
+    // Build reverse vulnerability index from by_purl and product_by_name
+    let by_vulnerability = build_vulnerability_index(&by_purl, &product_by_name);
+
+    tracing::info!(
+        vulnerability_keys = by_vulnerability.len(),
+        "vulnerability reverse index built"
+    );
+
     Ok(AdvisoryIndex {
         by_purl,
         product_by_name,
         statuses,
+        severity,
+        by_vulnerability,
     })
 }
 
@@ -404,10 +436,31 @@ pub(crate) async fn load_sbom_index(
 
     tracing::info!(cpe_sboms = describing_cpes.len(), "sbom cpes loaded");
 
+    // Build reverse PurlKey → sbom_ids index
+    let catalog = PackageCatalog::from_entries(catalog_entries);
+    let mut by_purl_key: HashMap<PurlKey, Vec<Uuid>> = HashMap::new();
+    for (&sbom_id, indices) in &by_sbom {
+        for &idx in indices.iter() {
+            let pkg = catalog.get(idx);
+            let key = PurlKey {
+                ty: Arc::clone(&pkg.ty),
+                namespace: pkg.namespace.as_ref().map(Arc::clone),
+                name: Arc::clone(&pkg.name),
+            };
+            by_purl_key.entry(key).or_default().push(sbom_id);
+        }
+    }
+
+    tracing::info!(
+        purl_key_entries = by_purl_key.len(),
+        "sbom by_purl_key reverse index built"
+    );
+
     Ok(SbomIndex {
-        catalog: PackageCatalog::from_entries(catalog_entries),
+        catalog,
         by_sbom,
         describing_cpes,
+        by_purl_key,
     })
 }
 
@@ -436,6 +489,7 @@ pub(crate) async fn load_advisory_patches(
         .filter(purl_status::Column::AdvisoryId.is_in(ids.iter().copied()))
         .filter(advisory::Column::Deprecated.eq(false))
         .select_only()
+        .column_as(purl_status::Column::Id, "purl_status_id")
         .column(purl_status::Column::AdvisoryId)
         .column(purl_status::Column::VulnerabilityId)
         .column(purl_status::Column::StatusId)
@@ -480,6 +534,7 @@ pub(crate) async fn load_advisory_patches(
             .entry(key)
             .or_default()
             .push(PurlStatusEntry {
+                purl_status_id: row.purl_status_id,
                 advisory_id: row.advisory_id,
                 vulnerability_id: interner.intern(row.vulnerability_id),
                 status_id: row.status_id,
@@ -504,12 +559,40 @@ pub(crate) async fn load_advisory_patches(
                 .entry(interner.intern(pkg))
                 .or_default()
                 .push(ProductStatusEntry {
+                    product_status_id: row.id,
                     advisory_id: row.advisory_id,
                     vulnerability_id: interner.intern(row.vulnerability_id),
                     status_id: row.status_id,
                     context_cpe_id: row.context_cpe_id,
                 });
         }
+    }
+
+    // Load severity data for these advisories
+    let severity_rows = advisory_vulnerability_score::Entity::find()
+        .filter(advisory_vulnerability_score::Column::AdvisoryId.is_in(ids.iter().copied()))
+        .select_only()
+        .column(advisory_vulnerability_score::Column::AdvisoryId)
+        .column(advisory_vulnerability_score::Column::VulnerabilityId)
+        .column(advisory_vulnerability_score::Column::Severity)
+        .into_model::<SeverityRow>()
+        .all(txn)
+        .instrument(info_span!("load advisory severity patches"))
+        .await?;
+
+    for row in severity_rows {
+        let vuln_id = interner.intern(row.vulnerability_id);
+        let affected = crate::model::severity_to_affected(row.severity);
+        let patch = patches.entry(row.advisory_id).or_default();
+        patch
+            .severity
+            .entry((row.advisory_id, vuln_id))
+            .and_modify(|existing| {
+                if affected > *existing {
+                    *existing = affected;
+                }
+            })
+            .or_insert(affected);
     }
 
     Ok(patches)
@@ -599,6 +682,85 @@ pub(crate) async fn load_sbom_patches(
     }
 
     Ok(patches)
+}
+
+/// Loads max severity per (advisory_id, vulnerability_id) from advisory_vulnerability_score.
+///
+/// For each pair, keeps the highest severity using the CVSS ranking order.
+async fn load_severity_index(
+    interner: &mut StringInterner,
+    txn: &(impl ConnectionTrait + StreamTrait),
+) -> Result<SeverityIndex, anyhow::Error> {
+    let mut severity: SeverityIndex = HashMap::new();
+
+    let mut stream = advisory_vulnerability_score::Entity::find()
+        .select_only()
+        .column(advisory_vulnerability_score::Column::AdvisoryId)
+        .column(advisory_vulnerability_score::Column::VulnerabilityId)
+        .column(advisory_vulnerability_score::Column::Severity)
+        .into_model::<SeverityRow>()
+        .stream(txn)
+        .await?;
+
+    while let Some(row) = stream.try_next().await? {
+        let vuln_id = interner.intern(row.vulnerability_id);
+        let affected = crate::model::severity_to_affected(row.severity);
+        let key = (row.advisory_id, vuln_id);
+        severity
+            .entry(key)
+            .and_modify(|existing| {
+                if affected > *existing {
+                    *existing = affected;
+                }
+            })
+            .or_insert(affected);
+    }
+    drop(stream);
+
+    Ok(severity)
+}
+
+/// Builds the reverse vulnerability index from the purl and product indexes.
+fn build_vulnerability_index(
+    by_purl: &HashMap<PurlKey, Vec<PurlStatusEntry>>,
+    product_by_name: &HashMap<Arc<str>, Vec<ProductStatusEntry>>,
+) -> HashMap<Arc<str>, Vec<VulnIndexEntry>> {
+    let mut by_vulnerability: HashMap<Arc<str>, Vec<VulnIndexEntry>> = HashMap::new();
+
+    for (purl_key, entries) in by_purl {
+        for entry in entries {
+            by_vulnerability
+                .entry(Arc::clone(&entry.vulnerability_id))
+                .or_default()
+                .push(VulnIndexEntry {
+                    advisory_id: entry.advisory_id,
+                    status_id: entry.status_id,
+                    context_cpe_id: entry.context_cpe_id,
+                    source: VulnEntrySource::Purl {
+                        purl_key: purl_key.clone(),
+                        version_range: entry.version_range.clone(),
+                    },
+                });
+        }
+    }
+
+    for (package_name, entries) in product_by_name {
+        for entry in entries {
+            by_vulnerability
+                .entry(Arc::clone(&entry.vulnerability_id))
+                .or_default()
+                .push(VulnIndexEntry {
+                    advisory_id: entry.advisory_id,
+                    status_id: entry.status_id,
+                    context_cpe_id: entry.context_cpe_id,
+                    source: VulnEntrySource::Product {
+                        package_name: Arc::clone(package_name),
+                    },
+                });
+        }
+    }
+
+    by_vulnerability
 }
 
 /// Builds a comma-separated placeholder list ($1, $2, ..., $n) for raw SQL queries.

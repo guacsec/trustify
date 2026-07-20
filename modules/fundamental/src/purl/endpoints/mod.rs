@@ -44,7 +44,7 @@ pub fn configure(
 }
 
 #[utoipa::path(
-    operation_id = "getPurl",
+    operation_id = "getPurlV3a",
     tag = "purl",
     params(
         Deprecation,
@@ -54,7 +54,7 @@ pub fn configure(
         (status = 200, description = "Details for the qualified PURL", body = PurlDetails),
     ),
 )]
-#[get("/v3/purl/{key}")]
+#[get("/v3a/purl/{key}")]
 /// Retrieve details of a fully-qualified pURL
 pub async fn get(
     service: web::Data<PurlService>,
@@ -130,14 +130,14 @@ mod v3 {
     use super::*;
 
     #[utoipa::path(
-        operation_id = "recommend",
+        operation_id = "recommendV3a",
         tag = "purl",
         request_body = RecommendRequest,
         responses(
             (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse)
         )
     )]
-    #[post("/v3/purl/recommend")]
+    #[post("/v3a/purl/recommend")]
     pub async fn recommend(
         purl_service: web::Data<PurlService>,
         db: web::Data<db::ReadOnly>,

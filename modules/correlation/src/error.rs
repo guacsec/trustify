@@ -17,6 +17,8 @@ pub enum Error {
     NotReady,
     #[error("SBOM not found: {0}")]
     SbomNotFound(String),
+    #[error("Bad request: {0}")]
+    BadRequest(String),
     #[error(transparent)]
     Fundamental(trustify_module_fundamental::Error),
 }
@@ -55,6 +57,9 @@ impl ResponseError for Error {
             }
             Self::SbomNotFound(id) => {
                 HttpResponse::NotFound().json(ErrorInformation::new("SbomNotFound", id))
+            }
+            Self::BadRequest(msg) => {
+                HttpResponse::BadRequest().json(ErrorInformation::new("BadRequest", msg))
             }
             err => {
                 tracing::warn!("{err}");

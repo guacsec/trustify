@@ -31,6 +31,7 @@ fn correlate_basic_match() {
             by_purl: HashMap::from([(
                 purl_key.clone(),
                 vec![PurlStatusEntry {
+                    purl_status_id: Uuid::new_v4(),
                     advisory_id,
                     vulnerability_id: Arc::from("CVE-2024-0001"),
                     status_id,
@@ -48,11 +49,14 @@ fn correlate_basic_match() {
             )]),
             product_by_name: HashMap::new(),
             statuses: HashMap::from([(status_id, Arc::from("affected"))]),
+            severity: HashMap::new(),
+            by_vulnerability: HashMap::new(),
         },
         sbom_index: crate::model::SbomIndex {
             catalog,
             by_sbom: HashMap::from([(sbom_id, Arc::from(vec![0u32].into_boxed_slice()))]),
             describing_cpes: HashMap::new(),
+            by_purl_key: HashMap::new(),
         },
     };
 

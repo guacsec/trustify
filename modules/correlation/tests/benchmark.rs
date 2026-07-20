@@ -2,6 +2,7 @@
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::expect_used)]
 
+use sea_orm::TransactionTrait;
 use std::time::Instant;
 use test_context::test_context;
 use test_log::test;
@@ -55,27 +56,38 @@ async fn benchmark_quarkus_bom(ctx: TrustifyContext) -> anyhow::Result<()> {
         _ => panic!("expected UUID"),
     };
 
-    let start_v3 = Instant::now();
+    let start_v3_correlate = Instant::now();
     let v3_matches = correlation.correlate_sbom(sbom_uuid)?;
-    let v3_time = start_v3.elapsed();
+    let v3_correlate_time = start_v3_correlate.elapsed();
+    let match_count = v3_matches.len();
 
-    // Count unique advisories from correlation matches
-    let v3_advisory_ids: std::collections::HashSet<_> =
-        v3_matches.iter().map(|m| m.advisory_id).collect();
-    let v3_count = v3_advisory_ids.len();
+    // Hydrate: convert matches to Vec<SbomAdvisory> (includes DB lookups)
+    let statuses = correlation.status_slugs();
+    let txn = ctx.db.begin().await?;
+
+    let start_v3_hydrate = Instant::now();
+    let v3_advisories =
+        trustify_module_correlation::service::hydrate::hydrate_matches(v3_matches, &statuses, &txn)
+            .await?;
+    let v3_hydrate_time = start_v3_hydrate.elapsed();
+
+    let v3_total_time = v3_correlate_time + v3_hydrate_time;
+    let v3_count = v3_advisories.len();
 
     log::info!(
-        "v3 quarkus-bom: {} advisories ({} matches) in {}",
+        "v3 quarkus-bom: {} advisories ({} matches) — correlate={}, hydrate={}, total={}",
         v3_count,
-        v3_matches.len(),
-        humantime::Duration::from(v3_time),
+        match_count,
+        humantime::Duration::from(v3_correlate_time),
+        humantime::Duration::from(v3_hydrate_time),
+        humantime::Duration::from(v3_total_time),
     );
 
     log::info!(
         "speedup: {:.1}x (v3a={}, v3={})",
-        v3a_time.as_secs_f64() / v3_time.as_secs_f64(),
+        v3a_time.as_secs_f64() / v3_total_time.as_secs_f64(),
         humantime::Duration::from(v3a_time),
-        humantime::Duration::from(v3_time),
+        humantime::Duration::from(v3_total_time),
     );
 
     // Verify both find the same advisory count
@@ -132,26 +144,37 @@ async fn benchmark_ubi8(ctx: TrustifyContext) -> anyhow::Result<()> {
         _ => panic!("expected UUID"),
     };
 
-    let start_v3 = Instant::now();
+    let start_v3_correlate = Instant::now();
     let v3_matches = correlation.correlate_sbom(sbom_uuid)?;
-    let v3_time = start_v3.elapsed();
+    let v3_correlate_time = start_v3_correlate.elapsed();
+    let match_count = v3_matches.len();
 
-    let v3_advisory_ids: std::collections::HashSet<_> =
-        v3_matches.iter().map(|m| m.advisory_id).collect();
-    let v3_count = v3_advisory_ids.len();
+    let statuses = correlation.status_slugs();
+    let txn = ctx.db.begin().await?;
+
+    let start_v3_hydrate = Instant::now();
+    let v3_advisories =
+        trustify_module_correlation::service::hydrate::hydrate_matches(v3_matches, &statuses, &txn)
+            .await?;
+    let v3_hydrate_time = start_v3_hydrate.elapsed();
+
+    let v3_total_time = v3_correlate_time + v3_hydrate_time;
+    let v3_count = v3_advisories.len();
 
     log::info!(
-        "v3 ubi8: {} advisories ({} matches) in {}",
+        "v3 ubi8: {} advisories ({} matches) — correlate={}, hydrate={}, total={}",
         v3_count,
-        v3_matches.len(),
-        humantime::Duration::from(v3_time),
+        match_count,
+        humantime::Duration::from(v3_correlate_time),
+        humantime::Duration::from(v3_hydrate_time),
+        humantime::Duration::from(v3_total_time),
     );
 
     log::info!(
         "speedup: {:.1}x (v3a={}, v3={})",
-        v3a_time.as_secs_f64() / v3_time.as_secs_f64(),
+        v3a_time.as_secs_f64() / v3_total_time.as_secs_f64(),
         humantime::Duration::from(v3a_time),
-        humantime::Duration::from(v3_time),
+        humantime::Duration::from(v3_total_time),
     );
 
     // Verify counts match

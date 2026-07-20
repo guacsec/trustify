@@ -2541,7 +2541,12 @@ paths:
   /api/v3/purl/recommend:
     post:
       tags:
-      - purl
+      - correlation
+      summary: Recommend Red Hat patched versions using in-memory correlation.
+      description: |-
+        Finds the highest Red Hat patch version for each input PURL (same major.minor.patch
+        with a `redhat-NNNNN` suffix), then uses in-memory correlation to determine
+        which vulnerabilities affect those patched versions.
       operationId: recommend
       requestBody:
         content:
@@ -2551,26 +2556,27 @@ paths:
         required: true
       responses:
         '200':
-          description: Get recommendations and remediations for provided purls
+          description: Recommendations and remediations for provided PURLs
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendResponse'
+        '401':
+          description: The user did not provide valid authentication credentials
+        '403':
+          description: The user lacks the required permission
+        '503':
+          description: Correlation service not ready
   /api/v3/purl/{key}:
     get:
       tags:
-      - purl
-      summary: Retrieve details of a fully-qualified pURL
+      - correlation
+      summary: Retrieve PURL details with in-memory advisory correlation.
+      description: |-
+        Loads PURL head/version/base/license data from the database, then replaces
+        the advisory matching with in-memory correlation results.
       operationId: getPurl
       parameters:
-      - name: deprecated
-        in: query
-        required: false
-        schema:
-          type: string
-          enum:
-          - Ignore
-          - Consider
       - name: key
         in: path
         description: opaque identifier for a fully-qualified PURL, or URL-encoded pURL itself
@@ -2584,11 +2590,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PurlDetails'
+        '401':
+          description: The user did not provide valid authentication credentials
+        '403':
+          description: The user lacks the required permission
+        '404':
+          description: PURL not found
+        '503':
+          description: Correlation service not ready
   /api/v3/sbom:
     get:
       tags:
-      - sbom
-      summary: List SBOMs
+      - correlation
+      summary: List SBOMs with in-memory severity counts replacing the SQL-based advisory summary.
       operationId: listSboms
       parameters:
       - name: q
@@ -2695,9 +2709,6 @@ paths:
           type: boolean
       - name: group
         in: query
-        description: |-
-          Filter by group IDs. Only SBOMs assigned to any of the provided groups will be returned.
-          Can be specified multiple times. Malformed IDs are silently ignored.
         required: false
         schema:
           type: array
@@ -2705,7 +2716,7 @@ paths:
             type: string
       - name: advisories
         in: query
-        description: Include advisory severity summary per SBOM
+        description: Include advisory severity summary per SBOM.
         required: false
         schema:
           type: boolean
@@ -2716,6 +2727,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedResults_SbomSummary_SbomPackageSummary'
+        '401':
+          description: The user did not provide valid authentication credentials
+        '403':
+          description: The user lacks the required permission
     post:
       tags:
       - sbom
@@ -3929,7 +3944,8 @@ paths:
   /api/v3/vulnerability/analyze:
     post:
       tags:
-      - vulnerability
+      - correlation
+      summary: Analyze PURLs for known vulnerabilities using in-memory correlation.
       operationId: analyze_v3
       requestBody:
         content:
@@ -3939,16 +3955,23 @@ paths:
         required: true
       responses:
         '200':
-          description: Analyze the provided purls to search for known vulnerabilities
+          description: Vulnerability analysis results
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AnalysisResponseV3'
+        '401':
+          description: The user did not provide valid authentication credentials
+        '403':
+          description: The user lacks the required permission
   /api/v3/vulnerability/{id}:
     get:
       tags:
-      - vulnerability
-      summary: Retrieve vulnerability details
+      - correlation
+      summary: Retrieve vulnerability details using in-memory correlation and DB hydration.
+      description: |-
+        Loads the vulnerability entity from the database, uses in-memory correlation
+        to identify affected SBOMs, then hydrates the response from the database.
       operationId: getVulnerability
       parameters:
       - name: id
@@ -3970,8 +3993,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VulnerabilityDetails'
+        '401':
+          description: The user did not provide valid authentication credentials
+        '403':
+          description: The user lacks the required permission
         '404':
           description: The vulnerability could not be found
+        '503':
+          description: Correlation service not ready
   /api/v3/weakness:
     get:
       tags:
@@ -4109,6 +4138,184 @@ paths:
                 $ref: '#/components/schemas/LicenseSummary'
         '404':
           description: The weakness could not be found
+  /api/v3a/purl/recommend:
+    post:
+      tags:
+      - purl
+      operationId: recommendV3a
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendRequest'
+        required: true
+      responses:
+        '200':
+          description: Get recommendations and remediations for provided purls
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendResponse'
+  /api/v3a/purl/{key}:
+    get:
+      tags:
+      - purl
+      summary: Retrieve details of a fully-qualified pURL
+      operationId: getPurlV3a
+      parameters:
+      - name: deprecated
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - Ignore
+          - Consider
+      - name: key
+        in: path
+        description: opaque identifier for a fully-qualified PURL, or URL-encoded pURL itself
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Details for the qualified PURL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurlDetails'
+  /api/v3a/sbom:
+    get:
+      tags:
+      - sbom
+      summary: List SBOMs
+      operationId: listSbomsV3a
+      parameters:
+      - name: q
+        in: query
+        description: |
+          EBNF grammar for the _q_ parameter:
+          ```text
+              q = ( values | filter ) { '&' q }
+              values = value { '|', values }
+              filter = field, operator, values
+              operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<"
+              value = (* any text but escape special characters with '\' *)
+              field = (* must match an entity attribute name *)
+          ```
+          Any values in a _q_ will result in a case-insensitive "full
+          text search", effectively producing an OR clause of LIKE
+          clauses for every string-ish field in the resource being
+          queried.
+
+          Examples:
+          - `foo` - any field containing 'foo'
+          - `foo|bar` - any field containing either 'foo' OR 'bar'
+          - `foo&bar` - some field contains 'foo' AND some field contains 'bar'
+
+          A _filter_ may also be used to constrain the results. The
+          filter's field name must correspond to one of the resource's
+          attributes. If it doesn't, an error will be returned
+          containing a list of the valid fields for that resource.
+
+          An ASCII value of `NUL`, percent-encoded as `%00`, may be used
+          to find resources on which a particular field isn't set. For
+          example, `name=%00` and `name!=%00` yield the WHERE clauses,
+          'NAME IS NULL' and 'NAME IS NOT NULL', respectively.
+
+          Examples:
+          - `name=foo` - entity's _name_ matches 'foo' exactly
+          - `name~foo` - entity's _name_ contains 'foo', case-insensitive
+          - `name~foo|bar` - entity's _name_ contains either 'foo' OR 'bar', case-insensitive
+          - `name=` - entity's _name_ is the empty string, ''
+          - `name=%00` - entity's _name_ isn't set
+          - `published>3 days ago` - date values can be "human time"
+
+          Multiple full text searches and/or filters should be
+          '&'-delimited -- they are logically AND'd together.
+
+          - `red hat|fedora&labels:type=cve|osv&published>last wednesday 17:00`
+
+          Fields corresponding to JSON objects in the database may use a
+          ':' to delimit the column name and the object key,
+          e.g. `purl:qualifiers:type=pom`
+
+          Any operator or special character, e.g. '|', '&', within a
+          value should be escaped by prefixing it with a backslash.
+        required: false
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: |
+          EBNF grammar for the _sort_ parameter:
+          ```text
+              sort = field [ ':', order ] { ',' sort }
+              order = ( "asc" | "desc" )
+              field = (* must match the name of entity's attributes *)
+          ```
+          The optional _order_ should be one of "asc" or "desc". If
+          omitted, the order defaults to "asc".
+
+          Each _field_ name must correspond to one of the columns of the
+          table holding the entities being queried. Those corresponding
+          to JSON objects in the database may use a ':' to delimit the
+          column name and the object key,
+          e.g. `purl:qualifiers:type:desc`
+        required: false
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      - name: group
+        in: query
+        description: |-
+          Filter by group IDs. Only SBOMs assigned to any of the provided groups will be returned.
+          Can be specified multiple times. Malformed IDs are silently ignored.
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+      - name: advisories
+        in: query
+        description: Include advisory severity summary per SBOM
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Matching SBOMs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResults_SbomSummary_SbomPackageSummary'
   /api/v3a/sbom/{id}/advisory:
     get:
       tags:
@@ -4132,6 +4339,52 @@ paths:
                   $ref: '#/components/schemas/SbomAdvisory'
         '404':
           description: The SBOM could not be found
+  /api/v3a/vulnerability/analyze:
+    post:
+      tags:
+      - vulnerability
+      operationId: analyze_v3a
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalysisRequest'
+        required: true
+      responses:
+        '200':
+          description: Analyze the provided purls to search for known vulnerabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResponseV3'
+  /api/v3a/vulnerability/{id}:
+    get:
+      tags:
+      - vulnerability
+      summary: Retrieve vulnerability details
+      operationId: getVulnerabilityV3a
+      parameters:
+      - name: id
+        in: path
+        description: ID of the vulnerability
+        required: true
+        schema:
+          type: string
+      - name: scores
+        in: query
+        description: Include the full scores array from the advisory that contributed the base_score.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Specified vulnerability
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VulnerabilityDetails'
+        '404':
+          description: The vulnerability could not be found
 components:
   schemas:
     AdvisoryDetails:

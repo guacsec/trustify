@@ -232,7 +232,7 @@ mod v3 {
     /// List SBOMs
     #[utoipa::path(
         tag = "sbom",
-        operation_id = "listSboms",
+        operation_id = "listSbomsV3a",
         params(
             Query,
             Paginated,
@@ -243,7 +243,7 @@ mod v3 {
             (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary<SbomPackageSummary>>),
         ),
     )]
-    #[get("/v3/sbom")]
+    #[get("/v3a/sbom")]
     #[allow(clippy::too_many_arguments)]
     pub async fn all(
         fetch: web::Data<SbomService>,

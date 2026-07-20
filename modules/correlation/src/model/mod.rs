@@ -2,8 +2,21 @@ pub mod version;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use trustify_entity::advisory_vulnerability_score::Severity;
 use trustify_entity::version_scheme::VersionScheme;
+use trustify_module_fundamental::sbom::model::AffectedSeverity;
 use uuid::Uuid;
+
+/// Converts an entity-level CVSS severity into the affected-severity enum.
+pub fn severity_to_affected(severity: Severity) -> AffectedSeverity {
+    match severity {
+        Severity::None => AffectedSeverity::None,
+        Severity::Low => AffectedSeverity::Low,
+        Severity::Medium => AffectedSeverity::Medium,
+        Severity::High => AffectedSeverity::High,
+        Severity::Critical => AffectedSeverity::Critical,
+    }
+}
 
 /// Composite key for matching purls between advisories and SBOMs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -31,6 +44,7 @@ pub struct VersionRangeData {
 /// A single purl_status entry stored in the advisory index.
 #[derive(Debug, Clone)]
 pub struct PurlStatusEntry {
+    pub purl_status_id: Uuid,
     pub advisory_id: Uuid,
     pub vulnerability_id: Arc<str>,
     pub status_id: Uuid,
@@ -41,6 +55,7 @@ pub struct PurlStatusEntry {
 /// A single product_status entry for name-based matching.
 #[derive(Debug, Clone)]
 pub struct ProductStatusEntry {
+    pub product_status_id: Uuid,
     pub advisory_id: Uuid,
     pub vulnerability_id: Arc<str>,
     pub status_id: Uuid,
@@ -56,6 +71,32 @@ pub struct AdvisoryPatch {
     pub purl_statuses: HashMap<PurlKey, Vec<PurlStatusEntry>>,
     /// Product status entries grouped by package name.
     pub product_statuses: HashMap<Arc<str>, Vec<ProductStatusEntry>>,
+    /// Max severity per (advisory_id, vulnerability_id) pair.
+    pub severity: SeverityIndex,
+}
+
+/// Max severity per (advisory_id, vulnerability_id) pair.
+pub type SeverityIndex = HashMap<(Uuid, Arc<str>), AffectedSeverity>;
+
+/// Source reference for a vulnerability reverse index entry.
+#[derive(Debug, Clone)]
+pub enum VulnEntrySource {
+    Purl {
+        purl_key: PurlKey,
+        version_range: VersionRangeData,
+    },
+    Product {
+        package_name: Arc<str>,
+    },
+}
+
+/// An entry in the reverse vulnerability index (vulnerability_id → entries).
+#[derive(Debug, Clone)]
+pub struct VulnIndexEntry {
+    pub advisory_id: Uuid,
+    pub status_id: Uuid,
+    pub context_cpe_id: Option<Uuid>,
+    pub source: VulnEntrySource,
 }
 
 /// Advisory-side index: maps purl key to vulnerability status entries.
@@ -69,6 +110,10 @@ pub struct AdvisoryIndex {
     pub product_by_name: HashMap<Arc<str>, Vec<ProductStatusEntry>>,
     /// Status slugs by ID (affected, fixed, not_affected, etc.).
     pub statuses: HashMap<Uuid, Arc<str>>,
+    /// Max severity per (advisory_id, vulnerability_id) pair.
+    pub severity: SeverityIndex,
+    /// Reverse index: vulnerability_id → all purl/product entries referencing it.
+    pub by_vulnerability: HashMap<Arc<str>, Vec<VulnIndexEntry>>,
 }
 
 impl AdvisoryIndex {
@@ -83,11 +128,52 @@ impl AdvisoryIndex {
             entries.retain(|e| e.advisory_id != advisory_id);
         }
         self.product_by_name.retain(|_, v| !v.is_empty());
+
+        self.severity
+            .retain(|(adv_id, _), _| *adv_id != advisory_id);
+
+        for entries in self.by_vulnerability.values_mut() {
+            entries.retain(|e| e.advisory_id != advisory_id);
+        }
+        self.by_vulnerability.retain(|_, v| !v.is_empty());
     }
 
     /// Applies a patch: removes old data for this advisory, then inserts new data.
     pub fn apply_patch(&mut self, advisory_id: Uuid, patch: AdvisoryPatch) {
         self.remove_advisory(advisory_id);
+
+        for (purl_key, entries) in &patch.purl_statuses {
+            for entry in entries {
+                self.by_vulnerability
+                    .entry(Arc::clone(&entry.vulnerability_id))
+                    .or_default()
+                    .push(VulnIndexEntry {
+                        advisory_id: entry.advisory_id,
+                        status_id: entry.status_id,
+                        context_cpe_id: entry.context_cpe_id,
+                        source: VulnEntrySource::Purl {
+                            purl_key: purl_key.clone(),
+                            version_range: entry.version_range.clone(),
+                        },
+                    });
+            }
+        }
+
+        for (package, entries) in &patch.product_statuses {
+            for entry in entries {
+                self.by_vulnerability
+                    .entry(Arc::clone(&entry.vulnerability_id))
+                    .or_default()
+                    .push(VulnIndexEntry {
+                        advisory_id: entry.advisory_id,
+                        status_id: entry.status_id,
+                        context_cpe_id: entry.context_cpe_id,
+                        source: VulnEntrySource::Product {
+                            package_name: Arc::clone(package),
+                        },
+                    });
+            }
+        }
 
         for (purl_key, entries) in patch.purl_statuses {
             self.by_purl.entry(purl_key).or_default().extend(entries);
@@ -98,6 +184,10 @@ impl AdvisoryIndex {
                 .entry(package)
                 .or_default()
                 .extend(entries);
+        }
+
+        for ((adv_id, vuln_id), sev) in patch.severity {
+            self.severity.insert((adv_id, vuln_id), sev);
         }
     }
 }
@@ -172,25 +262,37 @@ pub struct SbomIndex {
     pub by_sbom: HashMap<Uuid, Arc<[u32]>>,
     /// Per-SBOM describing CPE IDs for context filtering.
     pub describing_cpes: HashMap<Uuid, HashSet<Uuid>>,
+    /// Reverse index: PurlKey → SBOMs containing packages with that key.
+    pub by_purl_key: HashMap<PurlKey, Vec<Uuid>>,
 }
 
 impl SbomIndex {
     /// Applies a patch: replaces packages and CPEs for this SBOM.
     ///
     /// New package entries are appended to the catalog, and their indices are
-    /// stored in the per-SBOM vector. If the patch is empty (deleted SBOM),
-    /// the entries are removed.
+    /// stored in the per-SBOM vector. Updates the by_purl_key reverse index.
     pub fn apply_patch(&mut self, sbom_id: Uuid, patch: SbomPatch) {
+        // Remove old by_purl_key entries for this SBOM
+        for entries in self.by_purl_key.values_mut() {
+            entries.retain(|id| *id != sbom_id);
+        }
+        self.by_purl_key.retain(|_, v| !v.is_empty());
+
         if patch.packages.is_empty() {
             self.by_sbom.remove(&sbom_id);
         } else {
-            let indices: Arc<[u32]> = patch
-                .packages
-                .into_iter()
-                .map(|entry| self.catalog.append(entry))
-                .collect::<Vec<u32>>()
-                .into();
-            self.by_sbom.insert(sbom_id, indices);
+            let mut indices = Vec::with_capacity(patch.packages.len());
+            for entry in patch.packages {
+                let key = PurlKey {
+                    ty: Arc::clone(&entry.ty),
+                    namespace: entry.namespace.as_ref().map(Arc::clone),
+                    name: Arc::clone(&entry.name),
+                };
+                self.by_purl_key.entry(key).or_default().push(sbom_id);
+                indices.push(self.catalog.append(entry));
+            }
+            self.by_sbom
+                .insert(sbom_id, Arc::from(indices.into_boxed_slice()));
         }
 
         if patch.describing_cpes.is_empty() {
@@ -216,11 +318,14 @@ impl CorrelationState {
                 by_purl: HashMap::new(),
                 product_by_name: HashMap::new(),
                 statuses: HashMap::new(),
+                severity: HashMap::new(),
+                by_vulnerability: HashMap::new(),
             },
             sbom_index: SbomIndex {
                 catalog: PackageCatalog::from_entries(Vec::new()),
                 by_sbom: HashMap::new(),
                 describing_cpes: HashMap::new(),
+                by_purl_key: HashMap::new(),
             },
         }
     }
@@ -233,6 +338,31 @@ pub struct CorrelationMatch {
     pub vulnerability_id: Arc<str>,
     pub status_id: Uuid,
     pub context_cpe_id: Option<Uuid>,
+    pub purl_key: PurlKey,
+    pub version: Arc<str>,
+}
+
+/// Result of correlating a standalone PURL (no SBOM context).
+#[derive(Debug, Clone)]
+pub struct PurlCorrelationMatch {
+    pub purl_status_id: Uuid,
+    pub advisory_id: Uuid,
+    pub vulnerability_id: Arc<str>,
+    pub status_id: Uuid,
+    pub context_cpe_id: Option<Uuid>,
+    pub version_range: VersionRangeData,
+}
+
+/// Result of correlating a vulnerability against the SBOM index.
+///
+/// Each match represents a specific PURL version in a specific SBOM that is
+/// affected by the vulnerability according to an advisory.
+#[derive(Debug, Clone)]
+pub struct VulnCorrelationMatch {
+    pub advisory_id: Uuid,
+    pub status_id: Uuid,
+    pub context_cpe_id: Option<Uuid>,
+    pub sbom_id: Uuid,
     pub purl_key: PurlKey,
     pub version: Arc<str>,
 }
