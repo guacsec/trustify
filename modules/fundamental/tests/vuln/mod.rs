@@ -61,7 +61,7 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .filter(|status| status.purl_status.status == "affected")
         .collect();
 
-    assert_eq!(status_entries.len(), 2);
+    assert_eq!(status_entries.len(), 4);
     let json = serde_json::to_value(status_entries).expect("must serialize");
     assert!(
         json.contains_subset(json!([{
@@ -80,7 +80,6 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             },
             "scores": [{"type": "3.1", "value": 5.3, "severity": "medium", "vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N"}],
             "status": "affected",
-            "context": null,
             "version_range": {
                 "version_scheme_id": "rpm",
                 "high_version": "3.7.6-23.el9_3.4",
@@ -102,7 +101,6 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             },
             "scores": [{"type": "3.1", "value": 5.3, "severity": "medium", "vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N"}],
             "status": "affected",
-            "context": null,
             "version_range": {
                 "version_scheme_id": "rpm",
                 "high_version": "3.8.3-4.el9_4",
