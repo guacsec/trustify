@@ -300,6 +300,7 @@ async fn benchmark_vulnerability(ctx: TrustifyContext) -> anyhow::Result<()> {
 /// Benchmark: compare v3a (SQL) vs v3 (in-memory) PURL detail lookup.
 ///
 /// Uses a quarkus PURL from DS3 that has known advisory matches.
+/// Correctness is verified in `correctness::purl_advisories_subset_of_sql`.
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn benchmark_purl(ctx: TrustifyContext) -> anyhow::Result<()> {
@@ -318,11 +319,10 @@ async fn benchmark_purl(ctx: TrustifyContext) -> anyhow::Result<()> {
         .await?
         .expect("PURL should exist");
     let v3a_time = start_v3a.elapsed();
-    let v3a_count = v3a_details.advisories.len();
 
     log::info!(
         "v3a purl: {} advisories in {}",
-        v3a_count,
+        v3a_details.advisories.len(),
         humantime::Duration::from(v3a_time),
     );
 
@@ -341,11 +341,10 @@ async fn benchmark_purl(ctx: TrustifyContext) -> anyhow::Result<()> {
     )
     .await?;
     let v3_time = start_v3.elapsed();
-    let v3_count = advisories.len();
 
     log::info!(
         "v3 purl: {} advisories in {}",
-        v3_count,
+        advisories.len(),
         humantime::Duration::from(v3_time),
     );
 
@@ -356,12 +355,6 @@ async fn benchmark_purl(ctx: TrustifyContext) -> anyhow::Result<()> {
         humantime::Duration::from(v3_time),
     );
 
-    assert_eq!(
-        v3a_count, v3_count,
-        "v3a found {} advisories but v3 found {} — mismatch!",
-        v3a_count, v3_count,
-    );
-
     Ok(())
 }
 
@@ -369,6 +362,7 @@ async fn benchmark_purl(ctx: TrustifyContext) -> anyhow::Result<()> {
 ///
 /// Sends a batch of PURLs from the quarkus-bom through the analyze endpoint
 /// and compares SQL-based analysis with in-memory correlation.
+/// Correctness is verified in `correctness::analyze_vulnerability_ids_match_sql`.
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn benchmark_analyze(ctx: TrustifyContext) -> anyhow::Result<()> {
@@ -389,11 +383,12 @@ async fn benchmark_analyze(ctx: TrustifyContext) -> anyhow::Result<()> {
         .analyze_purls_v3(purls.iter().copied(), &ctx.db)
         .await?;
     let v3a_time = start_v3a.elapsed();
-    let v3a_count = v3a_response.0.len();
+    let v3a_detail_count: usize = v3a_response.0.values().map(|r| r.details.len()).sum();
 
     log::info!(
-        "v3a analyze: {} results in {}",
-        v3a_count,
+        "v3a analyze: {} purls, {} vuln details in {}",
+        v3a_response.0.len(),
+        v3a_detail_count,
         humantime::Duration::from(v3a_time),
     );
 
@@ -413,11 +408,12 @@ async fn benchmark_analyze(ctx: TrustifyContext) -> anyhow::Result<()> {
         trustify_module_correlation::service::hydrate::hydrate_analysis(matches, &statuses, &txn)
             .await?;
     let v3_time = start_v3.elapsed();
-    let v3_count = v3_response.0.len();
+    let v3_detail_count: usize = v3_response.0.values().map(|r| r.details.len()).sum();
 
     log::info!(
-        "v3 analyze: {} results in {}",
-        v3_count,
+        "v3 analyze: {} purls, {} vuln details in {}",
+        v3_response.0.len(),
+        v3_detail_count,
         humantime::Duration::from(v3_time),
     );
 
@@ -426,12 +422,6 @@ async fn benchmark_analyze(ctx: TrustifyContext) -> anyhow::Result<()> {
         v3a_time.as_secs_f64() / v3_time.as_secs_f64(),
         humantime::Duration::from(v3a_time),
         humantime::Duration::from(v3_time),
-    );
-
-    assert_eq!(
-        v3a_count, v3_count,
-        "v3a found {} results but v3 found {} — mismatch!",
-        v3a_count, v3_count,
     );
 
     Ok(())
