@@ -452,7 +452,7 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
         .uri("/api/v3/sbom/sha123:1234/all-license-ids")
         .to_request();
     let response = app.call_service(req).await;
-    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
 
     // Test license IDs are case-insensitive https://spdx.github.io/spdx-spec/v3.0.1/annexes/spdx-license-expressions/#case-sensitivity
     // because, so far, the test ingested `Apache-2.0` licenses but the next SBOM contains
@@ -2162,19 +2162,19 @@ async fn packages_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
 
-    // Invalid identifier (no prefix) -> 400
+    // Invalid identifier (no prefix) -> 404
     let req = TestRequest::get()
         .uri("/api/v3/sbom/not-an-id/packages")
         .to_request();
     let response = app.call_service(req).await;
-    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
 
-    // Unsupported prefix -> 400
+    // Unsupported prefix -> 404
     let req = TestRequest::get()
         .uri("/api/v3/sbom/sha123:abcd/packages")
         .to_request();
     let response = app.call_service(req).await;
-    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
 
     Ok(())
 }
@@ -2217,19 +2217,19 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
 
-    // Invalid identifier (no prefix) -> 400
+    // Invalid identifier (no prefix) -> 404
     let req = TestRequest::get()
         .uri("/api/v3/sbom/not-an-id/related")
         .to_request();
     let response = app.call_service(req).await;
-    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
 
-    // Unsupported prefix -> 400
+    // Unsupported prefix -> 404
     let req = TestRequest::get()
         .uri("/api/v3/sbom/sha123:abcd/related")
         .to_request();
     let response = app.call_service(req).await;
-    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
 
     Ok(())
 }

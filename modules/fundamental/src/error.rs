@@ -138,7 +138,7 @@ impl ResponseError for Error {
             Self::Query(err) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("QueryError", err))
             }
-            Self::IdKey(err) => HttpResponse::BadRequest().json(ErrorInformation::new("Key", err)),
+            Self::IdKey(err) => HttpResponse::NotFound().json(ErrorInformation::new("Key", err)),
             Self::StorageKey(err) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("StorageKey", err))
             }
