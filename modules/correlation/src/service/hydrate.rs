@@ -388,7 +388,9 @@ pub async fn hydrate_analysis(
             }
             advisory_ids.insert(m.advisory_id);
             vuln_ids.insert(m.vulnerability_id.as_ref().to_string());
-            purl_status_ids.insert(m.purl_status_id);
+            if let Some(id) = m.purl_status_id {
+                purl_status_ids.insert(id);
+            }
             if let Some(cpe_id) = m.context_cpe_id {
                 cpe_ids.insert(cpe_id);
             }
@@ -490,7 +492,7 @@ pub async fn hydrate_analysis(
                     .context_cpe_id
                     .and_then(|id| cpe_map.get(&id).map(|c| c.to_string()));
 
-                let version_range = version_range_to_api(&m.version_range);
+                let version_range = m.version_range.as_ref().and_then(version_range_to_api);
 
                 let vuln_head = VulnerabilityHead::from_advisory_vulnerability_entity(av, vuln);
 
@@ -503,8 +505,9 @@ pub async fn hydrate_analysis(
                     &scores,
                 )?;
 
-                let remediations = remediation_map
-                    .get(&m.purl_status_id)
+                let remediations = m
+                    .purl_status_id
+                    .and_then(|id| remediation_map.get(&id))
                     .cloned()
                     .unwrap_or_default();
 
@@ -638,7 +641,7 @@ pub async fn hydrate_purl_advisories(
                 .context_cpe_id
                 .and_then(|id| cpe_map.get(&id).map(|c| c.to_string()));
 
-            let version_range = version_range_to_api(&m.version_range);
+            let version_range = m.version_range.as_ref().and_then(version_range_to_api);
 
             let vuln_head = VulnerabilityHead::from_advisory_vulnerability_entity(av, vuln);
 
@@ -1107,7 +1110,9 @@ pub async fn hydrate_recommend_matches(
     let mut purl_status_ids = HashSet::new();
     for m in &all_matches {
         advisory_ids.insert(m.advisory_id);
-        purl_status_ids.insert(m.purl_status_id);
+        if let Some(id) = m.purl_status_id {
+            purl_status_ids.insert(id);
+        }
     }
 
     let advisory_id_vec: Vec<Uuid> = advisory_ids.into_iter().collect();
@@ -1163,8 +1168,9 @@ pub async fn hydrate_recommend_matches(
                     other => VexStatus::Other(other.to_string()),
                 };
 
-                let remediations = remediation_map
-                    .get(&m.purl_status_id)
+                let remediations = m
+                    .purl_status_id
+                    .and_then(|id| remediation_map.get(&id))
                     .cloned()
                     .unwrap_or_default();
 

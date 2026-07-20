@@ -136,34 +136,28 @@ async fn vulnerability_advisory_count_matches_sql(ctx: TrustifyContext) -> anyho
     Ok(())
 }
 
-/// Verify PURL advisory results: in-memory path returns purl_status matches only.
+/// Verify PURL advisory results match between SQL and in-memory paths.
 ///
 /// The SQL path (`PurlService::purl_by_purl`) queries both `purl_status` and
-/// `product_status` tables. The in-memory `correlate_purls` currently only
-/// queries `AdvisoryIndex.by_purl` (sourced from `purl_status`), so it may
-/// return fewer advisories when product_status entries exist for the package.
-///
-/// This test verifies:
-/// 1. Both paths return non-empty results
-/// 2. Every advisory found by correlation is also found by SQL
-/// 3. The SQL path may find additional advisories from product_status matches
+/// `product_status` tables. The in-memory correlation must produce the same
+/// vulnerability set.
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
-async fn purl_advisories_subset_of_sql(ctx: TrustifyContext) -> anyhow::Result<()> {
+async fn purl_advisory_count_matches_sql(ctx: TrustifyContext) -> anyhow::Result<()> {
     let result = ctx.ingest_dataset(Dataset::DS3).await?;
     assert!(result.warnings.is_empty());
 
     let purl_str = "pkg:maven/io.quarkus/quarkus-vertx-http@2.13.8.Final-redhat-00004?repository_url=https://maven.repository.redhat.com/ga/&type=jar";
     let purl = Purl::try_from(purl_str)?;
 
-    // SQL baseline — includes both purl_status and product_status matches
+    // SQL baseline
     let purl_service = PurlService::new(PaginationCache::for_test());
     let v3a = purl_service
         .purl_by_purl(&purl, Deprecation::Ignore, &ctx.db)
         .await?
         .expect("PURL should exist");
 
-    // In-memory correlation — purl_status matches only
+    // In-memory correlation
     let correlation = create_correlation(&ctx).await?;
     let txn = ctx.db.begin().await?;
     let matches = correlation.correlate_purls(&[purl])?;
@@ -176,14 +170,6 @@ async fn purl_advisories_subset_of_sql(ctx: TrustifyContext) -> anyhow::Result<(
     )
     .await?;
 
-    // Both paths should find advisories
-    assert!(
-        !v3a.advisories.is_empty(),
-        "SQL path should find advisories"
-    );
-    assert!(!v3.is_empty(), "correlation path should find advisories");
-
-    // Correlation results must be a subset of SQL results
     let v3a_vuln_ids: HashSet<_> = v3a
         .advisories
         .iter()
@@ -194,39 +180,26 @@ async fn purl_advisories_subset_of_sql(ctx: TrustifyContext) -> anyhow::Result<(
         .flat_map(|a| a.status.iter().map(|s| s.vulnerability.identifier.clone()))
         .collect();
 
-    let extra_in_v3: Vec<_> = v3_vuln_ids.difference(&v3a_vuln_ids).collect();
-    assert!(
-        extra_in_v3.is_empty(),
-        "correlation found vulnerabilities not in SQL: {:?}",
-        extra_in_v3,
+    assert_eq!(
+        v3a_vuln_ids, v3_vuln_ids,
+        "vulnerability IDs must match: SQL={:?}, correlation={:?}",
+        v3a_vuln_ids, v3_vuln_ids,
     );
 
-    // SQL may find more due to product_status matches
-    let extra_in_sql: Vec<_> = v3a_vuln_ids.difference(&v3_vuln_ids).collect();
-    if !extra_in_sql.is_empty() {
-        log::info!(
-            "SQL found {} additional vulnerabilities from product_status: {:?}",
-            extra_in_sql.len(),
-            extra_in_sql,
-        );
-    }
-
-    log::info!(
-        "purl advisories: SQL={}, correlation={} (shared vulns={})",
+    assert_eq!(
         v3a.advisories.len(),
         v3.len(),
-        v3_vuln_ids.intersection(&v3a_vuln_ids).count(),
+        "advisory count must match: SQL={}, correlation={}",
+        v3a.advisories.len(),
+        v3.len(),
     );
 
     Ok(())
 }
 
-/// Verify analyze results: correlation returns entries for all input PURLs.
+/// Verify analyze results match between SQL and in-memory paths.
 ///
-/// The SQL `analyze_purls_v3` only returns PURLs that have vulnerability
-/// matches. The in-memory `hydrate_analysis` returns entries for all input
-/// PURLs (with empty details when no matches are found). Both should find
-/// the same set of vulnerabilities for PURLs that have matches.
+/// Both paths must find the same set of vulnerabilities for the given PURLs.
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn analyze_vulnerability_ids_match_sql(ctx: TrustifyContext) -> anyhow::Result<()> {
@@ -258,7 +231,6 @@ async fn analyze_vulnerability_ids_match_sql(ctx: TrustifyContext) -> anyhow::Re
         trustify_module_correlation::service::hydrate::hydrate_analysis(matches, &statuses, &txn)
             .await?;
 
-    // Collect all vulnerability IDs from both responses
     let v3a_vuln_ids: HashSet<_> = v3a
         .0
         .values()
@@ -269,32 +241,18 @@ async fn analyze_vulnerability_ids_match_sql(ctx: TrustifyContext) -> anyhow::Re
             .flat_map(|r| r.details.iter().map(|d| d.head.identifier.clone()))
             .collect();
 
-    // Correlation vulnerability IDs should be a subset of SQL results
-    // (SQL includes product_status matches that correlation doesn't have)
-    let extra_in_v3: Vec<_> = v3_vuln_ids.difference(&v3a_vuln_ids).collect();
-    assert!(
-        extra_in_v3.is_empty(),
-        "correlation found vulnerabilities not in SQL: {:?}",
-        extra_in_v3,
+    assert_eq!(
+        v3a_vuln_ids, v3_vuln_ids,
+        "vulnerability IDs must match: SQL={:?}, correlation={:?}",
+        v3a_vuln_ids, v3_vuln_ids,
     );
 
-    // Log what SQL found additionally from product_status
-    let extra_in_sql: Vec<_> = v3a_vuln_ids.difference(&v3_vuln_ids).collect();
-    if !extra_in_sql.is_empty() {
-        log::info!(
-            "SQL found {} additional vulnerabilities from product_status: {:?}",
-            extra_in_sql.len(),
-            extra_in_sql,
-        );
-    }
-
-    log::info!(
-        "analyze: SQL purls={} details={}, correlation purls={} details={}, shared vulns={}",
-        v3a.0.len(),
-        v3a.0.values().map(|r| r.details.len()).sum::<usize>(),
-        v3.0.len(),
-        v3.0.values().map(|r| r.details.len()).sum::<usize>(),
-        v3_vuln_ids.intersection(&v3a_vuln_ids).count(),
+    let v3a_detail_count: usize = v3a.0.values().map(|r| r.details.len()).sum();
+    let v3_detail_count: usize = v3.0.values().map(|r| r.details.len()).sum();
+    assert_eq!(
+        v3a_detail_count, v3_detail_count,
+        "detail count must match: SQL={}, correlation={}",
+        v3a_detail_count, v3_detail_count,
     );
 
     Ok(())

@@ -343,14 +343,19 @@ pub struct CorrelationMatch {
 }
 
 /// Result of correlating a standalone PURL (no SBOM context).
+///
+/// Matches can originate from either the `purl_status` table (version-range
+/// matching) or the `product_status` table (name-based matching from CSAF).
+/// Exactly one of `purl_status_id` / `product_status_id` is set.
 #[derive(Debug, Clone)]
 pub struct PurlCorrelationMatch {
-    pub purl_status_id: Uuid,
+    pub purl_status_id: Option<Uuid>,
+    pub product_status_id: Option<Uuid>,
     pub advisory_id: Uuid,
     pub vulnerability_id: Arc<str>,
     pub status_id: Uuid,
     pub context_cpe_id: Option<Uuid>,
-    pub version_range: VersionRangeData,
+    pub version_range: Option<VersionRangeData>,
 }
 
 /// Result of correlating a vulnerability against the SBOM index.

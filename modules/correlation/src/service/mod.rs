@@ -246,13 +246,45 @@ impl CorrelationService {
                 for entry in statuses {
                     if crate::model::version::version_matches(version, &entry.version_range) {
                         matches.push(PurlCorrelationMatch {
-                            purl_status_id: entry.purl_status_id,
+                            purl_status_id: Some(entry.purl_status_id),
+                            product_status_id: None,
                             advisory_id: entry.advisory_id,
                             vulnerability_id: Arc::clone(&entry.vulnerability_id),
                             status_id: entry.status_id,
                             context_cpe_id: entry.context_cpe_id,
-                            version_range: entry.version_range.clone(),
+                            version_range: Some(entry.version_range.clone()),
                         });
+                    }
+                }
+            }
+
+            // product_status matches (CSAF name-based, no version range)
+            if !advisory.product_by_name.is_empty() {
+                let mut seen: HashSet<(Uuid, Arc<str>, Uuid)> = matches
+                    .iter()
+                    .map(|m| (m.advisory_id, Arc::clone(&m.vulnerability_id), m.status_id))
+                    .collect();
+
+                for package_name in Self::product_lookup_names(purl) {
+                    if let Some(entries) = advisory.product_by_name.get(package_name.as_str()) {
+                        for entry in entries {
+                            let is_new = seen.insert((
+                                entry.advisory_id,
+                                Arc::clone(&entry.vulnerability_id),
+                                entry.status_id,
+                            ));
+                            if is_new {
+                                matches.push(PurlCorrelationMatch {
+                                    purl_status_id: None,
+                                    product_status_id: Some(entry.product_status_id),
+                                    advisory_id: entry.advisory_id,
+                                    vulnerability_id: Arc::clone(&entry.vulnerability_id),
+                                    status_id: entry.status_id,
+                                    context_cpe_id: entry.context_cpe_id,
+                                    version_range: None,
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -475,6 +507,15 @@ impl CorrelationService {
                 }
             }
         }
+    }
+
+    /// Returns the product_by_name lookup keys for a PURL: bare name and namespace/name.
+    fn product_lookup_names(purl: &Purl) -> Vec<String> {
+        let mut names = vec![purl.name.clone()];
+        if let Some(ns) = &purl.namespace {
+            names.push(format!("{}/{}", ns, purl.name));
+        }
+        names
     }
 
     /// Checks product_status entries for a package name match.
