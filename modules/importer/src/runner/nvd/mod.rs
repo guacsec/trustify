@@ -44,15 +44,13 @@ impl super::ImportRunner {
         let mut state: HashMap<u16, String> =
             serde_json::from_value(continuation).unwrap_or_default();
 
-        let base = format!(
-            "{}/releases/latest/download",
-            nvd.source.trim_end_matches('/')
-        );
-
         let client = reqwest::Client::builder()
             .user_agent("trustify-nvd-importer")
             .build()
             .map_err(|err| ScannerError::Critical(err.into()))?;
+
+        let base = resolve_download_base(&client, &nvd.source).await;
+        tracing::info!("NVD download base: {base}");
 
         let years = resolve_years(&nvd);
 
@@ -164,6 +162,63 @@ impl super::ImportRunner {
 
         Ok(())
     }
+}
+
+/// Resolve the release download base for the feed source.
+///
+/// The upstream publishes a new release every day, and `releases/latest`
+/// points at it from the moment it is created — while its assets may still
+/// be uploading, or missing entirely on a botched publish. During that
+/// window every asset download 404s. To avoid it, pick the newest release
+/// that actually has feed assets attached.
+///
+/// Falls back to `releases/latest/download` for non-GitHub sources (e.g.
+/// mock servers in tests) or when the GitHub API is unavailable.
+async fn resolve_download_base(client: &reqwest::Client, source: &str) -> String {
+    let source = source.trim_end_matches('/');
+    let fallback = format!("{source}/releases/latest/download");
+
+    let Some(repo) = source.strip_prefix("https://github.com/") else {
+        return fallback;
+    };
+
+    let api = format!("https://api.github.com/repos/{repo}/releases?per_page=10");
+    let releases = match list_releases(client, &api).await {
+        Ok(releases) => releases,
+        Err(err) => {
+            tracing::warn!("Failed to list releases via {api}: {err}; falling back to latest");
+            return fallback;
+        }
+    };
+
+    releases
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|release| {
+            release["assets"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .any(|asset| {
+                    asset["name"]
+                        .as_str()
+                        .is_some_and(|name| name.ends_with(".json.xz"))
+                })
+        })
+        .and_then(|release| release["tag_name"].as_str())
+        .map(|tag| format!("{source}/releases/download/{tag}"))
+        .unwrap_or(fallback)
+}
+
+async fn list_releases(client: &reqwest::Client, api: &str) -> anyhow::Result<serde_json::Value> {
+    Ok(client
+        .get(api)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?)
 }
 
 /// The set of years to process: the explicit `years` set if provided, otherwise
