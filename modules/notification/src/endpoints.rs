@@ -1,22 +1,37 @@
 use actix_web::{HttpRequest, HttpResponse, web};
 use futures::StreamExt;
 use serde::Deserialize;
+use std::sync::Arc;
 use tokio::sync::broadcast;
-use trustify_auth::{Permission, authenticator::user::UserInformation, authorizer::Authorizer};
+use utoipa_actix_web::service_config::ServiceConfig;
+use trustify_auth::{
+    Permission, authenticator::Authenticator, authenticator::user::UserInformation,
+    authorizer::Authorizer,
+};
 use trustify_common::db::change::{ChangeBroadcaster, ChangeEntity, ChangeEntry};
+use trustify_infrastructure::app::new_auth;
 use uuid::Uuid;
+
+use crate::inject_token::QueryTokenInjector;
 
 #[derive(Debug, Deserialize)]
 pub struct NotificationQuery {
     pub after: Option<Uuid>,
+    pub token: Option<String>,
 }
 
 pub fn configure(
-    config: &mut utoipa_actix_web::service_config::ServiceConfig,
+    config: &mut ServiceConfig,
     broadcaster: ChangeBroadcaster,
+    auth: Option<Arc<Authenticator>>,
 ) {
     config.app_data(web::Data::new(broadcaster)).map(|svc| {
-        svc.service(web::resource("/v3/notifications").route(web::get().to(ws_handler)))
+        svc.service(
+            web::resource("/api/v3/notifications")
+                .wrap(new_auth(auth))
+                .wrap(QueryTokenInjector)
+                .route(web::get().to(ws_handler)),
+        )
     });
 }
 
@@ -62,7 +77,7 @@ async fn ws_handler(
     Ok(response)
 }
 
-fn is_allowed(entry: &ChangeEntry, can_read_sbom: bool, can_read_advisory: bool) -> bool {
+pub(crate) fn is_allowed(entry: &ChangeEntry, can_read_sbom: bool, can_read_advisory: bool) -> bool {
     match entry.entity_type {
         ChangeEntity::Sbom => can_read_sbom,
         ChangeEntity::Advisory => can_read_advisory,

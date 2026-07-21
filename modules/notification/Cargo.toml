@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }
+trustify-infrastructure = { workspace = true }
 
 actix-http = { workspace = true }
 actix-web = { workspace = true }
@@ -21,3 +22,8 @@ tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
 utoipa-actix-web = { workspace = true }
 uuid = { workspace = true }
+
+[dev-dependencies]
+test-context = { workspace = true }
+test-log = { workspace = true, features = ["log", "trace"] }
+trustify-test-context = { workspace = true }

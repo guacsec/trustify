@@ -436,8 +436,11 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
     svc.app_data(web::PayloadConfig::default().limit(limit));
     svc.app_data(graph);
 
+    // Outside the `/api` scope: browser WebSocket clients cannot set HTTP headers,
+    // so this endpoint handles auth via `?token=` query parameter injection.
     svc.configure(|svc| {
         endpoints::configure(svc, auth.clone(), read_only);
+        trustify_module_notification::endpoints::configure(svc, broadcaster, auth.clone());
     });
 
     svc.service(
@@ -468,7 +471,6 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     correlation,
                     cache,
                 );
-                trustify_module_notification::endpoints::configure(svc, broadcaster);
                 trustify_module_user::endpoints::configure(svc);
                 trustify_module_ui::endpoints::configure(svc, ui)
             }),
