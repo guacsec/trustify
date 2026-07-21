@@ -1,5 +1,7 @@
 use sea_orm::{ConnectionTrait, DbBackend, DbErr, Statement};
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 const CHANNEL: &str = "trustify_changes";
@@ -58,7 +60,7 @@ impl ChangeOperation {
 }
 
 /// A single change log entry read from the database.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ChangeEntry {
     pub id: Uuid,
     pub entity_type: ChangeEntity,
@@ -281,5 +283,70 @@ impl ChangeListener {
                 tracing::warn!(%err, "failed to clean up change_log");
             }
         }
+    }
+}
+
+/// Fan-out broadcaster for change events.
+///
+/// Wraps a single [`ChangeListener`] and distributes events to multiple
+/// subscribers via [`tokio::sync::broadcast`]. Created once at startup.
+#[derive(Clone)]
+pub struct ChangeBroadcaster {
+    tx: broadcast::Sender<ChangeEntry>,
+    pool: sqlx::PgPool,
+    _task: Arc<tokio::task::JoinHandle<()>>,
+}
+
+impl ChangeBroadcaster {
+    pub fn new(db_rw: &super::ReadWrite) -> Result<Self, anyhow::Error> {
+        let pool = db_rw.get_postgres_connection_pool().clone();
+        let (tx, _) = broadcast::channel(1024);
+        let listener = ChangeListener::new(db_rw)?;
+        let sender = tx.clone();
+
+        let task = tokio::spawn(async move {
+            listener
+                .run(move |entries| {
+                    for entry in entries {
+                        let _ = sender.send(entry);
+                    }
+                })
+                .await;
+        });
+
+        Ok(Self {
+            tx,
+            pool,
+            _task: Arc::new(task),
+        })
+    }
+
+    pub fn subscribe(&self) -> broadcast::Receiver<ChangeEntry> {
+        self.tx.subscribe()
+    }
+
+    pub async fn fetch_after(&self, cursor: &Uuid) -> Result<Vec<ChangeEntry>, anyhow::Error> {
+        let rows: Vec<(Uuid, String, Option<Uuid>, String)> = sqlx::query_as(
+            "SELECT id, entity_type, entity_id, operation FROM change_log WHERE id > $1 ORDER BY id",
+        )
+        .bind(cursor)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let entries = rows
+            .into_iter()
+            .filter_map(|(id, entity_type, entity_id, operation)| {
+                let entity_type = ChangeEntity::from_str(&entity_type)?;
+                let operation = ChangeOperation::from_str(&operation)?;
+                Some(ChangeEntry {
+                    id,
+                    entity_type,
+                    entity_id,
+                    operation,
+                })
+            })
+            .collect();
+
+        Ok(entries)
     }
 }

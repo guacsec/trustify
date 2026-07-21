@@ -17,6 +17,7 @@ use trustify_common::{
     config::{Database, DatabaseReadOnly},
     db::{
         self,
+        change::ChangeBroadcaster,
         pagination_cache::{PaginationCache, PaginationConfig},
     },
     middleware::ReadOnlyState,
@@ -199,6 +200,7 @@ struct InitData {
     config: ModuleConfig,
     analysis: AnalysisService,
     correlation: CorrelationService,
+    broadcaster: ChangeBroadcaster,
     read_only: bool,
 }
 
@@ -305,10 +307,12 @@ impl InitData {
         };
 
         let correlation = CorrelationService::new(&run.correlation, db_ro.clone(), &db_rw).await?;
+        let broadcaster = ChangeBroadcaster::new(&db_rw)?;
 
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
             correlation,
+            broadcaster,
             authenticator,
             authorizer,
             db_rw,
@@ -350,6 +354,7 @@ impl InitData {
                             auth: self.authenticator.clone(),
                             analysis: self.analysis.clone(),
                             correlation: self.correlation.clone(),
+                            broadcaster: self.broadcaster.clone(),
                             read_only: self.read_only,
                         },
                     );
@@ -400,6 +405,7 @@ pub(crate) struct Config {
     pub(crate) storage: DispatchBackend,
     pub(crate) analysis: AnalysisService,
     pub(crate) correlation: CorrelationService,
+    pub(crate) broadcaster: ChangeBroadcaster,
     pub(crate) auth: Option<Arc<Authenticator>>,
     pub(crate) read_only: bool,
 }
@@ -419,6 +425,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         auth,
         analysis,
         correlation,
+        broadcaster,
         read_only,
     } = config;
 
@@ -461,6 +468,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     correlation,
                     cache,
                 );
+                trustify_module_notification::endpoints::configure(svc, broadcaster);
                 trustify_module_user::endpoints::configure(svc);
                 trustify_module_ui::endpoints::configure(svc, ui)
             }),
@@ -496,6 +504,7 @@ mod test {
     use std::sync::Arc;
     use test_context::test_context;
     use test_log::test;
+    use trustify_common::db::change::ChangeBroadcaster;
     use trustify_infrastructure::app::http::ApplyOpenApi;
     use trustify_module_ui::{UI, endpoints::UiResources};
     use trustify_test_context::{TrustifyContext, app::TestApp, call, call::CallService};
@@ -526,6 +535,7 @@ mod test {
         let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
         let correlation =
             CorrelationService::new(&CorrelationConfig::default(), db_ro.clone(), &db_rw).await?;
+        let broadcaster = ChangeBroadcaster::new(&db_rw)?;
         let app = actix_web::test::init_service(
             App::new()
                 .into_utoipa_app()
@@ -542,6 +552,7 @@ mod test {
                             auth: None,
                             analysis,
                             correlation,
+                            broadcaster,
                             read_only: false,
                         },
                     );
@@ -609,6 +620,8 @@ mod test {
             CorrelationService::new(&CorrelationConfig::default(), db_ro.clone(), &db_rw)
                 .await
                 .expect("failed to create correlation service");
+        let broadcaster =
+            ChangeBroadcaster::new(&db_rw).expect("failed to create change broadcaster");
         call::caller_app(move |svc| {
             configure(
                 svc,
@@ -621,6 +634,7 @@ mod test {
                     auth: None,
                     analysis,
                     correlation,
+                    broadcaster,
                     read_only,
                 },
             );
