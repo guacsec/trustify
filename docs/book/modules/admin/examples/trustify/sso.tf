@@ -115,6 +115,7 @@ resource "aws_cognito_user_pool_client" "frontend" {
     "${var.console-url}/openapi/oauth-receiver.html",
   ]
   logout_urls = [
+    "${var.console-url}",
     "${var.console-url}/",
     "${var.console-url}/notloggedin",
   ]
