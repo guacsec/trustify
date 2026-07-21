@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784578470318,
+  "lastUpdate": 1784664071494,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20378,6 +20378,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/290facde44f8dd2933cabe1663fd141a5f1057ce"
         },
         "date": 1784578467823,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rico.lang@think-ahead.tech",
+            "name": "Rico Lang",
+            "username": "rlang-ta"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "dc46655bef115c01dd604cbff89e8867cb3db8c7",
+          "message": "feat(importer): pick newest NVD release with feed assets attached\n\nThe upstream feed repo publishes a release daily, and GitHub's\nreleases/latest points at it the moment it is created -- while its\nassets may still be uploading or missing on a botched publish, so every\ndownload 404s. Resolve the download base to the newest release that\nactually has .json.xz assets attached, falling back to releases/latest\nfor non-GitHub sources and when the GitHub API is unavailable.\n\nCo-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-21T14:29:21Z",
+          "tree_id": "a3b3d486308a8ba748b617e603d198165ee2a0dd",
+          "url": "https://github.com/guacsec/trustify/commit/dc46655bef115c01dd604cbff89e8867cb3db8c7"
+        },
+        "date": 1784664068981,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
