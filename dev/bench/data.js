@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784664071494,
+  "lastUpdate": 1784664585306,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20407,6 +20407,34 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/dc46655bef115c01dd604cbff89e8867cb3db8c7"
         },
         "date": 1784664068981,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mnesuta@mnesuta-thinkpadp1gen7.rmtcz.csb",
+            "name": "Matej Nesuta"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "d7a96145c0e918ad5f97e7e3a5cca111199c317f",
+          "message": "chore: allow sign-out url for Cognito",
+          "timestamp": "2026-07-21T15:02:54Z",
+          "tree_id": "8794a8827b6a29d3c18fe361ee9d969f64f139b1",
+          "url": "https://github.com/guacsec/trustify/commit/d7a96145c0e918ad5f97e7e3a5cca111199c317f"
+        },
+        "date": 1784664582847,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
