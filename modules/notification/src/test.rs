@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 use actix_web::{App, HttpRequest, HttpResponse, http::StatusCode, test as actix, web};
+use std::time::Duration;
 use test_context::test_context;
 use test_log::test;
 use trustify_auth::{
@@ -49,12 +50,12 @@ fn extract_token_empty() {
 
 // -- Group B: is_allowed ----------------------------------------------------
 
-fn dummy_entry(entity_type: ChangeEntity) -> ChangeEntry {
+fn dummy_entry(r#type: ChangeEntity) -> ChangeEntry {
     ChangeEntry {
-        id: Uuid::now_v7(),
-        entity_type,
-        entity_id: Some(Uuid::now_v7()),
-        operation: ChangeOperation::Ingested,
+        cursor: Uuid::now_v7(),
+        r#type,
+        id: Some(Uuid::now_v7()),
+        operation: ChangeOperation::Added,
     }
 }
 
@@ -186,7 +187,7 @@ fn user_with_permissions(perms: &[&str]) -> UserDetails {
 #[test(actix_web::test)]
 async fn ws_anonymous_forbidden(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster = ChangeBroadcaster::new(&db_rw).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
     let authorizer = Authorizer::new(Some(AuthorizerConfig {}));
 
     let app = actix::init_service(
@@ -211,7 +212,7 @@ async fn ws_anonymous_forbidden(ctx: TrustifyContext) {
 #[test(actix_web::test)]
 async fn ws_no_permissions_forbidden(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster = ChangeBroadcaster::new(&db_rw).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
     let authorizer = Authorizer::new(Some(AuthorizerConfig {}));
 
     let app = actix::init_service(
@@ -237,7 +238,7 @@ async fn ws_no_permissions_forbidden(ctx: TrustifyContext) {
 #[test(actix_web::test)]
 async fn ws_read_sbom_accepted(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster = ChangeBroadcaster::new(&db_rw).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
     let authorizer = Authorizer::new(Some(AuthorizerConfig {}));
 
     let app = actix::init_service(
@@ -264,7 +265,7 @@ async fn ws_read_sbom_accepted(ctx: TrustifyContext) {
 #[test(actix_web::test)]
 async fn ws_read_advisory_accepted(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster = ChangeBroadcaster::new(&db_rw).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
     let authorizer = Authorizer::new(Some(AuthorizerConfig {}));
 
     let app = actix::init_service(
@@ -292,27 +293,27 @@ async fn ws_read_advisory_accepted(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn fetch_after_returns_newer_entries(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster = ChangeBroadcaster::new(&db_rw).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
 
     // Insert 3 entries with small delays so UUIDv7 ordering is preserved
     record_change(
         &ctx.db,
         ChangeEntity::Sbom,
         Some(Uuid::now_v7()),
-        ChangeOperation::Ingested,
+        ChangeOperation::Added,
     )
     .await
     .unwrap();
-    tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    tokio::time::sleep(Duration::from_millis(2)).await;
     record_change(
         &ctx.db,
         ChangeEntity::Advisory,
         Some(Uuid::now_v7()),
-        ChangeOperation::Ingested,
+        ChangeOperation::Added,
     )
     .await
     .unwrap();
-    tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+    tokio::time::sleep(Duration::from_millis(2)).await;
     record_change(
         &ctx.db,
         ChangeEntity::Sbom,
@@ -325,11 +326,11 @@ async fn fetch_after_returns_newer_entries(ctx: TrustifyContext) {
     let all = broadcaster.fetch_after(&Uuid::nil()).await.unwrap();
     assert!(all.len() >= 3);
 
-    let first_id = all[all.len() - 3].id;
-    let after_first = broadcaster.fetch_after(&first_id).await.unwrap();
+    let first_cursor = all[all.len() - 3].cursor;
+    let after_first = broadcaster.fetch_after(&first_cursor).await.unwrap();
     assert_eq!(after_first.len(), 2);
 
-    let last_id = all.last().unwrap().id;
-    let after_last = broadcaster.fetch_after(&last_id).await.unwrap();
+    let last_cursor = all.last().unwrap().cursor;
+    let after_last = broadcaster.fetch_after(&last_cursor).await.unwrap();
     assert!(after_last.is_empty());
 }

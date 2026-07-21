@@ -34,6 +34,7 @@ use trustify_infrastructure::{
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
 use trustify_module_correlation::{config::CorrelationConfig, service::CorrelationService};
+use trustify_module_notification::config::NotificationConfig;
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 use trustify_module_ui::{UI, endpoints::UiResources};
@@ -103,6 +104,10 @@ pub struct Run {
     /// Correlation configuration
     #[command(flatten)]
     pub correlation: CorrelationConfig,
+
+    /// Notification configuration
+    #[command(flatten)]
+    pub notification: NotificationConfig,
 
     /// Database configuration
     #[command(flatten)]
@@ -307,7 +312,7 @@ impl InitData {
         };
 
         let correlation = CorrelationService::new(&run.correlation, db_ro.clone(), &db_rw).await?;
-        let broadcaster = ChangeBroadcaster::new(&db_rw)?;
+        let broadcaster = ChangeBroadcaster::new(&db_rw, *run.notification.change_log_retention)?;
 
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
@@ -503,7 +508,7 @@ mod test {
     };
     use clap::{Args, Command, FromArgMatches};
     use rstest::rstest;
-    use std::sync::Arc;
+    use std::{sync::Arc, time::Duration};
     use test_context::test_context;
     use test_log::test;
     use trustify_common::db::change::ChangeBroadcaster;
@@ -537,7 +542,8 @@ mod test {
         let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
         let correlation =
             CorrelationService::new(&CorrelationConfig::default(), db_ro.clone(), &db_rw).await?;
-        let broadcaster = ChangeBroadcaster::new(&db_rw)?;
+        let broadcaster =
+            ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400))?;
         let app = actix_web::test::init_service(
             App::new()
                 .into_utoipa_app()
@@ -622,8 +628,8 @@ mod test {
             CorrelationService::new(&CorrelationConfig::default(), db_ro.clone(), &db_rw)
                 .await
                 .expect("failed to create correlation service");
-        let broadcaster =
-            ChangeBroadcaster::new(&db_rw).expect("failed to create change broadcaster");
+        let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400))
+            .expect("failed to create change broadcaster");
         call::caller_app(move |svc| {
             configure(
                 svc,

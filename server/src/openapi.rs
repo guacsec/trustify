@@ -1,5 +1,6 @@
 use crate::profile::api::{Config, ModuleConfig, configure, default_openapi_info};
 use actix_web::App;
+use std::time::Duration;
 use trustify_common::db::{self, change::ChangeBroadcaster, pagination_cache::PaginationCache};
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
 use trustify_module_correlation::{config::CorrelationConfig, service::CorrelationService};
@@ -14,7 +15,7 @@ pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
     let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
     let correlation =
         CorrelationService::new(&CorrelationConfig::default(), db_ro.clone(), &db_rw).await?;
-    let broadcaster = ChangeBroadcaster::new(&db_rw)?;
+    let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400))?;
 
     let (_, mut openapi) = App::new()
         .into_utoipa_app()

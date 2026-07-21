@@ -251,7 +251,7 @@ impl IngestorService {
                 tx,
                 entity_type,
                 uuid::Uuid::try_parse(&result.id).ok(),
-                ChangeOperation::Ingested,
+                ChangeOperation::Added,
             )
             .await
             .map_err(|err| Error::Storage(anyhow!("{err}")))?;

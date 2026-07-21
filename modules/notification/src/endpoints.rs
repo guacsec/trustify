@@ -20,6 +20,18 @@ pub struct NotificationQuery {
     pub token: Option<String>,
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+enum Message {
+    Connection,
+}
+
+#[derive(serde::Serialize)]
+struct ConnectionMessage {
+    r#type: Message,
+    cursor: Uuid,
+}
+
 pub fn configure(
     config: &mut ServiceConfig,
     broadcaster: ChangeBroadcaster,
@@ -82,7 +94,7 @@ pub(crate) fn is_allowed(
     can_read_sbom: bool,
     can_read_advisory: bool,
 ) -> bool {
-    match entry.entity_type {
+    match entry.r#type {
         ChangeEntity::Sbom => can_read_sbom,
         ChangeEntity::Advisory => can_read_advisory,
     }
@@ -96,7 +108,7 @@ async fn run_ws_session(
     can_read_sbom: bool,
     can_read_advisory: bool,
 ) -> Result<(), anyhow::Error> {
-    // Subscribe before backfill to avoid gaps.
+    // Subscribe before backfill/cursor fetch to avoid gaps.
     let mut rx = broadcaster.subscribe();
 
     if let Some(cursor) = after {
@@ -115,6 +127,16 @@ async fn run_ws_session(
             Err(err) => {
                 tracing::warn!(%err, "notification backfill query failed");
             }
+        }
+    } else {
+        let cursor = broadcaster.fetch_latest_cursor().await;
+        let msg = ConnectionMessage {
+            r#type: Message::Connection,
+            cursor,
+        };
+        let json = serde_json::to_string(&msg)?;
+        if session.text(json).await.is_err() {
+            return Ok(());
         }
     }
 

@@ -6,7 +6,6 @@ use uuid::Uuid;
 
 const CHANNEL: &str = "trustify_changes";
 const DEFAULT_POLL_INTERVAL: Duration = Duration::from_secs(30);
-const DEFAULT_RETENTION: Duration = Duration::from_secs(3600);
 const CLEANUP_INTERVAL: Duration = Duration::from_secs(300);
 
 /// The kind of entity that changed.
@@ -38,21 +37,21 @@ impl ChangeEntity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ChangeOperation {
-    Ingested,
+    Added,
     Deleted,
 }
 
 impl ChangeOperation {
     fn as_str(self) -> &'static str {
         match self {
-            Self::Ingested => "ingested",
+            Self::Added => "added",
             Self::Deleted => "deleted",
         }
     }
 
     fn from_str(s: &str) -> Option<Self> {
         match s {
-            "ingested" => Some(Self::Ingested),
+            "added" => Some(Self::Added),
             "deleted" => Some(Self::Deleted),
             _ => None,
         }
@@ -62,9 +61,9 @@ impl ChangeOperation {
 /// A single change log entry read from the database.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ChangeEntry {
-    pub id: Uuid,
-    pub entity_type: ChangeEntity,
-    pub entity_id: Option<Uuid>,
+    pub cursor: Uuid,
+    pub r#type: ChangeEntity,
+    pub id: Option<Uuid>,
     pub operation: ChangeOperation,
 }
 
@@ -107,13 +106,13 @@ impl ChangeListener {
     /// Creates a listener from a ReadWrite connection.
     ///
     /// Panics if the database backend is not PostgreSQL (checked at startup).
-    pub fn new(db: &super::ReadWrite) -> Result<Self, anyhow::Error> {
+    pub fn new(db: &super::ReadWrite, retention: Duration) -> Result<Self, anyhow::Error> {
         let pool = db.get_postgres_connection_pool().clone();
 
         Ok(Self {
             pool,
             poll_interval: DEFAULT_POLL_INTERVAL,
-            retention: DEFAULT_RETENTION,
+            retention,
         })
     }
 
@@ -207,7 +206,7 @@ impl ChangeListener {
             Ok(entries) if entries.is_empty() => {}
             Ok(entries) => {
                 if let Some(last) = entries.last() {
-                    *cursor = last.id;
+                    *cursor = last.cursor;
                 }
                 tracing::debug!(count = entries.len(), "delivering change events");
                 on_change(entries);
@@ -246,13 +245,13 @@ impl ChangeListener {
 
         let entries = rows
             .into_iter()
-            .filter_map(|(id, entity_type, entity_id, operation)| {
-                let entity_type = ChangeEntity::from_str(&entity_type)?;
+            .filter_map(|(cursor, r#type, id, operation)| {
+                let r#type = ChangeEntity::from_str(&r#type)?;
                 let operation = ChangeOperation::from_str(&operation)?;
                 Some(ChangeEntry {
+                    cursor,
+                    r#type,
                     id,
-                    entity_type,
-                    entity_id,
                     operation,
                 })
             })
@@ -298,10 +297,10 @@ pub struct ChangeBroadcaster {
 }
 
 impl ChangeBroadcaster {
-    pub fn new(db_rw: &super::ReadWrite) -> Result<Self, anyhow::Error> {
+    pub fn new(db_rw: &super::ReadWrite, retention: Duration) -> Result<Self, anyhow::Error> {
         let pool = db_rw.get_postgres_connection_pool().clone();
         let (tx, _) = broadcast::channel(1024);
-        let listener = ChangeListener::new(db_rw)?;
+        let listener = ChangeListener::new(db_rw, retention)?;
         let sender = tx.clone();
 
         let task = tokio::spawn(async move {
@@ -325,6 +324,22 @@ impl ChangeBroadcaster {
         self.tx.subscribe()
     }
 
+    /// Returns the latest event cursor, or `Uuid::nil()` if the change_log is empty.
+    pub async fn fetch_latest_cursor(&self) -> Uuid {
+        let result: Result<Option<(Uuid,)>, _> =
+            sqlx::query_as("SELECT id FROM change_log ORDER BY id DESC LIMIT 1")
+                .fetch_optional(&self.pool)
+                .await;
+        match result {
+            Ok(Some((id,))) => id,
+            Ok(None) => Uuid::nil(),
+            Err(err) => {
+                tracing::warn!(%err, "failed to fetch latest change_log cursor");
+                Uuid::nil()
+            }
+        }
+    }
+
     pub async fn fetch_after(&self, cursor: &Uuid) -> Result<Vec<ChangeEntry>, anyhow::Error> {
         let rows: Vec<(Uuid, String, Option<Uuid>, String)> = sqlx::query_as(
             "SELECT id, entity_type, entity_id, operation FROM change_log WHERE id > $1 ORDER BY id",
@@ -335,13 +350,13 @@ impl ChangeBroadcaster {
 
         let entries = rows
             .into_iter()
-            .filter_map(|(id, entity_type, entity_id, operation)| {
-                let entity_type = ChangeEntity::from_str(&entity_type)?;
+            .filter_map(|(cursor, r#type, id, operation)| {
+                let r#type = ChangeEntity::from_str(&r#type)?;
                 let operation = ChangeOperation::from_str(&operation)?;
                 Some(ChangeEntry {
+                    cursor,
+                    r#type,
                     id,
-                    entity_type,
-                    entity_id,
                     operation,
                 })
             })

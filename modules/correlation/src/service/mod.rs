@@ -83,7 +83,7 @@ impl CorrelationService {
         )));
 
         // Spawn the change listener (LISTEN/NOTIFY + polling fallback)
-        let change_listener = ChangeListener::new(db_rw)?;
+        let change_listener = ChangeListener::new(db_rw, Duration::from_secs(86400))?;
         let poll_interval = Duration::from_secs(config.correlation_poll_interval_secs);
         let listener_tx = tx.clone();
 
@@ -92,12 +92,12 @@ impl CorrelationService {
                 .with_poll_interval(poll_interval)
                 .run(move |entries| {
                     for entry in entries {
-                        if let Some(entity_id) = entry.entity_id {
-                            let event = match entry.entity_type {
+                        if let Some(id) = entry.id {
+                            let event = match entry.r#type {
                                 ChangeEntity::Advisory => {
-                                    CorrelationEvent::AdvisoryChanged(entity_id)
+                                    CorrelationEvent::AdvisoryChanged(id)
                                 }
-                                ChangeEntity::Sbom => CorrelationEvent::SbomChanged(entity_id),
+                                ChangeEntity::Sbom => CorrelationEvent::SbomChanged(id),
                             };
                             let _ = listener_tx.send(event);
                         }
