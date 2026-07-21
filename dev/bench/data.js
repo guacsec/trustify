@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784664585306,
+  "lastUpdate": 1784665101623,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20440,6 +20440,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "e47dacf3e8e11430b2c4528da7d54679291b700f",
+          "message": "fix(test): update ubi8 advisory count after broadened CPE matching\n\nThe edition filter removal in raw_sql.rs broadens generalized CPE\nmatching, causing fetch_sbom_details to return 3 advisories for the\nubi8 SBOM instead of 1. Update the assertion to match the new\nexpected behavior.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-07-21T17:34:35Z",
+          "tree_id": "995f7987708205e635c162a5cf220d7c7db37d69",
+          "url": "https://github.com/guacsec/trustify/commit/e47dacf3e8e11430b2c4528da7d54679291b700f"
+        },
+        "date": 1784665099960,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
