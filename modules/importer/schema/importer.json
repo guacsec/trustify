@@ -396,6 +396,7 @@
           "default": "https://github.com/fkie-cad/nvd-json-data-feeds"
         },
         "years": {
+          "description": "An explicit set of feed years to import. When non-empty, exactly these\nyears are imported and `start_year` is ignored.",
           "type": "array",
           "uniqueItems": true,
           "items": {
@@ -406,6 +407,7 @@
           }
         },
         "startYear": {
+          "description": "The first feed year to import when `years` is empty; all years from\nhere through the current year are imported. Defaults to 1999, the\nfirst year with NVD data.",
           "type": [
             "integer",
             "null"
