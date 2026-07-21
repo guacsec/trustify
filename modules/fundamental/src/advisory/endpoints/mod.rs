@@ -19,6 +19,7 @@ use sea_orm::TransactionTrait;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use trustify_auth::{CreateAdvisory, DeleteAdvisory, ReadAdvisory, authorizer::Require};
+use trustify_common::db::change::{ChangeEntity, ChangeOperation, record_change};
 use trustify_common::{
     db::{self, pagination_cache::PaginationCache, query::Query},
     decompress::decompress_async,
@@ -159,6 +160,13 @@ pub async fn delete(
     if let Some(v) = service.fetch_advisory(id, &tx).await?
         && service.delete_advisory(v.head.uuid, &tx).await?
     {
+        record_change(
+            &tx,
+            ChangeEntity::Advisory,
+            Some(v.head.uuid),
+            ChangeOperation::Deleted,
+        )
+        .await?;
         tx.commit().await?;
         if let Err(e) = delete_doc(&v.source_document, i.storage()).await {
             log::error!("Ignoring {e}");

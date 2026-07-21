@@ -44,7 +44,7 @@ pub enum AffectedSeverity {
 impl From<Option<Severity>> for AffectedSeverity {
     fn from(value: Option<Severity>) -> Self {
         match value {
-            Option::None => AffectedSeverity::Unknown,
+            None => AffectedSeverity::Unknown,
             Some(Severity::None) => AffectedSeverity::None,
             Some(Severity::Low) => AffectedSeverity::Low,
             Some(Severity::Medium) => AffectedSeverity::Medium,

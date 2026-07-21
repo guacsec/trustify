@@ -17,6 +17,7 @@ use trustify_common::{
     config::{Database, DatabaseReadOnly},
     db::{
         self,
+        change::ChangeBroadcaster,
         pagination_cache::{PaginationCache, PaginationConfig},
     },
     middleware::ReadOnlyState,
@@ -32,6 +33,8 @@ use trustify_infrastructure::{
     otel::{Metrics as OtelMetrics, Tracing},
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
+use trustify_module_correlation::{config::CorrelationConfig, service::CorrelationService};
+use trustify_module_notification::config::NotificationConfig;
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 use trustify_module_ui::{UI, endpoints::UiResources};
@@ -97,6 +100,14 @@ pub struct Run {
     /// Analysis configuration
     #[command(flatten)]
     pub analysis: AnalysisConfig,
+
+    /// Correlation configuration
+    #[command(flatten)]
+    pub correlation: CorrelationConfig,
+
+    /// Notification configuration
+    #[command(flatten)]
+    pub notification: NotificationConfig,
 
     /// Database configuration
     #[command(flatten)]
@@ -193,6 +204,8 @@ struct InitData {
     ui: UI,
     config: ModuleConfig,
     analysis: AnalysisService,
+    correlation: CorrelationService,
+    broadcaster: ChangeBroadcaster,
     read_only: bool,
 }
 
@@ -298,8 +311,13 @@ impl InitData {
             },
         };
 
+        let correlation = CorrelationService::new(&run.correlation, db_ro.clone(), &db_rw).await?;
+        let broadcaster = ChangeBroadcaster::new(&db_rw, *run.notification.change_log_retention)?;
+
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
+            correlation,
+            broadcaster,
             authenticator,
             authorizer,
             db_rw,
@@ -340,6 +358,8 @@ impl InitData {
                             storage: self.storage.clone(),
                             auth: self.authenticator.clone(),
                             analysis: self.analysis.clone(),
+                            correlation: self.correlation.clone(),
+                            broadcaster: self.broadcaster.clone(),
                             read_only: self.read_only,
                         },
                     );
@@ -389,6 +409,8 @@ pub(crate) struct Config {
     pub(crate) cache: PaginationCache,
     pub(crate) storage: DispatchBackend,
     pub(crate) analysis: AnalysisService,
+    pub(crate) correlation: CorrelationService,
+    pub(crate) broadcaster: ChangeBroadcaster,
     pub(crate) auth: Option<Arc<Authenticator>>,
     pub(crate) read_only: bool,
 }
@@ -407,6 +429,8 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         storage,
         auth,
         analysis,
+        correlation,
+        broadcaster,
         read_only,
     } = config;
 
@@ -417,8 +441,11 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
     svc.app_data(web::PayloadConfig::default().limit(limit));
     svc.app_data(graph);
 
+    // Outside the `/api` scope: browser WebSocket clients cannot set HTTP headers,
+    // so this endpoint handles auth via `?token=` query parameter injection.
     svc.configure(|svc| {
         endpoints::configure(svc, auth.clone(), read_only);
+        trustify_module_notification::endpoints::configure(svc, broadcaster, auth.clone());
     });
 
     svc.service(
@@ -440,9 +467,15 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     db_ro.clone(),
                     storage,
                     analysis.clone(),
-                    cache,
+                    cache.clone(),
                 );
                 trustify_module_analysis::endpoints::configure(svc, db_ro.clone(), analysis);
+                trustify_module_correlation::endpoints::configure(
+                    svc,
+                    db_ro.clone(),
+                    correlation,
+                    cache,
+                );
                 trustify_module_user::endpoints::configure(svc);
                 trustify_module_ui::endpoints::configure(svc, ui)
             }),
@@ -475,9 +508,10 @@ mod test {
     };
     use clap::{Args, Command, FromArgMatches};
     use rstest::rstest;
-    use std::sync::Arc;
+    use std::{sync::Arc, time::Duration};
     use test_context::test_context;
     use test_log::test;
+    use trustify_common::db::change::ChangeBroadcaster;
     use trustify_infrastructure::app::http::ApplyOpenApi;
     use trustify_module_ui::{UI, endpoints::UiResources};
     use trustify_test_context::{TrustifyContext, app::TestApp, call, call::CallService};
@@ -503,8 +537,13 @@ mod test {
     #[test(actix_web::test)]
     async fn routing(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
         let ui = Arc::new(UiResources::new(&UI::default())?);
-        let analysis =
-            AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
+        let db_ro = db::ReadOnly::new(ctx.db.clone());
+        let db_rw = db::ReadWrite::new(ctx.db.clone());
+        let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
+        let correlation =
+            CorrelationService::new(&CorrelationConfig::default(), db_ro.clone(), &db_rw).await?;
+        let broadcaster =
+            ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400))?;
         let app = actix_web::test::init_service(
             App::new()
                 .into_utoipa_app()
@@ -520,6 +559,8 @@ mod test {
                             storage: ctx.storage.clone().into(),
                             auth: None,
                             analysis,
+                            correlation,
+                            broadcaster,
                             read_only: false,
                         },
                     );
@@ -580,8 +621,15 @@ mod test {
 
     /// Creates a fully configured test app with all server endpoints and standard middleware.
     async fn caller(ctx: &TrustifyContext, read_only: bool) -> impl CallService {
-        let analysis =
-            AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
+        let db_ro = db::ReadOnly::new(ctx.db.clone());
+        let db_rw = db::ReadWrite::new(ctx.db.clone());
+        let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
+        let correlation =
+            CorrelationService::new(&CorrelationConfig::default(), db_ro.clone(), &db_rw)
+                .await
+                .expect("failed to create correlation service");
+        let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400))
+            .expect("failed to create change broadcaster");
         call::caller_app(move |svc| {
             configure(
                 svc,
@@ -593,6 +641,8 @@ mod test {
                     cache: PaginationCache::for_test(),
                     auth: None,
                     analysis,
+                    correlation,
+                    broadcaster,
                     read_only,
                 },
             );
