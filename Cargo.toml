@@ -21,6 +21,7 @@ members = [
     "test-context",
     "trustd",
     "xtask",
+    "tools/scanner",
 ]
 
 [workspace.package]
