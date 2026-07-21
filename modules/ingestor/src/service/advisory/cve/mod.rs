@@ -9,44 +9,34 @@ pub mod divination;
 pub mod loader;
 
 /// Parses all CVSS objects from a single CVE metric entry by extracting the vector string
-/// and parsing it with the appropriate version's `FromStr` impl. Returns one `Cvss` variant
+/// and parsing it with the appropriate version's `FromStr` impl. Yields one `Cvss` variant
 /// per successfully parsed version field.
-fn parse_cvss_from_metric(metric: &cve::published::Metric) -> Vec<Cvss> {
-    let mut result = Vec::with_capacity(1);
-
-    if let Some(cvss) = metric
+fn parse_cvss_from_metric(metric: &cve::published::Metric) -> impl Iterator<Item = Cvss> + '_ {
+    let v4 = metric
         .cvss_v4_0
         .as_ref()
         .and_then(parse_from_vector_string::<CvssV4>)
-    {
-        result.push(Cvss::V4(cvss));
-    }
+        .map(Cvss::V4);
 
-    if let Some(cvss) = metric
+    let v3_1 = metric
         .cvss_v3_1
         .as_ref()
         .and_then(parse_from_vector_string::<CvssV3>)
-    {
-        result.push(Cvss::V3_1(cvss));
-    }
+        .map(Cvss::V3_1);
 
-    if let Some(cvss) = metric
+    let v3_0 = metric
         .cvss_v3_0
         .as_ref()
         .and_then(parse_from_vector_string::<CvssV3>)
-    {
-        result.push(Cvss::V3_0(cvss));
-    }
+        .map(Cvss::V3_0);
 
-    if let Some(cvss) = metric
+    let v2 = metric
         .cvss_v2_0
         .as_ref()
         .and_then(parse_from_vector_string::<CvssV2>)
-    {
-        result.push(Cvss::V2(cvss));
-    }
+        .map(Cvss::V2);
 
-    result
+    v4.into_iter().chain(v3_1).chain(v3_0).chain(v2)
 }
 
 /// Extracts a `vectorString` from a JSON value and parses it via `FromStr`.

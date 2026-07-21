@@ -495,7 +495,7 @@ mod test {
                     (Some(a), Some(b)) => {
                         a.r#type == b.r#type
                             && a.severity == b.severity
-                            && (a.score - b.score).abs() < 0.1
+                            && (a.score - b.score).abs() < 0.02
                     }
                     _ => false,
                 }
