@@ -65,7 +65,7 @@ impl<'g> CveLoader<'g> {
             assigned,
             affected,
             information,
-        } = Self::extract_vuln_info(&cve);
+        } = Self::extract_vuln_info(&cve, &warnings);
 
         let cwes = information.cwes.clone();
         let release_date = information.published;
@@ -113,7 +113,7 @@ impl<'g> CveLoader<'g> {
             .await?;
 
         let mut score_creator = ScoreCreator::new(advisory.advisory.id);
-        extract_scores(&cve, &mut score_creator);
+        extract_scores(&cve, &mut score_creator, &warnings);
         score_creator.create(tx).await?;
 
         // A CVE advisory is always the authoritative source for its vulnerability,
@@ -227,7 +227,7 @@ impl<'g> CveLoader<'g> {
             .map(|desc| desc.value.as_str())
     }
 
-    fn extract_vuln_info(cve: &Cve) -> VulnerabilityDetails<'_> {
+    fn extract_vuln_info<'a>(cve: &'a Cve, warnings: &Warnings) -> VulnerabilityDetails<'a> {
         let reserved = cve
             .common_metadata()
             .date_reserved
@@ -298,7 +298,7 @@ impl<'g> CveLoader<'g> {
             ),
         };
 
-        let base_score = extract_base_score(cve);
+        let base_score = extract_base_score(cve, warnings);
 
         VulnerabilityDetails {
             org_name,
@@ -503,7 +503,7 @@ mod test {
         }
 
         assert_eq!(
-            ApproxBaseScore(extract_base_score(&cve.into())),
+            ApproxBaseScore(extract_base_score(&cve.into(), &Warnings::new())),
             ApproxBaseScore(expected)
         );
     }

@@ -8,7 +8,10 @@ use strum::VariantNames;
 use trustify_common::db::create_enum_if_not_exists;
 use trustify_module_ingestor::{
     graph::cvss::ScoreCreator,
-    service::advisory::{csaf, cve, osv},
+    service::{
+        Warnings,
+        advisory::{csaf, cve, osv},
+    },
 };
 
 #[derive(DeriveMigrationName)]
@@ -98,10 +101,11 @@ impl MigrationTraitWithData for Migration {
 
         manager
             .process(self, async |advisory, id: Id, tx: &DatabaseTransaction| {
+                let warnings = Warnings::new();
                 let mut creator = ScoreCreator::new(id.advisory);
                 match advisory {
                     Advisory::Cve(advisory) => {
-                        cve::extract_scores(&advisory, &mut creator);
+                        cve::extract_scores(&advisory, &mut creator, &warnings);
                     }
                     Advisory::Csaf(advisory) => {
                         csaf::extract_scores(&advisory, &mut creator);

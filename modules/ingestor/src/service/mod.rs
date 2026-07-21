@@ -301,7 +301,7 @@ impl IngestorService {
 
 /// Capture warnings from the import process
 #[derive(Default)]
-pub(crate) struct Warnings(Arc<Mutex<Vec<String>>>);
+pub struct Warnings(Arc<Mutex<Vec<String>>>);
 
 impl Warnings {
     pub fn new() -> Self {
