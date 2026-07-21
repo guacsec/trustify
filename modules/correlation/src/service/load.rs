@@ -1,12 +1,12 @@
 use crate::model::{
-    AdvisoryIndex, AdvisoryPatch, CorrelationState, PackageCatalog, ProductStatusEntry, PurlKey,
-    PurlStatusEntry, SbomIndex, SbomPackageEntry, SbomPatch, SeverityIndex, VersionRangeData,
-    VulnEntrySource, VulnIndexEntry,
+    AdvisoryIndex, AdvisoryPatch, CorrelationState, ProductStatusEntry, PurlKey, PurlStatusEntry,
+    SbomIndex, SbomPackageEntry, SbomPatch, SeverityIndex, VersionRangeData, VulnEntrySource,
+    VulnIndexEntry,
 };
 use futures::TryStreamExt;
 use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, JoinType, QueryFilter, QuerySelect,
-    RelationTrait, StreamTrait, sea_query::Expr,
+    RelationTrait, StreamTrait,
 };
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -256,145 +256,58 @@ pub(crate) async fn load_advisory_index(
     })
 }
 
-/// Row for streaming qualified_purl without unused columns.
-#[derive(Debug, FromQueryResult)]
-struct QualifiedPurlRow {
-    id: Uuid,
-    #[sea_orm(column_type = "JsonBinary")]
-    purl: qualified_purl::CanonicalPurl,
-}
-
-/// Aggregated row: one per SBOM, carrying all its qualified_purl_ids via `array_agg`.
-#[derive(Debug, FromQueryResult)]
-struct SbomPurlRefAgg {
-    sbom_id: Uuid,
-    purl_ids: Vec<Uuid>,
-}
-
-/// Loads the full SBOM index using a two-phase approach.
-///
-/// Phase 1: Stream qualified_purl to build a deduplicated package catalog.
-/// Phase 2: Stream sbom_node_purl_ref (no JOIN) to build per-SBOM index vectors.
+/// Loads the SBOM index by joining sbom_node_purl_ref with qualified_purl,
+/// building per-SBOM package vectors directly.
 /// The CPE query uses a CTE with a self-join and `split_part()` — kept as raw SQL.
 pub(crate) async fn load_sbom_index(
     txn: &(impl ConnectionTrait + StreamTrait),
 ) -> Result<SbomIndex, anyhow::Error> {
     let mut interner = StringInterner::new();
 
-    // Phase 1: Build package catalog from qualified_purl (~4M rows)
-    type DedupeKey = (Arc<str>, Option<Arc<str>>, Arc<str>, Arc<str>);
-    let mut dedup: HashMap<DedupeKey, u32> = HashMap::new();
-    let mut catalog_entries: Vec<SbomPackageEntry> = Vec::new();
-    let mut qp_to_catalog: HashMap<Uuid, u32> = HashMap::new();
-    let mut qp_total: u64 = 0;
-    let mut qp_count: u64 = 0;
+    let mut by_sbom_build: HashMap<Uuid, Vec<SbomPackageEntry>> = HashMap::new();
+    let mut seen_per_sbom: HashMap<Uuid, HashSet<Uuid>> = HashMap::new();
+    let mut ref_count: u64 = 0;
 
-    let mut stream = qualified_purl::Entity::find()
-        .select_only()
-        .column(qualified_purl::Column::Id)
-        .column(qualified_purl::Column::Purl)
-        .into_model::<QualifiedPurlRow>()
-        .stream(txn)
-        .await?;
+    let rows: Vec<(sbom_node_purl_ref::Model, Option<qualified_purl::Model>)> =
+        sbom_node_purl_ref::Entity::find()
+            .find_also_related(qualified_purl::Entity)
+            .all(txn)
+            .instrument(info_span!("load sbom purl refs"))
+            .await?;
 
-    while let Some(qp) = stream.try_next().await? {
-        qp_total += 1;
-        if qp_total.is_multiple_of(1_000_000) {
-            tracing::info!(rows = qp_total, "phase 1 progress");
-        }
-
-        if let Some(version) = qp.purl.version
+    for (snpr, qp_opt) in rows {
+        if let Some(qp) = qp_opt
+            && let Some(version) = qp.purl.version
             && !version.is_empty()
         {
-            qp_count += 1;
-            let ty = interner.intern(qp.purl.ty);
-            let name = interner.intern(qp.purl.name);
-            let namespace = interner.intern_opt(qp.purl.namespace);
-            let version = interner.intern(version);
-
-            let key = (
-                Arc::clone(&ty),
-                namespace.as_ref().map(Arc::clone),
-                Arc::clone(&name),
-                Arc::clone(&version),
-            );
-
-            let catalog_idx = if let Some(&existing) = dedup.get(&key) {
-                existing
-            } else {
-                let idx = catalog_entries.len() as u32;
-                catalog_entries.push(SbomPackageEntry {
-                    ty,
-                    name,
-                    namespace,
-                    version,
-                });
-                dedup.insert(key, idx);
-                idx
-            };
-
-            qp_to_catalog.insert(qp.id, catalog_idx);
-        }
-    }
-    drop(stream);
-    drop(dedup);
-
-    tracing::info!(
-        catalog_entries = catalog_entries.len(),
-        qualified_purls = qp_count,
-        interned_strings = interner.0.len(),
-        "phase 1: package catalog built"
-    );
-
-    // Phase 2: Aggregated sbom_node_purl_ref via array_agg (~264K grouped rows)
-    let mut by_sbom: HashMap<Uuid, Arc<[u32]>> = HashMap::new();
-    let mut sbom_count: u64 = 0;
-    let mut ref_count: u64 = 0;
-    let mut skipped: u64 = 0;
-
-    let mut stream = sbom_node_purl_ref::Entity::find()
-        .select_only()
-        .column(sbom_node_purl_ref::Column::SbomId)
-        .column_as(
-            Expr::cust(r#"array_agg("sbom_node_purl_ref"."qualified_purl_id")"#),
-            "purl_ids",
-        )
-        .group_by(sbom_node_purl_ref::Column::SbomId)
-        .into_model::<SbomPurlRefAgg>()
-        .stream(txn)
-        .await?;
-
-    while let Some(row) = stream.try_next().await? {
-        sbom_count += 1;
-        let mut indices = Vec::with_capacity(row.purl_ids.len());
-        for purl_id in row.purl_ids {
-            ref_count += 1;
-            if let Some(&catalog_idx) = qp_to_catalog.get(&purl_id) {
-                indices.push(catalog_idx);
-            } else {
-                skipped += 1;
+            let seen = seen_per_sbom.entry(snpr.sbom_id).or_default();
+            if !seen.insert(qp.id) {
+                continue;
             }
-        }
-        if !indices.is_empty() {
-            by_sbom.insert(row.sbom_id, Arc::from(indices.into_boxed_slice()));
-        }
-
-        if sbom_count.is_multiple_of(10_000) {
-            tracing::info!(
-                sboms = sbom_count,
-                purl_refs = ref_count,
-                "phase 2 progress"
-            );
+            ref_count += 1;
+            by_sbom_build
+                .entry(snpr.sbom_id)
+                .or_default()
+                .push(SbomPackageEntry {
+                    ty: interner.intern(qp.purl.ty),
+                    name: interner.intern(qp.purl.name),
+                    namespace: interner.intern_opt(qp.purl.namespace),
+                    version: interner.intern(version),
+                });
         }
     }
-    drop(stream);
-    drop(qp_to_catalog);
+    drop(seen_per_sbom);
+
+    let by_sbom: HashMap<Uuid, Arc<[SbomPackageEntry]>> = by_sbom_build
+        .into_iter()
+        .map(|(id, pkgs)| (id, Arc::from(pkgs.into_boxed_slice())))
+        .collect();
 
     tracing::info!(
         sboms = by_sbom.len(),
         purl_refs = ref_count,
-        skipped = skipped,
-        "phase 2: per-SBOM index built"
+        interned_strings = interner.0.len(),
+        "per-SBOM package index built"
     );
 
     // Load CPE IDs per SBOM (direct + generalized, matching v3a SQL logic).
@@ -437,11 +350,9 @@ pub(crate) async fn load_sbom_index(
     tracing::info!(cpe_sboms = describing_cpes.len(), "sbom cpes loaded");
 
     // Build reverse PurlKey → sbom_ids index
-    let catalog = PackageCatalog::from_entries(catalog_entries);
     let mut by_purl_key: HashMap<PurlKey, Vec<Uuid>> = HashMap::new();
-    for (&sbom_id, indices) in &by_sbom {
-        for &idx in indices.iter() {
-            let pkg = catalog.get(idx);
+    for (&sbom_id, packages) in &by_sbom {
+        for pkg in packages.iter() {
             let key = PurlKey {
                 ty: Arc::clone(&pkg.ty),
                 namespace: pkg.namespace.as_ref().map(Arc::clone),
@@ -457,7 +368,6 @@ pub(crate) async fn load_sbom_index(
     );
 
     Ok(SbomIndex {
-        catalog,
         by_sbom,
         describing_cpes,
         by_purl_key,

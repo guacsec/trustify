@@ -1,9 +1,10 @@
 pub mod version;
 
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use trustify_entity::advisory_vulnerability_score::Severity;
-use trustify_entity::version_scheme::VersionScheme;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+use trustify_entity::{advisory_vulnerability_score::Severity, version_scheme::VersionScheme};
 use trustify_module_fundamental::sbom::model::AffectedSeverity;
 use uuid::Uuid;
 
@@ -201,46 +202,6 @@ pub struct SbomPackageEntry {
     pub version: Arc<str>,
 }
 
-/// Deduplicated catalog of package entries, indexed by `u32`.
-///
-/// During initial load, entries are deduplicated by (ty, namespace, name, version)
-/// so that the ~4M qualified_purl rows collapse to ~1.6M unique tuples. Per-SBOM
-/// vectors store compact `u32` indices into this catalog instead of full structs.
-#[derive(Debug, Clone)]
-pub struct PackageCatalog {
-    entries: Vec<SbomPackageEntry>,
-}
-
-impl PackageCatalog {
-    /// Creates a catalog from a pre-built entry vector.
-    pub fn from_entries(entries: Vec<SbomPackageEntry>) -> Self {
-        Self { entries }
-    }
-
-    /// Returns the package entry at the given index.
-    #[inline]
-    pub fn get(&self, index: u32) -> &SbomPackageEntry {
-        &self.entries[index as usize]
-    }
-
-    /// Returns the number of entries in the catalog.
-    pub fn len(&self) -> usize {
-        self.entries.len()
-    }
-
-    /// Returns true if the catalog has no entries.
-    pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
-    }
-
-    /// Appends a new entry and returns its index.
-    pub fn append(&mut self, entry: SbomPackageEntry) -> u32 {
-        let idx = self.entries.len() as u32;
-        self.entries.push(entry);
-        idx
-    }
-}
-
 /// Loaded data for a single SBOM, ready to apply to the index.
 #[derive(Debug, Clone, Default)]
 pub struct SbomPatch {
@@ -250,16 +211,11 @@ pub struct SbomPatch {
     pub describing_cpes: HashSet<Uuid>,
 }
 
-/// SBOM-side index: maps sbom_id to catalog indices for its packages.
-///
-/// The `catalog` holds deduplicated package entries; each SBOM stores only
-/// compact `u32` indices wrapped in `Arc<[u32]>` for cheap cloning.
+/// SBOM-side index: maps sbom_id to its package entries.
 #[derive(Debug, Clone)]
 pub struct SbomIndex {
-    /// Shared catalog of all known package entries.
-    pub catalog: PackageCatalog,
-    /// sbom_id → list of indices into `catalog`.
-    pub by_sbom: HashMap<Uuid, Arc<[u32]>>,
+    /// sbom_id → package entries for that SBOM.
+    pub by_sbom: HashMap<Uuid, Arc<[SbomPackageEntry]>>,
     /// Per-SBOM describing CPE IDs for context filtering.
     pub describing_cpes: HashMap<Uuid, HashSet<Uuid>>,
     /// Reverse index: PurlKey → SBOMs containing packages with that key.
@@ -268,11 +224,7 @@ pub struct SbomIndex {
 
 impl SbomIndex {
     /// Applies a patch: replaces packages and CPEs for this SBOM.
-    ///
-    /// New package entries are appended to the catalog, and their indices are
-    /// stored in the per-SBOM vector. Updates the by_purl_key reverse index.
     pub fn apply_patch(&mut self, sbom_id: Uuid, patch: SbomPatch) {
-        // Remove old by_purl_key entries for this SBOM
         for entries in self.by_purl_key.values_mut() {
             entries.retain(|id| *id != sbom_id);
         }
@@ -281,18 +233,16 @@ impl SbomIndex {
         if patch.packages.is_empty() {
             self.by_sbom.remove(&sbom_id);
         } else {
-            let mut indices = Vec::with_capacity(patch.packages.len());
-            for entry in patch.packages {
+            for entry in &patch.packages {
                 let key = PurlKey {
                     ty: Arc::clone(&entry.ty),
                     namespace: entry.namespace.as_ref().map(Arc::clone),
                     name: Arc::clone(&entry.name),
                 };
                 self.by_purl_key.entry(key).or_default().push(sbom_id);
-                indices.push(self.catalog.append(entry));
             }
             self.by_sbom
-                .insert(sbom_id, Arc::from(indices.into_boxed_slice()));
+                .insert(sbom_id, Arc::from(patch.packages.into_boxed_slice()));
         }
 
         if patch.describing_cpes.is_empty() {
@@ -322,7 +272,6 @@ impl CorrelationState {
                 by_vulnerability: HashMap::new(),
             },
             sbom_index: SbomIndex {
-                catalog: PackageCatalog::from_entries(Vec::new()),
                 by_sbom: HashMap::new(),
                 describing_cpes: HashMap::new(),
                 by_purl_key: HashMap::new(),

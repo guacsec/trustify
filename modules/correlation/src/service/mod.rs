@@ -144,7 +144,7 @@ impl CorrelationService {
         let advisory = self.advisory_state.load();
         let sbom = self.sbom_state.load();
 
-        let package_indices = sbom
+        let packages = sbom
             .by_sbom
             .get(&sbom_id)
             .ok_or_else(|| Error::SbomNotFound(sbom_id.to_string()))?;
@@ -152,10 +152,9 @@ impl CorrelationService {
         let sbom_cpes = sbom.describing_cpes.get(&sbom_id);
         let sbom_has_cpes = sbom_cpes.is_some_and(|c| !c.is_empty());
         let has_product_index = !advisory.product_by_name.is_empty();
-        let mut matches = Vec::with_capacity(package_indices.len());
+        let mut matches = Vec::with_capacity(packages.len());
 
-        for &idx in package_indices.iter() {
-            let pkg = sbom.catalog.get(idx);
+        for pkg in packages.iter() {
             let key = PurlKey {
                 ty: Arc::clone(&pkg.ty),
                 namespace: pkg.namespace.as_ref().map(Arc::clone),
@@ -260,10 +259,7 @@ impl CorrelationService {
 
             // product_status matches (CSAF name-based, no version range)
             if !advisory.product_by_name.is_empty() {
-                let mut seen: HashSet<(Uuid, Arc<str>, Uuid)> = matches
-                    .iter()
-                    .map(|m| (m.advisory_id, Arc::clone(&m.vulnerability_id), m.status_id))
-                    .collect();
+                let mut seen: HashSet<(Uuid, Arc<str>, Uuid, Option<Uuid>)> = HashSet::new();
 
                 for package_name in Self::product_lookup_names(purl) {
                     if let Some(entries) = advisory.product_by_name.get(package_name.as_str()) {
@@ -272,6 +268,7 @@ impl CorrelationService {
                                 entry.advisory_id,
                                 Arc::clone(&entry.vulnerability_id),
                                 entry.status_id,
+                                entry.context_cpe_id,
                             ));
                             if is_new {
                                 matches.push(PurlCorrelationMatch {
@@ -305,7 +302,7 @@ impl CorrelationService {
         let mut result = HashMap::with_capacity(sbom_ids.len());
 
         for &sbom_id in sbom_ids {
-            let Some(package_indices) = sbom.by_sbom.get(&sbom_id) else {
+            let Some(packages) = sbom.by_sbom.get(&sbom_id) else {
                 continue;
             };
 
@@ -316,8 +313,7 @@ impl CorrelationService {
             let mut seen: HashSet<(Uuid, Arc<str>)> = HashSet::new();
             let mut severity_counts: SbomAdvisorySummary = HashMap::new();
 
-            for &idx in package_indices.iter() {
-                let pkg = sbom.catalog.get(idx);
+            for pkg in packages.iter() {
                 let key = PurlKey {
                     ty: Arc::clone(&pkg.ty),
                     namespace: pkg.namespace.as_ref().map(Arc::clone),
@@ -436,7 +432,7 @@ impl CorrelationService {
                         continue;
                     };
                     for &sbom_id in sbom_ids {
-                        let Some(indices) = sbom.by_sbom.get(&sbom_id) else {
+                        let Some(packages) = sbom.by_sbom.get(&sbom_id) else {
                             continue;
                         };
                         let sbom_cpes = sbom.describing_cpes.get(&sbom_id);
@@ -446,8 +442,7 @@ impl CorrelationService {
                             continue;
                         }
 
-                        for &idx in indices.iter() {
-                            let pkg = sbom.catalog.get(idx);
+                        for pkg in packages.iter() {
                             if pkg.ty != purl_key.ty
                                 || pkg.namespace != purl_key.namespace
                                 || pkg.name != purl_key.name

@@ -1,5 +1,5 @@
 use crate::model::{
-    CorrelationState, PackageCatalog, PurlKey, PurlStatusEntry, SbomPackageEntry, VersionRangeData,
+    CorrelationState, PurlKey, PurlStatusEntry, SbomPackageEntry, VersionRangeData,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -24,7 +24,6 @@ fn correlate_basic_match() {
         name: Arc::from("test-pkg"),
         namespace: Some(Arc::from("org.example")),
     };
-    let catalog = PackageCatalog::from_entries(vec![pkg]);
 
     let state = CorrelationState {
         advisory_index: crate::model::AdvisoryIndex {
@@ -53,18 +52,13 @@ fn correlate_basic_match() {
             by_vulnerability: HashMap::new(),
         },
         sbom_index: crate::model::SbomIndex {
-            catalog,
-            by_sbom: HashMap::from([(sbom_id, Arc::from(vec![0u32].into_boxed_slice()))]),
+            by_sbom: HashMap::from([(sbom_id, Arc::from(vec![pkg].into_boxed_slice()))]),
             describing_cpes: HashMap::new(),
             by_purl_key: HashMap::new(),
         },
     };
 
-    // Test using the version_matches directly
-    let pkg = state
-        .sbom_index
-        .catalog
-        .get(state.sbom_index.by_sbom[&sbom_id][0]);
+    let pkg = &state.sbom_index.by_sbom[&sbom_id][0];
     let entry = &state.advisory_index.by_purl[&purl_key][0];
     assert!(crate::model::version::version_matches(
         &pkg.version,

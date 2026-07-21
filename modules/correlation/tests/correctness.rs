@@ -247,12 +247,21 @@ async fn analyze_vulnerability_ids_match_sql(ctx: TrustifyContext) -> anyhow::Re
         v3a_vuln_ids, v3_vuln_ids,
     );
 
-    let v3a_detail_count: usize = v3a.0.values().map(|r| r.details.len()).sum();
-    let v3_detail_count: usize = v3.0.values().map(|r| r.details.len()).sum();
+    let v3a_ps_count: usize = v3a
+        .0
+        .values()
+        .flat_map(|r| r.details.iter())
+        .map(|d| d.purl_statuses.len())
+        .sum();
+    let v3_ps_count: usize =
+        v3.0.values()
+            .flat_map(|r| r.details.iter())
+            .map(|d| d.purl_statuses.len())
+            .sum();
     assert_eq!(
-        v3a_detail_count, v3_detail_count,
-        "detail count must match: SQL={}, correlation={}",
-        v3a_detail_count, v3_detail_count,
+        v3a_ps_count, v3_ps_count,
+        "purl_status count must match: SQL={}, correlation={}",
+        v3a_ps_count, v3_ps_count,
     );
 
     Ok(())

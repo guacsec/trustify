@@ -138,10 +138,9 @@ async fn diagnostic_advisory_diff(ctx: TrustifyContext) -> anyhow::Result<()> {
     }
 
     // What SBOM packages would match these product_status entries?
-    let package_indices = state.sbom_index.by_sbom.get(&sbom_uuid).unwrap();
-    let matching_pkgs: Vec<_> = package_indices
+    let packages = state.sbom_index.by_sbom.get(&sbom_uuid).unwrap();
+    let matching_pkgs: Vec<_> = packages
         .iter()
-        .map(|&idx| state.sbom_index.catalog.get(idx))
         .filter(|p| {
             checks.iter().any(|c| {
                 c.package.as_str() == &*p.name

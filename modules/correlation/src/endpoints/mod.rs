@@ -715,11 +715,11 @@ async fn correlation_status(
     let state = service.state();
     let advisory_count = state.advisory_index.by_purl.len();
     let sbom_count = state.sbom_index.by_sbom.len();
-    let catalog_count = state.sbom_index.catalog.len();
+    let package_count: usize = state.sbom_index.by_sbom.values().map(|p| p.len()).sum();
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "advisory_purl_keys": advisory_count,
         "sboms": sbom_count,
-        "catalog_entries": catalog_count,
+        "package_entries": package_count,
     })))
 }
