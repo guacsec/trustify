@@ -3,13 +3,13 @@ use futures::StreamExt;
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use utoipa_actix_web::service_config::ServiceConfig;
 use trustify_auth::{
     Permission, authenticator::Authenticator, authenticator::user::UserInformation,
     authorizer::Authorizer,
 };
 use trustify_common::db::change::{ChangeBroadcaster, ChangeEntity, ChangeEntry};
 use trustify_infrastructure::app::new_auth;
+use utoipa_actix_web::service_config::ServiceConfig;
 use uuid::Uuid;
 
 use crate::inject_token::QueryTokenInjector;
@@ -77,7 +77,11 @@ async fn ws_handler(
     Ok(response)
 }
 
-pub(crate) fn is_allowed(entry: &ChangeEntry, can_read_sbom: bool, can_read_advisory: bool) -> bool {
+pub(crate) fn is_allowed(
+    entry: &ChangeEntry,
+    can_read_sbom: bool,
+    can_read_advisory: bool,
+) -> bool {
     match entry.entity_type {
         ChangeEntity::Sbom => can_read_sbom,
         ChangeEntity::Advisory => can_read_advisory,

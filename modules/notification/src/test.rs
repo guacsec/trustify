@@ -20,7 +20,10 @@ use uuid::Uuid;
 
 #[test]
 fn extract_token_basic() {
-    assert_eq!(crate::inject_token::extract_token("token=abc123"), Some("abc123"));
+    assert_eq!(
+        crate::inject_token::extract_token("token=abc123"),
+        Some("abc123")
+    );
 }
 
 #[test]
@@ -33,7 +36,10 @@ fn extract_token_with_other_params() {
 
 #[test]
 fn extract_token_missing() {
-    assert_eq!(crate::inject_token::extract_token("after=xxx&foo=bar"), None);
+    assert_eq!(
+        crate::inject_token::extract_token("after=xxx&foo=bar"),
+        None
+    );
 }
 
 #[test]
@@ -54,28 +60,52 @@ fn dummy_entry(entity_type: ChangeEntity) -> ChangeEntry {
 
 #[test]
 fn is_allowed_sbom_with_perm() {
-    assert!(crate::endpoints::is_allowed(&dummy_entry(ChangeEntity::Sbom), true, false));
+    assert!(crate::endpoints::is_allowed(
+        &dummy_entry(ChangeEntity::Sbom),
+        true,
+        false
+    ));
 }
 
 #[test]
 fn is_allowed_sbom_without_perm() {
-    assert!(!crate::endpoints::is_allowed(&dummy_entry(ChangeEntity::Sbom), false, true));
+    assert!(!crate::endpoints::is_allowed(
+        &dummy_entry(ChangeEntity::Sbom),
+        false,
+        true
+    ));
 }
 
 #[test]
 fn is_allowed_advisory_with_perm() {
-    assert!(crate::endpoints::is_allowed(&dummy_entry(ChangeEntity::Advisory), false, true));
+    assert!(crate::endpoints::is_allowed(
+        &dummy_entry(ChangeEntity::Advisory),
+        false,
+        true
+    ));
 }
 
 #[test]
 fn is_allowed_advisory_without_perm() {
-    assert!(!crate::endpoints::is_allowed(&dummy_entry(ChangeEntity::Advisory), true, false));
+    assert!(!crate::endpoints::is_allowed(
+        &dummy_entry(ChangeEntity::Advisory),
+        true,
+        false
+    ));
 }
 
 #[test]
 fn is_allowed_no_perms() {
-    assert!(!crate::endpoints::is_allowed(&dummy_entry(ChangeEntity::Sbom), false, false));
-    assert!(!crate::endpoints::is_allowed(&dummy_entry(ChangeEntity::Advisory), false, false));
+    assert!(!crate::endpoints::is_allowed(
+        &dummy_entry(ChangeEntity::Sbom),
+        false,
+        false
+    ));
+    assert!(!crate::endpoints::is_allowed(
+        &dummy_entry(ChangeEntity::Advisory),
+        false,
+        false
+    ));
 }
 
 // -- Group C: QueryTokenInjector middleware ----------------------------------
@@ -98,7 +128,9 @@ async fn injector_copies_token() {
     )
     .await;
 
-    let req = actix::TestRequest::get().uri("/test?token=mytoken").to_request();
+    let req = actix::TestRequest::get()
+        .uri("/test?token=mytoken")
+        .to_request();
     let resp = actix::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body = actix::read_body(resp).await;
@@ -263,11 +295,32 @@ async fn fetch_after_returns_newer_entries(ctx: TrustifyContext) {
     let broadcaster = ChangeBroadcaster::new(&db_rw).expect("broadcaster");
 
     // Insert 3 entries with small delays so UUIDv7 ordering is preserved
-    record_change(&ctx.db, ChangeEntity::Sbom, Some(Uuid::now_v7()), ChangeOperation::Ingested).await.unwrap();
+    record_change(
+        &ctx.db,
+        ChangeEntity::Sbom,
+        Some(Uuid::now_v7()),
+        ChangeOperation::Ingested,
+    )
+    .await
+    .unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(2)).await;
-    record_change(&ctx.db, ChangeEntity::Advisory, Some(Uuid::now_v7()), ChangeOperation::Ingested).await.unwrap();
+    record_change(
+        &ctx.db,
+        ChangeEntity::Advisory,
+        Some(Uuid::now_v7()),
+        ChangeOperation::Ingested,
+    )
+    .await
+    .unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(2)).await;
-    record_change(&ctx.db, ChangeEntity::Sbom, Some(Uuid::now_v7()), ChangeOperation::Deleted).await.unwrap();
+    record_change(
+        &ctx.db,
+        ChangeEntity::Sbom,
+        Some(Uuid::now_v7()),
+        ChangeOperation::Deleted,
+    )
+    .await
+    .unwrap();
 
     let all = broadcaster.fetch_after(&Uuid::nil()).await.unwrap();
     assert!(all.len() >= 3);

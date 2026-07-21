@@ -37,12 +37,11 @@ where
     }
 
     fn call(&self, mut req: ServiceRequest) -> Self::Future {
-        if req.headers().get(header::AUTHORIZATION).is_none() {
-            if let Some(token) = extract_token(req.query_string()) {
-                if let Ok(value) = format!("Bearer {token}").parse() {
-                    req.headers_mut().insert(header::AUTHORIZATION, value);
-                }
-            }
+        if req.headers().get(header::AUTHORIZATION).is_none()
+            && let Some(token) = extract_token(req.query_string())
+            && let Ok(value) = format!("Bearer {token}").parse()
+        {
+            req.headers_mut().insert(header::AUTHORIZATION, value);
         }
 
         let fut = self.service.call(req);

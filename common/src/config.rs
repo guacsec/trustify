@@ -157,12 +157,12 @@ impl Database {
 
         format!(
             "postgres://{username}:{password}@{host}:{port}/{db_name}?sslmode={sslmode}",
-            username = &self.username,
-            password = &self.password.0,
-            host = &self.host,
+            username = self.username,
+            password = self.password.0,
+            host = self.host,
             port = self.port,
-            db_name = &self.name,
-            sslmode = &self.sslmode,
+            db_name = self.name,
+            sslmode = self.sslmode,
         )
     }
 
