@@ -8565,6 +8565,7 @@ dependencies = [
  "trustify-auth",
  "trustify-common",
  "trustify-entity",
+ "trustify-migration",
  "trustify-module-analysis",
  "trustify-module-ingestor",
  "trustify-module-storage",
