@@ -65,8 +65,8 @@ mod m0002200_source_document_ingested_index;
 mod m0002210_sbom_node_name_index;
 mod m0002220_drop_qualified_purl_gist_indexes;
 mod m0002230_sle_license_id_index;
-mod m0002230_create_exploit_intelligence_job;
 mod m0002240_product_version_sbom_index;
+mod m0002250_create_exploit_intelligence_job;
 mod m0002250_create_cpe_status;
 mod m0002260_cpe_part_vendor_product_index;
 mod m0002270_fix_vulnerability_base_score_type;
@@ -151,8 +151,8 @@ impl MigratorExt for Migrator {
             .normal(m0002210_sbom_node_name_index::Migration)
             .normal(m0002220_drop_qualified_purl_gist_indexes::Migration)
             .normal(m0002230_sle_license_id_index::Migration)
-            .normal(m0002230_create_exploit_intelligence_job::Migration)
             .normal(m0002240_product_version_sbom_index::Migration)
+            .normal(m0002250_create_exploit_intelligence_job::Migration)
             .normal(m0002250_create_cpe_status::Migration)
             .normal(m0002260_cpe_part_vendor_product_index::Migration)
             .normal(m0002270_fix_vulnerability_base_score_type::Migration)

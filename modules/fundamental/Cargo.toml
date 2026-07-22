@@ -21,6 +21,8 @@ trustify-query-derive = { workspace = true }
 
 actix-http = { workspace = true }
 actix-web = { workspace = true }
+backon = { workspace = true }
+bytes = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 cpe = { workspace = true }
@@ -30,6 +32,7 @@ futures-util = { workspace = true }
 isx = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
+reqwest = { workspace = true, features = ["form", "json", "multipart"] }
 sanitize-filename = { workspace = true }
 sea-orm = { workspace = true }
 sea-query = { workspace = true }
@@ -43,8 +46,10 @@ tar = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-futures = { workspace = true, features = ["futures-03"] }
+urlencoding = { workspace = true }
 utoipa = { workspace = true, features = ["actix_extras", "uuid", "time"] }
 utoipa-actix-web = { workspace = true }
 uuid = { workspace = true }
@@ -86,7 +91,6 @@ strum = { workspace = true }
 tar = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
-tokio-util = { workspace = true }
 tracing = { workspace = true, features = ["std"]}
 tracing-core =  { workspace = true }
 tracing-opentelemetry = { workspace = true }

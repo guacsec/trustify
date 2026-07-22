@@ -5,7 +5,7 @@ use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
 use bytesize::ByteSize;
 use futures::FutureExt;
-use std::{env, process::ExitCode, sync::Arc};
+use std::{env, process::ExitCode, sync::Arc, time::Duration};
 use trustify_auth::{
     auth::AuthConfigArguments,
     authenticator::Authenticator,
@@ -32,6 +32,11 @@ use trustify_infrastructure::{
     otel::{Metrics as OtelMetrics, Tracing},
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
+use trustify_module_fundamental::exploit_intelligence::{
+    auth::build_provider,
+    runner::worker::run_worker,
+    service::{ExploitIntelligenceConfig, ExploitIntelligenceService},
+};
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 use trustify_module_ui::{UI, endpoints::UiResources};
@@ -92,6 +97,10 @@ pub struct Run {
     )]
     pub scan_limit: BinaryByteSize,
 
+    /// Exploit Intelligence configuration
+    #[command(flatten)]
+    pub exploit_intelligence: ExploitIntelligenceArgs,
+
     // flattened commands must go last
     //
     /// Analysis configuration
@@ -127,6 +136,166 @@ pub struct Run {
 
     #[command(flatten)]
     pub ui: UiConfig,
+}
+
+/// All Exploit Intelligence CLI arguments.
+#[derive(clap::Args, Debug)]
+#[command(next_help_heading = "Exploit Intelligence")]
+pub struct ExploitIntelligenceArgs {
+    /// Base URL of the Exploit Intelligence client service.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_URL")]
+    pub exploit_intelligence_url: Option<String>,
+
+    /// Base URL of the Exploit Intelligence web UI for deep-linking to reports.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_UI_URL")]
+    pub exploit_intelligence_ui_url: Option<String>,
+
+    /// Polling interval for EI analysis completion (humantime, e.g. "30s").
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_POLL_INTERVAL",
+        default_value = "30s"
+    )]
+    pub exploit_intelligence_poll_interval: humantime::Duration,
+
+    /// Maximum duration before EI polling is considered timed out (humantime, e.g. "30m").
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_MAX_POLL_DURATION",
+        default_value = "30m"
+    )]
+    pub exploit_intelligence_max_poll_duration: humantime::Duration,
+
+    /// Maximum number of upload retry attempts for EI analysis.
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_UPLOAD_MAX_RETRIES",
+        default_value_t = 3
+    )]
+    pub exploit_intelligence_upload_max_retries: usize,
+
+    /// Initial delay between upload retries (humantime, exponential backoff).
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_UPLOAD_RETRY_DELAY",
+        default_value = "1s"
+    )]
+    pub exploit_intelligence_upload_retry_delay: humantime::Duration,
+
+    /// Maximum consecutive poll failures before giving up.
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_MAX_CONSECUTIVE_POLL_FAILURES",
+        default_value_t = 5
+    )]
+    pub exploit_intelligence_max_consecutive_poll_failures: u32,
+
+    /// Authentication token for the Exploit Intelligence service (static token, for backward compatibility).
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_AUTH_TOKEN")]
+    pub exploit_intelligence_auth_token: Option<String>,
+
+    #[command(flatten)]
+    pub oidc: EiOidcArguments,
+}
+
+impl ExploitIntelligenceArgs {
+    /// Convert CLI arguments into an optional `ExploitIntelligenceConfig`.
+    ///
+    /// Returns `None` when no EI URL is configured (feature disabled).
+    pub async fn into_config(self) -> Result<Option<ExploitIntelligenceConfig>, anyhow::Error> {
+        let Some(url) = self.exploit_intelligence_url else {
+            return Ok(None);
+        };
+
+        let token_provider = build_provider(
+            self.oidc.into_config(),
+            self.exploit_intelligence_auth_token,
+        )
+        .await?;
+
+        Ok(Some(ExploitIntelligenceConfig {
+            url,
+            ui_url: self.exploit_intelligence_ui_url,
+            poll_interval: self.exploit_intelligence_poll_interval.into(),
+            max_poll_duration: self.exploit_intelligence_max_poll_duration.into(),
+            upload_max_retries: self.exploit_intelligence_upload_max_retries,
+            upload_retry_delay: self.exploit_intelligence_upload_retry_delay.into(),
+            max_consecutive_poll_failures: self.exploit_intelligence_max_consecutive_poll_failures,
+            token_provider,
+        }))
+    }
+}
+
+/// Clap arguments for EI-specific OIDC credentials.
+///
+/// Separate from the main Trustify OIDC config because the EI service may
+/// use a different IdP or client registration.
+#[derive(clap::Args, Debug, Clone)]
+#[command(next_help_heading = "Exploit Intelligence OIDC")]
+pub struct EiOidcArguments {
+    #[arg(
+        id = "ei_oidc_client_id",
+        long = "ei-oidc-client-id",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID"
+    )]
+    pub client_id: Option<String>,
+
+    #[arg(
+        id = "ei_oidc_client_secret",
+        long = "ei-oidc-client-secret",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET"
+    )]
+    pub client_secret: Option<String>,
+
+    #[arg(
+        id = "ei_oidc_issuer_url",
+        long = "ei-oidc-issuer-url",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL"
+    )]
+    pub issuer_url: Option<String>,
+
+    #[arg(
+        id = "ei_oidc_refresh_before",
+        long = "ei-oidc-refresh-before",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_REFRESH_BEFORE",
+        default_value = "30s"
+    )]
+    pub refresh_before: humantime::Duration,
+
+    #[arg(
+        id = "ei_oidc_tls_insecure",
+        long = "ei-oidc-tls-insecure",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_TLS_INSECURE",
+        default_value = "false"
+    )]
+    pub tls_insecure: bool,
+}
+
+impl EiOidcArguments {
+    fn into_config(self) -> Option<trustify_auth::client::OpenIdTokenProviderConfig> {
+        match (self.client_id, self.client_secret, self.issuer_url) {
+            (Some(client_id), Some(client_secret), Some(issuer_url)) => {
+                Some(trustify_auth::client::OpenIdTokenProviderConfig {
+                    client_id,
+                    client_secret,
+                    issuer_url,
+                    refresh_before: self.refresh_before,
+                    tls_insecure: self.tls_insecure,
+                })
+            }
+            (None, None, None) => None,
+            _ => {
+                log::warn!(
+                    "Incomplete EI OIDC configuration: all three of \
+                     EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID, \
+                     EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET, and \
+                     EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL must be set together. \
+                     Falling back to static token or no auth."
+                );
+                None
+            }
+        }
+    }
 }
 
 mod default {
@@ -194,6 +363,7 @@ struct InitData {
     config: ModuleConfig,
     analysis: AnalysisService,
     read_only: bool,
+    ei_config: Option<ExploitIntelligenceConfig>,
 }
 
 /// Groups all module configurations.
@@ -298,6 +468,8 @@ impl InitData {
             },
         };
 
+        let ei_config = run.exploit_intelligence.into_config().await?;
+
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
             authenticator,
@@ -315,12 +487,47 @@ impl InitData {
             embedded_oidc,
             ui,
             read_only: run.read_only,
+            ei_config,
         })
     }
 
     #[allow(unused_mut)]
     async fn run(mut self) -> anyhow::Result<()> {
         let ui = Arc::new(UiResources::new(&self.ui)?);
+
+        // Build the EI worker task before the HTTP server captures `self`.
+        // The worker needs an IngestorService, which is also created inside
+        // the module configuration — build one here and clone it for the worker.
+        let ei_worker_task = if let Some(ref ei_config) = self.ei_config {
+            if !self.read_only {
+                let ei_service = ExploitIntelligenceService::new(Some(ei_config.clone()))?;
+                let ingestor_for_worker = trustify_module_ingestor::service::IngestorService::new(
+                    Graph::new(),
+                    self.storage.clone(),
+                    Some(self.analysis.clone()),
+                );
+                let db_rw = self.db_rw.clone();
+                let db_ro = self.db_ro.clone();
+
+                Some(
+                    async move {
+                        run_worker(
+                            ei_service,
+                            ingestor_for_worker,
+                            db_rw,
+                            db_ro,
+                            Duration::from_secs(5), // worker poll interval
+                        )
+                        .await
+                    }
+                    .boxed_local(),
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         let http = {
             HttpServerBuilder::try_from(self.http)?
@@ -341,6 +548,7 @@ impl InitData {
                             auth: self.authenticator.clone(),
                             analysis: self.analysis.clone(),
                             read_only: self.read_only,
+                            ei_config: self.ei_config.clone(),
                         },
                     );
                 })
@@ -350,6 +558,10 @@ impl InitData {
 
         #[allow(unused_mut)]
         let mut tasks = vec![http];
+
+        if let Some(worker) = ei_worker_task {
+            tasks.push(worker);
+        }
 
         // track the embedded OIDC server task
         #[cfg(feature = "garage-door")]
@@ -391,6 +603,7 @@ pub(crate) struct Config {
     pub(crate) analysis: AnalysisService,
     pub(crate) auth: Option<Arc<Authenticator>>,
     pub(crate) read_only: bool,
+    pub(crate) ei_config: Option<ExploitIntelligenceConfig>,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
@@ -408,6 +621,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         auth,
         analysis,
         read_only,
+        ei_config,
     } = config;
 
     let graph = Graph::new();
@@ -441,6 +655,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     storage,
                     analysis.clone(),
                     cache,
+                    ei_config.clone(),
                 );
                 trustify_module_analysis::endpoints::configure(svc, db_ro.clone(), analysis);
                 trustify_module_user::endpoints::configure(svc);
@@ -521,6 +736,7 @@ mod test {
                             auth: None,
                             analysis,
                             read_only: false,
+                            ei_config: None,
                         },
                     );
                 })
@@ -594,6 +810,7 @@ mod test {
                     auth: None,
                     analysis,
                     read_only,
+                    ei_config: None,
                 },
             );
         })

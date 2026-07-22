@@ -1034,6 +1034,120 @@ paths:
           description: Uploaded the dataset
         '400':
           description: The file could not be parsed as an dataset
+  /api/v3/exploit-intelligence/analyze:
+    post:
+      tags:
+      - exploit-intelligence
+      summary: Trigger an Exploit Intelligence analysis for a CVE against an SBOM.
+      description: |-
+        Creates a job record that the background worker will pick up and
+        process. Returns immediately after persisting the job.
+      operationId: analyzeExploitIntelligence
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeRequest'
+        required: true
+      responses:
+        '200':
+          description: Active analysis job already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
+        '201':
+          description: Analysis job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
+        '404':
+          description: SBOM not found
+        '503':
+          description: Exploit Intelligence service not configured
+  /api/v3/exploit-intelligence/jobs:
+    get:
+      tags:
+      - exploit-intelligence
+      summary: List Exploit Intelligence analysis jobs.
+      operationId: listExploitIntelligenceJobs
+      parameters:
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      - name: sbom_id
+        in: query
+        description: Filter by SBOM ID.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: uuid
+      - name: status
+        in: query
+        description: Filter by job status.
+        required: false
+        schema:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JobStatus'
+      responses:
+        '200':
+          description: List of analysis jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResults_ExploitIntelligenceJobSummary'
+  /api/v3/exploit-intelligence/jobs/{id}:
+    get:
+      tags:
+      - exploit-intelligence
+      summary: Get details of a specific Exploit Intelligence analysis job.
+      operationId: getExploitIntelligenceJob
+      parameters:
+      - name: id
+        in: path
+        description: Job identifier
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExploitIntelligenceJobDetails'
+        '404':
+          description: Job not found
   /api/v3/group/sbom:
     get:
       tags:
@@ -4342,6 +4456,34 @@ components:
         cache:
           $ref: '#/components/schemas/CacheStatusDetails'
           description: Details about the cache
+    AnalyzeRequest:
+      type: object
+      description: Request body for triggering an Exploit Intelligence analysis.
+      required:
+      - sbom_id
+      - vulnerability_id
+      properties:
+        sbom_id:
+          type: string
+          format: uuid
+          description: The SBOM identifier to analyze.
+        vulnerability_id:
+          type: string
+          description: The vulnerability identifier (e.g., "CVE-2024-9680").
+    AnalyzeResponse:
+      type: object
+      description: Response returned when an analysis job is successfully created.
+      required:
+      - job_id
+      - status
+      properties:
+        job_id:
+          type: string
+          format: uuid
+          description: The unique job identifier.
+        status:
+          $ref: '#/components/schemas/JobStatus'
+          description: Current lifecycle status of the job.
     BasePurlDetails:
       allOf:
       - $ref: '#/components/schemas/BasePurlHead'
@@ -4562,6 +4704,59 @@ components:
         period:
           type: string
           description: The period the importer should be run.
+    ComponentResult:
+      type: object
+      description: Per-component analysis result within an analysis job.
+      required:
+      - id
+      - component_ref
+      - status
+      - excluded
+      - created
+      - updated
+      properties:
+        advisory_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: FK to advisory — set when a VEX document is ingested from the result.
+        component_ref:
+          type: string
+          description: Identifier of the component (purl or container image reference).
+        created:
+          type: string
+          description: Timestamp when the component record was created.
+        error_message:
+          type:
+          - string
+          - 'null'
+          description: Error details for failed component analyses.
+        excluded:
+          type: boolean
+          description: |-
+            Whether this component was excluded by the EI service (e.g.,
+            unsupported ecosystem) rather than genuinely failing.
+        finding:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JobFinding'
+            description: Analysis result from Exploit Intelligence, if completed.
+        id:
+          type: string
+          format: uuid
+          description: The unique component record identifier.
+        report_url:
+          type:
+          - string
+          - 'null'
+          description: Link to the EI human-readable justification report for this component.
+        status:
+          $ref: '#/components/schemas/JobStatus'
+          description: Current lifecycle status of this component's analysis.
+        updated:
+          type: string
+          description: Timestamp when the component record was last updated.
     Cpe:
       type: string
       format: uri
@@ -4638,6 +4833,198 @@ components:
         message:
           type: string
           description: A human-readable error message
+    ExploitIntelligenceJobDetails:
+      type: object
+      description: Detailed view of an Exploit Intelligence analysis job.
+      required:
+      - id
+      - sbom_id
+      - vulnerability_id
+      - status
+      - components
+      - created
+      - updated
+      properties:
+        completed_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components (computed at query time, not stored).
+        components:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComponentResult'
+          description: Per-component analysis results (populated for multi-component jobs).
+        created:
+          type: string
+          description: Timestamp when the job was created.
+        error_message:
+          type:
+          - string
+          - 'null'
+          description: Error details for failed analyses.
+        excluded_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of components excluded by the EI service (computed at query time, not stored).
+        failed_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of genuinely failed components (computed at query time, not stored).
+        finding:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JobFinding'
+            description: Analysis result computed from component findings.
+        id:
+          type: string
+          format: uuid
+          description: The unique job identifier.
+        not_vulnerable_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with NotVulnerable finding (computed at query time).
+        product_id:
+          type:
+          - string
+          - 'null'
+          description: EI product ID for multi-component SPDX flow.
+        report_url:
+          type:
+          - string
+          - 'null'
+          description: Link to the EI human-readable justification report.
+        sbom_id:
+          type: string
+          format: uuid
+          description: FK to the SBOM being analysed.
+        status:
+          $ref: '#/components/schemas/JobStatus'
+          description: Current lifecycle status of the job.
+        total_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Total components in the product.
+        uncertain_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with Uncertain finding (computed at query time).
+        updated:
+          type: string
+          description: Timestamp when the job was last updated.
+        vulnerability_id:
+          type: string
+          description: CVE identifier.
+        vulnerable_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with Vulnerable finding (computed at query time).
+    ExploitIntelligenceJobSummary:
+      type: object
+      description: Summary of an Exploit Intelligence analysis job.
+      required:
+      - id
+      - sbom_id
+      - vulnerability_id
+      - status
+      - created
+      - updated
+      properties:
+        completed_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components (computed at query time, not stored).
+        created:
+          type: string
+          description: Timestamp when the job was created.
+        error_message:
+          type:
+          - string
+          - 'null'
+          description: Error details when the job has failed.
+        excluded_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of components excluded by the EI service (computed at query time, not stored).
+        failed_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of genuinely failed components (computed at query time, not stored).
+        finding:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JobFinding'
+            description: Analysis result from Exploit Intelligence.
+        id:
+          type: string
+          format: uuid
+          description: The unique job identifier.
+        not_vulnerable_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with NotVulnerable finding (computed at query time).
+        product_id:
+          type:
+          - string
+          - 'null'
+          description: EI product ID for multi-component SPDX flow.
+        report_url:
+          type:
+          - string
+          - 'null'
+          description: Link to the EI human-readable justification report.
+        sbom_id:
+          type: string
+          format: uuid
+          description: FK to the SBOM being analysed.
+        status:
+          $ref: '#/components/schemas/JobStatus'
+          description: Current lifecycle status of the job.
+        total_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Total components in the product.
+        uncertain_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with Uncertain finding (computed at query time).
+        updated:
+          type: string
+          description: Timestamp when the job was last updated.
+        vulnerability_id:
+          type: string
+          description: CVE identifier.
+        vulnerable_components:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          description: Number of completed components with Vulnerable finding (computed at query time).
     ExternalReferenceQuery:
       type: object
       properties:
@@ -4920,6 +5307,21 @@ components:
           items:
             type: string
           description: Warnings that occurred during the import process
+    JobFinding:
+      type: string
+      description: Analysis finding from Exploit Intelligence (API representation).
+      enum:
+      - vulnerable
+      - not_vulnerable
+      - uncertain
+    JobStatus:
+      type: string
+      description: Lifecycle status of an Exploit Intelligence analysis job (API representation).
+      enum:
+      - pending
+      - running
+      - completed
+      - failed
     Labels:
       type: object
       additionalProperties:
@@ -5166,6 +5568,112 @@ components:
           items:
             allOf:
             - $ref: '#/components/schemas/BasePurlHead'
+        total:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
+    PaginatedResults_ExploitIntelligenceJobSummary:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            description: Summary of an Exploit Intelligence analysis job.
+            required:
+            - id
+            - sbom_id
+            - vulnerability_id
+            - status
+            - created
+            - updated
+            properties:
+              completed_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of completed components (computed at query time, not stored).
+              created:
+                type: string
+                description: Timestamp when the job was created.
+              error_message:
+                type:
+                - string
+                - 'null'
+                description: Error details when the job has failed.
+              excluded_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of components excluded by the EI service (computed at query time, not stored).
+              failed_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of genuinely failed components (computed at query time, not stored).
+              finding:
+                oneOf:
+                - type: 'null'
+                - $ref: '#/components/schemas/JobFinding'
+                  description: Analysis result from Exploit Intelligence.
+              id:
+                type: string
+                format: uuid
+                description: The unique job identifier.
+              not_vulnerable_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of completed components with NotVulnerable finding (computed at query time).
+              product_id:
+                type:
+                - string
+                - 'null'
+                description: EI product ID for multi-component SPDX flow.
+              report_url:
+                type:
+                - string
+                - 'null'
+                description: Link to the EI human-readable justification report.
+              sbom_id:
+                type: string
+                format: uuid
+                description: FK to the SBOM being analysed.
+              status:
+                $ref: '#/components/schemas/JobStatus'
+                description: Current lifecycle status of the job.
+              total_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Total components in the product.
+              uncertain_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of completed components with Uncertain finding (computed at query time).
+              updated:
+                type: string
+                description: Timestamp when the job was last updated.
+              vulnerability_id:
+                type: string
+                description: CVE identifier.
+              vulnerable_components:
+                type:
+                - integer
+                - 'null'
+                format: int32
+                description: Number of completed components with Vulnerable finding (computed at query time).
         total:
           type:
           - integer

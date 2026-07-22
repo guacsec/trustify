@@ -26,6 +26,7 @@ pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
                     auth: None,
                     analysis,
                     read_only: false,
+                    ei_config: None,
                 },
             );
         })

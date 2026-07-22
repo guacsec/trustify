@@ -23,7 +23,9 @@ pub const DEFAULT_SCOPE_MAPPINGS: &[(&str, &[&str])] = &[
         "read:document",
         &[
             "ai",
+            "create.exploitIntelligence",
             "read.advisory",
+            "read.exploitIntelligence",
             "read.importer",
             "read.metadata",
             "read.sbom",

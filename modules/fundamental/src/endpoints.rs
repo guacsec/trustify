@@ -6,6 +6,8 @@ use trustify_module_ingestor::service::IngestorService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 use utoipa::{IntoParams, ToSchema};
 
+use crate::exploit_intelligence::service::{ExploitIntelligenceConfig, ExploitIntelligenceService};
+
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Config {
     pub sbom_upload_limit: usize,
@@ -13,6 +15,7 @@ pub struct Config {
     pub max_group_name_length: usize,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn configure(
     svc: &mut utoipa_actix_web::service_config::ServiceConfig,
     config: Config,
@@ -21,9 +24,10 @@ pub fn configure(
     storage: impl Into<DispatchBackend>,
     analysis: AnalysisService,
     cache: PaginationCache,
+    ei_config: Option<ExploitIntelligenceConfig>,
 ) {
     let ingestor_service = IngestorService::new(Graph::new(), storage, Some(analysis));
-    svc.app_data(web::Data::new(ingestor_service));
+    svc.app_data(web::Data::new(ingestor_service.clone()));
 
     crate::advisory::endpoints::configure(
         svc,
@@ -45,7 +49,17 @@ pub fn configure(
     );
     crate::vulnerability::endpoints::configure(svc, db_ro.clone(), cache.clone());
     crate::weakness::endpoints::configure(svc, db_ro.clone(), cache.clone());
-    crate::sbom_group::endpoints::configure(svc, db_rw, db_ro, config.max_group_name_length, cache);
+    crate::sbom_group::endpoints::configure(
+        svc,
+        db_rw.clone(),
+        db_ro.clone(),
+        config.max_group_name_length,
+        cache,
+    );
+
+    let ei_service = ExploitIntelligenceService::new(ei_config)
+        .unwrap_or_else(|e| panic!("failed to create ExploitIntelligenceService: {e}"));
+    crate::exploit_intelligence::endpoints::configure(svc, db_rw, db_ro, ei_service);
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, ToSchema, serde::Deserialize, IntoParams)]

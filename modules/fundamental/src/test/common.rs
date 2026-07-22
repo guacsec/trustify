@@ -27,6 +27,7 @@ pub async fn caller_with(
             ctx.storage.clone(),
             analysis.clone(),
             cache,
+            None,
         );
         trustify_module_analysis::endpoints::configure(svc, db_ro, analysis);
     })

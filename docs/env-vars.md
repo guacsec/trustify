@@ -62,6 +62,19 @@
 | `UI_ISSUER_URL`                          | Issuer URL used by the UI                                                           | `http://localhost:8090/realms/trustify` |
 | `UI_LOAD_USER`                           | Whether to load user info                                                           | `true`                                  |
 | `UI_SCOPE`                               | Scopes to request                                                                   | `openid`                                |
+| `EXPLOIT_INTELLIGENCE_URL`               | Base URL of the Exploit Intelligence client service                                 |                                         |
+| `EXPLOIT_INTELLIGENCE_UI_URL`            | Base URL of the EI web UI for deep-linking to reports                               |                                         |
+| `EXPLOIT_INTELLIGENCE_POLL_INTERVAL`| Polling interval for EI analysis completion (humantime)                              | `30s`                                   |
+| `EXPLOIT_INTELLIGENCE_MAX_POLL_DURATION`| Maximum duration before EI polling is considered timed out (humantime)           | `30m`                                   |
+| `EXPLOIT_INTELLIGENCE_UPLOAD_MAX_RETRIES`| Maximum number of upload retry attempts                                        | `3`                                     |
+| `EXPLOIT_INTELLIGENCE_UPLOAD_RETRY_DELAY`| Initial delay between upload retries (humantime, exponential backoff)           | `1s`                                    |
+| `EXPLOIT_INTELLIGENCE_MAX_CONSECUTIVE_POLL_FAILURES`| Maximum consecutive poll failures before giving up                    | `5`                                     |
+| `EXPLOIT_INTELLIGENCE_AUTH_TOKEN`        | Static authentication token for the Exploit Intelligence service (used when OIDC is not configured) |                                         |
+| `EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL`  | OIDC issuer URL for EI service authentication (client credentials flow with discovery) |                                         |
+| `EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID`   | OIDC client ID for EI service authentication                                       |                                         |
+| `EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET`| OIDC client secret for EI service authentication                                   |                                         |
+| `EXPLOIT_INTELLIGENCE_OIDC_REFRESH_BEFORE`| Duration an EI access token must still be valid before requesting a new one        | `30s`                                   |
+| `EXPLOIT_INTELLIGENCE_OIDC_TLS_INSECURE`| Allow insecure TLS connections with the EI OIDC issuer                              | `false`                                 |
 
 ## Data Migration
 
