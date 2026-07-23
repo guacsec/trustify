@@ -8564,6 +8564,7 @@ dependencies = [
  "tracing-subscriber",
  "trustify-auth",
  "trustify-common",
+ "trustify-db",
  "trustify-entity",
  "trustify-migration",
  "trustify-module-analysis",
