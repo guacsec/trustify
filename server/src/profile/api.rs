@@ -632,7 +632,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
     svc.app_data(graph);
 
     svc.configure(|svc| {
-        endpoints::configure(svc, auth.clone(), read_only);
+        endpoints::configure(svc, auth.clone(), read_only, ei_config.is_some());
     });
 
     svc.service(

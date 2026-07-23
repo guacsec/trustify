@@ -8581,6 +8581,7 @@ dependencies = [
  "utoipa-actix-web",
  "uuid",
  "walkdir",
+ "wiremock",
  "zip 8.6.0",
 ]
 
