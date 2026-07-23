@@ -1,4 +1,4 @@
-use crate::graph::cvss::ScoreCreator;
+use crate::graph::cvss::ScoreInformation;
 use cve::Cve;
 use cvss::{Cvss, v2_0::CvssV2, v3::CvssV3, v4_0::CvssV4};
 
@@ -36,13 +36,13 @@ impl From<&cve::published::Metric> for CvssMetric {
     }
 }
 
-/// Extracts all CVSS scores from a CVE record and registers them with the given [`ScoreCreator`].
+/// Extracts all CVSS scores from a CVE record.
 ///
 /// Processes metrics from both CNA and ADP containers. All parseable CVSS scores (v2, v3, v4)
-/// are added, keyed by the CVE identifier. Rejected CVEs are skipped entirely.
-pub fn extract_scores(cve: &Cve, creator: &mut ScoreCreator) {
+/// are returned, keyed by the CVE identifier. Rejected CVEs produce an empty vec.
+pub fn extract_scores(cve: &Cve) -> Vec<ScoreInformation> {
     let Cve::Published(published) = cve else {
-        return;
+        return Vec::new();
     };
 
     let vulnerability_id = &published.metadata.id;
@@ -55,10 +55,11 @@ pub fn extract_scores(cve: &Cve, creator: &mut ScoreCreator) {
             .flat_map(|adp| adp.metrics.iter()),
     );
 
+    let mut scores = Vec::new();
     for cve_metric in all_metrics {
         let metric = CvssMetric::from(cve_metric);
 
-        let cvss_objects: Vec<Cvss> = vec![
+        for cvss in [
             metric.cvss_v2_0.map(Cvss::V2),
             metric.cvss_v3_0.map(Cvss::V3_0),
             metric.cvss_v3_1.map(Cvss::V3_1),
@@ -66,10 +67,10 @@ pub fn extract_scores(cve: &Cve, creator: &mut ScoreCreator) {
         ]
         .into_iter()
         .flatten()
-        .collect();
-
-        for score in cvss_objects {
-            creator.add((vulnerability_id.clone(), score));
+        {
+            scores.push(ScoreInformation::from((vulnerability_id.clone(), cvss)));
         }
     }
+
+    scores
 }

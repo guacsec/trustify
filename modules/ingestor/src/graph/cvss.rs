@@ -1,6 +1,11 @@
-use cvss::version::VersionV3;
-use cvss::{Cvss, v2_0, v3, v4_0};
+use crate::graph::vulnerability::BaseScore;
+use cvss::{
+    Cvss,
+    v2_0, v3, v4_0,
+    version::VersionV3,
+};
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set};
+use std::str::FromStr;
 use trustify_entity::advisory_vulnerability_score::{self, ScoreType, Severity};
 use uuid::Uuid;
 
@@ -43,8 +48,14 @@ impl From<ScoreInformation> for advisory_vulnerability_score::ActiveModel {
 
 impl From<(String, v2_0::CvssV2)> for ScoreInformation {
     fn from((vulnerability_id, cvss): (String, v2_0::CvssV2)) -> Self {
-        // Use calculated_base_score() to compute the actual score from metrics
-        let base_score = cvss.calculated_base_score().unwrap_or(0.0);
+        let base_score = cvss
+            .calculated_base_score()
+            .or_else(|| {
+                v2_0::CvssV2::from_str(&cvss.vector_string)
+                    .ok()
+                    .and_then(|p| p.calculated_base_score())
+            })
+            .unwrap_or(cvss.base_score);
 
         Self {
             vulnerability_id,
@@ -58,12 +69,18 @@ impl From<(String, v2_0::CvssV2)> for ScoreInformation {
 
 impl From<(String, v3::CvssV3)> for ScoreInformation {
     fn from((vulnerability_id, cvss): (String, v3::CvssV3)) -> Self {
-        // Use calculated_base_score() to compute the actual score from metrics
-        let base_score = cvss.calculated_base_score().unwrap_or(0.0);
+        let base_score = cvss
+            .calculated_base_score()
+            .or_else(|| {
+                v3::CvssV3::from_str(&cvss.vector_string)
+                    .ok()
+                    .and_then(|p| p.calculated_base_score())
+            })
+            .unwrap_or(cvss.base_score);
         let score_type = match cvss.version {
             Some(VersionV3::V3_0) => ScoreType::V3_0,
             Some(VersionV3::V3_1) => ScoreType::V3_1,
-            None => ScoreType::V3_0, // Default to V3_0 if version is not specified
+            None => ScoreType::V3_0,
         };
         Self {
             vulnerability_id,
@@ -77,8 +94,14 @@ impl From<(String, v3::CvssV3)> for ScoreInformation {
 
 impl From<(String, v4_0::CvssV4)> for ScoreInformation {
     fn from((vulnerability_id, cvss): (String, v4_0::CvssV4)) -> Self {
-        // Use calculated_base_score() to compute the actual score from metrics
-        let base_score = cvss.calculated_base_score().unwrap_or(0.0);
+        let base_score = cvss
+            .calculated_base_score()
+            .or_else(|| {
+                v4_0::CvssV4::from_str(&cvss.vector_string)
+                    .ok()
+                    .and_then(|p| p.calculated_base_score())
+            })
+            .unwrap_or(cvss.base_score);
         Self {
             vulnerability_id,
             r#type: ScoreType::V4_0,
@@ -100,12 +123,34 @@ impl From<(String, Cvss)> for ScoreInformation {
     }
 }
 
+/// Picks the "best" base score: highest CVSS version first, then highest numeric score.
+pub fn best_base_score(scores: &[ScoreInformation]) -> Option<BaseScore> {
+    scores
+        .iter()
+        .max_by(|a, b| {
+            a.r#type.cmp(&b.r#type).then(
+                a.score
+                    .partial_cmp(&b.score)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
+        })
+        .map(|s| BaseScore {
+            r#type: s.r#type,
+            score: (s.score as f64 * 10.0).round() / 10.0,
+            severity: s.severity,
+        })
+}
+
 impl ScoreCreator {
     pub fn new(advisory_id: Uuid) -> Self {
         Self {
             advisory_id,
             scores: Vec::new(),
         }
+    }
+
+    pub fn scores(&self) -> &[ScoreInformation] {
+        &self.scores
     }
 
     pub fn add(&mut self, model: impl Into<ScoreInformation>) {

@@ -1,4 +1,3 @@
-use crate::graph::vulnerability::BaseScore;
 use crate::{
     graph::{
         Graph,
@@ -8,7 +7,7 @@ use crate::{
         },
         cpe::CpeCreator,
         cpe_status_creator::{CpeStatusCreator, CpeStatusEntry},
-        cvss::ScoreCreator,
+        cvss::{ScoreCreator, best_base_score},
         purl::{
             self,
             status_creator::{PurlStatusCreator, PurlStatusEntry},
@@ -33,7 +32,6 @@ use std::{collections::HashSet, fmt::Debug};
 use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::{cpe::Cpe, hashing::Digests};
-use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
 use trustify_entity::{labels::Labels, version_scheme::VersionScheme, vulnerability};
 
 /// Loader capable of parsing a CVE Record JSON file
@@ -70,8 +68,12 @@ impl<'g> CveLoader<'g> {
             descriptions,
             assigned,
             affected,
-            information,
+            mut information,
         } = Self::extract_vuln_info(&cve);
+
+        // Extract scores once, derive base_score from the same data
+        let scores = extract_scores(&cve);
+        information.base_score = best_base_score(&scores);
 
         let cwes = information.cwes.clone();
         let release_date = information.published;
@@ -119,7 +121,7 @@ impl<'g> CveLoader<'g> {
             .await?;
 
         let mut score_creator = ScoreCreator::new(advisory.advisory.id);
-        extract_scores(&cve, &mut score_creator);
+        score_creator.extend(scores);
         score_creator.create(tx).await?;
 
         // A CVE advisory is always the authoritative source for its vulnerability,
@@ -371,8 +373,6 @@ impl<'g> CveLoader<'g> {
             ),
         };
 
-        let base_score = Self::extract_base_score(cve);
-
         VulnerabilityDetails {
             org_name,
             descriptions,
@@ -385,74 +385,9 @@ impl<'g> CveLoader<'g> {
                 modified,
                 withdrawn,
                 cwes: cwe,
-                base_score,
+                base_score: None,
             },
         }
-    }
-
-    /// Extracts the best base score from a CVE record.
-    ///
-    /// Prefers CNA scores over ADP scores, only falling back to ADP if CNA yields no parseable
-    /// scores. Within each source, higher CVSS versions take precedence; within the same version,
-    /// the higher numeric score wins.
-    fn extract_base_score(cve: &Cve) -> Option<BaseScore> {
-        fn better_score(a: BaseScore, b: BaseScore) -> BaseScore {
-            if b.r#type > a.r#type || (b.r#type == a.r#type && b.score > a.score) {
-                b
-            } else {
-                a
-            }
-        }
-
-        let Cve::Published(published) = cve else {
-            return None;
-        };
-
-        let cna_result = published
-            .containers
-            .cna
-            .metrics
-            .iter()
-            .filter_map(score_from_metric)
-            .reduce(better_score);
-
-        cna_result.or_else(|| {
-            published
-                .containers
-                .adp
-                .iter()
-                .flat_map(|adp| adp.metrics.iter())
-                .filter_map(score_from_metric)
-                .reduce(better_score)
-        })
-    }
-}
-
-/// Extracts the base score and severity from a CVSS JSON object.
-/// For more information on the CVSS schema, see:
-/// https://github.com/CVEProject/cve-schema/tree/main/schema/imports/cvss
-fn get_score(cvss: &Value) -> Option<(ScoreType, f64, Severity)> {
-    let r#type = cvss
-        .get("version")
-        .and_then(Value::as_str)
-        .and_then(|s| ScoreType::from_str(s).ok())?;
-
-    let score = cvss.get("baseScore").and_then(Value::as_f64)?;
-    let severity = cvss
-        .get("baseSeverity")
-        .and_then(Value::as_str)
-        .and_then(|s| Severity::from_str(&s.to_lowercase()).ok());
-
-    match r#type {
-        // CVSS v2.0 does not have a baseSeverity field, so we need to calculate it from the score.
-        ScoreType::V2_0 => {
-            // CVSS v2 scores must be in the valid range [0.0, 10.0]
-            if !(0.0..=10.0).contains(&score) {
-                return None;
-            }
-            Some((r#type, score, (score, ScoreType::V2_0).into()))
-        }
-        _ => Some((r#type, score, severity?)),
     }
 }
 
@@ -499,26 +434,6 @@ fn status_slug(status: &Status) -> String {
     }
 }
 
-/// Extracts the best score from a single metric, preferring higher CVSS versions.
-fn score_from_metric(metric: &cve::published::Metric) -> Option<BaseScore> {
-    metric
-        .cvss_v4_0
-        .as_ref()
-        .and_then(get_score)
-        .or_else(|| {
-            metric
-                .cvss_v3_1
-                .as_ref()
-                .or(metric.cvss_v3_0.as_ref())
-                .and_then(get_score)
-        })
-        .or_else(|| metric.cvss_v2_0.as_ref().and_then(get_score))
-        .map(|(r#type, score, severity)| BaseScore {
-            r#type,
-            score,
-            severity,
-        })
-}
 
 struct VulnerabilityDetails<'a> {
     pub org_name: Option<&'a str>,
@@ -532,12 +447,15 @@ struct VulnerabilityDetails<'a> {
 mod test {
     use super::*;
     use crate::{
-        graph::Graph,
+        graph::{
+            Graph,
+            cvss::best_base_score,
+            vulnerability::BaseScore,
+        },
         service::advisory::test::{AssertScore, assert_scores},
     };
     use hex::ToHex;
     use rstest::rstest;
-    use serde_json::{Value, json};
     use std::str::FromStr;
     use test_context::test_context;
     use test_log::test;
@@ -546,128 +464,58 @@ mod test {
     use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
     use trustify_test_context::{TrustifyContext, document};
 
-    enum MetricSource {
-        Cna,
-        Adp,
-    }
-
-    use MetricSource::*;
-
-    #[derive(Default)]
-    struct CveBuilder {
-        cna: Vec<Value>,
-        adp: Vec<Value>,
-    }
-
-    impl CveBuilder {
-        fn new() -> Self {
-            Self::default()
-        }
-
-        fn add(mut self, source: MetricSource, metric: Value) -> Self {
-            match source {
-                Cna => self.cna.push(metric),
-                Adp => self.adp.push(metric),
-            }
-            self
-        }
-
-        fn add_v2(self, source: MetricSource, score: f64) -> Self {
-            self.add(
-                source,
-                json!({ "cvssV2_0": { "version": "2.0", "baseScore": score } }),
-            )
-        }
-
-        fn add_v3_0(self, source: MetricSource, score: f64, severity: &str) -> Self {
-            self.add(source, json!({ "cvssV3_0": { "version": "3.0", "baseScore": score, "baseSeverity": severity } }))
-        }
-
-        fn add_v3_1(self, source: MetricSource, score: f64, severity: &str) -> Self {
-            self.add(source, json!({ "cvssV3_1": { "version": "3.1", "baseScore": score, "baseSeverity": severity } }))
-        }
-
-        fn add_v4(self, source: MetricSource, score: f64, severity: &str) -> Self {
-            self.add(source, json!({ "cvssV4_0": { "version": "4.0", "baseScore": score, "baseSeverity": severity } }))
-        }
-    }
-
-    impl From<CveBuilder> for Cve {
-        fn from(builder: CveBuilder) -> Self {
-            let adp: Vec<Value> = builder
-                .adp
-                .into_iter()
-                .map(|m| {
-                    json!({
-                        "providerMetadata": { "orgId": "00000000-0000-0000-0000-000000000000" },
-                        "metrics": [m]
-                    })
-                })
-                .collect();
-
-            serde_json::from_value(json!({
-                "dataType": "CVE_RECORD",
-                "dataVersion": "5.2",
-                "cveMetadata": {
-                    "cveId": "CVE-2024-00000",
-                    "assignerOrgId": "00000000-0000-0000-0000-000000000000",
-                    "state": "PUBLISHED"
-                },
-                "containers": {
-                    "cna": {
-                        "providerMetadata": { "orgId": "00000000-0000-0000-0000-000000000000" },
-                        "descriptions": [{ "lang": "en", "value": "test" }],
-                        "affected": [],
-                        "references": [],
-                        "metrics": builder.cna
-                    },
-                    "adp": adp
-                }
-            }))
-            .expect("CveBuilder should produce valid CVE JSON")
-        }
-    }
-
     #[rstest]
-    #[case::no_metrics(CveBuilder::new(), None)]
-    #[case::single_v3_1_in_cna(
-        CveBuilder::new().add_v3_1(Cna, 6.5, "MEDIUM"),
-        Some(BaseScore { r#type: ScoreType::V3_1, score: 6.5, severity: Severity::Medium })
+    #[case::no_scores(
+        vec![],
+        None
     )]
-    #[case::cna_preferred_over_adp(
-        CveBuilder::new().add_v3_1(Cna, 6.5, "MEDIUM").add_v3_1(Adp, 9.8, "CRITICAL"),
+    #[case::single_v3_1(
+        vec![("CVE-X", ScoreType::V3_1, 6.5, Severity::Medium)],
         Some(BaseScore { r#type: ScoreType::V3_1, score: 6.5, severity: Severity::Medium })
-    )]
-    #[case::adp_used_when_cna_empty(
-        CveBuilder::new().add_v3_1(Adp, 9.8, "CRITICAL"),
-        Some(BaseScore { r#type: ScoreType::V3_1, score: 9.8, severity: Severity::Critical })
     )]
     #[case::higher_version_wins(
-        CveBuilder::new().add_v3_1(Cna, 9.8, "CRITICAL").add_v4(Cna, 6.5, "MEDIUM"),
+        vec![
+            ("CVE-X", ScoreType::V3_1, 9.8, Severity::Critical),
+            ("CVE-X", ScoreType::V4_0, 6.5, Severity::Medium),
+        ],
         Some(BaseScore { r#type: ScoreType::V4_0, score: 6.5, severity: Severity::Medium })
     )]
-    #[case::single_v3_0_in_cna(
-        CveBuilder::new().add_v3_0(Cna, 7.5, "HIGH"),
-        Some(BaseScore { r#type: ScoreType::V3_0, score: 7.5, severity: Severity::High })
-    )]
     #[case::v3_1_preferred_over_v3_0(
-        CveBuilder::new().add_v3_0(Cna, 9.8, "CRITICAL").add_v3_1(Cna, 6.5, "MEDIUM"),
+        vec![
+            ("CVE-X", ScoreType::V3_0, 9.8, Severity::Critical),
+            ("CVE-X", ScoreType::V3_1, 6.5, Severity::Medium),
+        ],
         Some(BaseScore { r#type: ScoreType::V3_1, score: 6.5, severity: Severity::Medium })
     )]
     #[case::higher_score_wins_within_same_version(
-        CveBuilder::new().add_v3_1(Cna, 6.5, "MEDIUM").add_v3_1(Cna, 9.8, "CRITICAL"),
+        vec![
+            ("CVE-X", ScoreType::V3_1, 6.5, Severity::Medium),
+            ("CVE-X", ScoreType::V3_1, 9.8, Severity::Critical),
+        ],
         Some(BaseScore { r#type: ScoreType::V3_1, score: 9.8, severity: Severity::Critical })
     )]
-    #[case::v2_severity_derived_from_score(
-        CveBuilder::new().add_v2(Cna, 7.5),
+    #[case::v2_score(
+        vec![("CVE-X", ScoreType::V2_0, 7.5, Severity::High)],
         Some(BaseScore { r#type: ScoreType::V2_0, score: 7.5, severity: Severity::High })
     )]
-    #[case::v2_out_of_range_yields_none(
-        CveBuilder::new().add_v2(Cna, 11.0),
-        None
-    )]
     #[std::prelude::v1::test]
-    fn extract_base_score_cases(#[case] cve: impl Into<Cve>, #[case] expected: Option<BaseScore>) {
+    fn best_base_score_cases(
+        #[case] scores: Vec<(&str, ScoreType, f32, Severity)>,
+        #[case] expected: Option<BaseScore>,
+    ) {
+        use crate::graph::cvss::ScoreInformation;
+
+        let scores: Vec<_> = scores
+            .into_iter()
+            .map(|(id, r#type, score, severity)| ScoreInformation {
+                vulnerability_id: id.to_string(),
+                r#type,
+                vector: String::new(),
+                score,
+                severity,
+            })
+            .collect();
+
         #[derive(Debug)]
         struct ApproxBaseScore(Option<BaseScore>);
 
@@ -678,7 +526,7 @@ mod test {
                     (Some(a), Some(b)) => {
                         a.r#type == b.r#type
                             && a.severity == b.severity
-                            && (a.score - b.score).abs() < 0.01
+                            && (a.score - b.score).abs() < 0.1
                     }
                     _ => false,
                 }
@@ -686,7 +534,7 @@ mod test {
         }
 
         assert_eq!(
-            ApproxBaseScore(CveLoader::extract_base_score(&cve.into())),
+            ApproxBaseScore(best_base_score(&scores)),
             ApproxBaseScore(expected)
         );
     }

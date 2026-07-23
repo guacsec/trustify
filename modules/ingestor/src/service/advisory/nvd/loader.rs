@@ -7,8 +7,8 @@ use crate::{
         },
         cpe::CpeCreator,
         cpe_status_creator::{CpeStatusCreator, CpeStatusEntry},
-        cvss::{ScoreCreator, ScoreInformation},
-        vulnerability::{BaseScore, VulnerabilityInformation, creator::VulnerabilityCreator},
+        cvss::{ScoreCreator, ScoreInformation, best_base_score},
+        vulnerability::{VulnerabilityInformation, creator::VulnerabilityCreator},
     },
     model::IngestResult,
     service::{Error, Warnings, advisory::nvd::schema::*},
@@ -268,25 +268,6 @@ fn extract_scores(vulnerability_id: &str, metrics: &Metrics) -> Vec<ScoreInforma
     }
 
     scores
-}
-
-/// Picks the "best" base score to represent the vulnerability: the highest score type
-/// (newest CVSS version), and within a type the highest numeric score.
-fn best_base_score(scores: &[ScoreInformation]) -> Option<BaseScore> {
-    scores
-        .iter()
-        .max_by(|a, b| {
-            a.r#type.cmp(&b.r#type).then(
-                a.score
-                    .partial_cmp(&b.score)
-                    .unwrap_or(std::cmp::Ordering::Equal),
-            )
-        })
-        .map(|s| BaseScore {
-            r#type: s.r#type,
-            score: s.score as f64,
-            severity: s.severity,
-        })
 }
 
 /// Collects `CWE-<n>` identifiers from NVD `weaknesses`, ignoring the placeholder
