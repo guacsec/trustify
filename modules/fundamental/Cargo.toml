@@ -100,6 +100,7 @@ trustify-migration = { workspace = true }
 trustify-test-context = { workspace = true }
 urlencoding = { workspace = true }
 walkdir = { workspace = true }
+wiremock = { workspace = true }
 zip = { workspace = true }
 
 [[bench]]
