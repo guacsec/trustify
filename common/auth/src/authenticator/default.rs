@@ -11,6 +11,7 @@ pub const DEFAULT_SCOPE_MAPPINGS: &[(&str, &[&str])] = &[
         "create:document",
         &[
             "create.advisory",
+            "create.exploitIntelligence",
             "create.importer",
             "create.metadata",
             "create.sbom",
@@ -23,7 +24,6 @@ pub const DEFAULT_SCOPE_MAPPINGS: &[(&str, &[&str])] = &[
         "read:document",
         &[
             "ai",
-            "create.exploitIntelligence",
             "read.advisory",
             "read.exploitIntelligence",
             "read.importer",
