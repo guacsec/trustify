@@ -1,0 +1,80 @@
+[graph]
+all-features = true
+
+[advisories]
+# Advisory IDs to ignore. Entries here must include a reason and should be
+# reviewed periodically. Remove entries once the underlying crate is updated.
+ignore = [
+    # Pre-existing transitive vulnerabilities — tracked for resolution.
+    # crossbeam-epoch: invalid pointer dereference in fmt::Pointer (transitive)
+    { id = "RUSTSEC-2026-0204", reason = "transitive dep; awaiting upstream update" },
+    # proc-macro-error2: unmaintained (transitive via derive macros)
+    { id = "RUSTSEC-2026-0173", reason = "transitive dep; no direct replacement yet" },
+    # quick-xml: quadratic attribute-name check (transitive via csaf/spdx parsers)
+    { id = "RUSTSEC-2026-0194", reason = "transitive dep; awaiting upstream update" },
+    # quick-xml: unbounded namespace allocation (transitive via csaf/spdx parsers)
+    { id = "RUSTSEC-2026-0195", reason = "transitive dep; awaiting upstream update" },
+    # rsa: Marvin Attack timing side-channel (transitive via sequoia-openpgp)
+    { id = "RUSTSEC-2023-0071", reason = "transitive dep via sequoia-openpgp; no fix available" },
+]
+
+[licenses]
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-1-Clause",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "bzip2-1.0.6",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "MIT-0",
+    "PostgreSQL",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.8
+
+exceptions = [
+    # sequoia-openpgp and its dependency; LGPL with Rust static-linking
+    # exception is effectively permissive for our use case
+    { allow = ["LGPL-2.0-or-later"], crate = "buffered-reader" },
+    { allow = ["LGPL-2.0-or-later"], crate = "sequoia-openpgp" },
+    # r-efi is dual-licensed Apache-2.0 OR LGPL-2.1-or-later; cargo-deny
+    # sees both arms so we must explicitly allow the LGPL arm
+    { allow = ["LGPL-2.1-or-later"], crate = "r-efi" },
+    # trustify-ui is Apache-2.0 but its generated crate manifest omits the
+    # license field; tracked upstream at guacsec/trustify-ui
+    { allow = ["Apache-2.0"], crate = "trustify-ui" },
+]
+
+[[licenses.clarify]]
+crate = "trustify-ui"
+expression = "Apache-2.0"
+license-files = []
+
+[licenses.private]
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = [
+    "https://github.com/scm-rs/csaf-rs",
+    "https://github.com/ctron/spdx-rs",
+    "https://github.com/guacsec/trustify-ui.git",
+]
+
+[sources.allow-org]
+github = []
