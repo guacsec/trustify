@@ -8,8 +8,16 @@
 | Endpoints | 59 | 74 (v3) + 3 deprecated v2 |
 | Schemas | 105 | 127 |
 
-The API version was bumped from **v2** to **v3**. All v2 endpoints were moved to v3 paths.
-Three v2 endpoints are retained as deprecated in 0.5 for backward compatibility.
+### Key migration concerns
+
+1. **`/api/v2/` → `/api/v3/`** — all endpoint paths changed. Update every URL in your client.
+2. **`total` must be explicitly requested** — paginated responses no longer include a total count by default. Pass `?total=true` to opt in; the `total` field is `null` otherwise.
+3. **`GET sbom` response type changed** — now returns `SbomPackageSummary` instead of `SbomPackage` in `described_by`. Full package details remain available via `GET sbom/{id}/packages`.
+4. **`POST vulnerability/analyze` response type changed** — `AnalysisResponse` → `AnalysisResponseV3`
+
+Unless noted in the sections below, v3 endpoints are functionally equivalent to their v2 counterparts — only the URL prefix changed.
+
+Three v2 endpoints are retained as deprecated in 0.5 for backward compatibility (see [Deprecated v2 Endpoints](#deprecated-v2-endpoints-retained-in-05)).
 
 ---
 
@@ -17,7 +25,7 @@ Three v2 endpoints are retained as deprecated in 0.5 for backward compatibility.
 
 These endpoints exist in 0.5 but have no equivalent in 0.4.
 
-### SBOM Groups (entire resource — 8 endpoints)
+### SBOM Groups (entire resource)
 
 | Method | Path | Operation | Description |
 |---|---|---|---|
@@ -64,7 +72,7 @@ Affected endpoints:
 | Endpoint | New Parameters | Description |
 |---|---|---|
 | `GET /api/v3/sbom` | `group` | Filter by group IDs (multi-value) |
-| `GET /api/v3/sbom` | `advisories` | (new filter) |
+| `GET /api/v3/sbom` | `advisories` | Boolean opt-in flag (default `false`). When `true`, each SBOM in the response includes an `advisories` field with a severity-bucketed vulnerability count (e.g., `{"critical": 3, "high": 12}`). Does not filter results. |
 | `POST /api/v3/sbom` | `group` | Assign to group on upload |
 | `GET /api/v3/vulnerability/{id}` | `scores` | Include vulnerability scores |
 
@@ -149,11 +157,3 @@ These three v2 endpoints are still present in the 0.5 spec but marked deprecated
 | `GET` | `/api/v2/sbom` | operationId → `v2/listSboms`; added `total`, `group` params |
 | `POST` | `/api/v2/vulnerability/analyze` | operationId → `v2/analyze` |
 
----
-
-## Breaking Changes Summary
-
-1. **API version bump v2 → v3** — all endpoint paths changed
-2. **`GET sbom` response type changed** — now returns `SbomPackageSummary` instead of `SbomPackage` in results
-3. **`GET sbom/{id}/related` response type changed** — `SbomPackageRelation` replaced
-4. **`POST vulnerability/analyze` response type changed** — `AnalysisResponse` → `AnalysisResponseV3`
