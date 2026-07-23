@@ -21,10 +21,10 @@ trustify-query-derive = { workspace = true }
 
 actix-http = { workspace = true }
 actix-web = { workspace = true }
-backon = { workspace = true }
-bytes = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+backon = { workspace = true }
+bytes = { workspace = true }
 cpe = { workspace = true }
 csv = { workspace = true }
 flate2 ={ workspace = true }

@@ -1,6 +1,7 @@
 use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::config::AnalysisConfig;
 use trustify_module_analysis::service::AnalysisService;
+use trustify_module_ingestor::graph::Graph;
 use trustify_test_context::{
     TrustifyContext,
     call::{self, CallService},
@@ -18,6 +19,8 @@ pub async fn caller_with(
     let db_rw = db::ReadWrite::new(ctx.db.clone());
     let db_ro = db::ReadOnly::new(ctx.db.clone());
     let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
+    let ei_service = ExploitIntelligenceService::new(None)?;
+    let graph = Graph::new();
     call::caller(|svc| {
         configure(
             svc,
@@ -27,7 +30,8 @@ pub async fn caller_with(
             ctx.storage.clone(),
             analysis.clone(),
             cache,
-            None,
+            ei_service,
+            graph,
         );
         trustify_module_analysis::endpoints::configure(svc, db_ro, analysis);
     })

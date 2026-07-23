@@ -20,9 +20,12 @@ paths:
                 required:
                 - version
                 - readOnly
+                - exploitIntelligence
                 properties:
                   build:
                     type: object
+                  exploitIntelligence:
+                    type: boolean
                   readOnly:
                     type: boolean
                   version:

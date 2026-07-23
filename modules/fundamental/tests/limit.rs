@@ -2,7 +2,9 @@ use actix_http::StatusCode;
 use actix_web::test::TestRequest;
 use test_context::test_context;
 use test_log::test;
-use trustify_module_fundamental::{Config, configure};
+use trustify_module_fundamental::{
+    Config, configure, exploit_intelligence::service::ExploitIntelligenceService,
+};
 use trustify_test_context::document_bytes_raw;
 
 include!("../src/test/common.rs");

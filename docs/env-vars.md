@@ -69,6 +69,7 @@
 | `EXPLOIT_INTELLIGENCE_UPLOAD_MAX_RETRIES`| Maximum number of upload retry attempts                                        | `3`                                     |
 | `EXPLOIT_INTELLIGENCE_UPLOAD_RETRY_DELAY`| Initial delay between upload retries (humantime, exponential backoff)           | `1s`                                    |
 | `EXPLOIT_INTELLIGENCE_MAX_CONSECUTIVE_POLL_FAILURES`| Maximum consecutive poll failures before giving up                    | `5`                                     |
+| `EXPLOIT_INTELLIGENCE_WORKER_POLL_INTERVAL`| How often the background worker checks for new EI jobs (humantime)           | `5s`                                    |
 | `EXPLOIT_INTELLIGENCE_AUTH_TOKEN`        | Static authentication token for the Exploit Intelligence service (used when OIDC is not configured) |                                         |
 | `EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL`  | OIDC issuer URL for EI service authentication (client credentials flow with discovery) |                                         |
 | `EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID`   | OIDC client ID for EI service authentication                                       |                                         |

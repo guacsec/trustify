@@ -5,7 +5,7 @@ use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
 use bytesize::ByteSize;
 use futures::FutureExt;
-use std::{env, process::ExitCode, sync::Arc, time::Duration};
+use std::{env, process::ExitCode, sync::Arc};
 use trustify_auth::{
     auth::AuthConfigArguments,
     authenticator::Authenticator,
@@ -190,6 +190,14 @@ pub struct ExploitIntelligenceArgs {
     )]
     pub exploit_intelligence_max_consecutive_poll_failures: u32,
 
+    /// How often the background worker checks for new EI jobs.
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_WORKER_POLL_INTERVAL",
+        default_value = "5s"
+    )]
+    pub worker_poll_interval: humantime::Duration,
+
     /// Authentication token for the Exploit Intelligence service (static token, for backward compatibility).
     #[arg(long, env = "EXPLOIT_INTELLIGENCE_AUTH_TOKEN")]
     pub exploit_intelligence_auth_token: Option<String>,
@@ -221,6 +229,7 @@ impl ExploitIntelligenceArgs {
             upload_max_retries: self.exploit_intelligence_upload_max_retries,
             upload_retry_delay: self.exploit_intelligence_upload_retry_delay.into(),
             max_consecutive_poll_failures: self.exploit_intelligence_max_consecutive_poll_failures,
+            worker_poll_interval: self.worker_poll_interval.into(),
             token_provider,
         }))
     }
@@ -495,14 +504,19 @@ impl InitData {
     async fn run(mut self) -> anyhow::Result<()> {
         let ui = Arc::new(UiResources::new(&self.ui)?);
 
+        // Create shared Graph and ExploitIntelligenceService before any
+        // closures so the same instances are reused by both the API
+        // endpoints and the background worker.
+        let graph = Graph::new();
+        let ei_service = ExploitIntelligenceService::new(self.ei_config.take())?;
+
         // Build the EI worker task before the HTTP server captures `self`.
-        // The worker needs an IngestorService, which is also created inside
-        // the module configuration — build one here and clone it for the worker.
-        let ei_worker_task = if let Some(ref ei_config) = self.ei_config {
+        let ei_worker_task = if let Some(rt) = ei_service.runtime() {
             if !self.read_only {
-                let ei_service = ExploitIntelligenceService::new(Some(ei_config.clone()))?;
+                let worker_poll_interval = rt.config.worker_poll_interval;
+                let worker_service = ei_service.clone();
                 let ingestor_for_worker = trustify_module_ingestor::service::IngestorService::new(
-                    Graph::new(),
+                    graph.clone(),
                     self.storage.clone(),
                     Some(self.analysis.clone()),
                 );
@@ -512,11 +526,11 @@ impl InitData {
                 Some(
                     async move {
                         run_worker(
-                            ei_service,
+                            worker_service,
                             ingestor_for_worker,
                             db_rw,
                             db_ro,
-                            Duration::from_secs(5), // worker poll interval
+                            worker_poll_interval,
                         )
                         .await
                     }
@@ -548,7 +562,8 @@ impl InitData {
                             auth: self.authenticator.clone(),
                             analysis: self.analysis.clone(),
                             read_only: self.read_only,
-                            ei_config: self.ei_config.clone(),
+                            ei_service: ei_service.clone(),
+                            graph: graph.clone(),
                         },
                     );
                 })
@@ -603,7 +618,8 @@ pub(crate) struct Config {
     pub(crate) analysis: AnalysisService,
     pub(crate) auth: Option<Arc<Authenticator>>,
     pub(crate) read_only: bool,
-    pub(crate) ei_config: Option<ExploitIntelligenceConfig>,
+    pub(crate) ei_service: ExploitIntelligenceService,
+    pub(crate) graph: Graph,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
@@ -621,18 +637,19 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         auth,
         analysis,
         read_only,
-        ei_config,
+        ei_service,
+        graph,
     } = config;
 
-    let graph = Graph::new();
     let limit = ByteSize::gb(1).as_u64() as usize;
 
     svc.app_data(web::Data::new(ReadOnlyState(read_only)));
     svc.app_data(web::PayloadConfig::default().limit(limit));
-    svc.app_data(graph);
+    svc.app_data(graph.clone());
 
+    let ei_enabled = ei_service.runtime().is_some();
     svc.configure(|svc| {
-        endpoints::configure(svc, auth.clone(), read_only, ei_config.is_some());
+        endpoints::configure(svc, auth.clone(), read_only, ei_enabled);
     });
 
     svc.service(
@@ -655,7 +672,8 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     storage,
                     analysis.clone(),
                     cache,
-                    ei_config.clone(),
+                    ei_service.clone(),
+                    graph,
                 );
                 trustify_module_analysis::endpoints::configure(svc, db_ro.clone(), analysis);
                 trustify_module_user::endpoints::configure(svc);
@@ -736,7 +754,9 @@ mod test {
                             auth: None,
                             analysis,
                             read_only: false,
-                            ei_config: None,
+                            ei_service: ExploitIntelligenceService::new(None)
+                                .expect("disabled EI service"),
+                            graph: Graph::new(),
                         },
                     );
                 })
@@ -798,6 +818,8 @@ mod test {
     async fn caller(ctx: &TrustifyContext, read_only: bool) -> impl CallService {
         let analysis =
             AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
+        let ei_service = ExploitIntelligenceService::new(None).expect("disabled EI service");
+        let graph = Graph::new();
         call::caller_app(move |svc| {
             configure(
                 svc,
@@ -810,7 +832,8 @@ mod test {
                     auth: None,
                     analysis,
                     read_only,
-                    ei_config: None,
+                    ei_service,
+                    graph,
                 },
             );
         })
