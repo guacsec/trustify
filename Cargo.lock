@@ -8504,6 +8504,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "trustify-module-exploit-intelligence"
+version = "0.5.0-rc.1"
+dependencies = [
+ "actix-http",
+ "actix-web",
+ "anyhow",
+ "backon",
+ "bytes",
+ "futures-util",
+ "log",
+ "reqwest 0.13.4",
+ "sea-orm",
+ "sea-query",
+ "serde",
+ "serde_json",
+ "test-context",
+ "test-log",
+ "thiserror 2.0.18",
+ "time",
+ "tokio",
+ "tracing",
+ "trustify-auth",
+ "trustify-common",
+ "trustify-entity",
+ "trustify-module-ingestor",
+ "trustify-module-storage",
+ "trustify-test-context",
+ "urlencoding",
+ "utoipa",
+ "utoipa-actix-web",
+ "uuid",
+ "wiremock",
+]
+
+[[package]]
 name = "trustify-module-fundamental"
 version = "0.5.0-rc.1"
 dependencies = [
@@ -8511,7 +8546,6 @@ dependencies = [
  "actix-web",
  "anyhow",
  "async-trait",
- "backon",
  "bytes",
  "bytesize",
  "chrono",
@@ -8536,7 +8570,6 @@ dependencies = [
  "osv",
  "packageurl",
  "regex",
- "reqwest 0.13.4",
  "roxmltree",
  "rstest",
  "sanitize-filename",
@@ -8812,6 +8845,7 @@ dependencies = [
  "trustify-db",
  "trustify-infrastructure",
  "trustify-module-analysis",
+ "trustify-module-exploit-intelligence",
  "trustify-module-fundamental",
  "trustify-module-importer",
  "trustify-module-ingestor",

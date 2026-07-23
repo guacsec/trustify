@@ -32,7 +32,7 @@ use trustify_infrastructure::{
     otel::{Metrics as OtelMetrics, Tracing},
 };
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
-use trustify_module_fundamental::exploit_intelligence::{
+use trustify_module_exploit_intelligence::{
     auth::build_provider,
     runner::worker::run_worker,
     service::{ExploitIntelligenceConfig, ExploitIntelligenceService},
@@ -672,8 +672,13 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     storage,
                     analysis.clone(),
                     cache,
-                    ei_service.clone(),
                     graph,
+                );
+                trustify_module_exploit_intelligence::endpoints::configure(
+                    svc,
+                    db_rw.clone(),
+                    db_ro.clone(),
+                    ei_service.clone(),
                 );
                 trustify_module_analysis::endpoints::configure(svc, db_ro.clone(), analysis);
                 trustify_module_user::endpoints::configure(svc);

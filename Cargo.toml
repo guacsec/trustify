@@ -9,6 +9,7 @@ members = [
     "entity",
     "migration",
     "modules/analysis",
+    "modules/exploit-intelligence",
     "modules/fundamental",
     "modules/importer",
     "modules/ingestor",
@@ -168,6 +169,7 @@ trustify-entity = { path = "entity" }
 trustify-infrastructure = { path = "common/infrastructure" }
 trustify-migration = { path = "migration" }
 trustify-module-analysis = { path = "modules/analysis" }
+trustify-module-exploit-intelligence = { path = "modules/exploit-intelligence" }
 trustify-module-fundamental = { path = "modules/fundamental" }
 trustify-module-importer = { path = "modules/importer" }
 trustify-module-ingestor = { path = "modules/ingestor" }

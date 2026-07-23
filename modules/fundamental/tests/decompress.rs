@@ -7,9 +7,7 @@ use sea_orm::{EntityTrait, PaginatorTrait};
 use test_context::test_context;
 use test_log::test;
 use trustify_entity::sbom;
-use trustify_module_fundamental::{
-    Config, configure, exploit_intelligence::service::ExploitIntelligenceService,
-};
+use trustify_module_fundamental::{Config, configure};
 use trustify_test_context::document_bytes_raw;
 
 async fn assert(

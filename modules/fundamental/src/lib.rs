@@ -4,7 +4,6 @@ pub mod advisory;
 pub mod common;
 pub mod endpoints;
 pub mod error;
-pub mod exploit_intelligence;
 pub mod license;
 pub mod organization;
 pub mod product;

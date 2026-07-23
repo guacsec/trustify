@@ -14,7 +14,6 @@ use trustify_entity::relationship::Relationship;
 use trustify_module_fundamental::sbom::model::SbomPackage;
 use trustify_module_fundamental::{
     Config, configure,
-    exploit_intelligence::service::ExploitIntelligenceService,
     sbom::{model::SbomNodeReference, service::SbomService},
 };
 use trustify_module_ingestor::graph::{

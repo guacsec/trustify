@@ -6,8 +6,6 @@ use trustify_module_ingestor::service::IngestorService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 use utoipa::{IntoParams, ToSchema};
 
-use crate::exploit_intelligence::service::ExploitIntelligenceService;
-
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Config {
     pub sbom_upload_limit: usize,
@@ -24,7 +22,6 @@ pub fn configure(
     storage: impl Into<DispatchBackend>,
     analysis: AnalysisService,
     cache: PaginationCache,
-    ei_service: ExploitIntelligenceService,
     graph: Graph,
 ) {
     let ingestor_service = IngestorService::new(graph, storage, Some(analysis));
@@ -50,15 +47,7 @@ pub fn configure(
     );
     crate::vulnerability::endpoints::configure(svc, db_ro.clone(), cache.clone());
     crate::weakness::endpoints::configure(svc, db_ro.clone(), cache.clone());
-    crate::sbom_group::endpoints::configure(
-        svc,
-        db_rw.clone(),
-        db_ro.clone(),
-        config.max_group_name_length,
-        cache,
-    );
-
-    crate::exploit_intelligence::endpoints::configure(svc, db_rw, db_ro, ei_service);
+    crate::sbom_group::endpoints::configure(svc, db_rw, db_ro, config.max_group_name_length, cache);
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, ToSchema, serde::Deserialize, IntoParams)]

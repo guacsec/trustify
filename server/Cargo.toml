@@ -12,6 +12,7 @@ trustify-common = { workspace = true }
 trustify-db = { workspace = true }
 trustify-infrastructure = { workspace = true }
 trustify-module-analysis = { workspace = true }
+trustify-module-exploit-intelligence = { workspace = true }
 trustify-module-fundamental = { workspace = true }
 trustify-module-importer = { workspace = true }
 trustify-module-ingestor = { workspace = true }

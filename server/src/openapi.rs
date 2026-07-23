@@ -2,7 +2,7 @@ use crate::profile::api::{Config, ModuleConfig, configure, default_openapi_info}
 use actix_web::App;
 use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
-use trustify_module_fundamental::exploit_intelligence::service::ExploitIntelligenceService;
+use trustify_module_exploit_intelligence::service::ExploitIntelligenceService;
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::service::fs::FileSystemBackend;
 use utoipa_actix_web::AppExt;
