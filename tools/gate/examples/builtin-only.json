@@ -1,0 +1,20 @@
+{
+  "checkers": [
+    {
+      "name": "builtin",
+      "config": {
+        "vulnerabilities": {
+          "max_severity": "high",
+          "max_score": 9.0,
+          "deny": [],
+          "ignore": [],
+          "ignore_unfixed": false
+        },
+        "licenses": {
+          "deny": ["GPL-3.0*", "AGPL-*"],
+          "allow": []
+        }
+      }
+    }
+  ]
+}

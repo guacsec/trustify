@@ -1,0 +1,22 @@
+[project]
+name = "trustify-gate"
+version = "0.1.0"
+description = "CI/CD policy gate for the Trustify REST API"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+gate = "gate:main"
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

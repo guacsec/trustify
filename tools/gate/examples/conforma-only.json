@@ -1,0 +1,13 @@
+{
+  "checkers": [
+    {
+      "name": "conforma",
+      "config": {
+        "mode": "cli",
+        "ec_binary": "ec",
+        "policy": "git::https://github.com/conforma/policy//policy/release?ref=main",
+        "extra_args": ["--ignore-rekor"]
+      }
+    }
+  ]
+}

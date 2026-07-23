@@ -1,0 +1,20 @@
+{
+  "checkers": [
+    {
+      "name": "builtin",
+      "config": {
+        "vulnerabilities": {
+          "max_severity": "high",
+          "max_score": 9.0
+        }
+      }
+    },
+    {
+      "name": "conforma",
+      "config": {
+        "mode": "server",
+        "server_url": "http://localhost:8090"
+      }
+    }
+  ]
+}
