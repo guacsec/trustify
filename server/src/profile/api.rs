@@ -147,7 +147,11 @@ pub struct ExploitIntelligenceArgs {
     pub exploit_intelligence_url: Option<String>,
 
     /// Base URL of the Exploit Intelligence web UI for deep-linking to reports.
-    #[arg(long, env = "EXPLOIT_INTELLIGENCE_UI_URL")]
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_UI_URL",
+        requires = "exploit_intelligence_url"
+    )]
     pub exploit_intelligence_ui_url: Option<String>,
 
     /// Polling interval for EI analysis completion (humantime, e.g. "30s").
@@ -245,21 +249,24 @@ pub struct EiOidcArguments {
     #[arg(
         id = "ei_oidc_client_id",
         long = "ei-oidc-client-id",
-        env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID"
+        env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID",
+        requires_all = ["ei_oidc_client_secret", "ei_oidc_issuer_url"]
     )]
     pub client_id: Option<String>,
 
     #[arg(
         id = "ei_oidc_client_secret",
         long = "ei-oidc-client-secret",
-        env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET"
+        env = "EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET",
+        requires_all = ["ei_oidc_client_id", "ei_oidc_issuer_url"]
     )]
     pub client_secret: Option<String>,
 
     #[arg(
         id = "ei_oidc_issuer_url",
         long = "ei-oidc-issuer-url",
-        env = "EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL"
+        env = "EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL",
+        requires_all = ["ei_oidc_client_id", "ei_oidc_client_secret"]
     )]
     pub issuer_url: Option<String>,
 
@@ -282,28 +289,19 @@ pub struct EiOidcArguments {
 
 impl EiOidcArguments {
     fn into_config(self) -> Option<trustify_auth::client::OpenIdTokenProviderConfig> {
-        match (self.client_id, self.client_secret, self.issuer_url) {
-            (Some(client_id), Some(client_secret), Some(issuer_url)) => {
-                Some(trustify_auth::client::OpenIdTokenProviderConfig {
-                    client_id,
-                    client_secret,
-                    issuer_url,
-                    refresh_before: self.refresh_before,
-                    tls_insecure: self.tls_insecure,
-                })
-            }
-            (None, None, None) => None,
-            _ => {
-                log::warn!(
-                    "Incomplete EI OIDC configuration: all three of \
-                     EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID, \
-                     EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET, and \
-                     EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL must be set together. \
-                     Falling back to static token or no auth."
-                );
-                None
-            }
-        }
+        // clap's `requires_all` guarantees all three are present or all absent.
+        let (Some(client_id), Some(client_secret), Some(issuer_url)) =
+            (self.client_id, self.client_secret, self.issuer_url)
+        else {
+            return None;
+        };
+        Some(trustify_auth::client::OpenIdTokenProviderConfig {
+            client_id,
+            client_secret,
+            issuer_url,
+            refresh_before: self.refresh_before,
+            tls_insecure: self.tls_insecure,
+        })
     }
 }
 
@@ -504,44 +502,9 @@ impl InitData {
     async fn run(mut self) -> anyhow::Result<()> {
         let ui = Arc::new(UiResources::new(&self.ui)?);
 
-        // Create shared Graph and ExploitIntelligenceService before any
-        // closures so the same instances are reused by both the API
-        // endpoints and the background worker.
         let graph = Graph::new();
         let ei_service = ExploitIntelligenceService::new(self.ei_config.take())?;
-
-        // Build the EI worker task before the HTTP server captures `self`.
-        let ei_worker_task = if let Some(rt) = ei_service.runtime() {
-            if !self.read_only {
-                let worker_poll_interval = rt.config.worker_poll_interval;
-                let worker_service = ei_service.clone();
-                let ingestor_for_worker = trustify_module_ingestor::service::IngestorService::new(
-                    graph.clone(),
-                    self.storage.clone(),
-                    Some(self.analysis.clone()),
-                );
-                let db_rw = self.db_rw.clone();
-                let db_ro = self.db_ro.clone();
-
-                Some(
-                    async move {
-                        run_worker(
-                            worker_service,
-                            ingestor_for_worker,
-                            db_rw,
-                            db_ro,
-                            worker_poll_interval,
-                        )
-                        .await
-                    }
-                    .boxed_local(),
-                )
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+        let ei_worker_task = build_ei_worker_task(&ei_service, &graph, &self, self.read_only);
 
         let http = {
             HttpServerBuilder::try_from(self.http)?
@@ -574,9 +537,7 @@ impl InitData {
         #[allow(unused_mut)]
         let mut tasks = vec![http];
 
-        if let Some(worker) = ei_worker_task {
-            tasks.push(worker);
-        }
+        tasks.extend(ei_worker_task);
 
         // track the embedded OIDC server task
         #[cfg(feature = "garage-door")]
@@ -596,6 +557,35 @@ impl InitData {
 
         result
     }
+}
+
+type Task = futures::future::LocalBoxFuture<'static, anyhow::Result<()>>;
+
+fn build_ei_worker_task(
+    ei_service: &ExploitIntelligenceService,
+    graph: &Graph,
+    init: &InitData,
+    read_only: bool,
+) -> Option<Task> {
+    let rt = ei_service.runtime()?;
+    if read_only {
+        return None;
+    }
+    let worker_poll_interval = rt.config.worker_poll_interval;
+    let worker_service = ei_service.clone();
+    let ingestor = trustify_module_ingestor::service::IngestorService::new(
+        graph.clone(),
+        init.storage.clone(),
+        Some(init.analysis.clone()),
+    );
+    let db_rw = init.db_rw.clone();
+    let db_ro = init.db_ro.clone();
+    Some(
+        async move {
+            run_worker(worker_service, ingestor, db_rw, db_ro, worker_poll_interval).await
+        }
+        .boxed_local(),
+    )
 }
 
 pub fn default_openapi_info() -> Info {
