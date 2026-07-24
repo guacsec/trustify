@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784665101623,
+  "lastUpdate": 1784893461176,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20469,6 +20469,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "7316619f0735a178dd85d7ed9ccf2044f270cb2e",
+          "message": "ci: add grype and cargo-deny ci jobs for security scanning",
+          "timestamp": "2026-07-24T08:59:29Z",
+          "tree_id": "ee7db4f71653ad7ed4b1f9c50884c24d34bf0111",
+          "url": "https://github.com/guacsec/trustify/commit/7316619f0735a178dd85d7ed9ccf2044f270cb2e"
+        },
+        "date": 1784893459396,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
