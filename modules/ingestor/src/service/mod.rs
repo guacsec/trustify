@@ -25,6 +25,7 @@ use sea_orm::{ConnectionTrait, TransactionTrait};
 use std::{fmt::Debug, sync::Arc, time::Instant};
 use tokio::task::JoinError;
 use tracing::instrument;
+use trustify_common::db::change::{ChangeEntity, ChangeOperation, record_change};
 use trustify_common::{db::DatabaseErrors, error::ErrorInformation, id::IdError};
 use trustify_entity::labels::Labels;
 use trustify_module_analysis::service::AnalysisService;
@@ -240,6 +241,22 @@ impl IngestorService {
         let result = detector
             .load(&self.graph, labels.into(), issuer, &result.digests, tx)
             .await?;
+
+        let change_entity = match fmt {
+            Format::CSAF | Format::CVE | Format::OSV => Some(ChangeEntity::Advisory),
+            Format::SPDX | Format::CycloneDX => Some(ChangeEntity::Sbom),
+            _ => None,
+        };
+        if let Some(entity_type) = change_entity {
+            record_change(
+                tx,
+                entity_type,
+                uuid::Uuid::try_parse(&result.id).ok(),
+                ChangeOperation::Added,
+            )
+            .await
+            .map_err(|err| Error::Storage(anyhow!("{err}")))?;
+        }
 
         if let Some(wait) = cache.into() {
             self.load_graph_cache(fmt, &result, wait).await;

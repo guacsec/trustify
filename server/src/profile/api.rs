@@ -18,6 +18,7 @@ use trustify_common::{
     config::{Database, DatabaseReadOnly},
     db::{
         self,
+        change::ChangeBroadcaster,
         pagination_cache::{PaginationCache, PaginationConfig},
     },
     middleware::ReadOnlyState,
@@ -38,6 +39,7 @@ use trustify_module_exploit_intelligence::{
     runner::worker::start_worker,
     service::{ExploitIntelligenceConfig, ExploitIntelligenceService},
 };
+use trustify_module_notification::config::NotificationConfig;
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 use trustify_module_ui::{UI, endpoints::UiResources};
@@ -103,6 +105,10 @@ pub struct Run {
     /// Analysis configuration
     #[command(flatten)]
     pub analysis: AnalysisConfig,
+
+    /// Notification configuration
+    #[command(flatten)]
+    pub notification: NotificationConfig,
 
     /// Database configuration
     #[command(flatten)]
@@ -354,6 +360,7 @@ struct InitData {
     ui: UI,
     config: ModuleConfig,
     analysis: AnalysisService,
+    broadcaster: ChangeBroadcaster,
     read_only: bool,
     ei_config: Option<ExploitIntelligenceConfig>,
 }
@@ -462,8 +469,11 @@ impl InitData {
 
         let ei_config = run.exploit_intelligence.into_config().await?;
 
+        let broadcaster = ChangeBroadcaster::new(&db_rw, *run.notification.change_log_retention)?;
+
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
+            broadcaster,
             authenticator,
             authorizer,
             db_rw,
@@ -513,6 +523,7 @@ impl InitData {
                             storage: self.storage.clone(),
                             auth: self.authenticator.clone(),
                             analysis: self.analysis.clone(),
+                            broadcaster: self.broadcaster.clone(),
                             read_only: self.read_only,
                             ei_service: ei_service.clone(),
                             graph: graph.clone(),
@@ -598,6 +609,7 @@ pub(crate) struct Config {
     pub(crate) cache: PaginationCache,
     pub(crate) storage: DispatchBackend,
     pub(crate) analysis: AnalysisService,
+    pub(crate) broadcaster: ChangeBroadcaster,
     pub(crate) auth: Option<Arc<Authenticator>>,
     pub(crate) read_only: bool,
     pub(crate) ei_service: ExploitIntelligenceService,
@@ -618,6 +630,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         storage,
         auth,
         analysis,
+        broadcaster,
         read_only,
         ei_service,
         graph,
@@ -632,6 +645,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
     let ei_enabled = ei_service.runtime().is_some();
     svc.configure(|svc| {
         endpoints::configure(svc, auth.clone(), read_only, ei_enabled);
+        trustify_module_notification::endpoints::configure(svc, broadcaster, auth.clone());
     });
 
     svc.service(
@@ -695,9 +709,10 @@ mod test {
     };
     use clap::{Args, Command, FromArgMatches};
     use rstest::rstest;
-    use std::sync::Arc;
+    use std::{sync::Arc, time::Duration};
     use test_context::test_context;
     use test_log::test;
+    use trustify_common::db::change::ChangeBroadcaster;
     use trustify_infrastructure::app::http::ApplyOpenApi;
     use trustify_module_ui::{UI, endpoints::UiResources};
     use trustify_test_context::{TrustifyContext, app::TestApp, call, call::CallService};
@@ -723,8 +738,10 @@ mod test {
     #[test(actix_web::test)]
     async fn routing(ctx: TrustifyContext) -> Result<(), anyhow::Error> {
         let ui = Arc::new(UiResources::new(&UI::default())?);
+        let db_rw = db::ReadWrite::new(ctx.db.clone());
         let analysis =
             AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
+        let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400))?;
         let app = actix_web::test::init_service(
             App::new()
                 .into_utoipa_app()
@@ -734,12 +751,13 @@ mod test {
                         svc,
                         Config {
                             config: ModuleConfig::default(),
-                            db_rw: db::ReadWrite::new(ctx.db.clone()),
+                            db_rw,
                             db_ro: db::ReadOnly::new(ctx.db.clone()),
                             cache: PaginationCache::for_test(),
                             storage: ctx.storage.clone().into(),
                             auth: None,
                             analysis,
+                            broadcaster,
                             read_only: false,
                             ei_service: ExploitIntelligenceService::new(None)
                                 .expect("disabled EI service"),
@@ -803,21 +821,25 @@ mod test {
 
     /// Creates a fully configured test app with all server endpoints and standard middleware.
     async fn caller(ctx: &TrustifyContext, read_only: bool) -> impl CallService {
+        let db_rw = db::ReadWrite::new(ctx.db.clone());
         let analysis =
             AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
         let ei_service = ExploitIntelligenceService::new(None).expect("disabled EI service");
         let graph = Graph::new();
+        let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400))
+            .expect("failed to create change broadcaster");
         call::caller_app(move |svc| {
             configure(
                 svc,
                 Config {
                     config: ModuleConfig::default(),
-                    db_rw: db::ReadWrite::new(ctx.db.clone()),
+                    db_rw,
                     db_ro: db::ReadOnly::new(ctx.db.clone()),
                     storage: ctx.storage.clone().into(),
                     cache: PaginationCache::for_test(),
                     auth: None,
                     analysis,
+                    broadcaster,
                     read_only,
                     ei_service,
                     graph,
@@ -1027,6 +1049,11 @@ mod test {
             ),
             read_only: false,
             ei_config: None,
+            broadcaster: ChangeBroadcaster::new(
+                &db::ReadWrite::new(ctx.db.clone()),
+                Duration::from_secs(86400),
+            )
+            .expect("failed to create change broadcaster"),
             #[cfg(feature = "garage-door")]
             embedded_oidc: None,
             ui: Default::default(),
@@ -1067,6 +1094,11 @@ mod test {
         }))
         .expect("enabled EI service");
         let graph = Graph::new();
+        let broadcaster = ChangeBroadcaster::new(
+            &db::ReadWrite::new(ctx.db.clone()),
+            Duration::from_secs(86400),
+        )
+        .expect("failed to create change broadcaster");
         let app = call::caller_app(move |svc| {
             configure(
                 svc,
@@ -1081,6 +1113,7 @@ mod test {
                     read_only: false,
                     ei_service,
                     graph,
+                    broadcaster,
                 },
             );
         })

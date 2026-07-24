@@ -72,6 +72,7 @@ mod m0002270_fix_vulnerability_base_score_type;
 mod m0002280_backfill_sbom_suppliers;
 mod m0002290_create_exploit_intelligence_job;
 mod m0002300_create_exploit;
+mod m0002310_create_change_log;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -159,6 +160,7 @@ impl MigratorExt for Migrator {
             .data(m0002280_backfill_sbom_suppliers::Migration)
             .normal(m0002290_create_exploit_intelligence_job::Migration)
             .normal(m0002300_create_exploit::Migration)
+            .normal(m0002310_create_change_log::Migration)
     }
 }
 

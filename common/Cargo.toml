@@ -52,7 +52,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
 utoipa = { workspace = true, features = ["url"] }
-uuid = { workspace = true, features = ["v5", "serde"] }
+uuid = { workspace = true, features = ["v5", "v7", "serde"] }
 walker-common = { workspace = true, features = ["bzip2", "lzma", "flate2"] }
 
 [dev-dependencies]

@@ -16,6 +16,7 @@ trustify-module-exploit-intelligence = { workspace = true }
 trustify-module-fundamental = { workspace = true }
 trustify-module-importer = { workspace = true }
 trustify-module-ingestor = { workspace = true }
+trustify-module-notification = { workspace = true }
 trustify-module-storage = { workspace = true }
 trustify-module-ui = { workspace = true }
 trustify-module-user = { workspace = true }

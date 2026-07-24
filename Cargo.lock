@@ -295,6 +295,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-ws"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12d4f2fbee3ef7a22fa6cb0e416b962237a167ed0419f22d4e451da2d7f082f8"
+dependencies = [
+ "actix-codec",
+ "actix-http",
+ "actix-web",
+ "bytestring",
+ "futures-core",
+ "tokio",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8791,6 +8805,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "trustify-module-notification"
+version = "0.6.0-rc.1"
+dependencies = [
+ "actix-http",
+ "actix-web",
+ "actix-ws",
+ "anyhow",
+ "clap",
+ "futures",
+ "humantime",
+ "serde",
+ "serde_json",
+ "test-context",
+ "test-log",
+ "tokio",
+ "tracing",
+ "trustify-auth",
+ "trustify-common",
+ "trustify-infrastructure",
+ "trustify-test-context",
+ "utoipa-actix-web",
+ "uuid",
+]
+
+[[package]]
 name = "trustify-module-storage"
 version = "0.6.0-rc.1"
 dependencies = [
@@ -8911,6 +8950,7 @@ dependencies = [
  "trustify-module-fundamental",
  "trustify-module-importer",
  "trustify-module-ingestor",
+ "trustify-module-notification",
  "trustify-module-storage",
  "trustify-module-ui",
  "trustify-module-user",

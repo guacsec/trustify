@@ -13,6 +13,7 @@ members = [
     "modules/fundamental",
     "modules/importer",
     "modules/ingestor",
+    "modules/notification",
     "modules/storage",
     "modules/ui",
     "modules/user",
@@ -37,6 +38,7 @@ actix-cors = "0.7"
 actix-http = "3.3.1"
 actix-tls = "3"
 actix-web = "4.3.1"
+actix-ws = "0.3"
 actix-web-extras = "0.1"
 actix-web-httpauth = "0.8"
 actix-web-static-files = "4.0.1"
@@ -130,7 +132,7 @@ sha2 = "0.11.0"
 spdx = "0.13.3"
 spdx-expression = "0.5.2"
 spdx-rs = "0.5.3"
-sqlx = { version = "0.8", features = ["tls-native-tls"] } # keep aligned with sea-orm
+sqlx = { version = "0.8", features = ["tls-native-tls", "postgres"] } # keep aligned with sea-orm
 strum = "0.28.0"
 tar = "0.4.45"
 temp-env = "0.3"
@@ -172,6 +174,7 @@ trustify-module-exploit-intelligence = { path = "modules/exploit-intelligence" }
 trustify-module-fundamental = { path = "modules/fundamental" }
 trustify-module-importer = { path = "modules/importer" }
 trustify-module-ingestor = { path = "modules/ingestor" }
+trustify-module-notification = { path = "modules/notification" }
 trustify-module-storage = { path = "modules/storage" }
 trustify-module-ui = { path = "modules/ui", default-features = false }
 trustify-module-user = { path = "modules/user" }
