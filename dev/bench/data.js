@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784898781337,
+  "lastUpdate": 1784900051372,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20522,6 +20522,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/8932573630162b4eb6b00a407d405927092fa442"
         },
         "date": 1784898779635,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "7b7538dd2b3d06b761d6d70c2c8900e96857efb1",
+          "message": "chore: update GitHub Actions to Node.js 24 compatible versions\n\nNode.js 20 was deprecated in GitHub Actions runners (forced to Node 24\nsince June 2, 2026). Update all actions to versions that support Node 24:\n\n- actions/github-script v7 → v9\n- actions/checkout v5 → v7\n- actions/cache v5 → v6\n- actions/attest-build-provenance v1 → v4\n- astral-sh/setup-uv v6 → v9\n- codecov/codecov-action v5 → v7\n- redhat-actions/buildah-build v2 → v3\n- redhat-actions/oc-login v1 → v2\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-24T10:51:14Z",
+          "tree_id": "7a8959c4172b76ff830fd0a1a554d563362d49b3",
+          "url": "https://github.com/guacsec/trustify/commit/7b7538dd2b3d06b761d6d70c2c8900e96857efb1"
+        },
+        "date": 1784900049493,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
