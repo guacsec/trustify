@@ -46,7 +46,7 @@ jobs:
             microsoft-edge-stable
           df -h
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           components: llvm-tools-preview
@@ -55,7 +55,7 @@ jobs:
           key: tarpaulin
 
       - name: Cache Theseus Postgresql Installation
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.theseus/postgresql
           key: ${{ runner.os }}-theseus-postgresql-${{ hashFiles('**/Cargo.lock') }}
@@ -78,7 +78,7 @@ jobs:
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
 
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         if: github.repository_owner == 'guacsec'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

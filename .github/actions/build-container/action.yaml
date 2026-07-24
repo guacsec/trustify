@@ -27,7 +27,7 @@ runs:
 
     - name: Build Image (trustd)
       id: build-image-trustd
-      uses: redhat-actions/buildah-build@v2
+      uses: redhat-actions/buildah-build@v3
       with:
         image: trustd
         tags: ${{ inputs.image_tag }}
@@ -41,7 +41,7 @@ runs:
 
     - name: Build Image (xtask)
       id: build-image-xtask
-      uses: redhat-actions/buildah-build@v2
+      uses: redhat-actions/buildah-build@v3
       with:
         image: xtask
         tags: ${{ inputs.image_tag }}
@@ -56,7 +56,7 @@ runs:
     - name: Build Image (gensbom)
       if: inputs.build_gensbom == 'true'
       id: build-image-gensbom
-      uses: redhat-actions/buildah-build@v2
+      uses: redhat-actions/buildah-build@v3
       with:
         image: gensbom
         tags: ${{ inputs.image_tag }}

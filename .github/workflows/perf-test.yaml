@@ -59,7 +59,7 @@ jobs:
           echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
           echo "ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ steps.pr.outputs.sha }}
 
@@ -90,7 +90,7 @@ jobs:
           python -m pip install httpie
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v9
 
       - name: Build
         run: |

@@ -46,7 +46,7 @@ jobs:
           sudo rm -Rf ${RUBY_PATH}
           df -h
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@v2
 

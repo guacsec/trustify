@@ -18,12 +18,12 @@ jobs:
 
     if: github.event.pull_request.draft == false
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - run: npm ci
         working-directory: .github/scripts/map-users
 
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         id: message
         with:
           script: |
@@ -32,7 +32,7 @@ jobs:
             return msg || "";
           result-encoding: string
 
-      - uses: actions/github-script@v7
+      - uses: actions/github-script@v9
         id: directMessages
         with:
           script: |
