@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784893461176,
+  "lastUpdate": 1784898781337,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20493,6 +20493,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/7316619f0735a178dd85d7ed9ccf2044f270cb2e"
         },
         "date": 1784893459396,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "8932573630162b4eb6b00a407d405927092fa442",
+          "message": "fix(sec): brace-expansion and setuptools",
+          "timestamp": "2026-07-24T10:32:15Z",
+          "tree_id": "ddc4965945733304b86c49a42cb63499b28c1fa9",
+          "url": "https://github.com/guacsec/trustify/commit/8932573630162b4eb6b00a407d405927092fa442"
+        },
+        "date": 1784898779635,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
