@@ -910,4 +910,139 @@ mod test {
 
         Ok(())
     }
+
+    // -- EI config conversion tests --
+
+    fn ei_args_disabled() -> ExploitIntelligenceArgs {
+        ExploitIntelligenceArgs {
+            exploit_intelligence_url: None,
+            exploit_intelligence_ui_url: None,
+            exploit_intelligence_poll_interval: "30s".parse().unwrap(),
+            exploit_intelligence_max_poll_duration: "30m".parse().unwrap(),
+            exploit_intelligence_upload_max_retries: 3,
+            exploit_intelligence_upload_retry_delay: "1s".parse().unwrap(),
+            exploit_intelligence_max_consecutive_poll_failures: 5,
+            worker_poll_interval: "5s".parse().unwrap(),
+            exploit_intelligence_auth_token: None,
+            oidc: EiOidcArguments {
+                client_id: None,
+                client_secret: None,
+                issuer_url: None,
+                refresh_before: "30s".parse().unwrap(),
+                tls_insecure: false,
+            },
+        }
+    }
+
+    #[test(tokio::test)]
+    async fn ei_into_config_returns_none_when_disabled() {
+        let result = ei_args_disabled().into_config().await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test(tokio::test)]
+    async fn ei_into_config_returns_config_when_url_set() {
+        let mut args = ei_args_disabled();
+        args.exploit_intelligence_url = Some("http://ei.example.com".into());
+        args.exploit_intelligence_ui_url = Some("http://ei-ui.example.com".into());
+
+        let config = args
+            .into_config()
+            .await
+            .unwrap()
+            .expect("config should be Some");
+        assert_eq!(config.url, "http://ei.example.com");
+        assert_eq!(config.ui_url.as_deref(), Some("http://ei-ui.example.com"));
+        assert_eq!(config.upload_max_retries, 3);
+        assert!(config.token_provider.is_none());
+    }
+
+    #[test(tokio::test)]
+    async fn ei_into_config_with_static_token() {
+        let mut args = ei_args_disabled();
+        args.exploit_intelligence_url = Some("http://ei.example.com".into());
+        args.exploit_intelligence_auth_token = Some("my-token".into());
+
+        let config = args
+            .into_config()
+            .await
+            .unwrap()
+            .expect("config should be Some");
+        assert!(config.token_provider.is_some());
+    }
+
+    #[test]
+    fn oidc_into_config_returns_none_when_empty() {
+        let args = EiOidcArguments {
+            client_id: None,
+            client_secret: None,
+            issuer_url: None,
+            refresh_before: "30s".parse().unwrap(),
+            tls_insecure: false,
+        };
+        assert!(args.into_config().is_none());
+    }
+
+    #[test]
+    fn oidc_into_config_returns_config_when_all_set() {
+        let args = EiOidcArguments {
+            client_id: Some("client".into()),
+            client_secret: Some("secret".into()),
+            issuer_url: Some("https://idp.example.com".into()),
+            refresh_before: "60s".parse().unwrap(),
+            tls_insecure: true,
+        };
+        let config = args.into_config().expect("config should be Some");
+        assert_eq!(config.client_id, "client");
+        assert_eq!(config.client_secret, "secret");
+        assert_eq!(config.issuer_url, "https://idp.example.com");
+        assert!(config.tls_insecure);
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn build_ei_worker_task_variants(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let init = InitData {
+            http: HttpServerConfig::default(),
+            tracing: Tracing::Disabled,
+            metrics: OtelMetrics::Disabled,
+            authorizer: Authorizer::new(None),
+            authenticator: None,
+            swagger_oidc: None,
+            config: ModuleConfig::default(),
+            db_rw: db::ReadWrite::new(ctx.db.clone()),
+            db_ro: db::ReadOnly::new(ctx.db.clone()),
+            cache: PaginationCache::for_test(),
+            storage: ctx.storage.clone().into(),
+            analysis: AnalysisService::new(
+                AnalysisConfig::default(),
+                db::ReadOnly::new(ctx.db.clone()),
+            ),
+            read_only: false,
+            ei_config: None,
+            #[cfg(feature = "garage-door")]
+            embedded_oidc: None,
+            ui: Default::default(),
+        };
+        let graph = Graph::new();
+
+        let disabled = ExploitIntelligenceService::new(None)?;
+        assert!(build_ei_worker_task(&disabled, &graph, &init, false).is_none());
+
+        let enabled = ExploitIntelligenceService::new(Some(ExploitIntelligenceConfig {
+            url: "http://localhost:9999".into(),
+            ui_url: None,
+            poll_interval: std::time::Duration::from_secs(30),
+            max_poll_duration: std::time::Duration::from_secs(1800),
+            upload_max_retries: 3,
+            upload_retry_delay: std::time::Duration::from_secs(1),
+            max_consecutive_poll_failures: 5,
+            worker_poll_interval: std::time::Duration::from_secs(5),
+            token_provider: None,
+        }))?;
+        assert!(build_ei_worker_task(&enabled, &graph, &init, true).is_none());
+        assert!(build_ei_worker_task(&enabled, &graph, &init, false).is_some());
+
+        Ok(())
+    }
 }
