@@ -227,6 +227,7 @@ async fn change_ps_list_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
             },
+            fixed_versions: vec![],
         }]
     );
 
@@ -387,6 +388,7 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
             },
+            fixed_versions: vec![],
         }]
     );
 
@@ -454,6 +456,7 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
             },
+            fixed_versions: vec![],
         }]
     );
 

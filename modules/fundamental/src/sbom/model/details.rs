@@ -63,6 +63,14 @@ impl FromQueryResult for IdSet {
     }
 }
 
+/// Fix version info from "fixed" purl_status entries
+#[derive(Debug, FromQueryResult)]
+struct FixVersionEntry {
+    advisory_id: Uuid,
+    vulnerability_id: String,
+    high_version: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct SbomDetails {
     #[serde(flatten)]
@@ -361,11 +369,11 @@ impl SbomDetails {
         let scores = advisory_vulnerability_score::Entity::find()
             .filter(
                 Expr::col(advisory_vulnerability_score::Column::AdvisoryId)
-                    .eq(PgFunc::any(advisory_ids)),
+                    .eq(PgFunc::any(advisory_ids.clone())),
             )
             .filter(
                 Expr::col(advisory_vulnerability_score::Column::VulnerabilityId)
-                    .eq(PgFunc::any(vulnerability_ids)),
+                    .eq(PgFunc::any(vulnerability_ids.clone())),
             )
             .all(tx)
             .instrument(info_span!("fetch scores"))
@@ -380,6 +388,49 @@ impl SbomDetails {
                 .entry((score.advisory_id, score.vulnerability_id.clone()))
                 .or_default()
                 .push(score);
+        }
+
+        // Pre-fetch fix versions from "fixed" purl_status entries
+        let fix_version_entries: Vec<FixVersionEntry> = purl_status::Entity::find()
+            .select_only()
+            .column_as(purl_status::Column::AdvisoryId, "advisory_id")
+            .column_as(purl_status::Column::VulnerabilityId, "vulnerability_id")
+            .column_as(version_range::Column::HighVersion, "high_version")
+            .join(JoinType::Join, purl_status::Relation::Status.def())
+            .join(JoinType::Join, purl_status::Relation::VersionRange.def())
+            .filter(Expr::col((status::Entity, status::Column::Slug)).eq("fixed"))
+            .filter(
+                Expr::col((purl_status::Entity, purl_status::Column::AdvisoryId))
+                    .eq(PgFunc::any(advisory_ids)),
+            )
+            .filter(
+                Expr::col((purl_status::Entity, purl_status::Column::VulnerabilityId))
+                    .eq(PgFunc::any(vulnerability_ids)),
+            )
+            .distinct()
+            .into_model::<FixVersionEntry>()
+            .all(tx)
+            .instrument(info_span!("fetch fix versions"))
+            .await?;
+        log::debug!(
+            "Pre-fetched {} fix version entries",
+            fix_version_entries.len()
+        );
+
+        let mut fix_versions_map: BTreeMap<(Uuid, String), Vec<String>> = BTreeMap::new();
+        for entry in fix_version_entries {
+            if let Some(version) = entry.high_version {
+                // Skip container image digests — only keep actual version strings
+                if version.starts_with("sha256:") {
+                    continue;
+                }
+                let versions = fix_versions_map
+                    .entry((entry.advisory_id, entry.vulnerability_id))
+                    .or_default();
+                if !versions.contains(&version) {
+                    versions.push(version);
+                }
+            }
         }
 
         // Reconstruct QueryCatcher objects from IDs and lookup maps
@@ -456,7 +507,9 @@ impl SbomDetails {
             });
         }
 
-        let advisories = SbomAdvisory::from_models(relevant_advisory_info, &scores_map, tx).await?;
+        let advisories =
+            SbomAdvisory::from_models(relevant_advisory_info, &scores_map, &fix_versions_map, tx)
+                .await?;
 
         Ok(Some(SbomDetails {
             summary,
@@ -478,6 +531,7 @@ impl SbomAdvisory {
     pub async fn from_models<C: ConnectionTrait>(
         statuses: Vec<QueryCatcher>,
         scores_map: &BTreeMap<(Uuid, String), Vec<advisory_vulnerability_score::Model>>,
+        fix_versions_map: &BTreeMap<(Uuid, String), Vec<String>>,
         tx: &C,
     ) -> Result<Vec<Self>, Error> {
         let mut advisories = BTreeMap::new();
@@ -523,6 +577,10 @@ impl SbomAdvisory {
                     vec![],
                     // Look up pre-fetched scores from the map
                     scores_map
+                        .get(&(each.advisory.id, each.vulnerability.id.clone()))
+                        .cloned()
+                        .unwrap_or_default(),
+                    fix_versions_map
                         .get(&(each.advisory.id, each.vulnerability.id.clone()))
                         .cloned()
                         .unwrap_or_default(),
@@ -575,6 +633,9 @@ pub struct SbomStatus {
     pub context: Option<StatusContext>,
     pub packages: Vec<SbomPackage>,
     pub scores: Vec<ScoredVector>,
+    /// Versions that fix this vulnerability, extracted from "fixed" advisory entries
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fixed_versions: Vec<String>,
 }
 
 impl SbomStatus {
@@ -585,6 +646,7 @@ impl SbomStatus {
         cpe: Option<OwnedUri>,
         packages: Vec<SbomPackage>,
         score_models: Vec<advisory_vulnerability_score::Model>,
+        fixed_versions: Vec<String>,
     ) -> Result<Self, Error> {
         // Convert all scores (all versions) to ScoredVector model
         let scores = score_models.into_iter().map(ScoredVector::from).collect();
@@ -598,6 +660,7 @@ impl SbomStatus {
             status,
             packages,
             scores,
+            fixed_versions,
         })
     }
 

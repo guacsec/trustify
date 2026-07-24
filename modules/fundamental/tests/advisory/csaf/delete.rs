@@ -195,6 +195,7 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
             },
+            fixed_versions: vec![],
         }]
     );
 
