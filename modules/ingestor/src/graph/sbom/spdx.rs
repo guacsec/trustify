@@ -34,10 +34,10 @@ fn describing_packages(sbom: &SPDX) -> HashSet<&str> {
     for rel in &sbom.relationships {
         match rel.relationship_type {
             RelationshipType::Describes => {
-                packages.insert(&rel.spdx_element_id);
+                packages.insert(&rel.related_spdx_element);
             }
             RelationshipType::DescribedBy => {
-                packages.insert(&rel.related_spdx_element);
+                packages.insert(&rel.spdx_element_id);
             }
             _ => continue,
         }

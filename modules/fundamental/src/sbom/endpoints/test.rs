@@ -1719,6 +1719,36 @@ async fn query_sboms_by_array_values(ctx: &TrustifyContext) -> Result<(), anyhow
     Ok(())
 }
 
+/// Verifies that suppliers are correctly extracted for SBOMs using DESCRIBES and DESCRIBED_BY
+/// relationships without a documentDescribes fallback.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn spdx_describes_suppliers(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given SBOMs with DESCRIBES-only and DESCRIBED_BY-only relationships
+    ctx.ingest_documents([
+        "spdx/license-ref-overlap.json",
+        "spdx/described-by-supplier.json",
+    ])
+    .await?;
+
+    let query = async |expected_count, q| {
+        let app = caller(ctx).await.unwrap();
+        let uri = format!("/api/v3/sbom?total=true&q={}", encode(q));
+        let req = TestRequest::get().uri(&uri).to_request();
+        let response: Value = app.call_and_read_body_json(req).await;
+        tracing::debug!(test = "", "{response:#?}");
+        assert_eq!(expected_count, response["total"], "for {q}");
+    };
+
+    // Then suppliers from DESCRIBES relationships are populated
+    query(1, "suppliers=Organization: Test").await;
+
+    // Then suppliers from DESCRIBED_BY relationships are populated
+    query(1, "suppliers=Organization: Test Supplier").await;
+
+    Ok(())
+}
+
 async fn test_label(
     ctx: &TrustifyContext,
     query: &str,

@@ -1,0 +1,34 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "described-by-supplier-test",
+  "documentNamespace": "https://example.org/test/described-by-supplier",
+  "creationInfo": {
+    "created": "2024-01-01T00:00:00Z",
+    "creators": [
+      "Tool: test"
+    ],
+    "licenseListVersion": "3.19"
+  },
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Pkg",
+      "name": "described-by-package",
+      "versionInfo": "1.0",
+      "downloadLocation": "https://example.org/described-by-package",
+      "filesAnalyzed": false,
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "supplier": "Organization: Test Supplier"
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-Pkg",
+      "relationshipType": "DESCRIBED_BY",
+      "relatedSpdxElement": "SPDXRef-DOCUMENT"
+    }
+  ]
+}
