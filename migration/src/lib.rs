@@ -69,6 +69,7 @@ mod m0002240_product_version_sbom_index;
 mod m0002250_create_cpe_status;
 mod m0002260_cpe_part_vendor_product_index;
 mod m0002270_fix_vulnerability_base_score_type;
+mod m0002280_backfill_sbom_suppliers;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -153,6 +154,7 @@ impl MigratorExt for Migrator {
             .normal(m0002250_create_cpe_status::Migration)
             .normal(m0002260_cpe_part_vendor_product_index::Migration)
             .normal(m0002270_fix_vulnerability_base_score_type::Migration)
+            .data(m0002280_backfill_sbom_suppliers::Migration)
     }
 }
 
