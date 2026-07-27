@@ -93,6 +93,49 @@ pub async fn record_change(
     Ok(())
 }
 
+async fn fetch_latest_id(pool: &sqlx::PgPool) -> Uuid {
+    let result: Result<Option<(Uuid,)>, _> =
+        sqlx::query_as("SELECT id FROM change_log ORDER BY id DESC LIMIT 1")
+            .fetch_optional(pool)
+            .await;
+    match result {
+        Ok(Some((id,))) => id,
+        Ok(None) => Uuid::nil(),
+        Err(err) => {
+            tracing::warn!(%err, "failed to fetch latest change_log id");
+            Uuid::nil()
+        }
+    }
+}
+
+async fn fetch_entries_after(
+    pool: &sqlx::PgPool,
+    cursor: &Uuid,
+) -> Result<Vec<ChangeEntry>, anyhow::Error> {
+    let rows: Vec<(Uuid, String, Option<Uuid>, String)> = sqlx::query_as(
+        "SELECT id, entity_type, entity_id, operation FROM change_log WHERE id > $1 ORDER BY id",
+    )
+    .bind(cursor)
+    .fetch_all(pool)
+    .await?;
+
+    let entries = rows
+        .into_iter()
+        .filter_map(|(cursor, r#type, id, operation)| {
+            let r#type = ChangeEntity::from_str(&r#type)?;
+            let operation = ChangeOperation::from_str(&operation)?;
+            Some(ChangeEntry {
+                cursor,
+                r#type,
+                id,
+                operation,
+            })
+        })
+        .collect();
+
+    Ok(entries)
+}
+
 /// Watches the change_log table via PostgreSQL LISTEN/NOTIFY with
 /// a periodic polling fallback. All sqlx types are encapsulated —
 /// callers only interact through the public API.
@@ -217,47 +260,12 @@ impl ChangeListener {
         }
     }
 
-    /// Fetches the latest change_log ID for cursor initialization.
     async fn fetch_max_id(&self) -> Uuid {
-        let result: Result<Option<(Uuid,)>, _> =
-            sqlx::query_as("SELECT id FROM change_log ORDER BY id DESC LIMIT 1")
-                .fetch_optional(&self.pool)
-                .await;
-
-        match result {
-            Ok(Some((id,))) => id,
-            Ok(None) => Uuid::nil(),
-            Err(err) => {
-                tracing::warn!(%err, "failed to fetch latest change_log id, starting from zero");
-                Uuid::nil()
-            }
-        }
+        fetch_latest_id(&self.pool).await
     }
 
-    /// Fetches all change_log entries with id > cursor.
     async fn fetch_after(&self, cursor: &Uuid) -> Result<Vec<ChangeEntry>, anyhow::Error> {
-        let rows: Vec<(Uuid, String, Option<Uuid>, String)> = sqlx::query_as(
-            "SELECT id, entity_type, entity_id, operation FROM change_log WHERE id > $1 ORDER BY id",
-        )
-        .bind(cursor)
-        .fetch_all(&self.pool)
-        .await?;
-
-        let entries = rows
-            .into_iter()
-            .filter_map(|(cursor, r#type, id, operation)| {
-                let r#type = ChangeEntity::from_str(&r#type)?;
-                let operation = ChangeOperation::from_str(&operation)?;
-                Some(ChangeEntry {
-                    cursor,
-                    r#type,
-                    id,
-                    operation,
-                })
-            })
-            .collect();
-
-        Ok(entries)
+        fetch_entries_after(&self.pool, cursor).await
     }
 
     /// Deletes change_log entries older than the retention period.
@@ -324,44 +332,11 @@ impl ChangeBroadcaster {
         self.tx.subscribe()
     }
 
-    /// Returns the latest event cursor, or `Uuid::nil()` if the change_log is empty.
     pub async fn fetch_latest_cursor(&self) -> Uuid {
-        let result: Result<Option<(Uuid,)>, _> =
-            sqlx::query_as("SELECT id FROM change_log ORDER BY id DESC LIMIT 1")
-                .fetch_optional(&self.pool)
-                .await;
-        match result {
-            Ok(Some((id,))) => id,
-            Ok(None) => Uuid::nil(),
-            Err(err) => {
-                tracing::warn!(%err, "failed to fetch latest change_log cursor");
-                Uuid::nil()
-            }
-        }
+        fetch_latest_id(&self.pool).await
     }
 
     pub async fn fetch_after(&self, cursor: &Uuid) -> Result<Vec<ChangeEntry>, anyhow::Error> {
-        let rows: Vec<(Uuid, String, Option<Uuid>, String)> = sqlx::query_as(
-            "SELECT id, entity_type, entity_id, operation FROM change_log WHERE id > $1 ORDER BY id",
-        )
-        .bind(cursor)
-        .fetch_all(&self.pool)
-        .await?;
-
-        let entries = rows
-            .into_iter()
-            .filter_map(|(cursor, r#type, id, operation)| {
-                let r#type = ChangeEntity::from_str(&r#type)?;
-                let operation = ChangeOperation::from_str(&operation)?;
-                Some(ChangeEntry {
-                    cursor,
-                    r#type,
-                    id,
-                    operation,
-                })
-            })
-            .collect();
-
-        Ok(entries)
+        fetch_entries_after(&self.pool, cursor).await
     }
 }

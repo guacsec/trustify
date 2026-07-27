@@ -8825,6 +8825,7 @@ dependencies = [
  "trustify-common",
  "trustify-infrastructure",
  "trustify-test-context",
+ "url",
  "utoipa-actix-web",
  "uuid",
 ]

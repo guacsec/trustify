@@ -22,7 +22,7 @@ use uuid::Uuid;
 #[test]
 fn extract_token_basic() {
     assert_eq!(
-        crate::inject_token::extract_token("token=abc123"),
+        crate::inject_token::extract_token("token=abc123").as_deref(),
         Some("abc123")
     );
 }
@@ -30,7 +30,7 @@ fn extract_token_basic() {
 #[test]
 fn extract_token_with_other_params() {
     assert_eq!(
-        crate::inject_token::extract_token("after=xxx&token=jwt.val&foo=bar"),
+        crate::inject_token::extract_token("after=xxx&token=jwt.val&foo=bar").as_deref(),
         Some("jwt.val")
     );
 }
@@ -46,6 +46,24 @@ fn extract_token_missing() {
 #[test]
 fn extract_token_empty() {
     assert_eq!(crate::inject_token::extract_token(""), None);
+}
+
+#[test]
+fn extract_token_percent_encoded() {
+    assert_eq!(
+        crate::inject_token::extract_token("token=abc%20def").as_deref(),
+        Some("abc def")
+    );
+}
+
+#[test]
+fn extract_token_no_value() {
+    assert_eq!(crate::inject_token::extract_token("token"), None);
+}
+
+#[test]
+fn extract_token_empty_value() {
+    assert_eq!(crate::inject_token::extract_token("token=&foo=bar"), None);
 }
 
 // -- Group B: is_allowed ----------------------------------------------------
@@ -172,6 +190,24 @@ async fn injector_no_token_no_header() {
     let req = actix::TestRequest::get().uri("/test").to_request();
     let resp = actix::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+}
+
+#[test(actix_web::test)]
+async fn injector_malformed_query_strings() {
+    let app = actix::init_service(
+        App::new().service(
+            web::resource("/test")
+                .wrap(crate::inject_token::QueryTokenInjector)
+                .route(web::get().to(echo_auth)),
+        ),
+    )
+    .await;
+
+    for uri in ["/test?token", "/test?token=&foo=bar"] {
+        let req = actix::TestRequest::get().uri(uri).to_request();
+        let resp = actix::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+    }
 }
 
 // -- Group D: endpoint permission tests -------------------------------------
