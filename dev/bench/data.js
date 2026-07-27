@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784900051372,
+  "lastUpdate": 1785161501572,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20556,6 +20556,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "6ecde07dd2b802b84ae129fac4fe47957bd4a363",
+          "message": "fix: remove unused import and redundant borrows in format args\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-07-27T11:40:14Z",
+          "tree_id": "f14e3dd4c8d60cab4edf215b9ba5068b48e5ae56",
+          "url": "https://github.com/guacsec/trustify/commit/6ecde07dd2b802b84ae129fac4fe47957bd4a363"
+        },
+        "date": 1785161499132,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
             "unit": "s"
           }
         ]
