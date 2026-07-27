@@ -1,6 +1,6 @@
 /// Data migration that re-processes all SPDX SBOMs to backfill the `suppliers`
 /// column using the corrected `describing_packages()` logic.
-use crate::data::{MigrationTraitWithData, SchemaDataManager, sbom::Sbom as SbomDoc};
+use crate::data::{MigrationTraitWithData, SchemaDataManager, sbom::Id, sbom::Sbom as SbomDoc};
 use sea_orm::{ActiveModelBehavior, ActiveModelTrait, DatabaseTransaction, Set};
 use sea_orm_migration::prelude::*;
 use spdx_rs::models::{RelationshipType, SPDX};
@@ -27,15 +27,15 @@ mod legacy {
 }
 
 fn describing_packages(sbom: &SPDX) -> HashSet<&str> {
-    let mut packages = HashSet::<&str>::new();
+    let mut packages = HashSet::new();
 
     for rel in &sbom.relationships {
         match rel.relationship_type {
             RelationshipType::Describes => {
-                packages.insert(&rel.related_spdx_element);
+                packages.insert(rel.related_spdx_element.as_str());
             }
             RelationshipType::DescribedBy => {
-                packages.insert(&rel.spdx_element_id);
+                packages.insert(rel.spdx_element_id.as_str());
             }
             _ => continue,
         }
@@ -73,7 +73,7 @@ impl MigrationTraitWithData for Migration {
         manager
             .process(
                 self,
-                async |sbom: SbomDoc, id: crate::data::sbom::Id, tx: &DatabaseTransaction| {
+                async |sbom: SbomDoc, id: Id, tx: &DatabaseTransaction| {
                     let SbomDoc::Spdx(spdx) = sbom else {
                         return Ok(());
                     };
