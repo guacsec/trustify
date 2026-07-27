@@ -1,9 +1,5 @@
 use crate::graph::vulnerability::BaseScore;
-use cvss::{
-    Cvss,
-    v2_0, v3, v4_0,
-    version::VersionV3,
-};
+use cvss::{Cvss, v2_0, v3, v4_0, version::VersionV3};
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set};
 use std::str::FromStr;
 use trustify_entity::advisory_vulnerability_score::{self, ScoreType, Severity};

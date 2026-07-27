@@ -434,7 +434,6 @@ fn status_slug(status: &Status) -> String {
     }
 }
 
-
 struct VulnerabilityDetails<'a> {
     pub org_name: Option<&'a str>,
     pub descriptions: &'a Vec<Description>,
@@ -447,11 +446,7 @@ struct VulnerabilityDetails<'a> {
 mod test {
     use super::*;
     use crate::{
-        graph::{
-            Graph,
-            cvss::best_base_score,
-            vulnerability::BaseScore,
-        },
+        graph::{Graph, cvss::best_base_score, vulnerability::BaseScore},
         service::advisory::test::{AssertScore, assert_scores},
     };
     use hex::ToHex;
