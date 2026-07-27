@@ -26,7 +26,6 @@ use cve::{
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, TransactionTrait};
 use sea_query::Expr;
-use serde_json::Value;
 use std::str::FromStr;
 use std::{collections::HashSet, fmt::Debug};
 use time::OffsetDateTime;
