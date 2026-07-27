@@ -44,6 +44,8 @@ impl From<ScoreInformation> for advisory_vulnerability_score::ActiveModel {
 
 impl From<(String, v2_0::CvssV2)> for ScoreInformation {
     fn from((vulnerability_id, cvss): (String, v2_0::CvssV2)) -> Self {
+        // Prefer the score computed from the vector string over the CNA-provided base_score,
+        // which is only used as a fallback when the vector cannot be parsed or scored.
         let base_score = cvss
             .calculated_base_score()
             .or_else(|| {
