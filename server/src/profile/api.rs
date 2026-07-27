@@ -196,14 +196,18 @@ pub struct ExploitIntelligenceArgs {
 
     /// How often the background worker checks for new EI jobs.
     #[arg(
-        long,
+        long = "exploit-intelligence-worker-poll-interval",
         env = "EXPLOIT_INTELLIGENCE_WORKER_POLL_INTERVAL",
         default_value = "5s"
     )]
-    pub worker_poll_interval: humantime::Duration,
+    pub exploit_intelligence_worker_poll_interval: humantime::Duration,
 
     /// Authentication token for the Exploit Intelligence service (static token, for backward compatibility).
-    #[arg(long, env = "EXPLOIT_INTELLIGENCE_AUTH_TOKEN")]
+    #[arg(
+        long,
+        env = "EXPLOIT_INTELLIGENCE_AUTH_TOKEN",
+        conflicts_with = "ei_oidc_client_id"
+    )]
     pub exploit_intelligence_auth_token: Option<String>,
 
     #[command(flatten)]
@@ -225,15 +229,18 @@ impl ExploitIntelligenceArgs {
         )
         .await?;
 
+        let ui_url = self
+            .exploit_intelligence_ui_url
+            .unwrap_or_else(|| url.clone());
         Ok(Some(ExploitIntelligenceConfig {
             url,
-            ui_url: self.exploit_intelligence_ui_url,
+            ui_url: Some(ui_url),
             poll_interval: self.exploit_intelligence_poll_interval.into(),
             max_poll_duration: self.exploit_intelligence_max_poll_duration.into(),
             upload_max_retries: self.exploit_intelligence_upload_max_retries,
             upload_retry_delay: self.exploit_intelligence_upload_retry_delay.into(),
             max_consecutive_poll_failures: self.exploit_intelligence_max_consecutive_poll_failures,
-            worker_poll_interval: self.worker_poll_interval.into(),
+            worker_poll_interval: self.exploit_intelligence_worker_poll_interval.into(),
             token_provider,
         }))
     }
@@ -922,7 +929,7 @@ mod test {
             exploit_intelligence_upload_max_retries: 3,
             exploit_intelligence_upload_retry_delay: "1s".parse().unwrap(),
             exploit_intelligence_max_consecutive_poll_failures: 5,
-            worker_poll_interval: "5s".parse().unwrap(),
+            exploit_intelligence_worker_poll_interval: "5s".parse().unwrap(),
             exploit_intelligence_auth_token: None,
             oidc: EiOidcArguments {
                 client_id: None,
@@ -1042,6 +1049,74 @@ mod test {
         }))?;
         assert!(build_ei_worker_task(&enabled, &graph, &init, true).is_none());
         assert!(build_ei_worker_task(&enabled, &graph, &init, false).is_some());
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn well_known_exploit_intelligence_enabled(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        let analysis =
+            AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
+        let ei_service = ExploitIntelligenceService::new(Some(ExploitIntelligenceConfig {
+            url: "http://localhost:9999".into(),
+            ui_url: None,
+            poll_interval: std::time::Duration::from_secs(30),
+            max_poll_duration: std::time::Duration::from_secs(1800),
+            upload_max_retries: 3,
+            upload_retry_delay: std::time::Duration::from_secs(1),
+            max_consecutive_poll_failures: 5,
+            worker_poll_interval: std::time::Duration::from_secs(5),
+            token_provider: None,
+        }))
+        .expect("enabled EI service");
+        let graph = Graph::new();
+        let app = call::caller_app(move |svc| {
+            configure(
+                svc,
+                Config {
+                    config: ModuleConfig::default(),
+                    db_rw: db::ReadWrite::new(ctx.db.clone()),
+                    db_ro: db::ReadOnly::new(ctx.db.clone()),
+                    storage: ctx.storage.clone().into(),
+                    cache: PaginationCache::for_test(),
+                    auth: None,
+                    analysis,
+                    read_only: false,
+                    ei_service,
+                    graph,
+                },
+            );
+        })
+        .await
+        .expect("failed to build test app");
+
+        let req = TestRequest::get().uri("/.well-known/trustify").to_request();
+        let resp: serde_json::Value = app.call_and_read_body_json(req).await;
+        assert_eq!(resp["exploitIntelligence"], serde_json::json!(true));
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn analyze_returns_503_when_ei_disabled(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        let app = caller(ctx, false).await;
+
+        let req = TestRequest::post()
+            .uri("/api/v3/exploit-intelligence/analyze")
+            .set_json(serde_json::json!({
+                "sbom_id": "00000000-0000-0000-0000-000000000000",
+                "vulnerability_id": "CVE-2024-0001"
+            }))
+            .to_request();
+
+        let resp = app.call_service(req).await;
+        assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
 
         Ok(())
     }

@@ -1076,6 +1076,52 @@ paths:
       summary: List Exploit Intelligence analysis jobs.
       operationId: listExploitIntelligenceJobs
       parameters:
+      - name: q
+        in: query
+        description: |
+          Query for advisories defined using the following EBNF grammar (ISO/IEC 14977):
+          ```text
+          (* Query Grammar - EBNF Compliant *)
+          query = ( values | filter ) , { "&" , query } ;
+          values = value , { "|" , value } ;
+          filter = field , operator , values ;
+          operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<" ;
+          field = ("id" | "sbom_id" | "vulnerability_id" | "status" | "created" | "updated")
+          value = { value_char } ;
+          value_char = escaped_char | normal_char ;
+          escaped_char = "\" , special_char ;
+          normal_char = ? any character except '&', '|', '=', '!', '~', '>', '<', '\' ? ;
+          special_char = "&" | "|" | "=" | "!" | "~" | ">" | "<" | "\" ;
+          ```
+          Examples:
+          - Simple filter: title=example
+          - Multiple values filter: title=foo|bar|baz
+          - Complex filter: modified>2024-01-01
+          - Combined query: title=foo&average_severity=high
+          - Escaped characters: title=foo\\&bar
+        required: false
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: |-
+          EBNF grammar for the _sort_ parameter:
+          ```text
+              sort = field [ ':', order ] { ',' sort }
+              order = ( "asc" | "desc" )
+              field = ("id" | "sbom_id" | "vulnerability_id" | "status" | "created" | "updated")
+          ```
+          The optional _order_ should be one of "asc" or "desc". If
+          omitted, the order defaults to "asc".
+
+          Each _field_ name must correspond to one of the columns of the
+          table holding the entities being queried. Those corresponding
+          to JSON objects in the database may use a ':' to delimit the
+          column name and the object key,
+          e.g. `purl:qualifiers:type:desc`
+        required: false
+        schema:
+          type: string
       - name: offset
         in: query
         description: |-
@@ -1104,23 +1150,6 @@ paths:
         required: false
         schema:
           type: boolean
-      - name: sbom_id
-        in: query
-        description: Filter by SBOM ID.
-        required: false
-        schema:
-          type:
-          - string
-          - 'null'
-          format: uuid
-      - name: status
-        in: query
-        description: Filter by job status.
-        required: false
-        schema:
-          oneOf:
-          - type: 'null'
-          - $ref: '#/components/schemas/JobStatus'
       responses:
         '200':
           description: List of analysis jobs
@@ -1141,7 +1170,6 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
       responses:
         '200':
           description: Job details
