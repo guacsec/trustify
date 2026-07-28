@@ -27,8 +27,8 @@ use trustify_entity::{relationship::Relationship, sbom_package_license::LicenseC
 
 pub struct Information<'a>(pub &'a SPDX);
 
-/// get the describing packages
-fn describing_packages(sbom: &SPDX) -> HashSet<&str> {
+/// Get the packages that describe the SBOM document.
+pub fn describing_packages(sbom: &SPDX) -> HashSet<&str> {
     let mut packages = HashSet::<&str>::new();
 
     for rel in &sbom.relationships {
@@ -53,8 +53,8 @@ fn describing_packages(sbom: &SPDX) -> HashSet<&str> {
     packages
 }
 
-/// Extract suppliers for a SPDX SBOM by collecting suppliers of describing packages
-fn suppliers(sbom: &SPDX) -> Vec<String> {
+/// Extract suppliers for a SPDX SBOM by collecting suppliers of describing packages.
+pub fn suppliers(sbom: &SPDX) -> Vec<String> {
     // packages describing the SBOM
     let describing = describing_packages(sbom);
 

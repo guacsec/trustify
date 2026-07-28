@@ -3,8 +3,7 @@
 use crate::data::{MigrationTraitWithData, SchemaDataManager, sbom::Id, sbom::Sbom as SbomDoc};
 use sea_orm::{ActiveModelBehavior, ActiveModelTrait, DatabaseTransaction, Set};
 use sea_orm_migration::prelude::*;
-use spdx_rs::models::{RelationshipType, SPDX};
-use std::collections::HashSet;
+use trustify_module_ingestor::graph::sbom::spdx::suppliers;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -24,47 +23,6 @@ mod legacy {
     pub enum Relation {}
 
     impl ActiveModelBehavior for ActiveModel {}
-}
-
-fn describing_packages(sbom: &SPDX) -> HashSet<&str> {
-    let mut packages = HashSet::new();
-
-    for rel in &sbom.relationships {
-        match rel.relationship_type {
-            RelationshipType::Describes => {
-                packages.insert(rel.related_spdx_element.as_str());
-            }
-            RelationshipType::DescribedBy => {
-                packages.insert(rel.spdx_element_id.as_str());
-            }
-            _ => continue,
-        }
-    }
-
-    packages.extend(
-        sbom.document_creation_information
-            .document_describes
-            .iter()
-            .map(|s| s.as_str()),
-    );
-
-    packages
-}
-
-fn suppliers(sbom: &SPDX) -> Vec<String> {
-    let describing = describing_packages(sbom);
-
-    let mut result = HashSet::new();
-    for p in &sbom.package_information {
-        if !describing.contains(p.package_spdx_identifier.as_str()) {
-            continue;
-        }
-        if let Some(supplier) = &p.package_supplier {
-            result.insert(supplier.clone());
-        }
-    }
-
-    Vec::from_iter(result)
 }
 
 #[async_trait::async_trait]
