@@ -147,6 +147,7 @@ pub struct ExploitIntelligenceArgs {
     pub exploit_intelligence_url: Option<String>,
 
     /// Base URL of the Exploit Intelligence web UI for deep-linking to reports.
+    /// When not set, falls back to the main EI URL.
     #[arg(
         long,
         env = "EXPLOIT_INTELLIGENCE_UI_URL",
@@ -154,53 +155,22 @@ pub struct ExploitIntelligenceArgs {
     )]
     pub exploit_intelligence_ui_url: Option<String>,
 
-    /// Polling interval for EI analysis completion (humantime, e.g. "30s").
-    #[arg(
-        long,
-        env = "EXPLOIT_INTELLIGENCE_POLL_INTERVAL",
-        default_value = "30s"
-    )]
-    pub exploit_intelligence_poll_interval: humantime::Duration,
+    /// Maximum number of retry attempts before a job is marked as failed.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_MAX_RETRIES", default_value_t = 3)]
+    pub exploit_intelligence_max_retries: usize,
 
-    /// Maximum duration before EI polling is considered timed out (humantime, e.g. "30m").
-    #[arg(
-        long,
-        env = "EXPLOIT_INTELLIGENCE_MAX_POLL_DURATION",
-        default_value = "30m"
-    )]
-    pub exploit_intelligence_max_poll_duration: humantime::Duration,
-
-    /// Maximum number of upload retry attempts for EI analysis.
-    #[arg(
-        long,
-        env = "EXPLOIT_INTELLIGENCE_UPLOAD_MAX_RETRIES",
-        default_value_t = 3
-    )]
-    pub exploit_intelligence_upload_max_retries: usize,
-
-    /// Initial delay between upload retries (humantime, exponential backoff).
-    #[arg(
-        long,
-        env = "EXPLOIT_INTELLIGENCE_UPLOAD_RETRY_DELAY",
-        default_value = "1s"
-    )]
-    pub exploit_intelligence_upload_retry_delay: humantime::Duration,
-
-    /// Maximum consecutive poll failures before giving up.
-    #[arg(
-        long,
-        env = "EXPLOIT_INTELLIGENCE_MAX_CONSECUTIVE_POLL_FAILURES",
-        default_value_t = 5
-    )]
-    pub exploit_intelligence_max_consecutive_poll_failures: u32,
-
-    /// How often the background worker checks for new EI jobs.
+    /// How often each worker loop checks for jobs, and the minimum interval
+    /// between re-polling a Running job that is still in progress.
     #[arg(
         long = "exploit-intelligence-worker-poll-interval",
         env = "EXPLOIT_INTELLIGENCE_WORKER_POLL_INTERVAL",
         default_value = "5s"
     )]
     pub exploit_intelligence_worker_poll_interval: humantime::Duration,
+
+    /// Number of concurrent worker loops processing EI jobs.
+    #[arg(long, env = "EXPLOIT_INTELLIGENCE_CONCURRENCY", default_value_t = 5)]
+    pub exploit_intelligence_concurrency: usize,
 
     /// Authentication token for the Exploit Intelligence service (static token, for backward compatibility).
     #[arg(
@@ -235,12 +205,9 @@ impl ExploitIntelligenceArgs {
         Ok(Some(ExploitIntelligenceConfig {
             url,
             ui_url: Some(ui_url),
-            poll_interval: self.exploit_intelligence_poll_interval.into(),
-            max_poll_duration: self.exploit_intelligence_max_poll_duration.into(),
-            upload_max_retries: self.exploit_intelligence_upload_max_retries,
-            upload_retry_delay: self.exploit_intelligence_upload_retry_delay.into(),
-            max_consecutive_poll_failures: self.exploit_intelligence_max_consecutive_poll_failures,
+            max_retries: self.exploit_intelligence_max_retries,
             worker_poll_interval: self.exploit_intelligence_worker_poll_interval.into(),
+            concurrency: self.exploit_intelligence_concurrency,
             token_provider,
         }))
     }
@@ -579,6 +546,7 @@ fn build_ei_worker_task(
         return None;
     }
     let worker_poll_interval = rt.config.worker_poll_interval;
+    let concurrency = rt.config.concurrency;
     let worker_service = ei_service.clone();
     let ingestor = trustify_module_ingestor::service::IngestorService::new(
         graph.clone(),
@@ -586,10 +554,16 @@ fn build_ei_worker_task(
         Some(init.analysis.clone()),
     );
     let db_rw = init.db_rw.clone();
-    let db_ro = init.db_ro.clone();
     Some(
         async move {
-            run_worker(worker_service, ingestor, db_rw, db_ro, worker_poll_interval).await
+            run_worker(
+                worker_service,
+                ingestor,
+                db_rw,
+                worker_poll_interval,
+                concurrency,
+            )
+            .await
         }
         .boxed_local(),
     )
@@ -924,12 +898,9 @@ mod test {
         ExploitIntelligenceArgs {
             exploit_intelligence_url: None,
             exploit_intelligence_ui_url: None,
-            exploit_intelligence_poll_interval: "30s".parse().unwrap(),
-            exploit_intelligence_max_poll_duration: "30m".parse().unwrap(),
-            exploit_intelligence_upload_max_retries: 3,
-            exploit_intelligence_upload_retry_delay: "1s".parse().unwrap(),
-            exploit_intelligence_max_consecutive_poll_failures: 5,
+            exploit_intelligence_max_retries: 3,
             exploit_intelligence_worker_poll_interval: "5s".parse().unwrap(),
+            exploit_intelligence_concurrency: 1,
             exploit_intelligence_auth_token: None,
             oidc: EiOidcArguments {
                 client_id: None,
@@ -960,7 +931,7 @@ mod test {
             .expect("config should be Some");
         assert_eq!(config.url, "http://ei.example.com");
         assert_eq!(config.ui_url.as_deref(), Some("http://ei-ui.example.com"));
-        assert_eq!(config.upload_max_retries, 3);
+        assert_eq!(config.max_retries, 3);
         assert!(config.token_provider.is_none());
     }
 
@@ -1039,12 +1010,9 @@ mod test {
         let enabled = ExploitIntelligenceService::new(Some(ExploitIntelligenceConfig {
             url: "http://localhost:9999".into(),
             ui_url: None,
-            poll_interval: std::time::Duration::from_secs(30),
-            max_poll_duration: std::time::Duration::from_secs(1800),
-            upload_max_retries: 3,
-            upload_retry_delay: std::time::Duration::from_secs(1),
-            max_consecutive_poll_failures: 5,
+            max_retries: 3,
             worker_poll_interval: std::time::Duration::from_secs(5),
+            concurrency: 1,
             token_provider: None,
         }))?;
         assert!(build_ei_worker_task(&enabled, &graph, &init, true).is_none());
@@ -1063,12 +1031,9 @@ mod test {
         let ei_service = ExploitIntelligenceService::new(Some(ExploitIntelligenceConfig {
             url: "http://localhost:9999".into(),
             ui_url: None,
-            poll_interval: std::time::Duration::from_secs(30),
-            max_poll_duration: std::time::Duration::from_secs(1800),
-            upload_max_retries: 3,
-            upload_retry_delay: std::time::Duration::from_secs(1),
-            max_consecutive_poll_failures: 5,
+            max_retries: 3,
             worker_poll_interval: std::time::Duration::from_secs(5),
+            concurrency: 1,
             token_provider: None,
         }))
         .expect("enabled EI service");

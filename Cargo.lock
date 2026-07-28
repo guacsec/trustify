@@ -8510,7 +8510,6 @@ dependencies = [
  "actix-http",
  "actix-web",
  "anyhow",
- "backon",
  "bytes",
  "futures-util",
  "reqwest 0.13.4",
