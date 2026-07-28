@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785161501572,
+  "lastUpdate": 1785251388751,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20585,6 +20585,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "93e2f8e695d038940c34071c26295710d1609f18",
+          "message": "chore: revert migration renaming, keep only comment additions\n\nRemove the m0002270 → m0002280 rename — the collision with PR #2534\ndoes not apply after rebase. Retain the doc comments and test dump\nprovenance headers.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-28T12:32:30Z",
+          "tree_id": "cb54bb1f7222282f0cadb0495b11ef7e716b47eb",
+          "url": "https://github.com/guacsec/trustify/commit/93e2f8e695d038940c34071c26295710d1609f18"
+        },
+        "date": 1785251387343,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
