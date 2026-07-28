@@ -4758,11 +4758,6 @@ components:
         created:
           type: string
           description: Timestamp when the component record was created.
-        error_message:
-          type:
-          - string
-          - 'null'
-          description: Error details for failed component analyses.
         excluded:
           type: boolean
           description: |-
@@ -4890,11 +4885,6 @@ components:
         created:
           type: string
           description: Timestamp when the job was created.
-        error_message:
-          type:
-          - string
-          - 'null'
-          description: Error details for failed analyses.
         excluded_components:
           type:
           - integer
@@ -4983,11 +4973,6 @@ components:
         created:
           type: string
           description: Timestamp when the job was created.
-        error_message:
-          type:
-          - string
-          - 'null'
-          description: Error details when the job has failed.
         excluded_components:
           type:
           - integer
@@ -5632,11 +5617,6 @@ components:
               created:
                 type: string
                 description: Timestamp when the job was created.
-              error_message:
-                type:
-                - string
-                - 'null'
-                description: Error details when the job has failed.
               excluded_components:
                 type:
                 - integer
