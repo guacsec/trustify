@@ -1154,3 +1154,46 @@ async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), a
 
     Ok(())
 }
+
+/// Verifies that product_status entries are returned even when the package version
+/// falls outside the product stream version range — the VersionMatches filter must
+/// not compare package versions against CPE-derived product version ranges.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn product_status_cross_domain_version(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = PurlService::new(PaginationCache::for_test());
+    ctx.ingest_dataset(Dataset::DS1).await?;
+
+    // Given keycloak-core@18.0.6 — its version (18.x) exceeds the Quarkus product
+    // stream range [2.0.0, 3.0.0) derived from CPE cpe:/a:redhat:quarkus:2.
+    let purl = Purl::from_str(
+        "pkg:maven/org.keycloak/keycloak-core@18.0.6.redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=jar",
+    )?;
+    let details = service
+        .purl_by_purl(&purl, Default::default(), &ctx.db)
+        .await?
+        .expect("keycloak-core purl must exist after DS1 ingestion");
+
+    // When filtering for product_status entries with CPE context
+    let cpe_statuses: Vec<_> = details
+        .advisories
+        .iter()
+        .flat_map(|a| &a.status)
+        .filter(|s| matches!(&s.context, Some(StatusContext::Cpe(_))))
+        .collect();
+
+    // Then CVE-2023-1664 must appear despite the cross-domain version mismatch
+    assert!(
+        !cpe_statuses.is_empty(),
+        "keycloak-core must have product_status entries with CPE context"
+    );
+
+    assert!(
+        cpe_statuses
+            .iter()
+            .any(|s| s.vulnerability.identifier == "CVE-2023-1664"),
+        "product_statuses must include CVE-2023-1664"
+    );
+
+    Ok(())
+}
