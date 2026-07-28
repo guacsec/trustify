@@ -1,19 +1,12 @@
 /// Data migration that re-processes SPDX SBOMs to backfill the `suppliers`
 /// column using the corrected `describing_packages()` logic.
 use crate::data::{
-    Document, MigrationTraitWithData, SchemaDataManager,
-    sbom::{Id, Sbom},
+    MigrationTraitWithData, SchemaDataManager,
+    sbom::{Id, Sbom, SpdxSbom},
 };
-use bytes::Bytes;
-use sea_orm::{
-    ActiveModelBehavior, ActiveModelTrait, ConnectionTrait, DatabaseTransaction, EntityTrait,
-    QueryFilter, QuerySelect, Set,
-};
+use sea_orm::{ActiveModelBehavior, ActiveModelTrait, DatabaseTransaction, Set};
 use sea_orm_migration::prelude::*;
-use sea_query::{Expr, extension::postgres::PgExpr};
-use trustify_entity::labels::Labels;
 use trustify_module_ingestor::graph::sbom::spdx::suppliers;
-use trustify_module_storage::service::StorageBackend;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -33,40 +26,6 @@ mod legacy {
     pub enum Relation {}
 
     impl ActiveModelBehavior for ActiveModel {}
-}
-
-/// SPDX-only Document wrapper that filters `all()` to SPDX-labeled SBOMs.
-struct SpdxSbom(Sbom);
-
-impl From<Bytes> for SpdxSbom {
-    fn from(value: Bytes) -> Self {
-        SpdxSbom(Sbom::from(value))
-    }
-}
-
-impl Document for SpdxSbom {
-    type Id = Id;
-
-    async fn all<C: ConnectionTrait>(tx: &C) -> Result<Vec<Id>, DbErr> {
-        use trustify_entity::sbom;
-
-        sbom::Entity::find()
-            .filter(Expr::col(sbom::Column::Labels).contains(Labels::new().add("type", "spdx")))
-            .select_only()
-            .column_as(sbom::Column::SourceDocumentId, "source")
-            .column_as(sbom::Column::SbomId, "sbom")
-            .into_model()
-            .all(tx)
-            .await
-    }
-
-    async fn source<S, C>(id: &Id, storage: &S, tx: &C) -> Result<Self, anyhow::Error>
-    where
-        S: StorageBackend + Send + Sync,
-        C: ConnectionTrait,
-    {
-        Sbom::source(id, storage, tx).await.map(SpdxSbom)
-    }
 }
 
 #[async_trait::async_trait]
