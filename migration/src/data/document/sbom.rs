@@ -1,7 +1,10 @@
 use super::Document;
 use bytes::Bytes;
-use sea_orm::sea_query::{Expr, extension::postgres::PgExpr};
-use sea_orm::{FromQueryResult, QueryFilter, QuerySelect, prelude::*};
+use sea_orm::{
+    FromQueryResult, QueryFilter, QuerySelect,
+    prelude::*,
+    sea_query::{Expr, extension::postgres::PgExpr},
+};
 use trustify_entity::{labels::Labels, sbom};
 use trustify_module_storage::service::StorageBackend;
 
