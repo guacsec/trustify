@@ -174,7 +174,6 @@ impl PurlDetails {
             qualified_package.id,
             &package.name,
             package.namespace.as_deref(),
-            &package_version.version,
         )
         .await?;
 
@@ -226,7 +225,6 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
     qualified_package_id: Uuid,
     purl_name: &str,
     namespace_name: Option<&str>,
-    _version: &str,
 ) -> Result<Vec<ProductStatusCatcher>, Error> {
     // Subquery to get all SBOM IDs for the given purl
     let sbom_ids_query = sbom::Entity::find()
