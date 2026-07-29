@@ -28,7 +28,7 @@ class AnalysisUserV3(AuthenticatedHttpUser):
         SCENARIO.get_analysis_component
     ) if SCENARIO.get_analysis_component else None
 
-    @tag("v3", "analysis")
+    @tag("v3", "analysis", "readonly")
     @task
     def analysis_status(self) -> None:
         self.client.get(
@@ -36,7 +36,7 @@ class AnalysisUserV3(AuthenticatedHttpUser):
             name="/api/v3/analysis/status",
         )
 
-    @tag("v3", "analysis")
+    @tag("v3", "analysis", "readonly")
     @task
     def analysis_by_cpe(self) -> None:
         self.client.get(
@@ -44,7 +44,7 @@ class AnalysisUserV3(AuthenticatedHttpUser):
             name="analysis_by_cpe",
         )
 
-    @tag("v3", "analysis", "detail")
+    @tag("v3", "analysis", "detail", "readonly")
     @task
     def get_analysis_component(self) -> None:
         
@@ -59,7 +59,7 @@ class AnalysisUserV3(AuthenticatedHttpUser):
             if resp.status_code != 200:
                 resp.failure(f"status {resp.status_code}")
 
-    @tag("v3", "analysis", "detail")
+    @tag("v3", "analysis", "detail", "readonly")
     @task
     def render_sbom_graph_dot(self) -> None:
         if not SCENARIO.render_sbom_graph:

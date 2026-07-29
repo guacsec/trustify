@@ -4,4 +4,5 @@ __pycache__/
 .venv/
 *.egg-info/
 report.html
+reports/
 results_*.csv
