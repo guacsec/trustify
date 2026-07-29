@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785331842180,
+  "lastUpdate": 1785349864374,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20643,6 +20643,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah S-C",
+            "username": "Strum355"
+          },
+          "distinct": true,
+          "id": "9d15ed2b835df2c28d1eddec6c3507d56011b992",
+          "message": "refactor: address ctron review — clean up types, errors, imports, and dedup\n\n- Remove copied JobStatus/JobFinding enums; use entity enums directly\n  with Serialize/Deserialize/ToSchema derives\n- Rename Finding → ExploitIntelligenceFinding for OpenAPI consistency\n- Replace multi-pass ComponentCounts with single-pass fold\n- Make PollResponse.status and ProductReportEntry.state enums (ReportStatus)\n- Extract ei_get<T> helper to deduplicate HTTP request/classify/parse\n- Extract parse_justification_status to deduplicate finding mapping\n- Add PollResponse::vex() accessor\n- Replace anyhow wrappers with typed From impls; thiserror #[from]\n- Remove redundant find_active_job pre-check from analyze endpoint\n- Use db_ro for duplicate-key fallback read\n- Remove backon from workspace Cargo.toml\n- Move EI args to end of Run struct to fix CLI help grouping\n- Add shutdown signal via oneshot channel (RAII drop on server exit)\n- Move all inline qualified paths to file-level imports\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-29T15:49:24Z",
+          "tree_id": "9abf9159f962534542ba89e901c7d37167abdfb1",
+          "url": "https://github.com/guacsec/trustify/commit/9d15ed2b835df2c28d1eddec6c3507d56011b992"
+        },
+        "date": 1785349861813,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
