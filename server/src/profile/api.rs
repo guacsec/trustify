@@ -6,6 +6,7 @@ use actix_web::web;
 use bytesize::ByteSize;
 use futures::FutureExt;
 use std::{env, process::ExitCode, sync::Arc};
+use tokio::sync::oneshot;
 use trustify_auth::{
     auth::AuthConfigArguments,
     authenticator::Authenticator,
@@ -34,7 +35,7 @@ use trustify_infrastructure::{
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
 use trustify_module_exploit_intelligence::{
     auth::build_provider,
-    runner::worker::run_worker,
+    runner::worker::start_worker,
     service::{ExploitIntelligenceConfig, ExploitIntelligenceService},
 };
 use trustify_module_ingestor::graph::Graph;
@@ -97,10 +98,6 @@ pub struct Run {
     )]
     pub scan_limit: BinaryByteSize,
 
-    /// Exploit Intelligence configuration
-    #[command(flatten)]
-    pub exploit_intelligence: ExploitIntelligenceArgs,
-
     // flattened commands must go last
     //
     /// Analysis configuration
@@ -136,6 +133,10 @@ pub struct Run {
 
     #[command(flatten)]
     pub ui: UiConfig,
+
+    /// Exploit Intelligence configuration
+    #[command(flatten)]
+    pub exploit_intelligence: ExploitIntelligenceArgs,
 }
 
 /// All Exploit Intelligence CLI arguments.
@@ -478,7 +479,11 @@ impl InitData {
 
         let graph = Graph::new();
         let ei_service = ExploitIntelligenceService::new(self.ei_config.take())?;
-        let ei_worker_task = build_ei_worker_task(&ei_service, &graph, &self, self.read_only);
+        let (ei_worker_task, _ei_shutdown) =
+            match build_ei_worker_task(&ei_service, &graph, &self, self.read_only) {
+                Some((task, shutdown)) => (Some(task), Some(shutdown)),
+                None => (None, None),
+            };
 
         let http = {
             HttpServerBuilder::try_from(self.http)?
@@ -540,7 +545,7 @@ fn build_ei_worker_task(
     graph: &Graph,
     init: &InitData,
     read_only: bool,
-) -> Option<Task> {
+) -> Option<(Task, oneshot::Sender<()>)> {
     let rt = ei_service.runtime()?;
     if read_only {
         return None;
@@ -554,19 +559,15 @@ fn build_ei_worker_task(
         Some(init.analysis.clone()),
     );
     let db_rw = init.db_rw.clone();
-    Some(
-        async move {
-            run_worker(
-                worker_service,
-                ingestor,
-                db_rw,
-                worker_poll_interval,
-                concurrency,
-            )
-            .await
-        }
-        .boxed_local(),
+    let (future, shutdown) = start_worker(
+        worker_service,
+        ingestor,
+        db_rw,
+        worker_poll_interval,
+        concurrency,
     )
+    .ok()?;
+    Some((future.boxed_local(), shutdown))
 }
 
 pub fn default_openapi_info() -> Info {

@@ -4513,7 +4513,7 @@ components:
           format: uuid
           description: The unique job identifier.
         status:
-          $ref: '#/components/schemas/JobStatus'
+          $ref: '#/components/schemas/ExploitIntelligenceJobStatus'
           description: Current lifecycle status of the job.
     BasePurlDetails:
       allOf:
@@ -4766,7 +4766,7 @@ components:
         finding:
           oneOf:
           - type: 'null'
-          - $ref: '#/components/schemas/JobFinding'
+          - $ref: '#/components/schemas/ExploitIntelligenceFinding'
             description: Analysis result from Exploit Intelligence, if completed.
         id:
           type: string
@@ -4778,7 +4778,7 @@ components:
           - 'null'
           description: Link to the EI human-readable justification report for this component.
         status:
-          $ref: '#/components/schemas/JobStatus'
+          $ref: '#/components/schemas/ExploitIntelligenceJobStatus'
           description: Current lifecycle status of this component's analysis.
         updated:
           type: string
@@ -4859,6 +4859,16 @@ components:
         message:
           type: string
           description: A human-readable error message
+    ExploitIntelligenceFinding:
+      type: string
+      description: |-
+        Analysis finding from the Exploit Intelligence service.
+
+        Represents the outcome of a vulnerability analysis for a given component/CVE pair.
+      enum:
+      - vulnerable
+      - not_vulnerable
+      - uncertain
     ExploitIntelligenceJobDetails:
       type: object
       description: Detailed view of an Exploit Intelligence analysis job.
@@ -4900,7 +4910,7 @@ components:
         finding:
           oneOf:
           - type: 'null'
-          - $ref: '#/components/schemas/JobFinding'
+          - $ref: '#/components/schemas/ExploitIntelligenceFinding'
             description: Analysis result computed from component findings.
         id:
           type: string
@@ -4927,7 +4937,7 @@ components:
           format: uuid
           description: FK to the SBOM being analysed.
         status:
-          $ref: '#/components/schemas/JobStatus'
+          $ref: '#/components/schemas/ExploitIntelligenceJobStatus'
           description: Current lifecycle status of the job.
         total_components:
           type:
@@ -4953,6 +4963,14 @@ components:
           - 'null'
           format: int32
           description: Number of completed components with Vulnerable finding (computed at query time).
+    ExploitIntelligenceJobStatus:
+      type: string
+      description: Lifecycle status of an Exploit Intelligence analysis job.
+      enum:
+      - pending
+      - running
+      - completed
+      - failed
     ExploitIntelligenceJobSummary:
       type: object
       description: Summary of an Exploit Intelligence analysis job.
@@ -4988,7 +5006,7 @@ components:
         finding:
           oneOf:
           - type: 'null'
-          - $ref: '#/components/schemas/JobFinding'
+          - $ref: '#/components/schemas/ExploitIntelligenceFinding'
             description: Analysis result from Exploit Intelligence.
         id:
           type: string
@@ -5015,7 +5033,7 @@ components:
           format: uuid
           description: FK to the SBOM being analysed.
         status:
-          $ref: '#/components/schemas/JobStatus'
+          $ref: '#/components/schemas/ExploitIntelligenceJobStatus'
           description: Current lifecycle status of the job.
         total_components:
           type:
@@ -5323,21 +5341,6 @@ components:
           items:
             type: string
           description: Warnings that occurred during the import process
-    JobFinding:
-      type: string
-      description: Analysis finding from Exploit Intelligence (API representation).
-      enum:
-      - vulnerable
-      - not_vulnerable
-      - uncertain
-    JobStatus:
-      type: string
-      description: Lifecycle status of an Exploit Intelligence analysis job (API representation).
-      enum:
-      - pending
-      - running
-      - completed
-      - failed
     Labels:
       type: object
       additionalProperties:
@@ -5632,7 +5635,7 @@ components:
               finding:
                 oneOf:
                 - type: 'null'
-                - $ref: '#/components/schemas/JobFinding'
+                - $ref: '#/components/schemas/ExploitIntelligenceFinding'
                   description: Analysis result from Exploit Intelligence.
               id:
                 type: string
@@ -5659,7 +5662,7 @@ components:
                 format: uuid
                 description: FK to the SBOM being analysed.
               status:
-                $ref: '#/components/schemas/JobStatus'
+                $ref: '#/components/schemas/ExploitIntelligenceJobStatus'
                 description: Current lifecycle status of the job.
               total_components:
                 type:
