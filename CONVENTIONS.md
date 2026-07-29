@@ -19,6 +19,23 @@
 - Use `?` operator for error propagation, not `.unwrap()`
 - All CI checks are run via `cargo xtask precommit` (see [Pre-commit Workflow](#pre-commit-workflow))
 
+### Import Nesting
+
+Merge multiple `use` statements from the same crate into a single `use` block with nested
+paths. This reduces visual clutter and groups related imports.
+
+```rust
+// Good — single nested use block
+use sea_orm::{error::DbErr, ConnectionTrait, TransactionTrait};
+
+// Avoid — separate use statements from the same crate
+use sea_orm::error::DbErr;
+use sea_orm::{ConnectionTrait, TransactionTrait};
+```
+
+This is a manual convention — `rustfmt`'s `imports_granularity = "Crate"` option is not
+available on the stable channel. Reviewers should flag un-nested imports during code review.
+
 ## Naming Conventions
 
 - Structs: PascalCase (`SbomService`, `AdvisoryService`, `SbomSummary`)
