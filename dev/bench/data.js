@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785251388751,
+  "lastUpdate": 1785331842180,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20614,6 +20614,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mrizzi@redhat.com",
+            "name": "mrizzi",
+            "username": "mrizzi"
+          },
+          "committer": {
+            "email": "mrizzi@users.noreply.github.com",
+            "name": "Marco Rizzi",
+            "username": "mrizzi"
+          },
+          "distinct": true,
+          "id": "7562856c8068fa6b1f085f1789e69e7a4e20f53d",
+          "message": "docs: document import nesting convention in CONVENTIONS.md\n\nAdd an Import Nesting subsection under Code Style requiring multiple\nuse statements from the same crate to be merged into a single nested\nuse block. Notes that rustfmt's imports_granularity = \"Crate\" is not\navailable on stable, so this is enforced via code review.\n\nImplements TC-5419\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-07-29T12:09:28Z",
+          "tree_id": "f87de7514332b32381f7610601a8c9a507090525",
+          "url": "https://github.com/guacsec/trustify/commit/7562856c8068fa6b1f085f1789e69e7a4e20f53d"
+        },
+        "date": 1785331840757,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
