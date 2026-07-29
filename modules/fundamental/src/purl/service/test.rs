@@ -1133,19 +1133,16 @@ async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), a
         .filter(|s| matches!(&s.context, Some(StatusContext::Cpe(_))))
         .collect();
 
-    assert!(
-        !cpe_statuses.is_empty(),
-        "affected gnutls version must have product_status entries with CPE context"
-    );
-
-    assert!(
-        cpe_statuses
-            .iter()
-            .any(|s| s.vulnerability.identifier == "CVE-2024-28834"),
-        "product_statuses must include CVE-2024-28834"
+    // Then exactly 2 CPE-context entries must exist, both for CVE-2024-28834.
+    assert_eq!(
+        cpe_statuses.len(),
+        2,
+        "expected exactly 2 product_status entries with CPE context"
     );
 
     for s in &cpe_statuses {
+        assert_eq!(s.vulnerability.identifier, "CVE-2024-28834");
+        assert_eq!(s.status, "affected");
         assert!(
             s.version_range.is_some(),
             "every product_status entry must carry a version_range"
@@ -1182,17 +1179,31 @@ async fn product_status_cross_domain_version(ctx: &TrustifyContext) -> Result<()
         .filter(|s| matches!(&s.context, Some(StatusContext::Cpe(_))))
         .collect();
 
-    // Then CVE-2023-1664 must appear despite the cross-domain version mismatch
-    assert!(
-        !cpe_statuses.is_empty(),
-        "keycloak-core must have product_status entries with CPE context"
+    // Then exactly 8 CPE-context entries must be present, including CVE-2023-1664
+    // despite the cross-domain version mismatch.
+    assert_eq!(
+        cpe_statuses.len(),
+        8,
+        "keycloak-core must have 8 product_status entries with CPE context"
     );
 
-    assert!(
-        cpe_statuses
-            .iter()
-            .any(|s| s.vulnerability.identifier == "CVE-2023-1664"),
-        "product_statuses must include CVE-2023-1664"
+    let mut cve_ids: Vec<&str> = cpe_statuses
+        .iter()
+        .map(|s| s.vulnerability.identifier.as_str())
+        .collect();
+    cve_ids.sort();
+    assert_eq!(
+        cve_ids,
+        vec![
+            "CVE-2022-45787",
+            "CVE-2023-0481",
+            "CVE-2023-1584",
+            "CVE-2023-1664",
+            "CVE-2023-28867",
+            "CVE-2023-2974",
+            "CVE-2023-44487",
+            "CVE-2023-4853",
+        ]
     );
 
     Ok(())
