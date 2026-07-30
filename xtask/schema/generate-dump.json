@@ -122,6 +122,18 @@
         {
           "type": "object",
           "properties": {
+            "kev": {
+              "$ref": "#/$defs/KevImporter"
+            }
+          },
+          "required": [
+            "kev"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "quay": {
               "$ref": "#/$defs/QuayImporter"
             }
@@ -562,6 +574,38 @@
         "source": {
           "type": "string",
           "default": "https://cwe.mitre.org/data/xml/cwec_latest.xml.zip"
+        }
+      },
+      "required": [
+        "period"
+      ]
+    },
+    "KevImporter": {
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "description": "A flag to disable the importer, without deleting it.",
+          "type": "boolean",
+          "default": false
+        },
+        "period": {
+          "description": "The period the importer should be run.",
+          "$ref": "#/$defs/HumantimeSerde"
+        },
+        "description": {
+          "description": "A description for users.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Labels which will be applied to the ingested documents.",
+          "$ref": "#/$defs/Labels"
+        },
+        "source": {
+          "type": "string",
+          "default": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         }
       },
       "required": [

@@ -331,6 +331,7 @@ paths:
           - clearlydefinedcuration
           - clearlydefined
           - cwecatalog
+          - cisakev
           - advisory
           - sbom
           - unknown
@@ -2880,6 +2881,7 @@ paths:
           - clearlydefinedcuration
           - clearlydefined
           - cwecatalog
+          - cisakev
           - advisory
           - sbom
           - unknown
@@ -5118,6 +5120,7 @@ components:
       - clearlydefinedcuration
       - clearlydefined
       - cwecatalog
+      - cisakev
       - advisory
       - sbom
       - unknown
@@ -5253,6 +5256,12 @@ components:
             $ref: '#/components/schemas/CweImporter'
       - type: object
         required:
+        - kev
+        properties:
+          kev:
+            $ref: '#/components/schemas/KevImporter'
+      - type: object
+        required:
         - quay
         properties:
           quay:
@@ -5341,6 +5350,13 @@ components:
           items:
             type: string
           description: Warnings that occurred during the import process
+    KevImporter:
+      allOf:
+      - $ref: '#/components/schemas/CommonImporter'
+      - type: object
+        properties:
+          source:
+            type: string
     Labels:
       type: object
       additionalProperties:
