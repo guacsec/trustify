@@ -16,6 +16,7 @@ members = [
     "modules/storage",
     "modules/ui",
     "modules/user",
+    "modules/validation",
     "query",
     "query/query-derive",
     "server",
@@ -175,6 +176,7 @@ trustify-module-ingestor = { path = "modules/ingestor" }
 trustify-module-storage = { path = "modules/storage" }
 trustify-module-ui = { path = "modules/ui", default-features = false }
 trustify-module-user = { path = "modules/user" }
+trustify-module-validation = { path = "modules/validation" }
 trustify-query = {path = "query" }
 trustify-query-derive = {path = "query/query-derive" }
 trustify-server = { path = "server", default-features = false }
