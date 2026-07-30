@@ -229,12 +229,9 @@ The turbofish is acceptable when the compiler cannot infer the type. Common case
 - **Assertion macros** — `assert_eq!` does not propagate type constraints between its arguments
 
 ```rust
-// Good — return type provides inference
-fn make_set() -> HashSet<String> {
-    let mut s = HashSet::new();
-    s.insert("a".to_string());
-    s
-}
+// Good — compiler infers HashSet<&str> from the insert call
+let mut names = HashSet::new();
+names.insert("alice");
 
 // Good — turbofish needed because .or_default() requires type resolution
 let mut map = BTreeMap::<String, Vec<Item>>::new();
