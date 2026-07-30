@@ -9,6 +9,7 @@ pub mod exploit_intelligence_job;
 pub mod exploit_intelligence_job_component;
 pub mod importer;
 pub mod importer_report;
+pub mod known_exploited_vulnerability;
 pub mod labels;
 pub mod license;
 pub mod licensing_infos;

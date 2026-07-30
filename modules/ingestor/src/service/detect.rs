@@ -12,6 +12,7 @@ use crate::{
             clearly_defined_curation::ClearlyDefinedCurationLoader, cyclonedx::CyclonedxLoader,
             spdx::SpdxLoader,
         },
+        kev::{KevLoader, schema::KevCatalog},
         weakness::CweCatalogLoader,
     },
 };
@@ -57,6 +58,7 @@ pub enum DetectedDocument {
     ClearlyDefinedCuration(Box<Curation>),
     /// XML kept as raw bytes; the loader parses with roxmltree internally.
     CweCatalog(Vec<u8>),
+    CisaKev(Box<KevCatalog>),
 }
 
 /// Stateful document format detector that parses raw bytes through
@@ -199,6 +201,9 @@ impl DocumentDetector {
                     .load_bytes(labels, &bytes, digests, tx)
                     .await
             }
+            DetectedDocument::CisaKev(catalog) => {
+                KevLoader::new().load(labels, *catalog, digests, tx).await
+            }
         }
     }
 }
@@ -275,6 +280,13 @@ fn detect_format(value: &serde_json::Value, hint: Format) -> Result<Format, Erro
         };
     }
 
+    if Format::CisaKev.matches_hint(hint)
+        && value.get("catalogVersion").is_some()
+        && value.get("vulnerabilities").is_some()
+    {
+        return Ok(Format::CisaKev);
+    }
+
     if Format::ClearlyDefinedCuration.matches_hint(hint) && value.get("coordinates").is_some() {
         return Ok(Format::ClearlyDefinedCuration);
     }
@@ -324,6 +336,9 @@ fn parse_format(source: impl JsonSource, format: Format) -> Result<DetectedDocum
             source.parse_json().map_err(map_err)?,
         )),
         Format::ClearlyDefinedCuration => Ok(DetectedDocument::ClearlyDefinedCuration(Box::new(
+            source.parse_json().map_err(map_err)?,
+        ))),
+        Format::CisaKev => Ok(DetectedDocument::CisaKev(Box::new(
             source.parse_json().map_err(map_err)?,
         ))),
         Format::CweCatalog => Err(Error::UnsupportedFormat(
@@ -450,6 +465,15 @@ mod test {
         let detector = DocumentDetector::detect(&xml)?;
         assert_eq!(detector.format(), Format::CweCatalog);
         assert_eq!(detector.wire_format(), WireFormat::Xml);
+        Ok(())
+    }
+
+    #[test(tokio::test)]
+    async fn detect_cisa_kev() -> Result<(), anyhow::Error> {
+        let bytes = document_bytes("kev/known_exploited_vulnerabilities.json").await?;
+        let detector = DocumentDetector::detect(&bytes)?;
+        assert_eq!(detector.format(), Format::CisaKev);
+        assert_eq!(detector.wire_format(), WireFormat::Json);
         Ok(())
     }
 
