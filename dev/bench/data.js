@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785349864374,
+  "lastUpdate": 1785422601533,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20667,6 +20667,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/9d15ed2b835df2c28d1eddec6c3507d56011b992"
         },
         "date": 1785349861813,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "e878596ceb7c824405ad6e257b09a8350ab336d3",
+          "message": "test(purl): replace filter+any assertions with assert_eq! on concrete values\n\nReplace existence checks (filter + .any()) with assert_eq! on exact\ncounts and specific CVE identifiers in product_status_version_filtering\nand product_status_cross_domain_version tests.\n\nImplements TC-5429\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-07-30T16:25:37+02:00",
+          "tree_id": "552ef3d8651d77f8e0f4a66f86f557c72f13bbd5",
+          "url": "https://github.com/guacsec/trustify/commit/e878596ceb7c824405ad6e257b09a8350ab336d3"
+        },
+        "date": 1785422599826,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
