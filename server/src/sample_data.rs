@@ -417,7 +417,7 @@ mod test {
             ImporterService::new(ReadWrite::new(ctx.db.clone()), PaginationCache::for_test());
         let result = service.list().await?;
 
-        assert_eq!(result.len(), 17);
+        assert_eq!(result.len(), 18);
 
         Ok(())
     }
