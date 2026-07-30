@@ -7,6 +7,11 @@ use trustify_common::db::ReadWrite;
 use trustify_entity::labels::Labels;
 use trustify_module_ingestor::service::{Cache, Format, IngestorService};
 
+/// Maximum size of the downloaded catalog, guarding against oversized
+/// responses. The CISA KEV catalog is a few MB of JSON today and grows
+/// slowly, so 64 MiB leaves plenty of headroom.
+const CATALOG_SIZE_LIMIT: usize = 64 * 1024 * 1024;
+
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct LastModified(Option<String>);
 
@@ -62,7 +67,17 @@ impl KevWalker {
             }
         }
 
-        let body = response.bytes().await?;
+        let mut response = response;
+        let mut body = Vec::new();
+        while let Some(chunk) = response.chunk().await? {
+            if body.len() + chunk.len() > CATALOG_SIZE_LIMIT {
+                return Err(Error::Processing(anyhow::anyhow!(
+                    "catalog from {} exceeds the size limit of {CATALOG_SIZE_LIMIT} bytes",
+                    self.source
+                )));
+            }
+            body.extend_from_slice(&chunk);
+        }
 
         let result = self
             .db

@@ -33,14 +33,20 @@ impl KevLoader {
             .into_iter()
             .map(|entry| known_exploited_vulnerability::ActiveModel {
                 source: Set(SOURCE_CISA.to_string()),
+                date_added: Set(entry
+                    .date_added
+                    .as_deref()
+                    .and_then(|value| parse_date(&entry.cve_id, "dateAdded", value))),
+                due_date: Set(entry
+                    .due_date
+                    .as_deref()
+                    .and_then(|value| parse_date(&entry.cve_id, "dueDate", value))),
                 cve_id: Set(entry.cve_id),
                 vendor_project: Set(entry.vendor_project),
                 product: Set(entry.product),
                 vulnerability_name: Set(entry.vulnerability_name),
                 short_description: Set(entry.short_description),
                 required_action: Set(entry.required_action),
-                date_added: Set(entry.date_added.as_deref().and_then(parse_date)),
-                due_date: Set(entry.due_date.as_deref().and_then(parse_date)),
                 known_ransomware_campaign_use: Set(entry.known_ransomware_campaign_use),
                 notes: Set(entry.notes),
                 cwes: Set(normalize(entry.cwes)),
@@ -73,8 +79,14 @@ impl KevLoader {
 
 /// Parse a catalog date (e.g. "2021-12-10"). Unparsable dates are dropped
 /// rather than failing the whole catalog.
-fn parse_date(value: &str) -> Option<Date> {
-    Date::parse(value, format_description!("[year]-[month]-[day]")).ok()
+fn parse_date(cve_id: &str, field: &str, value: &str) -> Option<Date> {
+    match Date::parse(value, format_description!("[year]-[month]-[day]")) {
+        Ok(date) => Some(date),
+        Err(err) => {
+            tracing::warn!(cve_id, field, value, %err, "dropping unparsable catalog date");
+            None
+        }
+    }
 }
 
 fn normalize(vec: Vec<String>) -> Option<Vec<String>> {
@@ -145,6 +157,29 @@ mod test {
             .all(&ctx.db)
             .await?;
         assert_eq!(entries.len(), 3);
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn minimal_entry_with_unparsable_date(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        load(ctx, "kev/known_exploited_vulnerabilities-minimal.json").await?;
+
+        let entries = known_exploited_vulnerability::Entity::find()
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(entries.len(), 1);
+
+        let entry = &entries[0];
+        assert_eq!(entry.cve_id, "CVE-2099-0001");
+        // the unparsable date is dropped, not the entry
+        assert_eq!(entry.date_added, None);
+        assert_eq!(entry.due_date, None);
+        assert_eq!(entry.vendor_project, None);
+        assert_eq!(entry.cwes, None);
 
         Ok(())
     }
