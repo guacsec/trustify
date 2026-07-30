@@ -156,7 +156,7 @@ async fn run_ws_session(
                         }
                     }
                     Err(broadcast::error::RecvError::Lagged(n)) => {
-                        tracing::warn!(n, "WebSocket notification client lagged");
+                        tracing::warn!(lagged = n, "WebSocket notification client lagged");
                     }
                     Err(broadcast::error::RecvError::Closed) => {
                         break;

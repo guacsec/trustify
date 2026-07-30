@@ -39,8 +39,8 @@ use trustify_module_exploit_intelligence::{
     runner::worker::start_worker,
     service::{ExploitIntelligenceConfig, ExploitIntelligenceService},
 };
-use trustify_module_notification::config::NotificationConfig;
 use trustify_module_ingestor::graph::Graph;
+use trustify_module_notification::config::NotificationConfig;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 use trustify_module_ui::{UI, endpoints::UiResources};
 use utoipa::openapi::{Info, License};
@@ -469,7 +469,12 @@ impl InitData {
 
         let ei_config = run.exploit_intelligence.into_config().await?;
 
-        let broadcaster = ChangeBroadcaster::new(&db_rw, *run.notification.change_log_retention)?;
+        let broadcaster = ChangeBroadcaster::new(
+            &db_rw,
+            *run.notification.change_log_retention,
+            *run.notification.change_log_poll_interval,
+            *run.notification.change_log_cleanup_interval,
+        )?;
 
         Ok(InitData {
             analysis: AnalysisService::new(run.analysis, db_ro.clone()),
@@ -643,6 +648,9 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
     svc.app_data(graph.clone());
 
     let ei_enabled = ei_service.runtime().is_some();
+    // Notification endpoint lives outside the `/api` scope because it uses
+    // QueryTokenInjector middleware — browsers' WebSocket API does not support
+    // custom headers, so the auth token is passed via query string instead.
     svc.configure(|svc| {
         endpoints::configure(svc, auth.clone(), read_only, ei_enabled);
         trustify_module_notification::endpoints::configure(svc, broadcaster, auth.clone());
@@ -741,7 +749,12 @@ mod test {
         let db_rw = db::ReadWrite::new(ctx.db.clone());
         let analysis =
             AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
-        let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400))?;
+        let broadcaster = ChangeBroadcaster::new(
+            &db_rw,
+            Duration::from_secs(86400),
+            Duration::from_secs(30),
+            Duration::from_secs(300),
+        )?;
         let app = actix_web::test::init_service(
             App::new()
                 .into_utoipa_app()
@@ -826,8 +839,13 @@ mod test {
             AnalysisService::new(AnalysisConfig::default(), db::ReadOnly::new(ctx.db.clone()));
         let ei_service = ExploitIntelligenceService::new(None).expect("disabled EI service");
         let graph = Graph::new();
-        let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400))
-            .expect("failed to create change broadcaster");
+        let broadcaster = ChangeBroadcaster::new(
+            &db_rw,
+            Duration::from_secs(86400),
+            Duration::from_secs(30),
+            Duration::from_secs(300),
+        )
+        .expect("failed to create change broadcaster");
         call::caller_app(move |svc| {
             configure(
                 svc,
@@ -1052,6 +1070,8 @@ mod test {
             broadcaster: ChangeBroadcaster::new(
                 &db::ReadWrite::new(ctx.db.clone()),
                 Duration::from_secs(86400),
+                Duration::from_secs(30),
+                Duration::from_secs(300),
             )
             .expect("failed to create change broadcaster"),
             #[cfg(feature = "garage-door")]
@@ -1097,6 +1117,8 @@ mod test {
         let broadcaster = ChangeBroadcaster::new(
             &db::ReadWrite::new(ctx.db.clone()),
             Duration::from_secs(86400),
+            Duration::from_secs(30),
+            Duration::from_secs(300),
         )
         .expect("failed to create change broadcaster");
         let app = call::caller_app(move |svc| {

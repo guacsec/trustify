@@ -67,6 +67,54 @@ fn extract_token_empty_value() {
     assert_eq!(crate::inject_token::extract_token("token=&foo=bar"), None);
 }
 
+// -- Group A2: extract_protocol_token ----------------------------------------
+
+#[test]
+fn extract_protocol_token_basic() {
+    let mut headers = actix_web::http::header::HeaderMap::new();
+    headers.insert(
+        actix_web::http::header::HeaderName::from_static("sec-websocket-protocol"),
+        "access_token, jwt.value".parse().unwrap(),
+    );
+    assert_eq!(
+        crate::inject_token::extract_protocol_token(&headers).as_deref(),
+        Some("jwt.value")
+    );
+}
+
+#[test]
+fn extract_protocol_token_missing() {
+    let mut headers = actix_web::http::header::HeaderMap::new();
+    headers.insert(
+        actix_web::http::header::HeaderName::from_static("sec-websocket-protocol"),
+        "graphql-ws".parse().unwrap(),
+    );
+    assert_eq!(crate::inject_token::extract_protocol_token(&headers), None);
+}
+
+#[test]
+fn extract_protocol_token_no_token_value() {
+    let mut headers = actix_web::http::header::HeaderMap::new();
+    headers.insert(
+        actix_web::http::header::HeaderName::from_static("sec-websocket-protocol"),
+        "access_token".parse().unwrap(),
+    );
+    assert_eq!(crate::inject_token::extract_protocol_token(&headers), None);
+}
+
+#[test]
+fn extract_protocol_token_extra_whitespace() {
+    let mut headers = actix_web::http::header::HeaderMap::new();
+    headers.insert(
+        actix_web::http::header::HeaderName::from_static("sec-websocket-protocol"),
+        "access_token ,  jwt.value ".parse().unwrap(),
+    );
+    assert_eq!(
+        crate::inject_token::extract_protocol_token(&headers).as_deref(),
+        Some("jwt.value")
+    );
+}
+
 // -- Group B: is_allowed ----------------------------------------------------
 
 fn dummy_entry(r#type: ChangeEntity) -> ChangeEntry {
@@ -211,6 +259,47 @@ async fn injector_malformed_query_strings() {
     }
 }
 
+#[test(actix_web::test)]
+async fn injector_extracts_from_protocol_header() {
+    let app = actix::init_service(
+        App::new().service(
+            web::resource("/test")
+                .wrap(crate::inject_token::QueryTokenInjector)
+                .route(web::get().to(echo_auth)),
+        ),
+    )
+    .await;
+
+    let req = actix::TestRequest::get()
+        .uri("/test")
+        .append_header(("Sec-WebSocket-Protocol", "access_token, mytoken"))
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let body = actix::read_body(resp).await;
+    assert_eq!(body, "Bearer mytoken");
+}
+
+#[test(actix_web::test)]
+async fn injector_query_token_takes_precedence() {
+    let app = actix::init_service(
+        App::new().service(
+            web::resource("/test")
+                .wrap(crate::inject_token::QueryTokenInjector)
+                .route(web::get().to(echo_auth)),
+        ),
+    )
+    .await;
+
+    let req = actix::TestRequest::get()
+        .uri("/test?token=query")
+        .append_header(("Sec-WebSocket-Protocol", "access_token, proto"))
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    let body = actix::read_body(resp).await;
+    assert_eq!(body, "Bearer query");
+}
+
 // -- Group D: endpoint permission tests -------------------------------------
 
 fn user_with_permissions(perms: &[&str]) -> UserDetails {
@@ -224,8 +313,13 @@ fn user_with_permissions(perms: &[&str]) -> UserDetails {
 #[test(actix_web::test)]
 async fn ws_anonymous_forbidden(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
     let authorizer = Authorizer::new(Some(AuthorizerConfig {}));
 
     let app = actix::init_service(
@@ -250,8 +344,13 @@ async fn ws_anonymous_forbidden(ctx: TrustifyContext) {
 #[test(actix_web::test)]
 async fn ws_no_permissions_forbidden(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
     let authorizer = Authorizer::new(Some(AuthorizerConfig {}));
 
     let app = actix::init_service(
@@ -277,8 +376,13 @@ async fn ws_no_permissions_forbidden(ctx: TrustifyContext) {
 #[test(actix_web::test)]
 async fn ws_read_sbom_accepted(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
     let authorizer = Authorizer::new(Some(AuthorizerConfig {}));
 
     let app = actix::init_service(
@@ -305,8 +409,13 @@ async fn ws_read_sbom_accepted(ctx: TrustifyContext) {
 #[test(actix_web::test)]
 async fn ws_read_advisory_accepted(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
     let authorizer = Authorizer::new(Some(AuthorizerConfig {}));
 
     let app = actix::init_service(
@@ -334,8 +443,13 @@ async fn ws_read_advisory_accepted(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn fetch_after_returns_newer_entries(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     // Insert 3 entries with small delays so UUIDv7 ordering is preserved
     record_change(
@@ -383,8 +497,13 @@ async fn fetch_after_returns_newer_entries(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn record_change_inserts_entry(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     let initial_cursor = broadcaster.fetch_latest_cursor().await;
     let entity_id = Uuid::now_v7();
@@ -410,8 +529,13 @@ async fn record_change_inserts_entry(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn record_change_with_none_entity_id(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     let initial_cursor = broadcaster.fetch_latest_cursor().await;
 
@@ -434,8 +558,13 @@ async fn record_change_with_none_entity_id(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn fetch_latest_cursor_empty_table(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     let cursor = broadcaster.fetch_latest_cursor().await;
     assert_eq!(cursor, Uuid::nil());
@@ -445,8 +574,13 @@ async fn fetch_latest_cursor_empty_table(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn fetch_latest_cursor_returns_newest(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     record_change(
         &ctx.db,
@@ -484,8 +618,13 @@ async fn fetch_latest_cursor_returns_newest(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn fetch_after_with_mixed_entity_types(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     let initial_cursor = broadcaster.fetch_latest_cursor().await;
 
@@ -541,8 +680,13 @@ async fn fetch_after_with_mixed_entity_types(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn fetch_after_filters_unknown_entity_type(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     let initial_cursor = broadcaster.fetch_latest_cursor().await;
 
@@ -585,8 +729,13 @@ async fn fetch_after_filters_unknown_entity_type(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn fetch_after_filters_unknown_operation(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     let initial_cursor = broadcaster.fetch_latest_cursor().await;
 
@@ -705,8 +854,13 @@ fn is_allowed_with_both_permissions() {
 #[test(tokio::test)]
 async fn ingest_sbom_creates_change_log_entry(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     let initial_cursor = broadcaster.fetch_latest_cursor().await;
 
@@ -726,8 +880,13 @@ async fn ingest_sbom_creates_change_log_entry(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn ingest_advisory_creates_change_log_entry(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     let initial_cursor = broadcaster.fetch_latest_cursor().await;
 
@@ -751,8 +910,13 @@ async fn ingest_advisory_creates_change_log_entry(ctx: TrustifyContext) {
 #[test(actix_web::test)]
 async fn ws_both_permissions_accepted(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
     let authorizer = Authorizer::new(Some(AuthorizerConfig {}));
 
     let app = actix::init_service(
@@ -780,8 +944,13 @@ async fn ws_both_permissions_accepted(ctx: TrustifyContext) {
 #[test(tokio::test)]
 async fn cleanup_deletes_old_entries(ctx: TrustifyContext) {
     let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let broadcaster =
-        ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400)).expect("broadcaster");
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )
+    .expect("broadcaster");
 
     record_change(
         &ctx.db,

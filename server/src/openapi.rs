@@ -14,7 +14,12 @@ pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
     let db_rw = db::ReadWrite::new(db.clone());
     let db_ro = db::ReadOnly::new(db.clone());
     let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
-    let broadcaster = ChangeBroadcaster::new(&db_rw, Duration::from_secs(86400))?;
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )?;
 
     let ei_service = ExploitIntelligenceService::new(None)?;
     let (_, mut openapi) = App::new()

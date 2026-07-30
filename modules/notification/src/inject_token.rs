@@ -1,5 +1,5 @@
 use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform};
-use actix_web::http::header;
+use actix_web::http::header::{self, HeaderMap};
 use futures::future::{LocalBoxFuture, Ready, ok};
 use std::task::{Context, Poll};
 
@@ -38,7 +38,8 @@ where
 
     fn call(&self, mut req: ServiceRequest) -> Self::Future {
         if req.headers().get(header::AUTHORIZATION).is_none()
-            && let Some(token) = extract_token(req.query_string())
+            && let Some(token) =
+                extract_token(req.query_string()).or_else(|| extract_protocol_token(req.headers()))
             && let Ok(value) = format!("Bearer {token}").parse()
         {
             req.headers_mut().insert(header::AUTHORIZATION, value);
@@ -52,4 +53,16 @@ where
 pub(crate) fn extract_token(query: &str) -> Option<String> {
     url::form_urlencoded::parse(query.as_bytes())
         .find_map(|(key, value)| (key == "token" && !value.is_empty()).then(|| value.into_owned()))
+}
+
+/// Extracts a bearer token from the `Sec-WebSocket-Protocol` header.
+///
+/// Browsers' WebSocket API cannot set custom headers but allows setting
+/// subprotocols. The convention is `Sec-WebSocket-Protocol: access_token, <jwt>`.
+pub(crate) fn extract_protocol_token(headers: &HeaderMap) -> Option<String> {
+    let value = headers.get("Sec-WebSocket-Protocol")?.to_str().ok()?;
+    let mut parts = value.splitn(2, ',');
+    let protocol = parts.next()?.trim();
+    let token = parts.next()?.trim();
+    (protocol == "access_token" && !token.is_empty()).then(|| token.to_owned())
 }

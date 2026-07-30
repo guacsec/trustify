@@ -1,4 +1,4 @@
-use sea_orm::{ConnectionTrait, DbBackend, DbErr, Statement};
+use sea_orm::{ConnectionTrait, DbErr, Statement};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
@@ -80,7 +80,7 @@ pub async fn record_change(
 ) -> Result<(), DbErr> {
     let id = Uuid::now_v7();
     conn.execute(Statement::from_sql_and_values(
-        DbBackend::Postgres,
+        conn.get_database_backend(),
         "INSERT INTO change_log (id, entity_type, entity_id, operation) VALUES ($1, $2, $3, $4)",
         vec![
             id.into(),
@@ -142,6 +142,7 @@ async fn fetch_entries_after(
 pub struct ChangeListener {
     pool: sqlx::PgPool,
     poll_interval: Duration,
+    cleanup_interval: Duration,
     retention: Duration,
 }
 
@@ -155,6 +156,7 @@ impl ChangeListener {
         Ok(Self {
             pool,
             poll_interval: DEFAULT_POLL_INTERVAL,
+            cleanup_interval: CLEANUP_INTERVAL,
             retention,
         })
     }
@@ -162,6 +164,12 @@ impl ChangeListener {
     /// Sets the polling interval for the fallback sweep.
     pub fn with_poll_interval(mut self, interval: Duration) -> Self {
         self.poll_interval = interval;
+        self
+    }
+
+    /// Sets the interval between cleanup sweeps of old entries.
+    pub fn with_cleanup_interval(mut self, interval: Duration) -> Self {
+        self.cleanup_interval = interval;
         self
     }
 
@@ -233,7 +241,7 @@ impl ChangeListener {
                 }
             }
 
-            if last_cleanup.elapsed() >= CLEANUP_INTERVAL {
+            if last_cleanup.elapsed() >= self.cleanup_interval {
                 self.cleanup().await;
                 *last_cleanup = tokio::time::Instant::now();
             }
@@ -271,9 +279,10 @@ impl ChangeListener {
     /// Deletes change_log entries older than the retention period.
     async fn cleanup(&self) {
         let retention_secs = self.retention.as_secs() as i64;
-        let result = sqlx::query(&format!(
-            "DELETE FROM change_log WHERE created_at < NOW() - INTERVAL '{retention_secs} seconds'"
-        ))
+        let result = sqlx::query(
+            "DELETE FROM change_log WHERE created_at < NOW() - ($1 * INTERVAL '1 second')",
+        )
+        .bind(retention_secs)
         .execute(&self.pool)
         .await;
 
@@ -305,10 +314,17 @@ pub struct ChangeBroadcaster {
 }
 
 impl ChangeBroadcaster {
-    pub fn new(db_rw: &super::ReadWrite, retention: Duration) -> Result<Self, anyhow::Error> {
+    pub fn new(
+        db_rw: &super::ReadWrite,
+        retention: Duration,
+        poll_interval: Duration,
+        cleanup_interval: Duration,
+    ) -> Result<Self, anyhow::Error> {
         let pool = db_rw.get_postgres_connection_pool().clone();
         let (tx, _) = broadcast::channel(1024);
-        let listener = ChangeListener::new(db_rw, retention)?;
+        let listener = ChangeListener::new(db_rw, retention)?
+            .with_poll_interval(poll_interval)
+            .with_cleanup_interval(cleanup_interval);
         let sender = tx.clone();
 
         let task = tokio::spawn(async move {
