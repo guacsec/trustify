@@ -41,6 +41,17 @@ Quarkus & RHEL 9 data:
 http POST localhost:8080/api/v3/importer/redhat-sbom sbom[source]=https://security.access.redhat.com/data/sbom/v1/ sbom[keys][]=https://security.access.redhat.com/data/97f5eac4.txt#77E79ABE93673533ED09EBE2DCE3823597F5EAC4 sbom[disabled]:=false sbom[onlyPatterns][]=quarkus sbom[onlyPatterns][]=rhel-9 sbom[period]=30s sbom[v3Signatures]:=true
 ```
 
+### Create a new CISA KEV importer
+
+```shell
+http POST localhost:8080/api/v3/importer/kev kev[source]=https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json kev[disabled]:=false kev[period]=1d
+```
+
+The optional `kev[catalog]` field sets the catalog source identifier under
+which the imported entries are stored and replaced on each run (defaults to
+`cisa`). Configure it when running multiple KEV importers, so they don't
+overwrite each other's entries.
+
 ### Get all importers
 
 ```shell
