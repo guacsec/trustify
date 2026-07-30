@@ -5385,7 +5385,10 @@ components:
           type:
           - string
           - 'null'
-          description: Whether the vulnerability is known to be used in ransomware campaigns.
+          description: |-
+            Whether the vulnerability is known to be used in ransomware campaigns.
+            Deliberately a free-form string, not an enum: the set of values
+            ("Known" / "Unknown" today) is owned by the upstream catalog.
         required_action:
           type:
           - string

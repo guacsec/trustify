@@ -12,6 +12,7 @@ pub struct KevCatalog {
     pub vulnerabilities: Vec<KevEntry>,
 }
 
+/// A single vulnerability entry of a KEV catalog.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KevEntry {
