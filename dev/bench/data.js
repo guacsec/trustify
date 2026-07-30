@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785422601533,
+  "lastUpdate": 1785433290944,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20696,6 +20696,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/e878596ceb7c824405ad6e257b09a8350ab336d3"
         },
         "date": 1785422599826,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah S-C",
+            "username": "Strum355"
+          },
+          "distinct": true,
+          "id": "7c954a05def592922e318efa0a5d2177f1cc187c",
+          "message": "fix: request 'openid' scope in client_credentials token requests",
+          "timestamp": "2026-07-30T15:05:50Z",
+          "tree_id": "b26d550b34ab1edd6959dff3845cf7bdbb87c106",
+          "url": "https://github.com/guacsec/trustify/commit/7c954a05def592922e318efa0a5d2177f1cc187c"
+        },
+        "date": 1785433289347,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
