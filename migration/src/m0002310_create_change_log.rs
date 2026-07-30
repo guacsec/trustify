@@ -48,7 +48,12 @@ impl MigrationTrait for Migration {
                 r#"
                 CREATE OR REPLACE FUNCTION notify_change_log() RETURNS trigger AS $$
                 BEGIN
-                    PERFORM pg_notify('trustify_changes', NEW.id::text);
+                    PERFORM pg_notify('trustify_changes', json_build_object(
+                        'id', NEW.id,
+                        'entity_type', NEW.entity_type,
+                        'entity_id', NEW.entity_id,
+                        'operation', NEW.operation
+                    )::text);
                     RETURN NEW;
                 END;
                 $$ LANGUAGE plpgsql

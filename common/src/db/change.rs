@@ -67,6 +67,28 @@ pub struct ChangeEntry {
     pub operation: ChangeOperation,
 }
 
+/// Raw JSON shape emitted by the `notify_change_log` trigger.
+#[derive(serde::Deserialize)]
+struct NotifyPayload {
+    id: Uuid,
+    entity_type: String,
+    entity_id: Option<Uuid>,
+    operation: String,
+}
+
+impl NotifyPayload {
+    fn into_entry(self) -> Option<ChangeEntry> {
+        let r#type = ChangeEntity::from_str(&self.entity_type)?;
+        let operation = ChangeOperation::from_str(&self.operation)?;
+        Some(ChangeEntry {
+            cursor: self.id,
+            r#type,
+            id: self.entity_id,
+            operation,
+        })
+    }
+}
+
 /// Records a change event in the change_log table.
 ///
 /// Called within the caller's transaction so the event is committed
@@ -228,8 +250,21 @@ impl ChangeListener {
             tokio::select! {
                 notification = listener.recv() => {
                     match notification {
-                        Ok(_) => {
-                            self.sweep(on_change, cursor).await;
+                        Ok(n) => {
+                            match serde_json::from_str::<NotifyPayload>(n.payload())
+                                .ok()
+                                .and_then(|p| p.into_entry())
+                            {
+                                Some(entry) => {
+                                    if entry.cursor > *cursor {
+                                        *cursor = entry.cursor;
+                                    }
+                                    on_change(vec![entry]);
+                                }
+                                None => {
+                                    self.sweep(on_change, cursor).await;
+                                }
+                            }
                         }
                         Err(err) => {
                             return Err(err.into());
