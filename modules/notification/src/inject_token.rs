@@ -50,7 +50,6 @@ where
 }
 
 pub(crate) fn extract_token(query: &str) -> Option<String> {
-    url::form_urlencoded::parse(query.as_bytes()).find_map(|(key, value)| {
-        (key == "token" && !value.is_empty()).then(|| value.into_owned())
-    })
+    url::form_urlencoded::parse(query.as_bytes())
+        .find_map(|(key, value)| (key == "token" && !value.is_empty()).then(|| value.into_owned()))
 }

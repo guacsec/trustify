@@ -8815,6 +8815,7 @@ dependencies = [
  "clap",
  "futures",
  "humantime",
+ "sea-orm",
  "serde",
  "serde_json",
  "test-context",

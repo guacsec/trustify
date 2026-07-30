@@ -28,6 +28,7 @@ utoipa-actix-web = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+sea-orm = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
 trustify-test-context = { workspace = true }
