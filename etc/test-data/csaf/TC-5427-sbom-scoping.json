@@ -1,0 +1,116 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "text": "Important"
+    },
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "publisher": {
+      "category": "vendor",
+      "name": "Test Vendor",
+      "namespace": "https://example.com"
+    },
+    "title": "TC-5427 version matching test advisory",
+    "tracking": {
+      "current_release_date": "2025-01-15T00:00:00+00:00",
+      "id": "TC-5427-test-advisory",
+      "initial_release_date": "2025-01-15T00:00:00+00:00",
+      "revision_history": [
+        {
+          "date": "2025-01-15T00:00:00+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        }
+      ],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "category": "product_name",
+            "name": "Maven SDK 4",
+            "product": {
+              "name": "Maven SDK 4",
+              "product_id": "maven_sdk_4",
+              "product_identification_helper": {
+                "cpe": "cpe:/a:example:maven_product:4"
+              }
+            }
+          },
+          {
+            "category": "product_name",
+            "name": "RPM Middleware 7",
+            "product": {
+              "name": "RPM Middleware 7",
+              "product_id": "rpm_middleware_7",
+              "product_identification_helper": {
+                "cpe": "cpe:/a:example:rpm_product:7"
+              }
+            }
+          },
+          {
+            "category": "product_version",
+            "name": "io.netty/netty-handler",
+            "product": {
+              "name": "io.netty/netty-handler",
+              "product_id": "io.netty/netty-handler"
+            }
+          }
+        ],
+        "category": "vendor",
+        "name": "Test Vendor"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "io.netty/netty-handler as a component of Maven SDK 4",
+          "product_id": "maven_sdk_4:io.netty/netty-handler"
+        },
+        "product_reference": "io.netty/netty-handler",
+        "relates_to_product_reference": "maven_sdk_4"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "io.netty/netty-handler as a component of RPM Middleware 7",
+          "product_id": "rpm_middleware_7:io.netty/netty-handler"
+        },
+        "product_reference": "io.netty/netty-handler",
+        "relates_to_product_reference": "rpm_middleware_7"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2025-24970",
+      "notes": [
+        {
+          "category": "description",
+          "text": "Test vulnerability for version matching"
+        }
+      ],
+      "product_status": {
+        "known_affected": [
+          "maven_sdk_4:io.netty/netty-handler",
+          "rpm_middleware_7:io.netty/netty-handler"
+        ]
+      },
+      "remediations": [
+        {
+          "category": "no_fix_planned",
+          "details": "Test remediation",
+          "product_ids": [
+            "maven_sdk_4:io.netty/netty-handler",
+            "rpm_middleware_7:io.netty/netty-handler"
+          ]
+        }
+      ]
+    }
+  ]
+}
