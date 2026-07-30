@@ -1,11 +1,13 @@
 mod walker;
 
-use crate::model::KevImporter;
-use crate::runner::{
-    RunOutput,
-    context::RunContext,
-    kev::walker::KevWalker,
-    report::{ReportBuilder, ScannerError},
+use crate::{
+    model::KevImporter,
+    runner::{
+        RunOutput,
+        context::RunContext,
+        kev::walker::KevWalker,
+        report::{ReportBuilder, ScannerError},
+    },
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;

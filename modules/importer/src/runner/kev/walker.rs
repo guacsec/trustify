@@ -1,5 +1,7 @@
-use crate::runner::common::Error;
-use crate::runner::report::{Phase, ReportBuilder};
+use crate::runner::{
+    common::Error,
+    report::{Phase, ReportBuilder},
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::instrument;
