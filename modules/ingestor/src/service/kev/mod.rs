@@ -2,8 +2,8 @@ pub mod schema;
 
 use crate::{model::IngestResult, service::Error};
 use hex::ToHex;
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
 use schema::KevCatalog;
+use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Set, TransactionTrait};
 use time::{Date, macros::format_description};
 use tracing::instrument;
 use trustify_common::{db::chunk::EntityChunkedIter, hashing::Digests};
@@ -153,7 +153,11 @@ mod test {
     #[test(tokio::test)]
     async fn removed_entries_are_dropped(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         load(ctx, "kev/known_exploited_vulnerabilities.json").await?;
-        load(ctx, "kev/known_exploited_vulnerabilities-entry-removed.json").await?;
+        load(
+            ctx,
+            "kev/known_exploited_vulnerabilities-entry-removed.json",
+        )
+        .await?;
 
         let entries = known_exploited_vulnerability::Entity::find()
             .all(&ctx.db)

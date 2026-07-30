@@ -5357,6 +5357,43 @@ components:
         properties:
           source:
             type: string
+    KnownExploitation:
+      type: object
+      description: |-
+        An entry of a known-exploited-vulnerability catalog (e.g. CISA KEV)
+        referring to the vulnerability.
+      required:
+      - source
+      - date_added
+      - due_date
+      - required_action
+      - known_ransomware_campaign_use
+      properties:
+        date_added:
+          type:
+          - string
+          - 'null'
+          format: date
+          description: The date the entry was added to the catalog.
+        due_date:
+          type:
+          - string
+          - 'null'
+          format: date
+          description: The remediation due date mandated by the catalog, if any.
+        known_ransomware_campaign_use:
+          type:
+          - string
+          - 'null'
+          description: Whether the vulnerability is known to be used in ransomware campaigns.
+        required_action:
+          type:
+          - string
+          - 'null'
+          description: The remediation action required by the catalog, if any.
+        source:
+          type: string
+          description: The catalog this entry came from (e.g. "cisa").
     Labels:
       type: object
       additionalProperties:
@@ -7360,12 +7397,20 @@ components:
       - type: object
         required:
         - advisories
+        - known_exploited
         properties:
           advisories:
             type: array
             items:
               $ref: '#/components/schemas/VulnerabilityAdvisorySummary'
             description: Advisories addressing this vulnerability, if any.
+          known_exploited:
+            type: array
+            items:
+              $ref: '#/components/schemas/KnownExploitation'
+            description: |-
+              Known-exploited-vulnerability catalog entries (e.g. CISA KEV)
+              referring to this vulnerability, if any.
           scores:
             $ref: '#/components/schemas/RequestedField_Vec_Vec_ScoredVector'
             description: |-

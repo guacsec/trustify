@@ -279,7 +279,12 @@ pub async fn sample_data(
 
     add_cwe(&importer, "cwe", "Common Weakness Enumeration").await?;
 
-    add_kev(&importer, "kev", "CISA Known Exploited Vulnerabilities Catalog").await?;
+    add_kev(
+        &importer,
+        "kev",
+        "CISA Known Exploited Vulnerabilities Catalog",
+    )
+    .await?;
 
     add_quay(
         &importer,

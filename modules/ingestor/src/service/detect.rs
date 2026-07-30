@@ -7,12 +7,12 @@ use crate::{
             csaf::loader::CsafLoader, cve::loader::CveLoader, nvd::loader::NvdLoader,
             nvd::schema::NvdCve, osv::loader::OsvLoader,
         },
+        kev::{KevLoader, schema::KevCatalog},
         sbom::{
             clearly_defined::ClearlyDefinedLoader,
             clearly_defined_curation::ClearlyDefinedCurationLoader, cyclonedx::CyclonedxLoader,
             spdx::SpdxLoader,
         },
-        kev::{KevLoader, schema::KevCatalog},
         weakness::CweCatalogLoader,
     },
 };
