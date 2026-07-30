@@ -50,7 +50,7 @@ impl KevWalker {
     /// Run the walker
     #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn run(self) -> Result<LastModified, Error> {
-        let response = reqwest::get(&self.source).await?;
+        let mut response = reqwest::get(&self.source).await?.error_for_status()?;
 
         let last_modified = response
             .headers()
@@ -69,7 +69,6 @@ impl KevWalker {
             }
         }
 
-        let mut response = response;
         let mut body = Vec::new();
         while let Some(chunk) = response.chunk().await? {
             if body.len() + chunk.len() > CATALOG_SIZE_LIMIT {
