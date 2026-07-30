@@ -184,6 +184,7 @@ async fn add_kev(importer: &ImporterService, name: &str, description: &str) -> a
                 labels: Default::default(),
             },
             source: DEFAULT_SOURCE_KEV_CATALOG.into(),
+            catalog: None,
         }),
     )
     .await

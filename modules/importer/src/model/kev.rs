@@ -1,5 +1,7 @@
 use super::*;
 
+/// Importer configuration for known-exploited-vulnerability catalogs
+/// (e.g. CISA KEV).
 #[derive(
     Clone,
     Debug,
@@ -12,13 +14,21 @@ use super::*;
 )]
 #[serde(rename_all = "camelCase")]
 pub struct KevImporter {
+    /// Common importer options.
     #[serde(flatten)]
     pub common: CommonImporter,
 
+    /// URL of the catalog document to import.
     #[serde(default = "default::source")]
     pub source: String,
+
+    /// Catalog source identifier under which the imported entries are stored
+    /// (and replaced on each run). Defaults to "cisa".
+    #[serde(default)]
+    pub catalog: Option<String>,
 }
 
+/// Default URL of the CISA KEV catalog document.
 pub const DEFAULT_SOURCE_KEV_CATALOG: &str =
     "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";
 

@@ -12,27 +12,44 @@ use trustify_entity::{known_exploited_vulnerability, labels::Labels};
 /// Source identifier for entries originating from the CISA KEV catalog.
 pub const SOURCE_CISA: &str = "cisa";
 
+/// Label key selecting the catalog source identifier under which the entries
+/// of the ingested document are stored. Defaults to [`SOURCE_CISA`] when
+/// absent.
+pub const LABEL_CATALOG: &str = "catalog";
+
+/// Loads known-exploited-vulnerability catalog documents (e.g. CISA KEV)
+/// into the `known_exploited_vulnerability` table.
 #[derive(Default)]
 pub struct KevLoader {}
 
 impl KevLoader {
+    /// Create a new loader.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Load a catalog document, replacing all entries of its catalog source.
+    ///
+    /// The catalog source defaults to [`SOURCE_CISA`] and can be overridden
+    /// via the [`LABEL_CATALOG`] label.
     #[instrument(skip(self, catalog, tx), err(level=tracing::Level::INFO))]
     pub async fn load(
         &self,
-        _labels: Labels,
+        labels: Labels,
         catalog: KevCatalog,
         digests: &Digests,
         tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
+        let source = labels
+            .get(LABEL_CATALOG)
+            .map(String::as_str)
+            .unwrap_or(SOURCE_CISA);
+
         let batch = catalog
             .vulnerabilities
             .into_iter()
             .map(|entry| known_exploited_vulnerability::ActiveModel {
-                source: Set(SOURCE_CISA.to_string()),
+                source: Set(source.to_string()),
                 date_added: Set(entry
                     .date_added
                     .as_deref()
@@ -57,7 +74,7 @@ impl KevLoader {
         // from KEV again, so each load replaces the full set for the source
         // instead of appending. The surrounding transaction keeps this atomic.
         known_exploited_vulnerability::Entity::delete_many()
-            .filter(known_exploited_vulnerability::Column::Source.eq(SOURCE_CISA))
+            .filter(known_exploited_vulnerability::Column::Source.eq(source))
             .exec(tx)
             .await?;
 
@@ -103,17 +120,25 @@ mod test {
     use trustify_entity::known_exploited_vulnerability;
     use trustify_test_context::{TrustifyContext, document_bytes};
 
-    async fn load(ctx: &TrustifyContext, path: &str) -> Result<(), anyhow::Error> {
+    async fn load_with_labels(
+        ctx: &TrustifyContext,
+        path: &str,
+        labels: Labels,
+    ) -> Result<(), anyhow::Error> {
         let bytes = document_bytes(path).await?;
         let catalog = serde_json::from_slice(&bytes)?;
         let digests = trustify_common::hashing::Digests::digest(&bytes);
         let loader = KevLoader::new();
 
         ctx.db
-            .transaction(async |tx| loader.load(Labels::default(), catalog, &digests, tx).await)
+            .transaction(async |tx| loader.load(labels, catalog, &digests, tx).await)
             .await?;
 
         Ok(())
+    }
+
+    async fn load(ctx: &TrustifyContext, path: &str) -> Result<(), anyhow::Error> {
+        load_with_labels(ctx, path, Labels::default()).await
     }
 
     #[test_context(TrustifyContext)]
@@ -201,6 +226,44 @@ mod test {
         assert!(
             !entries.iter().any(|e| e.cve_id == "CVE-2023-35078"),
             "entry removed from the catalog must be removed from the database"
+        );
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn catalog_label_overrides_source(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        load(ctx, "kev/known_exploited_vulnerabilities.json").await?;
+        load_with_labels(
+            ctx,
+            "kev/known_exploited_vulnerabilities.json",
+            Labels::from_one(LABEL_CATALOG, "mirror"),
+        )
+        .await?;
+
+        // each catalog source keeps its own set of entries
+        let entries = known_exploited_vulnerability::Entity::find()
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(entries.len(), 6);
+        assert_eq!(entries.iter().filter(|e| e.source == "mirror").count(), 3);
+
+        // reloading one source replaces only that source's entries
+        load_with_labels(
+            ctx,
+            "kev/known_exploited_vulnerabilities-entry-removed.json",
+            Labels::from_one(LABEL_CATALOG, "mirror"),
+        )
+        .await?;
+
+        let entries = known_exploited_vulnerability::Entity::find()
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(entries.iter().filter(|e| e.source == "mirror").count(), 2);
+        assert_eq!(
+            entries.iter().filter(|e| e.source == SOURCE_CISA).count(),
+            3
         );
 
         Ok(())

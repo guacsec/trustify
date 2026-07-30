@@ -581,6 +581,7 @@
       ]
     },
     "KevImporter": {
+      "description": "Importer configuration for known-exploited-vulnerability catalogs\n(e.g. CISA KEV).",
       "type": "object",
       "properties": {
         "disabled": {
@@ -604,8 +605,17 @@
           "$ref": "#/$defs/Labels"
         },
         "source": {
+          "description": "URL of the catalog document to import.",
           "type": "string",
           "default": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
+        "catalog": {
+          "description": "Catalog source identifier under which the imported entries are stored\n(and replaced on each run). Defaults to \"cisa\".",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "required": [

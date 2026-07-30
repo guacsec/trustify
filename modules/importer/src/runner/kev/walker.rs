@@ -7,27 +7,34 @@ use tokio::sync::Mutex;
 use tracing::instrument;
 use trustify_common::db::ReadWrite;
 use trustify_entity::labels::Labels;
-use trustify_module_ingestor::service::{Cache, Format, IngestorService};
+use trustify_module_ingestor::service::{Cache, Format, IngestorService, kev::LABEL_CATALOG};
 
 /// Maximum size of the downloaded catalog, guarding against oversized
 /// responses. The CISA KEV catalog is a few MB of JSON today and grows
 /// slowly, so 64 MiB leaves plenty of headroom.
 const CATALOG_SIZE_LIMIT: usize = 64 * 1024 * 1024;
 
+/// Continuation token carrying the `Last-Modified` header of the previously
+/// processed catalog download.
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct LastModified(Option<String>);
 
+/// Downloads a KEV catalog document and hands it to the ingestor.
 pub struct KevWalker {
     continuation: LastModified,
     source: String,
+    catalog: Option<String>,
     ingestor: IngestorService,
     db: ReadWrite,
     report: Arc<Mutex<ReportBuilder>>,
 }
 
 impl KevWalker {
+    /// Create a new walker downloading from `source`, storing entries under
+    /// the `catalog` source identifier (the ingestor's default if `None`).
     pub fn new(
         source: impl Into<String>,
+        catalog: Option<String>,
         ingestor: IngestorService,
         db: ReadWrite,
         report: Arc<Mutex<ReportBuilder>>,
@@ -35,6 +42,7 @@ impl KevWalker {
         Self {
             continuation: LastModified(None),
             source: source.into(),
+            catalog,
             ingestor,
             db,
             report,
@@ -80,20 +88,18 @@ impl KevWalker {
             body.extend_from_slice(&chunk);
         }
 
+        let mut labels = Labels::new()
+            .add("source", &self.source)
+            .add("importer", "CISA KEV Catalog");
+        if let Some(catalog) = &self.catalog {
+            labels = labels.add(LABEL_CATALOG, catalog);
+        }
+
         let result = self
             .db
             .transaction(async |tx| {
                 self.ingestor
-                    .ingest(
-                        &body,
-                        Format::CisaKev,
-                        Labels::new()
-                            .add("source", &self.source)
-                            .add("importer", "CISA KEV Catalog"),
-                        None,
-                        Cache::Skip,
-                        tx,
-                    )
+                    .ingest(&body, Format::CisaKev, labels, None, Cache::Skip, tx)
                     .await
             })
             .await;

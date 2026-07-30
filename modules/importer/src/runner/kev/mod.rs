@@ -28,14 +28,9 @@ impl super::ImportRunner {
         let report = Arc::new(Mutex::new(ReportBuilder::new()));
         let continuation = serde_json::from_value(continuation).unwrap_or_default();
 
-        // no working-dir required
-
-        // one file, no progress to care about.
-
-        // run the walker
-
         let walker = KevWalker::new(
             kev_catalog.source.clone(),
+            kev_catalog.catalog.clone(),
             ingestor,
             self.db.clone(),
             report.clone(),
