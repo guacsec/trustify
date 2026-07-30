@@ -213,6 +213,38 @@ let base_purl_map: HashMap<PurlKey, BasePurl> = base_purls.into_iter().map(|b| (
 This also applies to SeaORM `.all()` calls (which already return `Vec<Model>`) and `push()` calls
 where the collection type is already known.
 
+#### Turbofish on collection constructors
+
+Prefer plain constructors (`HashMap::new()`, `Vec::new()`) over turbofish-annotated ones
+(`HashMap::<K, V>::new()`) when the compiler can infer the type from context — for example,
+from the function's return type or from a subsequent assignment.
+
+The turbofish is acceptable when the compiler cannot infer the type. Common cases:
+
+- **`.entry().or_default()`** — the compiler needs the value type to resolve `Default::default()`
+- **Type coercion** — the turbofish drives `&String` → `&str` coercion that inference alone
+  would not produce
+- **Generic function parameters** — e.g., `impl IntoIterator<Item = impl AsRef<str>>` does
+  not constrain the concrete collection type
+- **Assertion macros** — `assert_eq!` does not propagate type constraints between its arguments
+
+```rust
+// Good — return type provides inference
+fn make_set() -> HashSet<String> {
+    let mut s = HashSet::new();
+    s.insert("a".to_string());
+    s
+}
+
+// Good — turbofish needed because .or_default() requires type resolution
+let mut map = BTreeMap::<String, Vec<Item>>::new();
+map.entry(key).or_default().push(item);
+
+// Good — turbofish drives &String → &str coercion
+let mut packages = HashSet::<&str>::new();
+packages.insert(&some_string); // &String coerced to &str
+```
+
 ### Iterator ownership
 
 Prefer consuming the collection (`for item in items`, which calls `IntoIterator`) over
