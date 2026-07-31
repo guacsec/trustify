@@ -351,7 +351,7 @@ mod tests {
 
         assert_eq!(
             json,
-            r#""pkg:oci/ose-cluster-network-operator@sha256:0170ba5eebd557fd9f477d915bb7e0d4c1ad6cd4c1852d4b1ceed7a2817dd5d2?repository_url=registry.redhat.io/openshift4/ose-cluster-network-operator&tag=v4.11.0-202403090037.p0.g33da9fb.assembly.stream.el8""#
+            r#""pkg:oci/ose-cluster-network-operator@sha256:0170ba5eebd557fd9f477d915bb7e0d4c1ad6cd4c1852d4b1ceed7a2817dd5d2?repository_url=registry.redhat.io%2Fopenshift4%2Fose-cluster-network-operator&tag=v4.11.0-202403090037.p0.g33da9fb.assembly.stream.el8""#
         );
         Ok(())
     }
