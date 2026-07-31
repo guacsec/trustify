@@ -1133,24 +1133,78 @@ async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), a
         .filter(|s| matches!(&s.context, Some(StatusContext::Cpe(_))))
         .collect();
 
-    assert!(
-        !cpe_statuses.is_empty(),
-        "affected gnutls version must have product_status entries with CPE context"
-    );
-
-    assert!(
-        cpe_statuses
-            .iter()
-            .any(|s| s.vulnerability.identifier == "CVE-2024-28834"),
-        "product_statuses must include CVE-2024-28834"
+    // Then exactly 2 CPE-context entries must exist, both for CVE-2024-28834.
+    assert_eq!(
+        cpe_statuses.len(),
+        2,
+        "expected exactly 2 product_status entries with CPE context"
     );
 
     for s in &cpe_statuses {
+        assert_eq!(s.vulnerability.identifier, "CVE-2024-28834");
+        assert_eq!(s.status, "affected");
         assert!(
             s.version_range.is_some(),
             "every product_status entry must carry a version_range"
         );
     }
+
+    Ok(())
+}
+
+/// Verifies that product_status entries are returned even when the package version
+/// falls outside the product stream version range — the VersionMatches filter must
+/// not compare package versions against CPE-derived product version ranges.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn product_status_cross_domain_version(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = PurlService::new(PaginationCache::for_test());
+    ctx.ingest_dataset(Dataset::DS1).await?;
+
+    // Given keycloak-core@18.0.6 — its version (18.x) exceeds the Quarkus product
+    // stream range [2.0.0, 3.0.0) derived from CPE cpe:/a:redhat:quarkus:2.
+    let purl = Purl::from_str(
+        "pkg:maven/org.keycloak/keycloak-core@18.0.6.redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=jar",
+    )?;
+    let details = service
+        .purl_by_purl(&purl, Default::default(), &ctx.db)
+        .await?
+        .expect("keycloak-core purl must exist after DS1 ingestion");
+
+    // When filtering for product_status entries with CPE context
+    let cpe_statuses: Vec<_> = details
+        .advisories
+        .iter()
+        .flat_map(|a| &a.status)
+        .filter(|s| matches!(&s.context, Some(StatusContext::Cpe(_))))
+        .collect();
+
+    // Then exactly 8 CPE-context entries must be present, including CVE-2023-1664
+    // despite the cross-domain version mismatch.
+    assert_eq!(
+        cpe_statuses.len(),
+        8,
+        "keycloak-core must have 8 product_status entries with CPE context"
+    );
+
+    let mut cve_ids: Vec<&str> = cpe_statuses
+        .iter()
+        .map(|s| s.vulnerability.identifier.as_str())
+        .collect();
+    cve_ids.sort();
+    assert_eq!(
+        cve_ids,
+        vec![
+            "CVE-2022-45787",
+            "CVE-2023-0481",
+            "CVE-2023-1584",
+            "CVE-2023-1664",
+            "CVE-2023-28867",
+            "CVE-2023-2974",
+            "CVE-2023-44487",
+            "CVE-2023-4853",
+        ]
+    );
 
     Ok(())
 }

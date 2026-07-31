@@ -42,12 +42,14 @@ use walkdir::DirEntry;
 use zip::write::FileOptions;
 
 pub enum Dataset {
+    DS1,
     DS3,
 }
 
 impl AsRef<Path> for Dataset {
     fn as_ref(&self) -> &Path {
         match self {
+            Self::DS1 => Path::new("../datasets/ds1"),
             Self::DS3 => Path::new("../datasets/ds3"),
         }
     }

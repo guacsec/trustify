@@ -62,6 +62,16 @@
 | `UI_ISSUER_URL`                          | Issuer URL used by the UI                                                           | `http://localhost:8090/realms/trustify` |
 | `UI_LOAD_USER`                           | Whether to load user info                                                           | `true`                                  |
 | `UI_SCOPE`                               | Scopes to request                                                                   | `openid`                                |
+| `EXPLOIT_INTELLIGENCE_URL`               | Base URL of the Exploit Intelligence client service                                 |                                         |
+| `EXPLOIT_INTELLIGENCE_UI_URL`            | Base URL of the EI web UI for deep-linking to reports (falls back to `EXPLOIT_INTELLIGENCE_URL` if unset) |                   |
+| `EXPLOIT_INTELLIGENCE_MAX_RETRIES`       | Maximum number of retry attempts before marking a job as permanently failed         | `3`                                     |
+| `EXPLOIT_INTELLIGENCE_WORKER_POLL_INTERVAL`| How often each worker loop checks for jobs (humantime)                            | `5s`                                    |
+| `EXPLOIT_INTELLIGENCE_CONCURRENCY`       | Number of concurrent worker loops processing EI jobs                                | `5`                                     |
+| `EXPLOIT_INTELLIGENCE_OIDC_ISSUER_URL`   | OIDC issuer URL for EI service authentication (client credentials flow with discovery) |                                      |
+| `EXPLOIT_INTELLIGENCE_OIDC_CLIENT_ID`    | OIDC client ID for EI service authentication                                        |                                         |
+| `EXPLOIT_INTELLIGENCE_OIDC_CLIENT_SECRET`| OIDC client secret for EI service authentication                                    |                                         |
+| `EXPLOIT_INTELLIGENCE_OIDC_REFRESH_BEFORE`| Duration an EI access token must still be valid before requesting a new one        | `30s`                                   |
+| `EXPLOIT_INTELLIGENCE_OIDC_TLS_INSECURE` | Allow insecure TLS connections with the EI OIDC issuer                              | `false`                                 |
 
 ## Data Migration
 

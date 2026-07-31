@@ -13,6 +13,7 @@ pub struct Config {
     pub max_group_name_length: usize,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn configure(
     svc: &mut utoipa_actix_web::service_config::ServiceConfig,
     config: Config,
@@ -21,9 +22,10 @@ pub fn configure(
     storage: impl Into<DispatchBackend>,
     analysis: AnalysisService,
     cache: PaginationCache,
+    graph: Graph,
 ) {
-    let ingestor_service = IngestorService::new(Graph::new(), storage, Some(analysis));
-    svc.app_data(web::Data::new(ingestor_service));
+    let ingestor_service = IngestorService::new(graph, storage, Some(analysis));
+    svc.app_data(web::Data::new(ingestor_service.clone()));
 
     crate::advisory::endpoints::configure(
         svc,

@@ -19,6 +19,23 @@
 - Use `?` operator for error propagation, not `.unwrap()`
 - All CI checks are run via `cargo xtask precommit` (see [Pre-commit Workflow](#pre-commit-workflow))
 
+### Import Nesting
+
+Merge multiple `use` statements from the same crate into a single `use` block with nested
+paths. This reduces visual clutter and groups related imports.
+
+```rust
+// Good — single nested use block
+use sea_orm::{error::DbErr, ConnectionTrait, TransactionTrait};
+
+// Avoid — separate use statements from the same crate
+use sea_orm::error::DbErr;
+use sea_orm::{ConnectionTrait, TransactionTrait};
+```
+
+This is a manual convention — `rustfmt`'s `imports_granularity = "Crate"` option is not
+available on the stable channel. Reviewers should flag un-nested imports during code review.
+
 ## Naming Conventions
 
 - Structs: PascalCase (`SbomService`, `AdvisoryService`, `SbomSummary`)
@@ -195,6 +212,35 @@ let base_purl_map: HashMap<PurlKey, BasePurl> = base_purls.into_iter().map(|b| (
 
 This also applies to SeaORM `.all()` calls (which already return `Vec<Model>`) and `push()` calls
 where the collection type is already known.
+
+#### Turbofish on collection constructors
+
+Prefer plain constructors (`HashMap::new()`, `Vec::new()`) over turbofish-annotated ones
+(`HashMap::<K, V>::new()`) when the compiler can infer the type from context — for example,
+from the function's return type or from a subsequent assignment.
+
+The turbofish is acceptable when the compiler cannot infer the type. Common cases:
+
+- **`.entry().or_default()`** — the compiler needs the value type to resolve `Default::default()`
+- **Type coercion** — the turbofish drives `&String` → `&str` coercion that inference alone
+  would not produce
+- **Generic function parameters** — e.g., `impl IntoIterator<Item = impl AsRef<str>>` does
+  not constrain the concrete collection type
+- **Assertion macros** — `assert_eq!` does not propagate type constraints between its arguments
+
+```rust
+// Good — compiler infers HashSet<&str> from the insert call
+let mut names = HashSet::new();
+names.insert("alice");
+
+// Good — turbofish needed because .or_default() requires type resolution
+let mut map = BTreeMap::<String, Vec<Item>>::new();
+map.entry(key).or_default().push(item);
+
+// Good — turbofish drives &String → &str coercion
+let mut packages = HashSet::<&str>::new();
+packages.insert(&some_string); // &String coerced to &str
+```
 
 ### Iterator ownership
 

@@ -6006,6 +6006,7 @@ dependencies = [
  "js-sys",
  "log",
  "mime",
+ "mime_guess",
  "native-tls",
  "percent-encoding",
  "pin-project-lite",
@@ -8503,6 +8504,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "trustify-module-exploit-intelligence"
+version = "0.5.0-rc.1"
+dependencies = [
+ "actix-http",
+ "actix-web",
+ "anyhow",
+ "bytes",
+ "futures-util",
+ "reqwest 0.13.4",
+ "sea-orm",
+ "sea-query",
+ "serde",
+ "serde_json",
+ "test-context",
+ "test-log",
+ "thiserror 2.0.18",
+ "time",
+ "tokio",
+ "tracing",
+ "trustify-auth",
+ "trustify-common",
+ "trustify-entity",
+ "trustify-module-ingestor",
+ "trustify-module-storage",
+ "trustify-query",
+ "trustify-query-derive",
+ "trustify-test-context",
+ "urlencoding",
+ "utoipa",
+ "utoipa-actix-web",
+ "uuid",
+ "wiremock",
+]
+
+[[package]]
 name = "trustify-module-fundamental"
 version = "0.5.0-rc.1"
 dependencies = [
@@ -8578,6 +8614,7 @@ dependencies = [
  "utoipa-actix-web",
  "uuid",
  "walkdir",
+ "wiremock",
  "zip 8.6.0",
 ]
 
@@ -8794,6 +8831,7 @@ dependencies = [
  "clap",
  "futures",
  "garage-door",
+ "humantime",
  "log",
  "rand 0.10.2",
  "rstest",
@@ -8807,6 +8845,7 @@ dependencies = [
  "trustify-db",
  "trustify-infrastructure",
  "trustify-module-analysis",
+ "trustify-module-exploit-intelligence",
  "trustify-module-fundamental",
  "trustify-module-importer",
  "trustify-module-ingestor",
