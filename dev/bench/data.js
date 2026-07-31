@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785433290944,
+  "lastUpdate": 1785491638982,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20725,6 +20725,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/7c954a05def592922e318efa0a5d2177f1cc187c"
         },
         "date": 1785433289347,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": true,
+          "id": "755f86bf82d1b7c02895e3ee0fa0e1db9bf85b5b",
+          "message": "fix(vulnerability): add version_matches filter to product_status sub-query\n\nThe product_status sub-query in the vulnerability analyze endpoint\nreturned all product statuses matching by package name, without\nchecking whether the queried artifact version falls within the\nversion range. This caused Red Hat product stream ranges (e.g.,\n[7.0.0, 8.0.0) for AMQ Broker 7, derived from CPE versions) to\nappear in Maven PURL analysis results where they are not actionable.\n\nAdd version_matches($2, version_range.*) filtering to the\nproduct_status conditions, mirroring the purl_status path. Now only\nproduct statuses whose version range actually includes the queried\nversion are returned.\n\nNote: TC-5403/PR#2547 correctly removed version_matches from the\npurl details endpoint (purl.rs) where product context IS useful.\nThe analyze endpoint serves a different purpose — dependency\nvulnerability scanning — where only artifact-level version ranges\nare actionable. The same filter mechanism is correct here because\nthe use case differs.\n\nImplements TC-5427\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-07-31T07:00:31Z",
+          "tree_id": "f4c4276fe52d4ddd764f81045b42b67f780d7d80",
+          "url": "https://github.com/guacsec/trustify/commit/755f86bf82d1b7c02895e3ee0fa0e1db9bf85b5b"
+        },
+        "date": 1785491637247,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
