@@ -44,7 +44,7 @@ impl DbContext {
         self.status_cache
             .get(status)
             .cloned()
-            .ok_or_else(|| crate::graph::error::Error::InvalidStatus(status.to_string()))
+            .ok_or_else(|| Error::InvalidStatus(status.to_string()))
     }
 }
 

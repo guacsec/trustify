@@ -106,8 +106,11 @@ impl TokenProvider for String {
 }
 
 #[cfg(feature = "actix")]
+use actix_web_httpauth::extractors::bearer::BearerAuth;
+
+#[cfg(feature = "actix")]
 #[async_trait]
-impl TokenProvider for actix_web_httpauth::extractors::bearer::BearerAuth {
+impl TokenProvider for BearerAuth {
     async fn provide_access_token(&self) -> Result<Option<Credentials>, Error> {
         Ok(Some(Credentials::Bearer(self.token().to_string())))
     }

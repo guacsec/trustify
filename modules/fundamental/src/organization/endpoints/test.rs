@@ -1,3 +1,4 @@
+use crate::organization::service::OrganizationService;
 use crate::test::caller;
 use actix_web::{cookie::time::OffsetDateTime, test::TestRequest};
 use jsonpath_rust::JsonPath;
@@ -98,8 +99,7 @@ async fn one_organization(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .link_to_vulnerability("CVE-123", None, &ctx.db)
         .await?;
 
-    let service =
-        crate::organization::service::OrganizationService::new(PaginationCache::for_test());
+    let service = OrganizationService::new(PaginationCache::for_test());
 
     let orgs = service
         .fetch_organizations(

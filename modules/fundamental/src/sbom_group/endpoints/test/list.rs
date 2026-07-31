@@ -1,6 +1,6 @@
 use crate::{
     common::test::{Group, UpdateAssignments, create_groups, locate_id, read_assignments},
-    sbom_group::model::{GroupDetails, GroupListResult},
+    sbom_group::model::{Group as SbomGroupModel, GroupDetails, GroupListResult},
     test::caller,
 };
 use actix_http::body::to_bytes;
@@ -365,7 +365,7 @@ fn into_actual(
             });
 
             GroupDetails {
-                group: crate::sbom_group::model::Group {
+                group: SbomGroupModel {
                     id,
                     parent,
                     name: item.name.to_string(),

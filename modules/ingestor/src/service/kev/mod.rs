@@ -203,6 +203,7 @@ fn parse_date(
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::graph::exploit::entry_id;
     use sea_orm::EntityTrait;
     use std::collections::BTreeSet;
     use test_context::test_context;
@@ -261,7 +262,7 @@ mod test {
         assert_eq!(log4shell.remediation_due_date, Some(date!(2021 - 12 - 24)));
         assert_eq!(
             log4shell.id,
-            crate::graph::exploit::entry_id(SOURCE_CISA_KEV, "CVE-2021-44228"),
+            entry_id(SOURCE_CISA_KEV, "CVE-2021-44228"),
             "the id must be derived from source and CVE id"
         );
 
@@ -355,13 +356,10 @@ mod test {
         )
         .await?;
 
-        let revised = exploit::Entity::find_by_id(crate::graph::exploit::entry_id(
-            SOURCE_CISA_KEV,
-            "CVE-2023-35078",
-        ))
-        .one(&ctx.db)
-        .await?
-        .expect("revised entry must exist");
+        let revised = exploit::Entity::find_by_id(entry_id(SOURCE_CISA_KEV, "CVE-2023-35078"))
+            .one(&ctx.db)
+            .await?
+            .expect("revised entry must exist");
 
         // an ON CONFLICT DO NOTHING insert would have kept the old values here
         assert_eq!(revised.remediation_due_date, Some(date!(2026 - 01 - 31)));

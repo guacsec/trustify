@@ -1,3 +1,4 @@
+use crate::product::service::ProductService;
 use crate::test::caller;
 use actix_http::StatusCode;
 use actix_web::{body::MessageBody, test::TestRequest};
@@ -70,7 +71,7 @@ async fn one_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let service = crate::product::service::ProductService::new(PaginationCache::for_test());
+    let service = ProductService::new(PaginationCache::for_test());
 
     let products = service
         .fetch_products(
@@ -117,7 +118,7 @@ async fn delete_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let service = crate::product::service::ProductService::new(PaginationCache::for_test());
+    let service = ProductService::new(PaginationCache::for_test());
 
     let products = service
         .fetch_products(

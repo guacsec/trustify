@@ -12,6 +12,7 @@ use trustify_module_fundamental::advisory::model::AdvisoryHead;
 use trustify_module_fundamental::common::model::ScoreType;
 use trustify_module_fundamental::common::model::Severity;
 use trustify_module_fundamental::common::model::{Score, ScoredVector};
+use trustify_module_fundamental::organization::model::{OrganizationHead, OrganizationSummary};
 use trustify_module_fundamental::purl::model::details::version_range::VersionRange;
 use trustify_module_fundamental::{
     purl::{
@@ -209,16 +210,14 @@ async fn change_ps_list_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 uuid: blank_uuid,
                 identifier: "https://www.redhat.com/#CVE-2023-33201".into(),
                 document_id: "CVE-2023-33201".into(),
-                issuer: Some(
-                    trustify_module_fundamental::organization::model::OrganizationSummary {
-                        head: trustify_module_fundamental::organization::model::OrganizationHead {
-                            id: blank_uuid,
-                            name: "Red Hat Product Security".into(),
-                            cpe_key: None,
-                            website: None
-                        }
+                issuer: Some(OrganizationSummary {
+                    head: OrganizationHead {
+                        id: blank_uuid,
+                        name: "Red Hat Product Security".into(),
+                        cpe_key: None,
+                        website: None
                     }
-                ),
+                }),
                 published: Some(OffsetDateTime::from_unix_timestamp(1686873600)?),
                 modified: Some(OffsetDateTime::from_unix_timestamp(1696623810)?),
                 withdrawn: None,
@@ -369,16 +368,14 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 uuid: blank_uuid,
                 identifier: "https://www.redhat.com/#CVE-2023-33201".into(),
                 document_id: "CVE-2023-33201".into(),
-                issuer: Some(
-                    trustify_module_fundamental::organization::model::OrganizationSummary {
-                        head: trustify_module_fundamental::organization::model::OrganizationHead {
-                            id: blank_uuid,
-                            name: "Red Hat Product Security".into(),
-                            cpe_key: None,
-                            website: None
-                        }
+                issuer: Some(OrganizationSummary {
+                    head: OrganizationHead {
+                        id: blank_uuid,
+                        name: "Red Hat Product Security".into(),
+                        cpe_key: None,
+                        website: None
                     }
-                ),
+                }),
                 published: Some(OffsetDateTime::from_unix_timestamp(1686873600)?),
                 modified: Some(OffsetDateTime::from_unix_timestamp(1696537410)?),
                 withdrawn: None,
@@ -436,16 +433,14 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 uuid: blank_uuid,
                 identifier: "https://www.redhat.com/#CVE-2023-33201".into(),
                 document_id: "CVE-2023-33201".into(),
-                issuer: Some(
-                    trustify_module_fundamental::organization::model::OrganizationSummary {
-                        head: trustify_module_fundamental::organization::model::OrganizationHead {
-                            id: blank_uuid,
-                            name: "Red Hat Product Security".into(),
-                            cpe_key: None,
-                            website: None
-                        }
+                issuer: Some(OrganizationSummary {
+                    head: OrganizationHead {
+                        id: blank_uuid,
+                        name: "Red Hat Product Security".into(),
+                        cpe_key: None,
+                        website: None
                     }
-                ),
+                }),
                 published: Some(OffsetDateTime::from_unix_timestamp(1686873600)?),
                 modified: Some(OffsetDateTime::from_unix_timestamp(1696623810)?),
                 withdrawn: None,

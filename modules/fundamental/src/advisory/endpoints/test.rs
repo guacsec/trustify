@@ -1,6 +1,9 @@
 use crate::{
     advisory::model::{AdvisoryDetails, AdvisorySummary},
-    test::{caller, caller_with, label::Api},
+    test::{
+        caller, caller_with, label::Api, label::update_labels as do_update_labels,
+        label::update_labels_not_found as do_update_labels_not_found,
+    },
 };
 use actix_http::StatusCode;
 use actix_web::{body::MessageBody, test::TestRequest};
@@ -18,7 +21,10 @@ use trustify_common::{
 };
 use trustify_entity::{advisory_vulnerability_score, labels::Labels};
 use trustify_module_ingestor::{
-    graph::{advisory::AdvisoryInformation, cvss::ScoreCreator},
+    graph::{
+        advisory::AdvisoryInformation,
+        cvss::{ScoreCreator, ScoreInformation},
+    },
     model::IngestResult,
     service::Format,
 };
@@ -56,7 +62,7 @@ async fn all_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Use ScoreCreator to write to advisory_vulnerability_score table
     let mut score_creator = ScoreCreator::new(advisory.advisory.id);
-    score_creator.add(trustify_module_ingestor::graph::cvss::ScoreInformation {
+    score_creator.add(ScoreInformation {
         vulnerability_id: "CVE-123".to_string(),
         r#type: advisory_vulnerability_score::ScoreType::V3_0,
         vector: "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:N".to_string(),
@@ -180,7 +186,7 @@ async fn one_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Use ScoreCreator to write to advisory_vulnerability_score table
     let mut score_creator = ScoreCreator::new(advisory2.advisory.id);
-    score_creator.add(trustify_module_ingestor::graph::cvss::ScoreInformation {
+    score_creator.add(ScoreInformation {
         vulnerability_id: "CVE-123".to_string(),
         r#type: advisory_vulnerability_score::ScoreType::V3_0,
         vector: "CVSS:3.0/AV:N/AC:L/PR:H/UI:N/S:C/C:H/I:N/A:N".to_string(),
@@ -286,7 +292,7 @@ async fn one_advisory_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Error
 
     // Use ScoreCreator to write to advisory_vulnerability_score table
     let mut score_creator = ScoreCreator::new(advisory.advisory.id);
-    score_creator.add(trustify_module_ingestor::graph::cvss::ScoreInformation {
+    score_creator.add(ScoreInformation {
         vulnerability_id: "CVE-123".to_string(),
         r#type: advisory_vulnerability_score::ScoreType::V3_0,
         vector: "CVSS:3.0/AV:N/AC:L/PR:H/UI:N/S:C/C:H/I:N/A:N".to_string(),
@@ -595,14 +601,14 @@ async fn download_advisory_by_id(ctx: &TrustifyContext) -> Result<(), anyhow::Er
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    crate::test::label::update_labels(ctx, Api::Advisory, DOC, "csaf").await
+    do_update_labels(ctx, Api::Advisory, DOC, "csaf").await
 }
 
 /// Test updating labels, for a document that does not exist
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn update_labels_not_found(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    crate::test::label::update_labels_not_found(ctx, Api::Advisory, DOC).await
+    do_update_labels_not_found(ctx, Api::Advisory, DOC).await
 }
 
 /// Test deleing an advisory

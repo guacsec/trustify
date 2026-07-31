@@ -1,3 +1,4 @@
+use crate::product::service::ProductService;
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
@@ -39,7 +40,7 @@ async fn all_products(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .ingest_product_version("1.0.0".to_string(), Some(sbom.sbom.sbom_id), &ctx.db)
         .await?;
 
-    let service = crate::product::service::ProductService::new(PaginationCache::for_test());
+    let service = ProductService::new(PaginationCache::for_test());
 
     let prods = service
         .fetch_products(
@@ -137,7 +138,7 @@ async fn delete_product(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let service = crate::product::service::ProductService::new(PaginationCache::for_test());
+    let service = ProductService::new(PaginationCache::for_test());
 
     let prods = service
         .fetch_products(

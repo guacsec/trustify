@@ -12,12 +12,14 @@ pub use format::Format;
 pub use json::JsonSource;
 
 use crate::graph::Graph;
+use crate::graph::error::Error as GraphError;
 use crate::{
     model::IngestResult,
     service::dataset::{DatasetIngestResult, DatasetLoader},
 };
 use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use anyhow::anyhow;
+use jsonpath_rust::parser::errors::JsonPathError;
 use parking_lot::Mutex;
 use sbom_walker::report::ReportSink;
 use sea_orm::error::DbErr;
@@ -42,13 +44,13 @@ pub enum Error {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
-    JsonPath(#[from] jsonpath_rust::parser::errors::JsonPathError),
+    JsonPath(#[from] JsonPathError),
     #[error(transparent)]
     Xml(#[from] roxmltree::Error),
     #[error(transparent)]
     Yaml(#[from] serde_yml::Error),
     #[error(transparent)]
-    Graph(#[from] crate::graph::error::Error),
+    Graph(#[from] GraphError),
     #[error(transparent)]
     Db(DbErr),
     #[error("storage error: {0}")]

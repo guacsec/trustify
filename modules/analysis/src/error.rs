@@ -5,6 +5,7 @@ use cpe::uri::OwnedUri;
 use sea_orm::DbErr;
 use std::str::FromStr;
 use trustify_auth::authenticator::error::AuthorizationError;
+use trustify_common::db::query::Error as QueryError;
 use trustify_common::db::{DatabaseErrors, DbError};
 use trustify_common::error::ErrorInformation;
 use trustify_common::id::IdError;
@@ -17,7 +18,7 @@ pub enum Error {
     #[error(transparent)]
     Database(DbErr),
     #[error(transparent)]
-    Query(#[from] trustify_common::db::query::Error),
+    Query(#[from] QueryError),
     #[error(transparent)]
     Purl(#[from] PurlErr),
     #[error(transparent)]

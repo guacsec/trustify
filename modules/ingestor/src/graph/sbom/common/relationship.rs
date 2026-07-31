@@ -3,7 +3,7 @@ use anyhow::bail;
 use sea_orm::{ActiveValue::Set, ConnectionTrait, DbErr, EntityTrait};
 use sea_query::OnConflict;
 use spdx_rs::models::{Algorithm, ExternalDocumentReference};
-use std::collections::HashSet;
+use std::collections::{HashSet, hash_set};
 use tracing::instrument;
 use trustify_common::db::chunk::EntityChunkedIter;
 use trustify_entity::sbom_external_node::{DiscriminatorType, ExternalType};
@@ -219,7 +219,7 @@ pub struct References<'a> {
 
 impl<'a> IntoIterator for References<'a> {
     type Item = &'a str;
-    type IntoIter = std::collections::hash_set::IntoIter<&'a str>;
+    type IntoIter = hash_set::IntoIter<&'a str>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.refs.into_iter()

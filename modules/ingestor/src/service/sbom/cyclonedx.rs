@@ -4,7 +4,7 @@ use crate::{
     service::{Error, JsonSource, Warnings},
 };
 use sea_orm::{ConnectionTrait, TransactionTrait};
-use serde_cyclonedx::cyclonedx::v_1_6::Component;
+use serde_cyclonedx::cyclonedx::v_1_6::{Component, CycloneDx};
 use std::str::FromStr;
 use tracing::instrument;
 use trustify_common::hashing::Digests;
@@ -28,7 +28,7 @@ impl<'g> CyclonedxLoader<'g> {
         digests: &Digests,
         tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
-        let cdx: Box<serde_cyclonedx::cyclonedx::v_1_6::CycloneDx> = source
+        let cdx: Box<CycloneDx> = source
             .parse_json()
             .map_err(|err| Error::UnsupportedFormat(format!("Failed to parse: {err}")))?;
 
@@ -39,7 +39,7 @@ impl<'g> CyclonedxLoader<'g> {
     pub(crate) async fn ingest(
         &self,
         labels: Labels,
-        cdx: Box<serde_cyclonedx::cyclonedx::v_1_6::CycloneDx>,
+        cdx: Box<CycloneDx>,
         digests: &Digests,
         tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
