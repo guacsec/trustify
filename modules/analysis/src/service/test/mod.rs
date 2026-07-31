@@ -311,7 +311,7 @@ async fn test_quarkus_analysis_service(ctx: &TrustifyContext) -> Result<(), anyh
                             version: "3.2.12.Final-redhat-00002",
                             cpes: &["cpe:/a:redhat:quarkus:3.2:*:el8:*",],
                             purls: &[
-                                "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.12.Final-redhat-00002?repository_url=https://maven.repository.redhat.com/ga/&type=pom"
+                                "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.12.Final-redhat-00002?repository_url=https:%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
                             ],
                         },
                         Node {

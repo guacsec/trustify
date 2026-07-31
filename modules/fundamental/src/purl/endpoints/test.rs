@@ -238,7 +238,7 @@ async fn purl_filter_queries(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     ctx.ingest_documents(["spdx/quarkus-bom-3.2.11.Final-redhat-00001.json"])
         .await?;
 
-    const PURL: &str = "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=pom";
+    const PURL: &str = "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https:%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom";
 
     let query = async |query| {
         let app = caller(ctx).await.unwrap();

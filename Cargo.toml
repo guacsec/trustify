@@ -102,7 +102,7 @@ opentelemetry-otlp = "0.32"
 opentelemetry_sdk = "0.32"
 opentelemetry-instrumentation-actix-web = "0.24.0"
 osv = { version = "0.3.0", default-features = false, features = [] }
-packageurl = "0.6"
+packageurl = "0.7"
 parking_lot = "0.12"
 peak_alloc = "0.3.0"
 pem = "3"

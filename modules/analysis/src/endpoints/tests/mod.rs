@@ -152,14 +152,14 @@ async fn test_quarkus_retrieve_analysis_endpoint(
                 "purl": [ purl ],
                 "document_id": "https://access.redhat.com/security/data/sbom/spdx/quarkus-bom-3.2.11.Final-redhat-00001",
                 "ancestors": [{
-                    "purl": [ "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=pom" ]
+                    "purl": [ "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https:%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom" ]
                 }]
             },
             {
                 "purl": [ purl ],
                 "document_id": "https://access.redhat.com/security/data/sbom/spdx/quarkus-bom-3.2.12.Final-redhat-00002",
                 "ancestors": [{
-                    "purl": [ "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.12.Final-redhat-00002?repository_url=https://maven.repository.redhat.com/ga/&type=pom" ]
+                    "purl": [ "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.12.Final-redhat-00002?repository_url=https:%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom" ]
                 }]
             }
         ]
@@ -368,10 +368,11 @@ async fn quarkus_component_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::
     ])
     .await?;
 
-    let purl = "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=pom";
+    let purl_query = "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=pom";
+    let purl_expected = "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https:%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom";
     let response: Value = app
         .req(Req {
-            what: What::Id(purl),
+            what: What::Id(purl_query),
             total: true,
             ..Req::default()
         })
@@ -379,7 +380,7 @@ async fn quarkus_component_by_purl(ctx: &TrustifyContext) -> Result<(), anyhow::
     tracing::debug!(test = "", "{response:#?}");
     assert!(response.contains_subset(json!({
         "items": [{
-            "purl": [ purl ],
+            "purl": [ purl_expected ],
             "cpe": ["cpe:/a:redhat:quarkus:3.2:*:el8:*"]
         }]
     })));
@@ -411,11 +412,11 @@ async fn quarkus_component_by_cpe(ctx: &TrustifyContext) -> Result<(), anyhow::E
     assert!(response.contains_subset(json!({
         "items": [
             {
-                "purl": [ "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=pom" ],
+                "purl": [ "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https:%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom" ],
                 "cpe": [ cpe ]
             },
             {
-                "purl": [ "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.12.Final-redhat-00002?repository_url=https://maven.repository.redhat.com/ga/&type=pom" ],
+                "purl": [ "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.12.Final-redhat-00002?repository_url=https:%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom" ],
                 "cpe": [ cpe ]
             }
         ]
@@ -468,7 +469,7 @@ async fn find_component_by_query(
     ctx.ingest_documents(["spdx/quarkus-bom-3.2.11.Final-redhat-00001.json"])
         .await?;
 
-    const PURL: &str = "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=pom";
+    const PURL: &str = "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.11.Final-redhat-00001?repository_url=https:%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom";
 
     assert!(
         query(ctx, query_str).await.contains_subset(json!({
