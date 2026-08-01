@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785491638982,
+  "lastUpdate": 1785624295118,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20759,6 +20759,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "d56949534cee6efde07140965fd07859af5ef526",
+          "message": "chore(deps): update deps for 0.6.0-rc.1",
+          "timestamp": "2026-08-01T19:58:09Z",
+          "tree_id": "98448871088f32d79e981d8fed08a2f6633471a6",
+          "url": "https://github.com/guacsec/trustify/commit/d56949534cee6efde07140965fd07859af5ef526"
+        },
+        "date": 1785624293640,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 6,
             "unit": "s"
           }
         ]
