@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785679117300,
+  "lastUpdate": 1785682552701,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20841,6 +20841,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/acae19f1681d8a7034ad1cfdfedd7b57c2b3578f"
         },
         "date": 1785679115616,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "7e1a2a365a66358347cd61bca8881f04a059e270",
+          "message": "perf(enhance): refactored many of the v3 tests, added dataset for full atlas release, rationalised things",
+          "timestamp": "2026-08-02T16:38:50+02:00",
+          "tree_id": "f5d11bb45c2f28ea670a0944c3ec5fabc08f8bd0",
+          "url": "https://github.com/guacsec/trustify/commit/7e1a2a365a66358347cd61bca8881f04a059e270"
+        },
+        "date": 1785682550725,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
