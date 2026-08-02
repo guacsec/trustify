@@ -67,10 +67,6 @@ jobs:
         if: matrix.install != ''
         run: ${{ matrix.install }}
 
-      - name: Check
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
-        run: cargo check
       - name: Clippy
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
