@@ -56,6 +56,8 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ci
 
       - name: Cache Theseus Postgresql Installation
         uses: actions/cache@v6
@@ -83,6 +85,8 @@ jobs:
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ci
       - uses: dorny/paths-filter@v4
         id: filter
         with:
