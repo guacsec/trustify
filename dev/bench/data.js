@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785663046185,
+  "lastUpdate": 1785679117300,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20812,6 +20812,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/f46d3265d3a2edab28a3acc9c93eb6053458aa0c"
         },
         "date": 1785663044617,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "acae19f1681d8a7034ad1cfdfedd7b57c2b3578f",
+          "message": "ci: share rust build cache between check and ci jobs",
+          "timestamp": "2026-08-02T15:41:46+02:00",
+          "tree_id": "c0589722ff6836ba0c83f9b7f4b8ec04fd1cc2be",
+          "url": "https://github.com/guacsec/trustify/commit/acae19f1681d8a7034ad1cfdfedd7b57c2b3578f"
+        },
+        "date": 1785679115616,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
