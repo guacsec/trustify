@@ -262,7 +262,7 @@ impl OpenIdTokenProvider {
     async fn initial_token(&self) -> Result<openid::TemporalBearerGuard, openid::error::Error> {
         Ok(self
             .client
-            .request_token_using_client_credentials(None)
+            .request_token_using_client_credentials(Some("openid"))
             .await?
             .into())
     }

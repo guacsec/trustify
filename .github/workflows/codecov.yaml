@@ -7,13 +7,6 @@ on:
       - 'etc/**'
     branches:
       - main
-  pull_request:
-    paths-ignore:
-      - '**/*.md'
-      - 'etc/**'
-    branches:
-      - main
-      - feature/**
 
 env:
   CARGO_TERM_COLOR: always
