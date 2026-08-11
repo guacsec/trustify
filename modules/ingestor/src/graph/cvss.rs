@@ -93,11 +93,11 @@ impl From<(String, v3::CvssV3)> for ScoreInformation {
 impl From<(String, v4_0::CvssV4)> for ScoreInformation {
     fn from((vulnerability_id, cvss): (String, v4_0::CvssV4)) -> Self {
         let base_score = cvss
-            .calculated_base_score()
+            .calculated_full_score()
             .or_else(|| {
                 v4_0::CvssV4::from_str(&cvss.vector_string)
                     .ok()
-                    .and_then(|p| p.calculated_base_score())
+                    .and_then(|p| p.calculated_full_score())
             })
             .unwrap_or(cvss.base_score);
         Self {
@@ -279,6 +279,56 @@ mod test {
         .expect("valid minimal CvssV4 JSON");
         let info: ScoreInformation = ("CVE-2021-0000".to_string(), cvss).into();
         assert_eq!(info.severity, Severity::None);
+    }
+
+    /// Verifies that CVSS v4.0 with E:P (ProofOfConcept) produces score 9.3, not 10.0.
+    #[test]
+    fn score_information_from_v4_exploit_maturity_proof_of_concept() {
+        // Given a CVSS v4.0 vector with all-high metrics and E:P
+        let cvss = v4_0::CvssV4::from_str(
+            "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/E:P",
+        )
+        .expect("valid CVSS v4 vector");
+
+        // When converting to ScoreInformation
+        let info: ScoreInformation = ("CVE-2026-18236".to_string(), cvss).into();
+
+        // Then the score includes the E:P threat metric (CVSS-BT = 9.3)
+        assert_eq!(info.r#type, ScoreType::V4_0);
+        assert_eq!(info.score, 9.3_f32);
+        assert_eq!(info.severity, Severity::Critical);
+    }
+
+    /// Verifies that CVSS v4.0 without an E metric still produces 10.0 (no regression).
+    #[test]
+    fn score_information_from_v4_no_exploit_maturity() {
+        // Given a CVSS v4.0 vector with all-high metrics and no E metric
+        let cvss = v4_0::CvssV4::from_str(
+            "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H",
+        )
+        .expect("valid CVSS v4 vector");
+
+        // When converting to ScoreInformation
+        let info: ScoreInformation = ("CVE-2024-99999".to_string(), cvss).into();
+
+        // Then the score defaults E to Attacked, giving 10.0 (unchanged behavior)
+        assert_eq!(info.score, 10.0_f32);
+    }
+
+    /// Verifies that CVSS v4.0 with E:U (Unreported) lowers the score below 10.0.
+    #[test]
+    fn score_information_from_v4_exploit_maturity_unreported() {
+        // Given a CVSS v4.0 vector with all-high metrics and E:U
+        let cvss = v4_0::CvssV4::from_str(
+            "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/E:U",
+        )
+        .expect("valid CVSS v4 vector");
+
+        // When converting to ScoreInformation
+        let info: ScoreInformation = ("CVE-2024-99998".to_string(), cvss).into();
+
+        // Then the score is lower than 10.0 (E:U → EQ5=2, lookup (0,0,0,1,2,0) → 9.1)
+        assert_eq!(info.score, 9.1_f32);
     }
 
     #[test]
