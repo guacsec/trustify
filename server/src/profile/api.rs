@@ -260,6 +260,15 @@ pub struct EiOidcArguments {
         default_value = "false"
     )]
     pub tls_insecure: bool,
+
+    /// OAuth scope(s) to request in the client_credentials token request.
+    /// Space-separated when multiple scopes are needed. If unset, no scope parameter is sent.
+    #[arg(
+        id = "ei_oidc_scope",
+        long = "ei-oidc-scope",
+        env = "EXPLOIT_INTELLIGENCE_OIDC_SCOPE"
+    )]
+    pub scope: Option<String>,
 }
 
 impl EiOidcArguments {
@@ -276,6 +285,7 @@ impl EiOidcArguments {
             issuer_url,
             refresh_before: self.refresh_before,
             tls_insecure: self.tls_insecure,
+            scope: self.scope,
         })
     }
 }
@@ -909,6 +919,7 @@ mod test {
                 issuer_url: None,
                 refresh_before: "30s".parse().unwrap(),
                 tls_insecure: false,
+                scope: None,
             },
         }
     }
@@ -958,6 +969,7 @@ mod test {
             issuer_url: None,
             refresh_before: "30s".parse().unwrap(),
             tls_insecure: false,
+            scope: None,
         };
         assert!(args.into_config().is_none());
     }
@@ -970,12 +982,28 @@ mod test {
             issuer_url: Some("https://idp.example.com".into()),
             refresh_before: "60s".parse().unwrap(),
             tls_insecure: true,
+            scope: None,
         };
         let config = args.into_config().expect("config should be Some");
         assert_eq!(config.client_id, "client");
         assert_eq!(config.client_secret, "secret");
         assert_eq!(config.issuer_url, "https://idp.example.com");
         assert!(config.tls_insecure);
+        assert!(config.scope.is_none());
+    }
+
+    #[test]
+    fn oidc_into_config_propagates_scope() {
+        let args = EiOidcArguments {
+            client_id: Some("client".into()),
+            client_secret: Some("secret".into()),
+            issuer_url: Some("https://idp.example.com".into()),
+            refresh_before: "60s".parse().unwrap(),
+            tls_insecure: false,
+            scope: Some("my-api/read my-api/write".into()),
+        };
+        let config = args.into_config().expect("config should be Some");
+        assert_eq!(config.scope.as_deref(), Some("my-api/read my-api/write"));
     }
 
     #[test_context(TrustifyContext)]
