@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786537074255,
+  "lastUpdate": 1786544425391,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20962,6 +20962,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "mrrajan",
+            "username": "mrrajan"
+          },
+          "committer": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "Rajan Ravi",
+            "username": "mrrajan"
+          },
+          "distinct": false,
+          "id": "a837282f4375f704dbd467b623b7798a5d8d2baf",
+          "message": "test(cvss): add E:A test coverage and fix variable reference\n\nAdd missing test for CVSS v4.0 with E:A (Attacked) exploit maturity metric\nas requested in PR review. Also fix variable name inconsistency where the\nlocal variable was renamed to full_score but still referenced cvss.full_score\ninstead of cvss.base_score in the fallback.\n\nAddresses review feedback on PR #2569\n\nCo-Authored-By: Claude Code <noreply@anthropic.com>",
+          "timestamp": "2026-08-12T11:59:30Z",
+          "tree_id": "a52405f022adb782b5a749da38f2898473c0e34b",
+          "url": "https://github.com/guacsec/trustify/commit/a837282f4375f704dbd467b623b7798a5d8d2baf"
+        },
+        "date": 1786544423141,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
             "unit": "s"
           }
         ]
