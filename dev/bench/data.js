@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786528496879,
+  "lastUpdate": 1786536480341,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20899,6 +20899,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/2b2a763eb9407bda482c25555a1d7063ada85e8d"
         },
         "date": 1786528494680,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah S-C",
+            "username": "Strum355"
+          },
+          "distinct": false,
+          "id": "9c4853077cd078f2bee324df4db9783e7d7f9634",
+          "message": "fix: configurable oauth scope instead of hardcoded 'openid' scope",
+          "timestamp": "2026-08-12T09:50:50Z",
+          "tree_id": "685f3183e13c2cbccf5942d26010db29ab6e53c3",
+          "url": "https://github.com/guacsec/trustify/commit/9c4853077cd078f2bee324df4db9783e7d7f9634"
+        },
+        "date": 1786536478030,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
