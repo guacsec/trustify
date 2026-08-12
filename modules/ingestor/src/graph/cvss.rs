@@ -92,7 +92,7 @@ impl From<(String, v3::CvssV3)> for ScoreInformation {
 
 impl From<(String, v4_0::CvssV4)> for ScoreInformation {
     fn from((vulnerability_id, cvss): (String, v4_0::CvssV4)) -> Self {
-        let base_score = cvss
+        let full_score = cvss
             .calculated_full_score()
             .or_else(|| {
                 v4_0::CvssV4::from_str(&cvss.vector_string)
@@ -104,8 +104,8 @@ impl From<(String, v4_0::CvssV4)> for ScoreInformation {
             vulnerability_id,
             r#type: ScoreType::V4_0,
             vector: cvss.vector_string,
-            score: base_score as f32,
-            severity: (base_score, ScoreType::V4_0).into(),
+            score: full_score as f32,
+            severity: (full_score, ScoreType::V4_0).into(),
         }
     }
 }
@@ -329,6 +329,23 @@ mod test {
 
         // Then the score is lower than 10.0 (E:U → EQ5=2, lookup (0,0,0,1,2,0) → 9.1)
         assert_eq!(info.score, 9.1_f32);
+    }
+
+    /// Verifies that CVSS v4.0 with E:A (Attacked) produces the maximum score of 10.0.
+    #[test]
+    fn score_information_from_v4_exploit_maturity_attacked() {
+        // Given a CVSS v4.0 vector with all-high metrics and E:A
+        let cvss = v4_0::CvssV4::from_str(
+            "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/E:A",
+        )
+        .expect("valid CVSS v4 vector");
+
+        // When converting to ScoreInformation
+        let info: ScoreInformation = ("CVE-2024-99997".to_string(), cvss).into();
+
+        // Then the score is 10.0 (E:A → EQ5=0, lookup (0,0,0,1,0,0) → 10.0)
+        assert_eq!(info.score, 10.0_f32);
+        assert_eq!(info.severity, Severity::Critical);
     }
 
     #[test]
