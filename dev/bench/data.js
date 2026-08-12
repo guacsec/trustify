@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786536480341,
+  "lastUpdate": 1786537074255,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20933,6 +20933,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah S-C",
+            "username": "Strum355"
+          },
+          "distinct": false,
+          "id": "155a5c99bda57dabccbc064b2dcc819af4f921ae",
+          "message": "fix: persist total_components count for EI analysis when job terminates",
+          "timestamp": "2026-08-12T09:52:04Z",
+          "tree_id": "c663041b79ac6b4d9aa9fedb62a49109a31a11bc",
+          "url": "https://github.com/guacsec/trustify/commit/155a5c99bda57dabccbc064b2dcc819af4f921ae"
+        },
+        "date": 1786537072187,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
