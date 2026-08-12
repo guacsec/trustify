@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786544425391,
+  "lastUpdate": 1786551028305,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20991,6 +20991,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah S-C",
+            "username": "Strum355"
+          },
+          "distinct": true,
+          "id": "443b7756a46490b986ce00768324e281a725c815",
+          "message": "fix: correctly serialize RFC3339 datetimes in EI API types",
+          "timestamp": "2026-08-12T13:42:03Z",
+          "tree_id": "1400669cf7458a6d239dc7777d5db1c5910fedac",
+          "url": "https://github.com/guacsec/trustify/commit/443b7756a46490b986ce00768324e281a725c815"
+        },
+        "date": 1786551025970,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
