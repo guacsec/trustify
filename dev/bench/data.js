@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785682552701,
+  "lastUpdate": 1786528496879,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -20870,6 +20870,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/7e1a2a365a66358347cd61bca8881f04a059e270"
         },
         "date": 1785682550725,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah Santschi-Cooney",
+            "username": "Strum355"
+          },
+          "committer": {
+            "email": "noah@santschi-cooney.ch",
+            "name": "Noah S-C",
+            "username": "Strum355"
+          },
+          "distinct": true,
+          "id": "2b2a763eb9407bda482c25555a1d7063ada85e8d",
+          "message": "fix: reject empty/whitespace-only vulnerability_id in /v3/exploit-intelligence/analyze endpoint",
+          "timestamp": "2026-08-12T07:26:35Z",
+          "tree_id": "e11f6a22288ec002de7f3d17fb229dd151b9131b",
+          "url": "https://github.com/guacsec/trustify/commit/2b2a763eb9407bda482c25555a1d7063ada85e8d"
+        },
+        "date": 1786528494680,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
