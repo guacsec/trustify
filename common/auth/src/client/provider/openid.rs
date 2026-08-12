@@ -50,6 +50,10 @@ pub struct OpenIdTokenProviderConfigArguments {
         default_value = "false"
     )]
     pub tls_insecure: bool,
+    /// OAuth scope(s) to request in the client_credentials token request.
+    /// Space-separated when multiple scopes are needed. If unset, no scope parameter is sent.
+    #[arg(id = "oidc_scope", long = "oidc-scope", env = "OIDC_PROVIDER_SCOPE")]
+    pub scope: Option<String>,
 }
 
 impl OpenIdTokenProviderConfigArguments {
@@ -60,6 +64,7 @@ impl OpenIdTokenProviderConfigArguments {
             client_secret: Some(devmode::SSO_CLIENT_SECRET.to_string()),
             refresh_before: Duration::from_secs(30).into(),
             tls_insecure: false,
+            scope: None,
         }
     }
 }
@@ -89,6 +94,7 @@ pub struct OpenIdTokenProviderConfig {
     pub issuer_url: String,
     pub refresh_before: humantime::Duration,
     pub tls_insecure: bool,
+    pub scope: Option<String>,
 }
 
 impl OpenIdTokenProviderConfig {
@@ -99,6 +105,7 @@ impl OpenIdTokenProviderConfig {
             client_secret: devmode::SSO_CLIENT_SECRET.to_string(),
             refresh_before: Duration::from_secs(30).into(),
             tls_insecure: false,
+            scope: None,
         }
     }
 
@@ -132,6 +139,7 @@ impl OpenIdTokenProviderConfig {
                     issuer_url,
                     refresh_before: arguments.refresh_before,
                     tls_insecure: arguments.tls_insecure,
+                    scope: arguments.scope,
                 })
             }
             _ => None,
@@ -151,6 +159,7 @@ pub struct OpenIdTokenProvider {
     client: Arc<openid::Client>,
     current_token: Arc<RwLock<Option<openid::TemporalBearerGuard>>>,
     refresh_before: chrono::Duration,
+    scope: Option<String>,
 }
 
 impl Debug for OpenIdTokenProvider {
@@ -167,11 +176,16 @@ impl Debug for OpenIdTokenProvider {
 
 impl OpenIdTokenProvider {
     /// Create a new provider using the provided client.
-    pub fn new(client: openid::Client, refresh_before: chrono::Duration) -> Self {
+    pub fn new(
+        client: openid::Client,
+        refresh_before: chrono::Duration,
+        scope: Option<String>,
+    ) -> Self {
         Self {
             client: Arc::new(client),
             current_token: Arc::new(RwLock::new(None)),
             refresh_before,
+            scope,
         }
     }
 
@@ -198,6 +212,7 @@ impl OpenIdTokenProvider {
         Ok(Self::new(
             client,
             chrono::Duration::from_std(config.refresh_before.into())?,
+            config.scope,
         ))
     }
 
@@ -243,7 +258,11 @@ impl OpenIdTokenProvider {
             Some(current_token) => {
                 log::debug!("Refreshing token ... ");
                 match current_token.as_ref().refresh_token.is_some() {
-                    true => self.client.refresh_token(current_token, None).await?.into(),
+                    true => self
+                        .client
+                        .refresh_token(current_token, self.scope.as_deref())
+                        .await?
+                        .into(),
                     false => self.initial_token().await?,
                 }
             }
@@ -262,7 +281,7 @@ impl OpenIdTokenProvider {
     async fn initial_token(&self) -> Result<openid::TemporalBearerGuard, openid::error::Error> {
         Ok(self
             .client
-            .request_token_using_client_credentials(Some("openid"))
+            .request_token_using_client_credentials(self.scope.as_deref())
             .await?
             .into())
     }
