@@ -1,0 +1,23 @@
+[package]
+name = "trustify-module-validation"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+trustify-auth = { workspace = true }
+trustify-common = { workspace = true }
+trustify-entity = { workspace = true }
+
+actix-web = { workspace = true }
+sea-orm = { workspace = true, features = ["sea-query-binder", "sqlx-postgres", "runtime-tokio-rustls", "macros", "debug-print"] }
+sea-query = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true, features = ["serde-well-known"] }
+utoipa = { workspace = true, features = ["actix_extras", "time", "url", "uuid"] }
+utoipa-actix-web = { workspace = true }
+uuid = { workspace = true }

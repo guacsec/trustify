@@ -42,6 +42,7 @@ pub mod sbom_node_purl_ref;
 pub mod sbom_package;
 pub mod sbom_package_license;
 pub mod source_document;
+pub mod document_validation;
 pub mod status;
 pub mod user_preferences;
 pub mod version_range;

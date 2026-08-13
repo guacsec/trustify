@@ -19,6 +19,7 @@ trustify-module-ingestor = { workspace = true }
 trustify-module-storage = { workspace = true }
 trustify-module-ui = { workspace = true }
 trustify-module-user = { workspace = true }
+trustify-module-validation = { workspace = true }
 
 actix-web = { workspace = true }
 anyhow = { workspace = true }
