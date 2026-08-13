@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786551028305,
+  "lastUpdate": 1786611864734,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21015,6 +21015,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/443b7756a46490b986ce00768324e281a725c815"
         },
         "date": 1786551025970,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "5060d4c3972ab00b77b714de1cb03bf0c3e9cff3",
+          "message": "fix: update Cargo.lock for quick-xml 0.41.0",
+          "timestamp": "2026-08-13T06:37:24Z",
+          "tree_id": "2d2444ae927fd7b5b21a6aa32b3ce8910e79815c",
+          "url": "https://github.com/guacsec/trustify/commit/5060d4c3972ab00b77b714de1cb03bf0c3e9cff3"
+        },
+        "date": 1786611862275,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
