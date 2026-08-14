@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786611864734,
+  "lastUpdate": 1786736684563,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21044,6 +21044,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/5060d4c3972ab00b77b714de1cb03bf0c3e9cff3"
         },
         "date": 1786611862275,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "f1bfa9b85717b8829520a2477fbe958382ca999c",
+          "message": "ci: speed up using cargo-nextest",
+          "timestamp": "2026-08-14T19:02:34Z",
+          "tree_id": "c0a8f21f77d5c60d74cd9a0c9168b8d8c8f56865",
+          "url": "https://github.com/guacsec/trustify/commit/f1bfa9b85717b8829520a2477fbe958382ca999c"
+        },
+        "date": 1786736682649,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
