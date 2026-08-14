@@ -112,15 +112,23 @@ jobs:
           sudo mkdir /mnt/trustify
           sudo chmod a+rwx /mnt/trustify
 
+      - uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1 # v2
+        with:
+          tool: cargo-nextest
+
       - name: Test
         if: steps.filter.outputs.non_md_changes == 'true'
-        run: cargo test --all-features
+        run: cargo nextest run --all-features -E 'not test(=m0002010::performance)' --profile ci
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
           RUST_LOG: info,sqlx=error,sea_orm=error
           TRUSTIFY_S3_AWS_REGION: eu-west-1
           TRUSTIFY_S3_AWS_BUCKET: guacsec-migration-dumps
           TMPDIR: /mnt/trustify
+
+      - name: Doc tests
+        if: steps.filter.outputs.non_md_changes == 'true'
+        run: cargo test --doc --all-features
 
       - name: Export and Validate Generated Openapi Spec
         run: |

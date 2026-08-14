@@ -1,0 +1,12 @@
+[profile.default]
+# Tests spawn embedded PostgreSQL, which needs time to initialize.
+slow-timeout = { period = "180s", terminate-after = 3 }
+# Fail the run as soon as one test fails.
+fail-fast = true
+
+[profile.ci]
+# CI runners have limited resources; cap parallelism to avoid OOM
+# from too many concurrent embedded PostgreSQL instances.
+test-threads = 4
+slow-timeout = { period = "280s", terminate-after = 3 }
+fail-fast = false
