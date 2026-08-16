@@ -27,6 +27,48 @@ type AncestorResult = Arc<Vec<ResolvedSbom>>;
 type AncestorCell = Arc<tokio::sync::OnceCell<AncestorResult>>;
 type AncestorMap = HashMap<(Uuid, String), AncestorCell>;
 
+type ExternalSbomResult = Arc<Option<ResolvedSbom>>;
+type ExternalSbomCell = Arc<tokio::sync::OnceCell<ExternalSbomResult>>;
+type ExternalSbomMap = HashMap<String, ExternalSbomCell>;
+
+/// Request-scoped cache for [`resolve_external_sbom`] results.
+///
+/// During descendant traversal, every `ExternalNode` triggers a
+/// `resolve_external_sbom` DB query. The same external reference
+/// can appear across multiple SBOMs in the result set, causing
+/// redundant queries. This cache deduplicates them.
+///
+/// Concurrent callers for the same `node_id` are coalesced via
+/// `OnceCell` — only the first executes the query.
+#[derive(Default, Clone)]
+pub struct ExternalSbomCache {
+    cache: Arc<Mutex<ExternalSbomMap>>,
+}
+
+impl ExternalSbomCache {
+    /// Resolve an external SBOM reference, returning a cached result
+    /// when available.
+    async fn resolve<C: ConnectionTrait>(
+        &self,
+        node_id: &str,
+        connection: &C,
+    ) -> Result<Option<ResolvedSbom>, Error> {
+        let cell = {
+            let mut map = self.cache.lock();
+            map.entry(node_id.to_string()).or_default().clone()
+        };
+
+        let result = cell
+            .get_or_try_init(|| async {
+                let resolved = resolve_external_sbom(node_id, connection).await?;
+                Ok::<_, Error>(Arc::new(resolved))
+            })
+            .await?;
+
+        Ok((**result).clone())
+    }
+}
+
 /// Coalescing barrier for [`AncestorCache::prefetch`].
 ///
 /// When multiple concurrent tasks call `prefetch` for the same
@@ -205,6 +247,7 @@ pub struct Collector<'a, C: ConnectionTrait> {
     discovered: DiscoveredTracker,
     loaded_graphs: Arc<Mutex<HashMap<Uuid, Arc<PackageGraph>>>>,
     ancestor_cache: AncestorCache,
+    external_sbom_cache: ExternalSbomCache,
     relationships: &'a HashSet<Relationship>,
     connection: &'a C,
     concurrency: usize,
@@ -224,6 +267,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             discovered: self.discovered.clone(),
             loaded_graphs: self.loaded_graphs.clone(),
             ancestor_cache: self.ancestor_cache.clone(),
+            external_sbom_cache: self.external_sbom_cache.clone(),
             relationships: self.relationships,
             connection: self.connection,
             concurrency: self.concurrency,
@@ -246,6 +290,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
         concurrency: usize,
         loader: &'a GraphLoader,
         ancestor_cache: AncestorCache,
+        external_sbom_cache: ExternalSbomCache,
     ) -> Self {
         Self {
             graph_cache,
@@ -258,6 +303,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             discovered: Default::default(),
             loaded_graphs: Default::default(),
             ancestor_cache,
+            external_sbom_cache,
             relationships,
             connection,
             concurrency,
@@ -293,6 +339,7 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             discovered: self.discovered.clone(),
             loaded_graphs: self.loaded_graphs.clone(),
             ancestor_cache: self.ancestor_cache.clone(),
+            external_sbom_cache: self.external_sbom_cache.clone(),
             relationships: self.relationships,
             connection: self.connection,
             concurrency: self.concurrency,
@@ -365,7 +412,10 @@ impl<'a, C: ConnectionTrait> Collector<'a, C> {
             sbom_id: external_sbom_id,
             node_id: external_node_id,
             ..
-        }) = resolve_external_sbom(&external_node.node_id, self.connection).await?
+        }) = self
+            .external_sbom_cache
+            .resolve(&external_node.node_id, self.connection)
+            .await?
         else {
             return Ok((
                 None,

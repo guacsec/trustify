@@ -57,7 +57,7 @@ use trustify_entity::{
     relationship::Relationship,
     sbom,
     sbom_external_node::{self, DiscriminatorType, ExternalType},
-    sbom_node_checksum, source_document,
+    source_document,
 };
 use uuid::Uuid;
 
@@ -235,26 +235,31 @@ async fn resolve_rh_external_sbom_descendants<C: ConnectionTrait>(
     sbom_external_node_ref: String,
     connection: &C,
 ) -> Result<Option<ResolvedSbom>, Error> {
-    // find checksum value for the node
+    // Single self-join query: find nodes in other SBOMs that share
+    // the same checksum value as the given node.
+    #[derive(Debug, FromQueryResult)]
+    struct ChecksumMatch {
+        matched_sbom_id: Uuid,
+        matched_node_id: String,
+    }
 
-    let Some(entity) = sbom_node_checksum::Entity::find()
-        .filter(sbom_node_checksum::Column::NodeId.eq(sbom_external_node_ref.clone()))
-        .filter(sbom_node_checksum::Column::SbomId.eq(sbom_external_sbom_id))
-        .one(connection)
-        .await?
-    else {
-        log::debug!("Unable to find checksum");
-        return Ok(None);
-    };
-
-    log::debug!("Checksum: {} / {}", entity.value, entity.sbom_id);
-
-    // now find if there are any other nodes with the same checksums
-    let matches = sbom_node_checksum::Entity::find()
-        .filter(sbom_node_checksum::Column::Value.eq(entity.value.to_string()))
-        .filter(sbom_node_checksum::Column::SbomId.ne(entity.sbom_id))
-        .all(connection)
-        .await?;
+    let matches = ChecksumMatch::find_by_statement(Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        r#"
+        SELECT matched.sbom_id AS matched_sbom_id,
+               matched.node_id AS matched_node_id
+        FROM sbom_node_checksum self_chk
+        JOIN sbom_node_checksum matched
+          ON matched.value = self_chk.value
+         AND matched.type = self_chk.type
+         AND matched.sbom_id != self_chk.sbom_id
+        WHERE self_chk.sbom_id = $1
+          AND self_chk.node_id = $2
+        "#,
+        [sbom_external_sbom_id.into(), sbom_external_node_ref.into()],
+    ))
+    .all(connection)
+    .await?;
 
     log::debug!("Found {} nodes by checksum", matches.len());
 
@@ -264,17 +269,20 @@ async fn resolve_rh_external_sbom_descendants<C: ConnectionTrait>(
         // which has not defined a bom-ref - we can 'sniff' this because such nodes always
         // are ingested with a uuid node-id.
         .find(|model| {
-            if Uuid::parse_str(&model.node_id).is_err() {
+            if Uuid::parse_str(&model.matched_node_id).is_err() {
                 // failed to parse, we keep it
                 true
             } else {
-                log::debug!("Dropping suspected top-level node ID: {}", model.node_id);
+                log::debug!(
+                    "Dropping suspected top-level node ID: {}",
+                    model.matched_node_id
+                );
                 false
             }
         })
-        .map(|matched_model| ResolvedSbom {
-            sbom_id: matched_model.sbom_id,
-            node_id: matched_model.node_id,
+        .map(|matched| ResolvedSbom {
+            sbom_id: matched.matched_sbom_id,
+            node_id: matched.matched_node_id,
             cpe_ids: vec![],
             graph_node_id: None,
         }))
@@ -730,6 +738,7 @@ impl AnalysisService {
 
         let loader = &GraphLoader::new(self.clone());
         let ancestor_cache = AncestorCache::default();
+        let external_sbom_cache = ExternalSbomCache::default();
 
         // Batch-prefetch ancestor results for all PackageNodes in
         // the initial set of graphs.  This replaces N individual
@@ -748,6 +757,7 @@ impl AnalysisService {
                 let graph_cache = self.inner.graph_cache.clone();
                 let relationships = Arc::clone(&relationships);
                 let ancestor_cache = ancestor_cache.clone();
+                let external_sbom_cache = external_sbom_cache.clone();
                 async move {
                     log::trace!(
                         "Discovered node - sbom: {}, node: {}",
@@ -768,6 +778,7 @@ impl AnalysisService {
                         self.concurrency,
                         loader,
                         ancestor_cache.clone(),
+                        external_sbom_cache.clone(),
                     )
                     .collect();
 
@@ -784,6 +795,7 @@ impl AnalysisService {
                         self.concurrency,
                         loader,
                         ancestor_cache,
+                        external_sbom_cache,
                     )
                     .collect();
 
