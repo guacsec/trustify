@@ -511,12 +511,12 @@ async fn test_simple_by_name_deps_service(ctx: &TrustifyContext) -> Result<(), a
     assert_eq!(analysis_graph.total, Some(1));
 
     assert_eq!(
-        analysis_graph.items[0].purl,
-        vec![Purl::from_str("pkg:rpm/redhat/A@0.0.0?arch=src")?]
+        &*analysis_graph.items[0].purl,
+        [Purl::from_str("pkg:rpm/redhat/A@0.0.0?arch=src")?]
     );
     assert_eq!(
-        analysis_graph.items[0].cpe,
-        vec![Cpe::from_str("cpe:/a:redhat:simple:1::el9")?]
+        &*analysis_graph.items[0].cpe,
+        [Cpe::from_str("cpe:/a:redhat:simple:1::el9")?]
     );
 
     Ok(())
@@ -545,8 +545,8 @@ async fn test_simple_by_purl_deps_service(ctx: &TrustifyContext) -> Result<(), a
         .await?;
 
     assert_eq!(
-        analysis_graph.items[0].purl,
-        vec![Purl::from_str("pkg:rpm/redhat/AA@0.0.0?arch=src")?]
+        &*analysis_graph.items[0].purl,
+        [Purl::from_str("pkg:rpm/redhat/AA@0.0.0?arch=src")?]
     );
 
     assert_eq!(analysis_graph.total, Some(1));

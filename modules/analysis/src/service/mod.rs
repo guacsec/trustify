@@ -914,40 +914,9 @@ impl AnalysisService {
                 })
             }
             GraphQuery::Query(query) => graph.node_weight(i).is_some_and(|node| {
-                let purls: Vec<_> = match node {
-                    graph::Node::Package(p) => {
-                        p.purl
-                            .iter()
-                            .map(|p| {
-                                let mut v: serde_json::Value = p.into();
-                                // if any translations are applied to
-                                // the DB query, they must be added to
-                                // this context as well
-                                v["type"] = v["ty"].clone();
-                                Value::Json(v)
-                            })
-                            .collect()
-                    }
-                    _ => vec![],
-                };
-                let cpes: Vec<_> = match node {
-                    graph::Node::Package(p) => p
-                        .cpe
-                        .iter()
-                        .map(|cpe| {
-                            Value::Json(json!({
-                                "part": cpe.part(),
-                                "vendor": cpe.vendor(),
-                                "product": cpe.product(),
-                                "version": cpe.version(),
-                                "update": cpe.update(),
-                                "edition": cpe.edition(),
-                                "language": cpe.language(),
-                            }))
-                        })
-                        .collect(),
-                    _ => vec![],
-                };
+                let q = &query.q;
+                let needs_nested_purl = q.contains("purl:");
+                let needs_nested_cpe = q.contains("cpe:");
                 let sbom_id = node.sbom_id.to_string();
                 let mut context = ValueContext::from([
                     ("sbom_id", &*sbom_id),
@@ -957,10 +926,38 @@ impl AnalysisService {
                 match node {
                     graph::Node::Package(package) => {
                         context.put("version", &*package.version);
-                        context.put_hidden("cpe", &package.cpe);
-                        context.put_hidden("cpe", cpes);
                         context.put_hidden("purl", &package.purl);
-                        context.put_hidden("purl", purls);
+                        context.put_hidden("cpe", &package.cpe);
+                        if needs_nested_purl {
+                            let purls: Vec<_> = package
+                                .purl
+                                .iter()
+                                .map(|p| {
+                                    let mut v: serde_json::Value = p.into();
+                                    v["type"] = v["ty"].clone();
+                                    Value::Json(v)
+                                })
+                                .collect();
+                            context.put_hidden("purl", purls);
+                        }
+                        if needs_nested_cpe {
+                            let cpes: Vec<_> = package
+                                .cpe
+                                .iter()
+                                .map(|cpe| {
+                                    Value::Json(json!({
+                                        "part": cpe.part(),
+                                        "vendor": cpe.vendor(),
+                                        "product": cpe.product(),
+                                        "version": cpe.version(),
+                                        "update": cpe.update(),
+                                        "edition": cpe.edition(),
+                                        "language": cpe.language(),
+                                    }))
+                                })
+                                .collect();
+                            context.put_hidden("cpe", cpes);
+                        }
                     }
                     graph::Node::External(external) => {
                         context.put(

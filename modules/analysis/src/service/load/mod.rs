@@ -82,15 +82,10 @@ impl Context {
     }
 
     pub fn intern(&mut self, s: String) -> Arc<String> {
-        if self.strings.contains_key(&s)
-            && let Some(s) = self.strings.get(&s)
-        {
-            return s.clone();
-        }
-
-        let a = Arc::new(s.clone());
-        self.strings.insert(s, a.clone());
-        a
+        self.strings
+            .entry(s)
+            .or_insert_with_key(|k| Arc::new(k.clone()))
+            .clone()
     }
 }
 

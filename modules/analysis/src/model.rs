@@ -79,14 +79,17 @@ pub struct CacheStatusEntry {
 pub struct BaseSummary {
     pub sbom_id: String,
     pub node_id: String,
-    pub purl: Vec<Purl>,
-    pub cpe: Vec<Cpe>,
+    pub purl: Arc<[Purl]>,
+    pub cpe: Arc<[Cpe]>,
     pub name: String,
     pub version: String,
     pub published: String,
-    pub document_id: String,
-    pub product_name: String,
-    pub product_version: String,
+    #[schema(value_type = String)]
+    pub document_id: Arc<String>,
+    #[schema(value_type = String)]
+    pub product_name: Arc<String>,
+    #[schema(value_type = String)]
+    pub product_version: Arc<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]

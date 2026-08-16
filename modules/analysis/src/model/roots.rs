@@ -92,20 +92,21 @@ impl<'a> RootTraces for &'a Vec<Node> {
 mod test {
     use super::*;
     use crate::model::BaseSummary;
+    use std::sync::Arc;
     use trustify_entity::relationship::Relationship;
 
     fn base(node_id: &str) -> BaseSummary {
         BaseSummary {
-            sbom_id: "".to_string(),
+            sbom_id: String::new(),
             node_id: node_id.to_string(),
-            purl: vec![],
-            cpe: vec![],
-            name: "".to_string(),
-            version: "".to_string(),
-            published: "".to_string(),
-            document_id: "".to_string(),
-            product_name: "".to_string(),
-            product_version: "".to_string(),
+            purl: Arc::from([]),
+            cpe: Arc::from([]),
+            name: String::new(),
+            version: String::new(),
+            published: String::new(),
+            document_id: Arc::new(String::new()),
+            product_name: Arc::new(String::new()),
+            product_version: Arc::new(String::new()),
         }
     }
 

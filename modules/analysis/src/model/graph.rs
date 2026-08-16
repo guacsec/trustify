@@ -103,33 +103,30 @@ fn published_to_string(value: OffsetDateTime) -> String {
     value.format(&format).unwrap_or_else(|_| value.to_string())
 }
 
+static EMPTY_ARC_STRING: std::sync::LazyLock<Arc<String>> =
+    std::sync::LazyLock::new(|| Arc::new(String::new()));
+
+fn arc_string_or_default(opt: &Option<Arc<String>>) -> Arc<String> {
+    opt.as_ref()
+        .cloned()
+        .unwrap_or_else(|| EMPTY_ARC_STRING.clone())
+}
+
 impl From<&Node> for BaseSummary {
     fn from(value: &Node) -> Self {
         match value {
             Node::Package(value) => BaseSummary::from(value),
             _ => Self {
                 sbom_id: value.sbom_id.to_string(),
-                node_id: value.node_id.to_string(),
-                purl: vec![],
-                cpe: vec![],
-                name: value.name.to_string(),
-                version: "".to_string(),
+                node_id: value.node_id.clone(),
+                purl: Arc::from([]),
+                cpe: Arc::from([]),
+                name: value.name.clone(),
+                version: String::new(),
                 published: published_to_string(value.published),
-                document_id: value
-                    .document_id
-                    .as_ref()
-                    .map(|s| s.to_string())
-                    .unwrap_or_default(),
-                product_name: value
-                    .product_name
-                    .as_ref()
-                    .map(|s| s.to_string())
-                    .unwrap_or_default(),
-                product_version: value
-                    .product_version
-                    .as_ref()
-                    .map(|s| s.to_string())
-                    .unwrap_or_default(),
+                document_id: arc_string_or_default(&value.document_id),
+                product_name: arc_string_or_default(&value.product_name),
+                product_version: arc_string_or_default(&value.product_version),
             },
         }
     }
@@ -139,27 +136,15 @@ impl From<&PackageNode> for BaseSummary {
     fn from(value: &PackageNode) -> Self {
         Self {
             sbom_id: value.sbom_id.to_string(),
-            node_id: value.node_id.to_string(),
-            purl: value.purl.to_vec(),
-            cpe: value.cpe.to_vec(),
-            name: value.name.to_string(),
-            version: value.version.to_string(),
+            node_id: value.node_id.clone(),
+            purl: Arc::clone(&value.purl),
+            cpe: Arc::clone(&value.cpe),
+            name: value.name.clone(),
+            version: value.version.clone(),
             published: published_to_string(value.published),
-            document_id: value
-                .document_id
-                .as_ref()
-                .map(|s| s.to_string())
-                .unwrap_or_default(),
-            product_name: value
-                .product_name
-                .as_ref()
-                .map(|s| s.to_string())
-                .unwrap_or_default(),
-            product_version: value
-                .product_version
-                .as_ref()
-                .map(|s| s.to_string())
-                .unwrap_or_default(),
+            document_id: arc_string_or_default(&value.document_id),
+            product_name: arc_string_or_default(&value.product_name),
+            product_version: arc_string_or_default(&value.product_version),
         }
     }
 }
