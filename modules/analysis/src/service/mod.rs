@@ -725,7 +725,7 @@ impl AnalysisService {
         graphs: &[(Uuid, Arc<PackageGraph>)],
         connection: &C,
     ) -> Result<Vec<Node>, Error> {
-        let relationships = options.relationships;
+        let relationships = Arc::new(options.relationships);
         log::debug!("relations: {:?}", relationships);
 
         let loader = &GraphLoader::new(self.clone());
@@ -746,7 +746,7 @@ impl AnalysisService {
             self.concurrency,
             |graph, node_index, node| {
                 let graph_cache = self.inner.graph_cache.clone();
-                let relationships = relationships.clone();
+                let relationships = Arc::clone(&relationships);
                 let ancestor_cache = ancestor_cache.clone();
                 async move {
                     log::trace!(
