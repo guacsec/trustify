@@ -51,7 +51,7 @@ impl KevLoader {
             .map(String::as_str)
             .unwrap_or(SOURCE_CISA_KEV);
 
-        let mut warnings = Vec::new();
+        let mut dropped = DroppedDates::default();
         let mut creator = ExploitCreator::new(source);
 
         for entry in catalog.vulnerabilities {
@@ -59,13 +59,13 @@ impl KevLoader {
                 &entry.cve_id,
                 "dateAdded",
                 entry.date_added.as_deref(),
-                &mut warnings,
+                &mut dropped,
             );
             let remediation_due_date = parse_date(
                 &entry.cve_id,
                 "dueDate",
                 entry.due_date.as_deref(),
-                &mut warnings,
+                &mut dropped,
             );
 
             creator.add(ExploitEntry {
@@ -89,7 +89,7 @@ impl KevLoader {
             // for catalog documents. Same approach as the CWE catalog loader.
             id: digests.sha512.encode_hex(),
             document_id: Some(format!("{source}/{}", catalog.catalog_version)),
-            warnings,
+            warnings: dropped.into_warnings(),
         })
     }
 }
@@ -138,21 +138,61 @@ impl<'e> From<&'e KevEntry> for KevMetadata<'e> {
     }
 }
 
-/// Parse a catalog date (e.g. "2021-12-10"). Unparsable dates are dropped
-/// rather than failing the whole catalog, and reported as a warning.
+/// How many individual dropped dates to name in the ingest result.
+const MAX_DROPPED_DATE_EXAMPLES: usize = 5;
+
+/// Dropped dates, kept as a few examples plus a count. A catalog whose date
+/// format we do not understand at all would otherwise return one warning per
+/// entry — thousands of near-identical strings for a single underlying fault.
+#[derive(Default)]
+struct DroppedDates {
+    examples: Vec<String>,
+    total: usize,
+}
+
+impl DroppedDates {
+    fn add(&mut self, message: String) {
+        self.total += 1;
+        if self.examples.len() < MAX_DROPPED_DATE_EXAMPLES {
+            self.examples.push(message);
+        }
+    }
+
+    fn into_warnings(self) -> Vec<String> {
+        if self.total == 0 {
+            return vec![];
+        }
+
+        tracing::warn!(total = self.total, "dropped unparsable catalog dates");
+
+        let mut warnings = self.examples;
+        if self.total > warnings.len() {
+            warnings.push(format!(
+                "dropped {} unparsable dates in total, {} shown",
+                self.total,
+                warnings.len()
+            ));
+        }
+        warnings
+    }
+}
+
+/// Parse a catalog date (e.g. "2021-12-10"). Unparsable dates are dropped rather
+/// than failing the whole catalog, and collected into `dropped`.
 fn parse_date(
     cve_id: &str,
     field: &str,
     value: Option<&str>,
-    warnings: &mut Vec<String>,
+    dropped: &mut DroppedDates,
 ) -> Option<Date> {
     let value = value?;
 
     match Date::parse(value, format_description!("[year]-[month]-[day]")) {
         Ok(date) => Some(date),
         Err(err) => {
-            tracing::warn!(cve_id, field, value, %err, "dropping unparsable catalog date");
-            warnings.push(format!(
+            // per-occurrence detail at debug; the total is warned once
+            tracing::debug!(cve_id, field, value, %err, "dropping unparsable catalog date");
+            dropped.add(format!(
                 "{cve_id}: dropping unparsable {field} {value:?}: {err}"
             ));
             None
@@ -382,6 +422,53 @@ mod test {
                 .filter(|e| e.source == SOURCE_CISA_KEV)
                 .count(),
             3
+        );
+
+        Ok(())
+    }
+
+    /// A catalog whose dates are all malformed must not return one warning per
+    /// entry.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn dropped_dates_are_capped(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        let entries = (0..50)
+            .map(|i| {
+                serde_json::json!({
+                    "cveID": format!("CVE-2099-{i:04}"),
+                    "dateAdded": "17/07/2025",
+                    "dueDate": "07/08/2025",
+                })
+            })
+            .collect::<Vec<_>>();
+        let bytes = serde_json::to_vec(&serde_json::json!({
+            "catalogVersion": "2025.07.28",
+            "vulnerabilities": entries,
+        }))?;
+
+        let digests = trustify_common::hashing::Digests::digest(&bytes);
+        let result = ctx
+            .db
+            .transaction(async |tx| {
+                KevLoader::new()
+                    .load(
+                        Labels::default(),
+                        serde_json::from_slice(&bytes)?,
+                        &digests,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
+
+        // every entry is still ingested, dates simply dropped
+        assert_eq!(exploit::Entity::find().all(&ctx.db).await?.len(), 50);
+
+        // 100 bad dates collapse to a handful of examples plus a total
+        assert_eq!(result.warnings.len(), MAX_DROPPED_DATE_EXAMPLES + 1);
+        assert_eq!(
+            result.warnings.last().map(String::as_str),
+            Some("dropped 100 unparsable dates in total, 5 shown")
         );
 
         Ok(())
