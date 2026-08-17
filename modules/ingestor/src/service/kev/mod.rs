@@ -88,10 +88,7 @@ impl KevLoader {
             // Returning the digest as "id", as no source_document is created
             // for catalog documents. Same approach as the CWE catalog loader.
             id: digests.sha512.encode_hex(),
-            document_id: Some(match &catalog.catalog_version {
-                Some(version) => format!("{source}/{version}"),
-                None => source.to_string(),
-            }),
+            document_id: Some(format!("{source}/{}", catalog.catalog_version)),
             warnings,
         })
     }

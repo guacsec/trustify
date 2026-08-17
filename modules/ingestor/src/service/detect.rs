@@ -477,6 +477,57 @@ mod test {
         Ok(())
     }
 
+    /// Detection keys on `catalogVersion`, so the schema has to require it.
+    /// Otherwise a catalog could parse happily yet never be recognised without
+    /// an explicit format hint.
+    #[test(tokio::test)]
+    async fn detect_every_parsable_cisa_kev_document() -> Result<(), anyhow::Error> {
+        for name in [
+            "known_exploited_vulnerabilities.json",
+            "known_exploited_vulnerabilities-minimal.json",
+            "known_exploited_vulnerabilities-entry-removed.json",
+            "known_exploited_vulnerabilities-entry-revised.json",
+            "known_exploited_vulnerabilities-empty.json",
+        ] {
+            let bytes = document_bytes(format!("kev/{name}")).await?;
+
+            // whatever the schema accepts, detection must recognise
+            assert!(
+                serde_json::from_slice::<KevCatalog>(&bytes).is_ok(),
+                "{name} must parse"
+            );
+            assert_eq!(
+                DocumentDetector::detect(&bytes)?.format(),
+                Format::CisaKev,
+                "{name} must be detected"
+            );
+        }
+
+        Ok(())
+    }
+
+    /// The converse: a document detection cannot recognise must not parse
+    /// either, so it fails with a clear error instead of silently depending on
+    /// the caller passing a format hint.
+    #[test(tokio::test)]
+    async fn cisa_kev_without_catalog_version_is_rejected() -> Result<(), anyhow::Error> {
+        let bytes = serde_json::to_vec(&serde_json::json!({
+            "title": "A mirror that dropped the catalog version",
+            "vulnerabilities": [{"cveID": "CVE-2021-44228"}],
+        }))?;
+
+        let err = serde_json::from_slice::<KevCatalog>(&bytes)
+            .expect_err("a catalog without catalogVersion must not parse");
+        assert!(
+            err.to_string().contains("catalogVersion"),
+            "the error must name the missing field: {err}"
+        );
+
+        assert!(DocumentDetector::detect(&bytes).is_err());
+
+        Ok(())
+    }
+
     #[test(tokio::test)]
     async fn detect_indigestable() -> Result<(), anyhow::Error> {
         let bytes = document_bytes("indigestable.json").await?;
