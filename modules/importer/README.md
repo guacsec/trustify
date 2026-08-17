@@ -47,10 +47,14 @@ http POST localhost:8080/api/v3/importer/redhat-sbom sbom[source]=https://securi
 http POST localhost:8080/api/v3/importer/kev kev[source]=https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json kev[disabled]:=false kev[period]=1d
 ```
 
-The optional `kev[catalog]` field sets the catalog source identifier under
-which the imported entries are stored and replaced on each run (defaults to
-`cisa`). Configure it when running multiple KEV importers, so they don't
-overwrite each other's entries.
+The optional `kev[catalog]` field sets the source identifier under which the
+imported entries are stored and replaced on each run (defaults to `cisa-kev`).
+Configure it when running multiple KEV importers, so they don't overwrite each
+other's entries.
+
+The entries land in the `exploit` table and are exposed by
+`GET /api/v3/exploit`, `GET /api/v3/exploit/{id}` and the `exploits` field of
+`GET /api/v3/vulnerability/{id}`.
 
 ### Get all importers
 

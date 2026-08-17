@@ -71,7 +71,7 @@ mod m0002260_cpe_part_vendor_product_index;
 mod m0002270_fix_vulnerability_base_score_type;
 mod m0002280_backfill_sbom_suppliers;
 mod m0002290_create_exploit_intelligence_job;
-mod m0002300_create_known_exploited_vulnerability;
+mod m0002300_create_exploit;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -158,7 +158,7 @@ impl MigratorExt for Migrator {
             .normal(m0002270_fix_vulnerability_base_score_type::Migration)
             .data(m0002280_backfill_sbom_suppliers::Migration)
             .normal(m0002290_create_exploit_intelligence_job::Migration)
-            .normal(m0002300_create_known_exploited_vulnerability::Migration)
+            .normal(m0002300_create_exploit::Migration)
     }
 }
 

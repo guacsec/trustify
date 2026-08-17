@@ -589,7 +589,7 @@
           "default": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
         },
         "catalog": {
-          "description": "Catalog source identifier under which the imported entries are stored\n(and replaced on each run). Defaults to \"cisa\".",
+          "description": "Catalog source identifier under which the imported entries are stored\n(and replaced on each run). Defaults to \"cisa-kev\".",
           "type": [
             "string",
             "null"

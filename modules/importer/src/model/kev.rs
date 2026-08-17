@@ -23,7 +23,7 @@ pub struct KevImporter {
     pub source: String,
 
     /// Catalog source identifier under which the imported entries are stored
-    /// (and replaced on each run). Defaults to "cisa".
+    /// (and replaced on each run). Defaults to "cisa-kev".
     #[serde(default)]
     pub catalog: Option<String>,
 }

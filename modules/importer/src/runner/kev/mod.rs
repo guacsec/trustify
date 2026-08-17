@@ -70,7 +70,7 @@ mod test {
     use test_context::test_context;
     use test_log::test;
     use trustify_common::db::ReadWrite;
-    use trustify_entity::known_exploited_vulnerability;
+    use trustify_entity::exploit;
     use trustify_test_context::TrustifyContext;
     use wiremock::{
         Mock, MockServer, ResponseTemplate,
@@ -123,7 +123,7 @@ mod test {
     }
 
     async fn entries(ctx: &TrustifyContext) -> Result<Vec<String>, anyhow::Error> {
-        Ok(known_exploited_vulnerability::Entity::find()
+        Ok(exploit::Entity::find()
             .all(&ctx.db)
             .await?
             .into_iter()
@@ -213,7 +213,7 @@ mod test {
             )
             .await?;
 
-        let sources = known_exploited_vulnerability::Entity::find()
+        let sources = exploit::Entity::find()
             .all(&ctx.db)
             .await?
             .into_iter()

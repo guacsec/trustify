@@ -34,6 +34,7 @@ pub fn configure(
         config.advisory_upload_limit,
         cache.clone(),
     );
+    crate::exploit::endpoints::configure(svc, db_ro.clone(), cache.clone());
     crate::license::endpoints::configure(svc, db_ro.clone());
     crate::organization::endpoints::configure(svc, db_ro.clone(), cache.clone());
     crate::purl::endpoints::configure(svc, db_ro.clone(), cache.clone());
