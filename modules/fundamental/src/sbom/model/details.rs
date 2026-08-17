@@ -35,7 +35,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 struct IdSet {
     advisory_id: Uuid,
-    qualified_purl_id: Uuid,
+    qualified_purl_id: Option<Uuid>,
     sbom_id: Uuid,
     sbom_node_id: String,
     advisory_vulnerability_advisory_id: Uuid,
@@ -50,15 +50,15 @@ impl FromQueryResult for IdSet {
     fn from_query_result(res: &QueryResult, _pre: &str) -> Result<Self, DbErr> {
         Ok(Self {
             advisory_id: res.try_get("", "advisory_id")?,
-            qualified_purl_id: res.try_get("", "qualified_purl_id")?,
+            qualified_purl_id: res.try_get::<Option<Uuid>>("", "qualified_purl_id")?,
             sbom_id: res.try_get("", "sbom_id")?,
             sbom_node_id: res.try_get("", "node_id")?,
             advisory_vulnerability_advisory_id: res.try_get("", "av_advisory_id")?,
             advisory_vulnerability_vulnerability_id: res.try_get("", "av_vulnerability_id")?,
             vulnerability_id: res.try_get("", "vulnerability_id")?,
-            context_cpe_id: res.try_get("", "cpe_id").ok(),
+            context_cpe_id: res.try_get::<Option<Uuid>>("", "cpe_id")?,
             status_id: res.try_get("", "status_id")?,
-            organization_id: res.try_get("", "organization_id").ok(),
+            organization_id: res.try_get::<Option<Uuid>>("", "organization_id")?,
         })
     }
 }
@@ -220,7 +220,9 @@ impl SbomDetails {
 
         for id_set in &id_sets {
             advisory_ids_set.insert(id_set.advisory_id);
-            qualified_purl_ids_set.insert(id_set.qualified_purl_id);
+            if let Some(qp_id) = id_set.qualified_purl_id {
+                qualified_purl_ids_set.insert(qp_id);
+            }
             sbom_package_ids_set.insert((id_set.sbom_id, id_set.sbom_node_id.clone()));
             advisory_vulnerability_ids_set.insert((
                 id_set.advisory_vulnerability_advisory_id,
@@ -391,14 +393,14 @@ impl SbomDetails {
                     id_set.advisory_id
                 ))
             })?;
-            let qualified_purl = qualified_purls_map
-                .get(&id_set.qualified_purl_id)
-                .ok_or_else(|| {
-                    Error::NotFound(format!(
-                        "QualifiedPurl {} not found in lookup",
-                        id_set.qualified_purl_id
-                    ))
-                })?;
+            let qualified_purl = id_set
+                .qualified_purl_id
+                .map(|qp_id| {
+                    qualified_purls_map.get(&qp_id).cloned().ok_or_else(|| {
+                        Error::NotFound(format!("QualifiedPurl {qp_id} not found in lookup",))
+                    })
+                })
+                .transpose()?;
             let sbom_package = sbom_packages_map
                 .get(&(id_set.sbom_id, id_set.sbom_node_id.clone()))
                 .ok_or_else(|| {
@@ -445,7 +447,7 @@ impl SbomDetails {
 
             relevant_advisory_info.push(QueryCatcher {
                 advisory: Arc::clone(advisory),
-                qualified_purl: Arc::clone(qualified_purl),
+                qualified_purl: qualified_purl.clone(),
                 sbom_package: Arc::clone(sbom_package),
                 sbom_node: Arc::clone(sbom_node),
                 advisory_vulnerability: Arc::clone(advisory_vulnerability),
@@ -540,7 +542,11 @@ impl SbomAdvisory {
                 name: each.sbom_node.name.clone(),
                 group: each.sbom_package.group.clone(),
                 version: each.sbom_package.version.clone(),
-                purl: vec![PurlSummary::from_entity(&each.qualified_purl)],
+                purl: each
+                    .qualified_purl
+                    .as_deref()
+                    .map(|qp| vec![PurlSummary::from_entity(qp)])
+                    .unwrap_or_default(),
                 cpe: vec![],
                 licenses: vec![],
                 licenses_ref_mapping: vec![],

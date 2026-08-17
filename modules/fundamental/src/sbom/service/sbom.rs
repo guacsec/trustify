@@ -1180,7 +1180,7 @@ pub struct LicenseBasicInfo {
 #[derive(Debug)]
 pub struct QueryCatcher {
     pub advisory: Arc<advisory::Model>,
-    pub qualified_purl: Arc<qualified_purl::Model>,
+    pub qualified_purl: Option<Arc<qualified_purl::Model>>,
     pub sbom_package: Arc<sbom_package::Model>,
     pub sbom_node: Arc<sbom_node::Model>,
     pub advisory_vulnerability: Arc<advisory_vulnerability::Model>,
@@ -1208,11 +1208,12 @@ impl FromQueryResult for QueryCatcher {
                 "",
                 vulnerability::Entity,
             )?),
-            qualified_purl: Arc::new(Self::from_query_result_multi_model(
+            qualified_purl: Self::from_query_result_multi_model_optional(
                 res,
                 "",
                 qualified_purl::Entity,
-            )?),
+            )?
+            .map(Arc::new),
             sbom_package: Arc::new(Self::from_query_result_multi_model(
                 res,
                 "",
