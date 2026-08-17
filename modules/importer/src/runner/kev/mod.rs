@@ -64,7 +64,11 @@ impl super::ImportRunner {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::runner::{ImportRunner, kev::walker::KevWalker, report::ReportBuilder};
+    use crate::runner::{
+        ImportRunner,
+        kev::walker::KevWalker,
+        report::{Phase, ReportBuilder, Severity},
+    };
     use sea_orm::EntityTrait;
     use std::{collections::HashSet, time::Duration};
     use test_context::test_context;
@@ -149,6 +153,8 @@ mod test {
             "{:?}",
             output.report.messages
         );
+        // the catalog counts as one processed item
+        assert_eq!(output.report.number_of_items, 1);
         assert_eq!(entries(ctx).await?.len(), 3);
 
         // the Last-Modified header is retained as the continuation
@@ -172,6 +178,8 @@ mod test {
 
         assert_eq!(entries(ctx).await?.len(), 3);
         assert_eq!(output.continuation, Some(continuation));
+        // nothing was processed, so nothing is counted
+        assert_eq!(output.report.number_of_items, 0);
 
         Ok(())
     }
@@ -268,6 +276,42 @@ mod test {
             "error should name the timeout: {chain}"
         );
         assert!(entries(ctx).await?.is_empty());
+
+        Ok(())
+    }
+
+    /// The loader's warnings have to reach the report, or a catalog whose dates
+    /// are unusable leaves no trace in the import history.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_kev_reports_loader_warnings(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        let catalog = serde_json::json!({
+            "catalogVersion": "2025.07.28",
+            "vulnerabilities": [{"cveID": "CVE-2099-0001", "dateAdded": "17/07/2025"}],
+        })
+        .to_string();
+        let server = catalog_server(&catalog, 200).await;
+
+        let output = runner(ctx)
+            .run_once_kev_catalog(
+                (),
+                importer(&source(&server), None),
+                serde_json::Value::Null,
+            )
+            .await?;
+
+        // the entry is still ingested, only its date was dropped
+        assert_eq!(entries(ctx).await?, ["CVE-2099-0001"]);
+        assert_eq!(output.report.number_of_items, 1);
+
+        let messages = output.report.messages[&Phase::Upload][&source(&server)].clone();
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].severity, Severity::Warning);
+        assert!(
+            messages[0].message.contains("dateAdded"),
+            "unexpected message: {}",
+            messages[0].message
+        );
 
         Ok(())
     }

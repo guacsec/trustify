@@ -1,6 +1,6 @@
 use crate::runner::{
     common::Error,
-    report::{Phase, ReportBuilder},
+    report::{Message, Phase, ReportBuilder},
 };
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
@@ -128,12 +128,27 @@ impl KevWalker {
             })
             .await;
 
-        if let Err(err) = result {
-            self.report
-                .lock()
-                .await
-                .add_error(Phase::Upload, self.source, err.to_string());
+        let ingested = {
+            let mut report = self.report.lock().await;
+            match result {
+                Ok(result) => {
+                    report.tick();
+                    // surface the loader's warnings, e.g. dropped catalog dates
+                    report.extend_messages(
+                        Phase::Upload,
+                        self.source.clone(),
+                        result.warnings.iter().map(Message::warning),
+                    );
+                    true
+                }
+                Err(err) => {
+                    report.add_error(Phase::Upload, self.source.clone(), err.to_string());
+                    false
+                }
+            }
+        };
 
+        if !ingested {
             // had an error, keep the old continuation as active.
             return Ok(self.continuation);
         }
