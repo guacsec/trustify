@@ -116,7 +116,6 @@ impl PurlDetails {
             qualified_package.id,
             &package.name,
             package.namespace.as_deref(),
-            &package_version.version,
         )
         .await?;
 
@@ -245,7 +244,6 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
     qualified_package_id: Uuid,
     purl_name: &str,
     namespace_name: Option<&str>,
-    purl_version: &str,
 ) -> Result<Vec<ProductStatusCatcher>, Error> {
     // Subquery to get all SBOM IDs for the given purl
     let sbom_ids_query = sbom::Entity::find()
@@ -283,11 +281,11 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
             product_status::Relation::Vulnerability.def(),
         )
         .filter(product_version::Column::SbomId.in_subquery(sbom_ids_query))
-        .filter(SimpleExpr::FunctionCall(
-            Func::cust(VersionMatches)
-                .arg(Expr::value(purl_version.to_string()))
-                .arg(Expr::col((version_range::Entity, Asterisk))),
-        ))
+        // NOTE: no version_matches filter here. The version_range in
+        // product_status refers to the *product* version (e.g. Quarkus
+        // 2.x), not the *package* version (e.g. keycloak-core 18.0.6).
+        // Product applicability is validated through the product_version
+        // → SBOM join chain above.
         .filter(
             Condition::any()
                 .add(product_status::Column::ContextCpeId.is_null())
