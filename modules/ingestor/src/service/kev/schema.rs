@@ -6,11 +6,9 @@ use serde::Deserialize;
 #[serde(rename_all = "camelCase")]
 pub struct KevCatalog {
     pub title: Option<String>,
-    /// Required, unlike the other descriptive fields, because format detection
-    /// keys on it: `vulnerabilities` alone is too generic a top-level key to
-    /// fingerprint a catalog with (CSAF documents carry one too). Detection may
-    /// only rely on fields the schema treats as mandatory, or a document could
-    /// parse yet never be recognised without an explicit format hint.
+    /// Required because format detection keys on it — `vulnerabilities` alone is
+    /// too generic, CSAF carries one too. Detection may only rely on mandatory
+    /// fields, or a document could parse yet never be recognised.
     pub catalog_version: String,
     pub date_released: Option<String>,
     pub count: Option<u64>,

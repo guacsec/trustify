@@ -64,9 +64,9 @@ impl super::ImportRunner {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::runner::ImportRunner;
+    use crate::runner::{ImportRunner, kev::walker::KevWalker, report::ReportBuilder};
     use sea_orm::EntityTrait;
-    use std::collections::HashSet;
+    use std::{collections::HashSet, time::Duration};
     use test_context::test_context;
     use test_log::test;
     use trustify_common::db::ReadWrite;
@@ -220,6 +220,54 @@ mod test {
             .map(|entry| entry.source)
             .collect::<HashSet<_>>();
         assert_eq!(sources, ["mirror".to_string()].into_iter().collect());
+
+        Ok(())
+    }
+
+    /// A host that accepts the connection then goes silent must fail the run,
+    /// not block it forever.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_kev_times_out_on_a_stalled_server(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/known_exploited_vulnerabilities.json"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(CATALOG)
+                    .set_delay(Duration::from_secs(30)),
+            )
+            .mount(&server)
+            .await;
+
+        let runner = runner(ctx);
+        let ingestor = IngestorService::new(Graph::new(), runner.storage.clone(), None);
+        let report = Arc::new(Mutex::new(ReportBuilder::new()));
+
+        let err = KevWalker::new(
+            source(&server),
+            None,
+            ingestor,
+            ReadWrite::new(ctx.db.clone()),
+            report,
+        )
+        .timeouts(Duration::from_millis(200), Duration::from_millis(200))
+        .run()
+        .await
+        .expect_err("a stalled server must fail the run");
+
+        // reqwest reports the cause down the source chain, not in the top message
+        let chain = std::iter::successors(Some(&err as &dyn std::error::Error), |err| err.source())
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(": ");
+        assert!(
+            chain.contains("timed out") || chain.contains("timeout"),
+            "error should name the timeout: {chain}"
+        );
+        assert!(entries(ctx).await?.is_empty());
 
         Ok(())
     }

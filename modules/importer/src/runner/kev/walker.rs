@@ -2,7 +2,7 @@ use crate::runner::{
     common::Error,
     report::{Phase, ReportBuilder},
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 use tracing::instrument;
 use trustify_common::db::ReadWrite;
@@ -14,6 +14,13 @@ use trustify_module_ingestor::service::{Cache, Format, IngestorService, kev::LAB
 /// slowly, so 64 MiB leaves plenty of headroom.
 const CATALOG_SIZE_LIMIT: usize = 64 * 1024 * 1024;
 
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Per-read, not per-transfer, so a slow but progressing download survives while
+/// a silent connection still fails fast. Without it a stalled host blocks the run
+/// forever: heartbeats keep flowing, so the stale-job reaper never reaps it.
+const READ_TIMEOUT: Duration = Duration::from_secs(30);
+
 /// Continuation token carrying the `Last-Modified` header of the previously
 /// processed catalog download.
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -24,6 +31,8 @@ pub struct KevWalker {
     continuation: LastModified,
     source: String,
     catalog: Option<String>,
+    connect_timeout: Duration,
+    read_timeout: Duration,
     ingestor: IngestorService,
     db: ReadWrite,
     report: Arc<Mutex<ReportBuilder>>,
@@ -43,6 +52,8 @@ impl KevWalker {
             continuation: LastModified(None),
             source: source.into(),
             catalog,
+            connect_timeout: CONNECT_TIMEOUT,
+            read_timeout: READ_TIMEOUT,
             ingestor,
             db,
             report,
@@ -55,10 +66,23 @@ impl KevWalker {
         self
     }
 
+    /// Override the default download timeouts, to keep the test for them fast.
+    #[cfg(test)]
+    pub fn timeouts(mut self, connect: Duration, read: Duration) -> Self {
+        self.connect_timeout = connect;
+        self.read_timeout = read;
+        self
+    }
+
     /// Run the walker
     #[instrument(skip(self), err(level=tracing::Level::INFO))]
     pub async fn run(self) -> Result<LastModified, Error> {
-        let mut response = reqwest::get(&self.source).await?.error_for_status()?;
+        let client = reqwest::Client::builder()
+            .connect_timeout(self.connect_timeout)
+            .read_timeout(self.read_timeout)
+            .build()?;
+
+        let mut response = client.get(&self.source).send().await?.error_for_status()?;
 
         let last_modified = response
             .headers()
