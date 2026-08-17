@@ -307,7 +307,10 @@ fn parse(s: &str, ct: &ColumnType) -> Result<SimpleExpr, Error> {
                 s.to_owned(),
             ))))),
         ),
-        ColumnType::TimestampWithTimeZone => {
+        // `Date` shares this arm: it already tries a plain date before falling
+        // back, and postgres has no `date > text` operator, so binding the
+        // literal text would fail at execution time.
+        ColumnType::Date | ColumnType::TimestampWithTimeZone => {
             if let Ok(odt) = OffsetDateTime::parse(s, &Rfc3339) {
                 SimpleExpr::Value(SeaValue::from(odt))
             } else if let Ok(d) = Date::parse(s, &format_description!("[year]-[month]-[day]")) {
@@ -389,6 +392,13 @@ mod tests {
         test("len>=42", r#""len" >= 42"#, Integer);
         test("len<42", r#""len" < 42"#, Integer);
         test("len<=42", r#""len" <= 42"#, Integer);
+
+        // a date column binds a date, not the literal text: postgres has no
+        // `date > text` operator, so a text bind fails at execution time
+        test("len>2024-01-01", r#""len" > '2024-01-01'"#, Date);
+        test("len=2024-01-01", r#""len" = '2024-01-01'"#, Date);
+        // an unparsable value is still passed through as text
+        test("len=whenever", r#""len" = 'whenever'"#, Date);
 
         Ok(())
     }
