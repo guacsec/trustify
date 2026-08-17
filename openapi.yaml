@@ -5008,7 +5008,7 @@ components:
         or that working exploit code for it exists.
 
         The named fields are those every source can be expected to carry; everything
-        specific to one source is in [`Self::metadata`]. For CISA KEV, that is
+        specific to one source is in `metadata`. For CISA KEV, that is
         `vendor_project`, `product`, `vulnerability_name`, `short_description`,
         `required_action`, `known_ransomware_campaign_use`, `notes` and `cwes`.
       required:
@@ -5817,7 +5817,7 @@ components:
               or that working exploit code for it exists.
 
               The named fields are those every source can be expected to carry; everything
-              specific to one source is in [`Self::metadata`]. For CISA KEV, that is
+              specific to one source is in `metadata`. For CISA KEV, that is
               `vendor_project`, `product`, `vulnerability_name`, `short_description`,
               `required_action`, `known_ransomware_campaign_use`, `notes` and `cwes`.
             required:
