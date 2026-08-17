@@ -204,6 +204,7 @@ fn parse_date(
 mod test {
     use super::*;
     use sea_orm::EntityTrait;
+    use std::collections::BTreeSet;
     use test_context::test_context;
     use test_log::test;
     use time::macros::date;
@@ -229,6 +230,16 @@ mod test {
 
     async fn load(ctx: &TrustifyContext, path: &str) -> Result<IngestResult, Error> {
         load_with_labels(ctx, path, Labels::default()).await
+    }
+
+    /// A set: `find()` emits no `ORDER BY`, so heap order proves nothing.
+    async fn ids(ctx: &TrustifyContext) -> Result<BTreeSet<uuid::Uuid>, anyhow::Error> {
+        Ok(exploit::Entity::find()
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|entry| entry.id)
+            .collect())
     }
 
     #[test_context(TrustifyContext)]
@@ -276,17 +287,14 @@ mod test {
     #[test(tokio::test)]
     async fn ingest_twice_is_idempotent(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         load(ctx, "kev/known_exploited_vulnerabilities.json").await?;
-        let before = exploit::Entity::find().all(&ctx.db).await?;
+        let before = ids(ctx).await?;
 
         load(ctx, "kev/known_exploited_vulnerabilities.json").await?;
-        let after = exploit::Entity::find().all(&ctx.db).await?;
+        let after = ids(ctx).await?;
 
         assert_eq!(after.len(), 3);
         // content-derived ids keep row identity stable across a full resync
-        assert_eq!(
-            before.iter().map(|e| e.id).collect::<Vec<_>>(),
-            after.iter().map(|e| e.id).collect::<Vec<_>>()
-        );
+        assert_eq!(before, after);
 
         Ok(())
     }
