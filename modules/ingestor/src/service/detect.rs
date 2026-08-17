@@ -468,18 +468,35 @@ mod test {
         Ok(())
     }
 
+    /// The reachable path: the importer and `?format=cisakev` both pass a
+    /// concrete hint.
     #[test(tokio::test)]
     async fn detect_cisa_kev() -> Result<(), anyhow::Error> {
         let bytes = document_bytes("kev/known_exploited_vulnerabilities.json").await?;
-        let detector = DocumentDetector::detect(&bytes)?;
+        let detector = DocumentDetector::detect_as(&bytes, Format::CisaKev)?;
         assert_eq!(detector.format(), Format::CisaKev);
         assert_eq!(detector.wire_format(), WireFormat::Json);
         Ok(())
     }
 
+    /// `POST /api/v3/advisory` hints `Advisory`, which covers neither catalog
+    /// format, so an upload without `?format=` is refused — the same as for the
+    /// CWE catalog. Pinned so that widening the hint group is deliberate.
+    #[test(tokio::test)]
+    async fn cisa_kev_needs_a_format_hint_from_the_advisory_endpoint() -> Result<(), anyhow::Error>
+    {
+        let bytes = document_bytes("kev/known_exploited_vulnerabilities.json").await?;
+
+        assert!(DocumentDetector::detect_as(&bytes, Format::Advisory).is_err());
+        // the fingerprint itself is sound; only the hint group excludes it
+        assert_eq!(DocumentDetector::detect(&bytes)?.format(), Format::CisaKev);
+
+        Ok(())
+    }
+
     /// Detection keys on `catalogVersion`, so the schema has to require it.
-    /// Otherwise a catalog could parse happily yet never be recognised without
-    /// an explicit format hint.
+    /// Checks the hintless path, which is what `detect_format` implements —
+    /// reaching it needs the hint group widened, see the test above.
     #[test(tokio::test)]
     async fn detect_every_parsable_cisa_kev_document() -> Result<(), anyhow::Error> {
         for name in [
