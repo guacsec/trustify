@@ -1,7 +1,10 @@
 pub mod schema;
 
 use crate::{
-    graph::exploit::{ExploitCreator, ExploitEntry},
+    graph::{
+        error::Error as GraphError,
+        exploit::{ExploitCreator, ExploitEntry},
+    },
     model::IngestResult,
     service::Error,
 };
@@ -48,15 +51,6 @@ impl KevLoader {
             .map(String::as_str)
             .unwrap_or(SOURCE_CISA_KEV);
 
-        // Loading is a full sync, so an empty catalog would delete every entry
-        // of the source. A real catalog is never empty, and a truncated
-        // download that still parses must not be allowed to wipe the data.
-        if catalog.vulnerabilities.is_empty() {
-            return Err(Error::InvalidContent(anyhow::anyhow!(
-                "catalog contains no entries; refusing to drop all entries of source {source:?}"
-            )));
-        }
-
         let mut warnings = Vec::new();
         let mut creator = ExploitCreator::new(source);
 
@@ -82,7 +76,13 @@ impl KevLoader {
             });
         }
 
-        creator.create(tx).await?;
+        // The creator refuses to replace a source with an empty set. That is a
+        // property of the document we were handed, so report it as invalid
+        // content (400) rather than as an internal graph failure (500).
+        creator.create(tx).await.map_err(|err| match err {
+            err @ GraphError::EmptyExploitSet(_) => Error::InvalidContent(err.into()),
+            err => err.into(),
+        })?;
 
         Ok(IngestResult {
             // Returning the digest as "id", as no source_document is created
@@ -173,23 +173,24 @@ mod test {
     use trustify_entity::exploit;
     use trustify_test_context::{TrustifyContext, document_bytes};
 
+    /// Load a document, surfacing the loader's own error type so that tests can
+    /// assert on how a failure is classified.
     async fn load_with_labels(
         ctx: &TrustifyContext,
         path: &str,
         labels: Labels,
-    ) -> Result<IngestResult, anyhow::Error> {
-        let bytes = document_bytes(path).await?;
+    ) -> Result<IngestResult, Error> {
+        let bytes = document_bytes(path).await.map_err(Error::Generic)?;
         let catalog = serde_json::from_slice(&bytes)?;
         let digests = trustify_common::hashing::Digests::digest(&bytes);
         let loader = KevLoader::new();
 
-        Ok(ctx
-            .db
+        ctx.db
             .transaction(async |tx| loader.load(labels, catalog, &digests, tx).await)
-            .await?)
+            .await
     }
 
-    async fn load(ctx: &TrustifyContext, path: &str) -> Result<IngestResult, anyhow::Error> {
+    async fn load(ctx: &TrustifyContext, path: &str) -> Result<IngestResult, Error> {
         load_with_labels(ctx, path, Labels::default()).await
     }
 
@@ -328,17 +329,22 @@ mod test {
         Ok(())
     }
 
+    /// The creator owns the refusal; this covers how the loader classifies it.
+    /// An empty document is bad input, so it must surface as invalid content
+    /// (400), not as an internal graph failure (500).
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
-    async fn empty_catalog_is_rejected(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    async fn empty_catalog_is_rejected_as_invalid_content(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
         load(ctx, "kev/known_exploited_vulnerabilities.json").await?;
 
         let err = load(ctx, "kev/known_exploited_vulnerabilities-empty.json")
             .await
             .expect_err("an empty catalog must be rejected");
         assert!(
-            err.to_string().contains("contains no entries"),
-            "unexpected error: {err}"
+            matches!(err, Error::InvalidContent(_)),
+            "must be classified as invalid content, got: {err:?}"
         );
 
         // the existing entries survive the rejected load
