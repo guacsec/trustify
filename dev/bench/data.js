@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787057151496,
+  "lastUpdate": 1787059962088,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21102,6 +21102,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/6d8e71f90a29cb6382373c70f93f45d7fddb5455"
         },
         "date": 1787057147868,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "waldemar.kindler@think-ahead.tech",
+            "name": "Waldemar Kindler",
+            "username": "waldemar-kindler"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "bcf709a1aa94ed4d1204cdb6fa3e6b3cf3844e7d",
+          "message": "test(kev): detect through the hint the endpoints actually pass\n\n`detect_cisa_kev` used `Format::Unknown`, a hint no caller passes, so it was\ngreen while `POST /api/v3/advisory` without `?format=` returns 400: the endpoint\nhints `Advisory`, which covers CSAF, CVE and OSV but neither catalog format.\nVerified against a running server.\n\nIt now detects with a concrete hint, matching the importer and\n`?format=cisakev`. A new test pins the limitation, so widening the hint group\nhas to be deliberate. The hintless invariant test stays, with a note that it\ncovers `detect_format` rather than a reachable path.\n\nNo behaviour change; whether the advisory endpoint should auto-detect catalog\ndocuments is open, and applies equally to the CWE catalog.",
+          "timestamp": "2026-08-18T12:53:24Z",
+          "tree_id": "7ad78842870c4f8ba6897b796e77c1e5dca7a26b",
+          "url": "https://github.com/guacsec/trustify/commit/bcf709a1aa94ed4d1204cdb6fa3e6b3cf3844e7d"
+        },
+        "date": 1787059960351,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
