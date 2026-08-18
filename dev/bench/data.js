@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786736684563,
+  "lastUpdate": 1787057151496,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21073,6 +21073,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/f1bfa9b85717b8829520a2477fbe958382ca999c"
         },
         "date": 1786736682649,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "6d8e71f90a29cb6382373c70f93f45d7fddb5455",
+          "message": "cargo deny: update config, ignore h2 0.3.x in deny.toml — dev-dependency only",
+          "timestamp": "2026-08-18T11:57:28Z",
+          "tree_id": "d22a9ef60ce0a6e27b8dacb3b0a70792e8f85559",
+          "url": "https://github.com/guacsec/trustify/commit/6d8e71f90a29cb6382373c70f93f45d7fddb5455"
+        },
+        "date": 1787057147868,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
