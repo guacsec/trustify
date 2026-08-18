@@ -6,16 +6,12 @@ all-features = true
 # reviewed periodically. Remove entries once the underlying crate is updated.
 ignore = [
     # Pre-existing transitive vulnerabilities — tracked for resolution.
-    # crossbeam-epoch: invalid pointer dereference in fmt::Pointer (transitive)
-    { id = "RUSTSEC-2026-0204", reason = "transitive dep; awaiting upstream update" },
     # proc-macro-error2: unmaintained (transitive via derive macros)
     { id = "RUSTSEC-2026-0173", reason = "transitive dep; no direct replacement yet" },
-    # quick-xml: quadratic attribute-name check (transitive via csaf/spdx parsers)
-    { id = "RUSTSEC-2026-0194", reason = "transitive dep; awaiting upstream update" },
-    # quick-xml: unbounded namespace allocation (transitive via csaf/spdx parsers)
-    { id = "RUSTSEC-2026-0195", reason = "transitive dep; awaiting upstream update" },
     # rsa: Marvin Attack timing side-channel (transitive via sequoia-openpgp)
     { id = "RUSTSEC-2023-0071", reason = "transitive dep via sequoia-openpgp; no fix available" },
+    # h2 0.3.x: unbounded empty DATA frames (dev-only via actix-http; no 0.3.x patch)
+    { id = "RUSTSEC-2026-0258", reason = "dev-dep only via actix-http; h2 0.3.x EOL, no patch available" },
 ]
 
 [licenses]
