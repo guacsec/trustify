@@ -182,12 +182,6 @@ fn cpe_context_subqueries(
         .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(qualified_purl_id))
         .into_query();
 
-    let mut allowed_cpe_ids = sbom_describing_cpe::Entity::find()
-        .select_only()
-        .column(sbom_describing_cpe::Column::CpeId)
-        .filter(sbom_describing_cpe::Column::SbomId.in_subquery(sbom_ids.clone()))
-        .into_query();
-
     let c = Alias::new("c");
     let sc = Alias::new("sc");
     let sdc = Alias::new("sdc");
@@ -228,6 +222,12 @@ fn cpe_context_subqueries(
                 .in_subquery(sbom_ids.clone()),
         )
         .to_owned();
+
+    let mut allowed_cpe_ids = sbom_describing_cpe::Entity::find()
+        .select_only()
+        .column(sbom_describing_cpe::Column::CpeId)
+        .filter(sbom_describing_cpe::Column::SbomId.in_subquery(sbom_ids.clone()))
+        .into_query();
     allowed_cpe_ids.union(UnionType::Distinct, generalized_cpe_ids);
 
     let sbom_has_cpes = sea_query::Query::select()
