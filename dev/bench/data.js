@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787059962088,
+  "lastUpdate": 1787231830395,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21131,6 +21131,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/bcf709a1aa94ed4d1204cdb6fa3e6b3cf3844e7d"
         },
         "date": 1787059960351,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "610b122b1a1049693eeb66ea3093d4c3cb132b09",
+          "message": "test(sbom): add TC-5630 wrong-product and purl-less CPE regression tests\n\nAdd three tests exercising CPE-context and purl-less CPE node handling in\nSBOM advisory correlation, with CycloneDX fixtures under\netc/test-data/cyclonedx/TC-5630.\n\n- sbom_details_purlless_cpe_node_consistency (passing): guards the fix for\n  a vulnerability matched only via a package-level CPE on a component with a\n  CPE but no PURL. Asserts the three views agree: /sbom/{id}/advisory lists\n  it, the SBOM list severity counts match, and /vulnerability/{id} backlinks\n  the SBOM. Uses the opentofu SBOM (purl-less os:hummingbird node) and a\n  synthetic CVE-2026-12151 matching cpe:/a:redhat:hummingbird:1\n- sbom_details_wrong_product_cpe_context (#[ignore])\n- sbom_details_wrong_product_satellite (#[ignore])\nThe two reproducers are ignored so CI stays green; remove #[ignore] once\ncontext scoping derives product identity from the OS/root component CPE.",
+          "timestamp": "2026-08-20T12:43:01Z",
+          "tree_id": "8c25f8fed08a222d596c4e432adab7405d988fe3",
+          "url": "https://github.com/guacsec/trustify/commit/610b122b1a1049693eeb66ea3093d4c3cb132b09"
+        },
+        "date": 1787231828729,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
