@@ -25,6 +25,7 @@ pub enum Format {
     ClearlyDefinedCuration,
     ClearlyDefined,
     CweCatalog,
+    CisaKev,
     // These should be resolved to one of the above before loading
     Advisory,
     SBOM,
