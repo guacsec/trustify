@@ -3,10 +3,15 @@ use test_log::test;
 use tracing::instrument;
 use trustify_common::{db::pagination_cache::PaginationCache, id::Id};
 use trustify_module_fundamental::common::model::{Score, ScoreType, ScoredVector, Severity};
+use trustify_module_fundamental::purl::model::details::purl::StatusContext;
 use trustify_module_fundamental::sbom::{
-    model::{AffectedSeverity, details::SbomDetails},
+    model::{
+        AffectedSeverity,
+        details::{SbomDetails, SbomStatus},
+    },
     service::SbomService,
 };
+use trustify_module_fundamental::vulnerability::service::VulnerabilityService;
 use trustify_module_ingestor::service::Format;
 use trustify_test_context::TrustifyContext;
 
@@ -503,6 +508,328 @@ async fn sbom_details_nvd_cpe_range_matching(ctx: &TrustifyContext) -> Result<()
             .iter()
             .any(|a| a.head.document_id == "CVE-2099-2005"),
         "CVE-2099-2005 (busybox [1.0.0, 1.19.4)) must not match busybox 1.19.4 at the exclusive upper bound"
+    );
+
+    Ok(())
+}
+
+/// Regression test for TC-5630 / TC-5171 (wrong-product / CPE-context not
+/// checked), fixture `cyclonedx/TC-5630/S3_wrongproduct_hummingbird_curl`.
+///
+/// The SBOM describes a RHEL-8 host carrying
+/// `pkg:rpm/redhat/curl@7.61.1-34.el8_10.11`. Three curl VEX documents each
+/// mention two *distinct* Red Hat products that both ship curl:
+/// `enterprise_linux:8` (the product this SBOM belongs to) and
+/// `hummingbird:1` (Red Hat Hardened Images -- a separate product that must
+/// never be attributed to this el8 SBOM).
+///
+/// Two failure modes are guarded:
+/// - **Wrong-product attribution:** no status for the el8 curl may carry a
+///   `hummingbird` context CPE. The `fixed` hummingbird rows are for a
+///   different product and must not attach here.
+/// - **Whole-CVE false positive (CVE-2025-10966):** el8 curl is
+///   `known_not_affected`, so this CVE must not appear as `affected` at all --
+///   it would only surface via the spurious hummingbird match.
+///
+/// CVE-2025-13034 is genuinely `known_affected` for el8 curl and must appear,
+/// but only under the `enterprise_linux:8` context.
+///
+/// NOTE: currently `#[ignore]`d because it is a *reproducer* for an unfixed
+/// case. This SBOM's describing/root node (`s3-wrongproduct-target`) carries no
+/// CPE -- the `enterprise_linux:8` CPE is on the `rhel` OS component, not the
+/// described node -- so `sbom_describing_cpe` is empty and the context filter
+/// falls through to "unscoped SBOM matches everything", letting the hummingbird
+/// product status attach to el8 curl. Remove `#[ignore]` once context scoping
+/// derives product identity from the OS/root component's CPE.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+#[ignore = "TC-5630/TC-5171 reproducer: wrong-product attribution not yet fixed for SBOMs whose described node has no CPE"]
+async fn sbom_details_wrong_product_cpe_context(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(PaginationCache::for_test());
+
+    const BASE: &str = "cyclonedx/TC-5630/S3_wrongproduct_hummingbird_curl";
+
+    ctx.ingest_documents([
+        format!("{BASE}/vex/CVE-2025-10966.json"),
+        format!("{BASE}/vex/CVE-2025-10148.json"),
+        format!("{BASE}/vex/CVE-2025-13034.json"),
+    ])
+    .await?;
+
+    let result = ctx
+        .ingest_document(format!("{BASE}/sbom_curl_el8.cdx.json"))
+        .await?;
+
+    let details = sbom
+        .fetch_sbom_details(Id::parse_uuid(result.id)?, vec![], &ctx.db)
+        .await?
+        .expect("SBOM details must be found");
+    log::info!("SBOM details: {details:?}");
+
+    // No status on any advisory may be attributed to the hummingbird product.
+    // This is the core wrong-product invariant.
+    for advisory in &details.advisories {
+        for status in &advisory.status {
+            if let Some(StatusContext::Cpe(cpe)) = &status.context {
+                assert!(
+                    !cpe.contains("hummingbird"),
+                    "advisory {} vuln {} attributed to wrong product: {cpe}",
+                    advisory.head.document_id,
+                    status.vulnerability.identifier,
+                );
+            }
+        }
+    }
+
+    // Helper: collect every `affected` status entry for a given CVE.
+    let affected_statuses = |cve: &str| -> Vec<&SbomStatus> {
+        details
+            .advisories
+            .iter()
+            .flat_map(|a| a.status.iter())
+            .filter(|s| s.vulnerability.identifier == cve && s.status == "affected")
+            .collect()
+    };
+
+    // CVE-2025-10966: whole-CVE false positive. el8 curl is
+    // known_not_affected; the only `affected`-producing match would be the
+    // spurious hummingbird row, which must not exist.
+    assert!(
+        affected_statuses("CVE-2025-10966").is_empty(),
+        "CVE-2025-10966 must not be affected (el8 curl is not_affected; \
+         only hummingbird matched)"
+    );
+
+    // CVE-2025-13034: genuinely affected for el8 curl. It must appear, and
+    // every affected status for it must carry the enterprise_linux:8 context
+    // (never hummingbird, never unscoped).
+    let affected_13034 = affected_statuses("CVE-2025-13034");
+    assert!(
+        !affected_13034.is_empty(),
+        "CVE-2025-13034 must be affected for el8 curl"
+    );
+    for status in &affected_13034 {
+        match &status.context {
+            Some(StatusContext::Cpe(cpe)) => assert!(
+                cpe.contains("enterprise_linux:8"),
+                "CVE-2025-13034 affected under unexpected context: {cpe}"
+            ),
+            other => panic!("CVE-2025-13034 affected status has non-el8 context: {other:?}"),
+        }
+    }
+
+    Ok(())
+}
+
+/// Regression test for TC-5630 / TC-5171 (wrong-product / CPE-context not
+/// checked), fixture `cyclonedx/TC-5630/S4_wrongproduct_satellite_chardet`.
+///
+/// The SBOM describes a RHEL-8 host carrying
+/// `pkg:rpm/redhat/python3-chardet@3.0.4-7.el8`. `python3-chardet` also ships
+/// in Red Hat Satellite (a *separate* product, built `.el7sat`). The three VEX
+/// documents are Satellite advisories: each `fixed` for `cpe:/a:redhat:satellite`
+/// and entirely *absent* for `enterprise_linux:8`.
+///
+/// This is a stronger reproducer than S3 (hummingbird): because el8-OS does not
+/// security-track chardet at all, the correct result is that *none* of the three
+/// CVEs appear for this SBOM. Any appearance is a whole-CVE false positive
+/// caused by matching the el8 package to a Satellite advisory by name, ignoring
+/// the `satellite` context CPE.
+///
+/// NOTE: currently `#[ignore]`d because it reproduces an unfixed case, same root
+/// cause as `sbom_details_wrong_product_cpe_context`: this SBOM's described node
+/// carries no CPE (the `enterprise_linux:8` CPE is on the OS component), so
+/// `sbom_describing_cpe` is empty and the context filter falls through to
+/// "unscoped SBOM matches everything". Remove `#[ignore]` once fixed.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+#[ignore = "TC-5630/TC-5171 reproducer: wrong-product attribution not yet fixed for SBOMs whose described node has no CPE"]
+async fn sbom_details_wrong_product_satellite(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(PaginationCache::for_test());
+
+    const BASE: &str = "cyclonedx/TC-5630/S4_wrongproduct_satellite_chardet";
+
+    ctx.ingest_documents([
+        format!("{BASE}/vex/CVE-2018-11751.json"),
+        format!("{BASE}/vex/CVE-2018-3258.json"),
+        format!("{BASE}/vex/CVE-2019-0231.json"),
+    ])
+    .await?;
+
+    let result = ctx
+        .ingest_document(format!("{BASE}/sbom_python3-chardet_el8.cdx.json"))
+        .await?;
+
+    let details = sbom
+        .fetch_sbom_details(Id::parse_uuid(result.id)?, vec![], &ctx.db)
+        .await?
+        .expect("SBOM details must be found");
+    log::info!("SBOM details: {details:?}");
+
+    // No status on any advisory may be attributed to the satellite product.
+    for advisory in &details.advisories {
+        for status in &advisory.status {
+            if let Some(StatusContext::Cpe(cpe)) = &status.context {
+                assert!(
+                    !cpe.contains("satellite"),
+                    "advisory {} vuln {} attributed to wrong product: {cpe}",
+                    advisory.head.document_id,
+                    status.vulnerability.identifier,
+                );
+            }
+        }
+    }
+
+    // el8-OS chardet is absent from all three Satellite advisories, so none of
+    // them may appear as `affected` for this SBOM.
+    for cve in ["CVE-2018-11751", "CVE-2018-3258", "CVE-2019-0231"] {
+        let affected = details
+            .advisories
+            .iter()
+            .flat_map(|a| a.status.iter())
+            .any(|s| s.vulnerability.identifier == cve && s.status == "affected");
+        assert!(
+            !affected,
+            "{cve} must not be affected: el8-OS python3-chardet is not tracked \
+             by this Satellite advisory (only satellite ships/fixes it)"
+        );
+    }
+
+    Ok(())
+}
+
+/// Regression test for TC-5630: a vulnerability that matches an SBOM only
+/// through a package-level CPE identity (`cpe_status`) on a component that has a
+/// CPE but *no* PURL must be reported consistently across all three views.
+///
+/// Fixture: `cyclonedx/TC-5630/registry.access.redhat.com_hi_opentofu.json`
+/// (CycloneDX 1.6) contains exactly one purl-less CPE component:
+/// `os:hummingbird@20251124` -> `cpe:/a:redhat:hummingbird:1`. The synthetic
+/// `CVE-2026-12151` marks `cpe:2.3:a:redhat:hummingbird:1` affected, matching
+/// only through that purl-less node.
+///
+/// Before the fix, the SBOM list severity counts included such matches while
+/// both detail endpoints silently dropped them (they required the matched node
+/// to carry a `qualified_purl_id`):
+/// - `cpe_advisory_info_sql` filtered `WHERE qualified_purl_id IS NOT NULL`
+/// - the vulnerability backlink `cpe_status_query` INNER JOINed
+///   `sbom_node_purl_ref` / `qualified_purl`.
+///
+/// This test asserts the three views now agree:
+/// 1. `fetch_sbom_details` (the `/sbom/{id}/advisory` endpoint) lists the CVE.
+/// 2. `batch_advisory_severity_counts` (the SBOM list endpoint) counts it, and
+///    the two counts match.
+/// 3. `fetch_vulnerability` (the `/vulnerability/{id}` endpoint) backlinks the
+///    SBOM.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+async fn sbom_details_purlless_cpe_node_consistency(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(PaginationCache::for_test());
+
+    const BASE: &str = "cyclonedx/TC-5630";
+
+    ctx.ingest_document(format!("{BASE}/CVE-2026-12151.json"))
+        .await?;
+
+    let result = ctx
+        .ingest_document(format!(
+            "{BASE}/registry.access.redhat.com_hi_opentofu.json"
+        ))
+        .await?;
+
+    let sbom_id = Id::parse_uuid(result.id)?;
+    let Id::Uuid(sbom_uuid) = sbom_id else {
+        panic!("expected a UUID sbom id");
+    };
+
+    // View 1: the details/advisory endpoint must list the CPE-only match.
+    let details = sbom
+        .fetch_sbom_details(sbom_id, vec![], &ctx.db)
+        .await?
+        .expect("SBOM details must be found");
+
+    let detail_cve_present = details
+        .advisories
+        .iter()
+        .any(|a| a.head.document_id == "CVE-2026-12151");
+    assert!(
+        detail_cve_present,
+        "CVE-2026-12151 must appear on /sbom/{{id}}/advisory via the purl-less \
+         hummingbird CPE node, got {:?}",
+        details
+            .advisories
+            .iter()
+            .map(|a| &a.head.document_id)
+            .collect::<Vec<_>>()
+    );
+
+    // The matched package is the purl-less CPE node: it carries the hummingbird
+    // CPE and no PURL.
+    let matched_pkg = details
+        .advisories
+        .iter()
+        .filter(|a| a.head.document_id == "CVE-2026-12151")
+        .flat_map(|a| a.status.iter())
+        .flat_map(|s| s.packages.iter())
+        .find(|p| p.name == "hummingbird")
+        .expect("hummingbird package must be the matched node");
+    assert!(
+        matched_pkg.purl.is_empty(),
+        "matched node must have no PURL, got {:?}",
+        matched_pkg.purl
+    );
+
+    // View 2: the list endpoint's severity counts must include the same match.
+    let counts = sbom
+        .batch_advisory_severity_counts(&[sbom_uuid], &ctx.db)
+        .await?;
+    let list_count: u64 = counts
+        .get(&sbom_uuid)
+        .map(|c| c.values().sum())
+        .unwrap_or_default();
+
+    // The details endpoint counts distinct affected advisories/CVEs; compare
+    // against the list severity-count total. Both must see CVE-2026-12151.
+    let detail_affected_count = details
+        .advisories
+        .iter()
+        .filter(|a| a.status.iter().any(|s| s.status == "affected"))
+        .count() as u64;
+
+    assert_eq!(
+        list_count, detail_affected_count,
+        "list severity-count total ({list_count}) must equal the details \
+         affected-advisory count ({detail_affected_count})"
+    );
+    assert!(
+        list_count >= 1,
+        "expected at least the CPE-only CVE to be counted, got {list_count}"
+    );
+
+    // View 3: the vulnerability detail endpoint must backlink this SBOM.
+    let vuln = VulnerabilityService::new(PaginationCache::for_test());
+    let vuln_details = vuln
+        .fetch_vulnerability("CVE-2026-12151", Default::default(), false, &ctx.db)
+        .await?
+        .expect("vulnerability must exist");
+
+    let backlinked: Vec<_> = vuln_details
+        .advisories
+        .iter()
+        .flat_map(|a| a.sboms.iter())
+        .map(|s| s.head.id)
+        .collect();
+    assert!(
+        backlinked.contains(&sbom_uuid),
+        "SBOM must be backlinked from CVE-2026-12151 via the purl-less CPE \
+         node, got {backlinked:?}"
     );
 
     Ok(())

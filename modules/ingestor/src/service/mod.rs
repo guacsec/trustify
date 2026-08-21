@@ -1,6 +1,7 @@
 pub mod advisory;
 pub mod dataset;
 mod detect;
+pub mod kev;
 pub mod sbom;
 pub mod weakness;
 

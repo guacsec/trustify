@@ -4,7 +4,8 @@ use trustify_common::db::{ReadWrite, pagination_cache::PaginationCache};
 use trustify_module_importer::model::{
     ClearlyDefinedImporter, ClearlyDefinedPackageType, CveImporter, CweImporter,
     DEFAULT_SOURCE_CLEARLY_DEFINED_CURATION, DEFAULT_SOURCE_CVEPROJECT, DEFAULT_SOURCE_CWE_CATALOG,
-    DEFAULT_SOURCE_NVD, DEFAULT_SOURCE_QUAY, NvdImporter, QuayImporter,
+    DEFAULT_SOURCE_KEV_CATALOG, DEFAULT_SOURCE_NVD, DEFAULT_SOURCE_QUAY, KevImporter, NvdImporter,
+    QuayImporter,
 };
 use trustify_module_importer::{
     model::{
@@ -170,6 +171,25 @@ async fn add_cwe(importer: &ImporterService, name: &str, description: &str) -> a
     .await
 }
 
+async fn add_kev(importer: &ImporterService, name: &str, description: &str) -> anyhow::Result<()> {
+    add(
+        importer,
+        name,
+        ImporterConfiguration::Kev(KevImporter {
+            common: CommonImporter {
+                disabled: true,
+                // once a day is plenty
+                period: Duration::from_secs(60 * 60 * 24),
+                description: Some(description.into()),
+                labels: Default::default(),
+            },
+            source: DEFAULT_SOURCE_KEV_CATALOG.into(),
+            catalog: None,
+        }),
+    )
+    .await
+}
+
 async fn add_quay(
     importer: &ImporterService,
     name: &str,
@@ -259,6 +279,13 @@ pub async fn sample_data(
     .await?;
 
     add_cwe(&importer, "cwe", "Common Weakness Enumeration").await?;
+
+    add_kev(
+        &importer,
+        "kev",
+        "CISA Known Exploited Vulnerabilities Catalog",
+    )
+    .await?;
 
     add_quay(
         &importer,
@@ -391,7 +418,7 @@ mod test {
             ImporterService::new(ReadWrite::new(ctx.db.clone()), PaginationCache::for_test());
         let result = service.list().await?;
 
-        assert_eq!(result.len(), 17);
+        assert_eq!(result.len(), 18);
 
         Ok(())
     }

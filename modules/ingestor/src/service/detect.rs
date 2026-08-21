@@ -7,6 +7,7 @@ use crate::{
             csaf::loader::CsafLoader, cve::loader::CveLoader, nvd::loader::NvdLoader,
             nvd::schema::NvdCve, osv::loader::OsvLoader,
         },
+        kev::{KevLoader, schema::KevCatalog},
         sbom::{
             clearly_defined::ClearlyDefinedLoader,
             clearly_defined_curation::ClearlyDefinedCurationLoader, cyclonedx::CyclonedxLoader,
@@ -57,6 +58,7 @@ pub enum DetectedDocument {
     ClearlyDefinedCuration(Box<Curation>),
     /// XML kept as raw bytes; the loader parses with roxmltree internally.
     CweCatalog(Vec<u8>),
+    CisaKev(Box<KevCatalog>),
 }
 
 /// Stateful document format detector that parses raw bytes through
@@ -199,6 +201,9 @@ impl DocumentDetector {
                     .load_bytes(labels, &bytes, digests, tx)
                     .await
             }
+            DetectedDocument::CisaKev(catalog) => {
+                KevLoader::new().load(labels, *catalog, digests, tx).await
+            }
         }
     }
 }
@@ -275,6 +280,13 @@ fn detect_format(value: &serde_json::Value, hint: Format) -> Result<Format, Erro
         };
     }
 
+    if Format::CisaKev.matches_hint(hint)
+        && value.get("catalogVersion").is_some()
+        && value.get("vulnerabilities").is_some()
+    {
+        return Ok(Format::CisaKev);
+    }
+
     if Format::ClearlyDefinedCuration.matches_hint(hint) && value.get("coordinates").is_some() {
         return Ok(Format::ClearlyDefinedCuration);
     }
@@ -324,6 +336,9 @@ fn parse_format(source: impl JsonSource, format: Format) -> Result<DetectedDocum
             source.parse_json().map_err(map_err)?,
         )),
         Format::ClearlyDefinedCuration => Ok(DetectedDocument::ClearlyDefinedCuration(Box::new(
+            source.parse_json().map_err(map_err)?,
+        ))),
+        Format::CisaKev => Ok(DetectedDocument::CisaKev(Box::new(
             source.parse_json().map_err(map_err)?,
         ))),
         Format::CweCatalog => Err(Error::UnsupportedFormat(
@@ -450,6 +465,83 @@ mod test {
         let detector = DocumentDetector::detect(&xml)?;
         assert_eq!(detector.format(), Format::CweCatalog);
         assert_eq!(detector.wire_format(), WireFormat::Xml);
+        Ok(())
+    }
+
+    /// The reachable path: the importer and `?format=cisakev` both pass a
+    /// concrete hint.
+    #[test(tokio::test)]
+    async fn detect_cisa_kev() -> Result<(), anyhow::Error> {
+        let bytes = document_bytes("kev/known_exploited_vulnerabilities.json").await?;
+        let detector = DocumentDetector::detect_as(&bytes, Format::CisaKev)?;
+        assert_eq!(detector.format(), Format::CisaKev);
+        assert_eq!(detector.wire_format(), WireFormat::Json);
+        Ok(())
+    }
+
+    /// `POST /api/v3/advisory` hints `Advisory`, which covers neither catalog
+    /// format, so an upload without `?format=` is refused — the same as for the
+    /// CWE catalog. Pinned so that widening the hint group is deliberate.
+    #[test(tokio::test)]
+    async fn cisa_kev_needs_a_format_hint_from_the_advisory_endpoint() -> Result<(), anyhow::Error>
+    {
+        let bytes = document_bytes("kev/known_exploited_vulnerabilities.json").await?;
+
+        assert!(DocumentDetector::detect_as(&bytes, Format::Advisory).is_err());
+        // the fingerprint itself is sound; only the hint group excludes it
+        assert_eq!(DocumentDetector::detect(&bytes)?.format(), Format::CisaKev);
+
+        Ok(())
+    }
+
+    /// Detection keys on `catalogVersion`, so the schema has to require it.
+    /// Checks the hintless path, which is what `detect_format` implements —
+    /// reaching it needs the hint group widened, see the test above.
+    #[test(tokio::test)]
+    async fn detect_every_parsable_cisa_kev_document() -> Result<(), anyhow::Error> {
+        for name in [
+            "known_exploited_vulnerabilities.json",
+            "known_exploited_vulnerabilities-minimal.json",
+            "known_exploited_vulnerabilities-entry-removed.json",
+            "known_exploited_vulnerabilities-entry-revised.json",
+            "known_exploited_vulnerabilities-empty.json",
+        ] {
+            let bytes = document_bytes(format!("kev/{name}")).await?;
+
+            // whatever the schema accepts, detection must recognise
+            assert!(
+                serde_json::from_slice::<KevCatalog>(&bytes).is_ok(),
+                "{name} must parse"
+            );
+            assert_eq!(
+                DocumentDetector::detect(&bytes)?.format(),
+                Format::CisaKev,
+                "{name} must be detected"
+            );
+        }
+
+        Ok(())
+    }
+
+    /// The converse: a document detection cannot recognise must not parse
+    /// either, so it fails with a clear error instead of silently depending on
+    /// the caller passing a format hint.
+    #[test(tokio::test)]
+    async fn cisa_kev_without_catalog_version_is_rejected() -> Result<(), anyhow::Error> {
+        let bytes = serde_json::to_vec(&serde_json::json!({
+            "title": "A mirror that dropped the catalog version",
+            "vulnerabilities": [{"cveID": "CVE-2021-44228"}],
+        }))?;
+
+        let err = serde_json::from_slice::<KevCatalog>(&bytes)
+            .expect_err("a catalog without catalogVersion must not parse");
+        assert!(
+            err.to_string().contains("catalogVersion"),
+            "the error must name the missing field: {err}"
+        );
+
+        assert!(DocumentDetector::detect(&bytes).is_err());
+
         Ok(())
     }
 
