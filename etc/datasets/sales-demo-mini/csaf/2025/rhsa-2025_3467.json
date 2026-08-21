@@ -1,0 +1,1002 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "A security update is now available for Red Hat JBoss Enterprise Application Platform 7.4.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.\n\n[Updated 5 November 2025]\nThe Synopsis was updated to fix a typo in the product version (7.4.21). No other changes have been made.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Red Hat JBoss Enterprise Application Platform 7 is a platform for Java applications based on the WildFly application runtime.\n\nThis asynchronous patch is a security update for Red Hat JBoss Enterprise Application Platform 7.4.\n\nSecurity Fix(es):\n\n* io.netty/netty: Denial of Service attack on windows app using Netty (CVE-2024-47535)\n\n* netty-common: Denial of Service attack on windows app using Netty (CVE-2025-25193)\n\n* io.netty/netty-handler: SslHandler doesn't correctly validate packets which can lead to native crash when using native SSLEngine (CVE-2025-24970)\n\n* org.wildfly.core/wildfly-server: Wildfly improper RBAC permission (CVE-2025-23367)\n\n* hornetq-core-client: Arbitrarily overwrite files or access sensitive information Security (CVE-2024-51127)\n\nA Red Hat Security Bulletin which addresses further details about this flaw is available in the References section.\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgements, and other related information, refer to the CVE page(s) listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2025:3467",
+        "url": "https://access.redhat.com/errata/RHSA-2025:3467"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "external",
+        "summary": "https://docs.redhat.com/en/documentation/red_hat_jboss_enterprise_application_platform/7.4",
+        "url": "https://docs.redhat.com/en/documentation/red_hat_jboss_enterprise_application_platform/7.4"
+      },
+      {
+        "category": "external",
+        "summary": "https://docs.redhat.com/en/documentation/red_hat_jboss_enterprise_application_platform/7.4/html-single/installation_guide/index",
+        "url": "https://docs.redhat.com/en/documentation/red_hat_jboss_enterprise_application_platform/7.4/html-single/installation_guide/index"
+      },
+      {
+        "category": "external",
+        "summary": "2323697",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2323697"
+      },
+      {
+        "category": "external",
+        "summary": "2325538",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2325538"
+      },
+      {
+        "category": "external",
+        "summary": "2337620",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2337620"
+      },
+      {
+        "category": "external",
+        "summary": "2344787",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2344787"
+      },
+      {
+        "category": "external",
+        "summary": "2344788",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2344788"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2025/rhsa-2025_3467.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat JBoss Enterprise Application Platform 7.4.21 security update",
+    "tracking": {
+      "current_release_date": "2026-08-19T23:13:10+00:00",
+      "generator": {
+        "date": "2026-08-19T23:13:10+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2025:3467",
+      "initial_release_date": "2025-04-01T13:06:47+00:00",
+      "revision_history": [
+        {
+          "date": "2025-04-01T13:06:47+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2025-11-05T13:55:17+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-19T23:13:10+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat JBoss Enterprise Application Platform 7",
+                "product": {
+                  "name": "Red Hat JBoss Enterprise Application Platform 7",
+                  "product_id": "Red Hat JBoss Enterprise Application Platform 7",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:jboss_enterprise_application_platform:7.4"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat JBoss Enterprise Application Platform"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2024-47535",
+      "cwe": {
+        "id": "CWE-400",
+        "name": "Uncontrolled Resource Consumption"
+      },
+      "discovery_date": "2024-11-12T16:01:18.772613+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2325538"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. An unsafe reading of the environment file could potentially cause a denial of service. When loaded on a Windows application, Netty attempts to load a file that does not exist. If an attacker creates a large file, the Netty application crashes.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "netty: Denial of Service attack on windows app using Netty",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 7"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2024-47535"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2325538",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2325538"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2024-47535",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2024-47535"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2024-47535",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-47535"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/fbf7a704a82e7449b48bd0bbb679f5661c6d61a3",
+          "url": "https://github.com/netty/netty/commit/fbf7a704a82e7449b48bd0bbb679f5661c6d61a3"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-xq3w-v528-46rv",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-xq3w-v528-46rv"
+        }
+      ],
+      "release_date": "2024-11-12T15:50:08.334000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-04-01T13:06:47+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:3467"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 5.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "netty: Denial of Service attack on windows app using Netty"
+    },
+    {
+      "cve": "CVE-2024-51127",
+      "cwe": {
+        "id": "CWE-22",
+        "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      },
+      "discovery_date": "2024-11-04T18:00:59.553511+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2323697"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the createTempFile method of hornetq. Affected version of hornetq allows attackers to arbitrarily overwrite files or access sensitive information.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "hornetq-core-client: Arbitrarily overwrite files or access sensitive information",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 7"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2024-51127"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2323697",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2323697"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2024-51127",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2024-51127"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2024-51127",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-51127"
+        },
+        {
+          "category": "external",
+          "summary": "http://hornetq.com",
+          "url": "http://hornetq.com"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/JAckLosingHeart/CWE-378/blob/main/CVE-2024-51127.md",
+          "url": "https://github.com/JAckLosingHeart/CWE-378/blob/main/CVE-2024-51127.md"
+        }
+      ],
+      "release_date": "2024-11-04T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-04-01T13:06:47+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:3467"
+        },
+        {
+          "category": "workaround",
+          "details": "There is currently no known mitigation for this vulnerability.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "hornetq-core-client: Arbitrarily overwrite files or access sensitive information"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Claudia Bartolini",
+            "Marco Ventura",
+            "Massimiliano Brolli"
+          ],
+          "organization": "TIM S.p.A"
+        }
+      ],
+      "cve": "CVE-2025-23367",
+      "cwe": {
+        "id": "CWE-284",
+        "name": "Improper Access Control"
+      },
+      "discovery_date": "2025-01-14T14:56:46.389000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2337620"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Wildfly Server Role Based Access Control (RBAC) provider. When authorization to control management operations is secured using the Role Based Access Control provider, a user without the required privileges can suspend or resume the server. A user with a Monitor or Auditor role is supposed to have only read access permissions and should not be able to suspend the server. \nThe vulnerability is caused by the Suspend and Resume handlers not performing authorization checks to validate whether the current user has the required permissions to proceed with the action.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "org.wildfly.core:wildfly-server: Wildfly improper RBAC permission",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Red Hat has evaluated this issue and the attacker must be authenticated as a user that belongs to the \"Monitor\" or \"Auditor\" management groups. It requires previous privileges to jeopardize an environment.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 7"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-23367"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2337620",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2337620"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-23367",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-23367"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-23367",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-23367"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/advisories/GHSA-qr6x-62gq-4ccp",
+          "url": "https://github.com/advisories/GHSA-qr6x-62gq-4ccp"
+        }
+      ],
+      "release_date": "2025-01-30T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-04-01T13:06:47+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:3467"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "org.wildfly.core:wildfly-server: Wildfly improper RBAC permission"
+    },
+    {
+      "cve": "CVE-2025-24970",
+      "cwe": {
+        "id": "CWE-20",
+        "name": "Improper Input Validation"
+      },
+      "discovery_date": "2025-02-10T23:00:52.785132+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2344787"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty's SslHandler. This vulnerability allows a native crash via a specially crafted packet that bypasses proper validation.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty:netty-handler: SslHandler doesn't correctly validate packets which can lead to native crash when using native SSLEngine",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability in Netty's SslHandler is of important severity rather than moderate because it directly impacts the stability and reliability of applications using native SSLEngine. By sending a specially crafted packet, an attacker can trigger a native crash, leading to a complete process termination. Unlike typical moderate vulnerabilities that might cause limited disruptions or require specific conditions, this flaw can be exploited remotely to induce a Denial of Service (DoS), affecting high-availability systems and mission-critical services.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 7"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-24970"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2344787",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2344787"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-24970",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-24970"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-24970",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-24970"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/87f40725155b2f89adfde68c7732f97c153676c4",
+          "url": "https://github.com/netty/netty/commit/87f40725155b2f89adfde68c7732f97c153676c4"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-4g8c-wm8x-jfhw",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-4g8c-wm8x-jfhw"
+        }
+      ],
+      "release_date": "2025-02-10T21:57:28.730000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-04-01T13:06:47+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:3467"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.netty:netty-handler: SslHandler doesn't correctly validate packets which can lead to native crash when using native SSLEngine"
+    },
+    {
+      "cve": "CVE-2025-25193",
+      "cwe": {
+        "id": "CWE-400",
+        "name": "Uncontrolled Resource Consumption"
+      },
+      "discovery_date": "2025-02-10T23:00:54.794769+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2344788"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. An unsafe reading of the environment file could cause a denial of service. When loaded on a Windows application, Netty attempts to load a file that does not exist. If an attacker creates a large file, the Netty application crash.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "netty: Denial of Service attack on windows app using Netty",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This issue only affects Windows environments, therefore, this would affect an environment when running a supported Red Hat JBoss EAP 7 or 8, for example, if running on Windows.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 7"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-25193"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2344788",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2344788"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-25193",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-25193"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-25193",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-25193"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/d1fbda62d3a47835d3fb35db8bd42ecc205a5386",
+          "url": "https://github.com/netty/netty/commit/d1fbda62d3a47835d3fb35db8bd42ecc205a5386"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-389x-839f-4rhx",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-389x-839f-4rhx"
+        }
+      ],
+      "release_date": "2025-02-10T22:02:17.197000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-04-01T13:06:47+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:3467"
+        },
+        {
+          "category": "workaround",
+          "details": "Currently, no mitigation is available for this vulnerability.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 5.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "netty: Denial of Service attack on windows app using Netty"
+    },
+    {
+      "cve": "CVE-2025-48734",
+      "cwe": {
+        "id": "CWE-284",
+        "name": "Improper Access Control"
+      },
+      "discovery_date": "2025-05-28T14:00:56.619771+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2368956"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache Commons BeanUtils. This vulnerability allows remote attackers to execute arbitrary code via uncontrolled access to the declaredClass property on Java enum objects, which can expose the class loader when property paths are passed from external sources to methods like getProperty() or getNestedProperty().",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "commons-beanutils: Apache Commons BeanUtils: PropertyUtilsBean does not suppresses an enum's declaredClass property by default",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability is rated as important severity because a flaw exists in Apache Commons BeanUtils, where PropertyUtilsBean and BeanUtilsBean allow uncontrolled access to the declaredClass property of Java enum objects. Applications that pass untrusted property paths directly to getProperty() or getNestedProperty() methods are at risk, as attackers can exploit this behavior to retrieve the ClassLoader instance and execute arbitrary code in the context of the affected application. This issue leads to compromise of confidentiality, integrity, and availability.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 7"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-48734"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2368956",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2368956"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-48734",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-48734"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-48734",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-48734"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/advisories/GHSA-wxr5-93ph-8wr9",
+          "url": "https://github.com/advisories/GHSA-wxr5-93ph-8wr9"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/apache/commons-beanutils/commit/28ad955a1613ed5885870cc7da52093c1ce739dc",
+          "url": "https://github.com/apache/commons-beanutils/commit/28ad955a1613ed5885870cc7da52093c1ce739dc"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/s0hb3jkfj5f3ryx6c57zqtfohb0of1g9",
+          "url": "https://lists.apache.org/thread/s0hb3jkfj5f3ryx6c57zqtfohb0of1g9"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.openwall.com/lists/oss-security/2025/05/28/6",
+          "url": "https://www.openwall.com/lists/oss-security/2025/05/28/6"
+        }
+      ],
+      "release_date": "2025-05-28T13:32:08.300000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-04-01T13:06:47+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:3467"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "commons-beanutils: Apache Commons BeanUtils: PropertyUtilsBean does not suppresses an enum's declaredClass property by default"
+    },
+    {
+      "cve": "CVE-2025-52999",
+      "cwe": {
+        "id": "CWE-121",
+        "name": "Stack-based Buffer Overflow"
+      },
+      "discovery_date": "2025-06-25T18:00:54.693716+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2374804"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A nested data handling flaw was found in Jackson Core. When parsing particularly deeply nested data structures, a StackoverflowError can occur.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "com.fasterxml.jackson.core/jackson-core: jackson-core Potential StackoverflowError",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 7"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-52999"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2374804",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2374804"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-52999",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-52999"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-52999",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-52999"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-core/pull/943",
+          "url": "https://github.com/FasterXML/jackson-core/pull/943"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-core/security/advisories/GHSA-h46c-h94j-95f3",
+          "url": "https://github.com/FasterXML/jackson-core/security/advisories/GHSA-h46c-h94j-95f3"
+        }
+      ],
+      "release_date": "2025-06-25T17:02:57.428000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-04-01T13:06:47+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:3467"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, the recommendation is to avoid parsing input files from untrusted sources that may have excessively deep nested data structures; anything with a depth over 1000.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 7"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "com.fasterxml.jackson.core/jackson-core: jackson-core Potential StackoverflowError"
+    }
+  ]
+}

@@ -1,0 +1,1094 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Critical"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "An update for thunderbird is now available for Red Hat Enterprise Linux 7.\n\nRed Hat Product Security has rated this update as having a security impact of Critical. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Mozilla Thunderbird is a standalone mail and newsgroup client.\n\nThis update upgrades Thunderbird to version 68.8.0.\n\nSecurity Fix(es):\n\n* Mozilla: Use-after-free during worker shutdown (CVE-2020-12387)\n\n* Mozilla: Memory safety bugs fixed in Firefox 76 and Firefox ESR 68.8 (CVE-2020-12395)\n\n* usrsctp: Buffer overflow in AUTH chunk input validation (CVE-2020-6831)\n\n* Mozilla: Arbitrary local file access with 'Copy as cURL' (CVE-2020-12392)\n\n* Mozilla: Sender Email Address Spoofing using encoded Unicode characters (CVE-2020-12397)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2020:2050",
+        "url": "https://access.redhat.com/errata/RHSA-2020:2050"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#critical",
+        "url": "https://access.redhat.com/security/updates/classification/#critical"
+      },
+      {
+        "category": "external",
+        "summary": "1831761",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1831761"
+      },
+      {
+        "category": "external",
+        "summary": "1831763",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1831763"
+      },
+      {
+        "category": "external",
+        "summary": "1831764",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1831764"
+      },
+      {
+        "category": "external",
+        "summary": "1831765",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1831765"
+      },
+      {
+        "category": "external",
+        "summary": "1832565",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1832565"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2020/rhsa-2020_2050.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: thunderbird security update",
+    "tracking": {
+      "current_release_date": "2026-06-28T12:20:46+00:00",
+      "generator": {
+        "date": "2026-06-28T12:20:46+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.2.6"
+        }
+      },
+      "id": "RHSA-2020:2050",
+      "initial_release_date": "2020-05-11T09:54:45+00:00",
+      "revision_history": [
+        {
+          "date": "2020-05-11T09:54:45+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2020-05-11T09:54:45+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-06-28T12:20:46+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Client (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Client (v. 7)",
+                  "product_id": "7Client-7.8.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::client"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Server Optional (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Server Optional (v. 7)",
+                  "product_id": "7Server-optional-7.8.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::server"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Workstation (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Workstation (v. 7)",
+                  "product_id": "7Workstation-7.8.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::workstation"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat Enterprise Linux"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "thunderbird-0:68.8.0-1.el7_8.x86_64",
+                "product": {
+                  "name": "thunderbird-0:68.8.0-1.el7_8.x86_64",
+                  "product_id": "thunderbird-0:68.8.0-1.el7_8.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/thunderbird@68.8.0-1.el7_8?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+                "product": {
+                  "name": "thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+                  "product_id": "thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/thunderbird-debuginfo@68.8.0-1.el7_8?arch=x86_64"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "x86_64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "thunderbird-0:68.8.0-1.el7_8.src",
+                "product": {
+                  "name": "thunderbird-0:68.8.0-1.el7_8.src",
+                  "product_id": "thunderbird-0:68.8.0-1.el7_8.src",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/thunderbird@68.8.0-1.el7_8?arch=src"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "src"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "thunderbird-0:68.8.0-1.el7_8.ppc64le",
+                "product": {
+                  "name": "thunderbird-0:68.8.0-1.el7_8.ppc64le",
+                  "product_id": "thunderbird-0:68.8.0-1.el7_8.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/thunderbird@68.8.0-1.el7_8?arch=ppc64le"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+                "product": {
+                  "name": "thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+                  "product_id": "thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/thunderbird-debuginfo@68.8.0-1.el7_8?arch=ppc64le"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "ppc64le"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:68.8.0-1.el7_8.src as a component of Red Hat Enterprise Linux Client (v. 7)",
+          "product_id": "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src"
+        },
+        "product_reference": "thunderbird-0:68.8.0-1.el7_8.src",
+        "relates_to_product_reference": "7Client-7.8.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:68.8.0-1.el7_8.x86_64 as a component of Red Hat Enterprise Linux Client (v. 7)",
+          "product_id": "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64"
+        },
+        "product_reference": "thunderbird-0:68.8.0-1.el7_8.x86_64",
+        "relates_to_product_reference": "7Client-7.8.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64 as a component of Red Hat Enterprise Linux Client (v. 7)",
+          "product_id": "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+        },
+        "product_reference": "thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+        "relates_to_product_reference": "7Client-7.8.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:68.8.0-1.el7_8.ppc64le as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le"
+        },
+        "product_reference": "thunderbird-0:68.8.0-1.el7_8.ppc64le",
+        "relates_to_product_reference": "7Server-optional-7.8.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:68.8.0-1.el7_8.src as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src"
+        },
+        "product_reference": "thunderbird-0:68.8.0-1.el7_8.src",
+        "relates_to_product_reference": "7Server-optional-7.8.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:68.8.0-1.el7_8.x86_64 as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64"
+        },
+        "product_reference": "thunderbird-0:68.8.0-1.el7_8.x86_64",
+        "relates_to_product_reference": "7Server-optional-7.8.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le"
+        },
+        "product_reference": "thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+        "relates_to_product_reference": "7Server-optional-7.8.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64 as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+        },
+        "product_reference": "thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+        "relates_to_product_reference": "7Server-optional-7.8.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:68.8.0-1.el7_8.src as a component of Red Hat Enterprise Linux Workstation (v. 7)",
+          "product_id": "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src"
+        },
+        "product_reference": "thunderbird-0:68.8.0-1.el7_8.src",
+        "relates_to_product_reference": "7Workstation-7.8.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:68.8.0-1.el7_8.x86_64 as a component of Red Hat Enterprise Linux Workstation (v. 7)",
+          "product_id": "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64"
+        },
+        "product_reference": "thunderbird-0:68.8.0-1.el7_8.x86_64",
+        "relates_to_product_reference": "7Workstation-7.8.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64 as a component of Red Hat Enterprise Linux Workstation (v. 7)",
+          "product_id": "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+        },
+        "product_reference": "thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+        "relates_to_product_reference": "7Workstation-7.8.Z"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "the Mozilla project"
+          ]
+        },
+        {
+          "names": [
+            "Natalie Silvanovich"
+          ],
+          "organization": "Google Project Zero",
+          "summary": "Acknowledged by upstream."
+        }
+      ],
+      "cve": "CVE-2020-6831",
+      "cwe": {
+        "id": "CWE-120",
+        "name": "Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')"
+      },
+      "discovery_date": "2020-05-05T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "1831763"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Mozilla Firefox and Thunderbird. When parsing and validating SCTP chunks in WebRTC a memory buffer overflow could occur leading to memory corruption and an exploitable crash. The highest threat from this vulnerability is to data confidentiality and integrity as well as system availability.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "usrsctp: Buffer overflow in AUTH chunk input validation",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+          "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+          "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2020-6831"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#1831763",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1831763"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2020-6831",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2020-6831"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2020-6831",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-6831"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2020-17/#CVE-2020-6831",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2020-17/#CVE-2020-6831"
+        }
+      ],
+      "release_date": "2020-05-05T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2020-05-11T09:54:45+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2020:2050"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "usrsctp: Buffer overflow in AUTH chunk input validation"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "the Mozilla project"
+          ]
+        },
+        {
+          "names": [
+            "Looben Yang"
+          ],
+          "summary": "Acknowledged by upstream."
+        }
+      ],
+      "cve": "CVE-2020-12387",
+      "cwe": {
+        "id": "CWE-416",
+        "name": "Use After Free"
+      },
+      "discovery_date": "2020-05-05T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "1831761"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Mozilla Firefox and Thunderbird. When running shutdown code for Web Worker, a race condition occurs leading to a use-after-free memory flaw that could lead to an exploitable crash. The highest threat from this vulnerability is to data confidentiality and integrity as well as system availability.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Use-after-free during worker shutdown",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+          "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+          "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2020-12387"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#1831761",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1831761"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2020-12387",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2020-12387"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2020-12387",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-12387"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2020-17/#CVE-2020-12387",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2020-17/#CVE-2020-12387"
+        }
+      ],
+      "release_date": "2020-05-05T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2020-05-11T09:54:45+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2020:2050"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.0"
+          },
+          "products": [
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Critical"
+        }
+      ],
+      "title": "Mozilla: Use-after-free during worker shutdown"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "the Mozilla project"
+          ]
+        },
+        {
+          "names": [
+            "Ophir LOJKINE"
+          ],
+          "summary": "Acknowledged by upstream."
+        }
+      ],
+      "cve": "CVE-2020-12392",
+      "cwe": {
+        "id": "CWE-552",
+        "name": "Files or Directories Accessible to External Parties"
+      },
+      "discovery_date": "2020-05-05T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "1831764"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Mozilla Foundation Security Advisory describes this flaw as:\r\n\r\nThe 'Copy as cURL' feature of Devtools' network tab did not properly escape the HTTP POST data of a request, which can be controlled by the website. If a user used the 'Copy as cURL' feature and pasted the command into a terminal, it could have resulted in the disclosure of local files.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Arbitrary local file access with 'Copy as cURL'",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+          "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+          "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2020-12392"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#1831764",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1831764"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2020-12392",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2020-12392"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2020-12392",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-12392"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2020-17/#CVE-2020-12392",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2020-17/#CVE-2020-12392"
+        }
+      ],
+      "release_date": "2020-05-05T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2020-05-11T09:54:45+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2020:2050"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 6.1,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+            "version": "3.0"
+          },
+          "products": [
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "Mozilla: Arbitrary local file access with 'Copy as cURL'"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "the Mozilla project"
+          ]
+        },
+        {
+          "names": [
+            "Alexandru Michis",
+            "André Bargull",
+            "Bas Schouten",
+            "Jason Kratzer",
+            "Karl Tomlinson",
+            "Ted Campbell",
+            "philipp"
+          ],
+          "summary": "Acknowledged by upstream."
+        }
+      ],
+      "cve": "CVE-2020-12395",
+      "cwe": {
+        "id": "CWE-120",
+        "name": "Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')"
+      },
+      "discovery_date": "2020-05-05T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "1831765"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "Memory safety flaws were found in Mozilla Firefox and Thunderbird. Memory corruption that an attacker could leverage with enough effort, could allow arbitrary code to run. The highest threat from this vulnerability is to data confidentiality and integrity as well as system availability.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Memory safety bugs fixed in Firefox 76 and Firefox ESR 68.8",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+          "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+          "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2020-12395"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#1831765",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1831765"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2020-12395",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2020-12395"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2020-12395",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-12395"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2020-17/#CVE-2020-12395",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2020-17/#CVE-2020-12395"
+        }
+      ],
+      "release_date": "2020-05-05T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2020-05-11T09:54:45+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2020:2050"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Critical"
+        }
+      ],
+      "title": "Mozilla: Memory safety bugs fixed in Firefox 76 and Firefox ESR 68.8"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "the Mozilla project"
+          ]
+        },
+        {
+          "names": [
+            "Ahmed Elsobky"
+          ],
+          "organization": "@0xSobky",
+          "summary": "Acknowledged by upstream."
+        }
+      ],
+      "cve": "CVE-2020-12397",
+      "cwe": {
+        "id": "CWE-172",
+        "name": "Encoding Error"
+      },
+      "discovery_date": "2020-05-05T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "1832565"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "By encoding Unicode whitespace characters within the From email header, an attacker can spoof the sender email address that Thunderbird displays. This vulnerability affects Thunderbird < 68.8.0.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Sender Email Address Spoofing using encoded Unicode characters",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+          "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+          "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+          "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+          "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2020-12397"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#1832565",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=1832565"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2020-12397",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2020-12397"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2020-12397",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-12397"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2020-18/#CVE-2020-12397",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2020-18/#CVE-2020-12397"
+        }
+      ],
+      "release_date": "2020-05-05T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2020-05-11T09:54:45+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2020:2050"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 4.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Client-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Client-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Server-optional-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.ppc64le",
+            "7Server-optional-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.src",
+            "7Workstation-7.8.Z:thunderbird-0:68.8.0-1.el7_8.x86_64",
+            "7Workstation-7.8.Z:thunderbird-debuginfo-0:68.8.0-1.el7_8.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Low"
+        }
+      ],
+      "title": "Mozilla: Sender Email Address Spoofing using encoded Unicode characters"
+    }
+  ]
+}

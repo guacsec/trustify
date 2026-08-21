@@ -1,0 +1,1780 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "An update is now available for Red Hat build of Quarkus.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability. For more information, see the CVE links in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "This release of Red Hat build of Quarkus 3.27.4.SP3 includes the following CVE fixes:\n\n* resteasy-reactive-client-processor: Quarkus REST - Unbounded multipart MIME part-header accumulation allows remote OOM denial of service [quarkus-3.27] (CVE-2026-16308)\n\n* vertx-core: Eclipse Vert.x: Information disclosure via improper handling of HTTP 30x redirects [quarkus-3.27] (CVE-2026-15075)\n\n* vertx-web-client: Eclipse Vert.x Web Client: Information disclosure via improper cookie domain validation [quarkus-3.27] (CVE-2026-15076)\n\n* netty-codec-http: Netty: Denial of Service via SPDY header decompression amplification [quarkus-3.27] (CVE-2026-55833)\n\n* netty-codec-http: Netty: Denial of Service via SPDY SETTINGS frame processing [quarkus-3.27] (CVE-2026-55831)\n\n* netty-codec-haproxy: Netty codec-haproxy: Denial of Service via crafted PROXY protocol v2 message [quarkus-3.27] (CVE-2026-55851)\n\n* netty-codec-http: Netty: Denial of Service via memory exhaustion in SPDY-to-HTTP codec [quarkus-3.27] (CVE-2026-56745)\n\n* netty-codec-http: Netty: Security control bypass allows unauthorized requests via null origin header [quarkus-3.27] (CVE-2026-56746)\n\n* netty-codec-http2: Netty: Denial of Service via HTTP/2 DATA frame memory leak [quarkus-3.27] (CVE-2026-56819)\n\n* netty-codec-http: Netty: Memory exhaustion in netty-codec-http (decompression bomb) [quarkus-3.27] (CVE-2026-59899)\n\n* netty-codec-http: Netty: CRLF Injection via Multipart Filename in Netty HttpPostRequestEncoder [quarkus-3.27] (CVE-2026-59921)\n\n* netty-codec-http2: Netty: Improper header neutralization in netty-codec-http2 [quarkus-3.27] (CVE-2026-59900)\n\n* netty-codec-http: Netty: Protocol version confusion in netty-codec-http (WebSocket) [quarkus-3.27] (CVE-2026-59898)\n\nFor more information, see the release notes page listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:47189",
+        "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/products/quarkus/",
+        "url": "https://access.redhat.com/products/quarkus/"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?product=redhat.quarkus&downloadType=distributions&version=3.27.4.SP3",
+        "url": "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?product=redhat.quarkus&downloadType=distributions&version=3.27.4.SP3"
+      },
+      {
+        "category": "external",
+        "summary": "https://docs.redhat.com/en/documentation/red_hat_build_of_quarkus/3.27",
+        "url": "https://docs.redhat.com/en/documentation/red_hat_build_of_quarkus/3.27"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-8544",
+        "url": "https://issues.redhat.com/browse/QUARKUS-8544"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_47189.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat build of Quarkus 3.27.4.SP3 security update",
+    "tracking": {
+      "current_release_date": "2026-08-18T23:50:13+00:00",
+      "generator": {
+        "date": "2026-08-18T23:50:13+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:47189",
+      "initial_release_date": "2026-07-29T14:54:22+00:00",
+      "revision_history": [
+        {
+          "date": "2026-07-29T14:54:22+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-07-29T14:54:22+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-18T23:50:13+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat build of Quarkus 3.27.4.SP3",
+                "product": {
+                  "name": "Red Hat build of Quarkus 3.27.4.SP3",
+                  "product_id": "Red Hat build of Quarkus 3.27.4.SP3",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:quarkus:3.27::el8"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat build of Quarkus"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2026-15075",
+      "cwe": {
+        "id": "CWE-346",
+        "name": "Origin Validation Error"
+      },
+      "discovery_date": "2026-07-14T09:01:12.413297+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2499919"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Eclipse Vert.x. The `DefaultRedirectHandler` in `vertx-core` improperly handles HTTP 30x redirects by propagating all request headers, including sensitive authentication and session credentials, to cross-origin redirect destinations. An attacker can exploit this by redirecting a Vert.x HttpClient request to a malicious host. This allows the attacker to capture sensitive information such as bearer tokens, basic authentication credentials, session cookies, and API keys, leading to unauthorized access or further attacks.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "vertx-core: Eclipse Vert.x: Information disclosure via improper handling of HTTP 30x redirects",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important information disclosure flaw in Eclipse Vert.x's `DefaultRedirectHandler` that affects Red Hat products utilizing `vertx-core` for HTTP client operations. The vulnerability allows sensitive request headers, such as authentication tokens and session cookies, to be forwarded to arbitrary external domains during HTTP 30x redirects. This could enable an attacker to capture credentials if they can induce a Vert.x HttpClient to redirect to a malicious server, potentially leading to unauthorized access.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-15075"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2499919",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2499919"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-15075",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-15075"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-15075",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-15075"
+        },
+        {
+          "category": "external",
+          "summary": "https://gitlab.eclipse.org/security/cve-assignment/-/work_items/161",
+          "url": "https://gitlab.eclipse.org/security/cve-assignment/-/work_items/161"
+        }
+      ],
+      "release_date": "2026-07-14T08:15:53.650000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, configure applications utilizing Vert.x HttpClient to strictly validate and restrict the URLs to which HTTP requests can be redirected. Implement allowlists for trusted domains and ensure that any user-supplied or external URLs processed by Vert.x HttpClient are thoroughly sanitized and validated to prevent redirection to attacker-controlled destinations. This may involve updating application-specific configurations or implementing custom URL validation logic. A service restart or reload may be required for changes to take effect.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "vertx-core: Eclipse Vert.x: Information disclosure via improper handling of HTTP 30x redirects"
+    },
+    {
+      "cve": "CVE-2026-15076",
+      "cwe": {
+        "id": "CWE-346",
+        "name": "Origin Validation Error"
+      },
+      "discovery_date": "2026-07-14T09:00:58.070373+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2499914"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Eclipse Vert.x Web Client. The WebClientSession component does not properly validate the Domain attribute of a Set-Cookie response header against the originating server's domain. This vulnerability allows a remote attacker to inject a cookie scoped to an arbitrary third-party domain. When the victim application subsequently sends a request to the targeted domain, the injected cookie is presented, potentially leading to information disclosure and unauthorized access to sensitive data through the attacker's account on that service.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.vertx/vertx-web: Eclipse Vert.x Web Client: Information disclosure via improper cookie domain validation",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important information disclosure flaw in Eclipse Vert.x Web Client's `WebClientSession` component. The vulnerability arises from insufficient validation of the `Domain` attribute in `Set-Cookie` response headers, allowing a remote attacker to inject cookies scoped to arbitrary third-party domains. This could lead to sensitive data exposure and unauthorized access if a victim application subsequently sends requests to the targeted domain, presenting the attacker-controlled cookie. The impact is significant as it bypasses expected cross-domain security boundaries.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-15076"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2499914",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2499914"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-15076",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-15076"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-15076",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-15076"
+        },
+        {
+          "category": "external",
+          "summary": "https://gitlab.eclipse.org/security/cve-assignment/-/work_items/162",
+          "url": "https://gitlab.eclipse.org/security/cve-assignment/-/work_items/162"
+        }
+      ],
+      "release_date": "2026-07-14T08:09:12.951000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.vertx/vertx-web: Eclipse Vert.x Web Client: Information disclosure via improper cookie domain validation"
+    },
+    {
+      "cve": "CVE-2026-16308",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-07-23T09:57:24.306000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2506373"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Quarkus REST. An unauthenticated remote attacker can exploit this vulnerability by sending a crafted multipart/form-data request with an excessively large header section. This unbounded accumulation of MIME part-header bytes can exhaust the Java Virtual Machine (JVM) heap memory, leading to an OutOfMemoryError. The primary consequence is a denial of service, causing the application to crash.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.quarkus/quarkus-rest: io.quarkus/quarkus-vertx-http: io.quarkus.resteasy.reactive/resteasy-reactive: Quarkus REST - Unbounded multipart MIME part-header accumulation allows remote OOM denial of service",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important flaw in Quarkus REST / RESTEasy Reactive's MultipartParser, allowing an unauthenticated remote attacker to cause a denial of service. By sending a crafted multipart/form-data request with an excessively large part-header section, the attacker can exhaust the JVM heap, leading to application crashes. This vulnerability does not require valid form field names or authentication.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-16308"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2506373",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2506373"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-16308",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-16308"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-16308",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-16308"
+        }
+      ],
+      "release_date": "2026-07-29T13:19:42.315000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.quarkus/quarkus-rest: io.quarkus/quarkus-vertx-http: io.quarkus.resteasy.reactive/resteasy-reactive: Quarkus REST - Unbounded multipart MIME part-header accumulation allows remote OOM denial of service"
+    },
+    {
+      "cve": "CVE-2026-55831",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-07-21T00:02:57.305291+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2503103"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty, a network application framework. A remote attacker, by sending a specially crafted SPDY/3.1 SETTINGS frame, could cause the SPDY SETTINGS decoder to create a large number of map entries. This excessive processing and memory allocation can lead to a denial of service (DoS) due to heap growth and increased CPU usage.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http: Netty: Denial of Service via SPDY SETTINGS frame processing",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important denial of service flaw in Netty's SPDY SETTINGS decoder, allowing a remote unauthenticated attacker to exhaust system resources. By sending a specially crafted SPDY/3.1 SETTINGS frame, an attacker can cause excessive memory allocation and CPU usage, leading to a denial of service. This vulnerability has a low attack complexity and requires no user interaction or privileges.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-55831"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2503103",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2503103"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-55831",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-55831"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-55831",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-55831"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/5b68c61f37aa4a3045cba624cbea239655c9003b",
+          "url": "https://github.com/netty/netty/commit/5b68c61f37aa4a3045cba624cbea239655c9003b"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/bb2ff68a1fb71cb4b0eb9a9e17b66c52aff680c6",
+          "url": "https://github.com/netty/netty/commit/bb2ff68a1fb71cb4b0eb9a9e17b66c52aff680c6"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-6jqx-86gh-f27w",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-6jqx-86gh-f27w"
+        }
+      ],
+      "release_date": "2026-07-20T23:00:31.859000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.netty/netty-codec-http: Netty: Denial of Service via SPDY SETTINGS frame processing"
+    },
+    {
+      "cve": "CVE-2026-55833",
+      "cwe": {
+        "id": "CWE-409",
+        "name": "Improper Handling of Highly Compressed Data (Data Amplification)"
+      },
+      "discovery_date": "2026-07-21T00:01:25.203265+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2503101"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty, a network application framework. A remote attacker could exploit a vulnerability in the SPDY header decoding process. By sending a specially crafted, small compressed header block, the attacker can cause it to expand significantly during decompression, leading to excessive CPU usage and memory allocation. This can result in a denial of service (DoS) due to resource exhaustion.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "netty: io.netty/netty-codec-http: Netty: Denial of Service via SPDY header decompression amplification",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important denial of service vulnerability in Netty's SPDY header decoding. A remote, unauthenticated attacker can send a small, compressed SPDY header block that, during decompression, expands significantly beyond configured limits. This leads to excessive CPU and memory consumption, potentially causing resource exhaustion and service unavailability in affected Red Hat products that utilize Netty with SPDY.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-55833"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2503101",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2503101"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-55833",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-55833"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-55833",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-55833"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/5b68c61f37aa4a3045cba624cbea239655c9003b",
+          "url": "https://github.com/netty/netty/commit/5b68c61f37aa4a3045cba624cbea239655c9003b"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/bb2ff68a1fb71cb4b0eb9a9e17b66c52aff680c6",
+          "url": "https://github.com/netty/netty/commit/bb2ff68a1fb71cb4b0eb9a9e17b66c52aff680c6"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-mvh2-crg5-v77c",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-mvh2-crg5-v77c"
+        }
+      ],
+      "release_date": "2026-07-20T23:18:07.893000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "netty: io.netty/netty-codec-http: Netty: Denial of Service via SPDY header decompression amplification"
+    },
+    {
+      "cve": "CVE-2026-55851",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-07-21T22:43:00.311516+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2505698"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty's codec-haproxy module. A remote attacker could exploit a vulnerability in the HAProxyMessageDecoder by sending a specially crafted PROXY protocol v2 message. This leads to unbounded buffer accumulation, causing a denial of service (DoS) due to memory exhaustion.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-haproxy: Netty codec-haproxy: Denial of Service via crafted PROXY protocol v2 message",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important denial-of-service vulnerability in the Netty `codec-haproxy` module. A remote attacker can send a specially crafted PROXY protocol v2 message, causing unbounded memory accumulation and exhausting direct memory, leading to service unavailability. This impact is significant for applications that process PROXY protocol v2 messages using the affected Netty component.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-55851"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2505698",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2505698"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-55851",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-55851"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-55851",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-55851"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/5b68c61f37aa4a3045cba624cbea239655c9003b",
+          "url": "https://github.com/netty/netty/commit/5b68c61f37aa4a3045cba624cbea239655c9003b"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/bb2ff68a1fb71cb4b0eb9a9e17b66c52aff680c6",
+          "url": "https://github.com/netty/netty/commit/bb2ff68a1fb71cb4b0eb9a9e17b66c52aff680c6"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-q6cq-mhr2-jmr5",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-q6cq-mhr2-jmr5"
+        }
+      ],
+      "release_date": "2026-07-21T21:22:34.879000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.netty/netty-codec-haproxy: Netty codec-haproxy: Denial of Service via crafted PROXY protocol v2 message"
+    },
+    {
+      "cve": "CVE-2026-56745",
+      "cwe": {
+        "id": "CWE-772",
+        "name": "Missing Release of Resource after Effective Lifetime"
+      },
+      "discovery_date": "2026-07-21T22:52:47.296001+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2505911"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. A remote attacker can exploit a vulnerability in the `SpdyHttpDecoder` handler of Netty's SPDY-to-HTTP codec. When processing a client-initiated `SYN_STREAM` frame, the decoder fails to release allocated memory if the stream is reset or content limits are exceeded. This oversight leads to native memory exhaustion, which can result in a Denial of Service (DoS) for the affected system.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "netty: io.netty/netty-codec-http: Netty: Denial of Service via memory exhaustion in SPDY-to-HTTP codec",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important denial of service vulnerability in Netty's SPDY-to-HTTP codec, affecting Red Hat products that utilize vulnerable versions of Netty. A remote, unauthenticated attacker can exploit a memory leak in the `SpdyHttpDecoder` by sending specially crafted `SYN_STREAM` frames, leading to native memory exhaustion and a denial of service for the affected system.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-56745"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2505911",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2505911"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-56745",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-56745"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-56745",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-56745"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/5b68c61f37aa4a3045cba624cbea239655c9003b",
+          "url": "https://github.com/netty/netty/commit/5b68c61f37aa4a3045cba624cbea239655c9003b"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/bb2ff68a1fb71cb4b0eb9a9e17b66c52aff680c6",
+          "url": "https://github.com/netty/netty/commit/bb2ff68a1fb71cb4b0eb9a9e17b66c52aff680c6"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-jppx-w49h-x2qq",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-jppx-w49h-x2qq"
+        }
+      ],
+      "release_date": "2026-07-21T21:31:25.307000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "netty: io.netty/netty-codec-http: Netty: Denial of Service via memory exhaustion in SPDY-to-HTTP codec"
+    },
+    {
+      "cve": "CVE-2026-56746",
+      "cwe": {
+        "id": "CWE-807",
+        "name": "Reliance on Untrusted Inputs in a Security Decision"
+      },
+      "discovery_date": "2026-07-21T22:30:30.983812+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2505422"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty, a network application framework. A remote attacker can bypass security controls in the `CorsHandler` component by sending a specially crafted request with a null origin header. This bypasses the intended access restrictions, allowing unauthorized requests to reach the backend application. This could lead to a compromise of data integrity by allowing unauthorized actions.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http: Netty: Security control bypass allows unauthorized requests via null origin header",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Red Hat ships Netty's netty-codec-http component in multiple products. The CorsHandler shortCircuit() feature, when enabled, is intended to reject unauthorized cross-origin requests before they reach the application. Due to a logical operator error in origin validation, requests with a null Origin header bypass this protection entirely. Upgrade to Netty 4.1.136.Final or 4.2.16.Final to resolve this issue.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-56746"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2505422",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2505422"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-56746",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-56746"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-56746",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-56746"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-6cqp-g7gg-8hr5",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-6cqp-g7gg-8hr5"
+        }
+      ],
+      "release_date": "2026-07-21T21:36:18.627000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "If CORS short-circuit functionality is not required, disable the shortCircuit() configuration in the CorsHandler. Alternatively, implement application-level origin validation to reject requests with null Origin headers. A web application firewall (WAF) can also be configured to block requests with null or missing Origin headers.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.netty/netty-codec-http: Netty: Security control bypass allows unauthorized requests via null origin header"
+    },
+    {
+      "cve": "CVE-2026-56819",
+      "cwe": {
+        "id": "CWE-911",
+        "name": "Improper Update of Reference Count"
+      },
+      "discovery_date": "2026-07-21T23:03:36.448652+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2505980"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty, a network application framework. A remote, unauthenticated attacker can exploit this vulnerability by sending specially crafted HTTP/2 DATA frames to applications that use Netty and have HTTP/2 content decompression enabled. This can lead to memory exhaustion, causing the application to crash and resulting in a Denial of Service (DoS). The issue occurs because the framework fails to release retained memory buffers when processing DATA frames for a stream whose decompressor has already been closed.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http2: Netty: Denial of Service via HTTP/2 DATA frame memory leak",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important vulnerability in Netty's HTTP/2 codec, which could lead to a denial of service. Red Hat products utilizing netty-codec-http2 with HTTP/2 content decompression enabled are susceptible to memory exhaustion when processing specially crafted HTTP/2 DATA frames. This allows a remote attacker to leak memory buffers, eventually exhausting available memory and impacting system availability.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-56819"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2505980",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2505980"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-56819",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-56819"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-56819",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-56819"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/5b68c61f37aa4a3045cba624cbea239655c9003bhttps://github.com/netty/netty/releases/tag/netty-4.2.16.Final",
+          "url": "https://github.com/netty/netty/commit/5b68c61f37aa4a3045cba624cbea239655c9003bhttps://github.com/netty/netty/releases/tag/netty-4.2.16.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/commit/bb2ff68a1fb71cb4b0eb9a9e17b66c52aff680c6",
+          "url": "https://github.com/netty/netty/commit/bb2ff68a1fb71cb4b0eb9a9e17b66c52aff680c6"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-93wv-jw9v-4972",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-93wv-jw9v-4972"
+        }
+      ],
+      "release_date": "2026-07-21T22:11:17.470000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.netty/netty-codec-http2: Netty: Denial of Service via HTTP/2 DATA frame memory leak"
+    },
+    {
+      "cve": "CVE-2026-59898",
+      "cwe": {
+        "id": "CWE-358",
+        "name": "Improperly Implemented Security Check for Standard"
+      },
+      "discovery_date": "2026-07-09T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2507479"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in netty-codec-http. The WebSocket handshaker in this component fails to properly validate protocol version information during the WebSocket upgrade process. A remote attacker can exploit this vulnerability by manipulating the WebSocket handshake, leading to a bypass of security checks or the negotiation of unexpected protocol versions. This could potentially enable protocol-level attacks.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http: Netty: Protocol version confusion in netty-codec-http (WebSocket)",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This Moderate flaw in Netty's WebSocket handshaker, specifically within `netty-codec-http`, could allow an attacker to bypass security checks or force unexpected protocol versions during the WebSocket upgrade process. This issue primarily impacts Red Hat products that leverage Netty for WebSocket communication, potentially leading to protocol-level attacks under certain deployment configurations.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-59898"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2507479",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2507479"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-59898",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-59898"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-59898",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-59898"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-4mp9-239f-g9hg",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-4mp9-239f-g9hg"
+        }
+      ],
+      "release_date": "2026-07-09T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "io.netty/netty-codec-http: Netty: Protocol version confusion in netty-codec-http (WebSocket)"
+    },
+    {
+      "cve": "CVE-2026-59899",
+      "cwe": {
+        "id": "CWE-409",
+        "name": "Improper Handling of Highly Compressed Data (Data Amplification)"
+      },
+      "discovery_date": "2026-07-09T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2507482"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Netty netty-codec-http component. A remote attacker can send HTTP requests containing highly compressed data. The HTTP decoder in netty-codec-http fails to properly limit the decompression of this content, causing the system to consume excessive memory. This can lead to memory exhaustion and a denial of service (DoS), making the service unavailable to legitimate users.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http: Netty: Memory exhaustion in netty-codec-http (decompression bomb)",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important vulnerability in Netty's HTTP decoder, which could lead to a denial of service. Red Hat products utilizing `netty-codec-http` are susceptible to memory exhaustion when processing specially crafted, highly compressed HTTP payloads. This allows a remote attacker to trigger excessive memory allocation, impacting system availability.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-59899"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2507482",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2507482"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-59899",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-59899"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-59899",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-59899"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-q4f6-jm68-57ww",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-q4f6-jm68-57ww"
+        },
+        {
+          "category": "external",
+          "summary": "https://netty.io/news/2026/07/09/4-1-136-Final.html",
+          "url": "https://netty.io/news/2026/07/09/4-1-136-Final.html"
+        }
+      ],
+      "release_date": "2026-07-09T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.netty/netty-codec-http: Netty: Memory exhaustion in netty-codec-http (decompression bomb)"
+    },
+    {
+      "cve": "CVE-2026-59900",
+      "cwe": {
+        "id": "CWE-113",
+        "name": "Improper Neutralization of CRLF Sequences in HTTP Headers ('HTTP Request/Response Splitting')"
+      },
+      "discovery_date": "2026-07-09T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2507480"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty's netty-codec-http2 component. The HTTP/2 encoder does not properly handle special characters in HTTP headers. This vulnerability allows a remote attacker to craft specific HTTP/2 requests, leading to HTTP response splitting and header injection attacks. Such attacks can enable an attacker to manipulate web content or inject malicious headers.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http2: Netty: Improper header neutralization in netty-codec-http2",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "A flaw was found in Netty's HTTP/2 codec (netty-codec-http2). The HTTP/2 encoder fails to properly neutralize special characters in HTTP headers, allowing an attacker to craft specially formed HTTP/2 requests that inject arbitrary header content. This can lead to HTTP response splitting and header injection attacks. The issue is fixed in versions 4.1.136.Final and 4.2.16.Final.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-59900"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2507480",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2507480"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-59900",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-59900"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-59900",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-59900"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/advisories/GHSA-c69g-56f8-xwqj",
+          "url": "https://github.com/advisories/GHSA-c69g-56f8-xwqj"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.1.136.Final"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final",
+          "url": "https://github.com/netty/netty/releases/tag/netty-4.2.16.Final"
+        }
+      ],
+      "release_date": "2026-07-09T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "- Upgrade `netty-codec-http2` to version 4.1.136.Final (4.1.x branch) or 4.2.16.Final (4.2.x branch).\n- If upgrading is not immediately possible, ensure that HTTP/2 traffic is routed through a reverse proxy or WAF that validates and sanitizes HTTP headers before forwarding to the Netty-based application.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "io.netty/netty-codec-http2: Netty: Improper header neutralization in netty-codec-http2"
+    },
+    {
+      "cve": "CVE-2026-59921",
+      "cwe": {
+        "id": "CWE-93",
+        "name": "Improper Neutralization of CRLF Sequences ('CRLF Injection')"
+      },
+      "discovery_date": "2026-07-27T13:46:48.956000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2507467"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty's HttpPostRequestEncoder, a widely used Java networking library component responsible for constructing multipart HTTP request bodies. The issue arises because user-supplied filenames and field names are directly embedded into Content-Disposition MIME headers without any validation or sanitization of CRLF (\\r\\n) characters. Since MIME headers are delimited by CRLF sequences, an attacker who controls the filename in a multipart upload can inject arbitrary MIME headers into the request body. This may lead to limited Content-Type spoofing or header manipulation against middleware or storage layers processing the request, though the practical impact is constrained by the context in which Netty is deployed.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http: Netty: CRLF Injection via Multipart Filename in Netty HttpPostRequestEncoder",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Moderate: A CRLF injection flaw in the Netty Java networking library's multipart message encoder allows remote attackers with low privileges to inject arbitrary MIME headers. This can lead to Content-Type spoofing, stored cross-site scripting, or manipulation of downstream application logic, compromising data confidentiality and integrity without user interaction.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.4.SP3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-59921"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2507467",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2507467"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-59921",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-59921"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-59921",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-59921"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-gcjf-9mgh-3p7g",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-gcjf-9mgh-3p7g"
+        }
+      ],
+      "release_date": "2026-07-09T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-29T14:54:22+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:47189"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "ADJACENT_NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.7,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:A/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.4.SP3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "io.netty/netty-codec-http: Netty: CRLF Injection via Multipart Filename in Netty HttpPostRequestEncoder"
+    }
+  ]
+}

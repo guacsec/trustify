@@ -1,0 +1,1063 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Critical"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "Red Hat OpenShift Container Platform release 4.18.44 is now available with updates to packages and images that fix several bugs and add enhancements.\n\nThis release includes a security update for Red Hat OpenShift Container Platform 4.18.\n\nRed Hat Product Security has rated this update as having a security impact of Critical. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Red Hat OpenShift Container Platform is Red Hat's cloud computing Kubernetes application platform solution designed for on-premise or private cloud deployments.\n\nThis advisory contains the container images for Red Hat OpenShift Container Platform 4.18.44. See the following advisory for the RPM packages for this release:\n\nhttps://access.redhat.com/errata/RHSA-2026:25180\n\nSpace precludes documenting all of the container images in this advisory. See the following Release Notes documentation, which will be updated shortly for this release, for details about these changes:\n\nhttps://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/release_notes/\n\nSecurity Fix(es):\n\n* kernel: ip6_tunnel: clear skb2->cb[] in ip4ip6_err() (CVE-2026-43037)\n* libcap: libcap: Privilege escalation via TOCTOU race condition in cap_set_file() (CVE-2026-4878)\n* OpenSSH: OpenSSH: Privilege escalation via scp legacy protocol when not preserving file mode (CVE-2026-35385)\n* jq: out-of-bounds read in jv_parse_sized() on error formatting for non-NUL-terminated buffers (CVE-2026-39979)\n* jq: jq: Denial of Service via crafted JSON object causing hash collisions (CVE-2026-40164)\n* rsync: Rsync: Use-after-free vulnerability in extended attribute handling (CVE-2026-41035)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.\n\nAll OpenShift Container Platform 4.18 users are advised to upgrade to these updated packages and images when they are available in the appropriate release channel. To check for available updates, use the OpenShift CLI (oc)\nor web console. Instructions for upgrading a cluster are available at https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/updating_clusters/index#updating-cluster-cli.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:25181",
+        "url": "https://access.redhat.com/errata/RHSA-2026:25181"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#critical",
+        "url": "https://access.redhat.com/security/updates/classification/#critical"
+      },
+      {
+        "category": "external",
+        "summary": "2451615",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2451615"
+      },
+      {
+        "category": "external",
+        "summary": "2454469",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2454469"
+      },
+      {
+        "category": "external",
+        "summary": "2458077",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458077"
+      },
+      {
+        "category": "external",
+        "summary": "2458084",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458084"
+      },
+      {
+        "category": "external",
+        "summary": "2458898",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458898"
+      },
+      {
+        "category": "external",
+        "summary": "2464351",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2464351"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_25181.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: OpenShift Container Platform 4.18.44 bug fix and security update",
+    "tracking": {
+      "current_release_date": "2026-08-19T01:09:57+00:00",
+      "generator": {
+        "date": "2026-08-19T01:09:57+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:25181",
+      "initial_release_date": "2026-06-17T17:18:39+00:00",
+      "revision_history": [
+        {
+          "date": "2026-06-17T17:18:39+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-06-17T17:18:39+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-19T01:09:57+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat OpenShift Container Platform 4.18",
+                "product": {
+                  "name": "Red Hat OpenShift Container Platform 4.18",
+                  "product_id": "9Base-RHOSE-4.18",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:openshift:4.18::el9"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat OpenShift Enterprise"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "rhcos-aarch64-418.94.202606051320-0",
+                "product": {
+                  "name": "rhcos-aarch64-418.94.202606051320-0",
+                  "product_id": "rhcos-aarch64-418.94.202606051320-0",
+                  "product_identification_helper": {
+                    "purl": "pkg:generic/redhat/rhcos@418.94.202606051320?arch=aarch64"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "aarch64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "rhcos-ppc64le-418.94.202606051320-0",
+                "product": {
+                  "name": "rhcos-ppc64le-418.94.202606051320-0",
+                  "product_id": "rhcos-ppc64le-418.94.202606051320-0",
+                  "product_identification_helper": {
+                    "purl": "pkg:generic/redhat/rhcos@418.94.202606051320?arch=ppc64le"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "ppc64le"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "rhcos-s390x-418.94.202606051320-0",
+                "product": {
+                  "name": "rhcos-s390x-418.94.202606051320-0",
+                  "product_id": "rhcos-s390x-418.94.202606051320-0",
+                  "product_identification_helper": {
+                    "purl": "pkg:generic/redhat/rhcos@418.94.202606051320?arch=s390x"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "s390x"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "rhcos-x86_64-418.94.202606051320-0",
+                "product": {
+                  "name": "rhcos-x86_64-418.94.202606051320-0",
+                  "product_id": "rhcos-x86_64-418.94.202606051320-0",
+                  "product_identification_helper": {
+                    "purl": "pkg:generic/redhat/rhcos@418.94.202606051320?arch=x86_64"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "x86_64"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhcos-aarch64-418.94.202606051320-0 as a component of Red Hat OpenShift Container Platform 4.18",
+          "product_id": "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0"
+        },
+        "product_reference": "rhcos-aarch64-418.94.202606051320-0",
+        "relates_to_product_reference": "9Base-RHOSE-4.18"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhcos-ppc64le-418.94.202606051320-0 as a component of Red Hat OpenShift Container Platform 4.18",
+          "product_id": "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0"
+        },
+        "product_reference": "rhcos-ppc64le-418.94.202606051320-0",
+        "relates_to_product_reference": "9Base-RHOSE-4.18"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhcos-s390x-418.94.202606051320-0 as a component of Red Hat OpenShift Container Platform 4.18",
+          "product_id": "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0"
+        },
+        "product_reference": "rhcos-s390x-418.94.202606051320-0",
+        "relates_to_product_reference": "9Base-RHOSE-4.18"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhcos-x86_64-418.94.202606051320-0 as a component of Red Hat OpenShift Container Platform 4.18",
+          "product_id": "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+        },
+        "product_reference": "rhcos-x86_64-418.94.202606051320-0",
+        "relates_to_product_reference": "9Base-RHOSE-4.18"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Ali Raza"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-4878",
+      "cwe": {
+        "id": "CWE-367",
+        "name": "Time-of-check Time-of-use (TOCTOU) Race Condition"
+      },
+      "discovery_date": "2026-03-26T06:56:21.213270+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2451615"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in libcap. A local unprivileged user can exploit a Time-of-check-to-time-of-use (TOCTOU) race condition in the `cap_set_file()` function. This allows an attacker with write access to a parent directory to redirect file capability updates to an attacker-controlled file. By doing so, capabilities can be injected into or stripped from unintended executables, leading to privilege escalation.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "libcap: libcap: Privilege escalation via TOCTOU race condition in cap_set_file()",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important flaw. A Time-of-Check-to-Time-of-Use (TOCTOU) race condition in libcap's cap_set_file() allows a local unprivileged user to escalate privileges. An attacker with write access to a parent directory can exploit a narrow window during file capability updates to redirect capabilities to an attacker-controlled file. This can lead to the injection of elevated privileges into an unintended executable when privileged processes, such as setcap or container tooling, invoke cap_set_file() on attacker-influenced paths.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-4878"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2451615",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2451615"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-4878",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-4878"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-4878",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-4878"
+        },
+        {
+          "category": "external",
+          "summary": "https://bugzilla.redhat.com/show_bug.cgi?id=2447554",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2447554"
+        }
+      ],
+      "release_date": "2026-04-06T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-06-17T17:18:39+00:00",
+          "details": "For OpenShift Container Platform 4.18 see the following documentation, which will be updated shortly for this release, for important instructions on how to upgrade your cluster and fully apply this asynchronous errata update:\n\nhttps://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/release_notes/\n\nYou may download the oc tool and use it to inspect release image metadata for x86_64, s390x, ppc64le, and aarch64 architectures. The image digests may be found at https://quay.io/repository/openshift-release-dev/ocp-release?tab=tags.\n\nThe sha values for the release are as follows:\n\n      (For x86_64 architecture)\n      The image digest is sha256:2a7a95814b1b307813552472d18ef7aee7930748f707d730c4e816bdced1dac9\n\n      (For s390x architecture)\n      The image digest is sha256:363adcf59338bad26a33111d98322c8501d16707b295bd4328b30a04d6f1ce51\n\n      (For ppc64le architecture)\n      The image digest is sha256:6bf4deb41dcade0c2eedc88af3495eb05847bfb1f74351c3a896cb697d13ada1\n\n      (For aarch64 architecture)\n      The image digest is sha256:f0ce3bc7f47d2bda4696f49eba84569ac87f1b2b42852e9f8756fe0a3f9a853f\n\nAll OpenShift Container Platform 4.18 users are advised to upgrade to these updated packages and images when they are available in the appropriater release channel. To check for available updates, use the OpenShift CLI (oc) or web console. Instructions for upgrading a cluster are available at https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/updating_clusters/index#updating-cluster-cli.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:25181"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 6.7,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "libcap: libcap: Privilege escalation via TOCTOU race condition in cap_set_file()"
+    },
+    {
+      "cve": "CVE-2026-35385",
+      "cwe": {
+        "id": "CWE-281",
+        "name": "Improper Preservation of Permissions"
+      },
+      "discovery_date": "2026-04-02T17:01:07.052864+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2454469"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in OpenSSH. When the `scp` command is used by a root user to download a file with the legacy protocol option (`-O`) and without preserving original file permissions (`-p`), the downloaded file can be installed with elevated privileges (setuid or setgid). This unexpected behavior could allow a malicious file to execute with higher permissions than intended, posing a security risk through potential privilege escalation.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "OpenSSH: OpenSSH: Privilege escalation via scp legacy protocol when not preserving file mode",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-35385"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2454469",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2454469"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-35385",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-35385"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-35385",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-35385"
+        },
+        {
+          "category": "external",
+          "summary": "https://marc.info/?l=openssh-unix-dev&m=177513443901484&w=2",
+          "url": "https://marc.info/?l=openssh-unix-dev&m=177513443901484&w=2"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.openssh.org/releasenotes.html#10.3p1",
+          "url": "https://www.openssh.org/releasenotes.html#10.3p1"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.openwall.com/lists/oss-security/2026/04/02/3",
+          "url": "https://www.openwall.com/lists/oss-security/2026/04/02/3"
+        }
+      ],
+      "release_date": "2026-04-02T16:30:59.615000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-06-17T17:18:39+00:00",
+          "details": "For OpenShift Container Platform 4.18 see the following documentation, which will be updated shortly for this release, for important instructions on how to upgrade your cluster and fully apply this asynchronous errata update:\n\nhttps://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/release_notes/\n\nYou may download the oc tool and use it to inspect release image metadata for x86_64, s390x, ppc64le, and aarch64 architectures. The image digests may be found at https://quay.io/repository/openshift-release-dev/ocp-release?tab=tags.\n\nThe sha values for the release are as follows:\n\n      (For x86_64 architecture)\n      The image digest is sha256:2a7a95814b1b307813552472d18ef7aee7930748f707d730c4e816bdced1dac9\n\n      (For s390x architecture)\n      The image digest is sha256:363adcf59338bad26a33111d98322c8501d16707b295bd4328b30a04d6f1ce51\n\n      (For ppc64le architecture)\n      The image digest is sha256:6bf4deb41dcade0c2eedc88af3495eb05847bfb1f74351c3a896cb697d13ada1\n\n      (For aarch64 architecture)\n      The image digest is sha256:f0ce3bc7f47d2bda4696f49eba84569ac87f1b2b42852e9f8756fe0a3f9a853f\n\nAll OpenShift Container Platform 4.18 users are advised to upgrade to these updated packages and images when they are available in the appropriater release channel. To check for available updates, use the OpenShift CLI (oc) or web console. Instructions for upgrading a cluster are available at https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/updating_clusters/index#updating-cluster-cli.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:25181"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "OpenSSH: OpenSSH: Privilege escalation via scp legacy protocol when not preserving file mode"
+    },
+    {
+      "cve": "CVE-2026-39979",
+      "cwe": {
+        "id": "CWE-125",
+        "name": "Out-of-bounds Read"
+      },
+      "discovery_date": "2026-04-13T23:01:01.219840+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458077"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in jq, a command line JSON processor, specifically in the libjq API. Parsing a malformed JSON input from a non-NUL-terminated buffer using the `jv_parse_sized` function can cause an out-of-bounds read, resulting in an application crash and a possible memory disclosure within the error message generated by the parser.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "jq: out-of-bounds read in jv_parse_sized() on error formatting for non-NUL-terminated buffers",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this flaw, an attacker needs to supply malformed JSON from a non-NUL-terminated buffer to an application using the `jv_parse_sized` function. This allows the attacker to trigger the out-of-bounds read, causing an application crash and potentially disclosing memory with no other security impact. As this issue affects the libjq library, it is more likely to be exposed to untrusted input. Due to these reasons, this vulnerability has been rated with an important severity.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-39979"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458077",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458077"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-39979",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-39979"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-39979",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-39979"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/jqlang/jq/commit/2f09060afab23fe9390cce7cb860b10416e1bf5f",
+          "url": "https://github.com/jqlang/jq/commit/2f09060afab23fe9390cce7cb860b10416e1bf5f"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/jqlang/jq/security/advisories/GHSA-2hhh-px8h-355p",
+          "url": "https://github.com/jqlang/jq/security/advisories/GHSA-2hhh-px8h-355p"
+        }
+      ],
+      "release_date": "2026-04-13T22:18:56.252000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-06-17T17:18:39+00:00",
+          "details": "For OpenShift Container Platform 4.18 see the following documentation, which will be updated shortly for this release, for important instructions on how to upgrade your cluster and fully apply this asynchronous errata update:\n\nhttps://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/release_notes/\n\nYou may download the oc tool and use it to inspect release image metadata for x86_64, s390x, ppc64le, and aarch64 architectures. The image digests may be found at https://quay.io/repository/openshift-release-dev/ocp-release?tab=tags.\n\nThe sha values for the release are as follows:\n\n      (For x86_64 architecture)\n      The image digest is sha256:2a7a95814b1b307813552472d18ef7aee7930748f707d730c4e816bdced1dac9\n\n      (For s390x architecture)\n      The image digest is sha256:363adcf59338bad26a33111d98322c8501d16707b295bd4328b30a04d6f1ce51\n\n      (For ppc64le architecture)\n      The image digest is sha256:6bf4deb41dcade0c2eedc88af3495eb05847bfb1f74351c3a896cb697d13ada1\n\n      (For aarch64 architecture)\n      The image digest is sha256:f0ce3bc7f47d2bda4696f49eba84569ac87f1b2b42852e9f8756fe0a3f9a853f\n\nAll OpenShift Container Platform 4.18 users are advised to upgrade to these updated packages and images when they are available in the appropriater release channel. To check for available updates, use the OpenShift CLI (oc) or web console. Instructions for upgrading a cluster are available at https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/updating_clusters/index#updating-cluster-cli.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:25181"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, manually ensure that every buffer is NUL-terminated before passing it to the 'jv_parse_sized' function.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.2,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "jq: out-of-bounds read in jv_parse_sized() on error formatting for non-NUL-terminated buffers"
+    },
+    {
+      "cve": "CVE-2026-40164",
+      "cwe": {
+        "id": "CWE-341",
+        "name": "Predictable from Observable State"
+      },
+      "discovery_date": "2026-04-14T00:01:04.003115+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458084"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in jq, a command-line JSON processor. A remote attacker could exploit this vulnerability by providing a specially crafted JSON object. This object leverages a weakness in jq's hashing algorithm, which uses a hardcoded, publicly known seed. By crafting the JSON object to cause hash collisions, an attacker can degrade the performance of JSON object hash table operations, leading to significant CPU exhaustion and a denial of service (DoS) for systems processing the malicious JSON data.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "jq: jq: Denial of Service via crafted JSON object causing hash collisions",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-40164"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458084",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458084"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-40164",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-40164"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-40164",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-40164"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/jqlang/jq/commit/0c7d133c3c7e37c00b6d46b658a02244fdd3c784",
+          "url": "https://github.com/jqlang/jq/commit/0c7d133c3c7e37c00b6d46b658a02244fdd3c784"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/jqlang/jq/security/advisories/GHSA-wwj8-gxm6-jc29",
+          "url": "https://github.com/jqlang/jq/security/advisories/GHSA-wwj8-gxm6-jc29"
+        }
+      ],
+      "release_date": "2026-04-13T23:40:12.693000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-06-17T17:18:39+00:00",
+          "details": "For OpenShift Container Platform 4.18 see the following documentation, which will be updated shortly for this release, for important instructions on how to upgrade your cluster and fully apply this asynchronous errata update:\n\nhttps://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/release_notes/\n\nYou may download the oc tool and use it to inspect release image metadata for x86_64, s390x, ppc64le, and aarch64 architectures. The image digests may be found at https://quay.io/repository/openshift-release-dev/ocp-release?tab=tags.\n\nThe sha values for the release are as follows:\n\n      (For x86_64 architecture)\n      The image digest is sha256:2a7a95814b1b307813552472d18ef7aee7930748f707d730c4e816bdced1dac9\n\n      (For s390x architecture)\n      The image digest is sha256:363adcf59338bad26a33111d98322c8501d16707b295bd4328b30a04d6f1ce51\n\n      (For ppc64le architecture)\n      The image digest is sha256:6bf4deb41dcade0c2eedc88af3495eb05847bfb1f74351c3a896cb697d13ada1\n\n      (For aarch64 architecture)\n      The image digest is sha256:f0ce3bc7f47d2bda4696f49eba84569ac87f1b2b42852e9f8756fe0a3f9a853f\n\nAll OpenShift Container Platform 4.18 users are advised to upgrade to these updated packages and images when they are available in the appropriater release channel. To check for available updates, use the OpenShift CLI (oc) or web console. Instructions for upgrading a cluster are available at https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/updating_clusters/index#updating-cluster-cli.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:25181"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "jq: jq: Denial of Service via crafted JSON object causing hash collisions"
+    },
+    {
+      "cve": "CVE-2026-41035",
+      "cwe": {
+        "id": "CWE-805",
+        "name": "Buffer Access with Incorrect Length Value"
+      },
+      "discovery_date": "2026-04-16T08:00:54.200357+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458898"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in rsync. When rsync is configured to handle extended attributes (using the -X or --xattrs option), a remote attacker can exploit a use-after-free vulnerability. This occurs because the receive_xattr function incorrectly processes an untrusted length value during a sorting operation, leading to memory corruption. Successful exploitation can result in a denial of service, causing the rsync process to crash, and may potentially allow for arbitrary code execution.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "rsync: Rsync: Use-after-free vulnerability in extended attribute handling",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important flaw in rsync that allows a remote attacker to cause a denial of service or potentially execute arbitrary code. The vulnerability is present when rsync is used with extended attributes enabled via the `-X` or `--xattrs` option, which is not a default configuration. Exploitation requires the victim to explicitly enable this feature.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-41035"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458898",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458898"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-41035",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-41035"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-41035",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-41035"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/RsyncProject/rsync/issues/871",
+          "url": "https://github.com/RsyncProject/rsync/issues/871"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/RsyncProject/rsync/releases",
+          "url": "https://github.com/RsyncProject/rsync/releases"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.openwall.com/lists/oss-security/2026/04/16/2",
+          "url": "https://www.openwall.com/lists/oss-security/2026/04/16/2"
+        }
+      ],
+      "release_date": "2026-04-16T06:53:05.237000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-06-17T17:18:39+00:00",
+          "details": "For OpenShift Container Platform 4.18 see the following documentation, which will be updated shortly for this release, for important instructions on how to upgrade your cluster and fully apply this asynchronous errata update:\n\nhttps://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/release_notes/\n\nYou may download the oc tool and use it to inspect release image metadata for x86_64, s390x, ppc64le, and aarch64 architectures. The image digests may be found at https://quay.io/repository/openshift-release-dev/ocp-release?tab=tags.\n\nThe sha values for the release are as follows:\n\n      (For x86_64 architecture)\n      The image digest is sha256:2a7a95814b1b307813552472d18ef7aee7930748f707d730c4e816bdced1dac9\n\n      (For s390x architecture)\n      The image digest is sha256:363adcf59338bad26a33111d98322c8501d16707b295bd4328b30a04d6f1ce51\n\n      (For ppc64le architecture)\n      The image digest is sha256:6bf4deb41dcade0c2eedc88af3495eb05847bfb1f74351c3a896cb697d13ada1\n\n      (For aarch64 architecture)\n      The image digest is sha256:f0ce3bc7f47d2bda4696f49eba84569ac87f1b2b42852e9f8756fe0a3f9a853f\n\nAll OpenShift Container Platform 4.18 users are advised to upgrade to these updated packages and images when they are available in the appropriater release channel. To check for available updates, use the OpenShift CLI (oc) or web console. Instructions for upgrading a cluster are available at https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/updating_clusters/index#updating-cluster-cli.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:25181"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, avoid using the -X or --xattrs options with rsync if extended attribute handling is not essential for your operations. Disabling these options prevents the vulnerable code path from being exercised. This may impact functionality that relies on extended attributes.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "LOW",
+            "baseScore": 7.4,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "LOW",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:L",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "rsync: Rsync: Use-after-free vulnerability in extended attribute handling"
+    },
+    {
+      "cve": "CVE-2026-43037",
+      "cwe": {
+        "id": "CWE-843",
+        "name": "Access of Resource Using Incompatible Type ('Type Confusion')"
+      },
+      "discovery_date": "2026-05-01T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2464351"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's IPv6 tunnel implementation. A remote attacker could exploit this flaw by sending malicious ICMPv6 error messages to cause a stack-based buffer overflow in the kernel's IPv4-over-IPv6 tunnel error handling code. This could result in a kernel crash (denial of service) or potentially allow arbitrary code execution with kernel privileges.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: ip6_tunnel: clear skb2->cb[] in ip4ip6_err()",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This Critical flaw in the Linux kernel's IPv6 tunneling error handling can lead to a stack buffer overflow. An unauthenticated remote attacker could exploit this by sending specially crafted network packets, potentially resulting in a denial of service or information disclosure on affected Red Hat Enterprise Linux systems.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+          "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-43037"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2464351",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2464351"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-43037",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-43037"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-43037",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-43037"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026050102-CVE-2026-43037-0346@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026050102-CVE-2026-43037-0346@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-01T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-06-17T17:18:39+00:00",
+          "details": "For OpenShift Container Platform 4.18 see the following documentation, which will be updated shortly for this release, for important instructions on how to upgrade your cluster and fully apply this asynchronous errata update:\n\nhttps://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html/release_notes/\n\nYou may download the oc tool and use it to inspect release image metadata for x86_64, s390x, ppc64le, and aarch64 architectures. The image digests may be found at https://quay.io/repository/openshift-release-dev/ocp-release?tab=tags.\n\nThe sha values for the release are as follows:\n\n      (For x86_64 architecture)\n      The image digest is sha256:2a7a95814b1b307813552472d18ef7aee7930748f707d730c4e816bdced1dac9\n\n      (For s390x architecture)\n      The image digest is sha256:363adcf59338bad26a33111d98322c8501d16707b295bd4328b30a04d6f1ce51\n\n      (For ppc64le architecture)\n      The image digest is sha256:6bf4deb41dcade0c2eedc88af3495eb05847bfb1f74351c3a896cb697d13ada1\n\n      (For aarch64 architecture)\n      The image digest is sha256:f0ce3bc7f47d2bda4696f49eba84569ac87f1b2b42852e9f8756fe0a3f9a853f\n\nAll OpenShift Container Platform 4.18 users are advised to upgrade to these updated packages and images when they are available in the appropriater release channel. To check for available updates, use the OpenShift CLI (oc) or web console. Instructions for upgrading a cluster are available at https://docs.redhat.com/en/documentation/openshift_container_platform/4.18/html-single/updating_clusters/index#updating-cluster-cli.",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:25181"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is to skip loading the affected module `ip6_tunnel` onto the system till we have a fix available, this can be done by a blacklist mechanism, this will ensure the driver is not loaded at the boot time.\n~~~\nHow do I blacklist a kernel module to prevent it from loading automatically? \nhttps://access.redhat.com/solutions/41278  \n~~~\n\nWe may also want to detection and monitoring an affected system as below:\n~~~\nMonitor for exploitation attempts:\n\n# Enable kernel audit for IPv6 tunnel operations\nauditctl -a always,exit -F arch=b64 -S socket -F a0=10 -F a1=3 -k ipv6_tunnel\n\n# Monitor system logs for kernel panics/crashes\njournalctl -k -p err -f | grep -i \"ip6_tunnel\\|icmp\\|stack\"\n~~~",
+          "product_ids": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHOSE-4.18:rhcos-aarch64-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-ppc64le-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-s390x-418.94.202606051320-0",
+            "9Base-RHOSE-4.18:rhcos-x86_64-418.94.202606051320-0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Critical"
+        }
+      ],
+      "title": "kernel: ip6_tunnel: clear skb2->cb[] in ip4ip6_err()"
+    }
+  ]
+}

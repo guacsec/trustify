@@ -1,0 +1,2891 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Critical"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "An update for kernel-rt is now available for Red Hat Enterprise Linux 7 Extended Lifecycle Support.\n\nRed Hat Product Security has rated this update as having a security impact of Critical. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "The kernel-rt packages provide the Real Time Linux Kernel, which enables fine-tuning for systems with extremely high determinism requirements.\n\nSecurity Fix(es):\n\n* kernel: Linux kernel: Denial of service and memory corruption in RDMA umad (CVE-2026-23243)\n\n* kernel: netfilter: nf_conntrack_h323: check for zero length in DecodeQ931() (CVE-2026-23455)\n\n* kernel: can: raw: fix ro->uniq use-after-free in raw_rcv() (CVE-2026-31532)\n\n* kernel: usbip: validate number_of_packets in usbip_pack_ret_submit() (CVE-2026-31607)\n\n* kernel: netfilter: ip6t_eui64: reject invalid MAC header for all packets (CVE-2026-31685)\n\n* kernel: ip6_tunnel: clear skb2->cb[] in ip4ip6_err() (CVE-2026-43037)\n\n* kernel: wifi: brcmfmac: validate bsscfg indices in IF events (CVE-2026-43110)\n\n* kernel: md/bitmap: fix GPF in write_page caused by resize race (CVE-2026-43163)\n\n* kernel: netfilter: xt_tcpmss: check remaining length before reading optlen (CVE-2026-43190)\n\n* kernel: xfs: fix freemap adjustments when adding xattrs to leaf blocks (CVE-2026-43158)\n\n* kernel: tcp: fix potential race in tcp_v6_syn_recv_sock() (CVE-2026-43198)\n\n* kernel: dlm: validate length in dlm_search_rsb_tree (CVE-2026-43125)\n\n* kernel: Linux kernel: smb: client: reject userspace cifs.spnego descriptions (CVE-2026-46243)\n\n* kernel: ALSA: aloop: Fix peer runtime UAF during format-change stop (CVE-2026-46090)\n\n* kernel: RDMA/rxe: Fix double free in rxe_srq_from_init (CVE-2026-45852)\n\n* kernel: RDMA/mlx4: Fix mis-use of RCU in mlx4_srq_event() (CVE-2026-46181)\n\nBug Fix(es) and Enhancement(s):\n\n* RHEL-124698 missed the last line of the backport (JIRA:RHEL-168608)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:41236",
+        "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#critical",
+        "url": "https://access.redhat.com/security/updates/classification/#critical"
+      },
+      {
+        "category": "external",
+        "summary": "2448594",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2448594"
+      },
+      {
+        "category": "external",
+        "summary": "2454810",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2454810"
+      },
+      {
+        "category": "external",
+        "summary": "2461107",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2461107"
+      },
+      {
+        "category": "external",
+        "summary": "2461521",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2461521"
+      },
+      {
+        "category": "external",
+        "summary": "2461759",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2461759"
+      },
+      {
+        "category": "external",
+        "summary": "2464351",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2464351"
+      },
+      {
+        "category": "external",
+        "summary": "2467014",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467014"
+      },
+      {
+        "category": "external",
+        "summary": "2467059",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467059"
+      },
+      {
+        "category": "external",
+        "summary": "2467064",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467064"
+      },
+      {
+        "category": "external",
+        "summary": "2467210",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467210"
+      },
+      {
+        "category": "external",
+        "summary": "2467228",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467228"
+      },
+      {
+        "category": "external",
+        "summary": "2467234",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467234"
+      },
+      {
+        "category": "external",
+        "summary": "2481486",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2481486"
+      },
+      {
+        "category": "external",
+        "summary": "2481980",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2481980"
+      },
+      {
+        "category": "external",
+        "summary": "2482166",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2482166"
+      },
+      {
+        "category": "external",
+        "summary": "2482532",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2482532"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_41236.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: kernel-rt security, bug fix, and enhancement update",
+    "tracking": {
+      "current_release_date": "2026-08-20T15:14:53+00:00",
+      "generator": {
+        "date": "2026-08-20T15:14:53+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:41236",
+      "initial_release_date": "2026-07-17T12:55:09+00:00",
+      "revision_history": [
+        {
+          "date": "2026-07-17T12:55:09+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-07-17T12:55:09+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-20T15:14:53+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+                  "product_id": "7Server-RT-ELS",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:rhel_extras_rt_els:7"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat Enterprise Linux"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+                "product": {
+                  "name": "kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+                  "product_id": "kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt@3.10.0-1160.155.1.rt56.1307.el7?arch=src"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "src"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                "product": {
+                  "name": "kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_id": "kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt@3.10.0-1160.155.1.rt56.1307.el7?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                "product": {
+                  "name": "kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_id": "kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt-debug@3.10.0-1160.155.1.rt56.1307.el7?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                "product": {
+                  "name": "kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_id": "kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt-debug-devel@3.10.0-1160.155.1.rt56.1307.el7?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                "product": {
+                  "name": "kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_id": "kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt-devel@3.10.0-1160.155.1.rt56.1307.el7?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                "product": {
+                  "name": "kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_id": "kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt-trace@3.10.0-1160.155.1.rt56.1307.el7?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                "product": {
+                  "name": "kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_id": "kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt-trace-devel@3.10.0-1160.155.1.rt56.1307.el7?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                "product": {
+                  "name": "kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_id": "kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt-debug-debuginfo@3.10.0-1160.155.1.rt56.1307.el7?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                "product": {
+                  "name": "kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_id": "kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt-debuginfo@3.10.0-1160.155.1.rt56.1307.el7?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                "product": {
+                  "name": "kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_id": "kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt-debuginfo-common-x86_64@3.10.0-1160.155.1.rt56.1307.el7?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                "product": {
+                  "name": "kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_id": "kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt-trace-debuginfo@3.10.0-1160.155.1.rt56.1307.el7?arch=x86_64"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "x86_64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+                "product": {
+                  "name": "kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+                  "product_id": "kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/kernel-rt-doc@3.10.0-1160.155.1.rt56.1307.el7?arch=noarch"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "noarch"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src"
+        },
+        "product_reference": "kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64 as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        },
+        "product_reference": "kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64 as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        },
+        "product_reference": "kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64 as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        },
+        "product_reference": "kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64 as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        },
+        "product_reference": "kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64 as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        },
+        "product_reference": "kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64 as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        },
+        "product_reference": "kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64 as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        },
+        "product_reference": "kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch"
+        },
+        "product_reference": "kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64 as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        },
+        "product_reference": "kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64 as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        },
+        "product_reference": "kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64 as a component of Red Hat Enterprise Linux for Real Time (v. 7 ELS)",
+          "product_id": "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        },
+        "product_reference": "kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+        "relates_to_product_reference": "7Server-RT-ELS"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2026-23243",
+      "cwe": {
+        "id": "CWE-131",
+        "name": "Incorrect Calculation of Buffer Size"
+      },
+      "discovery_date": "2026-03-18T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2448594"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's Remote Direct Memory Access (RDMA) `umad` (User Mode Access Device) component. A local user can exploit this vulnerability by manipulating input, causing an integer underflow that leads to an out-of-bounds memory write. This memory corruption can result in a denial of service (DoS) by crashing the system, and may also lead to limited information disclosure or data integrity issues.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: Linux kernel: Denial of service and memory corruption in RDMA umad",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This bug is a kernel out-of-bounds write in the RDMA umad write path caused by a user-controlled length calculation that could underflow and pass an invalid data_len into MAD send buffer creation.\nA local user with access to the umad interface can trigger the issue by supplying mismatched MAD and RMPP header sizes, which leads to an out-of-bounds memset in the send MAD allocation path and can corrupt kernel memory.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-23243"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2448594",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2448594"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-23243",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-23243"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-23243",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-23243"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026031816-CVE-2026-23243-b88e@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026031816-CVE-2026-23243-b88e@gregkh/T"
+        }
+      ],
+      "release_date": "2026-03-18T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, prevent module ib_umad from being loaded. Please see https://access.redhat.com/solutions/41278 for how to blacklist a kernel module to prevent it from loading automatically.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.3,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "kernel: Linux kernel: Denial of service and memory corruption in RDMA umad"
+    },
+    {
+      "cve": "CVE-2026-23455",
+      "cwe": {
+        "id": "CWE-125",
+        "name": "Out-of-bounds Read"
+      },
+      "discovery_date": "2026-04-03T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2454810"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's netfilter subsystem, specifically within the `nf_conntrack_h323` module. This vulnerability occurs in the `DecodeQ931()` function when processing a zero-length value from a packet. An integer underflow during a length calculation results in a large, incorrect value being passed to a subsequent function, leading to an out-of-bounds read. This could allow an attacker to cause a denial of service or potentially disclose sensitive information.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: netfilter: nf_conntrack_h323: check for zero length in DecodeQ931()",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-23455"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2454810",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2454810"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-23455",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-23455"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-23455",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-23455"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026040317-CVE-2026-23455-f045@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026040317-CVE-2026-23455-f045@gregkh/T"
+        }
+      ],
+      "release_date": "2026-04-03T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "kernel: netfilter: nf_conntrack_h323: check for zero length in DecodeQ931()"
+    },
+    {
+      "cve": "CVE-2026-31532",
+      "cwe": {
+        "id": "CWE-366",
+        "name": "Race Condition within a Thread"
+      },
+      "discovery_date": "2026-04-23T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2461107"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's Controller Area Network (CAN) raw socket implementation. A use-after-free vulnerability can occur due to a timing window during the unregistration of CAN receive filters, allowing a freed memory region to be accessed. This could lead to system instability or a denial of service (DoS).",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: can: raw: fix ro->uniq use-after-free in raw_rcv()",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "A use-after-free flaw in the Linux kernel CAN raw socket implementation can occur when raw_release() frees the per-CPU ro->uniq storage before RCU-deferred receive callbacks have fully drained. A local attacker able to create raw CAN sockets and trigger CAN receive activity could race socket teardown with raw_rcv() and cause a kernel crash. The likely impact is denial of service, while privilege escalation would require additional, unproven control over per-CPU memory reuse.\nThe issue appears more consistent with an RCU lifetime/race-condition bug leading primarily to denial of service, as exploitation depends on a narrow teardown race involving a percpu object rather than a generic reclaimable slab object, with no demonstrated privilege-escalation path or obvious controlled overwrite primitive in the relatively niche CAN raw socket subsystem.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-31532"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2461107",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2461107"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-31532",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-31532"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-31532",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-31532"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026042349-CVE-2026-31532-a820@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026042349-CVE-2026-31532-a820@gregkh/T"
+        }
+      ],
+      "release_date": "2026-04-23T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, prevent the `can` kernel module from loading if CAN functionality is not required. This can be achieved by blacklisting the module.\n\nCreate a file named `/etc/modprobe.d/blacklist-can.conf` with the following content:\n```\nblacklist can\ninstall can /bin/true\n```\nAfter creating the file, regenerate the initramfs and reboot the system for the changes to take effect.\n```bash\ndracut -f -v\nreboot\n```\nThis mitigation may impact systems that rely on CAN interfaces for their operation.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "kernel: can: raw: fix ro->uniq use-after-free in raw_rcv()"
+    },
+    {
+      "cve": "CVE-2026-31607",
+      "cwe": {
+        "id": "CWE-805",
+        "name": "Buffer Access with Incorrect Length Value"
+      },
+      "discovery_date": "2026-04-24T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2461521"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's USB/IP subsystem. A malicious USB/IP server could exploit a vulnerability in the `usbip_pack_ret_submit()` function by sending a specially crafted `RET_SUBMIT` response. This response, containing an oversized `number_of_packets` value, could cause a heap out-of-bounds write. This issue may lead to a denial of service or potentially arbitrary code execution on the client system.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: usbip: validate number_of_packets in usbip_pack_ret_submit()",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-31607"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2461521",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2461521"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-31607",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-31607"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-31607",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-31607"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026042420-CVE-2026-31607-7bac@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026042420-CVE-2026-31607-7bac@gregkh/T"
+        }
+      ],
+      "release_date": "2026-04-24T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, prevent the `usbip` kernel module from loading by blacklisting it. Create a file named `/etc/modprobe.d/blacklist-usbip.conf` with the following content:\n\n```\nblacklist usbip\n```\n\nAfter creating the file, regenerate the initramfs and reboot the system for the changes to take effect. This may impact functionality that relies on USB/IP.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.3,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:L/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "kernel: usbip: validate number_of_packets in usbip_pack_ret_submit()"
+    },
+    {
+      "cve": "CVE-2026-31685",
+      "cwe": {
+        "id": "CWE-1287",
+        "name": "Improper Validation of Specified Type of Input"
+      },
+      "discovery_date": "2026-04-25T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2461759"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's netfilter component. This vulnerability occurs because the `eui64_mt6()` function, which processes IPv6 packets, does not properly validate the MAC header for all packets. Specifically, packets with a zero fragment offset could bypass an existing guard, allowing the system to attempt to access an invalid MAC header. A remote attacker could exploit this by sending specially crafted IPv6 packets, potentially causing a system crash and leading to a Denial of Service (DoS).",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: netfilter: ip6t_eui64: reject invalid MAC header for all packets",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-31685"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2461759",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2461759"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-31685",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-31685"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-31685",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-31685"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026042545-CVE-2026-31685-3fcc@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026042545-CVE-2026-31685-3fcc@gregkh/T"
+        }
+      ],
+      "release_date": "2026-04-25T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "kernel: netfilter: ip6t_eui64: reject invalid MAC header for all packets"
+    },
+    {
+      "cve": "CVE-2026-43037",
+      "cwe": {
+        "id": "CWE-843",
+        "name": "Access of Resource Using Incompatible Type ('Type Confusion')"
+      },
+      "discovery_date": "2026-05-01T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2464351"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's IPv6 tunnel implementation. A remote attacker could exploit this flaw by sending malicious ICMPv6 error messages to cause a stack-based buffer overflow in the kernel's IPv4-over-IPv6 tunnel error handling code. This could result in a kernel crash (denial of service) or potentially allow arbitrary code execution with kernel privileges.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: ip6_tunnel: clear skb2->cb[] in ip4ip6_err()",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This Critical flaw in the Linux kernel's IPv6 tunneling error handling can lead to a stack buffer overflow. An unauthenticated remote attacker could exploit this by sending specially crafted network packets, potentially resulting in a denial of service or information disclosure on affected Red Hat Enterprise Linux systems.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-43037"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2464351",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2464351"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-43037",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-43037"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-43037",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-43037"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026050102-CVE-2026-43037-0346@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026050102-CVE-2026-43037-0346@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-01T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is to skip loading the affected module `ip6_tunnel` onto the system till we have a fix available, this can be done by a blacklist mechanism, this will ensure the driver is not loaded at the boot time.\n~~~\nHow do I blacklist a kernel module to prevent it from loading automatically? \nhttps://access.redhat.com/solutions/41278  \n~~~\n\nWe may also want to detection and monitoring an affected system as below:\n~~~\nMonitor for exploitation attempts:\n\n# Enable kernel audit for IPv6 tunnel operations\nauditctl -a always,exit -F arch=b64 -S socket -F a0=10 -F a1=3 -k ipv6_tunnel\n\n# Monitor system logs for kernel panics/crashes\njournalctl -k -p err -f | grep -i \"ip6_tunnel\\|icmp\\|stack\"\n~~~",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Critical"
+        }
+      ],
+      "title": "kernel: ip6_tunnel: clear skb2->cb[] in ip4ip6_err()"
+    },
+    {
+      "cve": "CVE-2026-43110",
+      "cwe": {
+        "id": "CWE-1285",
+        "name": "Improper Validation of Specified Index, Position, or Offset in Input"
+      },
+      "discovery_date": "2026-05-06T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2467014"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's brcmfmac Wi-Fi driver. This vulnerability occurs because the driver fails to properly validate bsscfg indices in interface (IF) events. An attacker could exploit this by sending a specially crafted IF event with an invalid bsscfg index, which could lead to an out-of-bounds write or read, potentially causing a system crash and resulting in a denial of service (DoS).",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: wifi: brcmfmac: validate bsscfg indices in IF events",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "brcmfmac IF event handling validates the firmware provided ifidx but still uses the raw bsscfgidx value as an index into the driver iflist array. A malformed firmware IF event with an out of range bsscfgidx can cause an out of bounds pointer read and may lead to an invalid pointer dereference or broader memory corruption depending on how the resulting ifp is used. For the CVSS the PR:N is used in the paranoid score because a practical attacker model may involve adjacent Wi-Fi influence over FullMAC firmware events rather than a local privileged user on the host. The issue is not reachable over a normal routed IP network. It is adjacent network or device firmware mediated. Impact is at least denial of service through a kernel crash or Wi-Fi driver failure. In the paranoid case, the unchecked firmware controlled array index potentially could lead to possible confidentiality and integrity impact (but primarily only Availability impact).",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-43110"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2467014",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467014"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-43110",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-43110"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-43110",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-43110"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026050624-CVE-2026-43110-7309@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026050624-CVE-2026-43110-7309@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-06T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, prevent module brcmfmac from being loaded. Please see https://access.redhat.com/solutions/41278 for how to blacklist a kernel module to prevent it from loading automatically.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "ADJACENT_NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:A/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "kernel: wifi: brcmfmac: validate bsscfg indices in IF events"
+    },
+    {
+      "cve": "CVE-2026-43125",
+      "cwe": {
+        "id": "CWE-130",
+        "name": "Improper Handling of Length Parameter Inconsistency"
+      },
+      "discovery_date": "2026-05-06T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2467234"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's Distributed Lock Manager (dlm) module. An attacker could send specially crafted network messages with an oversized length parameter to the dlm_dump_rsb_name() function. This lack of validation can lead to an out-of-bounds write in the dlm_search_rsb_tree() function, potentially causing a buffer overflow. This vulnerability could allow for denial of service or, in some cases, arbitrary code execution.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: dlm: validate length in dlm_search_rsb_tree",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-43125"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2467234",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467234"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-43125",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-43125"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-43125",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-43125"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026050619-CVE-2026-43125-c9f9@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026050619-CVE-2026-43125-c9f9@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-06T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.0,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "kernel: dlm: validate length in dlm_search_rsb_tree"
+    },
+    {
+      "cve": "CVE-2026-43158",
+      "cwe": {
+        "id": "CWE-617",
+        "name": "Reachable Assertion"
+      },
+      "discovery_date": "2026-05-06T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2467210"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's XFS filesystem. When adding extended attributes (xattrs), which are metadata associated with files, to leaf blocks, incorrect adjustments to the freemap can occur. This inconsistency allows the entries array and free space to overlap, leading to an assertion failure. A local user can exploit this to cause the filesystem to shut down, resulting in a Denial of Service (DoS).",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: xfs: fix freemap adjustments when adding xattrs to leaf blocks",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "A local user with the ability to set extended attributes on an XFS filesystem can trigger inconsistent xattr leaf freemap accounting through crafted xattr insertion patterns. This can cause xattr metadata regions to overlap, leading to filesystem corruption detection and XFS shutdown via a reachable assertion. The issue requires the creation of a specific filesystem metadata layout through repeated setxattr operations.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-43158"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2467210",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467210"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-43158",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-43158"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-43158",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-43158"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026050631-CVE-2026-43158-cc20@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026050631-CVE-2026-43158-cc20@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-06T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options don't meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.0,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "kernel: xfs: fix freemap adjustments when adding xattrs to leaf blocks"
+    },
+    {
+      "cve": "CVE-2026-43163",
+      "cwe": {
+        "id": "CWE-825",
+        "name": "Expired Pointer Dereference"
+      },
+      "discovery_date": "2026-05-06T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2467059"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's md/bitmap component. This vulnerability involves a use-after-free race condition that occurs during array resize operations. When the `bitmap_daemon_work()` and `__bitmap_resize()` functions execute concurrently, they can access memory pages that have already been freed. This can lead to a General Protection Fault (GPF), which causes the system to crash, resulting in a denial of service.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: md/bitmap: fix GPF in write_page caused by resize race",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-43163"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2467059",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467059"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-43163",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-43163"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-43163",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-43163"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026050632-CVE-2026-43163-86e1@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026050632-CVE-2026-43163-86e1@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-06T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 4.7,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "kernel: md/bitmap: fix GPF in write_page caused by resize race"
+    },
+    {
+      "cve": "CVE-2026-43190",
+      "cwe": {
+        "id": "CWE-125",
+        "name": "Out-of-bounds Read"
+      },
+      "discovery_date": "2026-05-06T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2467064"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel, specifically within the netfilter: xt_tcpmss module. A remote attacker could exploit this vulnerability by sending a specially crafted TCP packet. The TCP option parser does not properly validate the remaining option length, which results in an out-of-bounds read. This allows an attacker to access memory beyond the intended buffer, potentially leading to information disclosure.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: netfilter: xt_tcpmss: check remaining length before reading optlen",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "xt_tcpmss can read one byte past the TCP option boundary when the last option byte is not EOL or NOP. The parser may evaluate op i plus 1 while i is already the final byte of the option area, so a crafted TCP packet can trigger an out of bounds read in the netfilter match path. If the attacker can send packets through a ruleset that uses the tcpmss match, then it can trigger this bug. The issue is network reachable only on systems with an applicable xt_tcpmss or iptables rule, and it is not a generic TCP stack exposure. Impact is primarily limited confidentiality risk from a one byte out of bounds read and possible low availability impact.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-43190"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2467064",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467064"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-43190",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-43190"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-43190",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-43190"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026050642-CVE-2026-43190-f1c9@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026050642-CVE-2026-43190-f1c9@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-06T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options don't meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "kernel: netfilter: xt_tcpmss: check remaining length before reading optlen"
+    },
+    {
+      "cve": "CVE-2026-43198",
+      "cwe": {
+        "id": "CWE-821",
+        "name": "Incorrect Synchronization"
+      },
+      "discovery_date": "2026-05-06T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2467228"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel. A race condition exists in the TCP (Transmission Control Protocol) IPv6 (Internet Protocol version 6) socket handling, specifically within the tcp_v6_syn_recv_sock() function. This occurs because a child socket becomes visible in the TCP hash table before its IPv6-specific information is fully initialized. A remote attacker could potentially exploit this timing window, leading to an unstable system state or unexpected behavior, which may result in a denial of service (DoS).",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: tcp: fix potential race in tcp_v6_syn_recv_sock()",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-43198"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2467228",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467228"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-43198",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-43198"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-43198",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-43198"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026050645-CVE-2026-43198-0870@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026050645-CVE-2026-43198-0870@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-06T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.0,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "kernel: tcp: fix potential race in tcp_v6_syn_recv_sock()"
+    },
+    {
+      "cve": "CVE-2026-45852",
+      "cwe": {
+        "id": "CWE-1341",
+        "name": "Multiple Releases of Same Resource or Handle"
+      },
+      "discovery_date": "2026-05-27T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2482166"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's Remote Direct Memory Access (RDMA) subsystem, specifically within the `rxe` driver. An error in the `rxe_srq_from_init` function's memory management can lead to a double free vulnerability. This occurs when an attempt to copy data to user space fails, causing the same memory region to be freed twice. A local attacker could potentially exploit this flaw to cause a denial of service (DoS) by crashing the system.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: RDMA/rxe: Fix double free in rxe_srq_from_init",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-45852"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2482166",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2482166"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-45852",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-45852"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-45852",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-45852"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026052708-CVE-2026-45852-fcf9@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026052708-CVE-2026-45852-fcf9@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-27T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, prevent the `rdma_rxe` kernel module from loading. Create a file `/etc/modprobe.d/blacklist-rdma_rxe.conf` with `blacklist rdma_rxe`. Regenerate the initramfs using `sudo dracut -f -v` (or `sudo mkinitrd -f -v /boot/initramfs-$(uname -r).img $(uname -r)` for older systems) and reboot. This action may impact functionality dependent on the RDMA/rxe driver.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.0,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "kernel: RDMA/rxe: Fix double free in rxe_srq_from_init"
+    },
+    {
+      "cve": "CVE-2026-46090",
+      "cwe": {
+        "id": "CWE-364",
+        "name": "Signal Handler Race Condition"
+      },
+      "discovery_date": "2026-05-27T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2481980"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's ALSA (Advanced Linux Sound Architecture) aloop driver. This Use-After-Free (UAF) vulnerability occurs when loopback_check_format() stops the capture side during a format change, while a concurrent close operation detaches or frees the runtime. An attacker could potentially exploit this to cause a system crash or achieve arbitrary code execution.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: ALSA: aloop: Fix peer runtime UAF during format-change stop",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-46090"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2481980",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2481980"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-46090",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-46090"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-46090",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-46090"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026052702-CVE-2026-46090-1211@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026052702-CVE-2026-46090-1211@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-27T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.0,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "kernel: ALSA: aloop: Fix peer runtime UAF during format-change stop"
+    },
+    {
+      "cve": "CVE-2026-46181",
+      "cwe": {
+        "id": "CWE-366",
+        "name": "Race Condition within a Thread"
+      },
+      "discovery_date": "2026-05-28T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2482532"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Linux kernel's RDMA/mlx4 component. This vulnerability arises from the incorrect use of Read-Copy Update (RCU) in the `mlx4_srq_event()` function. An attacker could potentially trigger an event before the `srq` object is fully initialized, leading to a system crash. This could result in a Denial of Service (DoS) for the affected system.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: RDMA/mlx4: Fix mis-use of RCU in mlx4_srq_event()",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-46181"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2482532",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2482532"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-46181",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-46181"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-46181",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-46181"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026052829-CVE-2026-46181-ecff@gregkh/T",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026052829-CVE-2026-46181-ecff@gregkh/T"
+        }
+      ],
+      "release_date": "2026-05-28T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.0,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "kernel: RDMA/mlx4: Fix mis-use of RCU in mlx4_srq_event()"
+    },
+    {
+      "cve": "CVE-2026-46243",
+      "cwe": {
+        "id": "CWE-825",
+        "name": "Expired Pointer Dereference"
+      },
+      "discovery_date": "2026-05-26T15:07:49.955000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2481486"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A privilege escalation vulnerability was found in the Linux kernel's CIFS client implementation. This could allow a local attacker to impersonate other users, bypass authentication in SMB mount operations, and potentially gain unauthorized access to network file shares or escalate privileges.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "kernel: Linux kernel: smb: client: reject userspace cifs.spnego descriptions",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This issue is classified as Important severity primarily because a low-privileged local user can achieve full privilege escalation to root without any user interaction. The attack requires local access, which prevents remote exploitation and is the primary factor keeping the rating at Important rather than Critical.\n\nExploitation requires three components to be present on the system: the `cifs` kernel module (loaded or loadable), the `cifs-utils` package with its default `cifs.spnego` request-key rule, and the ability to create unprivileged user and mount namespaces. All three must be present for the attack chain to succeed. Environments that do not use SMB/CIFS file shares or Active Directory integration are unlikely to have `cifs-utils` installed, reducing their exposure.\n\nIn OpenShift Container Platform 4, this flaw is rated Low. The default `restricted-v2` Security Context Constraint (SCC) sets `allowPrivilegeEscalation: false` on all pods, which causes the kernel to ignore setuid file bits, preventing privilege escalation. Under non-default SCCs such as `anyuid` that permit privilege escalation, the vulnerability is constrained by PID and mount namespace isolation to the container's own filesystem. An attacker would only be able to escalate privileges within the container, not on the host or across pods.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+          "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+          "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+          "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-46243"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2481486",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2481486"
+        },
+        {
+          "category": "external",
+          "summary": "RHSB-2026-005",
+          "url": "https://access.redhat.com/security/vulnerabilities/RHSB-2026-005"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-46243",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-46243"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-46243",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-46243"
+        },
+        {
+          "category": "external",
+          "summary": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=3da1fdf4efbc490041eb4f836bf596201203f8f2",
+          "url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=3da1fdf4efbc490041eb4f836bf596201203f8f2"
+        },
+        {
+          "category": "external",
+          "summary": "https://lore.kernel.org/linux-cve-announce/2026060140-CVE-2026-46243-3d1c@gregkh/",
+          "url": "https://lore.kernel.org/linux-cve-announce/2026060140-CVE-2026-46243-3d1c@gregkh/"
+        }
+      ],
+      "release_date": "2026-05-26T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-17T12:55:09+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:41236"
+        },
+        {
+          "category": "workaround",
+          "details": "See the security bulletin for a detailed mitigation procedure.",
+          "product_ids": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.src",
+            "7Server-RT-ELS:kernel-rt-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debug-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-debuginfo-common-x86_64-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-doc-0:3.10.0-1160.155.1.rt56.1307.el7.noarch",
+            "7Server-RT-ELS:kernel-rt-trace-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-debuginfo-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64",
+            "7Server-RT-ELS:kernel-rt-trace-devel-0:3.10.0-1160.155.1.rt56.1307.el7.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "kernel: Linux kernel: smb: client: reject userspace cifs.spnego descriptions"
+    }
+  ]
+}

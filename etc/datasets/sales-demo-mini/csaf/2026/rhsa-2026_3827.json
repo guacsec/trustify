@@ -1,0 +1,1424 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "The 1.20.3 GA release of Red Hat OpenShift Pipelines Operator..\nFor more details see [product documentation](https://docs.redhat.com/en/documentation/red_hat_openshift_pipelines).",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "The 1.20. release of Red Hat OpenShift Pipelines Operator.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:3827",
+        "url": "https://access.redhat.com/errata/RHSA-2026:3827"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2025-11621",
+        "url": "https://access.redhat.com/security/cve/CVE-2025-11621"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2025-12044",
+        "url": "https://access.redhat.com/security/cve/CVE-2025-12044"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2025-47913",
+        "url": "https://access.redhat.com/security/cve/CVE-2025-47913"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2025-61729",
+        "url": "https://access.redhat.com/security/cve/CVE-2025-61729"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2025-66506",
+        "url": "https://access.redhat.com/security/cve/CVE-2025-66506"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2025-66564",
+        "url": "https://access.redhat.com/security/cve/CVE-2025-66564"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/",
+        "url": "https://access.redhat.com/security/updates/classification/"
+      },
+      {
+        "category": "external",
+        "summary": "https://docs.redhat.com/en/documentation/red_hat_openshift_pipelines",
+        "url": "https://docs.redhat.com/en/documentation/red_hat_openshift_pipelines"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_3827.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat OpenShift Pipelines Release 1.20.3",
+    "tracking": {
+      "current_release_date": "2026-08-20T15:05:56+00:00",
+      "generator": {
+        "date": "2026-08-20T15:05:56+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:3827",
+      "initial_release_date": "2026-03-05T07:31:32+00:00",
+      "revision_history": [
+        {
+          "date": "2026-03-05T07:31:32+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-08-15T05:55:47+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-20T15:05:56+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat OpenShift Pipelines 1.2",
+                "product": {
+                  "name": "Red Hat OpenShift Pipelines 1.2",
+                  "product_id": "Red Hat OpenShift Pipelines 1.2",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:openshift_pipelines:1.20::el9"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat OpenShift Pipelines"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-opc-rhel9@sha256%3Acd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6?arch=arm64&repository_url=registry.redhat.io/openshift-pipelines&tag=1771921696"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-serve-tkn-cli-rhel9@sha256%3A838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041?arch=arm64&repository_url=registry.redhat.io/openshift-pipelines&tag=1772679439"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-cli-tkn-rhel9@sha256%3A9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf?arch=arm64&repository_url=registry.redhat.io/openshift-pipelines&tag=1772694865"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "arm64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-opc-rhel9@sha256%3Aa088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3?arch=ppc64le&repository_url=registry.redhat.io/openshift-pipelines&tag=1771921696"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-serve-tkn-cli-rhel9@sha256%3Ad17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a?arch=ppc64le&repository_url=registry.redhat.io/openshift-pipelines&tag=1772679439"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-cli-tkn-rhel9@sha256%3A05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91?arch=ppc64le&repository_url=registry.redhat.io/openshift-pipelines&tag=1772694865"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "ppc64le"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-opc-rhel9@sha256%3A67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154?arch=s390x&repository_url=registry.redhat.io/openshift-pipelines&tag=1771921696"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-serve-tkn-cli-rhel9@sha256%3A6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95?arch=s390x&repository_url=registry.redhat.io/openshift-pipelines&tag=1772679439"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-cli-tkn-rhel9@sha256%3A66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59?arch=s390x&repository_url=registry.redhat.io/openshift-pipelines&tag=1772694865"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "s390x"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-opc-rhel9@sha256%3A1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6?arch=amd64&repository_url=registry.redhat.io/openshift-pipelines&tag=1771921696"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-serve-tkn-cli-rhel9@sha256%3Aa5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b?arch=amd64&repository_url=registry.redhat.io/openshift-pipelines&tag=1772679439"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+                "product": {
+                  "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+                  "product_id": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/pipelines-cli-tkn-rhel9@sha256%3A1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9?arch=amd64&repository_url=registry.redhat.io/openshift-pipelines&tag=1772694865"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "amd64"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64 as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64 as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64 as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64 as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64 as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64 as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le as a component of Red Hat OpenShift Pipelines 1.2",
+          "product_id": "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+        },
+        "product_reference": "registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le",
+        "relates_to_product_reference": "Red Hat OpenShift Pipelines 1.2"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2025-11621",
+      "cwe": {
+        "id": "CWE-288",
+        "name": "Authentication Bypass Using an Alternate Path or Channel"
+      },
+      "discovery_date": "2025-10-23T20:01:10.013624+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2406096"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "An authentication bypass flaw has been discovered in Hashicorp's vault product. Vault's AWS Auth method may be susceptible to authentication bypass if the role of the configured bound_principal_iam is the same across AWS accounts, or uses a wildcard.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "github.com/hashicorp/vault: Vault AWS auth method bypass due to AWS client cache",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+        ],
+        "known_not_affected": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-11621"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2406096",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2406096"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-11621",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-11621"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-11621",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-11621"
+        },
+        {
+          "category": "external",
+          "summary": "https://discuss.hashicorp.com/t/hcsec-2025-30-vault-aws-auth-method-authentication-bypass-through-mishandling-of-cache-entries/76709",
+          "url": "https://discuss.hashicorp.com/t/hcsec-2025-30-vault-aws-auth-method-authentication-bypass-through-mishandling-of-cache-entries/76709"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/hashicorp/vault/commit/054c35de0c830fd7cb9991bec8b0e6a0c793e98d",
+          "url": "https://github.com/hashicorp/vault/commit/054c35de0c830fd7cb9991bec8b0e6a0c793e98d"
+        }
+      ],
+      "release_date": "2025-10-23T19:08:54.989000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-03-05T07:31:32+00:00",
+          "details": "Red Hat OpenShift Pipelines is a cloud-native, continuous integration and\ncontinuous delivery (CI/CD) solution based on Kubernetes resources.\nIt uses Tekton building blocks to automate deployments across multiple\nplatforms by abstracting away the underlying implementation details.\nTekton introduces a number of standard custom resource definitions (CRDs)\nfor defining CI/CD pipelines that are portable across Kubernetes distributions.",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:3827"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 8.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "github.com/hashicorp/vault: Vault AWS auth method bypass due to AWS client cache"
+    },
+    {
+      "cve": "CVE-2025-12044",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2025-10-23T20:01:21.807999+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2406098"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A denial of service flaw has been discovered in Hashicorp's vault product. Vault is vulnerable to an unauthenticated denial of service when processing JSON payloads. This occurs due to a regression from a previous fix for HCSEC-2025-24 which allowed for processing JSON payloads before applying rate limits.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "github.com/hashicorp/vault: Vault Vulnerable to Denial of Service Due to Rate Limit Regression",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+        ],
+        "known_not_affected": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-12044"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2406098",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2406098"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-12044",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-12044"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-12044",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-12044"
+        },
+        {
+          "category": "external",
+          "summary": "https://discuss.hashicorp.com/t/hcsec-2025-31-vault-vulnerable-to-denial-of-service-due-to-rate-limit-regression/76710",
+          "url": "https://discuss.hashicorp.com/t/hcsec-2025-31-vault-vulnerable-to-denial-of-service-due-to-rate-limit-regression/76710"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/hashicorp/vault/commit/0adb749a82071ac312d05aef8bc0fe79b6ad49a6",
+          "url": "https://github.com/hashicorp/vault/commit/0adb749a82071ac312d05aef8bc0fe79b6ad49a6"
+        }
+      ],
+      "release_date": "2025-10-23T19:15:16.567000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-03-05T07:31:32+00:00",
+          "details": "Red Hat OpenShift Pipelines is a cloud-native, continuous integration and\ncontinuous delivery (CI/CD) solution based on Kubernetes resources.\nIt uses Tekton building blocks to automate deployments across multiple\nplatforms by abstracting away the underlying implementation details.\nTekton introduces a number of standard custom resource definitions (CRDs)\nfor defining CI/CD pipelines that are portable across Kubernetes distributions.",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:3827"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "github.com/hashicorp/vault: Vault Vulnerable to Denial of Service Due to Rate Limit Regression"
+    },
+    {
+      "cve": "CVE-2025-47913",
+      "discovery_date": "2025-11-13T22:01:26.092452+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2414943"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw in golang.org/x/crypto/ssh/agent causes the SSH agent client to panic when a peer responds with the generic SSH_AGENT_SUCCESS (0x06) message to requests expecting typed replies (e.g., List, Sign). The unmarshal layer produces an unexpected message type, which the client code does not handle, leading to panic(\"unreachable\") or a nil-pointer dereference. A malicious agent or forwarded connection can exploit this to terminate the client process.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "golang.org/x/crypto/ssh/agent: golang.org/x/crypto/ssh/agent: SSH client panic due to unexpected SSH_AGENT_SUCCESS",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability was marked as Important because it allows any malicious or misbehaving SSH agent to force a crash in the client process using a single valid protocol byte. The panic occurs before the client has a chance to validate message structure or recover, which means an attacker controlling—or intercepting—SSH agent traffic can reliably terminate processes that rely on agent interactions. In environments where SSH agents operate over forwarded sockets, shared workspaces, or CI/CD runners, this turns into a reliable, unauthenticated remote denial of service against critical automation or developer tooling. The flaw also stems from unsafe assumptions in the unmarshalling logic, where unexpected but protocol-legal message types drop into “unreachable” code paths instead of being handled gracefully—making it a design-level reliability break rather than a simple error-handling bug. For this reason, it is rated as an important availability-impacting vulnerability rather than a moderate issue.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+        ],
+        "known_not_affected": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-47913"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2414943",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2414943"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-47913",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-47913"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-47913",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-47913"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/advisories/GHSA-hcg3-q754-cr77",
+          "url": "https://github.com/advisories/GHSA-hcg3-q754-cr77"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/700295",
+          "url": "https://go.dev/cl/700295"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/75178",
+          "url": "https://go.dev/issue/75178"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2025-4116",
+          "url": "https://pkg.go.dev/vuln/GO-2025-4116"
+        }
+      ],
+      "release_date": "2025-11-13T21:29:39.907000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-03-05T07:31:32+00:00",
+          "details": "Red Hat OpenShift Pipelines is a cloud-native, continuous integration and\ncontinuous delivery (CI/CD) solution based on Kubernetes resources.\nIt uses Tekton building blocks to automate deployments across multiple\nplatforms by abstracting away the underlying implementation details.\nTekton introduces a number of standard custom resource definitions (CRDs)\nfor defining CI/CD pipelines that are portable across Kubernetes distributions.",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:3827"
+        },
+        {
+          "category": "workaround",
+          "details": "No mitigation is currently available that meets Red Hat Product Security’s standards for usability, deployment, applicability, or stability.",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "golang.org/x/crypto/ssh/agent: golang.org/x/crypto/ssh/agent: SSH client panic due to unexpected SSH_AGENT_SUCCESS"
+    },
+    {
+      "cve": "CVE-2025-61729",
+      "cwe": {
+        "id": "CWE-1050",
+        "name": "Excessive Platform Resource Consumption within a Loop"
+      },
+      "discovery_date": "2025-12-02T20:01:45.330964+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2418462"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in golang. A remote attacker could exploit this vulnerability by providing a specially crafted certificate during the error string construction process within the `HostnameError.Error()` function. This flaw, caused by unbounded string concatenation, leads to excessive resource consumption. Successful exploitation can result in a denial of service (DoS) for the affected system.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "crypto/x509: golang: Denial of Service due to excessive resource consumption via crafted certificate",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+        ],
+        "known_not_affected": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-61729"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2418462",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2418462"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-61729",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-61729"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-61729",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-61729"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/725920",
+          "url": "https://go.dev/cl/725920"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/76445",
+          "url": "https://go.dev/issue/76445"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/8FJoBkPddm4",
+          "url": "https://groups.google.com/g/golang-announce/c/8FJoBkPddm4"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2025-4155",
+          "url": "https://pkg.go.dev/vuln/GO-2025-4155"
+        }
+      ],
+      "release_date": "2025-12-02T18:54:10.166000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-03-05T07:31:32+00:00",
+          "details": "Red Hat OpenShift Pipelines is a cloud-native, continuous integration and\ncontinuous delivery (CI/CD) solution based on Kubernetes resources.\nIt uses Tekton building blocks to automate deployments across multiple\nplatforms by abstracting away the underlying implementation details.\nTekton introduces a number of standard custom resource definitions (CRDs)\nfor defining CI/CD pipelines that are portable across Kubernetes distributions.",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:3827"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "crypto/x509: golang: Denial of Service due to excessive resource consumption via crafted certificate"
+    },
+    {
+      "cve": "CVE-2025-66506",
+      "cwe": {
+        "id": "CWE-405",
+        "name": "Asymmetric Resource Consumption (Amplification)"
+      },
+      "discovery_date": "2025-12-04T23:01:20.507333+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2419056"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Fulcio, a free-to-use certificate authority. This vulnerability allows a denial of service (DoS) due to excessive memory allocation when processing a malicious OpenID Connect (OIDC) identity token containing numerous period characters.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "github.com/sigstore/fulcio: Fulcio: Denial of Service via crafted OpenID Connect (OIDC) token",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability is rated Important for Red Hat as Fulcio, a certificate authority used for issuing code signing certificates, is susceptible to a denial of service when processing a specially crafted OpenID Connect (OIDC) token. This could lead to resource exhaustion and service unavailability in affected Red Hat products that utilize Fulcio.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+        ],
+        "known_not_affected": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-66506"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2419056",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2419056"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-66506",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-66506"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-66506",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-66506"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/sigstore/fulcio/commit/765a0e57608b9ef390e1eeeea8595b9054c63a5a",
+          "url": "https://github.com/sigstore/fulcio/commit/765a0e57608b9ef390e1eeeea8595b9054c63a5a"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/sigstore/fulcio/security/advisories/GHSA-f83f-xpx7-ffpw",
+          "url": "https://github.com/sigstore/fulcio/security/advisories/GHSA-f83f-xpx7-ffpw"
+        }
+      ],
+      "release_date": "2025-12-04T22:04:41.637000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-03-05T07:31:32+00:00",
+          "details": "Red Hat OpenShift Pipelines is a cloud-native, continuous integration and\ncontinuous delivery (CI/CD) solution based on Kubernetes resources.\nIt uses Tekton building blocks to automate deployments across multiple\nplatforms by abstracting away the underlying implementation details.\nTekton introduces a number of standard custom resource definitions (CRDs)\nfor defining CI/CD pipelines that are portable across Kubernetes distributions.",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:3827"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "github.com/sigstore/fulcio: Fulcio: Denial of Service via crafted OpenID Connect (OIDC) token"
+    },
+    {
+      "cve": "CVE-2025-66564",
+      "cwe": {
+        "id": "CWE-405",
+        "name": "Asymmetric Resource Consumption (Amplification)"
+      },
+      "discovery_date": "2025-12-04T23:01:11.786030+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2419054"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Sigstore Timestamp Authority. This vulnerability allows a denial of service via excessive memory allocation when processing a specially crafted Object Identifier or Content-Type header.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "github.com/sigstore/timestamp-authority: Sigstore Timestamp Authority: Denial of Service via excessive OID or Content-Type header parsing",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability is rated Important for Red Hat products. The Sigstore Timestamp Authority, a service for issuing RFC 3161 timestamps, is prone to excessive memory allocation. This occurs when processing untrusted OID payloads with many period characters or malformed Content-Type headers. An unauthenticated attacker could exploit this flaw to trigger a denial of service in affected Red Hat products that utilize this component.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+        ],
+        "known_not_affected": [
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+          "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-66564"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2419054",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2419054"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-66564",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-66564"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-66564",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-66564"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/sigstore/timestamp-authority/commit/0cae34e197d685a14904e0bad135b89d13b69421",
+          "url": "https://github.com/sigstore/timestamp-authority/commit/0cae34e197d685a14904e0bad135b89d13b69421"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/sigstore/timestamp-authority/security/advisories/GHSA-4qg8-fj49-pxjh",
+          "url": "https://github.com/sigstore/timestamp-authority/security/advisories/GHSA-4qg8-fj49-pxjh"
+        }
+      ],
+      "release_date": "2025-12-04T22:37:13.307000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-03-05T07:31:32+00:00",
+          "details": "Red Hat OpenShift Pipelines is a cloud-native, continuous integration and\ncontinuous delivery (CI/CD) solution based on Kubernetes resources.\nIt uses Tekton building blocks to automate deployments across multiple\nplatforms by abstracting away the underlying implementation details.\nTekton introduces a number of standard custom resource definitions (CRDs)\nfor defining CI/CD pipelines that are portable across Kubernetes distributions.",
+          "product_ids": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:3827"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:05d553e2c0d86956b32281aa6ae7ffa1948073f753889007f041eb2a72cbfa91_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:1953e97a47dc441f2cd7a2f450aeb5c1792d180539c4756673d0f76679f29da9_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:66be750a2e2abe15579892d3f8d77058d79f165bd60b867a5d37716a277a6b59_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel9@sha256:9f4bdd415c1e06da1e37e872228e31f4b6ff4890aab7efca0b835ff92ec740cf_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:1f07ea20761776124173a9aab05b072b7ff1de84844a1e9b58cdcbf343ab99e6_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:67e5fd28f10c59bfb6be12fcd3702561b8dc4e6c237a77a38839370d59749154_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:a088a44bb4d11ecf877dc035f351a3500353ec3c8c6a6955d5eb1d6908bf40e3_ppc64le",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-opc-rhel9@sha256:cd4d671c485fe1ffc4fb45734890cb258fddc1658b7e161bee72e1787fd861e6_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:6c868d7ba256b73c66abfb5cbaea0a6d09107c9e90f0deea471d689d1d7bca95_s390x",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:838a518d67dabba6dc212c88c69d8897422f35a5047e82c10fe3830869d98041_arm64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:a5ce1906f4466a88cc0228ab798462120b938622f5ddd89e6826ae3bff968e5b_amd64",
+            "Red Hat OpenShift Pipelines 1.2:registry.redhat.io/openshift-pipelines/pipelines-serve-tkn-cli-rhel9@sha256:d17123e7d12d05e7c56cb8cf8c70a0ea2f477b33e529b8db43e3df8b112d353a_ppc64le"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "github.com/sigstore/timestamp-authority: Sigstore Timestamp Authority: Denial of Service via excessive OID or Content-Type header parsing"
+    }
+  ]
+}

@@ -1,0 +1,2744 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Critical"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "An update for firefox is now available for Red Hat Enterprise Linux 7.\n\nRed Hat Product Security has rated this update as having a security impact of Critical. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Mozilla Firefox is an open-source web browser, designed for standards compliance, performance, and portability.\n\nThis update upgrades Firefox to version 91.7.0 ESR.\n\nSecurity Fix(es):\n\n* Mozilla: Use-after-free in XSLT parameter processing (CVE-2022-26485)\n\n* Mozilla: Use-after-free in WebGPU IPC Framework (CVE-2022-26486)\n\n* expat: Malformed 2- and 3-byte UTF-8 sequences can lead to arbitrary code execution (CVE-2022-25235)\n\n* expat: Namespace-separator characters in \"xmlns[:prefix]\" attribute values can lead to arbitrary code execution (CVE-2022-25236)\n\n* expat: Integer overflow in storeRawNames() (CVE-2022-25315)\n\n* Mozilla: Use-after-free in text reflows (CVE-2022-26381)\n\n* Mozilla: Browser window spoof using fullscreen mode (CVE-2022-26383)\n\n* Mozilla: iframe allow-scripts sandbox bypass (CVE-2022-26384)\n\n* Mozilla: Time-of-check time-of-use bug when verifying add-on signatures (CVE-2022-26387)\n\n* Mozilla: Temporary files downloaded to /tmp and accessible by other local users (CVE-2022-26386)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.\n\nBug Fix(es):\n\n* Firefox 91.3.0-1 Language packs installed at /usr/lib64/firefox/langpacks cannot be used any more (BZ#2030190)",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2022:0824",
+        "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#critical",
+        "url": "https://access.redhat.com/security/updates/classification/#critical"
+      },
+      {
+        "category": "external",
+        "summary": "2030190",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2030190"
+      },
+      {
+        "category": "external",
+        "summary": "2056363",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2056363"
+      },
+      {
+        "category": "external",
+        "summary": "2056366",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2056366"
+      },
+      {
+        "category": "external",
+        "summary": "2056370",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2056370"
+      },
+      {
+        "category": "external",
+        "summary": "2061735",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2061735"
+      },
+      {
+        "category": "external",
+        "summary": "2061736",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2061736"
+      },
+      {
+        "category": "external",
+        "summary": "2062220",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2062220"
+      },
+      {
+        "category": "external",
+        "summary": "2062221",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2062221"
+      },
+      {
+        "category": "external",
+        "summary": "2062222",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2062222"
+      },
+      {
+        "category": "external",
+        "summary": "2062223",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2062223"
+      },
+      {
+        "category": "external",
+        "summary": "2062224",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2062224"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2022/rhsa-2022_0824.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: firefox security and bug fix update",
+    "tracking": {
+      "current_release_date": "2026-08-06T22:16:29+00:00",
+      "generator": {
+        "date": "2026-08-06T22:16:29+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.12"
+        }
+      },
+      "id": "RHSA-2022:0824",
+      "initial_release_date": "2022-03-10T16:37:02+00:00",
+      "revision_history": [
+        {
+          "date": "2022-03-10T16:37:02+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2022-03-10T16:37:02+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-06T22:16:29+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Client (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Client (v. 7)",
+                  "product_id": "7Client-7.9.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::client"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Client Optional (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Client Optional (v. 7)",
+                  "product_id": "7Client-optional-7.9.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::client"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Server (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Server (v. 7)",
+                  "product_id": "7Server-7.9.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::server"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Server Optional (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Server Optional (v. 7)",
+                  "product_id": "7Server-optional-7.9.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::server"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Workstation (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Workstation (v. 7)",
+                  "product_id": "7Workstation-7.9.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::workstation"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Workstation Optional (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Workstation Optional (v. 7)",
+                  "product_id": "7Workstation-optional-7.9.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::workstation"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat Enterprise Linux"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "firefox-0:91.7.0-3.el7_9.src",
+                "product": {
+                  "name": "firefox-0:91.7.0-3.el7_9.src",
+                  "product_id": "firefox-0:91.7.0-3.el7_9.src",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/firefox@91.7.0-3.el7_9?arch=src"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "src"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "firefox-0:91.7.0-3.el7_9.x86_64",
+                "product": {
+                  "name": "firefox-0:91.7.0-3.el7_9.x86_64",
+                  "product_id": "firefox-0:91.7.0-3.el7_9.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/firefox@91.7.0-3.el7_9?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+                "product": {
+                  "name": "firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+                  "product_id": "firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/firefox-debuginfo@91.7.0-3.el7_9?arch=x86_64"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "x86_64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "firefox-0:91.7.0-3.el7_9.i686",
+                "product": {
+                  "name": "firefox-0:91.7.0-3.el7_9.i686",
+                  "product_id": "firefox-0:91.7.0-3.el7_9.i686",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/firefox@91.7.0-3.el7_9?arch=i686"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "i686"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "firefox-0:91.7.0-3.el7_9.s390x",
+                "product": {
+                  "name": "firefox-0:91.7.0-3.el7_9.s390x",
+                  "product_id": "firefox-0:91.7.0-3.el7_9.s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/firefox@91.7.0-3.el7_9?arch=s390x"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+                "product": {
+                  "name": "firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+                  "product_id": "firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/firefox-debuginfo@91.7.0-3.el7_9?arch=s390x"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "s390x"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "firefox-0:91.7.0-3.el7_9.ppc64le",
+                "product": {
+                  "name": "firefox-0:91.7.0-3.el7_9.ppc64le",
+                  "product_id": "firefox-0:91.7.0-3.el7_9.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/firefox@91.7.0-3.el7_9?arch=ppc64le"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+                "product": {
+                  "name": "firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+                  "product_id": "firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/firefox-debuginfo@91.7.0-3.el7_9?arch=ppc64le"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "ppc64le"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "firefox-0:91.7.0-3.el7_9.ppc64",
+                "product": {
+                  "name": "firefox-0:91.7.0-3.el7_9.ppc64",
+                  "product_id": "firefox-0:91.7.0-3.el7_9.ppc64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/firefox@91.7.0-3.el7_9?arch=ppc64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+                "product": {
+                  "name": "firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+                  "product_id": "firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/firefox-debuginfo@91.7.0-3.el7_9?arch=ppc64"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "ppc64"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.src as a component of Red Hat Enterprise Linux Client (v. 7)",
+          "product_id": "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.src",
+        "relates_to_product_reference": "7Client-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.x86_64 as a component of Red Hat Enterprise Linux Client (v. 7)",
+          "product_id": "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.x86_64",
+        "relates_to_product_reference": "7Client-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-debuginfo-0:91.7.0-3.el7_9.x86_64 as a component of Red Hat Enterprise Linux Client (v. 7)",
+          "product_id": "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64"
+        },
+        "product_reference": "firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+        "relates_to_product_reference": "7Client-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.i686 as a component of Red Hat Enterprise Linux Client Optional (v. 7)",
+          "product_id": "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.i686",
+        "relates_to_product_reference": "7Client-optional-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.ppc64 as a component of Red Hat Enterprise Linux Server (v. 7)",
+          "product_id": "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.ppc64",
+        "relates_to_product_reference": "7Server-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.ppc64le as a component of Red Hat Enterprise Linux Server (v. 7)",
+          "product_id": "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.ppc64le",
+        "relates_to_product_reference": "7Server-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.s390x as a component of Red Hat Enterprise Linux Server (v. 7)",
+          "product_id": "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.s390x",
+        "relates_to_product_reference": "7Server-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.src as a component of Red Hat Enterprise Linux Server (v. 7)",
+          "product_id": "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.src",
+        "relates_to_product_reference": "7Server-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.x86_64 as a component of Red Hat Enterprise Linux Server (v. 7)",
+          "product_id": "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.x86_64",
+        "relates_to_product_reference": "7Server-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-debuginfo-0:91.7.0-3.el7_9.ppc64 as a component of Red Hat Enterprise Linux Server (v. 7)",
+          "product_id": "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64"
+        },
+        "product_reference": "firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+        "relates_to_product_reference": "7Server-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le as a component of Red Hat Enterprise Linux Server (v. 7)",
+          "product_id": "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le"
+        },
+        "product_reference": "firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+        "relates_to_product_reference": "7Server-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-debuginfo-0:91.7.0-3.el7_9.s390x as a component of Red Hat Enterprise Linux Server (v. 7)",
+          "product_id": "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x"
+        },
+        "product_reference": "firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+        "relates_to_product_reference": "7Server-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-debuginfo-0:91.7.0-3.el7_9.x86_64 as a component of Red Hat Enterprise Linux Server (v. 7)",
+          "product_id": "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64"
+        },
+        "product_reference": "firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+        "relates_to_product_reference": "7Server-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.i686 as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.i686",
+        "relates_to_product_reference": "7Server-optional-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.src as a component of Red Hat Enterprise Linux Workstation (v. 7)",
+          "product_id": "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.src",
+        "relates_to_product_reference": "7Workstation-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.x86_64 as a component of Red Hat Enterprise Linux Workstation (v. 7)",
+          "product_id": "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.x86_64",
+        "relates_to_product_reference": "7Workstation-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-debuginfo-0:91.7.0-3.el7_9.x86_64 as a component of Red Hat Enterprise Linux Workstation (v. 7)",
+          "product_id": "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64"
+        },
+        "product_reference": "firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+        "relates_to_product_reference": "7Workstation-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox-0:91.7.0-3.el7_9.i686 as a component of Red Hat Enterprise Linux Workstation Optional (v. 7)",
+          "product_id": "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        },
+        "product_reference": "firefox-0:91.7.0-3.el7_9.i686",
+        "relates_to_product_reference": "7Workstation-optional-7.9.Z"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2022-22822",
+      "cwe": {
+        "id": "CWE-190",
+        "name": "Integer Overflow or Wraparound"
+      },
+      "discovery_date": "2022-01-15T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2044457"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "expat (libexpat) is susceptible to a software flaw that causes process interruption. When processing a large number of prefixed XML attributes on a single tag libexpat can terminate unexpectedly due to integer overflow. The highest threat from this vulnerability is to availability confidentiality and integrity.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "expat: Integer overflow in addBinding in xmlparse.c",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an important rather than a critical vulnerability due to its practical limitations. The flaw arises from unsafe left-shift operations in storeAtts() within libexpat, which, under extreme conditions (e.g., over 2<sup>29</sup> prefixed attributes), can lead to undefined behavior, memory mismanagement, and denial-of-service (DoS). However, exploitation requires specially crafted XML payloads several gigabytes in size (~6.5 GiB), which makes remote exploitation unlikely in real-world environments due to common upload limits and resource constraints. There is no evidence of arbitrary code execution, memory corruption leading to privilege escalation, or data leaks.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-22822"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2044457",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2044457"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-22822",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-22822"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-22822",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-22822"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/libexpat/libexpat/pull/539",
+          "url": "https://github.com/libexpat/libexpat/pull/539"
+        }
+      ],
+      "release_date": "2022-01-15T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "expat: Integer overflow in addBinding in xmlparse.c"
+    },
+    {
+      "cve": "CVE-2022-22823",
+      "cwe": {
+        "id": "CWE-190",
+        "name": "Integer Overflow or Wraparound"
+      },
+      "discovery_date": "2022-01-15T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2044464"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "expat (libexpat) is susceptible to a software flaw that causes process interruption. When processing a large number of prefixed XML attributes on a single tag can libexpat can terminate unexpectedly due to integer overflow. The highest threat from this vulnerability is to availability, confidentiality and integrity.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "expat: Integer overflow in build_model in xmlparse.c",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an important rather than a critical vulnerability due to its practical limitations. The flaw arises from unsafe left-shift operations in storeAtts() within libexpat, which, under extreme conditions (e.g., over 2<sup>29</sup> prefixed attributes), can lead to undefined behavior, memory mismanagement, and denial-of-service (DoS). However, exploitation requires specially crafted XML payloads several gigabytes in size (~6.5 GiB), which makes remote exploitation unlikely in real-world environments due to common upload limits and resource constraints. There is no evidence of arbitrary code execution, memory corruption leading to privilege escalation, or data leaks.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-22823"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2044464",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2044464"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-22823",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-22823"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-22823",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-22823"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/libexpat/libexpat/pull/539",
+          "url": "https://github.com/libexpat/libexpat/pull/539"
+        }
+      ],
+      "release_date": "2022-01-15T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "expat: Integer overflow in build_model in xmlparse.c"
+    },
+    {
+      "cve": "CVE-2022-22824",
+      "cwe": {
+        "id": "CWE-190",
+        "name": "Integer Overflow or Wraparound"
+      },
+      "discovery_date": "2022-01-15T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2044467"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "expat (libexpat) is susceptible to a software flaw that causes process interruption. When processing a large number of prefixed XML attributes on a single tag can libexpat can terminate unexpectedly due to integer overflow. The highest threat from this vulnerability is to availability, confidentiality and integrity.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "expat: Integer overflow in defineAttribute in xmlparse.c",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an important rather than a critical vulnerability due to its practical limitations. The flaw arises from unsafe left-shift operations in storeAtts() within libexpat, which, under extreme conditions (e.g., over 2<sup>29</sup> prefixed attributes), can lead to undefined behavior, memory mismanagement, and denial-of-service (DoS). However, exploitation requires specially crafted XML payloads several gigabytes in size (~6.5 GiB), which makes remote exploitation unlikely in real-world environments due to common upload limits and resource constraints. There is no evidence of arbitrary code execution, memory corruption leading to privilege escalation, or data leaks.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-22824"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2044467",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2044467"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-22824",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-22824"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-22824",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-22824"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/libexpat/libexpat/pull/539",
+          "url": "https://github.com/libexpat/libexpat/pull/539"
+        }
+      ],
+      "release_date": "2022-01-15T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "expat: Integer overflow in defineAttribute in xmlparse.c"
+    },
+    {
+      "cve": "CVE-2022-25235",
+      "cwe": {
+        "id": "CWE-838",
+        "name": "Inappropriate Encoding for Output Context"
+      },
+      "discovery_date": "2022-02-21T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2056366"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in expat. Passing malformed 2- and 3-byte UTF-8 sequences (for example, from start tag names) to the XML processing application on top of expat can lead to arbitrary code execution. This issue is dependent on how invalid UTF-8 is handled inside the XML processor.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "expat: Malformed 2- and 3-byte UTF-8 sequences can lead to arbitrary code execution",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This flaw affects applications that leverage expat to parse untrusted XML files. Applications that only parse trusted XML files or do not process XML files at all are not affected by this flaw.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-25235"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2056366",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2056366"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-25235",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-25235"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-25235",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-25235"
+        },
+        {
+          "category": "external",
+          "summary": "https://blog.hartwork.org/posts/expat-2-4-5-released/",
+          "url": "https://blog.hartwork.org/posts/expat-2-4-5-released/"
+        }
+      ],
+      "release_date": "2022-02-19T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        },
+        {
+          "category": "workaround",
+          "details": "There is no known mitigation other than restricting applications using the expat library from processing untrusted XML content. Please update the affected packages as soon as possible.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "expat: Malformed 2- and 3-byte UTF-8 sequences can lead to arbitrary code execution"
+    },
+    {
+      "cve": "CVE-2022-25236",
+      "cwe": {
+        "id": "CWE-179",
+        "name": "Incorrect Behavior Order: Early Validation"
+      },
+      "discovery_date": "2022-02-21T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2056370"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in expat. Passing one or more namespace separator characters in the \"xmlns[:prefix]\" attribute values made expat send malformed tag names to the XML processor on top of expat. This issue causes arbitrary code execution depending on how unexpected cases are handled inside the XML processor.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "expat: Namespace-separator characters in \"xmlns[:prefix]\" attribute values can lead to arbitrary code execution",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This flaw affects applications that leverage expat to parse untrusted XML files. Applications that only parse trusted XML files or do not process XML files at all are not affected by this flaw.\n\nThe xmlrpc-c component as shipped with Red Hat Enterprise Linux 8 is not affected by this issue as the issue could not be reproduced in this version.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-25236"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2056370",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2056370"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-25236",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-25236"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-25236",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-25236"
+        },
+        {
+          "category": "external",
+          "summary": "https://blog.hartwork.org/posts/expat-2-4-5-released/",
+          "url": "https://blog.hartwork.org/posts/expat-2-4-5-released/"
+        }
+      ],
+      "release_date": "2022-02-19T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        },
+        {
+          "category": "workaround",
+          "details": "There is no known mitigation other than restricting applications using the expat library from processing untrusted XML content. Please update the affected packages as soon as possible.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "expat: Namespace-separator characters in \"xmlns[:prefix]\" attribute values can lead to arbitrary code execution"
+    },
+    {
+      "cve": "CVE-2022-25315",
+      "cwe": {
+        "id": "CWE-787",
+        "name": "Out-of-bounds Write"
+      },
+      "discovery_date": "2022-02-21T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2056363"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "An integer overflow was found in expat. The issue occurs in storeRawNames() by abusing the m_buffer expansion logic to allow allocations very close to INT_MAX and out-of-bounds heap writes. This flaw can cause a denial of service or potentially arbitrary code execution.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "expat: Integer overflow in storeRawNames()",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This flaw affects applications that leverage expat to parse untrusted XML files. Applications that only parse trusted XML files or do not process XML files at all are not affected by this flaw.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-25315"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2056363",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2056363"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-25315",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-25315"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-25315",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-25315"
+        },
+        {
+          "category": "external",
+          "summary": "https://blog.hartwork.org/posts/expat-2-4-5-released/",
+          "url": "https://blog.hartwork.org/posts/expat-2-4-5-released/"
+        }
+      ],
+      "release_date": "2022-02-19T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        },
+        {
+          "category": "workaround",
+          "details": "There is no known mitigation other than restricting applications using the expat library from processing untrusted XML content. Please update the affected packages as soon as possible.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "expat: Integer overflow in storeRawNames()"
+    },
+    {
+      "cve": "CVE-2022-26381",
+      "cwe": {
+        "id": "CWE-416",
+        "name": "Use After Free"
+      },
+      "discovery_date": "2022-03-08T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2062223"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Mozilla Foundation Security Advisory describes this flaw as:\r\n\r\nAn attacker could have caused a use-after-free issue by forcing a text reflow in an SVG object, leading to a potentially exploitable crash.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Use-after-free in text reflows",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Red Hat Product Security rates the severity of this flaw as determined by the Mozilla Foundation Security Advisory.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-26381"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2062223",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2062223"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-26381",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-26381"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-26381",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-26381"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-11/#CVE-2022-26381",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-11/#CVE-2022-26381"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-12/#CVE-2022-26381",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-12/#CVE-2022-26381"
+        }
+      ],
+      "release_date": "2022-03-08T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Mozilla: Use-after-free in text reflows"
+    },
+    {
+      "cve": "CVE-2022-26383",
+      "cwe": {
+        "id": "CWE-449",
+        "name": "The UI Performs the Wrong Action"
+      },
+      "discovery_date": "2022-03-08T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2062220"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Mozilla. The Mozilla Foundation Security Advisory describes this flaw as: When resizing a popup after requesting fullscreen access, the popup would not display the fullscreen notification.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Browser window spoof using fullscreen mode",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-26383"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2062220",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2062220"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-26383",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-26383"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-26383",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-26383"
+        }
+      ],
+      "release_date": "2022-03-08T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.0"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Mozilla: Browser window spoof using fullscreen mode"
+    },
+    {
+      "cve": "CVE-2022-26384",
+      "cwe": {
+        "id": "CWE-179",
+        "name": "Incorrect Behavior Order: Early Validation"
+      },
+      "discovery_date": "2022-03-08T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2062221"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Mozilla Foundation Security Advisory describes this flaw as:\r\n\r\nIf an attacker could control the contents of an iframe sandboxed with allow-popups but not allow-scripts, they were able to craft a link that, when clicked, would lead to JavaScript execution in violation of the sandbox.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: iframe allow-scripts sandbox bypass",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Red Hat Product Security rates the severity of this flaw as determined by the Mozilla Foundation Security Advisory.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-26384"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2062221",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2062221"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-26384",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-26384"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-26384",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-26384"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-11/#CVE-2022-26384",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-11/#CVE-2022-26384"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-12/#CVE-2022-26384",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-12/#CVE-2022-26384"
+        }
+      ],
+      "release_date": "2022-03-08T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.6,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Mozilla: iframe allow-scripts sandbox bypass"
+    },
+    {
+      "cve": "CVE-2022-26386",
+      "cwe": {
+        "id": "CWE-281",
+        "name": "Improper Preservation of Permissions"
+      },
+      "discovery_date": "2022-03-08T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2062224"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Mozilla Foundation Security Advisory describes this flaw as: Previously Thunderbird for macOS and Linux would download temporary files to a user-specific directory in /tmp, but this behavior was changed to download them to /tmp where they could be affected by other local users. This behavior was reverted to the original, user-specific directory.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Temporary files downloaded to /tmp and accessible by other local users",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-26386"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2062224",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2062224"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-26386",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-26386"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-26386",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-26386"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-11/#CVE-2022-26386",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-11/#CVE-2022-26386"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-12/#CVE-2022-26386",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-12/#CVE-2022-26386"
+        }
+      ],
+      "release_date": "2022-03-08T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "NONE",
+            "baseScore": 3.3,
+            "baseSeverity": "LOW",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Low"
+        }
+      ],
+      "title": "Mozilla: Temporary files downloaded to /tmp and accessible by other local users"
+    },
+    {
+      "cve": "CVE-2022-26387",
+      "cwe": {
+        "id": "CWE-367",
+        "name": "Time-of-check Time-of-use (TOCTOU) Race Condition"
+      },
+      "discovery_date": "2022-03-08T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2062222"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Mozilla. The Mozilla Foundation Security Advisory describes this flaw as follows: When installing an add-on, Firefox verified the signature before prompting the user; but while the user was confirming the prompt, the underlying add-on file could have been modified, and Firefox would not have noticed.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Time-of-check time-of-use bug when verifying add-on signatures",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-26387"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2062222",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2062222"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-26387",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-26387"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-26387",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-26387"
+        }
+      ],
+      "release_date": "2022-03-08T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.0"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Mozilla: Time-of-check time-of-use bug when verifying add-on signatures"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "the Mozilla project"
+          ]
+        },
+        {
+          "names": [
+            "Wang Gang, Liu Jialei, Du Sihang, Huang Yi & Yang Kang of 360 ATA"
+          ],
+          "summary": "Acknowledged by upstream."
+        }
+      ],
+      "cve": "CVE-2022-26485",
+      "cwe": {
+        "id": "CWE-416",
+        "name": "Use After Free"
+      },
+      "discovery_date": "2022-03-08T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2061736"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Mozilla. The Mozilla Foundation Security Advisory describes this flaw as: Removing an XSLT parameter during processing could have led to an exploitable use-after-free issue. There were reports of attacks in the wild abusing this flaw.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Use-after-free in XSLT parameter processing",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-26485"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2061736",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2061736"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-26485",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-26485"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-26485",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-26485"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-09/#CVE-2022-26485",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-09/#CVE-2022-26485"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+          "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "release_date": "2022-03-05T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "exploit_status",
+          "date": "2022-03-07T00:00:00+00:00",
+          "details": "CISA: https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+        },
+        {
+          "category": "impact",
+          "details": "Critical"
+        }
+      ],
+      "title": "Mozilla: Use-after-free in XSLT parameter processing"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "the Mozilla project"
+          ]
+        },
+        {
+          "names": [
+            "Wang Gang, Liu Jialei, Du Sihang, Huang Yi & Yang Kang of 360 ATA"
+          ],
+          "summary": "Acknowledged by upstream."
+        }
+      ],
+      "cve": "CVE-2022-26486",
+      "cwe": {
+        "id": "CWE-416",
+        "name": "Use After Free"
+      },
+      "discovery_date": "2022-03-08T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2061735"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "An unexpected message in the WebGPU IPC framework could lead to an exploitable sandbox escape and a use-after-free issue. An attacker with enough privileges could exploit this flaw leading to a complete system compromise",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Use-after-free in WebGPU IPC Framework",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+          "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+          "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+          "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2022-26486"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2061735",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2061735"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2022-26486",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-26486"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2022-26486",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-26486"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-09/#CVE-2022-26486",
+          "url": "https://www.mozilla.org/en-US/security/advisories/mfsa2022-09/#CVE-2022-26486"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+          "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+        }
+      ],
+      "release_date": "2022-03-05T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2022-03-10T16:37:02+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing the update, Firefox must be restarted for the changes to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2022:0824"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Client-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Client-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Client-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Server-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.ppc64le",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.s390x",
+            "7Server-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Server-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.src",
+            "7Workstation-7.9.Z:firefox-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-7.9.Z:firefox-debuginfo-0:91.7.0-3.el7_9.x86_64",
+            "7Workstation-optional-7.9.Z:firefox-0:91.7.0-3.el7_9.i686"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "exploit_status",
+          "date": "2022-03-07T00:00:00+00:00",
+          "details": "CISA: https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+        },
+        {
+          "category": "impact",
+          "details": "Critical"
+        }
+      ],
+      "title": "Mozilla: Use-after-free in WebGPU IPC Framework"
+    }
+  ]
+}

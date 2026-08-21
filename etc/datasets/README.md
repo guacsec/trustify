@@ -40,6 +40,16 @@ You can then upload it to the existing instance like
 http POST localhost:8080/api/v3/dataset @etc/datasets/ds3-sboms.zip
 ```
 
+## Sales Demo Mini
+
+A compact version of the Sales Demo dataset for fast-loading demos. 49 SBOMs
+(no large RHEL SBOMs), ~86 CSAF advisories, matching CVE and OSV records. ~95 MB total.
+
+```shell
+make sales-demo-mini.zip
+http POST localhost:8080/api/v3/dataset @etc/datasets/sales-demo-mini.zip
+```
+
 ## DS4
 
 This dataset contains the following data:

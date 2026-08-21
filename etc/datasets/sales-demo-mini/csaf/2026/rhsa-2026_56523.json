@@ -1,0 +1,705 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Critical"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "New Red Hat build of Keycloak 26.6.6 packages are available from the Customer Portal",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Red Hat build of Keycloak 26.6.6 is a standalone server, based on\nthe Keycloak project, that provides authentication and\nstandards-based single sign-on capabilities for web and mobile\napplications.\n\nSecurity fixes:\n* FGAP v2 role groups endpoint discloses hidden group metadata without group view permission (CVE-2026-14613)\n* Predictable account-linking hash enables account takeover via malicious OIDC client (CVE-2026-15571)\n* Vault-resolved rotated client secrets leaked via Admin REST API (CVE-2026-17048)\n* Unauthenticated account takeover via reset-credentials flow bypass (CVE-2026-18963)\n* Privilege escalation via Time-of-Check to Time-of-Use (TOCTOU) vulnerability (CVE-2026-9796)",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:56523",
+        "url": "https://access.redhat.com/errata/RHSA-2026:56523"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#critical",
+        "url": "https://access.redhat.com/security/updates/classification/#critical"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_56523.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat build of Keycloak 26.6.6 Security Update",
+    "tracking": {
+      "current_release_date": "2026-08-20T07:20:39+00:00",
+      "generator": {
+        "date": "2026-08-20T07:20:39+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:56523",
+      "initial_release_date": "2026-08-18T20:37:40+00:00",
+      "revision_history": [
+        {
+          "date": "2026-08-18T20:37:40+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-08-18T20:37:40+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-20T07:20:39+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat build of Keycloak 26.6.6",
+                "product": {
+                  "name": "Red Hat build of Keycloak 26.6.6",
+                  "product_id": "Red Hat build of Keycloak 26.6.6",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:build_keycloak:26.6"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat build of Keycloak"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Uri Rolls",
+            "Lior Moshe",
+            "Daniel Peters"
+          ],
+          "organization": "Operating Intelligence Inc."
+        }
+      ],
+      "cve": "CVE-2026-9796",
+      "cwe": {
+        "id": "CWE-367",
+        "name": "Time-of-check Time-of-use (TOCTOU) Race Condition"
+      },
+      "discovery_date": "2026-05-28T03:31:32.052000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2482464"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Keycloak. An authenticated administrator with the `manage-clients` role can exploit a Time-of-check to time-of-use (TOCTOU) vulnerability in the name-based admin role checks. This allows the attacker to escalate their privileges to `realm-admin` for all users within the realm, granting them extensive control over the system. The composite role relationship persists even after the attacker's own permissions are revoked and across system reboots.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak: Keycloak: Privilege escalation via Time-of-Check to Time-of-Use (TOCTOU) vulnerability",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "A Moderate privilege escalation flaw exists in Keycloak where an authenticated administrator with `manage-clients` privileges can exploit a Time-of-Check to Time-of-Use (TOCTOU) vulnerability. This allows them to escalate their privileges to `realm-admin` for all users within the realm, impacting the integrity of role-based access control.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Keycloak 26.6.6"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-9796"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2482464",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2482464"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-9796",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-9796"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-9796",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-9796"
+        }
+      ],
+      "release_date": "2026-05-28T03:32:50.762000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-18T20:37:40+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "Red Hat build of Keycloak 26.6.6"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:56523"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Keycloak 26.6.6"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "HIGH",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Keycloak 26.6.6"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak: Keycloak: Privilege escalation via Time-of-Check to Time-of-Use (TOCTOU) vulnerability"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "yd1ng"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-14613",
+      "discovery_date": "2026-07-02T17:56:34+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2496878"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A vulnerability was discovered in Keycloak's administrative interface that allows certain administrators to see information about groups they shouldn't have access to. When the new Fine-Grained Admin Permissions (FGAP v2) are turned on, an administrator who is allowed to see a specific \"role\" can also see a list of all groups assigned to that role. The system fails to check if the administrator has permission to see those specific groups. This could allow a restricted administrator to discover \"hidden\" groups and see their details, such as internal names and custom settings, which might contain sensitive deployment information.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: Keycloak: FGAP v2 role groups endpoint discloses hidden group metadata without group view permission",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Moderate. While it allows for an unauthorized disclosure of group metadata, it requires the attacker to already possess a delegated administrative role with specific view permissions. The vulnerability is a result of a missing authorization check in the RoleContainerResource component when FGAP v2 is active. Direct access to the hidden groups remains protected; the leak occurs only through the role-to-group mapping enumeration endpoint.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Keycloak 26.6.6"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-14613"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2496878",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2496878"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-14613",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-14613"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-14613",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-14613"
+        }
+      ],
+      "release_date": "2026-07-03T15:04:48.779000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-18T20:37:40+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "Red Hat build of Keycloak 26.6.6"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:56523"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 4.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Keycloak 26.6.6"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: Keycloak: FGAP v2 role groups endpoint discloses hidden group metadata without group view permission"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "yd1ng"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-15571",
+      "cwe": {
+        "id": "CWE-341",
+        "name": "Predictable from Observable State"
+      },
+      "discovery_date": "2026-07-07T18:49:21+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2499591"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the legacy client-initiated account-linking endpoint of Keycloak, a widely used open-source identity and access management solution. The mechanism used to protect the account-linking process from unauthorized requests relies on a hash that can be predicted by a malicious OIDC client. By tricking a user into authenticating, an attacker-controlled client can forge a valid linking URL to connect the victim's account to an attacker's external identity. This results in a full account takeover, allowing the attacker to log in as the victim.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: Predictable account-linking hash enables account takeover via malicious OIDC client",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Important, given that it enables full account takeover through a predictable security hash. Successful exploitation allows an attacker to link an unauthorized identity to a victim's account and subsequently impersonate that user across the realm. The vulnerability's root cause is the use of predictable session identifiers and client-known metadata in the construction of the account-linking CSRF protection hash.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Keycloak 26.6.6"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-15571"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2499591",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2499591"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-15571",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-15571"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-15571",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-15571"
+        }
+      ],
+      "release_date": "2026-08-18T19:41:18.051000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-18T20:37:40+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "Red Hat build of Keycloak 26.6.6"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:56523"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.3,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Keycloak 26.6.6"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: Predictable account-linking hash enables account takeover via malicious OIDC client"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "yd1ng"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-17048",
+      "cwe": {
+        "id": "CWE-200",
+        "name": "Exposure of Sensitive Information to an Unauthorized Actor"
+      },
+      "discovery_date": "2026-07-21T10:47:21+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2506743"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Keycloak Admin REST API, which is used to manage security realms and clients. The issue occurs when the system processes requests for rotated client secrets that are stored in a secure vault. Due to improper boundary enforcement, a delegated administrator with view-only permissions can retrieve the actual resolved secret instead of the vault placeholder, leading to the exposure of sensitive credentials.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: Vault-resolved rotated client secrets leaked via Admin REST API",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Moderate, given that exploitation requires high-privileged administrative access and the use of a non-default preview feature. Successful exploitation allows an attacker to disclose sensitive vault-backed rotated client secrets. The vulnerability's root cause is a failure to properly mask resolved vault values in the rotated client secret API endpoint.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Keycloak 26.6.6"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-17048"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2506743",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2506743"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-17048",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-17048"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-17048",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-17048"
+        }
+      ],
+      "release_date": "2026-07-21T10:47:21+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-18T20:37:40+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "Red Hat build of Keycloak 26.6.6"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:56523"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Keycloak 26.6.6"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "HIGH",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Keycloak 26.6.6"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: Vault-resolved rotated client secrets leaked via Admin REST API"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "James Paremain"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-18963",
+      "cwe": {
+        "id": "CWE-640",
+        "name": "Weak Password Recovery Mechanism for Forgotten Password"
+      },
+      "discovery_date": "2026-07-31T15:46:15+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2511595"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the reset-credentials flow of the keycloak-services component, which is the core engine for identity and access management in Red Hat Build of Keycloak. The issue allows an unauthenticated attacker to force the password reset process for any user without needing to click the required email verification link. This can result in the attacker gaining full control over target user accounts by directly setting new credentials.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: Unauthenticated account takeover via reset-credentials flow bypass",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Critical, given that it can be exploited by an unauthenticated remote attacker without any user interaction. Successful exploitation allows an attacker to gain full access to any user account by bypassing the email verification step in the password recovery process. The vulnerability's root cause is improper state validation within the reset-credentials authentication flow.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Keycloak 26.6.6"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-18963"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2511595",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2511595"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-18963",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-18963"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-18963",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-18963"
+        }
+      ],
+      "release_date": "2026-08-17T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-18T20:37:40+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "Red Hat build of Keycloak 26.6.6"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:56523"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat build of Keycloak 26.6.6"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 9.1,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Keycloak 26.6.6"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Critical"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: Unauthenticated account takeover via reset-credentials flow bypass"
+    }
+  ]
+}

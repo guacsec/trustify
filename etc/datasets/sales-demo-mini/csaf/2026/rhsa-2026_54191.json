@@ -1,0 +1,1127 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "An update for rhc-worker-script is now available for Red Hat Enterprise Linux 7 Extended Lifecycle Support.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Remote Host Configuration (rhc) worker for executing scripts on hosts managed by Red Hat Lightspeed.\n\nSecurity Fix(es):\n\n* net/url: Incorrect parsing of IPv6 host literals in net/url (CVE-2026-25679)\n\n* google.golang.org/grpc/grpc-go: google.golang.org/grpc/authz: gRPC-Go: Authorization bypass due to improper HTTP/2 path validation (CVE-2026-33186)\n\n* golang: internal/syscall/unix: Root.Chmod can follow symlinks out of the root (CVE-2026-32282)\n\n* crypto/tls: golang: Go crypto/tls: Denial of Service via multiple TLS 1.3 key update messages (CVE-2026-32283)\n\n* crypto/x509: crypto/tls: golang: Go: Denial of Service vulnerability in certificate chain building (CVE-2026-32280)\n\n* net: golang: Go net package: Denial of Service via long CNAME response in LookupCNAME (CVE-2026-33811)\n\n* golang.org/x/net/idna: golang: golang.org/x/net/idna: Privilege escalation via incorrect Punycode label processing (CVE-2026-39821)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:54191",
+        "url": "https://access.redhat.com/errata/RHSA-2026:54191"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "external",
+        "summary": "2445356",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445356"
+      },
+      {
+        "category": "external",
+        "summary": "2449833",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2449833"
+      },
+      {
+        "category": "external",
+        "summary": "2456336",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2456336"
+      },
+      {
+        "category": "external",
+        "summary": "2456338",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2456338"
+      },
+      {
+        "category": "external",
+        "summary": "2456339",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2456339"
+      },
+      {
+        "category": "external",
+        "summary": "2467822",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467822"
+      },
+      {
+        "category": "external",
+        "summary": "2480756",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2480756"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_54191.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: rhc-worker-script security update",
+    "tracking": {
+      "current_release_date": "2026-08-20T16:08:59+00:00",
+      "generator": {
+        "date": "2026-08-20T16:08:59+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:54191",
+      "initial_release_date": "2026-08-12T07:27:18+00:00",
+      "revision_history": [
+        {
+          "date": "2026-08-12T07:27:18+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-08-12T07:27:18+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-20T16:08:59+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Server (v. 7 ELS)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Server (v. 7 ELS)",
+                  "product_id": "7Server-ELS",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:rhel_els:7"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat Enterprise Linux"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "rhc-worker-script-0:0.11-1.el7_9.src",
+                "product": {
+                  "name": "rhc-worker-script-0:0.11-1.el7_9.src",
+                  "product_id": "rhc-worker-script-0:0.11-1.el7_9.src",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/rhc-worker-script@0.11-1.el7_9?arch=src"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "src"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "rhc-worker-script-0:0.11-1.el7_9.x86_64",
+                "product": {
+                  "name": "rhc-worker-script-0:0.11-1.el7_9.x86_64",
+                  "product_id": "rhc-worker-script-0:0.11-1.el7_9.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/rhc-worker-script@0.11-1.el7_9?arch=x86_64"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "x86_64"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhc-worker-script-0:0.11-1.el7_9.src as a component of Red Hat Enterprise Linux Server (v. 7 ELS)",
+          "product_id": "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src"
+        },
+        "product_reference": "rhc-worker-script-0:0.11-1.el7_9.src",
+        "relates_to_product_reference": "7Server-ELS"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhc-worker-script-0:0.11-1.el7_9.x86_64 as a component of Red Hat Enterprise Linux Server (v. 7 ELS)",
+          "product_id": "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+        },
+        "product_reference": "rhc-worker-script-0:0.11-1.el7_9.x86_64",
+        "relates_to_product_reference": "7Server-ELS"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2026-25679",
+      "cwe": {
+        "id": "CWE-1286",
+        "name": "Improper Validation of Syntactic Correctness of Input"
+      },
+      "discovery_date": "2026-03-06T22:02:11.567841+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2445356"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Go standard library function net/url.Parse insufficiently validated the host/authority component and accepted some invalid URLs by effectively treating garbage before an IP-literal as ignorable. The function should have rejected this as invalid.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "net/url: Incorrect parsing of IPv6 host literals in net/url",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-25679"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2445356",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445356"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-25679",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-25679"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-25679",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-25679"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/752180",
+          "url": "https://go.dev/cl/752180"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/77578",
+          "url": "https://go.dev/issue/77578"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/EdhZqrQ98hk",
+          "url": "https://groups.google.com/g/golang-announce/c/EdhZqrQ98hk"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2026-4601",
+          "url": "https://pkg.go.dev/vuln/GO-2026-4601"
+        }
+      ],
+      "release_date": "2026-03-06T21:28:14.211000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-12T07:27:18+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:54191"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "net/url: Incorrect parsing of IPv6 host literals in net/url"
+    },
+    {
+      "cve": "CVE-2026-32280",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-04-08T02:01:19.572351+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2456339"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Go standard library packages `crypto/x509` and `crypto/tls`. During the process of building a certificate chain, an attacker can provide a large number of intermediate certificates. This excessive input is not properly limited, leading to an uncontrolled amount of work being performed. This can result in a denial of service (DoS) condition, making the affected system or application unavailable to legitimate users.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "crypto/x509: crypto/tls: golang: Go: Denial of Service vulnerability in certificate chain building",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important denial of service vulnerability in the Go standard library's certificate chain building process. Systems utilizing Go applications that process untrusted TLS certificates or X.509 certificate chains are susceptible to resource exhaustion when presented with an excessive number of intermediate certificates, potentially leading to service unavailability. This flaw impacts applications directly using `crypto/x509` or `crypto/tls`.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-32280"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2456339",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2456339"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-32280",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-32280"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-32280",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-32280"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/758320",
+          "url": "https://go.dev/cl/758320"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/78282",
+          "url": "https://go.dev/issue/78282"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/0uYbvbPZRWU",
+          "url": "https://groups.google.com/g/golang-announce/c/0uYbvbPZRWU"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2026-4947",
+          "url": "https://pkg.go.dev/vuln/GO-2026-4947"
+        }
+      ],
+      "release_date": "2026-04-08T01:06:58.595000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-12T07:27:18+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:54191"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "crypto/x509: crypto/tls: golang: Go: Denial of Service vulnerability in certificate chain building"
+    },
+    {
+      "cve": "CVE-2026-32282",
+      "cwe": {
+        "id": "CWE-367",
+        "name": "Time-of-check Time-of-use (TOCTOU) Race Condition"
+      },
+      "discovery_date": "2026-04-08T02:01:12.683211+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2456336"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the internal/syscall/unix package in the Go standard library. If the target of the `Root.Chmod` function is replaced with a symbolic link during execution, specifically after `Root.Chmod` checks the target but before acting, the `chmod` operation will be performed on the file the symbolic link points to. This issue can bypass directory restrictions and lead to unauthorized permission changes on the filesystem.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "golang: internal/syscall/unix: Root.Chmod can follow symlinks out of the root",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this issue, an attacker needs access to the system and the required permissions to create a symbolic link. Additionally, the attacker must swap the target file with a symbolic link in the exact window after the `Root.Chmod` function checks its target but before acting. Due to these conditions, this flaw has been rated with a moderate severity.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-32282"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2456336",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2456336"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-32282",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-32282"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-32282",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-32282"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/763761",
+          "url": "https://go.dev/cl/763761"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/78293",
+          "url": "https://go.dev/issue/78293"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/0uYbvbPZRWU",
+          "url": "https://groups.google.com/g/golang-announce/c/0uYbvbPZRWU"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2026-4864",
+          "url": "https://pkg.go.dev/vuln/GO-2026-4864"
+        }
+      ],
+      "release_date": "2026-04-08T01:06:55.953000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-12T07:27:18+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:54191"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:C/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "golang: internal/syscall/unix: Root.Chmod can follow symlinks out of the root"
+    },
+    {
+      "cve": "CVE-2026-32283",
+      "cwe": {
+        "id": "CWE-764",
+        "name": "Multiple Locks of a Critical Resource"
+      },
+      "discovery_date": "2026-04-08T02:01:16.213799+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2456338"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the `crypto/tls` package within the Go (golang) standard library, specifically affecting TLS 1.3 connections. A remote attacker can exploit this vulnerability by sending multiple key update messages in a single record after the handshake. This can cause the connection to deadlock, leading to uncontrolled consumption of resources and ultimately a denial of service (DoS).",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "crypto/tls: golang: Go crypto/tls: Denial of Service via multiple TLS 1.3 key update messages",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Important: A flaw in the Go `crypto/tls` package allows a remote attacker to cause a denial of service in applications using TLS 1.3. By sending multiple key update messages in a single record post-handshake, an attacker can trigger a connection deadlock, leading to uncontrolled resource consumption. This impacts Red Hat products utilizing the affected Go standard library for TLS 1.3 connections.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-32283"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2456338",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2456338"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-32283",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-32283"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-32283",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-32283"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/763767",
+          "url": "https://go.dev/cl/763767"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/78334",
+          "url": "https://go.dev/issue/78334"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/0uYbvbPZRWU",
+          "url": "https://groups.google.com/g/golang-announce/c/0uYbvbPZRWU"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2026-4870",
+          "url": "https://pkg.go.dev/vuln/GO-2026-4870"
+        }
+      ],
+      "release_date": "2026-04-08T01:06:57.670000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-12T07:27:18+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:54191"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "crypto/tls: golang: Go crypto/tls: Denial of Service via multiple TLS 1.3 key update messages"
+    },
+    {
+      "cve": "CVE-2026-33186",
+      "cwe": {
+        "id": "CWE-551",
+        "name": "Incorrect Behavior Order: Authorization Before Parsing and Canonicalization"
+      },
+      "discovery_date": "2026-03-20T23:02:27.802640+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2449833"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in gRPC-Go, the Go language implementation of gRPC. This vulnerability, an authorization bypass, is caused by improper input validation of the HTTP/2 `:path` pseudo-header. A remote attacker can exploit this by sending raw HTTP/2 frames with a malformed `:path` that omits the mandatory leading slash. This allows the attacker to bypass defined security policies, potentially leading to unauthorized access to services or information disclosure.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "google.golang.org/grpc/grpc-go: google.golang.org/grpc/authz: gRPC-Go: Authorization bypass due to improper HTTP/2 path validation",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33186"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2449833",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2449833"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33186",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33186"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33186",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33186"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/grpc/grpc-go/security/advisories/GHSA-p77j-4mvh-x3m3",
+          "url": "https://github.com/grpc/grpc-go/security/advisories/GHSA-p77j-4mvh-x3m3"
+        }
+      ],
+      "release_date": "2026-03-20T22:23:32.147000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-12T07:27:18+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:54191"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, implement infrastructure-level normalization to ensure all incoming HTTP/2 `:path` headers are properly formatted with a leading slash before reaching the gRPC-Go server. This can be achieved by configuring a reverse proxy or API gateway to validate and normalize the `:path` header. Ensure that any such intermediary is properly configured and restarted to apply the changes, which may temporarily impact service availability.",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 9.1,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "google.golang.org/grpc/grpc-go: google.golang.org/grpc/authz: gRPC-Go: Authorization bypass due to improper HTTP/2 path validation"
+    },
+    {
+      "cve": "CVE-2026-33811",
+      "cwe": {
+        "id": "CWE-1341",
+        "name": "Multiple Releases of Same Resource or Handle"
+      },
+      "discovery_date": "2026-05-07T20:01:34.913869+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2467822"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the `net` package of Go (golang), specifically when using the `LookupCNAME` function with the `cgo` DNS resolver. A remote attacker could exploit this by providing a very long Canonical Name (CNAME) response. This can trigger a double-free of C memory, leading to a crash and a Denial of Service (DoS) for the affected application.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "net: golang: Go net package: Denial of Service via long CNAME response in LookupCNAME",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important denial of service vulnerability in the Go `net` package, affecting applications configured to use the `cgo` DNS resolver. A remote attacker could trigger a double-free memory error by providing a very long CNAME response, leading to a crash of the vulnerable application and impacting service availability.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33811"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2467822",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2467822"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33811",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33811"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33811",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33811"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/767860",
+          "url": "https://go.dev/cl/767860"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/78803",
+          "url": "https://go.dev/issue/78803"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/qcCIEXso47M",
+          "url": "https://groups.google.com/g/golang-announce/c/qcCIEXso47M"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2026-4981",
+          "url": "https://pkg.go.dev/vuln/GO-2026-4981"
+        }
+      ],
+      "release_date": "2026-05-07T19:41:19.285000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-12T07:27:18+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:54191"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, applications can be configured to use the pure Go DNS resolver instead of the `cgo` DNS resolver. This can be achieved by setting the `GODEBUG` environment variable to `netdns=go`. For example, to run a Go application with this mitigation: `GODEBUG=netdns=go /path/to/your/go/application`. This change may require restarting affected applications or services to take effect. Users should verify that this change does not negatively impact DNS resolution for their specific application environment.",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "net: golang: Go net package: Denial of Service via long CNAME response in LookupCNAME"
+    },
+    {
+      "cve": "CVE-2026-39821",
+      "cwe": {
+        "id": "CWE-1289",
+        "name": "Improper Validation of Unsafe Equivalence in Input"
+      },
+      "discovery_date": "2026-05-22T16:00:52.844126+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2480756"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in golang.org/x/net/idna. ToASCII and ToUnicode incorrectly accept Punycode-encoded labels that decode to an ASCII-only hostname (for example, xn--example-.com returns example.com instead of an error). Applications that validate the ASCII form then convert to Unicode may grant access to a restricted hostname the ASCII check would have rejected.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "golang.org/x/net/idna: golang: net/http: golang.org/x/net/idna: Privilege escalation via incorrect Punycode label processing",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "golang.org/x/net/idna is vulnerable to privilege escalation through incorrect Punycode label handling in ToASCII and ToUnicode. An attacker who can supply a Punycode hostname that passes an ASCII-only authorization check may have it normalized to a restricted ASCII name the application intended to block. Red Hat exposure is broad across products shipping the Go toolchain or bundling golang.org/x/net, including RHEL and RHEL-AI golang RPMs, hummingbird Go runtimes, OpenShift and ODF container builds, and Ceph/OpenShift components compiled against affected x/net versions.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+          "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-39821"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2480756",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2480756"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-39821",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-39821"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-39821",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-39821"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/767220",
+          "url": "https://go.dev/cl/767220"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/78760",
+          "url": "https://go.dev/issue/78760"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8",
+          "url": "https://groups.google.com/g/golang-announce/c/iI-mYSI0lu8"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2026-5026",
+          "url": "https://pkg.go.dev/vuln/GO-2026-5026"
+        }
+      ],
+      "release_date": "2026-05-22T15:01:21.462000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-12T07:27:18+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:54191"
+        },
+        {
+          "category": "workaround",
+          "details": "Upgrade to a fixed golang.org/x/net release that includes the idna correction, via updated golang or dependent package rebuilds.",
+          "product_ids": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 8.2,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:C/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.src",
+            "7Server-ELS:rhc-worker-script-0:0.11-1.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "golang.org/x/net/idna: golang: net/http: golang.org/x/net/idna: Privilege escalation via incorrect Punycode label processing"
+    }
+  ]
+}

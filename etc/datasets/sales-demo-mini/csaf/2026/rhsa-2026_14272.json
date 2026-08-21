@@ -1,0 +1,1117 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "Red Hat AMQ Broker 7.13.5 is now available from the Red Hat Customer Portal.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "AMQ Broker is a high-performance messaging implementation based on ActiveMQ Artemis. It uses an asynchronous journal for fast message persistence, and supports multiple languages, protocols, and platforms.\n\nThis release of Red Hat AMQ Broker 7.13.5 includes security and bug fixes, and enhancements. For further information, refer to the release notes linked to in the References section.\n\nSecurity Fix(es):\n\n* (CVE-2025-14813) bcprov-jdk18on: GOSTCTR implementation unable to process more than 255 blocks correctly\n* (CVE-2026-0636) bcprov-jdk18on: LDAP injection vulnerability in LDAPStoreHelper.java\n* (CVE-2026-24281) zookeeper: Apache ZooKeeper: Impersonation of servers or clients via reverse DNS spoofing\n* (CVE-2026-24308) zookeeper: Apache ZooKeeper: Information disclosure via improper handling of configuration values\n* (CVE-2026-33870) netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values\n* (CVE-2026-33871) netty-codec-http2: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood\n* (CVE-2026-5588) bcpkix-jdk18on: PKIX draft CompositeVerifier accepts empty signature sequence as valid\n\nFor more details about the security issue(s), including the impact, a CVSS score, and other related information, refer to the CVE page(s) listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:14272",
+        "url": "https://access.redhat.com/errata/RHSA-2026:14272"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification#important",
+        "url": "https://access.redhat.com/security/updates/classification#important"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?downloadType=distributions&product=jboss.amq.broker&version=7.13.5",
+        "url": "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?downloadType=distributions&product=jboss.amq.broker&version=7.13.5"
+      },
+      {
+        "category": "external",
+        "summary": "https://docs.redhat.com/en/documentation/red_hat_amq_broker/7.13",
+        "url": "https://docs.redhat.com/en/documentation/red_hat_amq_broker/7.13"
+      },
+      {
+        "category": "external",
+        "summary": "2445449",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445449"
+      },
+      {
+        "category": "external",
+        "summary": "2445451",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445451"
+      },
+      {
+        "category": "external",
+        "summary": "2452453",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452453"
+      },
+      {
+        "category": "external",
+        "summary": "2452456",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452456"
+      },
+      {
+        "category": "external",
+        "summary": "2458634",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458634"
+      },
+      {
+        "category": "external",
+        "summary": "2458640",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458640"
+      },
+      {
+        "category": "external",
+        "summary": "2458641",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458641"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_14272.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat AMQ Broker 7.13.5 release and security update",
+    "tracking": {
+      "current_release_date": "2026-08-17T13:40:09+00:00",
+      "generator": {
+        "date": "2026-08-17T13:40:09+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:14272",
+      "initial_release_date": "2026-05-06T17:58:57+00:00",
+      "revision_history": [
+        {
+          "date": "2026-05-06T17:58:57+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-05-06T17:58:57+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-17T13:40:09+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat AMQ Broker 7.13.5",
+                "product": {
+                  "name": "Red Hat AMQ Broker 7.13.5",
+                  "product_id": "Red Hat AMQ Broker 7.13.5",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:amq_broker:7.13"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat JBoss AMQ"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2025-14813",
+      "cwe": {
+        "id": "CWE-327",
+        "name": "Use of a Broken or Risky Cryptographic Algorithm"
+      },
+      "discovery_date": "2026-04-15T10:01:27.769752+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458640"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Legion of the Bouncy Castle Inc. BC-JAVA bcprov. The `GOSTCTR` implementation is unable to securely process more than 255 blocks of data due to keystream reuse. This issue allows an attacker to break the fundamental confidentiality of any data protected by the `G3413CTRBlockCipher`, potentially leading to the recovery and access of encrypted data.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "bouncycastle: BC-JAVA: GOSTCTR implementation unable to process more than 255 blocks correctly",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this flaw, an attacker needs to capture ciphertext encrypted by the `GOSTCTR` implementation where the `G3413CTRBlockCipher` processed more than 255 blocks of data, resulting in keystream reuse. An attack typically requires capturing these overlapping ciphertexts to perform cryptanalysis and uncover the underlying data.\nThe primary impact of this vulnerability is the potential loss of confidentiality for data encrypted by the `GOSTCTR` implementation. This can compromise encrypted communications or sensitive stored data by allowing an attacker to fully recover the plaintext.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.13.5"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-14813"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458640",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458640"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-14813",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-14813"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-14813",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-14813"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902025%E2%80%9014813",
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902025%E2%80%9014813"
+        }
+      ],
+      "release_date": "2026-04-15T08:56:34.057000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-06T17:58:57+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:14272"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, strictly limit the payload encrypted under a single key and Initialization Vector (IV) pair using the GOSTCTR implementation and G3413CTRBlockCipher to a maximum of 255 blocks. Alternatively, transition to a more secure, standardized and authenticated encryption mode.",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "bouncycastle: BC-JAVA: GOSTCTR implementation unable to process more than 255 blocks correctly"
+    },
+    {
+      "cve": "CVE-2026-0636",
+      "cwe": {
+        "id": "CWE-90",
+        "name": "Improper Neutralization of Special Elements used in an LDAP Query ('LDAP Injection')"
+      },
+      "discovery_date": "2026-04-15T10:01:32.911938+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458641"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Legion of the Bouncy Castle Inc. BC-JAVA bcprov. The `LDAPStoreHelper` implementation fails to properly neutralize special elements in user-supplied input before incorporating them into LDAP queries. This allows a remote attacker to execute an LDAP injection attack by supplying crafted input, potentially leading to disclosure of sensitive information or the manipulation of directory search queries.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "bouncycastle: BC-JAVA: LDAP injection vulnerability in LDAPStoreHelper.java",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this issue, an attacker needs to submit crafted input to an application using the `LDAPStoreHelper` implementation for directory queries. An attack typically requires the application to pass the malicious input directly into a search filter, allowing the attacker to modify the resulting LDAP query.\nThe primary impact of this vulnerability is the loss of confidentiality and integrity for directory data. This can allow an attacker to bypass search restrictions and manipulate directory results, potentially leading to unauthorized access or privilege escalation.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.13.5"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-0636"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458641",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458641"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-0636",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-0636"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-0636",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-0636"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/bcgit/bc-java/commit/d20cdb8430e09224114fec0179a71859929fcbde",
+          "url": "https://github.com/bcgit/bc-java/commit/d20cdb8430e09224114fec0179a71859929fcbde"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%900636",
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%900636"
+        }
+      ],
+      "release_date": "2026-04-15T08:59:12.677000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-06T17:58:57+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:14272"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this flaw, sanitize all user-supplied input to remove or escape LDAP special characters before passing it to the LDAPStoreHelper for directory queries. If the input contains unexpected metacharacters such as asterisks, parentheses or backslashes, reject the request or escape the characters.",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "bouncycastle: BC-JAVA: LDAP injection vulnerability in LDAPStoreHelper.java"
+    },
+    {
+      "cve": "CVE-2026-2332",
+      "cwe": {
+        "id": "CWE-444",
+        "name": "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')"
+      },
+      "discovery_date": "2026-04-14T12:01:05.768902+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458187"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Eclipse Jetty. The HTTP/1.1 parser is vulnerable to request smuggling when chunk extensions are used. An attacker can inject crafted requests to manipulate and trick the parser. This issue can lead to security controls bypass, cache poisoning or unauthorized endpoint access.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "org.eclipse.jetty/jetty-http: HTTP request smuggling via chunked extension quoted-string parsing",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this issue, an attacker needs to send a crafted payload to a Jetty server that is behind a reverse proxy or load balancer, specifically with a chunk extension that includes an unclosed double quote before the CRLF to trick the parser. This flaw allows an attacker to bypass security controls, cause cache poisoning or gain unauthorized endpoint access. Due to these reasons, this vulnerability has been rated with an important severity.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.13.5"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-2332"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458187",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458187"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-2332",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-2332"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-2332",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-2332"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/jetty/jetty.project/security/advisories/GHSA-355h-qmc2-wpwf",
+          "url": "https://github.com/jetty/jetty.project/security/advisories/GHSA-355h-qmc2-wpwf"
+        },
+        {
+          "category": "external",
+          "summary": "https://gitlab.eclipse.org/security/cve-assignment/-/issues/89",
+          "url": "https://gitlab.eclipse.org/security/cve-assignment/-/issues/89"
+        }
+      ],
+      "release_date": "2026-04-14T10:59:10.193000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-06T17:58:57+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:14272"
+        },
+        {
+          "category": "workaround",
+          "details": "Red Hat has investigated whether a possible mitigation exists for this issue, and has not been able to identify a practical example. Please update the affected package as soon as possible.",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.4,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "org.eclipse.jetty/jetty-http: HTTP request smuggling via chunked extension quoted-string parsing"
+    },
+    {
+      "cve": "CVE-2026-5588",
+      "cwe": {
+        "id": "CWE-347",
+        "name": "Improper Verification of Cryptographic Signature"
+      },
+      "discovery_date": "2026-04-15T10:00:59.672015+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458634"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Legion of the Bouncy Castle Inc. BC-JAVA bcpkix. The PKIX draft `CompositeVerifier` implementation improperly accepts an empty signature sequence as a valid cryptographic signature. This issue allows a remote attacker to bypass signature verification mechanisms, potentially compromising the authenticity and integrity of data.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "bouncycastle: BC-JAVA: PKIX draft CompositeVerifier accepts empty signature sequence as valid",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this issue, an attacker needs to submit a crafted payload or token containing an empty signature sequence to an application using the `CompositeVerifier` for cryptographic validation. An attack typically requires the application to process this malformed data and improperly accept the empty sequence as a valid signature, bypassing standard verification checks.\nThe primary impact of this vulnerability is the compromise of data authenticity and integrity, allowing an attacker to forge digital signatures and impersonate trusted entities.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.13.5"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-5588"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458634",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458634"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-5588",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-5588"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-5588",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-5588"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%905588",
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%905588"
+        }
+      ],
+      "release_date": "2026-04-15T09:06:15.617000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-06T17:58:57+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:14272"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this flaw, check that the signature sequence is not empty before passing any data to the CompositeVerifier for cryptographic validation. If the sequence is empty or null, explicitly reject the payload before it is processed.",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "bouncycastle: BC-JAVA: PKIX draft CompositeVerifier accepts empty signature sequence as valid"
+    },
+    {
+      "cve": "CVE-2026-24281",
+      "cwe": {
+        "id": "CWE-295",
+        "name": "Improper Certificate Validation"
+      },
+      "discovery_date": "2026-03-07T09:00:57.868082+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2445449"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache ZooKeeper. The ZKTrustManager component's hostname verification process can fall back to reverse DNS (PTR) lookup when IP Subject Alternative Name (SAN) validation fails. This vulnerability allows an attacker who can control or spoof PTR records to impersonate ZooKeeper servers or clients, provided they possess a valid certificate for the PTR name. This could lead to unauthorized access or manipulation of ZooKeeper services.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache ZooKeeper: Apache ZooKeeper: Impersonation of servers or clients via reverse DNS spoofing",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.13.5"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-24281"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2445449",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445449"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-24281",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-24281"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-24281",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-24281"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/088ddsbrzhd5lxzbqf5n24yg0mwh9jt2",
+          "url": "https://lists.apache.org/thread/088ddsbrzhd5lxzbqf5n24yg0mwh9jt2"
+        }
+      ],
+      "release_date": "2026-03-07T08:50:32.525000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-06T17:58:57+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:14272"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, disable reverse DNS lookup in Apache ZooKeeper's client and quorum protocols. This can be achieved by configuring the `zookeeper.ssl.hostnameVerification.disableReverseDns` property to `true`. This configuration option is available in Apache ZooKeeper versions 3.8.6 and 3.9.5 and later. A restart of the ZooKeeper service will be required for the change to take effect.",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.4,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Apache ZooKeeper: Apache ZooKeeper: Impersonation of servers or clients via reverse DNS spoofing"
+    },
+    {
+      "cve": "CVE-2026-24308",
+      "cwe": {
+        "id": "CWE-117",
+        "name": "Improper Output Neutralization for Logs"
+      },
+      "discovery_date": "2026-03-07T09:01:03.859129+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2445451"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache ZooKeeper. Improper handling of configuration values in ZKConfig allows an attacker to expose sensitive information. This occurs when sensitive client configuration values are logged at an INFO level in the client's logfile. This vulnerability can lead to information disclosure, potentially revealing critical system details to unauthorized parties.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache ZooKeeper: Apache ZooKeeper: Information disclosure via improper handling of configuration values",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.13.5"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-24308"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2445451",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445451"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-24308",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-24308"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-24308",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-24308"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/qng3rtzv2pqkmko4rhv85jfplkyrgqdr",
+          "url": "https://lists.apache.org/thread/qng3rtzv2pqkmko4rhv85jfplkyrgqdr"
+        }
+      ],
+      "release_date": "2026-03-07T08:51:17.567000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-06T17:58:57+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:14272"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "NONE",
+            "baseScore": 3.3,
+            "baseSeverity": "LOW",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Apache ZooKeeper: Apache ZooKeeper: Information disclosure via improper handling of configuration values"
+    },
+    {
+      "cve": "CVE-2026-33870",
+      "cwe": {
+        "id": "CWE-444",
+        "name": "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')"
+      },
+      "discovery_date": "2026-03-27T21:01:59.865839+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2452453"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. A remote attacker could exploit this vulnerability by sending specially crafted HTTP/1.1 chunked transfer encoding extension values. Due to incorrect parsing of quoted strings, this flaw enables request smuggling attacks, potentially allowing an attacker to bypass security controls or access unauthorized information.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.13.5"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2452453",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452453"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33870",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33870",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-pwqr-wmgm-9rr8",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-pwqr-wmgm-9rr8"
+        },
+        {
+          "category": "external",
+          "summary": "https://w4ke.info/2025/06/18/funky-chunks.html",
+          "url": "https://w4ke.info/2025/06/18/funky-chunks.html"
+        },
+        {
+          "category": "external",
+          "summary": "https://w4ke.info/2025/10/29/funky-chunks-2.html",
+          "url": "https://w4ke.info/2025/10/29/funky-chunks-2.html"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.rfc-editor.org/rfc/rfc9110",
+          "url": "https://www.rfc-editor.org/rfc/rfc9110"
+        }
+      ],
+      "release_date": "2026-03-27T19:54:15.586000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-06T17:58:57+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:14272"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.netty/netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values"
+    },
+    {
+      "cve": "CVE-2026-33871",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-03-27T21:02:13.396015+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2452456"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. A remote user can trigger a Denial of Service (DoS) against a Netty HTTP/2 server by sending a flood of CONTINUATION frames. The server's lack of a limit on these frames, coupled with a bypass of size-based mitigations using zero-byte frames, allows an attacker to consume excessive CPU resources. This can render the server unresponsive with minimal bandwidth usage.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "netty: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This important vulnerability in Netty HTTP/2 servers allows a remote attacker to cause a Denial of Service by sending a flood of CONTINUATION frames. This can lead to excessive CPU consumption and render the server unresponsive. Red Hat products utilizing affected Netty versions, such as Red Hat AMQ, Enterprise Application Platform, and OpenShift Container Platform components, are impacted if configured to use HTTP/2.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.13.5"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2452456",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452456"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33871",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33871",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-w9fj-cfpg-grvv",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-w9fj-cfpg-grvv"
+        }
+      ],
+      "release_date": "2026-03-27T19:55:23.135000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-06T17:58:57+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.13.5"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:14272"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.13.5"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "netty: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood"
+    }
+  ]
+}

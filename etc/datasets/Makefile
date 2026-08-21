@@ -1,5 +1,5 @@
 .PHONY: all
-all: ds1.zip ds3.zip
+all: ds1.zip ds3.zip sales-demo.zip sales-demo-mini.zip
 
 .PHONY: ds1.zip
 ds1.zip:
@@ -15,6 +15,16 @@ ds3.zip:
 ds3-sboms.zip:
 	-rm ds3-sbom.zip
 	cd ds3 && zip -r ../ds3-sboms.zip ./spdx
+
+.PHONY: sales-demo.zip
+sales-demo.zip:
+	-rm sales-demo.zip
+	cd sales-demo && zip -r ../sales-demo.zip . -x '*.DS_Store' -x 'download.sh' -x 'fetch-vulns.sh' -x 'sbom-list.txt'
+
+.PHONY: sales-demo-mini.zip
+sales-demo-mini.zip:
+	-rm sales-demo-mini.zip
+	cd sales-demo-mini && zip -r ../sales-demo-mini.zip . -x '*.DS_Store'
 
 TRUSTIFY_UI_REPO ?= https://github.com/trustification/trustify-ui.git
 TRUSTIFY_UI_BRANCH ?= main

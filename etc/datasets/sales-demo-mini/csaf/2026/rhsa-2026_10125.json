@@ -1,0 +1,1201 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "The 1.3.4 release of Red Hat Trusted Artifact Signer OpenShift Operator.\nFor more details please visit the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "The RHTAS Operator can be used with OpenShift Container Platform 4.16, 4.17, 4.18, 4.19, 4.20 and 4.21",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:10125",
+        "url": "https://access.redhat.com/errata/RHSA-2026:10125"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3",
+        "url": "https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+        "url": "https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2025-68121",
+        "url": "https://access.redhat.com/security/cve/CVE-2025-68121"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-25679",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-25679"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-27137",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-27137"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-33186",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-33186"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-33211",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-33211"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-33747",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-33747"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-33748",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-33748"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-34986",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-34986"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/",
+        "url": "https://access.redhat.com/security/updates/classification/"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_10125.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: RHTAS 1.3.4 - Red Hat Trusted Artifact Signer Release",
+    "tracking": {
+      "current_release_date": "2026-08-20T16:00:44+00:00",
+      "generator": {
+        "date": "2026-08-20T16:00:44+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:10125",
+      "initial_release_date": "2026-04-23T12:15:28+00:00",
+      "revision_history": [
+        {
+          "date": "2026-04-23T12:15:28+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-08-15T05:55:47+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-20T16:00:44+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat Trusted Artifact Signer 1.3",
+                "product": {
+                  "name": "Red Hat Trusted Artifact Signer 1.3",
+                  "product_id": "Red Hat Trusted Artifact Signer 1.3",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:trusted_artifact_signer:1.3::el9"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat Trusted Artifact Signer"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64",
+                "product": {
+                  "name": "registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64",
+                  "product_id": "registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/client-server-rhel9@sha256%3A9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72?arch=amd64&repository_url=registry.redhat.io/rhtas&tag=1776339099"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "amd64"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64 as a component of Red Hat Trusted Artifact Signer 1.3",
+          "product_id": "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+        },
+        "product_reference": "registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64",
+        "relates_to_product_reference": "Red Hat Trusted Artifact Signer 1.3"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2025-68121",
+      "discovery_date": "2026-02-05T18:01:30.086058+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2437111"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the crypto/tls component. This vulnerability occurs during Transport Layer Security (TLS) session resumption when certificate authority (CA) settings are modified between the initial and resumed handshakes. An attacker could exploit this to bypass certificate validation, allowing a client or server to establish a connection that should have been rejected. This could lead to an authentication bypass under specific conditions.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "crypto/tls: crypto/tls: Incorrect certificate validation during TLS session resumption",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is a moderate flaw because it only occurs under specific conditions, such as TLS session resumption with runtime changes to certificate authority settings. Exploitation is not straightforward and requires a controlled setup. The impact is limited to certificate validation within the same component and does not affect system availability.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-68121"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2437111",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2437111"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-68121",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-68121"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-68121",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-68121"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/737700",
+          "url": "https://go.dev/cl/737700"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/77217",
+          "url": "https://go.dev/issue/77217"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/K09ubi9FQFk",
+          "url": "https://groups.google.com/g/golang-announce/c/K09ubi9FQFk"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2026-4337",
+          "url": "https://pkg.go.dev/vuln/GO-2026-4337"
+        }
+      ],
+      "release_date": "2026-02-05T17:48:44.141000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-23T12:15:28+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:10125"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.4,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "crypto/tls: crypto/tls: Incorrect certificate validation during TLS session resumption"
+    },
+    {
+      "cve": "CVE-2026-25679",
+      "cwe": {
+        "id": "CWE-1286",
+        "name": "Improper Validation of Syntactic Correctness of Input"
+      },
+      "discovery_date": "2026-03-06T22:02:11.567841+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2445356"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Go standard library function net/url.Parse insufficiently validated the host/authority component and accepted some invalid URLs by effectively treating garbage before an IP-literal as ignorable. The function should have rejected this as invalid.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "net/url: Incorrect parsing of IPv6 host literals in net/url",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-25679"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2445356",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445356"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-25679",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-25679"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-25679",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-25679"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/752180",
+          "url": "https://go.dev/cl/752180"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/77578",
+          "url": "https://go.dev/issue/77578"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/EdhZqrQ98hk",
+          "url": "https://groups.google.com/g/golang-announce/c/EdhZqrQ98hk"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2026-4601",
+          "url": "https://pkg.go.dev/vuln/GO-2026-4601"
+        }
+      ],
+      "release_date": "2026-03-06T21:28:14.211000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-23T12:15:28+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:10125"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "net/url: Incorrect parsing of IPv6 host literals in net/url"
+    },
+    {
+      "cve": "CVE-2026-27137",
+      "cwe": {
+        "id": "CWE-295",
+        "name": "Improper Certificate Validation"
+      },
+      "discovery_date": "2026-03-06T22:01:38.859733+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2445345"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A certificate validation flaw has been discovered in the golang crypto/x509 module. When verifying a certificate chain which contains a certificate containing multiple email address constraints which share common local portions but different domain portions, these constraints will not be properly applied, and only the last constraint will be considered.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "crypto/x509: Incorrect enforcement of email constraints in crypto/x509",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-27137"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2445345",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445345"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-27137",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-27137"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-27137",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-27137"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/752182",
+          "url": "https://go.dev/cl/752182"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/77952",
+          "url": "https://go.dev/issue/77952"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/EdhZqrQ98hk",
+          "url": "https://groups.google.com/g/golang-announce/c/EdhZqrQ98hk"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2026-4599",
+          "url": "https://pkg.go.dev/vuln/GO-2026-4599"
+        }
+      ],
+      "release_date": "2026-03-06T21:28:13.748000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-23T12:15:28+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:10125"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "crypto/x509: Incorrect enforcement of email constraints in crypto/x509"
+    },
+    {
+      "cve": "CVE-2026-33186",
+      "cwe": {
+        "id": "CWE-551",
+        "name": "Incorrect Behavior Order: Authorization Before Parsing and Canonicalization"
+      },
+      "discovery_date": "2026-03-20T23:02:27.802640+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2449833"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in gRPC-Go, the Go language implementation of gRPC. This vulnerability, an authorization bypass, is caused by improper input validation of the HTTP/2 `:path` pseudo-header. A remote attacker can exploit this by sending raw HTTP/2 frames with a malformed `:path` that omits the mandatory leading slash. This allows the attacker to bypass defined security policies, potentially leading to unauthorized access to services or information disclosure.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "google.golang.org/grpc/grpc-go: google.golang.org/grpc/authz: gRPC-Go: Authorization bypass due to improper HTTP/2 path validation",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33186"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2449833",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2449833"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33186",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33186"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33186",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33186"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/grpc/grpc-go/security/advisories/GHSA-p77j-4mvh-x3m3",
+          "url": "https://github.com/grpc/grpc-go/security/advisories/GHSA-p77j-4mvh-x3m3"
+        }
+      ],
+      "release_date": "2026-03-20T22:23:32.147000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-23T12:15:28+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:10125"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, implement infrastructure-level normalization to ensure all incoming HTTP/2 `:path` headers are properly formatted with a leading slash before reaching the gRPC-Go server. This can be achieved by configuring a reverse proxy or API gateway to validate and normalize the `:path` header. Ensure that any such intermediary is properly configured and restarted to apply the changes, which may temporarily impact service availability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 9.1,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "google.golang.org/grpc/grpc-go: google.golang.org/grpc/authz: gRPC-Go: Authorization bypass due to improper HTTP/2 path validation"
+    },
+    {
+      "cve": "CVE-2026-33211",
+      "cwe": {
+        "id": "CWE-22",
+        "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      },
+      "discovery_date": "2026-03-24T00:02:20.093480+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2450554"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Tekton Pipelines, specifically in the Tekton Pipelines git resolver. A tenant with permissions to create ResolutionRequests can exploit a path traversal vulnerability via the `pathInRepo` parameter. This allows the tenant to read arbitrary files from the resolver pod's filesystem, leading to information disclosure, including sensitive ServiceAccount tokens. The contents of these files are returned in a base64-encoded format.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Tekton Pipelines: github.com/tektoncd/pipeline: Tekton Pipelines: Information disclosure via path traversal in git resolver",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this flaw, an attacker needs to have the permission to create ResolutionRequests (e.g., by creating TaskRuns or PipelineRuns that use the git resolver) within at least one specific namespace, limiting the exposure of this issue to authenticated users. Also, an attacker can read any file readable by the resolver pod process, including cluster secrets, allowing an escalation of privileges from namespace-scoped access to cluster-wide access. Due to these reasons, this vulnerability has been rated with an important severity.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33211"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2450554",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2450554"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33211",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33211"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33211",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33211"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/tektoncd/pipeline/commit/10fa538f9a2b6d01c75138f1ed7ba3da0e34687c",
+          "url": "https://github.com/tektoncd/pipeline/commit/10fa538f9a2b6d01c75138f1ed7ba3da0e34687c"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/tektoncd/pipeline/commit/318006c4e3a5",
+          "url": "https://github.com/tektoncd/pipeline/commit/318006c4e3a5"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/tektoncd/pipeline/commit/3ca7bc6e6dd1d97f80b84f78370d91edaf023cbd",
+          "url": "https://github.com/tektoncd/pipeline/commit/3ca7bc6e6dd1d97f80b84f78370d91edaf023cbd"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/tektoncd/pipeline/commit/961388fcf3374bc7656d28ab58ca84987e0a75ae",
+          "url": "https://github.com/tektoncd/pipeline/commit/961388fcf3374bc7656d28ab58ca84987e0a75ae"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/tektoncd/pipeline/commit/b1fee65b88aa969069c14c120045e97c37d9ee5e",
+          "url": "https://github.com/tektoncd/pipeline/commit/b1fee65b88aa969069c14c120045e97c37d9ee5e"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/tektoncd/pipeline/commit/cdb4e1e97a4f3170f9bc2cbfff83a6c8107bc3db",
+          "url": "https://github.com/tektoncd/pipeline/commit/cdb4e1e97a4f3170f9bc2cbfff83a6c8107bc3db"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/tektoncd/pipeline/commit/ec7755031a183b345cf9e64bea0e0505c1b9cb78",
+          "url": "https://github.com/tektoncd/pipeline/commit/ec7755031a183b345cf9e64bea0e0505c1b9cb78"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/tektoncd/pipeline/security/advisories/GHSA-j5q5-j9gm-2w5c",
+          "url": "https://github.com/tektoncd/pipeline/security/advisories/GHSA-j5q5-j9gm-2w5c"
+        }
+      ],
+      "release_date": "2026-03-23T23:55:54.089000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-23T12:15:28+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:10125"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, restrict the creation of ResolutionRequests to trusted users and service accounts. Implement strict Role-Based Access Control (RBAC) policies to limit which tenants can create TaskRuns or PipelineRuns that utilize the Tekton Pipelines git resolver. This reduces the exposure by preventing unauthorized access to the resolver pod's filesystem.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 9.6,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Tekton Pipelines: github.com/tektoncd/pipeline: Tekton Pipelines: Information disclosure via path traversal in git resolver"
+    },
+    {
+      "cve": "CVE-2026-33747",
+      "cwe": {
+        "id": "CWE-22",
+        "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      },
+      "discovery_date": "2026-03-27T02:01:29.921765+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2452076"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in BuildKit, a toolkit for converting source code to build artifacts. An untrusted BuildKit frontend can be leveraged to craft a malicious API message, allowing files to be written outside of the designated BuildKit state directory. This vulnerability, which is a form of arbitrary file write, could enable an attacker to execute unauthorized code or escalate their privileges on the system. This issue arises when custom BuildKit frontends are used with specific configuration options.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "BuildKit: github.com/moby/buildkit: BuildKit: Arbitrary file write and code execution via untrusted frontend",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33747"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2452076",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452076"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33747",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33747"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33747",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33747"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/moby/buildkit/releases/tag/v0.28.1",
+          "url": "https://github.com/moby/buildkit/releases/tag/v0.28.1"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/moby/buildkit/security/advisories/GHSA-4c29-8rgm-jvjj",
+          "url": "https://github.com/moby/buildkit/security/advisories/GHSA-4c29-8rgm-jvjj"
+        }
+      ],
+      "release_date": "2026-03-27T00:49:06.165000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-23T12:15:28+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:10125"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, avoid using untrusted BuildKit frontends. Restrict the use of custom BuildKit frontends to only those from verified and trusted sources. Do not specify untrusted frontends via `#syntax` or `--build-arg BUILDKIT_SYNTAX`.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.2,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "CHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:R/S:C/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "BuildKit: github.com/moby/buildkit: BuildKit: Arbitrary file write and code execution via untrusted frontend"
+    },
+    {
+      "cve": "CVE-2026-33748",
+      "cwe": {
+        "id": "CWE-22",
+        "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      },
+      "discovery_date": "2026-03-27T15:02:00.107493+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2452271"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in BuildKit. Insufficient validation of Git URL fragment subdirectory components may allow a remote attacker to access files outside the checked-out Git repository root. This access is limited to files on the same mounted filesystem. This vulnerability could lead to unauthorized information disclosure.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "github.com/moby/buildkit: BuildKit: Unauthorized file access via Git URL fragment subdir components",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33748"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2452271",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452271"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33748",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33748"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33748",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33748"
+        },
+        {
+          "category": "external",
+          "summary": "https://docs.docker.com/build/concepts/context/#url-fragments",
+          "url": "https://docs.docker.com/build/concepts/context/#url-fragments"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/moby/buildkit/releases/tag/v0.28.1",
+          "url": "https://github.com/moby/buildkit/releases/tag/v0.28.1"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/moby/buildkit/security/advisories/GHSA-4vrq-3vrq-g6gg",
+          "url": "https://github.com/moby/buildkit/security/advisories/GHSA-4vrq-3vrq-g6gg"
+        }
+      ],
+      "release_date": "2026-03-27T14:00:21.200000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-23T12:15:28+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:10125"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "github.com/moby/buildkit: BuildKit: Unauthorized file access via Git URL fragment subdir components"
+    },
+    {
+      "cve": "CVE-2026-34986",
+      "cwe": {
+        "id": "CWE-131",
+        "name": "Incorrect Calculation of Buffer Size"
+      },
+      "discovery_date": "2026-04-06T17:01:34.639203+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2455470"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Go JOSE, a library for handling JSON Web Encryption (JWE) objects. A remote attacker could exploit this vulnerability by providing a specially crafted JWE object. When decrypting such an object, if a key wrapping algorithm is specified but the encrypted key field is empty, the application can crash. This leads to a denial of service (DoS), making the affected service unavailable to legitimate users.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "github.com/go-jose/go-jose/v3: github.com/go-jose/go-jose/v4: Go JOSE: Denial of Service via crafted JSON Web Encryption (JWE) object",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-34986"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2455470",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2455470"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-34986",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-34986"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-34986",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34986"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/go-jose/go-jose/security/advisories/GHSA-78h2-9frx-2jm8",
+          "url": "https://github.com/go-jose/go-jose/security/advisories/GHSA-78h2-9frx-2jm8"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/github.com/go-jose/go-jose/v4#pkg-constants",
+          "url": "https://pkg.go.dev/github.com/go-jose/go-jose/v4#pkg-constants"
+        }
+      ],
+      "release_date": "2026-04-06T16:22:45.353000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-23T12:15:28+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:10125"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/client-server-rhel9@sha256:9607f5c16d8e9d7ee2491ac04db78a52eb13ee0e93eeef79ff8bb6c8f9430c72_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "github.com/go-jose/go-jose/v3: github.com/go-jose/go-jose/v4: Go JOSE: Denial of Service via crafted JSON Web Encryption (JWE) object"
+    }
+  ]
+}

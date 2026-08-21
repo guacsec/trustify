@@ -1,0 +1,978 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "An update is now available for Red Hat build of Quarkus.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability. For more information, see the CVE links in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "This release of Red Hat build of Quarkus 3.27.3 includes the following CVE fixes:\n\n* netty-codec-http2: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood [quarkus-3.27] (CVE-2026-33871)\n\n* netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values [quarkus-3.27] (CVE-2026-33870)\n\n* plexus-utils: Plexus-utils: Directory Traversal in extractFile method [quarkus-3.27] (CVE-2025-67030)\n\n* avro: Apache Avro Java SDK: Code injection on Java generated code [quarkus-3.27] (CVE-2025-33042)\n\n* vertx-core: static handler component cache can be manipulated to deny the access to static files [quarkus-3.27] (CVE-2026-1002)\n\nFor more information, see the release notes page listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:7380",
+        "url": "https://access.redhat.com/errata/RHSA-2026:7380"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/products/quarkus/",
+        "url": "https://access.redhat.com/products/quarkus/"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?product=redhat.quarkus&downloadType=distributions&version=3.27.3",
+        "url": "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?product=redhat.quarkus&downloadType=distributions&version=3.27.3"
+      },
+      {
+        "category": "external",
+        "summary": "https://docs.redhat.com/en/documentation/red_hat_build_of_quarkus/3.27",
+        "url": "https://docs.redhat.com/en/documentation/red_hat_build_of_quarkus/3.27"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-5216",
+        "url": "https://issues.redhat.com/browse/QUARKUS-5216"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-6747",
+        "url": "https://issues.redhat.com/browse/QUARKUS-6747"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-6945",
+        "url": "https://issues.redhat.com/browse/QUARKUS-6945"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-6947",
+        "url": "https://issues.redhat.com/browse/QUARKUS-6947"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-6953",
+        "url": "https://issues.redhat.com/browse/QUARKUS-6953"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-6954",
+        "url": "https://issues.redhat.com/browse/QUARKUS-6954"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7125",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7125"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7130",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7130"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7183",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7183"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7209",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7209"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7210",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7210"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7211",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7211"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7212",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7212"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7213",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7213"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7214",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7214"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7215",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7215"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7216",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7216"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7219",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7219"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7220",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7220"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7221",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7221"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7222",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7222"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7223",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7223"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7224",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7224"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7225",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7225"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7226",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7226"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7227",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7227"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7228",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7228"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7312",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7312"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7313",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7313"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7314",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7314"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7315",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7315"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7316",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7316"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7317",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7317"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7318",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7318"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7319",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7319"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7320",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7320"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7321",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7321"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7348",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7348"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7349",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7349"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7350",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7350"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7351",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7351"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7352",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7352"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7378",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7378"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7491",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7491"
+      },
+      {
+        "category": "external",
+        "summary": "QUARKUS-7494",
+        "url": "https://issues.redhat.com/browse/QUARKUS-7494"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_7380.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat build of Quarkus 3.27.3 release and security update",
+    "tracking": {
+      "current_release_date": "2026-08-17T13:44:30+00:00",
+      "generator": {
+        "date": "2026-08-17T13:44:30+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:7380",
+      "initial_release_date": "2026-04-14T14:45:52+00:00",
+      "revision_history": [
+        {
+          "date": "2026-04-14T14:45:52+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-04-14T14:45:52+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-17T13:44:30+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat build of Quarkus 3.27.3",
+                "product": {
+                  "name": "Red Hat build of Quarkus 3.27.3",
+                  "product_id": "Red Hat build of Quarkus 3.27.3",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:quarkus:3.27::el8"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat build of Quarkus"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2025-33042",
+      "cwe": {
+        "id": "CWE-94",
+        "name": "Improper Control of Generation of Code ('Code Injection')"
+      },
+      "discovery_date": "2026-02-13T12:00:45.349337+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2439675"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A code injection flaw has been discovered in Apache Avro. This vulnerability manifests when generating specific records from untrusted Avro schemas.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "org.apache.avro/avro: Apache Avro Java SDK: Code injection on Java generated code",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-33042"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2439675",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2439675"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-33042",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-33042"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-33042",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-33042"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/apache/avro/commit/84bc7322ca1c04ab4a8e4e708acf1e271541aac4",
+          "url": "https://github.com/apache/avro/commit/84bc7322ca1c04ab4a8e4e708acf1e271541aac4"
+        },
+        {
+          "category": "external",
+          "summary": "https://issues.apache.org/jira/browse/AVRO-4053",
+          "url": "https://issues.apache.org/jira/browse/AVRO-4053"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/fy88wmgf1lj9479vrpt12cv8x73lroj1",
+          "url": "https://lists.apache.org/thread/fy88wmgf1lj9479vrpt12cv8x73lroj1"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.openwall.com/lists/oss-security/2026/02/12/2",
+          "url": "https://www.openwall.com/lists/oss-security/2026/02/12/2"
+        }
+      ],
+      "release_date": "2026-02-13T11:47:03.783000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-14T14:45:52+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:7380"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "LOW",
+            "baseScore": 5.6,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "org.apache.avro/avro: Apache Avro Java SDK: Code injection on Java generated code"
+    },
+    {
+      "cve": "CVE-2025-67030",
+      "cwe": {
+        "id": "CWE-22",
+        "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      },
+      "discovery_date": "2026-03-25T18:02:00.463244+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2451409"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in plexus-utils. This vulnerability, known as a Directory Traversal, exists within the `extractFile` method. An attacker can exploit this to execute unauthorized code on the system in the context of the current working user.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "org.codehaus.plexus:plexus-utils: Plexus-utils: Directory Traversal in extractFile method",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-67030"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2451409",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2451409"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-67030",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-67030"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-67030",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-67030"
+        },
+        {
+          "category": "external",
+          "summary": "https://gist.github.com/weaver4VD/3216dac645220f8c9b488362f61241ec",
+          "url": "https://gist.github.com/weaver4VD/3216dac645220f8c9b488362f61241ec"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/codehaus-plexus/plexus-utils/commit/6d780b3378829318ba5c2d29547e0012d5b29642",
+          "url": "https://github.com/codehaus-plexus/plexus-utils/commit/6d780b3378829318ba5c2d29547e0012d5b29642"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/codehaus-plexus/plexus-utils/issues/294",
+          "url": "https://github.com/codehaus-plexus/plexus-utils/issues/294"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/codehaus-plexus/plexus-utils/pull/295",
+          "url": "https://github.com/codehaus-plexus/plexus-utils/pull/295"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/codehaus-plexus/plexus-utils/pull/296",
+          "url": "https://github.com/codehaus-plexus/plexus-utils/pull/296"
+        }
+      ],
+      "release_date": "2026-03-25T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-14T14:45:52+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:7380"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "LOW",
+            "baseScore": 8.3,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "org.codehaus.plexus:plexus-utils: Plexus-utils: Directory Traversal in extractFile method"
+    },
+    {
+      "cve": "CVE-2026-1002",
+      "cwe": {
+        "id": "CWE-444",
+        "name": "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')"
+      },
+      "discovery_date": "2026-01-15T21:03:20.088599+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2430180"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Vert.x. The Web static handler component cache can be manipulated to deny the access to static files served by the handler using specifically crafted request URIs, preventing legitimate users from accessing static files with an HTTP 404 response.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.vertx/vertx-core: static handler component cache can be manipulated to deny the access to static files",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability allows a remote attacker to block access to specific static files, such as images, CSS or HTML files. However, the underlying Vert.x server, the API endpoints and other non-cached resources are not affected. Due to this reason, this issue has been rated with a moderate severity.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-1002"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2430180",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2430180"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-1002",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-1002"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-1002",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-1002"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/eclipse-vertx/vert.x/pull/5895",
+          "url": "https://github.com/eclipse-vertx/vert.x/pull/5895"
+        }
+      ],
+      "release_date": "2026-01-15T20:50:25.642000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-14T14:45:52+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:7380"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, consider disabling the static handler cache by configuring the StaticHandler instance with setCachingEnabled(false), for example:\n\n~~~\nStaticHandler staticHandler = StaticHandler.create().setCachingEnabled(false);\n~~~",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "LOW",
+            "baseScore": 5.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "io.vertx/vertx-core: static handler component cache can be manipulated to deny the access to static files"
+    },
+    {
+      "cve": "CVE-2026-33870",
+      "cwe": {
+        "id": "CWE-444",
+        "name": "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')"
+      },
+      "discovery_date": "2026-03-27T21:01:59.865839+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2452453"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. A remote attacker could exploit this vulnerability by sending specially crafted HTTP/1.1 chunked transfer encoding extension values. Due to incorrect parsing of quoted strings, this flaw enables request smuggling attacks, potentially allowing an attacker to bypass security controls or access unauthorized information.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2452453",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452453"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33870",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33870",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-pwqr-wmgm-9rr8",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-pwqr-wmgm-9rr8"
+        },
+        {
+          "category": "external",
+          "summary": "https://w4ke.info/2025/06/18/funky-chunks.html",
+          "url": "https://w4ke.info/2025/06/18/funky-chunks.html"
+        },
+        {
+          "category": "external",
+          "summary": "https://w4ke.info/2025/10/29/funky-chunks-2.html",
+          "url": "https://w4ke.info/2025/10/29/funky-chunks-2.html"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.rfc-editor.org/rfc/rfc9110",
+          "url": "https://www.rfc-editor.org/rfc/rfc9110"
+        }
+      ],
+      "release_date": "2026-03-27T19:54:15.586000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-14T14:45:52+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:7380"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.netty/netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values"
+    },
+    {
+      "cve": "CVE-2026-33871",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-03-27T21:02:13.396015+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2452456"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. A remote user can trigger a Denial of Service (DoS) against a Netty HTTP/2 server by sending a flood of CONTINUATION frames. The server's lack of a limit on these frames, coupled with a bypass of size-based mitigations using zero-byte frames, allows an attacker to consume excessive CPU resources. This can render the server unresponsive with minimal bandwidth usage.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "netty: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This important vulnerability in Netty HTTP/2 servers allows a remote attacker to cause a Denial of Service by sending a flood of CONTINUATION frames. This can lead to excessive CPU consumption and render the server unresponsive. Red Hat products utilizing affected Netty versions, such as Red Hat AMQ, Enterprise Application Platform, and OpenShift Container Platform components, are impacted if configured to use HTTP/2.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat build of Quarkus 3.27.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2452456",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452456"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33871",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33871",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-w9fj-cfpg-grvv",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-w9fj-cfpg-grvv"
+        }
+      ],
+      "release_date": "2026-03-27T19:55:23.135000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-14T14:45:52+00:00",
+          "details": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat build of Quarkus 3.27.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:7380"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat build of Quarkus 3.27.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "netty: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood"
+    }
+  ]
+}

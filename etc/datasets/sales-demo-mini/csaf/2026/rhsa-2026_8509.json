@@ -1,0 +1,963 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "Red Hat AMQ Broker 7.14.0 is now available from the Red Hat Customer Portal.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "AMQ Broker is a high-performance messaging implementation based on ActiveMQ Artemis. It uses an asynchronous journal for fast message persistence, and supports multiple languages, protocols, and platforms.\n\nThis release of Red Hat AMQ Broker 7.14.0 includes security and bug fixes, and enhancements. For further information, refer to the release notes linked to in the References section.\n\nSecurity Fix(es):\n\n* (CVE-2026-1605) jetty-server: Eclipse Jetty: Denial of Service due to unreleased JDK Inflater from compressed HTTP requests\n* (CVE-2026-33870) netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values\n* (CVE-2026-33871) netty-codec-http2: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood\n* (CVE-2026-33871) netty-codec-http: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood\n* (CVE-2026-24281) zookeeper: Apache ZooKeeper: Impersonation of servers or clients via reverse DNS spoofing\n* (CVE-2026-24308) zookeeper: Apache ZooKeeper: Information disclosure via improper handling of configuration values\n* (CVE-2026-32642) artemis-server: Apache Artemis and Apache ActiveMQ Artemis: Unauthorized address creation due to incorrect authorization during JMS topic subscription.\n\nFor more details about the security issue(s), including the impact, a CVSS score, and other related information, refer to the CVE page(s) listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:8509",
+        "url": "https://access.redhat.com/errata/RHSA-2026:8509"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification#important",
+        "url": "https://access.redhat.com/security/updates/classification#important"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?downloadType=distributions&product=jboss.amq.broker&version=7.14.0",
+        "url": "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?downloadType=distributions&product=jboss.amq.broker&version=7.14.0"
+      },
+      {
+        "category": "external",
+        "summary": "https://docs.redhat.com/en/documentation/red_hat_amq_broker/7.14",
+        "url": "https://docs.redhat.com/en/documentation/red_hat_amq_broker/7.14"
+      },
+      {
+        "category": "external",
+        "summary": "2444815",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2444815"
+      },
+      {
+        "category": "external",
+        "summary": "2445449",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445449"
+      },
+      {
+        "category": "external",
+        "summary": "2445451",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445451"
+      },
+      {
+        "category": "external",
+        "summary": "2450642",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2450642"
+      },
+      {
+        "category": "external",
+        "summary": "2452453",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452453"
+      },
+      {
+        "category": "external",
+        "summary": "2452456",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452456"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10110",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10110"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10160",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10160"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10210",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10210"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10245",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10245"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10248",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10248"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10263",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10263"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10265",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10265"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10309",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10309"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10325",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10325"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10371",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10371"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10416",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10416"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-10417",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-10417"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-7300",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-7300"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-8665",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-8665"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-8882",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-8882"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-9143",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-9143"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-9574",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-9574"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-9628",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-9628"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-9640",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-9640"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-9810",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-9810"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-9869",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-9869"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-9907",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-9907"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-9912",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-9912"
+      },
+      {
+        "category": "external",
+        "summary": "ENTMQBR-9939",
+        "url": "https://issues.redhat.com/browse/ENTMQBR-9939"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_8509.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat AMQ Broker 7.14.0 release and security update",
+    "tracking": {
+      "current_release_date": "2026-08-17T13:44:31+00:00",
+      "generator": {
+        "date": "2026-08-17T13:44:31+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:8509",
+      "initial_release_date": "2026-04-16T15:32:09+00:00",
+      "revision_history": [
+        {
+          "date": "2026-04-16T15:32:09+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-04-16T15:32:09+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-17T13:44:31+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat AMQ Broker 7.14.0",
+                "product": {
+                  "name": "Red Hat AMQ Broker 7.14.0",
+                  "product_id": "Red Hat AMQ Broker 7.14.0",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:amq_broker:7.14"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat JBoss AMQ"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2026-1605",
+      "cwe": {
+        "id": "CWE-772",
+        "name": "Missing Release of Resource after Effective Lifetime"
+      },
+      "discovery_date": "2026-03-05T11:00:57.250283+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2444815"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in org.eclipse.jetty. A remote attacker can exploit this vulnerability by sending a compressed HTTP request with Content-Encoding: gzip when the server's response is not compressed. This prevents the release of the JDK Inflater, leading to a resource leak. This resource exhaustion can result in a Denial of Service (DoS), making the server unavailable to legitimate users.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "org.eclipse.jetty/jetty-server: Eclipse Jetty: Denial of Service due to unreleased JDK Inflater from compressed HTTP requests",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.14.0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-1605"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2444815",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2444815"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-1605",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-1605"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-1605",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-1605"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/jetty/jetty.project/security/advisories/GHSA-xxh7-fcf3-rj7f",
+          "url": "https://github.com/jetty/jetty.project/security/advisories/GHSA-xxh7-fcf3-rj7f"
+        }
+      ],
+      "release_date": "2026-03-05T09:39:01.315000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-16T15:32:09+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.14.0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:8509"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.14.0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "org.eclipse.jetty/jetty-server: Eclipse Jetty: Denial of Service due to unreleased JDK Inflater from compressed HTTP requests"
+    },
+    {
+      "cve": "CVE-2026-24281",
+      "cwe": {
+        "id": "CWE-295",
+        "name": "Improper Certificate Validation"
+      },
+      "discovery_date": "2026-03-07T09:00:57.868082+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2445449"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache ZooKeeper. The ZKTrustManager component's hostname verification process can fall back to reverse DNS (PTR) lookup when IP Subject Alternative Name (SAN) validation fails. This vulnerability allows an attacker who can control or spoof PTR records to impersonate ZooKeeper servers or clients, provided they possess a valid certificate for the PTR name. This could lead to unauthorized access or manipulation of ZooKeeper services.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache ZooKeeper: Apache ZooKeeper: Impersonation of servers or clients via reverse DNS spoofing",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.14.0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-24281"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2445449",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445449"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-24281",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-24281"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-24281",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-24281"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/088ddsbrzhd5lxzbqf5n24yg0mwh9jt2",
+          "url": "https://lists.apache.org/thread/088ddsbrzhd5lxzbqf5n24yg0mwh9jt2"
+        }
+      ],
+      "release_date": "2026-03-07T08:50:32.525000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-16T15:32:09+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.14.0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:8509"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, disable reverse DNS lookup in Apache ZooKeeper's client and quorum protocols. This can be achieved by configuring the `zookeeper.ssl.hostnameVerification.disableReverseDns` property to `true`. This configuration option is available in Apache ZooKeeper versions 3.8.6 and 3.9.5 and later. A restart of the ZooKeeper service will be required for the change to take effect.",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.14.0"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.4,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.14.0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Apache ZooKeeper: Apache ZooKeeper: Impersonation of servers or clients via reverse DNS spoofing"
+    },
+    {
+      "cve": "CVE-2026-24308",
+      "cwe": {
+        "id": "CWE-117",
+        "name": "Improper Output Neutralization for Logs"
+      },
+      "discovery_date": "2026-03-07T09:01:03.859129+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2445451"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache ZooKeeper. Improper handling of configuration values in ZKConfig allows an attacker to expose sensitive information. This occurs when sensitive client configuration values are logged at an INFO level in the client's logfile. This vulnerability can lead to information disclosure, potentially revealing critical system details to unauthorized parties.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache ZooKeeper: Apache ZooKeeper: Information disclosure via improper handling of configuration values",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.14.0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-24308"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2445451",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2445451"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-24308",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-24308"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-24308",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-24308"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/qng3rtzv2pqkmko4rhv85jfplkyrgqdr",
+          "url": "https://lists.apache.org/thread/qng3rtzv2pqkmko4rhv85jfplkyrgqdr"
+        }
+      ],
+      "release_date": "2026-03-07T08:51:17.567000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-16T15:32:09+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.14.0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:8509"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.14.0"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "NONE",
+            "baseScore": 3.3,
+            "baseSeverity": "LOW",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.14.0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Apache ZooKeeper: Apache ZooKeeper: Information disclosure via improper handling of configuration values"
+    },
+    {
+      "cve": "CVE-2026-32642",
+      "discovery_date": "2026-03-24T09:01:25.210390+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2450642"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache Artemis and Apache ActiveMQ Artemis. An authenticated user can exploit this incorrect authorization vulnerability by attempting to create a non-durable Java Message Service (JMS) topic subscription on an address that does not exist. If the user has \"createDurableQueue\" permission but lacks \"createAddress\" permission, and address auto-creation is disabled, a temporary address will be unexpectedly created. This bypasses intended authorization, allowing for unauthorized resource creation.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache Artemis: Apache ActiveMQ Artemis: Apache Artemis and Apache ActiveMQ Artemis: Unauthorized address creation due to incorrect authorization during JMS topic subscription.",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.14.0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-32642"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2450642",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2450642"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-32642",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-32642"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-32642",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-32642"
+        },
+        {
+          "category": "external",
+          "summary": "http://www.openwall.com/lists/oss-security/2026/03/20/2",
+          "url": "http://www.openwall.com/lists/oss-security/2026/03/20/2"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/4wlrp31ngq2yb54sf4kjb3bl41t4xgtp",
+          "url": "https://lists.apache.org/thread/4wlrp31ngq2yb54sf4kjb3bl41t4xgtp"
+        }
+      ],
+      "release_date": "2026-03-24T07:53:44.644000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-16T15:32:09+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.14.0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:8509"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 4.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.14.0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "Apache Artemis: Apache ActiveMQ Artemis: Apache Artemis and Apache ActiveMQ Artemis: Unauthorized address creation due to incorrect authorization during JMS topic subscription."
+    },
+    {
+      "cve": "CVE-2026-33870",
+      "cwe": {
+        "id": "CWE-444",
+        "name": "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')"
+      },
+      "discovery_date": "2026-03-27T21:01:59.865839+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2452453"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. A remote attacker could exploit this vulnerability by sending specially crafted HTTP/1.1 chunked transfer encoding extension values. Due to incorrect parsing of quoted strings, this flaw enables request smuggling attacks, potentially allowing an attacker to bypass security controls or access unauthorized information.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.14.0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2452453",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452453"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33870",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33870",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-pwqr-wmgm-9rr8",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-pwqr-wmgm-9rr8"
+        },
+        {
+          "category": "external",
+          "summary": "https://w4ke.info/2025/06/18/funky-chunks.html",
+          "url": "https://w4ke.info/2025/06/18/funky-chunks.html"
+        },
+        {
+          "category": "external",
+          "summary": "https://w4ke.info/2025/10/29/funky-chunks-2.html",
+          "url": "https://w4ke.info/2025/10/29/funky-chunks-2.html"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.rfc-editor.org/rfc/rfc9110",
+          "url": "https://www.rfc-editor.org/rfc/rfc9110"
+        }
+      ],
+      "release_date": "2026-03-27T19:54:15.586000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-16T15:32:09+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.14.0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:8509"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.14.0"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.14.0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.netty/netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values"
+    },
+    {
+      "cve": "CVE-2026-33871",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-03-27T21:02:13.396015+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2452456"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. A remote user can trigger a Denial of Service (DoS) against a Netty HTTP/2 server by sending a flood of CONTINUATION frames. The server's lack of a limit on these frames, coupled with a bypass of size-based mitigations using zero-byte frames, allows an attacker to consume excessive CPU resources. This can render the server unresponsive with minimal bandwidth usage.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "netty: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This important vulnerability in Netty HTTP/2 servers allows a remote attacker to cause a Denial of Service by sending a flood of CONTINUATION frames. This can lead to excessive CPU consumption and render the server unresponsive. Red Hat products utilizing affected Netty versions, such as Red Hat AMQ, Enterprise Application Platform, and OpenShift Container Platform components, are impacted if configured to use HTTP/2.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat AMQ Broker 7.14.0"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2452456",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452456"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33871",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33871",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-w9fj-cfpg-grvv",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-w9fj-cfpg-grvv"
+        }
+      ],
+      "release_date": "2026-03-27T19:55:23.135000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-04-16T15:32:09+00:00",
+          "details": "Before applying the update, back up your existing installation, including all applications, configuration files, databases and database settings.\n\nThe References section of this erratum contains a download link (you must log in to download the update).",
+          "product_ids": [
+            "Red Hat AMQ Broker 7.14.0"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:8509"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat AMQ Broker 7.14.0"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "netty: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood"
+    }
+  ]
+}

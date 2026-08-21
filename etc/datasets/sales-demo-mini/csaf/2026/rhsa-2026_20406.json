@@ -1,0 +1,986 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "Red Hat JBoss Web Server 6.2.3 zip release is now available for Red Hat Enterprise Linux 8, Red Hat Enterprise Linux 9, Red Hat Enterprise Linux 10, and Windows Server.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Red Hat JBoss Web Server is a fully integrated and certified set of components for hosting Java web applications. It is comprised of the Apache Tomcat Servlet container, JBoss HTTP Connector (mod_cluster), the PicketLink Vault extension for Apache Tomcat, and the Tomcat Native library.\n\nThis release of Red Hat JBoss Web Server 6.2.3 serves as a replacement for Red Hat JBoss Web Server 6.2.2. This release includes bug fixes, enhancements and component upgrades, which are documented in the Release Notes that are linked to in the References section.\n\nSecurity Fix(es):\n\n* tomcat: Apache Tomcat: HTTP Request/Response Smuggling via invalid chunk extension (CVE-2026-24880)\n* tomcat: Apache Tomcat: Open Redirect vulnerability via LoadBalancerDrainingValve (CVE-2026-25854)\n* tomcat: Apache Tomcat: Authentication bypass due to CLIENT_CERT soft fail misconfiguration (CVE-2026-29145)\n* tomcat: Apache Tomcat: Information disclosure via Padding Oracle vulnerability in EncryptInterceptor (CVE-2026-29146)\n* tomcat: Apache Tomcat: Information disclosure due to improper encoding in JsonAccessLogValve (CVE-2026-34483)\n* tomcat: Apache Tomcat: Information disclosure via sensitive data in log files (CVE-2026-34487)\n* tomcat: Apache Tomcat: Authentication bypass via client certificate misconfiguration (CVE-2026-34500) \n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:20406",
+        "url": "https://access.redhat.com/errata/RHSA-2026:20406"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "external",
+        "summary": "https://docs.redhat.com/en/documentation/red_hat_jboss_web_server/6.2/html/red_hat_jboss_web_server_6.2_service_pack_3_release_notes/index",
+        "url": "https://docs.redhat.com/en/documentation/red_hat_jboss_web_server/6.2/html/red_hat_jboss_web_server_6.2_service_pack_3_release_notes/index"
+      },
+      {
+        "category": "external",
+        "summary": "2457020",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457020"
+      },
+      {
+        "category": "external",
+        "summary": "2457037",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457037"
+      },
+      {
+        "category": "external",
+        "summary": "2457038",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457038"
+      },
+      {
+        "category": "external",
+        "summary": "2457039",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457039"
+      },
+      {
+        "category": "external",
+        "summary": "2457040",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457040"
+      },
+      {
+        "category": "external",
+        "summary": "2457043",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457043"
+      },
+      {
+        "category": "external",
+        "summary": "2457044",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457044"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_20406.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat JBoss Web Server 6.2.3 release and security update",
+    "tracking": {
+      "current_release_date": "2026-08-17T08:23:19+00:00",
+      "generator": {
+        "date": "2026-08-17T08:23:19+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:20406",
+      "initial_release_date": "2026-05-26T12:55:43+00:00",
+      "revision_history": [
+        {
+          "date": "2026-05-26T12:55:43+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-05-26T12:55:43+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-17T08:23:19+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat JBoss Web Server 6.2.3",
+                "product": {
+                  "name": "Red Hat JBoss Web Server 6.2.3",
+                  "product_id": "Red Hat JBoss Web Server 6.2.3",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:jboss_enterprise_web_server:6.2"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat JBoss Web Server"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2026-24880",
+      "cwe": {
+        "id": "CWE-444",
+        "name": "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')"
+      },
+      "discovery_date": "2026-04-09T20:02:12.819168+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2457040"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache Tomcat. A remote attacker could exploit an inconsistent interpretation of HTTP requests, known as HTTP Request/Response Smuggling, by sending a specially crafted request with an invalid chunk extension. This vulnerability allows an attacker to manipulate the way HTTP requests are processed, potentially leading to the bypassing of security controls, cache poisoning, or other malicious activities.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache Tomcat: Apache Tomcat: HTTP Request/Response Smuggling via invalid chunk extension",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability has a Low impact. A flaw in Apache Tomcat allows for HTTP Request/Response Smuggling through invalid chunk extensions. This could enable a remote attacker to bypass security controls or poison caches by manipulating HTTP request processing. This affects Red Hat Enterprise Linux and Red Hat JBoss Web Server.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Web Server 6.2.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-24880"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2457040",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457040"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-24880",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-24880"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-24880",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-24880"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/2c682qnlg2tv4o5knlggqbl9yc2gb5sn",
+          "url": "https://lists.apache.org/thread/2c682qnlg2tv4o5knlggqbl9yc2gb5sn"
+        }
+      ],
+      "release_date": "2026-04-09T19:12:10.730000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-26T12:55:43+00:00",
+          "details": "Before applying the update, back up your existing Red Hat JBoss Web Server installation, including all applications and configuration files.\n\nThe References section of this erratum contains a download link for the update. You must be logged in to download the update.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:20406"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 4.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Low"
+        }
+      ],
+      "title": "Apache Tomcat: Apache Tomcat: HTTP Request/Response Smuggling via invalid chunk extension"
+    },
+    {
+      "cve": "CVE-2026-25854",
+      "cwe": {
+        "id": "CWE-601",
+        "name": "URL Redirection to Untrusted Site ('Open Redirect')"
+      },
+      "discovery_date": "2026-04-09T20:02:10.027820+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2457039"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache Tomcat. This open redirect vulnerability allows an attacker to redirect a user to an untrusted site. This occurs through the LoadBalancerDrainingValve, which can be exploited to manipulate URL redirection. The primary impact is that users may be unknowingly directed to malicious websites, potentially leading to phishing attacks or other security compromises.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache Tomcat: Apache Tomcat: Open Redirect vulnerability via LoadBalancerDrainingValve",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This Low impact vulnerability in Apache Tomcat allows for an open redirect through the LoadBalancerDrainingValve. An attacker could exploit this to redirect users to malicious websites, potentially leading to phishing. This affects Red Hat Enterprise Linux and Red Hat JBoss Web Server when Apache Tomcat is configured with the LoadBalancerDrainingValve.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Web Server 6.2.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-25854"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2457039",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457039"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-25854",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-25854"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-25854",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-25854"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/ghct3b6o74bp2vm7q875s1zh0dqrz3h0",
+          "url": "https://lists.apache.org/thread/ghct3b6o74bp2vm7q875s1zh0dqrz3h0"
+        }
+      ],
+      "release_date": "2026-04-09T19:13:13.529000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-26T12:55:43+00:00",
+          "details": "Before applying the update, back up your existing Red Hat JBoss Web Server installation, including all applications and configuration files.\n\nThe References section of this erratum contains a download link for the update. You must be logged in to download the update.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:20406"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, disable or remove the LoadBalancerDrainingValve configuration from the server.xml file in your Apache Tomcat installation. This valve is typically configured within a <Host> or <Engine> element. After modifying server.xml, restart the Apache Tomcat service for the changes to take effect. This action may impact load balancing functionality if the valve is actively used for draining connections.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 4.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Low"
+        }
+      ],
+      "title": "Apache Tomcat: Apache Tomcat: Open Redirect vulnerability via LoadBalancerDrainingValve"
+    },
+    {
+      "cve": "CVE-2026-29145",
+      "cwe": {
+        "id": "CWE-303",
+        "name": "Incorrect Implementation of Authentication Algorithm"
+      },
+      "discovery_date": "2026-04-09T20:02:03.334498+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2457037"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache Tomcat and Apache Tomcat Native. When CLIENT_CERT authentication is configured with \"soft fail\" disabled, the authentication process may not correctly fail in certain scenarios. This vulnerability could allow an attacker to bypass expected client certificate authentication, potentially leading to unauthorized access to protected resources.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache Tomcat: Apache Tomcat: Authentication bypass due to CLIENT_CERT soft fail misconfiguration",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This Moderate vulnerability in Apache Tomcat and Apache Tomcat Native arises when CLIENT_CERT authentication is configured with \"soft fail\" disabled. This misconfiguration can lead to an authentication bypass, potentially allowing unauthorized access to protected resources. Red Hat Enterprise Linux versions 6, 7, 8, 9, and 10, along with Red Hat JBoss Web Server 5 and 6, are affected if running Apache Tomcat with this specific configuration.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Web Server 6.2.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-29145"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2457037",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457037"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-29145",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-29145"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-29145",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-29145"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/yz5fxmhd2j43wgqykssdo7kltws57jfz",
+          "url": "https://lists.apache.org/thread/yz5fxmhd2j43wgqykssdo7kltws57jfz"
+        }
+      ],
+      "release_date": "2026-04-09T19:20:24.601000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-26T12:55:43+00:00",
+          "details": "Before applying the update, back up your existing Red Hat JBoss Web Server installation, including all applications and configuration files.\n\nThe References section of this erratum contains a download link for the update. You must be logged in to download the update.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:20406"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, ensure that CLIENT_CERT authentication is configured to strictly enforce client certificate validation. Review the Apache Tomcat conf/server.xml configuration. For SSLHostConfig or Connector elements, set the clientAuth attribute to required or ensure softFail is enabled if optional client certificate authentication is desired. A restart of the Apache Tomcat service is necessary for these configuration changes to apply.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.9,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "Apache Tomcat: Apache Tomcat: Authentication bypass due to CLIENT_CERT soft fail misconfiguration"
+    },
+    {
+      "cve": "CVE-2026-29146",
+      "cwe": {
+        "id": "CWE-1240",
+        "name": "Use of a Cryptographic Primitive with a Risky Implementation"
+      },
+      "discovery_date": "2026-04-09T20:01:03.123822+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2457020"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache Tomcat. This Padding Oracle vulnerability, present in the EncryptInterceptor with its default configuration, could allow a remote attacker to decrypt sensitive information. By exploiting weaknesses in the encryption padding, an attacker may be able to gain unauthorized access to data that should remain confidential.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache Tomcat: Apache Tomcat: Information disclosure via Padding Oracle vulnerability in EncryptInterceptor",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Important: A padding oracle vulnerability exists in Apache Tomcat's EncryptInterceptor when using its default configuration. This flaw could allow a remote attacker to decrypt sensitive information by exploiting weaknesses in the encryption padding. This vulnerability is not exploitable in any supported Red Hat Products. This is due to the fact EncryptInterceptor is a Tomcat component used to encrypt communication between different nodes in a cluster, however Tomcat's clustering is not tested and supported by Red Hat since Red Hat Enterprise Linux 7. More details about Tomcat's clustering in Red Hat supported products can be found at the following Solution page:\n\n~~~\nhttps://access.redhat.com/solutions/67862\n~~~",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Web Server 6.2.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-29146"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2457020",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457020"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-29146",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-29146"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-29146",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-29146"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/lzt04z2pb3dc5tk85obn80xygw3z1p0w",
+          "url": "https://lists.apache.org/thread/lzt04z2pb3dc5tk85obn80xygw3z1p0w"
+        }
+      ],
+      "release_date": "2026-04-09T19:21:57.289000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-26T12:55:43+00:00",
+          "details": "Before applying the update, back up your existing Red Hat JBoss Web Server installation, including all applications and configuration files.\n\nThe References section of this erratum contains a download link for the update. You must be logged in to download the update.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:20406"
+        },
+        {
+          "category": "workaround",
+          "details": "This vulnerability can be mitigated by removing the affected jar file from the tomcat installation. It can be achieved by running the following command as root:\n\n~~~\nsystemctl stop tomcat\nrm -fv /usr/share/java/tomcat/catalina-tribes.jar\nsystemctl start tomcat\n~~~\n\nIt's important to notice if the Tomcat instance is configured to run with clustering, this may lead to errors when restarting the tomcat service. Red Hat's distributed Apache Tomcat should not be run with Clustering enabled, so make sure to disable such configuration before proceed with the mitigation if that's the case.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Apache Tomcat: Apache Tomcat: Information disclosure via Padding Oracle vulnerability in EncryptInterceptor"
+    },
+    {
+      "cve": "CVE-2026-34483",
+      "cwe": {
+        "id": "CWE-838",
+        "name": "Inappropriate Encoding for Output Context"
+      },
+      "discovery_date": "2026-04-09T20:02:26.870249+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2457044"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the JsonAccessLogValve component of Apache Tomcat. This improper encoding or escaping of output vulnerability could allow an attacker to inject specially crafted data into log files. This could lead to information disclosure or other unintended consequences when the logs are processed or viewed.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache Tomcat: Apache Tomcat: Information disclosure due to improper encoding in JsonAccessLogValve",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Low impact. A flaw in the Apache Tomcat JsonAccessLogValve component allows for improper encoding of output. This could enable an attacker to inject specially crafted data into log files, potentially leading to information disclosure or other unintended consequences during log processing. This affects Red Hat Enterprise Linux versions 6, 7, 8, 9, and 10.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Web Server 6.2.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-34483"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2457044",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457044"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-34483",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-34483"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-34483",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34483"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/j1w7304yonlr8vo1tkb5nfs7od1y228b",
+          "url": "https://lists.apache.org/thread/j1w7304yonlr8vo1tkb5nfs7od1y228b"
+        }
+      ],
+      "release_date": "2026-04-09T19:30:28.874000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-26T12:55:43+00:00",
+          "details": "Before applying the update, back up your existing Red Hat JBoss Web Server installation, including all applications and configuration files.\n\nThe References section of this erratum contains a download link for the update. You must be logged in to download the update.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:20406"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.4,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Low"
+        }
+      ],
+      "title": "Apache Tomcat: Apache Tomcat: Information disclosure due to improper encoding in JsonAccessLogValve"
+    },
+    {
+      "cve": "CVE-2026-34487",
+      "cwe": {
+        "id": "CWE-538",
+        "name": "Insertion of Sensitive Information into Externally-Accessible File or Directory"
+      },
+      "discovery_date": "2026-04-09T20:02:06.944382+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2457038"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache Tomcat. The cloud membership for clustering component was vulnerable to the insertion of sensitive information into log files. This vulnerability could lead to the exposure of the Kubernetes bearer token, which is a credential used for authentication within a Kubernetes cluster, potentially allowing unauthorized access to cluster resources.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache Tomcat: Apache Tomcat: Information disclosure via sensitive data in log files",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Low impact. This vulnerability in Apache Tomcat affects the cloud membership for clustering component, potentially exposing Kubernetes bearer tokens in log files. Exploitation requires the cloud membership feature to be enabled and an attacker to have access to the system's log files. Red Hat Enterprise Linux versions are affected if running Apache Tomcat with this specific clustering configuration.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Web Server 6.2.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-34487"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2457038",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457038"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-34487",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-34487"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-34487",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34487"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/4xpkwolpkrj8v5xzp5nyovtlqp3y850h",
+          "url": "https://lists.apache.org/thread/4xpkwolpkrj8v5xzp5nyovtlqp3y850h"
+        }
+      ],
+      "release_date": "2026-04-09T19:36:12.048000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-26T12:55:43+00:00",
+          "details": "Before applying the update, back up your existing Red Hat JBoss Web Server installation, including all applications and configuration files.\n\nThe References section of this erratum contains a download link for the update. You must be logged in to download the update.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:20406"
+        },
+        {
+          "category": "workaround",
+          "details": "Disable the cloud membership for clustering feature in Apache Tomcat if it is not actively used. Additionally, ensure that access to Apache Tomcat log files is strictly controlled and limited to authorized personnel only to prevent unauthorized disclosure of sensitive information. If the cloud membership for clustering feature is disabled, a restart of the Apache Tomcat service may be required for the changes to take effect.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "NONE",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:C/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Low"
+        }
+      ],
+      "title": "Apache Tomcat: Apache Tomcat: Information disclosure via sensitive data in log files"
+    },
+    {
+      "cve": "CVE-2026-34500",
+      "cwe": {
+        "id": "CWE-303",
+        "name": "Incorrect Implementation of Authentication Algorithm"
+      },
+      "discovery_date": "2026-04-09T20:02:23.809649+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2457043"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache Tomcat where OCSP-based certificate validation may incorrectly soft-fail during CLIENT_CERT authentication, even when soft-fail is disabled, under certain FFM-related execution paths. This can result in client certificates being accepted despite failed or unverifiable revocation checks, weakening certificate validation in specific mTLS configurations.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Apache Tomcat: Apache Tomcat: Authentication bypass via client certificate misconfiguration",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This flaw is rated Moderate rather than Important flaw because its impact is highly conditional and configuration-dependent, not broadly exploitable. The issue only manifests when CLIENT_CERT authentication, OCSP revocation checking, and soft-fail disabled are all explicitly configured, and even then only along specific execution paths involving the FFM API. There is no direct remote exploit primitive—an attacker would already need access to a client certificate that triggers an OCSP validation failure scenario (e.g., responder unavailability or malformed response) to potentially bypass revocation enforcement. Importantly, the vulnerability does not enable certificate forgery, private key compromise, or bypass of TLS authentication itself; it weakens enforcement of revocation status under edge conditions.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Web Server 6.2.3"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-34500"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2457043",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2457043"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-34500",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-34500"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-34500",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-34500"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/7rcl4zdxryc8hy3htyfyxkbqpxjtfdl2",
+          "url": "https://lists.apache.org/thread/7rcl4zdxryc8hy3htyfyxkbqpxjtfdl2"
+        }
+      ],
+      "release_date": "2026-04-09T19:36:52.857000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-26T12:55:43+00:00",
+          "details": "Before applying the update, back up your existing Red Hat JBoss Web Server installation, including all applications and configuration files.\n\nThe References section of this erratum contains a download link for the update. You must be logged in to download the update.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:20406"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.9,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Web Server 6.2.3"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "Apache Tomcat: Apache Tomcat: Authentication bypass via client certificate misconfiguration"
+    }
+  ]
+}

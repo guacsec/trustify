@@ -1,0 +1,2228 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "Red Hat Quay 3.10.17 is now available with bug fixes.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Quay 3.10.17",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2025:23064",
+        "url": "https://access.redhat.com/errata/RHSA-2025:23064"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2024-34156",
+        "url": "https://access.redhat.com/security/cve/CVE-2024-34156"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2024-45337",
+        "url": "https://access.redhat.com/security/cve/CVE-2024-45337"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2024-45338",
+        "url": "https://access.redhat.com/security/cve/CVE-2024-45338"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2025-47913",
+        "url": "https://access.redhat.com/security/cve/CVE-2025-47913"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2025-59420",
+        "url": "https://access.redhat.com/security/cve/CVE-2025-59420"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2025-61920",
+        "url": "https://access.redhat.com/security/cve/CVE-2025-61920"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/",
+        "url": "https://access.redhat.com/security/updates/classification/"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2025/rhsa-2025_23064.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat Quay 3.10.17",
+    "tracking": {
+      "current_release_date": "2026-08-19T21:25:24+00:00",
+      "generator": {
+        "date": "2026-08-19T21:25:24+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2025:23064",
+      "initial_release_date": "2025-12-10T16:36:13+00:00",
+      "revision_history": [
+        {
+          "date": "2025-12-10T16:36:13+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-08-15T05:55:47+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-19T21:25:24+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat Quay 3.1",
+                "product": {
+                  "name": "Red Hat Quay 3.1",
+                  "product_id": "Red Hat Quay 3.1",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:quay:3.10::el8"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat Quay"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+                  "product_id": "registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-container-security-operator-bundle@sha256%3Ab82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e?arch=amd64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+                  "product_id": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-container-security-operator-rhel8@sha256%3Aab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee?arch=amd64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+                  "product_id": "registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-bridge-operator-bundle@sha256%3A8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb?arch=amd64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+                  "product_id": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-bridge-operator-rhel8@sha256%3Aaa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715?arch=amd64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+                  "product_id": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-builder-qemu-rhcos-rhel8@sha256%3Acf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a?arch=amd64&repository_url=registry.redhat.io/quay&tag=3.14-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+                  "product_id": "registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-builder-rhel8@sha256%3A6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952?arch=amd64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+                "product": {
+                  "name": "registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+                  "product_id": "registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/clair-rhel8@sha256%3A9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f?arch=amd64&repository_url=registry.redhat.io/quay&tag=v3.10.16-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+                  "product_id": "registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-operator-bundle@sha256%3A91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d?arch=amd64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+                  "product_id": "registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-operator-rhel8@sha256%3Acfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb?arch=amd64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+                  "product_id": "registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-rhel8@sha256%3A7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e?arch=amd64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "amd64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+                  "product_id": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-container-security-operator-rhel8@sha256%3Ac7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4?arch=arm64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+                  "product_id": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-bridge-operator-rhel8@sha256%3Af55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999?arch=arm64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+                  "product_id": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-builder-qemu-rhcos-rhel8@sha256%3Ad93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c?arch=arm64&repository_url=registry.redhat.io/quay&tag=3.14-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+                  "product_id": "registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-builder-rhel8@sha256%3Abcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e?arch=arm64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+                "product": {
+                  "name": "registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+                  "product_id": "registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/clair-rhel8@sha256%3Abb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79?arch=arm64&repository_url=registry.redhat.io/quay&tag=v3.10.16-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+                  "product_id": "registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-operator-rhel8@sha256%3A3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970?arch=arm64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64",
+                  "product_id": "registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-rhel8@sha256%3Ad0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19?arch=arm64&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "arm64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+                  "product_id": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-container-security-operator-rhel8@sha256%3A1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2?arch=ppc64le&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+                  "product_id": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-bridge-operator-rhel8@sha256%3Ab9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b?arch=ppc64le&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+                  "product_id": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-builder-qemu-rhcos-rhel8@sha256%3Af3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8?arch=ppc64le&repository_url=registry.redhat.io/quay&tag=3.14-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+                  "product_id": "registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-builder-rhel8@sha256%3Ac6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893?arch=ppc64le&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+                "product": {
+                  "name": "registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+                  "product_id": "registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/clair-rhel8@sha256%3A83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642?arch=ppc64le&repository_url=registry.redhat.io/quay&tag=v3.10.16-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+                  "product_id": "registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-operator-rhel8@sha256%3A96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6?arch=ppc64le&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+                  "product_id": "registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-rhel8@sha256%3Ab638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6?arch=ppc64le&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "ppc64le"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+                  "product_id": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-container-security-operator-rhel8@sha256%3A03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40?arch=s390x&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+                  "product_id": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-bridge-operator-rhel8@sha256%3A892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3?arch=s390x&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+                  "product_id": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-builder-qemu-rhcos-rhel8@sha256%3A42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255?arch=s390x&repository_url=registry.redhat.io/quay&tag=3.14-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+                  "product_id": "registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-builder-rhel8@sha256%3A25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28?arch=s390x&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+                "product": {
+                  "name": "registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+                  "product_id": "registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/clair-rhel8@sha256%3Afec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8?arch=s390x&repository_url=registry.redhat.io/quay&tag=v3.10.16-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+                  "product_id": "registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-operator-rhel8@sha256%3Ae83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0?arch=s390x&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+                "product": {
+                  "name": "registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+                  "product_id": "registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/quay-rhel8@sha256%3A2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f?arch=s390x&repository_url=registry.redhat.io/quay&tag=3.10.17-1765384144"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "s390x"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le"
+        },
+        "product_reference": "registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64"
+        },
+        "product_reference": "registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64"
+        },
+        "product_reference": "registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x"
+        },
+        "product_reference": "registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64 as a component of Red Hat Quay 3.1",
+          "product_id": "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+        },
+        "product_reference": "registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64",
+        "relates_to_product_reference": "Red Hat Quay 3.1"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2024-34156",
+      "cwe": {
+        "id": "CWE-674",
+        "name": "Uncontrolled Recursion"
+      },
+      "discovery_date": "2024-09-06T21:20:09.377905+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2310528"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the encoding/gob package of the Golang standard library. Calling Decoder.Decoding, a message that contains deeply nested structures, can cause a panic due to stack exhaustion. This is a follow-up to CVE-2022-30635.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "encoding/gob: golang: Calling Decoder.Decode on a message which contains deeply nested structures can cause a panic due to stack exhaustion",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability in Go's `encoding/gob` package is of high severity because it exposes applications to potential Denial of Service (DoS) attacks through stack exhaustion. Since `gob` relies on recursive function calls to decode nested structures, an attacker could exploit this by sending crafted messages with excessively deep nesting, causing the application to panic due to stack overflow. This risk is particularly important in scenarios where untrusted or external input is processed, as it can lead to system unavailability or crashes, undermining the reliability and availability of services.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+        ],
+        "known_not_affected": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2024-34156"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2310528",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2310528"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2024-34156",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2024-34156"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2024-34156",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-34156"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/611239",
+          "url": "https://go.dev/cl/611239"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/69139",
+          "url": "https://go.dev/issue/69139"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-dev/c/S9POB9NCTdk",
+          "url": "https://groups.google.com/g/golang-dev/c/S9POB9NCTdk"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2024-3106",
+          "url": "https://pkg.go.dev/vuln/GO-2024-3106"
+        }
+      ],
+      "release_date": "2024-09-06T21:15:12.020000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-12-10T16:36:13+00:00",
+          "details": "Before applying this update, make sure all previously released errata relevant\nto your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:23064"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "encoding/gob: golang: Calling Decoder.Decode on a message which contains deeply nested structures can cause a panic due to stack exhaustion"
+    },
+    {
+      "cve": "CVE-2024-45337",
+      "cwe": {
+        "id": "CWE-285",
+        "name": "Improper Authorization"
+      },
+      "discovery_date": "2024-12-11T19:00:54.247490+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2331720"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the x/crypto/ssh go library. Applications and libraries that misuse the ServerConfig.PublicKeyCallback callback may be susceptible to an authorization bypass. For example, an attacker may send public keys A and B and authenticate with A. PublicKeyCallback would be called only twice, first with A and then with B. A vulnerable application may then make authorization decisions based on key B, for which the attacker does not control the private key. The misuse of ServerConfig.PublicKeyCallback may cause an authorization bypass.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "golang.org/x/crypto/ssh: Misuse of ServerConfig.PublicKeyCallback may cause authorization bypass in golang.org/x/crypto",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability is classified as important rather than critical because it does not directly enable unauthorized access but rather introduces a risk of authorization bypass if the application or library misuses the PublicKeyCallback API. The vulnerability relies on incorrect assumptions made by the application when handling the sequence or state of keys provided during SSH authentication. Properly implemented systems that use the Permissions field or avoid relying on external state remain unaffected. Additionally, the vulnerability does not allow direct exploitation to gain control over a system without the presence of insecure logic in the application's handling of authentication attempts.\n\n\nRed Hat Enterprise Linux(RHEL) 8 & 9 and Red Hat Openshift marked as not affected as it was determined that the problem function `ServerConfig.PublicKeyCallback`, as noted in the CVE-2024-45337 issue, is not called by Podman, Buildah, containers-common, or the gvisor-tap-vsock projects.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+        ],
+        "known_not_affected": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2024-45337"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2331720",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2331720"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2024-45337",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2024-45337"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2024-45337",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-45337"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/golang/crypto/commit/b4f1988a35dee11ec3e05d6bf3e90b695fbd8909",
+          "url": "https://github.com/golang/crypto/commit/b4f1988a35dee11ec3e05d6bf3e90b695fbd8909"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/635315",
+          "url": "https://go.dev/cl/635315"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/70779",
+          "url": "https://go.dev/issue/70779"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/-nPEi39gI4Q/m/cGVPJCqdAQAJ",
+          "url": "https://groups.google.com/g/golang-announce/c/-nPEi39gI4Q/m/cGVPJCqdAQAJ"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2024-3321",
+          "url": "https://pkg.go.dev/vuln/GO-2024-3321"
+        }
+      ],
+      "release_date": "2024-12-11T18:55:58.506000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-12-10T16:36:13+00:00",
+          "details": "Before applying this update, make sure all previously released errata relevant\nto your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:23064"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 8.2,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:C/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "golang.org/x/crypto/ssh: Misuse of ServerConfig.PublicKeyCallback may cause authorization bypass in golang.org/x/crypto"
+    },
+    {
+      "cve": "CVE-2024-45338",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2024-12-18T21:00:59.938173+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2333122"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in golang.org/x/net/html. This flaw allows an attacker to craft input to the parse functions that would be processed non-linearly with respect to its length, resulting in extremely slow parsing. This issue can cause a denial of service.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "golang.org/x/net/html: Non-linear parsing of case-insensitive content in golang.org/x/net/html",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability is rated as an Important severity because an attacker can craft malicious input that causes the parsing functions to process data non-linearly, resulting in significant delays which leads to a denial of service by exhausting system resources.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+        ],
+        "known_not_affected": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2024-45338"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2333122",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2333122"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2024-45338",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2024-45338"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2024-45338",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-45338"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/637536",
+          "url": "https://go.dev/cl/637536"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/70906",
+          "url": "https://go.dev/issue/70906"
+        },
+        {
+          "category": "external",
+          "summary": "https://groups.google.com/g/golang-announce/c/wSCRmFnNmPA/m/Lvcd0mRMAwAJ",
+          "url": "https://groups.google.com/g/golang-announce/c/wSCRmFnNmPA/m/Lvcd0mRMAwAJ"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2024-3333",
+          "url": "https://pkg.go.dev/vuln/GO-2024-3333"
+        }
+      ],
+      "release_date": "2024-12-18T20:38:22.660000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-12-10T16:36:13+00:00",
+          "details": "Before applying this update, make sure all previously released errata relevant\nto your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:23064"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "golang.org/x/net/html: Non-linear parsing of case-insensitive content in golang.org/x/net/html"
+    },
+    {
+      "cve": "CVE-2025-47913",
+      "discovery_date": "2025-11-13T22:01:26.092452+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2414943"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw in golang.org/x/crypto/ssh/agent causes the SSH agent client to panic when a peer responds with the generic SSH_AGENT_SUCCESS (0x06) message to requests expecting typed replies (e.g., List, Sign). The unmarshal layer produces an unexpected message type, which the client code does not handle, leading to panic(\"unreachable\") or a nil-pointer dereference. A malicious agent or forwarded connection can exploit this to terminate the client process.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "golang.org/x/crypto/ssh/agent: golang.org/x/crypto/ssh/agent: SSH client panic due to unexpected SSH_AGENT_SUCCESS",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability was marked as Important because it allows any malicious or misbehaving SSH agent to force a crash in the client process using a single valid protocol byte. The panic occurs before the client has a chance to validate message structure or recover, which means an attacker controlling—or intercepting—SSH agent traffic can reliably terminate processes that rely on agent interactions. In environments where SSH agents operate over forwarded sockets, shared workspaces, or CI/CD runners, this turns into a reliable, unauthenticated remote denial of service against critical automation or developer tooling. The flaw also stems from unsafe assumptions in the unmarshalling logic, where unexpected but protocol-legal message types drop into “unreachable” code paths instead of being handled gracefully—making it a design-level reliability break rather than a simple error-handling bug. For this reason, it is rated as an important availability-impacting vulnerability rather than a moderate issue.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le"
+        ],
+        "known_not_affected": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-47913"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2414943",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2414943"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-47913",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-47913"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-47913",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-47913"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/advisories/GHSA-hcg3-q754-cr77",
+          "url": "https://github.com/advisories/GHSA-hcg3-q754-cr77"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/cl/700295",
+          "url": "https://go.dev/cl/700295"
+        },
+        {
+          "category": "external",
+          "summary": "https://go.dev/issue/75178",
+          "url": "https://go.dev/issue/75178"
+        },
+        {
+          "category": "external",
+          "summary": "https://pkg.go.dev/vuln/GO-2025-4116",
+          "url": "https://pkg.go.dev/vuln/GO-2025-4116"
+        }
+      ],
+      "release_date": "2025-11-13T21:29:39.907000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-12-10T16:36:13+00:00",
+          "details": "Before applying this update, make sure all previously released errata relevant\nto your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:23064"
+        },
+        {
+          "category": "workaround",
+          "details": "No mitigation is currently available that meets Red Hat Product Security’s standards for usability, deployment, applicability, or stability.",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "golang.org/x/crypto/ssh/agent: golang.org/x/crypto/ssh/agent: SSH client panic due to unexpected SSH_AGENT_SUCCESS"
+    },
+    {
+      "cve": "CVE-2025-59420",
+      "cwe": {
+        "id": "CWE-440",
+        "name": "Expected Behavior Violation"
+      },
+      "discovery_date": "2025-09-22T18:01:35.379361+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2397460"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "Authlib’s JWS verification accepts tokens that declare unknown critical header parameters (crit), violating RFC 7515 “must‑understand” semantics. An attacker can craft a signed token with a critical header (for example, bork or cnf) that strict verifiers reject but Authlib accepts. In mixed‑language fleets, this enables split‑brain verification and can lead to policy bypass, replay, or privilege escalation.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "authlib: Authlib RFC violation",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+        ],
+        "known_not_affected": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-59420"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2397460",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2397460"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-59420",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-59420"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-59420",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-59420"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/authlib/authlib/commit/6b1813e4392eb7c168c276099ff7783b176479df",
+          "url": "https://github.com/authlib/authlib/commit/6b1813e4392eb7c168c276099ff7783b176479df"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/authlib/authlib/security/advisories/GHSA-9ggr-2464-2j32",
+          "url": "https://github.com/authlib/authlib/security/advisories/GHSA-9ggr-2464-2j32"
+        }
+      ],
+      "release_date": "2025-09-22T17:28:53.869000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-12-10T16:36:13+00:00",
+          "details": "Before applying this update, make sure all previously released errata relevant\nto your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:23064"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "authlib: Authlib RFC violation"
+    },
+    {
+      "cve": "CVE-2025-61920",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2025-10-10T20:01:12.833962+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2403179"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A denial of service flaw has been discovered in the python Authlib package. Authlib’s JOSE implementation accepts unbounded JWS/JWT header and signature segments. A remote attacker can craft a token whose base64url‑encoded header or signature spans hundreds of megabytes. During verification, Authlib decodes and parses the full input before it is rejected, driving CPU and memory consumption to hostile levels and enabling denial of service.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "authlib: Authlib Denial of Service",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+        ],
+        "known_not_affected": [
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+          "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-61920"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2403179",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2403179"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-61920",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-61920"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-61920",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-61920"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/authlib/authlib/commit/867e3f87b072347a1ae9cf6983cc8bbf88447e5e",
+          "url": "https://github.com/authlib/authlib/commit/867e3f87b072347a1ae9cf6983cc8bbf88447e5e"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/authlib/authlib/security/advisories/GHSA-pq5p-34cr-23v9",
+          "url": "https://github.com/authlib/authlib/security/advisories/GHSA-pq5p-34cr-23v9"
+        }
+      ],
+      "release_date": "2025-10-10T19:25:07.679000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2025-12-10T16:36:13+00:00",
+          "details": "Before applying this update, make sure all previously released errata relevant\nto your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2025:23064"
+        },
+        {
+          "category": "workaround",
+          "details": "Users unable to upgrade may manually enforce input size limits before handing tokens to Authlib and/or use application-level throttling to reduce amplification risk.",
+          "product_ids": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:83c5ad5ebfdd1b389af2fd407d8d6b8da52805cb3212bb2916108001296bb642_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:9403e73ee33102c2f18bcaca03e8eae21a283e47a4f288150db4d105a90b6b8f_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:bb630cb6e6bad937624d772e49a795da457035c7dcb1740c07d54a36f561ad79_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/clair-rhel8@sha256:fec577bc00c5dc32b284c30fb0d2e324a12d0f932b9abf65e70256e3d80bcda8_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-bundle@sha256:8b475114a5f77f7c041509a30246769a5f9064510724c8fc99ac29164dc3a0bb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:892bee6e3214a69b8924f840b69a55ac0c8d66443bf042cfa88c13766bd8dce3_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:aa126c3f4865a2a62cba2734110418c865aa2d32f38147c056732e53fc593715_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:b9889747f06f6fe48cd1a79aaf6dcafcf6a9cdd2d2ad986fb10da3f2a51c103b_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-bridge-operator-rhel8@sha256:f55014b7e95512e2dcad9ebde4d36a39e136093ed22fc3436e66cf9b34091999_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:42e442bf326bf2039f7ead1d13ba0b47e605fce986c241e6fcfca9cc9926b255_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:cf0b723425c76814def9211124d18ce95e58b265185e12c5ae183f9999e51b1a_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:d93675365e51845d5d8a17997395726a4b09952fba42aaccdcfe132fd8e4d31c_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-qemu-rhcos-rhel8@sha256:f3223fc2fef5653947f8e402020c7f332beeee7c6a09d9be0bc7dc31ef3936f8_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:25567f02ee5b0640a12f76bfed9b889334363be402d9bdb14c8b7cc37feb6b28_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:6f893e3537bdc8ac814c5726f5594f4da820973d2246d3b399687d406e9a3952_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:bcc3f8c6589b63a0a162498ea2ab3596971a97b9107ade0ebd3e8d0d372ac84e_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-builder-rhel8@sha256:c6dfd40d71e49b352b39595ad73f06002d3bc448bc93e06def96ab3424451893_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-bundle@sha256:b82090e9203982de62d995c18eed37838b8ebbb092195a7f58d02526fd04523e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:03da6ae6711c5238e19daa8ccccd75bc936ab8144b67cb2ccddcd3d1d2e33a40_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:1bd8354520b468f4eb47872a428f56da551e6720f31a41ce6e02df5050b4f8b2_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:ab3aa3fde12c94c24c2c1a3caa08f5d995cc9d3d9cca1af8b46610f6b4ff28ee_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-container-security-operator-rhel8@sha256:c7c2192a046c0fde35dcafa363803c085663676224708f4520fd967b3d2c8dd4_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-bundle@sha256:91ce9e64184afb90b00360c64f5ba37d30130ab0344b2439b93db15f2b35b74d_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:3940beeed21aa2c4ae695e7ac40a0373a05246f1dff2d6d829d3111c032a1970_arm64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:96ee14d79f08194aa54cc7e6d1d814dae5af1d7143e513b6f1cb9397b6407ae6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:cfbfd35f7cd15df266c69d12975f64db2bc38238d2a0a7f9d17b319db20ccbbb_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-operator-rhel8@sha256:e83662cd7bab21bcd0faa26ae67f0cb9244a67e17036af92cf30fe2a5591dcb0_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:2b5f83bbade40b04a7975788743afdb8cec5f72ad8e5eea4c75d5840ce44ef3f_s390x",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:7b77b205b95f99383f12e571b391a35ea8f85dfd23f2d4fd67045bbece1ee66e_amd64",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:b638f53267de38576f1875ee3379114ba3c2089d8b26901c4a960ec82d35a0b6_ppc64le",
+            "Red Hat Quay 3.1:registry.redhat.io/quay/quay-rhel8@sha256:d0ad53575ddce599c11e959d3590300ab325633951003db4ef2d82a133c8ef19_arm64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "authlib: Authlib Denial of Service"
+    }
+  ]
+}

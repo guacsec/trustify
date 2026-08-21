@@ -1,0 +1,2829 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "New images are available for Red Hat build of Keycloak 26.4.14 and Red Hat build of Keycloak 26.4.14 Operator, running on OpenShift Container Platform",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Red Hat build of Keycloak is an integrated sign-on solution,\navailable as a Red Hat JBoss Middleware for OpenShift containerized\nimage. The Red Hat build of Keycloak for OpenShift image provides\nan authentication server that you can use to log in centrally, log\nout, and register. You can also manage user accounts for web\napplications, mobile applications, and RESTful web services.\n\nRed Hat build of Keycloak Operator for OpenShift simplifies\ndeployment and management of Keycloak 26.4.14 clusters.\n\nThis erratum releases new images for Red Hat build of Keycloak\n26.4.14 for use within the OpenShift Container Platform cloud\ncomputing Platform-as-a-Service (PaaS) for on-premise or private\ncloud deployments, aligning with the standalone product release.\n\nSecurity fixes:\n* Admin UI extension brute-force-user endpoint bypasses FGAPv2 user view restrictions (CVE-2026-14209)\n* FGAP v2 client scope assignment bypass via ClientResource (CVE-2026-14614)\n* FGAP v2 parent group children endpoint bypasses per-child view permission filter (CVE-2026-14615)\n* DCR protocol mapper type-swap policy bypass allows privilege escalation (CVE-2026-15572)\n* Authorization bypass via unnormalized URI matching in PathMatcher (CVE-2026-15573)\n* LDAP entry-DN user search bypasses configured users DN boundary (CVE-2026-16071)\n* Default DCR policy allows role forgery via User Property mappers (CVE-2026-16102)\n* Quarkus REST - Unbounded multipart MIME part-header accumulation allows remote OOM denial of service (CVE-2026-16308)\n* SAML IdP-initiated broker login bypasses link-only restriction (CVE-2026-16442)\n* SAML broker metadata import disables response signature validation (CVE-2026-16443)\n* Privilege escalation through hardcoded role mapper injection (CVE-2026-4629)\n* Arbitrary code execution via PolymorphicTypeValidator bypass (CVE-2026-54512)\n* Security bypass allows arbitrary code execution (CVE-2026-54513)\n* HTTP Parameter Pollution in OIDC redirect URI allows response parameter duplication - #GHI-604 (CVE-2026-9689)\n* Security policy bypass in JWE-encrypted request object processing (CVE-2026-9793)\n* Brute-force protection bypass in CIBA flow (CVE-2026-9798)\n* Authorization bypass via incorrect URI comparison (CVE-2026-9800)\n* Brute-force protection bypass in CIBA flow (CVE-2026-9798)",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:50847",
+        "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_50847.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat build of Keycloak 26.4.14 Images Security Update",
+    "tracking": {
+      "current_release_date": "2026-08-20T10:52:42+00:00",
+      "generator": {
+        "date": "2026-08-20T10:52:42+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:50847",
+      "initial_release_date": "2026-08-05T16:20:00+00:00",
+      "revision_history": [
+        {
+          "date": "2026-08-05T16:20:00+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-08-05T16:20:00+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-20T10:52:42+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat build of Keycloak 26.4",
+                "product": {
+                  "name": "Red Hat build of Keycloak 26.4",
+                  "product_id": "9Base-RHBK-26.4",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:build_keycloak:26.4::el9"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat build of Keycloak"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64",
+                "product": {
+                  "name": "rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64",
+                  "product_id": "rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0?arch=amd64&repository_url=registry.redhat.io/rhbk/keycloak-rhel9&tag=26.4-22"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+                "product": {
+                  "name": "rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+                  "product_id": "rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085?arch=amd64&repository_url=registry.redhat.io/rhbk/keycloak-operator-bundle&tag=26.4.14-1"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+                "product": {
+                  "name": "rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+                  "product_id": "rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8?arch=amd64&repository_url=registry.redhat.io/rhbk/keycloak-rhel9-operator&tag=26.4-22"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "amd64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+                "product": {
+                  "name": "rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+                  "product_id": "rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8?arch=arm64&repository_url=registry.redhat.io/rhbk/keycloak-rhel9&tag=26.4-22"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+                "product": {
+                  "name": "rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+                  "product_id": "rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68?arch=arm64&repository_url=registry.redhat.io/rhbk/keycloak-rhel9-operator&tag=26.4-22"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "arm64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+                "product": {
+                  "name": "rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+                  "product_id": "rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58?arch=s390x&repository_url=registry.redhat.io/rhbk/keycloak-rhel9&tag=26.4-22"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+                "product": {
+                  "name": "rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+                  "product_id": "rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63?arch=s390x&repository_url=registry.redhat.io/rhbk/keycloak-rhel9-operator&tag=26.4-22"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "s390x"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+                "product": {
+                  "name": "rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+                  "product_id": "rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b?arch=ppc64le&repository_url=registry.redhat.io/rhbk/keycloak-rhel9&tag=26.4-22"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+                "product": {
+                  "name": "rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+                  "product_id": "rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87?arch=ppc64le&repository_url=registry.redhat.io/rhbk/keycloak-rhel9-operator&tag=26.4-22"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "ppc64le"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64 as a component of Red Hat build of Keycloak 26.4",
+          "product_id": "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64"
+        },
+        "product_reference": "rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+        "relates_to_product_reference": "9Base-RHBK-26.4"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64 as a component of Red Hat build of Keycloak 26.4",
+          "product_id": "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64"
+        },
+        "product_reference": "rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+        "relates_to_product_reference": "9Base-RHBK-26.4"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64 as a component of Red Hat build of Keycloak 26.4",
+          "product_id": "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64"
+        },
+        "product_reference": "rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+        "relates_to_product_reference": "9Base-RHBK-26.4"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le as a component of Red Hat build of Keycloak 26.4",
+          "product_id": "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le"
+        },
+        "product_reference": "rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+        "relates_to_product_reference": "9Base-RHBK-26.4"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x as a component of Red Hat build of Keycloak 26.4",
+          "product_id": "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x"
+        },
+        "product_reference": "rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+        "relates_to_product_reference": "9Base-RHBK-26.4"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le as a component of Red Hat build of Keycloak 26.4",
+          "product_id": "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le"
+        },
+        "product_reference": "rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+        "relates_to_product_reference": "9Base-RHBK-26.4"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x as a component of Red Hat build of Keycloak 26.4",
+          "product_id": "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x"
+        },
+        "product_reference": "rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+        "relates_to_product_reference": "9Base-RHBK-26.4"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64 as a component of Red Hat build of Keycloak 26.4",
+          "product_id": "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64"
+        },
+        "product_reference": "rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+        "relates_to_product_reference": "9Base-RHBK-26.4"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64 as a component of Red Hat build of Keycloak 26.4",
+          "product_id": "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        },
+        "product_reference": "rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64",
+        "relates_to_product_reference": "9Base-RHBK-26.4"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Lior Moshe",
+            "Uri Rolls",
+            "Daniel Peters"
+          ],
+          "organization": "Operating Intelligence Inc."
+        }
+      ],
+      "cve": "CVE-2026-4629",
+      "cwe": {
+        "id": "CWE-266",
+        "name": "Incorrect Privilege Assignment"
+      },
+      "discovery_date": "2026-03-23T08:01:10.722000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2450244"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Keycloak. A highly privileged user with `manage-clients` permission can exploit this vulnerability by injecting a hardcoded role mapper into any client. This action allows the user to bypass existing scope restrictions and inject the `realm-admin` role into generated tokens, resulting in privilege escalation and full administrative access to the realm.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak: Keycloak: Privilege escalation through hardcoded role mapper injection",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-4629"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2450244",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2450244"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-4629",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-4629"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-4629",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-4629"
+        }
+      ],
+      "release_date": "2026-04-20T12:34:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "HIGH",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak: Keycloak: Privilege escalation through hardcoded role mapper injection"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Martin Bartoš"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-9689",
+      "cwe": {
+        "id": "CWE-1288",
+        "name": "Improper Validation of Consistency within Input"
+      },
+      "discovery_date": "2026-05-27T09:27:30.349026+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2481845"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Keycloak, an open-source identity and access management solution. When a client application is configured to accept broad redirect Uniform Resource Identifiers (URIs), a remote attacker can manipulate the authentication process by crafting a special web address. If a user clicks this link, the client application might incorrectly prioritize attacker-controlled information over legitimate data. This vulnerability, known as HTTP parameter pollution, could allow an attacker to bypass security measures or gain unauthorized access to resources.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak: org.keycloak.protocol.oidc: HTTP Parameter Pollution in OIDC redirect URI allows response parameter duplication - #GHI-604",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This Moderate severity flaw in Keycloak arises from HTTP parameter pollution when a client is configured with a wildcard redirect URI. An attacker could craft a malicious authorization URL that, if clicked by a user, may lead to the client application incorrectly processing attacker-controlled OIDC response parameters. Exploitation is contingent on the client application employing a 'first-wins' strategy for duplicate query parameters, which is not a universal behavior.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-9689"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2481845",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2481845"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-9689",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-9689"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-9689",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-9689"
+        }
+      ],
+      "release_date": "2026-05-27T10:18:25.611000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 4.2,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak: org.keycloak.protocol.oidc: HTTP Parameter Pollution in OIDC redirect URI allows response parameter duplication - #GHI-604"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Sree Gopinath (sreelim)"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-9793",
+      "cwe": {
+        "id": "CWE-347",
+        "name": "Improper Verification of Cryptographic Signature"
+      },
+      "discovery_date": "2026-05-28T03:11:22.531000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2482460"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Keycloak. When a JSON Web Encryption (JWE) encrypted request object is submitted, Keycloak may incorrectly process unsigned claims if the decrypted content is raw JSON, bypassing the configured signature policy. This allows a remote attacker to submit unauthorized claims, leading to a compromise of data integrity within the OpenID Connect (OIDC) authorization flow. While a redirect URI allowlist acts as a compensating control, this vulnerability violates OIDC Core and Financial-grade API (FAPI) signing requirements.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak: Keycloak: Security policy bypass in JWE-encrypted request object processing",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This Medium impact vulnerability in Keycloak allows an attacker to bypass the `requestObjectSignatureAlg` policy when processing JWE-encrypted request objects with raw JSON plaintext. While this violates OIDC Core and FAPI signing requirements, the `redirect_uri` allowlist acts as a compensating control, preventing full authorization code or token exfiltration.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-9793"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2482460",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2482460"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-9793",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-9793"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-9793",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-9793"
+        }
+      ],
+      "release_date": "2026-05-28T03:12:28.340000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.9,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak: Keycloak: Security policy bypass in JWE-encrypted request object processing"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Evan Hendra"
+          ],
+          "organization": "Independent Security Researcher"
+        }
+      ],
+      "cve": "CVE-2026-9798",
+      "cwe": {
+        "id": "CWE-305",
+        "name": "Authentication Bypass by Primary Weakness"
+      },
+      "discovery_date": "2026-05-28T03:49:51.972000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2482470"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Keycloak, an open-source identity and access management solution. When a user account is temporarily locked due to repeated failed login attempts, an attacker with valid client credentials can exploit the Client-Initiated Backchannel Authentication (CIBA) flow to bypass this brute-force protection. This allows continued authentication attempts and token issuance even when the account should be locked, potentially enabling further unauthorized access attempts.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak: Keycloak: Brute-force protection bypass in CIBA flow",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This flaw in Keycloak's Client-Initiated Backchannel Authentication (CIBA) flow is rated as Low impact. The vulnerability allows bypassing brute-force protection when a user account is locked, but only if CIBA is explicitly enabled and configured (non-default), and the user approves the authentication request on their device. This significantly limits the attack surface in typical Red Hat deployments where CIBA is not enabled by default.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-9798"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2482470",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2482470"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-9798",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-9798"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-9798",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-9798"
+        }
+      ],
+      "release_date": "2026-05-28T03:53:01.734000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, ensure that Client-Initiated Backchannel Authentication (CIBA) is not enabled in Keycloak realms unless explicitly required. If CIBA is enabled, consider disabling it to prevent the bypass of brute-force protection mechanisms. Consult Keycloak documentation for instructions on managing CIBA configuration.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 4.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak: Keycloak: Brute-force protection bypass in CIBA flow"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Bas Levering"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-9800",
+      "cwe": {
+        "id": "CWE-1025",
+        "name": "Comparison Using Wrong Factors"
+      },
+      "discovery_date": "2026-05-28T03:57:56.111000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2482472"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Keycloak Policy Enforcer. This vulnerability allows any authenticated user to bypass all authorization policies, including role, scope, and User-Managed Access (UMA) permission checks. By including the configured access-denied page path within a request URL, either as a path segment or a query parameter, an attacker can gain unauthorized access to protected resources.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-policy-enforcer: Keycloak Policy Enforcer: Authorization bypass via incorrect URI comparison",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-9800"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2482472",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2482472"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-9800",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-9800"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-9800",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-9800"
+        }
+      ],
+      "release_date": "2026-05-19T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 8.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "keycloak-policy-enforcer: Keycloak Policy Enforcer: Authorization bypass via incorrect URI comparison"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "yd1ng"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-14209",
+      "cwe": {
+        "id": "CWE-639",
+        "name": "Authorization Bypass Through User-Controlled Key"
+      },
+      "discovery_date": "2026-06-29T20:54:20+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2494837"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A vulnerability was discovered in Keycloak's Admin UI extension that allows certain administrative users to bypass security restrictions. When Fine-Grained Admin Permissions (FGAPv2) are enabled, an administrator who should only be able to search for users (but not view their full details) can use a specific \"brute-force-user\" endpoint to access a user's full profile. This includes sensitive information and security metadata. The issue occurs because the system fails to check if the administrator has the required \"view\" permission for that specific user when using this particular search path.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-admin-ui: keycloak-admin-ui:Admin UI extension brute-force-user endpoint bypasses FGAPv2 user view restrictions",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Moderate, given that it requires the attacker to already possess administrative privileges (query-users role) and knowledge of the target user's ID. Successful exploitation allows an attacker to bypass fine-grained authorization controls to view sensitive user data they are not authorized to see. The vulnerability's root cause is a missing authorization check in the BruteForceUsersResource component of the Admin UI extension.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-14209"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2494837",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2494837"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-14209",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-14209"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-14209",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-14209"
+        }
+      ],
+      "release_date": "2026-06-30T11:08:07.532000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 4.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak-admin-ui: keycloak-admin-ui:Admin UI extension brute-force-user endpoint bypasses FGAPv2 user view restrictions"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "yd1ng"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-14614",
+      "cwe": {
+        "id": "CWE-639",
+        "name": "Authorization Bypass Through User-Controlled Key"
+      },
+      "discovery_date": "2026-07-02T17:39:04+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2496889"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the ClientResource component of Keycloak's admin services when Fine-Grained Admin Permissions (FGAP) v2 is enabled. This issue allows a delegated administrator, who should only have limited control over specific clients, to attach or remove hidden client scopes that they are not authorized to see or manage. As a result, an attacker could inject unauthorized data or permissions into the security tokens issued to end-users, potentially tricking other applications into granting higher levels of access than intended.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: FGAP v2 client scope assignment bypass via ClientResource",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Moderate, given that exploitation requires the attacker to already hold a delegated administrator role with specific client management permissions and knowledge of internal resource identifiers (UUIDs). Successful exploitation allows an attacker to bypass fine-grained authorization boundaries to modify the contents of tokens issued by Keycloak, potentially leading to unauthorized actions in downstream applications. The vulnerability's root cause is a missing authorization check on the referenced client scope during the assignment process in the admin REST API.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-14614"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2496889",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2496889"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-14614",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-14614"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-14614",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-14614"
+        }
+      ],
+      "release_date": "2026-07-03T15:21:06.261000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.4,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: FGAP v2 client scope assignment bypass via ClientResource"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "yd1ng"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-14615",
+      "cwe": {
+        "id": "CWE-1220",
+        "name": "Insufficient Granularity of Access Control"
+      },
+      "discovery_date": "2026-07-02T17:46:15+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2496891"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Fine-Grained Admin Permissions (FGAP) v2 implementation within Keycloak's administrative services. When FGAP v2 is enabled, the system fails to properly filter child groups based on the caller's specific permissions when requested through a parent group. This allows a delegated administrator to view details of child groups they are not authorized to access directly, including group names, paths, and custom attributes.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak: FGAP v2 parent group children endpoint bypasses per-child view permission filter",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Moderate, given that it requires the attacker to possess a delegated administrator role with specific permissions. Successful exploitation allows an attacker to disclose sensitive group metadata and attributes that should be restricted. The vulnerability's root cause is an improper conditional check in the group retrieval logic that fails to apply permission filters when FGAP v2 is enabled.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-14615"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2496891",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2496891"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-14615",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-14615"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-14615",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-14615"
+        }
+      ],
+      "release_date": "2026-07-03T15:37:56.396000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 4.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak-services: keycloak: FGAP v2 parent group children endpoint bypasses per-child view permission filter"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Arthur Chan  (Ada Logics)"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-15572",
+      "cwe": {
+        "id": "CWE-843",
+        "name": "Access of Resource Using Incompatible Type ('Type Confusion')"
+      },
+      "discovery_date": "2026-07-06T23:27:45+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2499592"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Keycloak's Dynamic Client Registration (DCR) security policy management. The \"Allowed Protocol Mapper Types\" policy, which restricts which types of data mappers a client can use, fails to re-validate the mapper type during a client update if the mapper's configuration remains unchanged. An attacker with client registration privileges can exploit this by first registering an allowed mapper type with a malicious configuration and then swapping it for a restricted, high-privilege mapper type (such as one that hardcodes administrative roles). This allows the attacker to gain full administrative access to the Keycloak realm.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: DCR protocol mapper type-swap policy bypass allows privilege escalation",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Important. Successful exploitation allows an attacker with client registration privileges to escalate to realm administrator, granting them full control over the affected realm. This includes the ability to modify security settings, access sensitive user data, or cause a denial of service. The vulnerability stems from an asymmetric enforcement of the protocol mapper allow-list during client updates, where the system fails to re-validate the mapper type if the configuration remains unchanged.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-15572"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2499592",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2499592"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-15572",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-15572"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-15572",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-15572"
+        }
+      ],
+      "release_date": "2026-08-05T02:02:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: DCR protocol mapper type-swap policy bypass allows privilege escalation"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Sanil Dulal"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-15573",
+      "discovery_date": "2026-07-06T23:22:09+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2499593"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Keycloak's Authorization Services. The component responsible for matching request paths to security policies (PathMatcher) does not properly normalize URIs before comparison. By adding extra characters like a trailing slash or matrix parameters to a URL, an attacker can trick the system into applying a less restrictive security policy than intended. This allows an authenticated user to access administrative or restricted areas they should not have permission to see.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: Authorization bypass via unnormalized URI matching in PathMatcher",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Red Hat Product Security has rated this vulnerability as having a security impact of Important. This issue allows authenticated users to bypass fine-grained authorization controls by exploiting a lack of URI normalization in the PathMatcher utility. While authentication is required, the ability to bypass explicit \"Deny\" policies and access restricted resources poses a significant risk to the confidentiality and integrity of the protected system.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-15573"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2499593",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2499593"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-15573",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-15573"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-15573",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-15573"
+        }
+      ],
+      "release_date": "2026-08-05T02:02:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 8.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: Authorization bypass via unnormalized URI matching in PathMatcher"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Paul Bottinelli"
+          ],
+          "organization": "Trail of Bits"
+        }
+      ],
+      "cve": "CVE-2026-16071",
+      "discovery_date": "2026-07-17T12:36:21+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2501720"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the LDAP storage provider of Keycloak, which is used to federate user identities from external directories. The issue occurs when a delegated administrator performs a search using a specific LDAP entry Distinguished Name (DN). Due to missing validation, the system allows lookups for users located outside the configured search boundary, leading to the disclosure of account information from unauthorized parts of the directory and unintended importing of those users into local storage.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: LDAP entry-DN user search bypasses configured users DN boundary",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Moderate, given that it requires the attacker to have delegated administrative privileges. Successful exploitation allows an attacker to disclose user account details from unauthorized LDAP OUs and cause unintended user imports into the local database. The vulnerability's root cause is the lack of validation to ensure that a requested LDAP Distinguished Name falls within the provider's configured search boundary.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-16071"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2501720",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2501720"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-16071",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-16071"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-16071",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-16071"
+        }
+      ],
+      "release_date": "2026-08-05T02:02:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.4,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: LDAP entry-DN user search bypasses configured users DN boundary"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "yd1ng"
+          ]
+        }
+      ],
+      "cve": "CVE-2026-16102",
+      "discovery_date": "2026-07-15T12:14:36+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2501735"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the Dynamic Client Registration (DCR) component of Keycloak, an identity and access management solution. The default DCR policy fails to properly validate the claim path for User Property mappers, allowing them to write values to sensitive internal claim locations. An attacker with a standard user account and a limited Initial Access Token can exploit this to forge administrative roles in their access token. This allows the attacker to take over other clients, steal confidential secrets, and potentially gain full administrative control over the realm.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: Default DCR policy allows role forgery via User Property mappers",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Important, given that it allows for significant privilege escalation and full realm compromise. Successful exploitation allows an attacker to read confidential client secrets, modify security configurations, and impersonate administrative service accounts. The vulnerability's root cause is a lack of claim path validation in the default Dynamic Client Registration (DCR) mapper policy.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-16102"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2501735",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2501735"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-16102",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-16102"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-16102",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-16102"
+        }
+      ],
+      "release_date": "2026-08-05T02:02:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 8.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: Default DCR policy allows role forgery via User Property mappers"
+    },
+    {
+      "cve": "CVE-2026-16308",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-07-23T09:57:24.306000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2506373"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Quarkus REST. An unauthenticated remote attacker can exploit this vulnerability by sending a crafted multipart/form-data request with an excessively large header section. This unbounded accumulation of MIME part-header bytes can exhaust the Java Virtual Machine (JVM) heap memory, leading to an OutOfMemoryError. The primary consequence is a denial of service, causing the application to crash.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.quarkus/quarkus-rest: io.quarkus/quarkus-vertx-http: io.quarkus.resteasy.reactive/resteasy-reactive: Quarkus REST - Unbounded multipart MIME part-header accumulation allows remote OOM denial of service",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important flaw in Quarkus REST / RESTEasy Reactive's MultipartParser, allowing an unauthenticated remote attacker to cause a denial of service. By sending a crafted multipart/form-data request with an excessively large part-header section, the attacker can exhaust the JVM heap, leading to application crashes. This vulnerability does not require valid form field names or authentication.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-16308"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2506373",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2506373"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-16308",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-16308"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-16308",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-16308"
+        }
+      ],
+      "release_date": "2026-07-29T13:19:42.315000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.quarkus/quarkus-rest: io.quarkus/quarkus-vertx-http: io.quarkus.resteasy.reactive/resteasy-reactive: Quarkus REST - Unbounded multipart MIME part-header accumulation allows remote OOM denial of service"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Paul Bottinelli"
+          ],
+          "organization": "Trail of Bits"
+        }
+      ],
+      "cve": "CVE-2026-16442",
+      "cwe": {
+        "id": "CWE-346",
+        "name": "Origin Validation Error"
+      },
+      "discovery_date": "2026-07-17T18:19:22+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2503138"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the SAML broker component of Keycloak, which is used to manage identity federation and user authentication. The issue occurs because the IdP-initiated Single Sign-On endpoint fails to check if a provider is restricted to account linking only. This allows an attacker with control over a linked upstream identity to bypass login restrictions and gain full access to a local user account.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: SAML IdP-initiated broker login bypasses link-only restriction",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Important, given that it allows for an authentication bypass. Successful exploitation allows an attacker to obtain a full authenticated session as a linked local user, bypassing administrative restrictions. The vulnerability's root cause is the lack of enforcement of the link-only configuration within the SAML IdP-initiated SSO endpoint.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-16442"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2503138",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2503138"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-16442",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-16442"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-16442",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-16442"
+        }
+      ],
+      "release_date": "2026-08-05T02:02:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.4,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: SAML IdP-initiated broker login bypasses link-only restriction"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Paul Bottinelli"
+          ],
+          "organization": "Trail of Bits"
+        }
+      ],
+      "cve": "CVE-2026-16443",
+      "cwe": {
+        "id": "CWE-347",
+        "name": "Improper Verification of Cryptographic Signature"
+      },
+      "discovery_date": "2026-07-17T17:57:04+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2503139"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in the SAML metadata import functionality of the keycloak-services component, which is the core engine for identity brokering in Red Hat Build of Keycloak. When importing identity provider metadata that lacks specific usage attributes for keys, the system incorrectly disables signature validation for SAML responses even if a signing certificate is provided. This issue allows an unauthenticated attacker to forge a SAML response and gain unauthorized access to a user account by knowing their external identifier.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "keycloak-services: keycloak-services: SAML broker metadata import disables response signature validation",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "The Red Hat Product Security team has assessed the severity of this vulnerability as Important, given that it allows for unauthenticated account takeover under common configuration scenarios. Successful exploitation allows an attacker to impersonate users and gain full access to their accounts by forging SAML responses. The vulnerability's root cause is an improper configuration of signature validation settings during the SAML IdP metadata import process.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-16443"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2503139",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2503139"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-16443",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-16443"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-16443",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-16443"
+        }
+      ],
+      "release_date": "2026-08-05T13:39:33.779000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base, or stability.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.4,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "keycloak-services: keycloak-services: SAML broker metadata import disables response signature validation"
+    },
+    {
+      "cve": "CVE-2026-54512",
+      "cwe": {
+        "id": "CWE-502",
+        "name": "Deserialization of Untrusted Data"
+      },
+      "discovery_date": "2026-06-23T22:01:49.821346+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2492015"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in jackson-databind. This vulnerability allows a remote attacker to bypass the PolymorphicTypeValidator (PTV) when polymorphic typing is enabled and a type identifier contains generic parameters. By crafting a malicious type ID, an attacker can place a denied class as a generic type parameter of an allowed container. This leads to the loading and instantiation of arbitrary classes, potentially resulting in arbitrary code execution.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "jackson-databind: jackson-databind: Arbitrary code execution via PolymorphicTypeValidator bypass",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This vulnerability in `jackson-databind` is rated as Important. While it describes a potential bypass of the PolymorphicTypeValidator leading to arbitrary code execution, exploitation requires an attacker to already possess administrative privileges, specifically the `manage-realm` role. This flaw does not enable privilege escalation, as it does not grant additional capabilities beyond those inherently available to an existing administrator.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-54512"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2492015",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2492015"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-54512",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-54512"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-54512",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-54512"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-databind/commit/434d6c511de7fdd9872f29157aafb6162d12d8d5",
+          "url": "https://github.com/FasterXML/jackson-databind/commit/434d6c511de7fdd9872f29157aafb6162d12d8d5"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-databind/issues/5988",
+          "url": "https://github.com/FasterXML/jackson-databind/issues/5988"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-j3rv-43j4-c7qm",
+          "url": "https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-j3rv-43j4-c7qm"
+        }
+      ],
+      "release_date": "2026-06-23T20:56:36.646000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "jackson-databind: jackson-databind: Arbitrary code execution via PolymorphicTypeValidator bypass"
+    },
+    {
+      "cve": "CVE-2026-54513",
+      "cwe": {
+        "id": "CWE-184",
+        "name": "Incomplete List of Disallowed Inputs"
+      },
+      "discovery_date": "2026-06-23T22:01:34.437620+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2492010"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in jackson-databind, a library used for processing data. This vulnerability allows an attacker to bypass security controls designed to validate data types. By sending specially crafted input, an attacker can force the system to process untrusted data, which may lead to the execution of malicious code. This could result in a complete compromise of the affected system, impacting its confidentiality, integrity, and availability.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "jackson-databind: Jackson-databind: Security bypass allows arbitrary code execution",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This Important flaw in `jackson-databind` allows for a security bypass, enabling arbitrary code execution. The vulnerability arises from insufficient validation of array component types by `BasicPolymorphicTypeValidator`, which permits deserialization of unallowlisted types when processing untrusted input. This bypass of type validation can lead to a complete system compromise, affecting confidentiality, integrity, and availability in Red Hat products utilizing `jackson-databind` for data processing.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+          "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-54513"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2492010",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2492010"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-54513",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-54513"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-54513",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-54513"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-databind/commit/01d1692c8d0ed03e51a0e3c4f8a9e6908e4931e5",
+          "url": "https://github.com/FasterXML/jackson-databind/commit/01d1692c8d0ed03e51a0e3c4f8a9e6908e4931e5"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-databind/commit/24529da29fdf46ff94ca38de9ebf31cd188f5e8e",
+          "url": "https://github.com/FasterXML/jackson-databind/commit/24529da29fdf46ff94ca38de9ebf31cd188f5e8e"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-databind/issues/5981",
+          "url": "https://github.com/FasterXML/jackson-databind/issues/5981"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-databind/issues/5983",
+          "url": "https://github.com/FasterXML/jackson-databind/issues/5983"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-databind/pull/5984",
+          "url": "https://github.com/FasterXML/jackson-databind/pull/5984"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-rmj7-2vxq-3g9f",
+          "url": "https://github.com/FasterXML/jackson-databind/security/advisories/GHSA-rmj7-2vxq-3g9f"
+        }
+      ],
+      "release_date": "2026-06-23T20:53:52.543000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-08-05T16:20:00+00:00",
+          "details": "Before applying the update, back up your existing installation,\nincluding all applications, configuration files, databases and\ndatabase settings, and so on.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:50847"
+        },
+        {
+          "category": "workaround",
+          "details": "Upgrade to version 2.18.8, 2.21.4, or 3.1.4 or later to address this vulnerability. If upgrading is not immediately possible, remove BasicPolymorphicTypeValidator.Builder.allowIfSubTypeIsArray() from the application’s ObjectMapper configuration to eliminate the affected deserialization path. Rebuild and restart the application to apply the configuration change.\n\nAs an additional mitigation, disable polymorphic deserialization of untrusted data where possible by avoiding or removing default typing features such as activateDefaultTyping() or enableDefaultTyping(). When polymorphic deserialization is required, restrict allowed subtypes using a strict whitelist of trusted application packages and avoid broad or permissive type validation rules.",
+          "product_ids": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "9Base-RHBK-26.4:rhbk/keycloak-operator-bundle@sha256:2c25b3107aee4f1fc25530f099fa683ba3077c185d581e7caa777c4410383085_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:0d3ea94f75c1b4528722db2c216ff2267ec17ba16adf3f703afb82354f0fdc68_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:330350e0cd77afca88886156c2668ae4bca75865e90362cbcf9657197bfa21e8_amd64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:399c59b8e63de5b6aa4e64008644550b98feb0957214e58dc7c6a5246dde3c87_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9-operator@sha256:f9f35a75d3029edf5ff82351c0b60ad0dd8672c3fa8f22f672954c248f9e0c63_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:130dfc422476647b5098a317a38964e7ea6a2a3f1a63d91f91dfb993921b356b_ppc64le",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:8a6fd6c12811ce179fc1248c63a152d173c12866b84f8b8364f4f3ed42b7ba58_s390x",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:cc475d34ac199de0908a32efa630c219469076feb74fd970d617c40cc90911f8_arm64",
+            "9Base-RHBK-26.4:rhbk/keycloak-rhel9@sha256:fc0390f65497ad6274f3db55ac796eb792255a8780578ab4d98aec9f42c23bc0_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "jackson-databind: Jackson-databind: Security bypass allows arbitrary code execution"
+    }
+  ]
+}

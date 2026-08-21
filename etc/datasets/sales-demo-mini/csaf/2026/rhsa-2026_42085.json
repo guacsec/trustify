@@ -1,0 +1,1402 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "The 1.3.6 release of Red Hat Trusted Artifact Signer OpenShift Operator.\nFor more details please visit the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "The RHTAS Operator can be used with OpenShift Container Platform 4.16, 4.17, 4.18, 4.19, 4.20 and 4.21",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:42085",
+        "url": "https://access.redhat.com/errata/RHSA-2026:42085"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3",
+        "url": "https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+        "url": "https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-42211",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-42211"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-42342",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-42342"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-44486",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-44486"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-44487",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-44487"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-44488",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-44488"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-44492",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-44492"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-44494",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-44494"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-44496",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-44496"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/cve/CVE-2026-55603",
+        "url": "https://access.redhat.com/security/cve/CVE-2026-55603"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/",
+        "url": "https://access.redhat.com/security/updates/classification/"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_42085.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: RHTAS 1.3.6 - Red Hat Trusted Artifact Signer Release",
+    "tracking": {
+      "current_release_date": "2026-08-20T15:00:19+00:00",
+      "generator": {
+        "date": "2026-08-20T15:00:19+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:42085",
+      "initial_release_date": "2026-07-20T16:06:49+00:00",
+      "revision_history": [
+        {
+          "date": "2026-07-20T16:06:49+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-08-15T05:55:47+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-20T15:00:19+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat Trusted Artifact Signer 1.3",
+                "product": {
+                  "name": "Red Hat Trusted Artifact Signer 1.3",
+                  "product_id": "Red Hat Trusted Artifact Signer 1.3",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:trusted_artifact_signer:1.3::el9"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat Trusted Artifact Signer"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+                "product": {
+                  "name": "registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+                  "product_id": "registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/rhtas-console-rhel9@sha256%3A7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f?arch=amd64&repository_url=registry.redhat.io/rhtas/rhtas-console-rhel9&tag=1784105848"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64",
+                "product": {
+                  "name": "registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64",
+                  "product_id": "registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64",
+                  "product_identification_helper": {
+                    "purl": "pkg:oci/rhtas-console-ui-rhel9@sha256%3Aeea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd?arch=amd64&repository_url=registry.redhat.io/rhtas/rhtas-console-ui-rhel9&tag=1784105894"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "amd64"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64 as a component of Red Hat Trusted Artifact Signer 1.3",
+          "product_id": "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+        },
+        "product_reference": "registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+        "relates_to_product_reference": "Red Hat Trusted Artifact Signer 1.3"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64 as a component of Red Hat Trusted Artifact Signer 1.3",
+          "product_id": "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+        },
+        "product_reference": "registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64",
+        "relates_to_product_reference": "Red Hat Trusted Artifact Signer 1.3"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2026-42211",
+      "cwe": {
+        "id": "CWE-915",
+        "name": "Improperly Controlled Modification of Dynamically-Determined Object Attributes"
+      },
+      "discovery_date": "2026-06-02T20:02:06.557013+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2484115"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in React Router when operating in Framework Mode. A remote attacker could exploit an existing prototype pollution vulnerability within the application code. This could lead to unauthorized remote code execution (RCE) on the server through a two-step attack involving external requests. This vulnerability poses a significant risk, potentially allowing an attacker to take control of the affected system.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "react-router: React Router: Remote Code Execution via prototype pollution in Framework Mode",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "An Important remote code execution flaw exists in React Router versions 7.0.0 through 7.14.1 when utilized in Framework Mode. This vulnerability requires an existing prototype pollution flaw within the application to enable a two-step attack, leading to unauthorized remote code execution on the server. Red Hat products employing React Router in Declarative Mode or Data Mode are not impacted.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+        ],
+        "known_not_affected": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-42211"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2484115",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2484115"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-42211",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-42211"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-42211",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-42211"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/remix-run/react-router/security/advisories/GHSA-49rj-9fvp-4h2h",
+          "url": "https://github.com/remix-run/react-router/security/advisories/GHSA-49rj-9fvp-4h2h"
+        }
+      ],
+      "release_date": "2026-06-02T18:18:46.706000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-20T16:06:49+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:42085"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, ensure that applications using React Router are not configured in Framework Mode. Instead, utilize Declarative Mode (`<BrowserRouter>`) or Data Mode (`createBrowserRouter/<RouterProvider>`), as these modes are not susceptible to this flaw.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "react-router: React Router: Remote Code Execution via prototype pollution in Framework Mode"
+    },
+    {
+      "cve": "CVE-2026-42342",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-06-02T20:02:09.305521+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2484116"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in React Router and @remix-run/server-runtime. A remote attacker can exploit this vulnerability by sending certain crafted requests to the __manifest endpoint. This can lead to unbounded path expansion, consuming disproportionate server resources. The primary consequence is a denial of service (DoS), resulting in response time degradation and service unavailability for end users.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "react-router: @remix-run/server-runtime: React Router / Remix: Denial of Service via unbounded path expansion in __manifest endpoint",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "A flaw was found in React Router (Framework Mode) and Remix (@remix-run/server-runtime). Crafted requests to the __manifest endpoint can trigger unbounded path expansion, consuming disproportionate server resources and causing denial of service through response time degradation or complete service unavailability. This only affects applications using React Router Framework Mode or Remix server runtime; applications using Declarative Mode (BrowserRouter) or Data Mode (createBrowserRouter/RouterProvider) are not impacted. In Red Hat products, affected React Router components are used in internal console UIs that are deployed behind authenticated ingress, reducing the attack surface.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+        ],
+        "known_not_affected": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-42342"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2484116",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2484116"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-42342",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-42342"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-42342",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-42342"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/remix-run/react-router/security/advisories/GHSA-8x6r-g9mw-2r78",
+          "url": "https://github.com/remix-run/react-router/security/advisories/GHSA-8x6r-g9mw-2r78"
+        }
+      ],
+      "release_date": "2026-06-02T18:23:02.765000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-20T16:06:49+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:42085"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.\nUpgrade to a patched version to fully mitigate the issues (ref: https://github.com/remix-run/react-router/security/advisories/GHSA-8x6r-g9mw-2r78).",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "react-router: @remix-run/server-runtime: React Router / Remix: Denial of Service via unbounded path expansion in __manifest endpoint"
+    },
+    {
+      "cve": "CVE-2026-44486",
+      "cwe": {
+        "id": "CWE-201",
+        "name": "Insertion of Sensitive Information Into Sent Data"
+      },
+      "discovery_date": "2026-06-11T17:01:30.944384+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2487947"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Axios, a promise-based HTTP client, specifically in its Node.js HTTP adapter. When Axios is configured to use an authenticated proxy and follows a redirect, it may inadvertently send the Proxy-Authorization header, containing proxy credentials, to the redirect target. This can lead to the disclosure of sensitive proxy credentials to an unintended remote server.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "axios: Axios: Information disclosure of proxy credentials via HTTP redirects",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important information disclosure flaw in the Axios Node.js HTTP adapter. Red Hat products utilizing Axios in a Node.js environment with an authenticated proxy and automatic redirects enabled are susceptible. The vulnerability arises when a request, initially sent through an authenticated proxy, is redirected to a target that no longer uses the proxy, potentially leaking `Proxy-Authorization` headers containing sensitive credentials to an untrusted remote server. This risk is heightened in deployments where applications interact with untrusted HTTP origins.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+        ],
+        "known_not_affected": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-44486"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2487947",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2487947"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-44486",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-44486"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-44486",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-44486"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/axios/axios/security/advisories/GHSA-j5f8-grm9-p9fc",
+          "url": "https://github.com/axios/axios/security/advisories/GHSA-j5f8-grm9-p9fc"
+        }
+      ],
+      "release_date": "2026-06-11T15:39:07.714000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-20T16:06:49+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:42085"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "axios: Axios: Information disclosure of proxy credentials via HTTP redirects"
+    },
+    {
+      "cve": "CVE-2026-44487",
+      "cwe": {
+        "id": "CWE-201",
+        "name": "Insertion of Sensitive Information Into Sent Data"
+      },
+      "discovery_date": "2026-06-11T17:01:34.091476+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2487948"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Axios. During specific proxy-to-direct redirect flows in the Node.js HTTP adapter, a remote attacker could exploit this vulnerability. The Proxy-Authorization header, which contains proxy credentials and is intended only for the outbound proxy, may be forwarded to the final redirected origin. This can lead to the disclosure of sensitive proxy credentials to an unintended third party.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "axios: Axios: Information disclosure of proxy credentials via redirect flows",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important information disclosure flaw in Axios affecting Node.js environments. When an application uses Axios with an authenticated HTTP proxy and follows redirects from an HTTP to a non-proxied HTTPS destination, the Proxy-Authorization header may be inadvertently sent to the final origin server. This could lead to the exposure of sensitive proxy credentials to an unintended third party.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+        ],
+        "known_not_affected": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-44487"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2487948",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2487948"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-44487",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-44487"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-44487",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-44487"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/axios/axios/security/advisories/GHSA-p92q-9vqr-4j8v",
+          "url": "https://github.com/axios/axios/security/advisories/GHSA-p92q-9vqr-4j8v"
+        }
+      ],
+      "release_date": "2026-06-11T15:38:25.150000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-20T16:06:49+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:42085"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "axios: Axios: Information disclosure of proxy credentials via redirect flows"
+    },
+    {
+      "cve": "CVE-2026-44488",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-06-11T17:01:36.836488+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2487949"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Axios, a promise-based HTTP client. When using the fetch adapter, Axios did not properly enforce configured request and response size limits. This vulnerability allows a remote attacker, through a malicious or compromised server, or by supplying a large data URL, to send or receive oversized data bodies. This can lead to resource exhaustion in server-side applications, resulting in a Denial of Service (DoS).",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "axios: Axios: Denial of Service due to unenforced request and response size limits",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Important: A denial of service flaw was found in Axios, a JavaScript HTTP client library. This issue arises when applications utilize the `fetch` adapter, as configured request and response size limits are not properly enforced. A remote attacker could exploit this by sending or receiving excessively large data bodies, leading to resource exhaustion and potential denial of service in affected server-side applications.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+        ],
+        "known_not_affected": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-44488"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2487949",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2487949"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-44488",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-44488"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-44488",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-44488"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/axios/axios/security/advisories/GHSA-777c-7fjr-54vf",
+          "url": "https://github.com/axios/axios/security/advisories/GHSA-777c-7fjr-54vf"
+        }
+      ],
+      "release_date": "2026-06-11T15:37:38.013000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-20T16:06:49+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:42085"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "axios: Axios: Denial of Service due to unenforced request and response size limits"
+    },
+    {
+      "cve": "CVE-2026-44492",
+      "cwe": {
+        "id": "CWE-289",
+        "name": "Authentication Bypass by Alternate Name"
+      },
+      "discovery_date": "2026-06-11T17:00:56.761751+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2487938"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Axios, a promise-based HTTP client. This vulnerability occurs because Axios does not properly normalize IPv4-mapped IPv6 addresses. When a NO_PROXY setting is configured to block direct access to specific IPv4 addresses, an attacker can bypass this restriction by using the IPv4-mapped IPv6 form of the address in a request URL. This allows the request to be routed through the proxy, potentially exposing internal services or sensitive information that should otherwise be inaccessible.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "axios: Axios: Proxy bypass via IPv4-mapped IPv6 address non-normalization",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This is an Important flaw in Axios, a JavaScript HTTP client library, that allows for a proxy bypass. When a `NO_PROXY` environment variable is configured to prevent direct connections to specific IPv4 addresses, an attacker can craft a request URL using the IPv4-mapped IPv6 address format. This bypasses the intended `NO_PROXY` exclusion, routing the request through the configured proxy and potentially exposing internal services or sensitive information, such as cloud instance metadata credentials.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+        ],
+        "known_not_affected": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-44492"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2487938",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2487938"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-44492",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-44492"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-44492",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-44492"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/axios/axios/security/advisories/GHSA-pjwm-pj3p-43mv",
+          "url": "https://github.com/axios/axios/security/advisories/GHSA-pjwm-pj3p-43mv"
+        }
+      ],
+      "release_date": "2026-06-11T15:29:13.890000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-20T16:06:49+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:42085"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 8.6,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "axios: Axios: Proxy bypass via IPv4-mapped IPv6 address non-normalization"
+    },
+    {
+      "cve": "CVE-2026-44494",
+      "cwe": {
+        "id": "CWE-915",
+        "name": "Improperly Controlled Modification of Dynamically-Determined Object Attributes"
+      },
+      "discovery_date": "2026-06-11T17:01:12.945664+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2487942"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Axios. This vulnerability, a Prototype Pollution \"Gadget\" attack, allows an attacker to escalate any existing Object.prototype pollution in an application's dependency tree into a full Man-in-the-Middle (MITM) attack. This enables the attacker to intercept, read, and modify all HTTP traffic, including sensitive authentication credentials. The flaw occurs because the `config.proxy` setting is susceptible to prototype pollution, allowing an attacker to inject a malicious proxy server.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "axios: Axios: Man-in-the-Middle (MITM) attack via Prototype Pollution",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This Important flaw in the Axios library allows an attacker to escalate existing prototype pollution vulnerabilities within an application's dependency tree into a full Man-in-the-Middle (MITM) attack. By injecting a malicious proxy configuration into the `Object.prototype`, an attacker can intercept, read, and modify all HTTP traffic, including sensitive authentication credentials, without direct user interaction. This poses a significant risk to data confidentiality and integrity in Red Hat products that utilize the Axios library.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+        ],
+        "known_not_affected": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-44494"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2487942",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2487942"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-44494",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-44494"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-44494",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-44494"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/axios/axios/security/advisories/GHSA-35jp-ww65-95wh",
+          "url": "https://github.com/axios/axios/security/advisories/GHSA-35jp-ww65-95wh"
+        }
+      ],
+      "release_date": "2026-06-11T15:32:03.155000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-20T16:06:49+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:42085"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 8.7,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "axios: Axios: Man-in-the-Middle (MITM) attack via Prototype Pollution"
+    },
+    {
+      "cve": "CVE-2026-44496",
+      "cwe": {
+        "id": "CWE-1333",
+        "name": "Inefficient Regular Expression Complexity"
+      },
+      "discovery_date": "2026-06-11T17:01:15.856386+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2487943"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Axios. A remote attacker, by influencing the XSRF cookie name in a browser environment, could cause the application to construct a regular expression that leads to excessive processing. This can result in a client-side Denial of Service (DoS), where the affected browser tab may freeze, impacting the availability of the application for the user.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "axios: Axios: Client-side Denial of Service via unescaped regex metacharacters in XSRF cookie name",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This Important flaw in Axios can lead to a client-side Denial of Service. An attacker capable of influencing the XSRF cookie name within a browser environment could trigger excessive regular expression processing, causing the affected browser tab to freeze and degrade user availability. This issue specifically impacts browser-based applications and does not affect Node.js HTTP adapter usage, React Native, or web workers.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+        ],
+        "known_not_affected": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-44496"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2487943",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2487943"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-44496",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-44496"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-44496",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-44496"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/axios/axios/security/advisories/GHSA-hfxv-24rg-xrqf",
+          "url": "https://github.com/axios/axios/security/advisories/GHSA-hfxv-24rg-xrqf"
+        }
+      ],
+      "release_date": "2026-06-11T15:34:28.492000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-20T16:06:49+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:42085"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "axios: Axios: Client-side Denial of Service via unescaped regex metacharacters in XSRF cookie name"
+    },
+    {
+      "cve": "CVE-2026-55603",
+      "cwe": {
+        "id": "CWE-93",
+        "name": "Improper Neutralization of CRLF Sequences ('CRLF Injection')"
+      },
+      "discovery_date": "2026-06-22T21:01:20.731034+00:00",
+      "flags": [
+        {
+          "label": "vulnerable_code_not_present",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+          ]
+        }
+      ],
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2491525"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in http-proxy-middleware. A remote attacker could exploit a vulnerability in the fixRequestBody() function, which is used to re-emit a request body. By injecting carriage return and line feed characters (\\r\\n) into a request body key or value, an attacker can bypass security policies and validation performed by the proxy. This desynchronization between the proxy and the backend server can lead to a compromise of data integrity.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "http-proxy-middleware: http-proxy-middleware: Data integrity compromise via CR/LF injection",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Red Hat rates this issue as having Moderate impact for Red Hat products that bundle http-proxy-middleware 3.0.5 in a proxy configuration that re-emits an already-consumed request body via fixRequestBody(). Affected components are tracked via delegated engineering trackers and include Cluster Observability Operator's Prometheus console proxy, the Konflux mintmaker-renovate-image, Migration Toolkit for Applications (MTA) UI, RHTAS console UI, and RHTPA/Trustification service. Red Hat OpenShift AI MLflow images were initially assessed as in-scope but ship http-proxy-middleware 1.3.1/2.0.6, both outside the vulnerable ranges (>= 3.0.4, < 3.0.7 and >= 4.0.0, < 4.1.1), and are not affected. Other Red Hat products either do not bundle an affected http-proxy-middleware version or do not expose the vulnerable code path in normal operation.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+        ],
+        "known_not_affected": [
+          "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-55603"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2491525",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2491525"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-55603",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-55603"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-55603",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-55603"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/chimurai/http-proxy-middleware/security/advisories/GHSA-gcq2-9pq2-cxqm",
+          "url": "https://github.com/chimurai/http-proxy-middleware/security/advisories/GHSA-gcq2-9pq2-cxqm"
+        }
+      ],
+      "release_date": "2026-06-22T20:07:05.034000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-07-20T16:06:49+00:00",
+          "details": "Red Hat Trusted Artifact Signer simplifies cryptographic signing and verifying of software artifacts such as container images, binaries and source code changes. It is a self-managed on-premise deployment of the Sigstore project available at https://sigstore.dev\n\nPlatform Engineers, Software Developers and Security Professionals may use RHTAS to ensure the integrity, transparency and assurance of their organization's software supply chain.\n\nFor details on using the operator, refer to the product documentation at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3\n\nYou can find the release notes for this version of Red Hat Trusted Artifact Signer at https://access.redhat.com/documentation/en-us/red_hat_trusted_artifact_signer/1.3/html-single/release_notes/index",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:42085"
+        },
+        {
+          "category": "workaround",
+          "details": "Restrict network access to affected proxy services. Do not pass untrusted user input into proxy target or header configuration. Upgrade http-proxy-middleware to 3.0.7 or 4.1.1 (or later) once updated packages are available for the affected components.",
+          "product_ids": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:L/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-rhel9@sha256:7a33c13a4fe493b4638f342a14d7dab93152141895771e543f3e028773bfa10f_amd64",
+            "Red Hat Trusted Artifact Signer 1.3:registry.redhat.io/rhtas/rhtas-console-ui-rhel9@sha256:eea5c4b6830a8fd26acfc5e0c01c01cb7dd6519f27cef4ac4874546c1dbb03bd_amd64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "http-proxy-middleware: http-proxy-middleware: Data integrity compromise via CR/LF injection"
+    }
+  ]
+}

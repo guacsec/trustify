@@ -1,0 +1,1555 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "An update for thunderbird is now available for Red Hat Enterprise Linux 7.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Mozilla Thunderbird is a standalone mail and newsgroup client.\n\nThis update upgrades Thunderbird to version 91.3.0.\n\nSecurity Fix(es):\n\n* Mozilla: Use-after-free in HTTP2 Session object\n\n* Mozilla: Memory safety bugs fixed in Firefox 94 and Firefox ESR 91.3\n\n* Mozilla: iframe sandbox rules did not apply to XSLT stylesheets (CVE-2021-38503)\n\n* Mozilla: Use-after-free in file picker dialog (CVE-2021-38504)\n\n* Mozilla: Firefox could be coaxed into going into fullscreen mode without notification or warning (CVE-2021-38506)\n\n* Mozilla: Opportunistic Encryption in HTTP2 could be used to bypass the Same-Origin-Policy on services hosted on other ports (CVE-2021-38507)\n\n* Mozilla: Permission Prompt could be overlaid, resulting in user confusion and potential spoofing (CVE-2021-38508)\n\n* Mozilla: Javascript alert box could have been spoofed onto an arbitrary domain (CVE-2021-38509)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2021:4134",
+        "url": "https://access.redhat.com/errata/RHSA-2021:4134"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "external",
+        "summary": "2019621",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019621"
+      },
+      {
+        "category": "external",
+        "summary": "2019622",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019622"
+      },
+      {
+        "category": "external",
+        "summary": "2019624",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019624"
+      },
+      {
+        "category": "external",
+        "summary": "2019625",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019625"
+      },
+      {
+        "category": "external",
+        "summary": "2019626",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019626"
+      },
+      {
+        "category": "external",
+        "summary": "2019627",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019627"
+      },
+      {
+        "category": "external",
+        "summary": "2019628",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019628"
+      },
+      {
+        "category": "external",
+        "summary": "2019630",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019630"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2021/rhsa-2021_4134.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: thunderbird security update",
+    "tracking": {
+      "current_release_date": "2026-06-25T10:58:58+00:00",
+      "generator": {
+        "date": "2026-06-25T10:58:58+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.1.0"
+        }
+      },
+      "id": "RHSA-2021:4134",
+      "initial_release_date": "2021-11-04T17:32:14+00:00",
+      "revision_history": [
+        {
+          "date": "2021-11-04T17:32:14+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2021-11-04T17:32:14+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-06-25T10:58:58+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Client (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Client (v. 7)",
+                  "product_id": "7Client-7.9.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::client"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Server Optional (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Server Optional (v. 7)",
+                  "product_id": "7Server-optional-7.9.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::server"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "Red Hat Enterprise Linux Workstation (v. 7)",
+                "product": {
+                  "name": "Red Hat Enterprise Linux Workstation (v. 7)",
+                  "product_id": "7Workstation-7.9.Z",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/o:redhat:enterprise_linux:7::workstation"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat Enterprise Linux"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "thunderbird-0:91.3.0-2.el7_9.src",
+                "product": {
+                  "name": "thunderbird-0:91.3.0-2.el7_9.src",
+                  "product_id": "thunderbird-0:91.3.0-2.el7_9.src",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/thunderbird@91.3.0-2.el7_9?arch=src"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "src"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "thunderbird-0:91.3.0-2.el7_9.x86_64",
+                "product": {
+                  "name": "thunderbird-0:91.3.0-2.el7_9.x86_64",
+                  "product_id": "thunderbird-0:91.3.0-2.el7_9.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/thunderbird@91.3.0-2.el7_9?arch=x86_64"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+                "product": {
+                  "name": "thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+                  "product_id": "thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/thunderbird-debuginfo@91.3.0-2.el7_9?arch=x86_64"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "x86_64"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "thunderbird-0:91.3.0-2.el7_9.ppc64le",
+                "product": {
+                  "name": "thunderbird-0:91.3.0-2.el7_9.ppc64le",
+                  "product_id": "thunderbird-0:91.3.0-2.el7_9.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/thunderbird@91.3.0-2.el7_9?arch=ppc64le"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+                "product": {
+                  "name": "thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+                  "product_id": "thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/thunderbird-debuginfo@91.3.0-2.el7_9?arch=ppc64le"
+                  }
+                }
+              }
+            ],
+            "category": "architecture",
+            "name": "ppc64le"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:91.3.0-2.el7_9.src as a component of Red Hat Enterprise Linux Client (v. 7)",
+          "product_id": "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src"
+        },
+        "product_reference": "thunderbird-0:91.3.0-2.el7_9.src",
+        "relates_to_product_reference": "7Client-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:91.3.0-2.el7_9.x86_64 as a component of Red Hat Enterprise Linux Client (v. 7)",
+          "product_id": "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64"
+        },
+        "product_reference": "thunderbird-0:91.3.0-2.el7_9.x86_64",
+        "relates_to_product_reference": "7Client-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64 as a component of Red Hat Enterprise Linux Client (v. 7)",
+          "product_id": "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        },
+        "product_reference": "thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+        "relates_to_product_reference": "7Client-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:91.3.0-2.el7_9.ppc64le as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le"
+        },
+        "product_reference": "thunderbird-0:91.3.0-2.el7_9.ppc64le",
+        "relates_to_product_reference": "7Server-optional-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:91.3.0-2.el7_9.src as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src"
+        },
+        "product_reference": "thunderbird-0:91.3.0-2.el7_9.src",
+        "relates_to_product_reference": "7Server-optional-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:91.3.0-2.el7_9.x86_64 as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64"
+        },
+        "product_reference": "thunderbird-0:91.3.0-2.el7_9.x86_64",
+        "relates_to_product_reference": "7Server-optional-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le"
+        },
+        "product_reference": "thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+        "relates_to_product_reference": "7Server-optional-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64 as a component of Red Hat Enterprise Linux Server Optional (v. 7)",
+          "product_id": "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        },
+        "product_reference": "thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+        "relates_to_product_reference": "7Server-optional-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:91.3.0-2.el7_9.src as a component of Red Hat Enterprise Linux Workstation (v. 7)",
+          "product_id": "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src"
+        },
+        "product_reference": "thunderbird-0:91.3.0-2.el7_9.src",
+        "relates_to_product_reference": "7Workstation-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-0:91.3.0-2.el7_9.x86_64 as a component of Red Hat Enterprise Linux Workstation (v. 7)",
+          "product_id": "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64"
+        },
+        "product_reference": "thunderbird-0:91.3.0-2.el7_9.x86_64",
+        "relates_to_product_reference": "7Workstation-7.9.Z"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64 as a component of Red Hat Enterprise Linux Workstation (v. 7)",
+          "product_id": "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        },
+        "product_reference": "thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+        "relates_to_product_reference": "7Workstation-7.9.Z"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2021-38503",
+      "cwe": {
+        "id": "CWE-732",
+        "name": "Incorrect Permission Assignment for Critical Resource"
+      },
+      "discovery_date": "2021-11-02T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2019621"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Mozilla Foundation Security Advisory describes this flaw as:\r\n\r\nThe iframe sandbox rules were not correctly applied to XSLT stylesheets, allowing an iframe to bypass restrictions such as executing scripts or navigating the top-level frame.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: iframe sandbox rules did not apply to XSLT stylesheets",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-38503"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2019621",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019621"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2021-38503",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-38503"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2021-38503",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-38503"
+        }
+      ],
+      "release_date": "2021-11-02T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2021-11-04T17:32:14+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2021:4134"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 10.0,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Mozilla: iframe sandbox rules did not apply to XSLT stylesheets"
+    },
+    {
+      "cve": "CVE-2021-38504",
+      "cwe": {
+        "id": "CWE-416",
+        "name": "Use After Free"
+      },
+      "discovery_date": "2021-11-02T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2019622"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Mozilla Foundation Security Advisory describes this flaw as:\r\n\r\nWhen interacting with an HTML input element's file picker dialog with `webkitdirectory` set, a use-after-free could have resulted, leading to memory corruption and a potentially exploitable crash.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Use-after-free in file picker dialog",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-38504"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2019622",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019622"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2021-38504",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-38504"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2021-38504",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-38504"
+        }
+      ],
+      "release_date": "2021-11-02T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2021-11-04T17:32:14+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2021:4134"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Mozilla: Use-after-free in file picker dialog"
+    },
+    {
+      "cve": "CVE-2021-38506",
+      "cwe": {
+        "id": "CWE-1021",
+        "name": "Improper Restriction of Rendered UI Layers or Frames"
+      },
+      "discovery_date": "2021-11-02T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2019624"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Mozilla Foundation Security Advisory describes this flaw as:\r\n\r\nThrough a series of navigations, Firefox could have entered fullscreen mode without notification or warning to the user. This could lead to spoofing attacks on the browser UI including phishing.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Firefox could be coaxed into going into fullscreen mode without notification or warning",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-38506"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2019624",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019624"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2021-38506",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-38506"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2021-38506",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-38506"
+        }
+      ],
+      "release_date": "2021-11-02T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2021-11-04T17:32:14+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2021:4134"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.0"
+          },
+          "products": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Mozilla: Firefox could be coaxed into going into fullscreen mode without notification or warning"
+    },
+    {
+      "cve": "CVE-2021-38507",
+      "cwe": {
+        "id": "CWE-829",
+        "name": "Inclusion of Functionality from Untrusted Control Sphere"
+      },
+      "discovery_date": "2021-11-02T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2019625"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Mozilla Foundation Security Advisory describes this flaw as:\r\n\r\nThe Opportunistic Encryption feature of HTTP2 (RFC 8164) allows a connection to be transparently upgraded to TLS while retaining the visual properties of an HTTP connection, including being same-origin with unencrypted connections on port 80.  However, if a second encrypted port on the same IP address (e.g. Port 8443) did not opt-in to opportunistic encryption; a network attacker could forward a connection from the browser to port 443 to port 8443, causing the browser to treat the content of port 8443 as same-origin with HTTP. This was resolved by disabling the Opportunistic Encryption feature, which had low usage.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Opportunistic Encryption in HTTP2 could be used to bypass the Same-Origin-Policy on services hosted on other ports",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-38507"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2019625",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019625"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2021-38507",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-38507"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2021-38507",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-38507"
+        }
+      ],
+      "release_date": "2021-11-02T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2021-11-04T17:32:14+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2021:4134"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.0"
+          },
+          "products": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Mozilla: Opportunistic Encryption in HTTP2 could be used to bypass the Same-Origin-Policy on services hosted on other ports"
+    },
+    {
+      "cve": "CVE-2021-38508",
+      "cwe": {
+        "id": "CWE-1021",
+        "name": "Improper Restriction of Rendered UI Layers or Frames"
+      },
+      "discovery_date": "2021-11-02T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2019627"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "By displaying a form validity message in the correct location at the same time as a permission prompt (such as for geolocation), the validity message could have obscured the prompt, resulting in the user potentially being tricked into granting the permission. This vulnerability affects Firefox < 94, Thunderbird < 91.3, and Firefox ESR < 91.3.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Permission Prompt could be overlaid, resulting in user confusion and potential spoofing",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-38508"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2019627",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019627"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2021-38508",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-38508"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2021-38508",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-38508"
+        }
+      ],
+      "release_date": "2021-11-02T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2021-11-04T17:32:14+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2021:4134"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 6.1,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+            "version": "3.0"
+          },
+          "products": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "Mozilla: Permission Prompt could be overlaid, resulting in user confusion and potential spoofing"
+    },
+    {
+      "cve": "CVE-2021-38509",
+      "cwe": {
+        "id": "CWE-1021",
+        "name": "Improper Restriction of Rendered UI Layers or Frames"
+      },
+      "discovery_date": "2021-11-02T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2019628"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "Due to an unusual sequence of attacker-controlled events, a Javascript alert() dialog with arbitrary (although unstyled) contents could be displayed over top an uncontrolled webpage of the attacker's choosing. This vulnerability affects Firefox < 94, Thunderbird < 91.3, and Firefox ESR < 91.3.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Javascript alert box could have been spoofed onto an arbitrary domain",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-38509"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2019628",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019628"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2021-38509",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-38509"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2021-38509",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-38509"
+        }
+      ],
+      "release_date": "2021-11-02T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2021-11-04T17:32:14+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2021:4134"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 6.1,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+            "version": "3.0"
+          },
+          "products": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "Mozilla: Javascript alert box could have been spoofed onto an arbitrary domain"
+    },
+    {
+      "cve": "CVE-2021-43529",
+      "cwe": {
+        "id": "CWE-120",
+        "name": "Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')"
+      },
+      "discovery_date": "2022-04-25T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2088353"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Thunderbird, which is vulnerable to the heap overflow described in CVE-2021-43527 when processing S/MIME messages. Thunderbird versions 91.3.0 and later will not call the vulnerable code when processing S/MIME messages that contain certificates with DER-encoded DSA or RSA-PSS signatures.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "thunderbird: Memory corruption when processing S/MIME messages",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Thunderbird is affected when parsing email with the S/MIME signature. Thunderbird on Red Hat Enterprise Linux 8.4 and later does not need to be updated since it uses the system NSS library, but earlier Red Hat Enterprise Linux 8 extended lifestreams will need to update Thunderbird as well as NSS.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-43529"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2088353",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2088353"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2021-43529",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-43529"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2021-43529",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-43529"
+        },
+        {
+          "category": "external",
+          "summary": "https://access.redhat.com/security/cve/CVE-2021-43527",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-43527"
+        },
+        {
+          "category": "external",
+          "summary": "https://access.redhat.com/security/vulnerabilities/RHSB-2021-008",
+          "url": "https://access.redhat.com/security/vulnerabilities/RHSB-2021-008"
+        },
+        {
+          "category": "external",
+          "summary": "https://bugzilla.mozilla.org/show_bug.cgi?id=1738501",
+          "url": "https://bugzilla.mozilla.org/show_bug.cgi?id=1738501"
+        }
+      ],
+      "release_date": "2021-12-01T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2021-11-04T17:32:14+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2021:4134"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Critical"
+        }
+      ],
+      "title": "thunderbird: Memory corruption when processing S/MIME messages"
+    },
+    {
+      "cve": "CVE-2021-43534",
+      "cwe": {
+        "id": "CWE-120",
+        "name": "Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')"
+      },
+      "discovery_date": "2021-11-02T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2019630"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Mozilla Foundation Security Advisory describes this flaw as:\r\n\r\nMemory safety bugs present in Firefox 93 and Firefox ESR 91.2. Some of these bugs showed evidence of memory corruption and we presume that with enough effort some of these could have been exploited to run arbitrary code",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Memory safety bugs fixed in Firefox 94 and Firefox ESR 91.3",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-43534"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2019630",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019630"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2021-43534",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-43534"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2021-43534",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-43534"
+        }
+      ],
+      "release_date": "2021-11-02T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2021-11-04T17:32:14+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2021:4134"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Mozilla: Memory safety bugs fixed in Firefox 94 and Firefox ESR 91.3"
+    },
+    {
+      "cve": "CVE-2021-43535",
+      "cwe": {
+        "id": "CWE-416",
+        "name": "Use After Free"
+      },
+      "discovery_date": "2021-11-02T00:00:00+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2019626"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "The Mozilla Foundation Security Advisory describes this flaw as:\r\n\r\nA use-after-free could have occured when an HTTP2 session object was released on a different thread, leading to memory corruption and a potentially exploitable crash.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "Mozilla: Use-after-free in HTTP2 Session object",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+          "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+          "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+          "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-43535"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2019626",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2019626"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2021-43535",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-43535"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2021-43535",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-43535"
+        }
+      ],
+      "release_date": "2021-11-02T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2021-11-04T17:32:14+00:00",
+          "details": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAll running instances of Thunderbird must be restarted for the update to take effect.",
+          "product_ids": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2021:4134"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Client-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Client-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Server-optional-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.ppc64le",
+            "7Server-optional-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.src",
+            "7Workstation-7.9.Z:thunderbird-0:91.3.0-2.el7_9.x86_64",
+            "7Workstation-7.9.Z:thunderbird-debuginfo-0:91.3.0-2.el7_9.x86_64"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "Mozilla: Use-after-free in HTTP2 Session object"
+    }
+  ]
+}

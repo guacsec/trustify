@@ -1,0 +1,1899 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "namespace": "https://access.redhat.com/security/updates/classification/",
+      "text": "Important"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "text": "Copyright © Red Hat, Inc. All rights reserved.",
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "A security update is now available for Red Hat JBoss Enterprise Application Platform 8.1 for Red Hat Enterprise Linux 8. Red Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+        "title": "Topic"
+      },
+      {
+        "category": "general",
+        "text": "Red Hat JBoss Enterprise Application Platform 8 is a platform for Java applications based on the WildFly application runtime. This release of Red Hat JBoss Enterprise Application Platform 8.1.6 serves as a replacement for Red Hat JBoss Enterprise Application Platform 8.1.5, and includes bug fixes and enhancements. See the Red Hat JBoss Enterprise Application Platform 8.1.6 Release Notes for information about the most significant bug fixes and enhancements included in this release.\n\nSecurity Fix(es):\n\n* bcpg-fips: unbounded PGP AEAD chunk size leads to pre-auth resource exhaustion (CVE-2026-3505)\n\n* bcpkix-fips: PKIX draft CompositeVerifier accepts empty signature sequence as valid (CVE-2026-5588)\n\n* bcprov-jdk18on: LDAP injection vulnerability in LDAPStoreHelper.java (CVE-2026-0636)\n\n* bcprov-jdk18on: GOSTCTR implementation unable to process more than 255 blocks correctly (CVE-2025-14813)\n\n* bcprov-jdk12: private key leakage via non-constant time comparisons (CVE-2026-5598)\n\n* netty-codec-http: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood (CVE-2026-33871)\n\n* netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values (CVE-2026-33870)\n\n* artemis-server: Apache Artemis, Apache ActiveMQ Artemis: Message injection and exfiltration due to missing authentication (CVE-2026-27446)\n\n* org.hibernate.orm/hibernate-c3p0: c3p0: Arbitrary Code Execution via deserialization of crafted objects (CVE-2026-27830)\n\n* org.keycloak-keycloak-parent: Minimatch: Denial of Service via catastrophic backtracking in glob expressions (CVE-2026-27904)\n\n* mchange-commons-java: mchange-commons-java: Arbitrary code execution via JNDI dereferencing of crafted objects (CVE-2026-27727)\n\n* io.hawt-project: minimatch: Denial of Service via specially crafted glob patterns (CVE-2026-26996)\n\n* wildfly-elytron-integration: Wildfly Elytron Brute Force Attack via CLI (CVE-2025-23368)\n\n* plexus-utils: Plexus-utils: Directory Traversal in extractFile method (CVE-2025-67030)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+        "title": "Details"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "This content is licensed under the Creative Commons Attribution 4.0 International License (https://creativecommons.org/licenses/by/4.0/). If you distribute this content, or a modified version of it, you must provide attribution to Red Hat Inc. and provide a link to the original.",
+        "title": "Terms of Use"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "https://access.redhat.com/security/team/contact/",
+      "issuing_authority": "Red Hat Product Security is responsible for vulnerability handling across all Red Hat products and services.",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "https://access.redhat.com/errata/RHSA-2026:18059",
+        "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/security/updates/classification/#important",
+        "url": "https://access.redhat.com/security/updates/classification/#important"
+      },
+      {
+        "category": "external",
+        "summary": "https://docs.redhat.com/en/documentation/red_hat_jboss_enterprise_application_platform/8.1",
+        "url": "https://docs.redhat.com/en/documentation/red_hat_jboss_enterprise_application_platform/8.1"
+      },
+      {
+        "category": "external",
+        "summary": "https://docs.redhat.com/en/documentation/red_hat_jboss_enterprise_application_platform/8.1/html/release_notes_for_red_hat_jboss_enterprise_application_platform_8.1/index",
+        "url": "https://docs.redhat.com/en/documentation/red_hat_jboss_enterprise_application_platform/8.1/html/release_notes_for_red_hat_jboss_enterprise_application_platform_8.1/index"
+      },
+      {
+        "category": "external",
+        "summary": "https://access.redhat.com/articles/7137769",
+        "url": "https://access.redhat.com/articles/7137769"
+      },
+      {
+        "category": "external",
+        "summary": "2337621",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2337621"
+      },
+      {
+        "category": "external",
+        "summary": "2441268",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2441268"
+      },
+      {
+        "category": "external",
+        "summary": "2442671",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2442671"
+      },
+      {
+        "category": "external",
+        "summary": "2442908",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2442908"
+      },
+      {
+        "category": "external",
+        "summary": "2442922",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2442922"
+      },
+      {
+        "category": "external",
+        "summary": "2444320",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2444320"
+      },
+      {
+        "category": "external",
+        "summary": "2451409",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2451409"
+      },
+      {
+        "category": "external",
+        "summary": "2452453",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452453"
+      },
+      {
+        "category": "external",
+        "summary": "2452456",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452456"
+      },
+      {
+        "category": "external",
+        "summary": "2458634",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458634"
+      },
+      {
+        "category": "external",
+        "summary": "2458635",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458635"
+      },
+      {
+        "category": "external",
+        "summary": "2458638",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458638"
+      },
+      {
+        "category": "external",
+        "summary": "2458640",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458640"
+      },
+      {
+        "category": "external",
+        "summary": "2458641",
+        "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458641"
+      },
+      {
+        "category": "self",
+        "summary": "Canonical URL",
+        "url": "https://security.access.redhat.com/data/csaf/v2/advisories/2026/rhsa-2026_18059.json"
+      }
+    ],
+    "title": "Red Hat Security Advisory: Red Hat JBoss Enterprise Application Platform 8.1.6 security update",
+    "tracking": {
+      "current_release_date": "2026-08-19T21:03:23+00:00",
+      "generator": {
+        "date": "2026-08-19T21:03:23+00:00",
+        "engine": {
+          "name": "Red Hat SDEngine",
+          "version": "5.3.16"
+        }
+      },
+      "id": "RHSA-2026:18059",
+      "initial_release_date": "2026-05-18T12:12:14+00:00",
+      "revision_history": [
+        {
+          "date": "2026-05-18T12:12:14+00:00",
+          "number": "1",
+          "summary": "Initial version"
+        },
+        {
+          "date": "2026-08-18T11:17:54+00:00",
+          "number": "2",
+          "summary": "Last updated version"
+        },
+        {
+          "date": "2026-08-19T21:03:23+00:00",
+          "number": "3",
+          "summary": "Last generated version"
+        }
+      ],
+      "status": "final",
+      "version": "3"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat JBoss Enterprise Application Platform 8.1",
+                "product": {
+                  "name": "Red Hat JBoss Enterprise Application Platform 8.1",
+                  "product_id": "Red Hat JBoss Enterprise Application Platform 8.1",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:jboss_enterprise_application_platform:8.1::el9"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Red Hat JBoss Enterprise Application Platform"
+          }
+        ],
+        "category": "vendor",
+        "name": "Red Hat"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2025-14813",
+      "cwe": {
+        "id": "CWE-327",
+        "name": "Use of a Broken or Risky Cryptographic Algorithm"
+      },
+      "discovery_date": "2026-04-15T10:01:27.769752+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458640"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Legion of the Bouncy Castle Inc. BC-JAVA bcprov. The `GOSTCTR` implementation is unable to securely process more than 255 blocks of data due to keystream reuse. This issue allows an attacker to break the fundamental confidentiality of any data protected by the `G3413CTRBlockCipher`, potentially leading to the recovery and access of encrypted data.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "bouncycastle: BC-JAVA: GOSTCTR implementation unable to process more than 255 blocks correctly",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this flaw, an attacker needs to capture ciphertext encrypted by the `GOSTCTR` implementation where the `G3413CTRBlockCipher` processed more than 255 blocks of data, resulting in keystream reuse. An attack typically requires capturing these overlapping ciphertexts to perform cryptanalysis and uncover the underlying data.\nThe primary impact of this vulnerability is the potential loss of confidentiality for data encrypted by the `GOSTCTR` implementation. This can compromise encrypted communications or sensitive stored data by allowing an attacker to fully recover the plaintext.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-14813"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458640",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458640"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-14813",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-14813"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-14813",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-14813"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902025%E2%80%9014813",
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902025%E2%80%9014813"
+        }
+      ],
+      "release_date": "2026-04-15T08:56:34.057000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, strictly limit the payload encrypted under a single key and Initialization Vector (IV) pair using the GOSTCTR implementation and G3413CTRBlockCipher to a maximum of 255 blocks. Alternatively, transition to a more secure, standardized and authenticated encryption mode.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "bouncycastle: BC-JAVA: GOSTCTR implementation unable to process more than 255 blocks correctly"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Claudia Bartolini",
+            "Marco Ventura",
+            "Massimiliano Brolli"
+          ],
+          "organization": "TIM S.p.A"
+        }
+      ],
+      "cve": "CVE-2025-23368",
+      "cwe": {
+        "id": "CWE-307",
+        "name": "Improper Restriction of Excessive Authentication Attempts"
+      },
+      "discovery_date": "2025-01-14T14:56:46.792000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2337621"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Wildfly Elytron integration. The component does not implement sufficient measures to prevent multiple failed authentication attempts within a short time frame, making it more susceptible to brute force attacks via CLI.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "org.wildfly.core:wildfly-elytron-integration: Wildfly Elytron Brute Force Attack via CLI",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "According to WildFly Elytron, this affects all versions of JBoss EAP from version 7.1.\nRed Hat build of Keycloak does not ship wildfly-elytron.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-23368"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2337621",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2337621"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-23368",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-23368"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-23368",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-23368"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.gruppotim.it/it/footer/red-team.html",
+          "url": "https://www.gruppotim.it/it/footer/red-team.html"
+        }
+      ],
+      "release_date": "2025-03-03T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        },
+        {
+          "category": "workaround",
+          "details": "The effectiveness of an attack will also be dependent on the complexity of the usernames and passwords defined for the target installation.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.1,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "org.wildfly.core:wildfly-elytron-integration: Wildfly Elytron Brute Force Attack via CLI"
+    },
+    {
+      "cve": "CVE-2025-67030",
+      "cwe": {
+        "id": "CWE-22",
+        "name": "Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      },
+      "discovery_date": "2026-03-25T18:02:00.463244+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2451409"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in plexus-utils. This vulnerability, known as a Directory Traversal, exists within the `extractFile` method. An attacker can exploit this to execute unauthorized code on the system in the context of the current working user.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "org.codehaus.plexus:plexus-utils: Plexus-utils: Directory Traversal in extractFile method",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2025-67030"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2451409",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2451409"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2025-67030",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2025-67030"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2025-67030",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2025-67030"
+        },
+        {
+          "category": "external",
+          "summary": "https://gist.github.com/weaver4VD/3216dac645220f8c9b488362f61241ec",
+          "url": "https://gist.github.com/weaver4VD/3216dac645220f8c9b488362f61241ec"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/codehaus-plexus/plexus-utils/commit/6d780b3378829318ba5c2d29547e0012d5b29642",
+          "url": "https://github.com/codehaus-plexus/plexus-utils/commit/6d780b3378829318ba5c2d29547e0012d5b29642"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/codehaus-plexus/plexus-utils/issues/294",
+          "url": "https://github.com/codehaus-plexus/plexus-utils/issues/294"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/codehaus-plexus/plexus-utils/pull/295",
+          "url": "https://github.com/codehaus-plexus/plexus-utils/pull/295"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/codehaus-plexus/plexus-utils/pull/296",
+          "url": "https://github.com/codehaus-plexus/plexus-utils/pull/296"
+        }
+      ],
+      "release_date": "2026-03-25T00:00:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "LOW",
+            "baseScore": 8.3,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:L/A:L",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "org.codehaus.plexus:plexus-utils: Plexus-utils: Directory Traversal in extractFile method"
+    },
+    {
+      "cve": "CVE-2026-0636",
+      "cwe": {
+        "id": "CWE-90",
+        "name": "Improper Neutralization of Special Elements used in an LDAP Query ('LDAP Injection')"
+      },
+      "discovery_date": "2026-04-15T10:01:32.911938+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458641"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Legion of the Bouncy Castle Inc. BC-JAVA bcprov. The `LDAPStoreHelper` implementation fails to properly neutralize special elements in user-supplied input before incorporating them into LDAP queries. This allows a remote attacker to execute an LDAP injection attack by supplying crafted input, potentially leading to disclosure of sensitive information or the manipulation of directory search queries.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "bouncycastle: BC-JAVA: LDAP injection vulnerability in LDAPStoreHelper.java",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this issue, an attacker needs to submit crafted input to an application using the `LDAPStoreHelper` implementation for directory queries. An attack typically requires the application to pass the malicious input directly into a search filter, allowing the attacker to modify the resulting LDAP query.\nThe primary impact of this vulnerability is the loss of confidentiality and integrity for directory data. This can allow an attacker to bypass search restrictions and manipulate directory results, potentially leading to unauthorized access or privilege escalation.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-0636"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458641",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458641"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-0636",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-0636"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-0636",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-0636"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/bcgit/bc-java/commit/d20cdb8430e09224114fec0179a71859929fcbde",
+          "url": "https://github.com/bcgit/bc-java/commit/d20cdb8430e09224114fec0179a71859929fcbde"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%900636",
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%900636"
+        }
+      ],
+      "release_date": "2026-04-15T08:59:12.677000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this flaw, sanitize all user-supplied input to remove or escape LDAP special characters before passing it to the LDAPStoreHelper for directory queries. If the input contains unexpected metacharacters such as asterisks, parentheses or backslashes, reject the request or escape the characters.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "bouncycastle: BC-JAVA: LDAP injection vulnerability in LDAPStoreHelper.java"
+    },
+    {
+      "cve": "CVE-2026-3505",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-04-15T10:01:17.415497+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458638"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Legion of the Bouncy Castle Inc. BC-JAVA bcpg. A specially crafted PGP AEAD (Authenticated Encryption with Associated Data) message with an unbounded chunk size can lead to an excessive consumption of memory. This issue allows an unauthenticated remote attacker to cause memory exhaustion in a JVM, resulting in a denial of service.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "bouncycastle: BC-JAVA: unbounded PGP AEAD chunk size leads to pre-auth resource exhaustion",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this issue, an attacker needs to submit a specially crafted PGP AEAD message containing an unbounded chunk size to an application. An attack typically requires the application to process this malformed data, resulting in the uncontrolled allocation of memory resources.\nThe primary impact of this vulnerability is a compromise of system availability, allowing an unauthenticated remote attacker to cause memory exhaustion in a JVM, resulting in a denial of service.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-3505"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458638",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458638"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-3505",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-3505"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-3505",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-3505"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%903505",
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%903505"
+        }
+      ],
+      "release_date": "2026-04-15T09:06:37.939000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, enforce payload size limits on all incoming PGP messages before processing them. Additionally, apply memory quotas to the JVM or container environment to prevent a complete system outage in the event of memory exhaustion.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "bouncycastle: BC-JAVA: unbounded PGP AEAD chunk size leads to pre-auth resource exhaustion"
+    },
+    {
+      "cve": "CVE-2026-5588",
+      "cwe": {
+        "id": "CWE-347",
+        "name": "Improper Verification of Cryptographic Signature"
+      },
+      "discovery_date": "2026-04-15T10:00:59.672015+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458634"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Legion of the Bouncy Castle Inc. BC-JAVA bcpkix. The PKIX draft `CompositeVerifier` implementation improperly accepts an empty signature sequence as a valid cryptographic signature. This issue allows a remote attacker to bypass signature verification mechanisms, potentially compromising the authenticity and integrity of data.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "bouncycastle: BC-JAVA: PKIX draft CompositeVerifier accepts empty signature sequence as valid",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this issue, an attacker needs to submit a crafted payload or token containing an empty signature sequence to an application using the `CompositeVerifier` for cryptographic validation. An attack typically requires the application to process this malformed data and improperly accept the empty sequence as a valid signature, bypassing standard verification checks.\nThe primary impact of this vulnerability is the compromise of data authenticity and integrity, allowing an attacker to forge digital signatures and impersonate trusted entities.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-5588"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458634",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458634"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-5588",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-5588"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-5588",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-5588"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%905588",
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%905588"
+        }
+      ],
+      "release_date": "2026-04-15T09:06:15.617000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this flaw, check that the signature sequence is not empty before passing any data to the CompositeVerifier for cryptographic validation. If the sequence is empty or null, explicitly reject the payload before it is processed.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "bouncycastle: BC-JAVA: PKIX draft CompositeVerifier accepts empty signature sequence as valid"
+    },
+    {
+      "cve": "CVE-2026-5598",
+      "cwe": {
+        "id": "CWE-385",
+        "name": "Covert Timing Channel"
+      },
+      "discovery_date": "2026-04-15T10:01:04.531185+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2458635"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Legion of the Bouncy Castle Inc. BC-JAVA core. A covert timing channel vulnerability, caused by non-constant time comparisons, risks the leakage of private keys in the FrodoKEM implementation. An unauthenticated, remote attacker can potentially exploit this timing discrepancy to gain unauthorized access to sensitive cryptographic information.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "bouncycastle: BC-JAVA: private key leakage via non-constant time comparisons",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "To exploit this issue, an unauthenticated attacker needs to send highly specific, malformed ciphertexts to the target server. These payloads are used to interact with the private key of the server in a way that the vulnerable, non-constant time code paths are triggered during the verification step. An attack typically requires sending a large volume of these requests to perform statistical analysis on the resulting timing variations, increasing its complexity.\nThe primary security impact of this vulnerability is the potential leakage of private keys associated with the FrodoKEM implementation. This can compromise encrypted communications or authentication mechanisms.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-5598"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2458635",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2458635"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-5598",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-5598"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-5598",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-5598"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%905998",
+          "url": "https://github.com/bcgit/bc-java/wiki/CVE%E2%80%902026%E2%80%905998"
+        }
+      ],
+      "release_date": "2026-04-15T09:05:56.277000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this vulnerability, implement aggressive rate limiting and anomaly detection, specifically looking for unusual, high-frequency cryptographic handshake failures or anomalous traffic patterns targeting endpoints that handle key exchanges in the network logs.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "bouncycastle: BC-JAVA: private key leakage via non-constant time comparisons"
+    },
+    {
+      "cve": "CVE-2026-26996",
+      "cwe": {
+        "id": "CWE-1333",
+        "name": "Inefficient Regular Expression Complexity"
+      },
+      "discovery_date": "2026-02-20T04:01:11.896063+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2441268"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in minimatch. A remote attacker could exploit this Regular Expression Denial of Service (ReDoS) vulnerability by providing a specially crafted glob pattern. This pattern, containing numerous consecutive wildcard characters, causes excessive processing and exponential backtracking in the regular expression engine. Successful exploitation leads to a Denial of Service (DoS), making the application unresponsive.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "minimatch: minimatch: Denial of Service via specially crafted glob patterns",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Exploitation of this flaw requires that a user or service processes untrusted input.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-26996"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2441268",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2441268"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-26996",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-26996"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-26996",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-26996"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/isaacs/minimatch/commit/2e111f3a79abc00fa73110195de2c0f2351904f5",
+          "url": "https://github.com/isaacs/minimatch/commit/2e111f3a79abc00fa73110195de2c0f2351904f5"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/isaacs/minimatch/security/advisories/GHSA-3ppc-4f35-3m26",
+          "url": "https://github.com/isaacs/minimatch/security/advisories/GHSA-3ppc-4f35-3m26"
+        }
+      ],
+      "release_date": "2026-02-20T03:05:21.105000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "minimatch: minimatch: Denial of Service via specially crafted glob patterns"
+    },
+    {
+      "cve": "CVE-2026-27446",
+      "cwe": {
+        "id": "CWE-306",
+        "name": "Missing Authentication for Critical Function"
+      },
+      "discovery_date": "2026-03-04T07:02:26.064000+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2444320"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Apache Artemis and Apache ActiveMQ Artemis. An unauthenticated remote attacker can exploit a missing authentication for critical function vulnerability by using the Core protocol. This allows the attacker to force a target broker to establish an outbound Core federation connection to an attacker-controlled rogue broker. The primary consequence is the potential for message injection into any queue and/or message exfiltration from any queue via the rogue broker.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "org.apache.artemis:artemis-server: org.apache.activemq:artemis-server: Apache Artemis, Apache ActiveMQ Artemis: Message injection and exfiltration due to missing authentication",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Red Hat rates this flaw as IMPORTANT severity because it does not enable remote code execution or system compromise (arbitrary code execution), which is Red Hat's threshold for Critical impact. Its impact is limited to message injection and exfiltration via rogue broker federation. Exploitation requires the broker to accept inbound Core protocol connections from untrusted networks with outbound connectivity to attacker-controlled systems. Availability impact is set to None as exploitation does not cause service disruption or broker instability.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-27446"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2444320",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2444320"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-27446",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-27446"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-27446",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-27446"
+        },
+        {
+          "category": "external",
+          "summary": "https://lists.apache.org/thread/jwpsdc8tdxotm98od8n8n30fqlzoc8gg",
+          "url": "https://lists.apache.org/thread/jwpsdc8tdxotm98od8n8n30fqlzoc8gg"
+        }
+      ],
+      "release_date": "2026-03-04T06:06:00+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        },
+        {
+          "category": "workaround",
+          "details": "To mitigate this issue, restrict Core protocol support on acceptors receiving connections from untrusted sources. The default \"artemis\" acceptor on port 61616 supports all protocols, including Core. Modify the acceptor URL to explicitly exclude the Core protocol using the \"protocols\" URL parameter. Alternatively, configure two-way SSL with certificate-based authentication to prevent unauthenticated exploitation. A service restart or reload may be required for changes to take effect.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 9.1,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "org.apache.artemis:artemis-server: org.apache.activemq:artemis-server: Apache Artemis, Apache ActiveMQ Artemis: Message injection and exfiltration due to missing authentication"
+    },
+    {
+      "cve": "CVE-2026-27727",
+      "cwe": {
+        "id": "CWE-502",
+        "name": "Deserialization of Untrusted Data"
+      },
+      "discovery_date": "2026-02-25T17:04:31.254239+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2442671"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in mchange-commons-java, a Java utility library. An attacker can exploit this vulnerability by providing a maliciously crafted `javax.naming.Reference` or serialized object to an application using the library. This can provoke the application to download and execute arbitrary malicious code due to mchange-commons-java's independent implementation of Java Naming and Directory Interface (JNDI) dereferencing, which supports remote code loading. This could lead to arbitrary code execution within the affected application.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "com.mchange/mchange-commons-java: mchange-commons-java: Arbitrary code execution via JNDI dereferencing of crafted objects",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-27727"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2442671",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2442671"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-27727",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-27727"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-27727",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-27727"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/swaldman/mchange-commons-java/security/advisories/GHSA-m2cm-222f-qw44",
+          "url": "https://github.com/swaldman/mchange-commons-java/security/advisories/GHSA-m2cm-222f-qw44"
+        },
+        {
+          "category": "external",
+          "summary": "https://mogwailabs.de/en/blog/2025/02/c3p0-you-little-rascal",
+          "url": "https://mogwailabs.de/en/blog/2025/02/c3p0-you-little-rascal"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mchange.com/projects/c3p0/#configuring_security",
+          "url": "https://www.mchange.com/projects/c3p0/#configuring_security"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mchange.com/projects/c3p0/#security-note",
+          "url": "https://www.mchange.com/projects/c3p0/#security-note"
+        }
+      ],
+      "release_date": "2026-02-25T16:01:04.187000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.3,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "CHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "com.mchange/mchange-commons-java: mchange-commons-java: Arbitrary code execution via JNDI dereferencing of crafted objects"
+    },
+    {
+      "cve": "CVE-2026-27830",
+      "cwe": {
+        "id": "CWE-502",
+        "name": "Deserialization of Untrusted Data"
+      },
+      "discovery_date": "2026-02-26T01:01:56.834884+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2442908"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in c3p0, a Java Database Connectivity (JDBC) Connection pooling library. This vulnerability allows an attacker to achieve arbitrary code execution by providing maliciously crafted Java-serialized objects or `javax.naming.Reference` instances. By manipulating the `userOverridesAsString` property, an attacker can cause the application to download and execute malicious code from a remote location on its CLASSPATH.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "c3p0: c3p0: Arbitrary Code Execution via deserialization of crafted objects",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-27830"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2442908",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2442908"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-27830",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-27830"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-27830",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-27830"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/swaldman/c3p0/commit/e14cbd8166e423e2e9a9d6f08b2add3433492d6e",
+          "url": "https://github.com/swaldman/c3p0/commit/e14cbd8166e423e2e9a9d6f08b2add3433492d6e"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/swaldman/c3p0/security/advisories/GHSA-5476-xc4j-rqcv",
+          "url": "https://github.com/swaldman/c3p0/security/advisories/GHSA-5476-xc4j-rqcv"
+        },
+        {
+          "category": "external",
+          "summary": "https://mogwailabs.de/en/blog/2025/02/c3p0-you-little-rascal",
+          "url": "https://mogwailabs.de/en/blog/2025/02/c3p0-you-little-rascal"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mchange.com/projects/c3p0/#configuring_security",
+          "url": "https://www.mchange.com/projects/c3p0/#configuring_security"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.mchange.com/projects/c3p0/#security-note",
+          "url": "https://www.mchange.com/projects/c3p0/#security-note"
+        }
+      ],
+      "release_date": "2026-02-26T00:45:18.222000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "ADJACENT_NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.0,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:A/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "c3p0: c3p0: Arbitrary Code Execution via deserialization of crafted objects"
+    },
+    {
+      "cve": "CVE-2026-27904",
+      "cwe": {
+        "id": "CWE-1333",
+        "name": "Inefficient Regular Expression Complexity"
+      },
+      "discovery_date": "2026-02-26T02:01:23.004531+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2442922"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in minimatch. A remote attacker could exploit this vulnerability by providing a specially crafted glob expression with nested unbounded quantifiers. This could lead to catastrophic backtracking in the V8 JavaScript engine, causing the application to become unresponsive and resulting in a Denial of Service (DoS).",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "minimatch: Minimatch: Denial of Service via catastrophic backtracking in glob expressions",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "Exploitation of this flaw requires that a user or service processes untrusted input.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-27904"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2442922",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2442922"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-27904",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-27904"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-27904",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-27904"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/isaacs/minimatch/security/advisories/GHSA-23c5-xmqv-rm74",
+          "url": "https://github.com/isaacs/minimatch/security/advisories/GHSA-23c5-xmqv-rm74"
+        }
+      ],
+      "release_date": "2026-02-26T01:07:42.693000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 6.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "REQUIRED",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Moderate"
+        }
+      ],
+      "title": "minimatch: Minimatch: Denial of Service via catastrophic backtracking in glob expressions"
+    },
+    {
+      "cve": "CVE-2026-33870",
+      "cwe": {
+        "id": "CWE-444",
+        "name": "Inconsistent Interpretation of HTTP Requests ('HTTP Request/Response Smuggling')"
+      },
+      "discovery_date": "2026-03-27T21:01:59.865839+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2452453"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. A remote attacker could exploit this vulnerability by sending specially crafted HTTP/1.1 chunked transfer encoding extension values. Due to incorrect parsing of quoted strings, this flaw enables request smuggling attacks, potentially allowing an attacker to bypass security controls or access unauthorized information.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "io.netty/netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2452453",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452453"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33870",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33870",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33870"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-pwqr-wmgm-9rr8",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-pwqr-wmgm-9rr8"
+        },
+        {
+          "category": "external",
+          "summary": "https://w4ke.info/2025/06/18/funky-chunks.html",
+          "url": "https://w4ke.info/2025/06/18/funky-chunks.html"
+        },
+        {
+          "category": "external",
+          "summary": "https://w4ke.info/2025/10/29/funky-chunks-2.html",
+          "url": "https://w4ke.info/2025/10/29/funky-chunks-2.html"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.rfc-editor.org/rfc/rfc9110",
+          "url": "https://www.rfc-editor.org/rfc/rfc9110"
+        }
+      ],
+      "release_date": "2026-03-27T19:54:15.586000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        },
+        {
+          "category": "workaround",
+          "details": "Mitigation for this issue is either not available or the currently available options do not meet the Red Hat Product Security criteria comprising ease of use and deployment, applicability to widespread installation base or stability.",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "io.netty/netty-codec-http: Netty: Request smuggling via incorrect parsing of HTTP/1.1 chunked transfer encoding extension values"
+    },
+    {
+      "cve": "CVE-2026-33871",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "discovery_date": "2026-03-27T21:02:13.396015+00:00",
+      "ids": [
+        {
+          "system_name": "Red Hat Bugzilla ID",
+          "text": "2452456"
+        }
+      ],
+      "notes": [
+        {
+          "category": "description",
+          "text": "A flaw was found in Netty. A remote user can trigger a Denial of Service (DoS) against a Netty HTTP/2 server by sending a flood of CONTINUATION frames. The server's lack of a limit on these frames, coupled with a bypass of size-based mitigations using zero-byte frames, allows an attacker to consume excessive CPU resources. This can render the server unresponsive with minimal bandwidth usage.",
+          "title": "Vulnerability description"
+        },
+        {
+          "category": "summary",
+          "text": "netty: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood",
+          "title": "Vulnerability summary"
+        },
+        {
+          "category": "other",
+          "text": "This important vulnerability in Netty HTTP/2 servers allows a remote attacker to cause a Denial of Service by sending a flood of CONTINUATION frames. This can lead to excessive CPU consumption and render the server unresponsive. Red Hat products utilizing affected Netty versions, such as Red Hat AMQ, Enterprise Application Platform, and OpenShift Container Platform components, are impacted if configured to use HTTP/2.",
+          "title": "Statement"
+        },
+        {
+          "category": "general",
+          "text": "The CVSS score(s) listed for this vulnerability do not reflect the associated product's status, and are included for informational purposes to better understand the severity of this vulnerability.",
+          "title": "CVSS score applicability"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "Red Hat JBoss Enterprise Application Platform 8.1"
+        ]
+      },
+      "references": [
+        {
+          "category": "self",
+          "summary": "Canonical URL",
+          "url": "https://access.redhat.com/security/cve/CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "RHBZ#2452456",
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2452456"
+        },
+        {
+          "category": "external",
+          "summary": "https://www.cve.org/CVERecord?id=CVE-2026-33871",
+          "url": "https://www.cve.org/CVERecord?id=CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "https://nvd.nist.gov/vuln/detail/CVE-2026-33871",
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-33871"
+        },
+        {
+          "category": "external",
+          "summary": "https://github.com/netty/netty/security/advisories/GHSA-w9fj-cfpg-grvv",
+          "url": "https://github.com/netty/netty/security/advisories/GHSA-w9fj-cfpg-grvv"
+        }
+      ],
+      "release_date": "2026-03-27T19:55:23.135000+00:00",
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-05-18T12:12:14+00:00",
+          "details": "Before applying the update, make sure all previously released errata relevant to your system have been applied. Also, back up your existing installation, including all applications, configuration files, databases and database settings. For details on how to apply this update, refer to: https://access.redhat.com/articles/11258",
+          "product_ids": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ],
+          "restart_required": {
+            "category": "none"
+          },
+          "url": "https://access.redhat.com/errata/RHSA-2026:18059"
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "Red Hat JBoss Enterprise Application Platform 8.1"
+          ]
+        }
+      ],
+      "threats": [
+        {
+          "category": "impact",
+          "details": "Important"
+        }
+      ],
+      "title": "netty: Netty: Denial of Service via HTTP/2 CONTINUATION frame flood"
+    }
+  ]
+}
