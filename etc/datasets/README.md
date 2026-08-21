@@ -45,9 +45,22 @@ http POST localhost:8080/api/v3/dataset @etc/datasets/ds3-sboms.zip
 A compact version of the Sales Demo dataset for fast-loading demos. 49 SBOMs
 (no large RHEL SBOMs), ~86 CSAF advisories, matching CVE and OSV records. ~95 MB total.
 
+Build the zip from the repo root:
+
 ```shell
-make sales-demo-mini.zip
+make -C etc/datasets sales-demo-mini.zip
+```
+
+Upload to a running instance (pick one):
+
+```shell
+# HTTPie
 http POST localhost:8080/api/v3/dataset @etc/datasets/sales-demo-mini.zip
+
+# curl
+curl -X POST http://localhost:8080/api/v3/dataset \
+  -H 'Content-Type: application/zip' \
+  --data-binary @etc/datasets/sales-demo-mini.zip
 ```
 
 ## DS4
