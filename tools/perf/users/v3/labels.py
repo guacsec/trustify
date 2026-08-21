@@ -65,7 +65,7 @@ class AdvisoryLabelUserV3(AuthenticatedHttpUser):
                 resp.failure(str(exc))
                 return None
 
-    @tag("v3", "advisory", "labels")
+    @tag("v3", "advisory", "labels", "readonly")
     @task
     def list_advisory_labels(self) -> None:
         self.client.get(
@@ -73,7 +73,7 @@ class AdvisoryLabelUserV3(AuthenticatedHttpUser):
             name="list_advisory_labels",
         )
 
-    @tag("v3", "advisory", "labels")
+    @tag("v3", "advisory", "labels", "mutate")
     @task(3)
     def put_and_patch_advisory_labels(self) -> None:
         uid = self._find_random_advisory()
@@ -109,7 +109,7 @@ class SBOMLabelUserV3(AuthenticatedHttpUser):
     weight = 2
     wait_time = WAIT_TIME
 
-    @tag("v3", "sbom", "labels")
+    @tag("v3", "sbom", "labels", "mutate")
     @task
     def put_sbom_labels(self) -> None:
         if not SCENARIO.get_sbom:
@@ -122,7 +122,7 @@ class SBOMLabelUserV3(AuthenticatedHttpUser):
             name="put_sbom_labels",
         )
 
-    @tag("v3", "sbom", "labels")
+    @tag("v3", "sbom", "labels", "mutate")
     @task
     def patch_sbom_labels(self) -> None:
         if not SCENARIO.get_sbom:

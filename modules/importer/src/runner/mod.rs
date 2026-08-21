@@ -6,6 +6,7 @@ pub mod context;
 pub mod csaf;
 pub mod cve;
 pub mod cwe;
+pub mod kev;
 pub mod nvd;
 pub mod osv;
 pub mod progress;
@@ -64,6 +65,9 @@ impl ImportRunner {
             }
             ImporterConfiguration::Cwe(cwe) => {
                 self.run_once_cwe_catalog(context, cwe, continuation).await
+            }
+            ImporterConfiguration::Kev(kev) => {
+                self.run_once_kev_catalog(context, kev, continuation).await
             }
             ImporterConfiguration::Quay(quay) => {
                 self.run_once_quay(context, quay, continuation).await

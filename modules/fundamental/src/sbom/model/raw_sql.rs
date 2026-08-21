@@ -260,8 +260,8 @@ pub fn batch_severity_counts_sql() -> &'static str {
 /// membership and is meaningless for component-level CPEs harvested from
 /// third-party SBOMs (e.g. SPDX `cpe23Type` external references).
 ///
-/// Nodes without a `qualified_purl_id` are skipped (`IdSet::qualified_purl_id`
-/// is a mandatory `Uuid`); making it optional is left as a follow-up.
+/// Nodes without a `qualified_purl_id` are included — `IdSet::qualified_purl_id`
+/// is `Option<Uuid>` so CPE-only components (no PURL) are reported correctly.
 pub fn cpe_advisory_info_sql() -> String {
     r#"
         WITH
@@ -302,8 +302,7 @@ pub fn cpe_advisory_info_sql() -> String {
                AND sc.part = 'a'
                AND p.part = 'a'
             JOIN version_range vr ON cs.version_range_id = vr.id
-            WHERE p.qualified_purl_id IS NOT NULL
-              AND version_matches(p.version, vr.*)
+            WHERE version_matches(p.version, vr.*)
         )
 
         -- Final query joins to get all required fields (mirrors the tail of

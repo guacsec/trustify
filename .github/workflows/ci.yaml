@@ -14,6 +14,10 @@ on:
       - release/**
       - feature/**
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -52,6 +56,8 @@ jobs:
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ci
 
       - name: Cache Theseus Postgresql Installation
         uses: actions/cache@v6
@@ -63,18 +69,12 @@ jobs:
         if: matrix.install != ''
         run: ${{ matrix.install }}
 
-      - name: Check
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
-        run: cargo check
       - name: Clippy
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
         run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
 
   ci:
-    needs:
-      - check
     runs-on: ubuntu-24.04
 
     steps:
@@ -85,6 +85,8 @@ jobs:
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ci
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -110,15 +112,23 @@ jobs:
           sudo mkdir /mnt/trustify
           sudo chmod a+rwx /mnt/trustify
 
+      - uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1 # v2
+        with:
+          tool: cargo-nextest
+
       - name: Test
         if: steps.filter.outputs.non_md_changes == 'true'
-        run: cargo test --all-features
+        run: cargo nextest run --all-features -E 'not test(=m0002010::performance)' --profile ci
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
           RUST_LOG: info,sqlx=error,sea_orm=error
           TRUSTIFY_S3_AWS_REGION: eu-west-1
           TRUSTIFY_S3_AWS_BUCKET: guacsec-migration-dumps
           TMPDIR: /mnt/trustify
+
+      - name: Doc tests
+        if: steps.filter.outputs.non_md_changes == 'true'
+        run: cargo test --doc --all-features
 
       - name: Export and Validate Generated Openapi Spec
         run: |

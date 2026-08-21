@@ -1,0 +1,30 @@
+{
+  "get_sbom": "sha256:b42cf13f3318f5293a41bf0dc0cb9ec1333fde8b0d3f4bb79a6ed3916d3b06d6",
+  "get_sbom_advisories": "sha256:b42cf13f3318f5293a41bf0dc0cb9ec1333fde8b0d3f4bb79a6ed3916d3b06d6",
+  "get_sbom_advisories_by_uuid": "019cbe1f-fdf6-7131-8169-19f37b0cfa63",
+  "get_sbom_packages": "019a4555-a1ae-7830-85aa-bc505cdd1de8",
+  "get_sbom_related": "019a4555-a1ae-7830-85aa-bc505cdd1de8",
+  "get_vulnerability": "CVE-2023-39325",
+  "sbom_by_package": "pkg:maven/io.smallrye/smallrye-fault-tolerance-tracing-propagation@5.5.0.redhat-00002?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=jar",
+  "sbom_license_ids": "urn:uuid:019a4555-a1ae-7830-85aa-bc505cdd1de8",
+  "analyze_purl": "pkg:rpm/redhat/java-1.8.0-openjdk-fastdebug@1.8.0.345.b01-5.el9?arch=x86_64&epoch=1",
+  "get_purl_details": "e2d62bc2-18b6-58b6-8872-aaf2823b603a",
+  "download_advisory": "4314cf4d-9486-41bc-9fea-f7d0cad48154",
+  "get_advisory": "4314cf4d-9486-41bc-9fea-f7d0cad48154",
+  "download_sbom": "sha256:4b647f323ba949fa0c736057b10c079d564d4e9e0da7cd6b0b963f26ac35be6a",
+  "get_sbom_license_export": "urn:uuid:019a4555-a1ae-7830-85aa-bc505cdd1de8",
+  "count_sbom_by_package": "pkg:maven/io.smallrye/smallrye-fault-tolerance-tracing-propagation@5.5.0.redhat-00002?repository_url=https%3A%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=jar",
+  "get_sbom_group": null,
+  "get_product": "a0dee755-d03e-5837-be5b-b516f5986eef",
+  "get_organization": "9410ac75-c8fb-483b-ae03-f8c26732d7fc",
+  "get_base_purl": "pkg:maven/io.quarkus/quarkus-smallrye-fault-tolerance-deployment",
+  "get_analysis_component": [
+    "stratisd", "sankit", "nbdkit", "tang", "clevis", "libqb",
+    "pkg:oci/quay-builder-qemu-rhcos-rhel8", "pkg:pypi/pypdf", "pkg:pypi/requests", "pkg:rpm/redhat/libsoup", "pkg:rpm/redhat/harfbuzz", "pkg:rpm/redhat/python-setuptools", "pkg:maven/com.fasterxml.jackson.core/jackson-databind", "pkg:golang/crypto/x509", "pkg:golang/k8s.io/api",
+    "glibc", "openssl", "bash", "coreutils", "systemd", "kernel", "zlib"
+  ],
+  "render_sbom_graph": "urn:uuid:019a4555-a1ae-7830-85aa-bc505cdd1de8",
+  "get_importer": null,
+  "get_weakness": "CWE-79",
+  "get_spdx_license": "MIT"
+}
