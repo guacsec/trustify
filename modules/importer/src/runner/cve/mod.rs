@@ -126,10 +126,10 @@ impl super::ImportRunner {
         }
         .map_err(|err| ScannerError::Normal {
             err: err.into(),
-            output: RunOutput {
+            output: Box::new(RunOutput {
                 report: report.lock().clone().build(),
                 continuation: None,
-            },
+            }),
         })?;
 
         // extract the report
