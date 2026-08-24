@@ -85,11 +85,11 @@ pub struct BaseSummary {
     pub version: String,
     pub published: String,
     #[schema(value_type = String)]
-    pub document_id: Arc<String>,
+    pub document_id: Arc<str>,
     #[schema(value_type = String)]
-    pub product_name: Arc<String>,
+    pub product_name: Arc<str>,
     #[schema(value_type = String)]
-    pub product_version: Arc<String>,
+    pub product_version: Arc<str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]

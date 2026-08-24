@@ -1,4 +1,5 @@
 use super::*;
+use std::sync::LazyLock;
 use time::{OffsetDateTime, macros::format_description};
 use uuid::Uuid;
 
@@ -29,9 +30,9 @@ pub struct BaseNode {
 
     pub name: String,
 
-    pub document_id: Option<Arc<String>>,
-    pub product_name: Option<Arc<String>>,
-    pub product_version: Option<Arc<String>>,
+    pub document_id: Option<Arc<str>>,
+    pub product_name: Option<Arc<str>>,
+    pub product_version: Option<Arc<str>>,
 }
 
 impl DeepSizeOf for BaseNode {
@@ -103,10 +104,9 @@ fn published_to_string(value: OffsetDateTime) -> String {
     value.format(&format).unwrap_or_else(|_| value.to_string())
 }
 
-static EMPTY_ARC_STRING: std::sync::LazyLock<Arc<String>> =
-    std::sync::LazyLock::new(|| Arc::new(String::new()));
+static EMPTY_ARC_STRING: LazyLock<Arc<str>> = LazyLock::new(|| Arc::from(""));
 
-fn arc_string_or_default(opt: &Option<Arc<String>>) -> Arc<String> {
+fn arc_string_or_default(opt: &Option<Arc<str>>) -> Arc<str> {
     opt.as_ref()
         .cloned()
         .unwrap_or_else(|| EMPTY_ARC_STRING.clone())

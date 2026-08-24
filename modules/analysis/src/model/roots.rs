@@ -104,9 +104,9 @@ mod test {
             name: String::new(),
             version: String::new(),
             published: String::new(),
-            document_id: Arc::new(String::new()),
-            product_name: Arc::new(String::new()),
-            product_version: Arc::new(String::new()),
+            document_id: Arc::from(""),
+            product_name: Arc::from(""),
+            product_version: Arc::from(""),
         }
     }
 
