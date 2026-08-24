@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787231830395,
+  "lastUpdate": 1787582755914,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21165,6 +21165,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "3cdc6b426ac5f26dc427d90a2b5c20143431ea03",
+          "message": "fix: resolve clippy warnings from Rust 1.98\n\nBox the `RunOutput` inside `ScannerError::Normal` to fix `result_large_err`,\nand remove redundant `&` in format macro arguments (`useless_borrows_in_formatting`).\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-24T14:00:46Z",
+          "tree_id": "17654212b4c42cc237afdae7259ad9e3a813487c",
+          "url": "https://github.com/guacsec/trustify/commit/3cdc6b426ac5f26dc427d90a2b5c20143431ea03"
+        },
+        "date": 1787582753816,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
