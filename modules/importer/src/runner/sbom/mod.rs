@@ -111,10 +111,10 @@ impl super::ImportRunner {
             // further processing, like storing the marker
             .map_err(|err| ScannerError::Normal {
                 err: err.into(),
-                output: RunOutput {
+                output: Box::new(RunOutput {
                     report: report.lock().clone().build(),
                     continuation: None,
-                },
+                }),
             })?;
 
         Ok(match Arc::try_unwrap(report) {

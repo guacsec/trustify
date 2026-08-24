@@ -167,13 +167,13 @@ async fn import(
             report,
             continuation,
         }) => (None, Some(report), continuation),
-        Err(ScannerError::Normal {
-            err,
-            output: RunOutput {
+        Err(ScannerError::Normal { err, output }) => {
+            let RunOutput {
                 report,
                 continuation,
-            },
-        }) => (Some(err.to_string()), Some(report), continuation),
+            } = *output;
+            (Some(err.to_string()), Some(report), continuation)
+        }
         Err(ScannerError::Critical(err)) => (Some(err.to_string()), None, None),
     };
 

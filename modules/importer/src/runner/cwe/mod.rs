@@ -55,10 +55,10 @@ impl super::ImportRunner {
             }
             Err(err) => Err(ScannerError::Normal {
                 err: err.into(),
-                output: RunOutput {
+                output: Box::new(RunOutput {
                     report: report.lock().await.clone().build(),
                     continuation: None,
-                },
+                }),
             }),
         }
     }
