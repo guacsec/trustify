@@ -835,6 +835,119 @@ async fn sbom_details_purlless_cpe_node_consistency(
     Ok(())
 }
 
+/// Reproducer for TC-5749 (SBOM-scale manifestation of TC-5170 / TC-5171):
+/// the CPE-context filter must engage when the SBOM's product/OS CPE sits on a
+/// *child* node, not only on the `Describes` root.
+///
+/// All three SBOMs contain `pkg:rpm/redhat/mypkg@1.0.0-1.el8`. The advisory
+/// (`CVE-2024-77749`) tracks `mypkg` **only** under the Red Hat Satellite product
+/// context (`cpe:/a:redhat:satellite:6`) — el8-OS does not track it at all — so a
+/// correct, context-aware result reports `mypkg` as NOT affected for a RHEL-8
+/// SBOM. It only appears via the wrong-product Satellite row when the context
+/// filter is disabled.
+///
+/// - **child-cpe** (`sbom_child_cpe.json`): the `enterprise_linux:8` CPE is on
+///   a child OS component; the `Describes` root carries no CPE. Before the fix
+///   `sbom_describing_cpe` was empty (only `Describes`-relationship CPEs were
+///   materialized), the escape hatch disabled filtering, and the Satellite row
+///   leaked. After the fix the OS CPE (`part = 'o'`) is materialized, so the
+///   Satellite context is filtered out — identical to root-cpe.
+/// - **root-cpe** (`sbom_root_cpe.json`): the CPE is on the `Describes` root
+///   (already materialized) — the parity control; must filter both before and
+///   after.
+/// - **no-cpe** (`sbom_no_cpe.json`): no product/OS CPE anywhere — the escape
+///   hatch legitimately applies, so the Satellite row still surfaces. Proves the
+///   fix is scoped to SBOMs that actually carry an OS CPE and introduces no new
+///   false negatives.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+async fn sbom_details_describing_cpe_on_child_node(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(PaginationCache::for_test());
+
+    const BASE: &str = "cyclonedx/TC-5749";
+
+    // Given a wrong-product advisory (mypkg tracked only under Satellite) and
+    // three SBOMs differing only in where (or whether) the el8 OS CPE sits.
+    ctx.ingest_document(format!("{BASE}/wrong-product-satellite.json"))
+        .await?;
+    let child = ctx
+        .ingest_document(format!("{BASE}/sbom_child_cpe.json"))
+        .await?;
+    let root = ctx
+        .ingest_document(format!("{BASE}/sbom_root_cpe.json"))
+        .await?;
+    let no_cpe = ctx
+        .ingest_document(format!("{BASE}/sbom_no_cpe.json"))
+        .await?;
+
+    // Collects every `affected` status entry for a CVE across all advisories.
+    let affected = |details: &SbomDetails, cve: &str| -> Vec<SbomStatus> {
+        details
+            .advisories
+            .iter()
+            .flat_map(|a| a.status.iter())
+            .filter(|s| s.vulnerability.identifier == cve && s.status == "affected")
+            .cloned()
+            .collect()
+    };
+    // True if any status on the SBOM is attributed to a Satellite CPE context.
+    let has_satellite_context = |details: &SbomDetails| -> bool {
+        details.advisories.iter().flat_map(|a| a.status.iter()).any(
+            |s| matches!(&s.context, Some(StatusContext::Cpe(cpe)) if cpe.contains("satellite")),
+        )
+    };
+
+    let child_details = sbom
+        .fetch_sbom_details(Id::parse_uuid(child.id)?, vec![], &ctx.db)
+        .await?
+        .expect("child-cpe SBOM details must be found");
+    let root_details = sbom
+        .fetch_sbom_details(Id::parse_uuid(root.id)?, vec![], &ctx.db)
+        .await?
+        .expect("root-cpe SBOM details must be found");
+    let no_cpe_details = sbom
+        .fetch_sbom_details(Id::parse_uuid(no_cpe.id)?, vec![], &ctx.db)
+        .await?
+        .expect("no-cpe SBOM details must be found");
+
+    // Then: the child-cpe SBOM must be filtered exactly like the root-cpe control
+    // -- no Satellite mis-attribution and no affected CVE-2024-77749 at all.
+    assert!(
+        !has_satellite_context(&child_details),
+        "child-cpe SBOM leaked a Satellite (wrong-product) context: the OS CPE on \
+         the child node did not engage the context filter"
+    );
+    assert!(
+        affected(&child_details, "CVE-2024-77749").is_empty(),
+        "child-cpe SBOM must not report CVE-2024-77749 affected (el8-OS mypkg is \
+         only tracked by Satellite); got {:?}",
+        affected(&child_details, "CVE-2024-77749")
+    );
+
+    // Parity control: root-cpe already filtered before the fix and must still.
+    assert!(
+        !has_satellite_context(&root_details),
+        "root-cpe SBOM must not carry a Satellite context"
+    );
+    assert!(
+        affected(&root_details, "CVE-2024-77749").is_empty(),
+        "root-cpe SBOM must not report CVE-2024-77749 affected"
+    );
+
+    // Scope control: an SBOM with no product/OS CPE keeps the escape hatch, so
+    // the Satellite row still surfaces -- the fix must not change this.
+    assert!(
+        !affected(&no_cpe_details, "CVE-2024-77749").is_empty(),
+        "no-cpe SBOM must still surface CVE-2024-77749 via the escape hatch \
+         (fix must be scoped to SBOMs that carry an OS CPE)"
+    );
+
+    Ok(())
+}
+
 /// Constructs a `ScoredVector` from its parts, deriving the severity from the type and value.
 fn sv(r#type: ScoreType, value: f64, vector: impl Into<String>) -> ScoredVector {
     ScoredVector {

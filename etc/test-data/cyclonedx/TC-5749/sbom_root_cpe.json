@@ -1,0 +1,31 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:tc5749-root-cpe-0000-000000000002",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-01-01T00:00:00Z",
+    "component": {
+      "type": "operating-system",
+      "name": "rhel",
+      "bom-ref": "root-os",
+      "version": "8",
+      "cpe": "cpe:2.3:o:redhat:enterprise_linux:8:*:*:*:*:*:*:*"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "mypkg",
+      "bom-ref": "pkg-mypkg",
+      "version": "1.0.0-1.el8",
+      "purl": "pkg:rpm/redhat/mypkg@1.0.0-1.el8?arch=x86_64"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-os",
+      "dependsOn": ["pkg-mypkg"]
+    }
+  ]
+}
