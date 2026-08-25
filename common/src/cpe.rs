@@ -427,7 +427,21 @@ fn unescape_cpe23(s: &str) -> String {
     out
 }
 
-/// Percent-encode a decoded component value using CPE 2.2 URI syntax,
+/// Percent-encode a single literal character into CPE 2.2 URI syntax.
+/// Never emits the `%01`/`%02` wildcard encodings — a literal `*`/`?` is
+/// percent-encoded as its ordinary byte (`%2a`/`%3f`).
+fn push_literal(out: &mut String, c: char) {
+    if c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.') {
+        out.push(c);
+    } else {
+        let mut buf = [0u8; 4];
+        for b in c.encode_utf8(&mut buf).as_bytes() {
+            out.push_str(&format!("%{b:02x}"));
+        }
+    }
+}
+
+/// Percent-encode an already-decoded component value using CPE 2.2 URI syntax,
 /// mapping the `?`/`*` wildcards to their `%01`/`%02` special encodings.
 fn encode_uri_component(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
@@ -435,13 +449,30 @@ fn encode_uri_component(value: &str) -> String {
         match c {
             '?' => out.push_str("%01"),
             '*' => out.push_str("%02"),
-            c if c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.') => out.push(c),
-            c => {
-                let mut buf = [0u8; 4];
-                for b in c.encode_utf8(&mut buf).as_bytes() {
-                    out.push_str(&format!("%{b:02x}"));
+            other => push_literal(&mut out, other),
+        }
+    }
+    out
+}
+
+/// Percent-encode a raw (still `\`-escaped) CPE 2.3 component into CPE 2.2 URI
+/// syntax in a single pass. An **unescaped** `*`/`?` is a wildcard (`%02`/`%01`);
+/// an **escaped** `\*`/`\?` (or any other `\x`) is a literal character and is
+/// percent-encoded as such, so it can never be mistaken for a wildcard.
+fn encode_cpe23_component(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut chars = raw.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => {
+                // escaped: the next char is a literal, even if it is `*` or `?`
+                if let Some(next) = chars.next() {
+                    push_literal(&mut out, next);
                 }
             }
+            '?' => out.push_str("%01"),
+            '*' => out.push_str("%02"),
+            other => push_literal(&mut out, other),
         }
     }
     out
@@ -453,7 +484,7 @@ fn cpe23_component_to_uri(raw: &str) -> String {
         // ANY is the empty component in URI syntax
         "*" => String::new(),
         "-" => "-".to_string(),
-        _ => encode_uri_component(&unescape_cpe23(raw)),
+        _ => encode_cpe23_component(raw),
     }
 }
 
@@ -833,6 +864,21 @@ mod test {
             Cpe::from_str("cpe:2.3:a:libfoo.a(bar.o): in function `baz':1.0:-:*:*:*:*:*:*:*")
                 .is_err()
         );
+    }
+
+    #[test]
+    fn cpe23_escaped_wildcard_is_literal() {
+        // An escaped `\*` is a LITERAL asterisk and must remain distinct from
+        // the `*` wildcard. If the escape is dropped before wildcard encoding,
+        // a literal character is silently turned into a wildcard, corrupting
+        // the CPE identity and producing incorrect vulnerability matches.
+        // Escaped `\*` mid-component: pre-fix this was unescaped to `*` then
+        // encoded as the wildcard `%02`, yielding `pro%02duct` — which the
+        // CPE-2.2 URI parser rejects, so the whole CPE was silently dropped.
+        // It must now parse and keep the literal asterisk.
+        let cpe = Cpe::from_str(r"cpe:2.3:a:acme:pro\*duct:1.0:*:*:*:*:*:*:*")
+            .expect("escaped literal '\\*' must parse, not be turned into a wildcard");
+        assert_eq!(cpe.product().as_ref(), "pro*duct");
     }
 
     #[test]
