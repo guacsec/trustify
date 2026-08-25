@@ -1,0 +1,96 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "cpe23-firmware",
+  "documentNamespace": "http://spdx.org/spdxdocs/cpe23-firmware-6b1e6f36-9a24-4a5c-9c4e-0d7c1a2b3c4d",
+  "creationInfo": {
+    "creators": [
+      "Tool: example-firmware-sbom-tool"
+    ],
+    "created": "2023-01-01T00:00:00Z"
+  },
+  "packages": [
+    {
+      "name": "firmware",
+      "SPDXID": "SPDXRef-Package-Main",
+      "versionInfo": "1.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false
+    },
+    {
+      "name": "OpenSSL",
+      "SPDXID": "SPDXRef-Package-OpenSSL",
+      "versionInfo": "0.9.8w",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:generic/OpenSSL@0.9.8w"
+        },
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:openssl:openssl:0.9.8w:*:*:*:*:*:*:*"
+        }
+      ]
+    },
+    {
+      "name": "BusyBox",
+      "SPDXID": "SPDXRef-Package-BusyBox",
+      "versionInfo": "1.19.4",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:generic/BusyBox@1.19.4"
+        },
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:busybox:busybox:1.19.4:*:*:*:*:*:*:*"
+        }
+      ]
+    },
+    {
+      "name": "libfoo.a(bar.o): in function `baz':",
+      "SPDXID": "SPDXRef-Package-Garbage",
+      "versionInfo": "2.0.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:libfoo.a(bar.o): in function `baz':2.0.0:*:*:*:*:*:*:*"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-Package-Main"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-Main",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-OpenSSL"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-Main",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-BusyBox"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-Main",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-Garbage"
+    }
+  ]
+}
