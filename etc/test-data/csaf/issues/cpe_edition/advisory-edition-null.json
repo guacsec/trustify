@@ -1,0 +1,92 @@
+{
+  "document": {
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "distribution": { "tlp": { "label": "WHITE" } },
+    "publisher": {
+      "category": "vendor",
+      "name": "Test Vendor",
+      "namespace": "https://test.example.com"
+    },
+    "title": "TEST-EDITION-NULL",
+    "tracking": {
+      "current_release_date": "2024-01-01T00:00:00Z",
+      "id": "TEST-EDITION-NULL",
+      "initial_release_date": "2024-01-01T00:00:00Z",
+      "revision_history": [
+        {
+          "date": "2024-01-01T00:00:00Z",
+          "number": "1",
+          "summary": "Initial"
+        }
+      ],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Test Vendor",
+        "branches": [
+          {
+            "category": "product_family",
+            "name": "Test Product",
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "WidgetOS 9",
+                "product": {
+                  "name": "WidgetOS 9",
+                  "product_id": "widgetos-9",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:acme:widgetos:9"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "category": "architecture",
+            "name": "noarch",
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "libwidget-1.0",
+                "product": {
+                  "name": "libwidget-1.0",
+                  "product_id": "libwidget-1.0",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/acme/libwidget@1.0"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "libwidget-1.0 as a component of WidgetOS 9",
+          "product_id": "widgetos-9:libwidget-1.0"
+        },
+        "product_reference": "libwidget-1.0",
+        "relates_to_product_reference": "widgetos-9"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2024-99999",
+      "product_status": {
+        "known_affected": [
+          "widgetos-9:libwidget-1.0"
+        ]
+      }
+    }
+  ]
+}

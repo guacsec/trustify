@@ -9034,6 +9034,7 @@ dependencies = [
  "regex",
  "reqwest 0.12.28",
  "roxmltree",
+ "rstest",
  "sanitize-filename",
  "sea-orm",
  "sea-query",

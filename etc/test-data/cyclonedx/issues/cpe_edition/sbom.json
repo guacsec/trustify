@@ -1,0 +1,29 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "1970-01-01T00:00:00Z",
+    "component": {
+      "name": "widgetos",
+      "type": "application",
+      "cpe": "cpe:/a:acme:widgetos:9.2",
+      "bom-ref": "root"
+    }
+  },
+  "components": [
+    {
+      "name": "libwidget",
+      "version": "1.0",
+      "bom-ref": "libwidget",
+      "purl": "pkg:rpm/acme/libwidget@1.0",
+      "type": "library"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": ["libwidget"]
+    }
+  ]
+}
