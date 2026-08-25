@@ -1,4 +1,5 @@
 use crate::purl::{model::details::purl::StatusContext, service::PurlService};
+use rstest::rstest;
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
@@ -1204,6 +1205,54 @@ async fn product_status_cross_domain_version(ctx: &TrustifyContext) -> Result<()
             "CVE-2023-44487",
             "CVE-2023-4853",
         ]
+    );
+
+    Ok(())
+}
+
+/// Test that CPE context filtering on purl_statuses correctly handles
+/// the `edition` field when using generalized (major-version) matching.
+///
+/// Setup (all via document ingestion):
+/// - A CycloneDX SBOM with describing CPE `cpe:/a:acme:widgetos:9.2`
+///   (version 9.2, no edition) containing `pkg:rpm/acme/libwidget@1.0`
+/// - A CSAF advisory creating a purl_status for the same base purl,
+///   with a context CPE that varies in `edition` per test case
+///
+/// The generalized CPE match expands version 9.2 to major "9", but should
+/// only admit CPEs whose edition is NULL or `*`.  A CPE with a specific
+/// edition (e.g. "el8") must NOT pass the filter.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::edition_null("csaf/issues/cpe_edition/advisory-edition-null.json", true)]
+#[case::edition_specific("csaf/issues/cpe_edition/advisory-edition-el8.json", false)]
+#[test_log::test(actix_web::test)]
+async fn cpe_context_edition_filtering(
+    ctx: &TrustifyContext,
+    #[case] advisory_path: &str,
+    #[case] expect_status_visible: bool,
+) -> Result<(), anyhow::Error> {
+    let service = PurlService::new(PaginationCache::for_test());
+
+    ctx.ingest_document("cyclonedx/issues/cpe_edition/sbom.json")
+        .await?;
+    ctx.ingest_document(advisory_path).await?;
+
+    let purl: Purl = "pkg:rpm/acme/libwidget@1.0".try_into()?;
+    let details = service
+        .purl_by_purl(&purl, Default::default(), &ctx.db)
+        .await?
+        .expect("purl should exist");
+
+    let has_status = details
+        .advisories
+        .iter()
+        .flat_map(|a| &a.status)
+        .any(|s| s.vulnerability.identifier == "CVE-2024-99999");
+
+    assert_eq!(
+        has_status, expect_status_visible,
+        "advisory {advisory_path}: expected status visible={expect_status_visible}, got {has_status}"
     );
 
     Ok(())
