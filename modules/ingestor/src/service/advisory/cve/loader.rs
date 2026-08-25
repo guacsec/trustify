@@ -125,7 +125,7 @@ impl<'g> CveLoader<'g> {
         let mut base_purls = HashSet::new();
         let mut cpes = HashSet::new();
 
-        if let Some(affected) = affected {
+        {
             for product in affected {
                 if let Some(purl) = divine_purl(product) {
                     // Collect base PURL for batch creation
@@ -287,7 +287,7 @@ impl<'g> CveLoader<'g> {
                     .provider_metadata
                     .short_name
                     .as_deref(),
-                None,
+                Vec::new(),
             ),
             Cve::Published(published) => (
                 published
@@ -326,7 +326,23 @@ impl<'g> CveLoader<'g> {
                     .provider_metadata
                     .short_name
                     .as_deref(),
-                Some(&published.containers.cna.affected),
+                // CNA-reported affected entries are the primary source; ADP
+                // containers (e.g. CISA vulnrichment, Red Hat) supplement them
+                // with additional CPE/version data, particularly for CVEs the
+                // upstream CNA never annotated with CPEs.
+                published
+                    .containers
+                    .cna
+                    .affected
+                    .iter()
+                    .chain(
+                        published
+                            .containers
+                            .adp
+                            .iter()
+                            .flat_map(|adp| adp.affected.iter()),
+                    )
+                    .collect(),
             ),
         };
 
@@ -420,7 +436,7 @@ struct VulnerabilityDetails<'a> {
     pub org_name: Option<&'a str>,
     pub descriptions: &'a Vec<Description>,
     pub assigned: Option<OffsetDateTime>,
-    pub affected: Option<&'a Vec<Product>>,
+    pub affected: Vec<&'a Product>,
     pub information: VulnerabilityInformation,
     pub scores: Vec<Cvss3Base>,
 }
@@ -578,6 +594,60 @@ mod test {
             3,
             "re-ingest must not duplicate rows"
         );
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn cve_loader_stores_cpe_status_from_adp_container(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+        use trustify_entity::{cpe as cpe_entity, cpe_status, status, version_range};
+
+        let graph = Graph::new(ctx.db.clone());
+
+        // cna.affected is empty; the ADP (vulnrichment-style) container is the
+        // only source of CPE/version data for this record.
+        let (cve, digests): (Cve, _) = document("cve/CVE-2099-0002.json").await?;
+
+        let loader = CveLoader::new(&graph);
+        loader
+            .load(("file", "CVE-2099-0002.json"), cve, &digests)
+            .await?;
+
+        let advisory = graph
+            .get_advisory_by_digest(&digests.sha256.encode_hex::<String>(), &ctx.db)
+            .await?
+            .expect("advisory must be ingested");
+
+        let rows = cpe_status::Entity::find()
+            .filter(cpe_status::Column::AdvisoryId.eq(advisory.advisory.id))
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(rows.len(), 1, "expected 1 cpe_status row, got {rows:?}");
+
+        let row = &rows[0];
+        let cpe = cpe_entity::Entity::find_by_id(row.cpe_id)
+            .one(&ctx.db)
+            .await?
+            .expect("referenced cpe must exist");
+        assert_eq!(cpe.vendor.as_deref(), Some("denx"));
+        assert_eq!(cpe.product.as_deref(), Some("u-boot"));
+        assert_eq!(cpe.version.as_deref(), Some("*"));
+
+        let st = status::Entity::find_by_id(row.status_id)
+            .one(&ctx.db)
+            .await?
+            .expect("status must exist");
+        assert_eq!(st.slug, "affected");
+
+        let vr = version_range::Entity::find_by_id(row.version_range_id)
+            .one(&ctx.db)
+            .await?
+            .expect("version_range must exist");
+        assert_eq!(vr.low_version.as_deref(), Some("2019.04"));
 
         Ok(())
     }
