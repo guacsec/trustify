@@ -5,6 +5,7 @@ use serde_json::json;
 use test_context::test_context;
 use test_log::test;
 use trustify_module_fundamental::vulnerability::service::VulnerabilityService;
+use trustify_module_ingestor::common::Deprecation;
 use trustify_test_context::{Dataset, TrustifyContext, subset::ContainsSubset};
 
 #[test_context(TrustifyContext)]
@@ -76,6 +77,55 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     );
 
     // done
+
+    Ok(())
+}
+
+/// Backlink coverage for the `cpe_status` path (P6/P7 of the CPE-identity
+/// backport): a vulnerability whose CVE record carries CPE applicability must
+/// list the SBOM whose package CPE matches, on `/vulnerability/{id}` — including
+/// when the match is by CPE identity (no PURL needed on the advisory side).
+///
+/// - CVE-2099-0001 affects openssl 0.9.8w (exact + range) → the firmware SBOM
+///   (OpenSSL 0.9.8w via SPDX cpe23Type) MUST appear in the backlink (positive).
+/// - CVE-2099-0003 affects openssl only in 2.0.0..3.0.0 → 0.9.8w is out of range
+///   → the firmware SBOM MUST NOT appear (negative / version guard).
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn cpe_status_vulnerability_backlink(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_document("spdx/cpe23-firmware.json").await?;
+    ctx.ingest_document("cve/CVE-2099-0001.json").await?;
+    ctx.ingest_document("cve/CVE-2099-0003.json").await?;
+
+    let service = VulnerabilityService::new();
+
+    // Collect the set of SBOM names backlinked from a vulnerability's advisories.
+    let backlinked_sbom_names = async |id: &str| -> Result<Vec<String>, anyhow::Error> {
+        let details = service
+            .fetch_vulnerability(id, Deprecation::Ignore, &ctx.db)
+            .await?
+            .expect("vulnerability must exist");
+        Ok(details
+            .advisories
+            .iter()
+            .flat_map(|adv| adv.sboms.iter())
+            .map(|sbom| sbom.head.name.clone())
+            .collect())
+    };
+
+    // Positive: 0.9.8w is within CVE-2099-0001's affected range → firmware backlinked.
+    let positive = backlinked_sbom_names("CVE-2099-0001").await?;
+    assert!(
+        positive.iter().any(|n| n == "cpe23-firmware"),
+        "CVE-2099-0001 must backlink the firmware SBOM via cpe_status, got {positive:?}"
+    );
+
+    // Negative: 0.9.8w is outside CVE-2099-0003's 2.0.0..3.0.0 range → not backlinked.
+    let negative = backlinked_sbom_names("CVE-2099-0003").await?;
+    assert!(
+        !negative.iter().any(|n| n == "cpe23-firmware"),
+        "CVE-2099-0003 (openssl 2.0.0..3.0.0) must NOT backlink openssl 0.9.8w, got {negative:?}"
+    );
 
     Ok(())
 }
