@@ -76,6 +76,7 @@ opentelemetry_sdk = { workspace = true }
 osv = { workspace = true }
 packageurl = { workspace = true }
 regex = { workspace = true }
+rstest = { workspace = true }
 roxmltree = { workspace = true }
 sanitize-filename = { workspace = true }
 semver = { workspace = true }
