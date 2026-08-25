@@ -2,6 +2,7 @@ pub mod advisory;
 pub mod advisory_vulnerability;
 pub mod base_purl;
 pub mod cpe;
+pub mod cpe_status;
 pub mod cvss3;
 pub mod cvss4;
 pub mod importer;
