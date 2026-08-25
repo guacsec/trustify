@@ -82,6 +82,13 @@ impl PurlDetails {
                 .ok_or(Error::Data("underlying package missing".to_string()))?
         };
 
+        // CPE context filtering — only return purl statuses whose context
+        // CPE matches the describing CPEs of SBOMs containing this PURL.
+        // Prevents cross-product false positives (e.g. a hummingbird/RHEL
+        // advisory context attaching to an unrelated el8 package by name).
+        // Mirrors the product_status filter in get_product_statuses_for_purl.
+        let (allowed_cpe_ids, sbom_has_cpes) = cpe_context_subqueries(qualified_package.id);
+
         let purl_statuses = purl_status::Entity::find()
             .filter(purl_status::Column::BasePurlId.eq(package.id))
             .left_join(version_range::Entity)
@@ -92,6 +99,12 @@ impl PurlDetails {
                     .arg(Expr::value(package_version.version.clone()))
                     .arg(Expr::col((version_range::Entity, Asterisk))),
             ))
+            .filter(
+                Condition::any()
+                    .add(purl_status::Column::ContextCpeId.is_null())
+                    .add(purl_status::Column::ContextCpeId.in_subquery(allowed_cpe_ids))
+                    .add(Expr::exists(sbom_has_cpes).not()),
+            )
             .distinct_on([ColumnRef::TableColumn(
                 purl_status::Entity.into_iden(),
                 purl_status::Column::Id.into_iden(),
