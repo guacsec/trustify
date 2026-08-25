@@ -175,12 +175,30 @@ impl SbomDetails {
             .query_all(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 raw_sql::product_advisory_info_sql(),
-                [sbom.sbom_id.into(), statuses.into()],
+                [sbom.sbom_id.into(), statuses.clone().into()],
             ))
             .await?;
 
         // Convert raw SQL results to IdSet objects
         for row in raw_results {
+            match IdSet::from_query_result(&row, "") {
+                Ok(result) => id_sets.push(result),
+                Err(err) => return Err(Error::from(err)),
+            }
+        }
+
+        // CPE-based matching: package-level CPE identity (cpe_status) for nodes
+        // whose component CPE matches an advisory's CPE applicability. Includes
+        // CPE-only (PURL-less) nodes (qualified_purl_id may be NULL).
+        let cpe_results = tx
+            .query_all(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                raw_sql::cpe_advisory_info_sql(),
+                [sbom.sbom_id.into(), statuses.into()],
+            ))
+            .await?;
+
+        for row in cpe_results {
             match IdSet::from_query_result(&row, "") {
                 Ok(result) => id_sets.push(result),
                 Err(err) => return Err(Error::from(err)),

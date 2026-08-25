@@ -182,3 +182,72 @@ fn check_advisory(
     );
     assert_eq!("affected", advisory.status[0].status);
 }
+
+/// End-to-end test of the CPE-based matching path (`raw_sql::cpe_advisory_info_sql`):
+/// package-level CPEs harvested from an SPDX SBOM (`sbom_package_cpe_ref`) matched
+/// against `cpe_status` rows written by the CVE loader from `affected[].cpes`.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+async fn sbom_details_cpe_matching(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(ctx.db.clone());
+
+    let result = ctx.ingest_document("spdx/cpe23-firmware.json").await?;
+
+    let cve1 = ctx.ingest_document("cve/CVE-2099-0001.json").await?;
+    assert_eq!(cve1.document_id, Some("CVE-2099-0001".to_string()));
+    let cve2 = ctx.ingest_document("cve/CVE-2099-0002.json").await?;
+    assert_eq!(cve2.document_id, Some("CVE-2099-0002".to_string()));
+    let cve3 = ctx.ingest_document("cve/CVE-2099-0003.json").await?;
+    assert_eq!(cve3.document_id, Some("CVE-2099-0003".to_string()));
+
+    let details = sbom
+        .fetch_sbom_details(result.id, vec![], &ctx.db)
+        .await?
+        .expect("SBOM details must be found");
+
+    // CVE-2099-0001 must show up with OpenSSL (exact version match) and
+    // BusyBox (concrete-CPE-version fallback) as affected packages.
+    let advisory_1 = details
+        .advisories
+        .iter()
+        .find(|a| a.head.document_id == "CVE-2099-0001")
+        .expect("CVE-2099-0001 advisory must be present");
+    assert_eq!(1, advisory_1.status.len());
+    assert_eq!("affected", advisory_1.status[0].status);
+    let package_names: std::collections::BTreeSet<String> = advisory_1.status[0]
+        .packages
+        .iter()
+        .map(|p| p.name.clone())
+        .collect();
+    assert!(
+        package_names.contains("OpenSSL"),
+        "expected OpenSSL among matched packages, got {package_names:?}"
+    );
+    assert!(
+        package_names.contains("BusyBox"),
+        "expected BusyBox among matched packages, got {package_names:?}"
+    );
+
+    // CVE-2099-0002 (denx:u-boot) must NOT match -- no u-boot package here.
+    assert!(
+        !details
+            .advisories
+            .iter()
+            .any(|a| a.head.document_id == "CVE-2099-0002"),
+        "CVE-2099-0002 (u-boot) must not match any package in this SBOM"
+    );
+
+    // CVE-2099-0003 (openssl 2.0.0..3.0.0) must NOT match 0.9.8w -- the
+    // false-positive guard: identity alone is insufficient, version_matches
+    // must also hold.
+    assert!(
+        !details
+            .advisories
+            .iter()
+            .any(|a| a.head.document_id == "CVE-2099-0003"),
+        "CVE-2099-0003 (openssl 2.0.0..3.0.0) must not match openssl 0.9.8w"
+    );
+
+    Ok(())
+}
