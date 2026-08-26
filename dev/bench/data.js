@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787727572248,
+  "lastUpdate": 1787730178805,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21218,6 +21218,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/c6faecdaa567901ab3159523f7dcd751ebf6e70c"
         },
         "date": 1787727570418,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "73513bc9ef21e3c6ff33c41e73c99d49d77fecf8",
+          "message": "ci: use immutable version tag for setup-uv in perf-test workflow\n\nSince v8.0.0, astral-sh/setup-uv stopped publishing major version alias\ntags (v8, v9, etc.) for supply chain security. The @v9 tag does not\nexist, causing the workflow to fail at action resolution before any step\nruns. Pin to the latest immutable release tag instead.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-26T09:26:55+02:00",
+          "tree_id": "6afec10bbddda8590c5ee006bb7b6d3d09a2023f",
+          "url": "https://github.com/guacsec/trustify/commit/73513bc9ef21e3c6ff33c41e73c99d49d77fecf8"
+        },
+        "date": 1787730176567,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
