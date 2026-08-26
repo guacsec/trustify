@@ -1,5 +1,10 @@
-// Numbered m0002132 to skip main's two m0002130_* files and leave headroom above them;
-// avoids collision on rebase against newer main. Backport of f03b635f (was m0002250 on main).
+// Named m0002250_create_cpe_status to match main verbatim so `seaql_migrations`
+// records the identical name (SeaORM tracks migrations by name, not by number).
+// This keeps the 0.4.z -> 0.6.z upgrade path clean: 0.6's m0002250 is seen as
+// already applied and skipped, instead of re-running its non-idempotent
+// CREATE INDEX statements. The table/indexes here are byte-identical to main's.
+// The numeric gap on 0.4.z is cosmetic; migrations run in lib.rs registration
+// order, not by filename number. Backport of f03b635f.
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
