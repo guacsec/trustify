@@ -835,6 +835,92 @@ async fn sbom_details_purlless_cpe_node_consistency(
     Ok(())
 }
 
+/// Reproducer for TC-5732: a version-less Red Hat CSAF `known_affected` on the
+/// main stream must surface as `affected`. Such an entry is ingested as a
+/// `purl_status` with a fully-unbounded version range (all versions affected);
+/// before the fix, `version_matches` returned false for a both-NULL range, so
+/// the row was dropped everywhere and the genuinely-affected main-stream package
+/// went false-negative once the describing-CPE filter engaged.
+///
+/// `CVE-2098-5732`: main `enterprise_linux:8` firefox is `known_affected`
+/// (version-less); only the 8.8 EUS sub-stream is `fixed` at `128.2.0-1.el8_8`.
+/// - `firefox_main_el8` (describing CPE `enterprise_linux:8`, firefox
+///   `115.15.0-1.el8`) → **affected** under the `enterprise_linux:8` context
+///   (fails before the fix — empty — passes after).
+/// - `firefox_eus88_patched` (describing CPE `rhel_eus:8.8`, firefox
+///   `128.2.0-1.el8_8` = the EUS fix) → **not affected**: the main-stream
+///   `enterprise_linux:8` row is excluded by the describing-CPE filter (wrong
+///   product context), and the EUS `affected-below-fix` row is version-filtered.
+///   Proves the version-less match is stream-scoped and does not over-report.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+async fn sbom_details_versionless_known_affected(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(PaginationCache::for_test());
+
+    const BASE: &str = "cyclonedx/TC-5752";
+
+    // Given the version-less known_affected advisory plus a main-el8 SBOM and a
+    // patched-EUS control SBOM.
+    ctx.ingest_document(format!("{BASE}/advisory-firefox.json"))
+        .await?;
+    let main = ctx
+        .ingest_document(format!("{BASE}/sbom_firefox_main_el8.json"))
+        .await?;
+    let eus = ctx
+        .ingest_document(format!("{BASE}/sbom_firefox_eus88_patched.json"))
+        .await?;
+
+    // Collects every `affected` status entry for a CVE across all advisories.
+    let affected = |details: &SbomDetails, cve: &str| -> Vec<SbomStatus> {
+        details
+            .advisories
+            .iter()
+            .flat_map(|a| a.status.iter())
+            .filter(|s| s.vulnerability.identifier == cve && s.status == "affected")
+            .cloned()
+            .collect()
+    };
+
+    let main_details = sbom
+        .fetch_sbom_details(Id::parse_uuid(main.id)?, vec![], &ctx.db)
+        .await?
+        .expect("main-el8 SBOM details must be found");
+    let eus_details = sbom
+        .fetch_sbom_details(Id::parse_uuid(eus.id)?, vec![], &ctx.db)
+        .await?
+        .expect("EUS SBOM details must be found");
+
+    // Then: the main-el8 firefox is reported affected via the version-less
+    // known_affected, under the enterprise_linux:8 context.
+    let main_affected = affected(&main_details, "CVE-2098-5732");
+    assert!(
+        !main_affected.is_empty(),
+        "main-el8 firefox must be reported affected via the version-less \
+         known_affected (empty before the fix)"
+    );
+    assert!(
+        main_affected.iter().any(|s| matches!(
+            &s.context,
+            Some(StatusContext::Cpe(cpe)) if cpe.contains("enterprise_linux:8")
+        )),
+        "the affected status must carry the enterprise_linux:8 context, got {:?}",
+        main_affected.iter().map(|s| &s.context).collect::<Vec<_>>()
+    );
+
+    // And: the patched EUS box is not affected -- the main-stream row is
+    // context-filtered (wrong product) and the EUS fix row is version-filtered.
+    assert!(
+        affected(&eus_details, "CVE-2098-5732").is_empty(),
+        "patched EUS firefox (128.2.0-1.el8_8 = the fix) must not be affected; \
+         the enterprise_linux:8 known_affected must not over-report onto it"
+    );
+
+    Ok(())
+}
+
 /// Constructs a `ScoredVector` from its parts, deriving the severity from the type and value.
 fn sv(r#type: ScoreType, value: f64, vector: impl Into<String>) -> ScoredVector {
     ScoredVector {
