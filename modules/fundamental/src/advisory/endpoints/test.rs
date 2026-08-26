@@ -10,7 +10,6 @@ use actix_http::StatusCode;
 use actix_web::{body::MessageBody, test::TestRequest};
 use hex::ToHex;
 use jsonpath_rust::JsonPath;
-use sea_orm::EntityTrait;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
@@ -25,7 +24,7 @@ use trustify_common::{
     db::pagination_cache::PaginationCache, error::ErrorInformation, hashing::Digests,
     model::PaginatedResults,
 };
-use trustify_entity::{advisory_vulnerability_score, labels::Labels, sbom};
+use trustify_entity::{advisory_vulnerability_score, labels::Labels};
 use trustify_module_ingestor::{
     graph::{advisory::AdvisoryInformation, cvss::ScoreCreator},
     model::IngestResult,
@@ -39,7 +38,6 @@ use trustify_test_context::{
     document_bytes,
 };
 use urlencoding::encode;
-use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -877,8 +875,8 @@ async fn list_advisories_limit_exceeded(ctx: &TrustifyContext) -> Result<(), any
     Ok(())
 }
 
-/// PoC: A user with only `CreateAdvisory` (no `CreateSbom`) can upload an
-/// SPDX SBOM through the advisory endpoint by setting `?format=spdx`.
+/// Uploading an SBOM through the advisory endpoint via `?format=spdx`
+/// must not bypass the `CreateSbom` permission check.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn upload_sbom_via_advisory_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
@@ -894,7 +892,7 @@ async fn upload_sbom_via_advisory_endpoint(ctx: &TrustifyContext) -> Result<(), 
 
     let payload = document_bytes("spdx/simple.json").await?;
 
-    // Control: the same user is rejected on the SBOM endpoint
+    // Control: the SBOM endpoint rejects a user without CreateSbom
     let request = TestRequest::post()
         .uri("/api/v3/sbom")
         .set_payload(payload.clone())
@@ -908,7 +906,7 @@ async fn upload_sbom_via_advisory_endpoint(ctx: &TrustifyContext) -> Result<(), 
         "SBOM endpoint correctly rejects user without CreateSbom"
     );
 
-    // Bypass: the same user succeeds on the advisory endpoint with ?format=spdx
+    // The advisory endpoint must also reject an SBOM upload with ?format=spdx
     let request = TestRequest::post()
         .uri("/api/v3/advisory?format=spdx")
         .set_payload(payload)
@@ -916,19 +914,10 @@ async fn upload_sbom_via_advisory_endpoint(ctx: &TrustifyContext) -> Result<(), 
         .test_auth_details(user_with_advisory_only);
 
     let response = app.call_service(request).await;
-    assert_eq!(
+    assert_ne!(
         response.status(),
         StatusCode::CREATED,
-        "Advisory endpoint accepted an SBOM with ?format=spdx — permission bypass"
-    );
-
-    let result: IngestResult = actix_web::test::read_body_json(response).await;
-
-    let sbom_id: Uuid = result.id.parse()?;
-    let sbom = sbom::Entity::find_by_id(sbom_id).one(&ctx.db).await?;
-    assert!(
-        sbom.is_some(),
-        "SBOM was stored in the sbom table via the advisory endpoint without CreateSbom"
+        "Advisory endpoint must not accept an SBOM without CreateSbom permission"
     );
 
     Ok(())
