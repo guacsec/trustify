@@ -1,0 +1,30 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:tc5751-pastfix-0000-000000000001",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-01-01T00:00:00Z",
+    "component": {
+      "type": "application",
+      "name": "pastfix-app",
+      "bom-ref": "root",
+      "version": "1.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "widget",
+      "bom-ref": "pkg-widget",
+      "version": "1.2.3-1.el8",
+      "purl": "pkg:rpm/redhat/widget@1.2.3-1.el8?arch=x86_64"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": ["pkg-widget"]
+    }
+  ]
+}

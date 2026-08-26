@@ -835,6 +835,122 @@ async fn sbom_details_purlless_cpe_node_consistency(
     Ok(())
 }
 
+/// Reproducer for TC-5641: the SBOM `/advisory` detail and severity-summary
+/// paths must apply `version_matches` to Red Hat `product_status` matches, as
+/// the `/purl` and `/analyze` endpoints already do. A product whose installed
+/// version falls outside the advisory's version range must not be reported.
+///
+/// `CVE-2098-0001` marks package `widget` affected under `cpe:/a:example:product:8`
+/// (version range major 8 → `[8, 9)`). Two SBOMs, each with **no** describing CPE
+/// (so the CPE-context escape hatch is on and the installed version is the only
+/// discriminator):
+/// - `sbom_pastfix` — `widget 1.2.3-1.el8` (outside `[8, 9)`) → must NOT be
+///   reported (fails before the fix — no `version_matches` — passes after).
+/// - `sbom_inrange` — `widget 8.1.0-1.el8` (inside `[8, 9)`) → must still be
+///   reported (true positive preserved).
+///
+/// Also asserts detail count == severity-summary count for both SBOMs (the
+/// TC-5630 detail==list invariant).
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+async fn sbom_details_product_status_version_filtering(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(PaginationCache::for_test());
+
+    const BASE: &str = "cyclonedx/TC-5751";
+
+    // Given a product_status advisory (widget affected under product:8) plus a
+    // past-fix SBOM and an in-range SBOM, neither carrying a describing CPE.
+    ctx.ingest_document(format!("{BASE}/advisory-product-status.json"))
+        .await?;
+    let pastfix = ctx
+        .ingest_document(format!("{BASE}/sbom_pastfix.json"))
+        .await?;
+    let inrange = ctx
+        .ingest_document(format!("{BASE}/sbom_inrange.json"))
+        .await?;
+
+    let pastfix_id = Id::parse_uuid(pastfix.id)?;
+    let inrange_id = Id::parse_uuid(inrange.id)?;
+    let Id::Uuid(pastfix_uuid) = pastfix_id else {
+        panic!("expected a UUID sbom id");
+    };
+    let Id::Uuid(inrange_uuid) = inrange_id else {
+        panic!("expected a UUID sbom id");
+    };
+
+    // Counts every `affected` status entry for a CVE across all advisories.
+    let affected = |details: &SbomDetails, cve: &str| -> usize {
+        details
+            .advisories
+            .iter()
+            .flat_map(|a| a.status.iter())
+            .filter(|s| s.vulnerability.identifier == cve && s.status == "affected")
+            .count()
+    };
+
+    // When fetching the SBOM detail for each.
+    let pastfix_details = sbom
+        .fetch_sbom_details(pastfix_id, vec![], &ctx.db)
+        .await?
+        .expect("past-fix SBOM details must be found");
+    let inrange_details = sbom
+        .fetch_sbom_details(inrange_id, vec![], &ctx.db)
+        .await?
+        .expect("in-range SBOM details must be found");
+
+    // Then: the past-fix widget (1.2.3, outside [8, 9)) is filtered out...
+    assert_eq!(
+        affected(&pastfix_details, "CVE-2098-0001"),
+        0,
+        "past-fix widget 1.2.3-1.el8 must not be reported affected \
+         (outside the product_status [8, 9) range)"
+    );
+    // ...while the in-range widget (8.1.0, inside [8, 9)) is still reported.
+    assert!(
+        affected(&inrange_details, "CVE-2098-0001") >= 1,
+        "in-range widget 8.1.0-1.el8 must still be reported affected"
+    );
+
+    // And the severity summary (batch counts) must agree with the detail count
+    // for both SBOMs -- the detail==list invariant (TC-5630).
+    let counts = sbom
+        .batch_advisory_severity_counts(&[pastfix_uuid, inrange_uuid], &ctx.db)
+        .await?;
+    let pastfix_list: u64 = counts
+        .get(&pastfix_uuid)
+        .map(|c| c.values().sum())
+        .unwrap_or_default();
+    let inrange_list: u64 = counts
+        .get(&inrange_uuid)
+        .map(|c| c.values().sum())
+        .unwrap_or_default();
+    let detail_affected = |details: &SbomDetails| -> u64 {
+        details
+            .advisories
+            .iter()
+            .filter(|a| a.status.iter().any(|s| s.status == "affected"))
+            .count() as u64
+    };
+
+    assert_eq!(
+        pastfix_list,
+        detail_affected(&pastfix_details),
+        "past-fix: severity summary must equal the details affected count"
+    );
+    assert_eq!(
+        inrange_list,
+        detail_affected(&inrange_details),
+        "in-range: severity summary must equal the details affected count"
+    );
+    assert_eq!(pastfix_list, 0, "past-fix widget must not be counted");
+    assert!(inrange_list >= 1, "in-range widget must be counted");
+
+    Ok(())
+}
+
 /// Constructs a `ScoredVector` from its parts, deriving the severity from the type and value.
 fn sv(r#type: ScoreType, value: f64, vector: impl Into<String>) -> ScoredVector {
     ScoredVector {

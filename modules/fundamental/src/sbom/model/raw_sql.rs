@@ -126,7 +126,11 @@ pub fn batch_severity_counts_sql() -> &'static str {
         )
     ),
 
-    -- CPE product_status matches by name
+    -- CPE product_status matches by name. Version-filtered via
+    -- product_version_range → version_range, mirroring purl_version_matches
+    -- and product_advisory_info_sql() so the severity summary agrees with the
+    -- /sbom/{id}/advisory detail (product_version_range_id is NOT NULL, so the
+    -- inner join drops nothing that would otherwise match).
     cpe_matches_name AS (
         SELECT DISTINCT
             sp.sbom_id,
@@ -136,8 +140,11 @@ pub fn batch_severity_counts_sql() -> &'static str {
         JOIN sbom_purl_info sp ON ps.package = sp.name
         JOIN status ON ps.status_id = status.id
         JOIN advisory ON ps.advisory_id = advisory.id
+        JOIN product_version_range pvr ON pvr.id = ps.product_version_range_id
+        JOIN version_range vr ON vr.id = pvr.version_range_id
         WHERE status.slug = 'affected'
           AND advisory.deprecated = false
+          AND version_matches(sp.version, vr.*)
           AND (
               ps.context_cpe_id IS NULL
               OR ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
@@ -155,9 +162,12 @@ pub fn batch_severity_counts_sql() -> &'static str {
         JOIN sbom_purl_info sp ON ps.package = CONCAT(sp.namespace, '/', sp.name)
         JOIN status ON ps.status_id = status.id
         JOIN advisory ON ps.advisory_id = advisory.id
+        JOIN product_version_range pvr ON pvr.id = ps.product_version_range_id
+        JOIN version_range vr ON vr.id = pvr.version_range_id
         WHERE sp.namespace IS NOT NULL
           AND status.slug = 'affected'
           AND advisory.deprecated = false
+          AND version_matches(sp.version, vr.*)
           AND (
               ps.context_cpe_id IS NULL
               OR ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
@@ -362,6 +372,7 @@ pub fn product_advisory_info_sql() -> String {
                 qp.id as qualified_purl_id,
                 bp.name,
                 bp.namespace,
+                vp.version,
                 spr.sbom_id,
                 spr.node_id
             FROM sbom_node_purl_ref spr
@@ -385,7 +396,16 @@ pub fn product_advisory_info_sql() -> String {
                 sp.node_id
             FROM product_status ps
             JOIN sbom_purls sp ON ps.package = sp.name
-            WHERE (ps.context_cpe_id IS NULL
+            -- Filter by installed version, mirroring the purl_status/cpe_status
+            -- paths and the /purl + /analyze endpoints: a product_status whose
+            -- version range does not include the installed version is not
+            -- affected. product_status.product_version_range_id is NOT NULL, so
+            -- an inner join drops nothing (bare known_affected with no version
+            -- never creates a product_status row -- see csaf/creator.rs).
+            JOIN product_version_range pvr ON pvr.id = ps.product_version_range_id
+            JOIN version_range vr ON vr.id = pvr.version_range_id
+            WHERE version_matches(sp.version, vr.*)
+              AND (ps.context_cpe_id IS NULL
                    OR ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
                    OR NOT EXISTS (SELECT 1 FROM filtered_cpes LIMIT 1))
         ),
@@ -403,7 +423,10 @@ pub fn product_advisory_info_sql() -> String {
                 sp.node_id
             FROM product_status ps
             JOIN sbom_purls sp ON ps.package = CONCAT(sp.namespace, '/', sp.name)
+            JOIN product_version_range pvr ON pvr.id = ps.product_version_range_id
+            JOIN version_range vr ON vr.id = pvr.version_range_id
             WHERE sp.namespace IS NOT NULL
+              AND version_matches(sp.version, vr.*)
               AND (ps.context_cpe_id IS NULL
                    OR ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
                    OR NOT EXISTS (SELECT 1 FROM filtered_cpes LIMIT 1))
