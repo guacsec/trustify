@@ -37,6 +37,7 @@ use trustify_test_context::{
     call::CallService,
     document_bytes,
 };
+use rstest::rstest;
 use urlencoding::encode;
 
 #[test_context(TrustifyContext)]
@@ -875,50 +876,155 @@ async fn list_advisories_limit_exceeded(ctx: &TrustifyContext) -> Result<(), any
     Ok(())
 }
 
-/// Uploading an SBOM through the advisory endpoint via `?format=spdx`
-/// must not bypass the `CreateSbom` permission check.
+/// The `?format=` override must not allow uploading a document type that
+/// the endpoint's permission does not cover, and endpoints must enforce
+/// their own permission.
+#[derive(Clone, Copy, Debug)]
+enum Endpoint {
+    Advisory,
+    Sbom,
+}
+
+impl Endpoint {
+    fn uri(self, format: &str) -> String {
+        let base = match self {
+            Self::Advisory => "/api/v3/advisory",
+            Self::Sbom => "/api/v3/sbom",
+        };
+        format!("{base}?format={format}")
+    }
+}
+
 #[test_context(TrustifyContext)]
-#[test(actix_web::test)]
-async fn upload_sbom_via_advisory_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+#[rstest]
+#[case::advisory_accepts_csaf(
+    Endpoint::Advisory,
+    "csaf",
+    "csaf/cve-2023-33201.json",
+    "create.advisory",
+    StatusCode::CREATED
+)] // correct permission + matching format
+#[case::advisory_rejects_spdx(
+    Endpoint::Advisory,
+    "spdx",
+    "spdx/simple.json",
+    "create.advisory",
+    StatusCode::BAD_REQUEST
+)] // wrong format category
+#[case::advisory_rejects_cyclonedx(
+    Endpoint::Advisory,
+    "cyclonedx",
+    "spdx/simple.json",
+    "create.advisory",
+    StatusCode::BAD_REQUEST
+)] // wrong format category
+#[case::advisory_rejects_unknown_sbom(
+    Endpoint::Advisory,
+    "unknown",
+    "spdx/simple.json",
+    "create.advisory",
+    StatusCode::BAD_REQUEST
+)] // unknown narrows to advisory
+#[case::advisory_rejects_sbom_category(
+    Endpoint::Advisory,
+    "sbom",
+    "spdx/simple.json",
+    "create.advisory",
+    StatusCode::BAD_REQUEST
+)] // non-concrete cross-category
+#[case::advisory_forbidden_sbom(
+    Endpoint::Advisory,
+    "csaf",
+    "csaf/cve-2023-33201.json",
+    "create.sbom",
+    StatusCode::FORBIDDEN
+)] // wrong permission
+#[case::advisory_forbidden_exploit(
+    Endpoint::Advisory,
+    "csaf",
+    "csaf/cve-2023-33201.json",
+    "create.exploit",
+    StatusCode::FORBIDDEN
+)] // exploit permission doesn't grant advisory upload
+#[case::sbom_accepts_spdx(
+    Endpoint::Sbom,
+    "spdx",
+    "spdx/simple.json",
+    "create.sbom",
+    StatusCode::CREATED
+)] // correct permission + matching format
+#[case::sbom_rejects_csaf(
+    Endpoint::Sbom,
+    "csaf",
+    "csaf/cve-2023-33201.json",
+    "create.sbom",
+    StatusCode::BAD_REQUEST
+)] // wrong format category
+#[case::sbom_rejects_cve(
+    Endpoint::Sbom,
+    "cve",
+    "csaf/cve-2023-33201.json",
+    "create.sbom",
+    StatusCode::BAD_REQUEST
+)] // wrong format category
+#[case::sbom_rejects_unknown_advisory(
+    Endpoint::Sbom,
+    "unknown",
+    "csaf/cve-2023-33201.json",
+    "create.sbom",
+    StatusCode::BAD_REQUEST
+)] // unknown narrows to sbom
+#[case::sbom_rejects_advisory_category(
+    Endpoint::Sbom,
+    "advisory",
+    "csaf/cve-2023-33201.json",
+    "create.sbom",
+    StatusCode::BAD_REQUEST
+)] // non-concrete cross-category
+#[case::sbom_forbidden_advisory(
+    Endpoint::Sbom,
+    "spdx",
+    "spdx/simple.json",
+    "create.advisory",
+    StatusCode::FORBIDDEN
+)] // wrong permission
+#[case::sbom_forbidden_exploit(
+    Endpoint::Sbom,
+    "spdx",
+    "spdx/simple.json",
+    "create.exploit",
+    StatusCode::FORBIDDEN
+)] // exploit permission doesn't grant sbom upload
+#[test_log::test(actix_web::test)]
+async fn format_permission_enforcement(
+    ctx: &TrustifyContext,
+    #[case] endpoint: Endpoint,
+    #[case] format: &str,
+    #[case] document: &str,
+    #[case] permission: &str,
+    #[case] expected: StatusCode,
+) -> Result<(), anyhow::Error> {
     let app = CallerBuilder::new(ctx)
         .authorizer(Authorizer::new(Some(AuthorizerConfig {})))
         .build()
         .await?;
 
-    let user_with_advisory_only = UserDetails {
+    let user = UserDetails {
         id: "test-user".into(),
-        permissions: vec!["create.advisory".into()],
+        permissions: vec![permission.into()],
     };
 
-    let payload = document_bytes("spdx/simple.json").await?;
+    let payload = document_bytes(document).await?;
+    let uri = endpoint.uri(format);
 
-    // Control: the SBOM endpoint rejects a user without CreateSbom
     let request = TestRequest::post()
-        .uri("/api/v3/sbom")
-        .set_payload(payload.clone())
-        .to_request()
-        .test_auth_details(user_with_advisory_only.clone());
-
-    let response = app.call_service(request).await;
-    assert_eq!(
-        response.status(),
-        StatusCode::FORBIDDEN,
-        "SBOM endpoint correctly rejects user without CreateSbom"
-    );
-
-    // The advisory endpoint must also reject an SBOM upload with ?format=spdx
-    let request = TestRequest::post()
-        .uri("/api/v3/advisory?format=spdx")
+        .uri(&uri)
         .set_payload(payload)
         .to_request()
-        .test_auth_details(user_with_advisory_only);
+        .test_auth_details(user);
 
     let response = app.call_service(request).await;
-    assert_ne!(
-        response.status(),
-        StatusCode::CREATED,
-        "Advisory endpoint must not accept an SBOM without CreateSbom permission"
-    );
+    assert_eq!(response.status(), expected);
 
     Ok(())
 }
