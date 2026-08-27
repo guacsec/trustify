@@ -97,6 +97,17 @@ impl MigrationTraitWithData for Migration {
             .await?;
 
         manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .table(AdvisoryVulnerabilityScore::Table)
+                    .name("idx_adv_vuln_score_advisory_id")
+                    .col(AdvisoryVulnerabilityScore::AdvisoryId)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
             .process(self, async |advisory, id: Id, tx: &DatabaseTransaction| {
                 let mut creator = ScoreCreator::new(id.advisory);
                 match advisory {
