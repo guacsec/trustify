@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787730178805,
+  "lastUpdate": 1787816613507,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21247,6 +21247,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/73513bc9ef21e3c6ff33c41e73c99d49d77fecf8"
         },
         "date": 1787730176567,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "149ad76d828a2edd765b90f82e9310e9e8a24986",
+          "message": "chore: update docs book dependencies",
+          "timestamp": "2026-08-27T06:57:02Z",
+          "tree_id": "3a1162019f38c3a6da55055433c706da424aadac",
+          "url": "https://github.com/guacsec/trustify/commit/149ad76d828a2edd765b90f82e9310e9e8a24986"
+        },
+        "date": 1787816611513,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
