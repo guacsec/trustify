@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787816613507,
+  "lastUpdate": 1787840853587,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21276,6 +21276,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/149ad76d828a2edd765b90f82e9310e9e8a24986"
         },
         "date": 1787816611513,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "bcb55e15564a72c8d7ca3a47193b75cd5e8732b2",
+          "message": "perf(migration): create advisory_id index before data migration\n\nAdd the idx_adv_vuln_score_advisory_id index in m0002010 right after\ntable creation and before the data migration loop. This speeds up the\nScoreCreator's wipe-and-replace DELETE that runs for every advisory\nduring data migration. The later m0002180 migration already uses\nif_not_exists, so it becomes a no-op for fresh installs.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-08-27T13:46:38Z",
+          "tree_id": "7f6e418ea6a20db817e5b9ab61b5f9ac6a6c7faa",
+          "url": "https://github.com/guacsec/trustify/commit/bcb55e15564a72c8d7ca3a47193b75cd5e8732b2"
+        },
+        "date": 1787840851454,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
