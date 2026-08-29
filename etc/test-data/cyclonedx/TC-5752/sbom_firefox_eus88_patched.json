@@ -1,0 +1,28 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:tc5752-firefox-eus-0000-000000002",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-01-01T00:00:00Z",
+    "component": {
+      "type": "operating-system",
+      "name": "rhel-eus",
+      "bom-ref": "root-os",
+      "version": "8.8",
+      "cpe": "cpe:/a:redhat:rhel_eus:8.8::appstream"
+    }
+  },
+  "components": [
+    {
+      "type": "application",
+      "name": "firefox",
+      "bom-ref": "pkg-firefox",
+      "version": "128.2.0-1.el8_8",
+      "purl": "pkg:rpm/redhat/firefox@128.2.0-1.el8_8?arch=x86_64"
+    }
+  ],
+  "dependencies": [
+    { "ref": "root-os", "dependsOn": ["pkg-firefox"] }
+  ]
+}

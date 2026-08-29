@@ -1,0 +1,106 @@
+{
+  "document": {
+    "aggregate_severity": { "text": "Important" },
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "distribution": { "tlp": { "label": "WHITE" } },
+    "lang": "en",
+    "publisher": {
+      "category": "vendor",
+      "name": "Red Hat",
+      "namespace": "https://www.redhat.com"
+    },
+    "title": "TC-5752 version-less known_affected reproducer (firefox)",
+    "tracking": {
+      "current_release_date": "2025-01-15T00:00:00Z",
+      "id": "TC-5752-FIREFOX",
+      "initial_release_date": "2025-01-15T00:00:00Z",
+      "revision_history": [
+        { "date": "2025-01-15T00:00:00Z", "number": "1", "summary": "Initial version" }
+      ],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Red Hat",
+        "branches": [
+          {
+            "category": "product_name",
+            "name": "Red Hat Enterprise Linux 8",
+            "product": {
+              "name": "Red Hat Enterprise Linux 8",
+              "product_id": "rhel_8",
+              "product_identification_helper": { "cpe": "cpe:/o:redhat:enterprise_linux:8" }
+            }
+          },
+          {
+            "category": "product_name",
+            "name": "Red Hat Enterprise Linux 8.8 Extended Update Support",
+            "product": {
+              "name": "Red Hat Enterprise Linux 8.8 EUS",
+              "product_id": "rhel_eus_8.8",
+              "product_identification_helper": { "cpe": "cpe:/a:redhat:rhel_eus:8.8::appstream" }
+            }
+          },
+          {
+            "category": "product_version",
+            "name": "firefox",
+            "product": {
+              "name": "firefox",
+              "product_id": "firefox",
+              "product_identification_helper": { "purl": "pkg:rpm/redhat/firefox" }
+            }
+          },
+          {
+            "category": "product_version",
+            "name": "firefox-0:128.2.0-1.el8_8",
+            "product": {
+              "name": "firefox-0:128.2.0-1.el8_8",
+              "product_id": "firefox_eus",
+              "product_identification_helper": { "purl": "pkg:rpm/redhat/firefox@128.2.0-1.el8_8" }
+            }
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox as a component of Red Hat Enterprise Linux 8",
+          "product_id": "rhel_8:firefox"
+        },
+        "product_reference": "firefox",
+        "relates_to_product_reference": "rhel_8"
+      },
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "firefox as a component of Red Hat Enterprise Linux 8.8 EUS",
+          "product_id": "rhel_eus_8.8:firefox_eus"
+        },
+        "product_reference": "firefox_eus",
+        "relates_to_product_reference": "rhel_eus_8.8"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2098-5732",
+      "notes": [
+        {
+          "category": "description",
+          "text": "Synthetic advisory: main enterprise_linux:8 firefox is known_affected without a version; only the 8.8 EUS sub-stream is fixed."
+        }
+      ],
+      "product_status": {
+        "known_affected": ["rhel_8:firefox"],
+        "fixed": ["rhel_eus_8.8:firefox_eus"]
+      }
+    }
+  ]
+}
