@@ -1,0 +1,30 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:tc5749-no-cpe-00000-000000000003",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-01-01T00:00:00Z",
+    "component": {
+      "type": "application",
+      "name": "no-cpe-app",
+      "bom-ref": "root-nocpe",
+      "version": "1.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "mypkg",
+      "bom-ref": "pkg-mypkg",
+      "version": "1.0.0-1.el8",
+      "purl": "pkg:rpm/redhat/mypkg@1.0.0-1.el8?arch=x86_64"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-nocpe",
+      "dependsOn": ["pkg-mypkg"]
+    }
+  ]
+}

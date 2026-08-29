@@ -585,8 +585,23 @@ impl SbomContext {
         Ok(())
     }
 
-    /// Materializes describing CPE associations from the relationship and CPE ref
-    /// data already inserted for this SBOM into the `sbom_describing_cpe` table.
+    /// Materializes describing CPE associations into the `sbom_describing_cpe`
+    /// table from the relationship and CPE-ref data already inserted for this
+    /// SBOM. Two kinds of CPE qualify as product/OS *context* for the SBOM:
+    ///
+    /// 1. CPEs on nodes participating in a `Describes` relationship
+    ///    (`relationship = 13`) — the SBOM's declared product node, any part.
+    /// 2. Operating-system CPEs (`part = 'o'`) on *any* node. Real RHEL image
+    ///    SBOMs attach the platform CPE (e.g. `cpe:/o:redhat:enterprise_linux:8`)
+    ///    to a child/OS component rather than the `Describes` node. Without this,
+    ///    `sbom_describing_cpe` stays empty for those SBOMs and the CPE-context
+    ///    filter is disabled via its escape hatch, leaking wrong-product /
+    ///    wrong-scheme matches (TC-5170 / TC-5171).
+    ///
+    /// Component-identity CPEs (`part = 'a'`, used by `cpe_status` matching — e.g.
+    /// TC-5630) are deliberately NOT treated as describing context unless they sit
+    /// on a `Describes` node, so package identities are never mistaken for product
+    /// context.
     pub async fn populate_describing_cpes<C: ConnectionTrait>(&self, db: &C) -> Result<(), Error> {
         db.execute(Statement::from_sql_and_values(
             DbBackend::Postgres,
@@ -594,11 +609,13 @@ impl SbomContext {
             INSERT INTO sbom_describing_cpe (sbom_id, cpe_id)
             SELECT DISTINCT spcr.sbom_id, spcr.cpe_id
             FROM sbom_node_cpe_ref spcr
-            JOIN package_relates_to_package prtp
+            JOIN cpe ON cpe.id = spcr.cpe_id
+            LEFT JOIN package_relates_to_package prtp
               ON prtp.sbom_id = spcr.sbom_id
              AND (prtp.right_node_id = spcr.node_id OR prtp.left_node_id = spcr.node_id)
-            WHERE prtp.sbom_id = $1
-              AND prtp.relationship = 13
+             AND prtp.relationship = 13
+            WHERE spcr.sbom_id = $1
+              AND (prtp.sbom_id IS NOT NULL OR cpe.part = 'o')
             ON CONFLICT DO NOTHING
             "#,
             [self.sbom.sbom_id.into()],

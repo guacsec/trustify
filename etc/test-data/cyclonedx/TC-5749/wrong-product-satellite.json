@@ -1,0 +1,91 @@
+{
+  "document": {
+    "aggregate_severity": {
+      "text": "Important"
+    },
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE"
+      }
+    },
+    "lang": "en",
+    "publisher": {
+      "category": "vendor",
+      "name": "Red Hat",
+      "namespace": "https://www.redhat.com"
+    },
+    "title": "TC-5749 wrong-product context reproducer (mypkg tracked only by Satellite)",
+    "tracking": {
+      "current_release_date": "2025-01-15T00:00:00Z",
+      "id": "TC-5749-WRONGPRODUCT",
+      "initial_release_date": "2025-01-15T00:00:00Z",
+      "revision_history": [
+        {
+          "date": "2025-01-15T00:00:00Z",
+          "number": "1",
+          "summary": "Initial version"
+        }
+      ],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Red Hat",
+        "branches": [
+          {
+            "category": "product_name",
+            "name": "Red Hat Satellite 6",
+            "product": {
+              "name": "Red Hat Satellite 6",
+              "product_id": "satellite_6",
+              "product_identification_helper": {
+                "cpe": "cpe:/a:redhat:satellite:6"
+              }
+            }
+          },
+          {
+            "category": "product_version",
+            "name": "mypkg",
+            "product": {
+              "name": "mypkg",
+              "product_id": "mypkg"
+            }
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "mypkg as a component of Red Hat Satellite 6",
+          "product_id": "satellite_6:mypkg"
+        },
+        "product_reference": "mypkg",
+        "relates_to_product_reference": "satellite_6"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2024-77749",
+      "notes": [
+        {
+          "category": "description",
+          "text": "Synthetic vulnerability affecting mypkg only under the Red Hat Satellite product context."
+        }
+      ],
+      "product_status": {
+        "known_affected": [
+          "satellite_6:mypkg"
+        ]
+      }
+    }
+  ]
+}
