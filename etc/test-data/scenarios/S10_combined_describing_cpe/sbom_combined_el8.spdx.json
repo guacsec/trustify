@@ -1,0 +1,92 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "rhel",
+  "documentNamespace": "https://trust-breaker/s10/combined",
+  "creationInfo": {
+    "created": "2026-08-21T00:00:00Z",
+    "creators": [
+      "Tool: trust-breaker-0.1"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-root-s10"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-root-s10",
+      "name": "rhel",
+      "versionInfo": "8.10",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe22Type",
+          "referenceLocator": "cpe:/o:redhat:enterprise_linux:8::baseos"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-pkg-openssl",
+      "name": "openssl",
+      "versionInfo": "1:1.1.1k-7.el8",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=x86_64&epoch=1&distro=rhel-8.10&upstream=openssl-1.1.1k-7.el8.src.rpm"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-pkg-urllib3",
+      "name": "urllib3",
+      "versionInfo": "1.26.17",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:pypi/urllib3@1.26.17"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-pkg-bind-libs",
+      "name": "bind-libs",
+      "versionInfo": "32:9.11.36-16.el8_10.8",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/bind-libs@9.11.36-16.el8_10.8?arch=x86_64&epoch=32&distro=rhel-8.10&upstream=bind-9.11.36-16.el8_10.8.src.rpm"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-root-s10"
+    },
+    {
+      "spdxElementId": "SPDXRef-root-s10",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-pkg-openssl"
+    },
+    {
+      "spdxElementId": "SPDXRef-root-s10",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-pkg-urllib3"
+    },
+    {
+      "spdxElementId": "SPDXRef-root-s10",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-pkg-bind-libs"
+    }
+  ]
+}

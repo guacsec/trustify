@@ -1,0 +1,56 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "rhel",
+  "documentNamespace": "https://trust-breaker/s11/ff-eus88",
+  "creationInfo": {
+    "created": "2026-08-21T00:00:00Z",
+    "creators": [
+      "Tool: trust-breaker-0.1"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-root-eus88"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-root-eus88",
+      "name": "rhel",
+      "versionInfo": "8.8",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe22Type",
+          "referenceLocator": "cpe:/a:redhat:rhel_eus:8.8::appstream"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-pkg-ff",
+      "name": "firefox",
+      "versionInfo": "128.2.0-1.el8_8",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/firefox@128.2.0-1.el8_8?arch=x86_64&epoch=0&distro=rhel-8.8&upstream=firefox-128.2.0-1.el8_8.src.rpm"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-root-eus88"
+    },
+    {
+      "spdxElementId": "SPDXRef-root-eus88",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-pkg-ff"
+    }
+  ]
+}

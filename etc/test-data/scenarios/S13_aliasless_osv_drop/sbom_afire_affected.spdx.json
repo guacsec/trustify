@@ -1,0 +1,45 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "s13-afire-affected-spdx",
+  "documentNamespace": "https://trust-breaker/s13/afire-affected-spdx",
+  "creationInfo": {
+    "created": "2026-08-21T00:00:00Z",
+    "creators": ["Tool: trust-breaker-0.1"]
+  },
+  "documentDescribes": ["SPDXRef-root"],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-root",
+      "name": "s13-afire-affected",
+      "versionInfo": "1",
+      "downloadLocation": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-afire",
+      "name": "afire",
+      "versionInfo": "1.0.0",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/afire@1.0.0"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-root"
+    },
+    {
+      "spdxElementId": "SPDXRef-root",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-afire"
+    }
+  ]
+}

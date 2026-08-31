@@ -1,0 +1,44 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "redhat-storage",
+  "documentNamespace": "https://trust-breaker/s2/storage3-inrange",
+  "creationInfo": {
+    "created": "2026-08-21T00:00:00Z",
+    "creators": ["Tool: trust-breaker-0.1"]
+  },
+  "documentDescribes": ["SPDXRef-root-stor3"],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-root-stor3",
+      "name": "redhat-storage",
+      "versionInfo": "3",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe22Type",
+          "referenceLocator": "cpe:/a:redhat:storage:3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-golang",
+      "name": "golang",
+      "versionInfo": "3.5.0",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/golang@3.5.0?arch=x86_64&epoch=0"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    { "spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES", "relatedSpdxElement": "SPDXRef-root-stor3" },
+    { "spdxElementId": "SPDXRef-root-stor3", "relationshipType": "CONTAINS", "relatedSpdxElement": "SPDXRef-golang" }
+  ]
+}
