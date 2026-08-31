@@ -1,0 +1,20 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:14140000-0000-4000-8000-1414nettysso7", "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-sso7", "type": "application",
+      "name": "rh-sso", "version": "7.6",
+      "cpe": "cpe:/a:redhat:red_hat_single_sign_on:7"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg-netty", "type": "library",
+      "name": "netty-codec-http", "group": "io.netty", "version": "4.1.45.Final-redhat-00001",
+      "purl": "pkg:maven/io.netty/netty-codec-http@4.1.45.Final-redhat-00001?type=jar"
+    }
+  ],
+  "dependencies": [ { "ref": "root-sso7", "dependsOn": ["pkg-netty"] } ]
+}

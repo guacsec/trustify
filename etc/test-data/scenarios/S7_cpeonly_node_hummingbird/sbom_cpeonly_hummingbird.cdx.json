@@ -1,0 +1,16 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:07070000-0000-4000-8000-0707cpeonly0", "version": 1,
+  "metadata": { "component": { "bom-ref": "root-s7", "type": "application", "name": "s7-cpeonly-target", "version": "1" } },
+  "components": [
+    {
+      "bom-ref": "os:hummingbird@1",
+      "type": "operating-system",
+      "name": "hummingbird",
+      "version": "1",
+      "cpe": "cpe:2.3:a:redhat:hummingbird:1:*:*:*:*:*:*:*"
+    }
+  ],
+  "dependencies": [ { "ref": "root-s7", "dependsOn": ["os:hummingbird@1"] } ]
+}

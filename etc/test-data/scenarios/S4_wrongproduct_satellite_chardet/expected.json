@@ -1,0 +1,26 @@
+{
+  "advisories": [
+    "cve/CVE-2018-11751.json",
+    "cve/CVE-2018-3258.json",
+    "cve/CVE-2019-0231.json",
+    "vex/CVE-2018-11751.json",
+    "vex/CVE-2018-3258.json",
+    "vex/CVE-2019-0231.json"
+  ],
+  "sboms": {
+    "sbom_python3-chardet_el8": {
+      "correct": {
+        "CVE-2018-11751": "not_affected",
+        "CVE-2018-3258": "not_affected",
+        "CVE-2019-0231": "not_affected"
+      }
+    },
+    "sbom_python3-chardet_el8_el8cpe": {
+      "correct": {
+        "CVE-2018-11751": "not_affected",
+        "CVE-2018-3258": "not_affected",
+        "CVE-2019-0231": "not_affected"
+      }
+    }
+  }
+}

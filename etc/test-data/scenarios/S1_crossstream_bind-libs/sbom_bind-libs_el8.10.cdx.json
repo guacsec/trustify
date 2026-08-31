@@ -1,0 +1,35 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:5b1d9c00-0000-4000-8000-b1nd11b5e810",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-s1",
+      "type": "application",
+      "name": "s1-crossstream-target",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "os-el8",
+      "type": "operating-system",
+      "name": "rhel",
+      "version": "8.10",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos"
+    },
+    {
+      "bom-ref": "pkg-bind-libs",
+      "type": "library",
+      "publisher": "Red Hat, Inc.",
+      "name": "bind-libs",
+      "version": "32:9.11.36-16.el8_10.8",
+      "purl": "pkg:rpm/redhat/bind-libs@9.11.36-16.el8_10.8?arch=x86_64&distro=rhel-8.10&epoch=32&upstream=bind-9.11.36-16.el8_10.8.src.rpm"
+    }
+  ],
+  "dependencies": [
+    { "ref": "root-s1", "dependsOn": ["os-el8", "pkg-bind-libs"] }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:0dc80000-0000-4000-8000-0dc8ep0ch000",
+  "version": 1,
+  "metadata": {
+    "component": { "bom-ref": "root-s8", "type": "application", "name": "s8-epoch-noepoch-target", "version": "1" }
+  },
+  "components": [
+    { "bom-ref": "os-el8", "type": "operating-system", "name": "rhel", "version": "8.10", "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos" },
+    { "bom-ref": "pkg-openjdk", "type": "library", "name": "java-1.8.0-openjdk", "version": "1.8.0.492.b09-1.el8",
+      "purl": "pkg:rpm/redhat/java-1.8.0-openjdk@1.8.0.492.b09-1.el8?arch=x86_64&distro=rhel-8.10&upstream=java-1.8.0-openjdk-1.8.0.492.b09-1.el8.src.rpm" }
+  ],
+  "dependencies": [ { "ref": "root-s8", "dependsOn": ["os-el8", "pkg-openjdk"] } ]
+}

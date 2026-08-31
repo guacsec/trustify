@@ -1,0 +1,30 @@
+{
+  "advisories": [
+    "cve/CVE-2022-4304.json",
+    "cve/CVE-2023-45803.json",
+    "cve/CVE-2024-4076.json",
+    "vex/CVE-2022-4304.json",
+    "vex/CVE-2024-4076.json",
+    "vex/CVE-2024-6602.json",
+    "osv/GHSA-g4mx-q9vg-27p4.json"
+  ],
+  "sboms": {
+    "sbom_combined_el8": {
+      "correct": {
+        "CVE-2022-4304": "affected",
+        "CVE-2023-45803": "affected",
+        "CVE-2024-4076": "not_affected"
+      }
+    },
+    "sbom_thunderbird_el8_root-cpe": {
+      "correct": {
+        "CVE-2024-6602": "not_affected"
+      }
+    },
+    "sbom_thunderbird_el8_child-cpe": {
+      "correct": {
+        "CVE-2024-6602": "not_affected"
+      }
+    }
+  }
+}

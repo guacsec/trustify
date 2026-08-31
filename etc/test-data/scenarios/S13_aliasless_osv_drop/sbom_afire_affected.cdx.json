@@ -1,0 +1,11 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:13130000-0000-4000-8000-1313afire01", "version": 1,
+  "metadata": { "component": { "bom-ref": "root-s13-afire", "type": "application", "name": "s13-afire-affected", "version": "1" } },
+  "components": [
+    { "bom-ref": "pkg-afire", "type": "library", "name": "afire", "version": "1.0.0",
+      "purl": "pkg:cargo/afire@1.0.0" }
+  ],
+  "dependencies": [ { "ref": "root-s13-afire", "dependsOn": ["pkg-afire"] } ]
+}

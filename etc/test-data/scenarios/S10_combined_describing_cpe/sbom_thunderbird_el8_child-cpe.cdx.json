@@ -1,0 +1,15 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:eeee0000-0000-4000-8000-eus0childcpe", "version": 1,
+  "metadata": {
+    "component": { "bom-ref": "root-eus-b", "type": "application", "name": "eus-target-app", "version": "1" }
+  },
+  "components": [
+    { "bom-ref": "os-el8", "type": "operating-system", "name": "rhel-os", "version": "8.10",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos" },
+    { "bom-ref": "pkg-tb", "type": "application", "name": "thunderbird", "version": "115.10.1-1.el8",
+      "purl": "pkg:rpm/redhat/thunderbird@115.10.1-1.el8?arch=x86_64&epoch=0&distro=rhel-8.10&upstream=thunderbird-115.10.1-1.el8.src.rpm" }
+  ],
+  "dependencies": [ { "ref": "root-eus-b", "dependsOn": ["os-el8","pkg-tb"] } ]
+}

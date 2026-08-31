@@ -1,0 +1,11 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:06060000-0000-4000-8000-0606patched", "version": 1,
+  "metadata": { "component": { "bom-ref": "root-s6-pat", "type": "application", "name": "s6-urllib3-patched", "version": "1" } },
+  "components": [
+    { "bom-ref": "pkg-urllib3", "type": "library", "name": "urllib3", "version": "1.26.18",
+      "purl": "pkg:pypi/urllib3@1.26.18" }
+  ],
+  "dependencies": [ { "ref": "root-s6-pat", "dependsOn": ["pkg-urllib3"] } ]
+}

@@ -1,0 +1,22 @@
+{
+  "advisories": [
+    "cve/CVE-2022-4304.json",
+    "cve/CVE-2023-0215.json",
+    "vex/CVE-2022-4304.json",
+    "vex/CVE-2023-0215.json"
+  ],
+  "sboms": {
+    "sbom_openssl_el8_below-fix": {
+      "correct": {
+        "CVE-2022-4304": "affected",
+        "CVE-2023-0215": "affected"
+      }
+    },
+    "sbom_openssl_el8_at-fix": {
+      "correct": {
+        "CVE-2022-4304": "not_affected",
+        "CVE-2023-0215": "not_affected"
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "advisories": [
+    "vex/CVE-2023-6135.json"
+  ],
+  "sboms": {
+    "sbom_firefox_main_el8": {
+      "correct": {
+        "CVE-2023-6135": "affected"
+      }
+    },
+    "sbom_firefox_eus8.8_patched": {
+      "correct": {
+        "CVE-2023-6135": "not_affected"
+      }
+    }
+  }
+}
