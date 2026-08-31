@@ -177,13 +177,11 @@ async fn ingest_scenario_advisories(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5640: cross-stream RPM version matching not yet fixed"]
 #[test_log::test(actix_web::test)]
 async fn s1_crossstream_bind_libs(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -291,13 +289,11 @@ async fn s1_crossstream_bind_libs(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5170: product_status version scheme not checked"]
 #[test_log::test(actix_web::test)]
 async fn s2_wrongscheme_golang_oci(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -375,13 +371,11 @@ async fn s2_wrongscheme_golang_oci(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5171: product_status CPE context not checked"]
 #[test_log::test(actix_web::test)]
 async fn s3_wrongproduct_hummingbird_curl(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -456,13 +450,11 @@ async fn s3_wrongproduct_hummingbird_curl(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5171: product_status CPE context not checked"]
 #[test_log::test(actix_web::test)]
 async fn s4_wrongproduct_satellite_chardet(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -518,11 +510,12 @@ async fn s4_wrongproduct_satellite_chardet(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5641: product_status path skips version_matches on /sbom/advisory"]
 #[test_log::test(actix_web::test)]
-async fn s5_at_fix_openssl(ctx: &TrustifyContext, #[case] fmt: &str) -> Result<(), anyhow::Error> {
+async fn s5_at_fix_openssl(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
         "S5_positive_baseline_openssl_el8",
@@ -573,12 +566,10 @@ async fn s5_at_fix_openssl(ctx: &TrustifyContext, #[case] fmt: &str) -> Result<(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[test_log::test(actix_web::test)]
 async fn s6_osv_baseline_urllib3(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -652,12 +643,10 @@ async fn s6_osv_baseline_urllib3(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[test_log::test(actix_web::test)]
 async fn s7_cpe_only_hummingbird(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -696,13 +685,11 @@ async fn s7_cpe_only_hummingbird(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5733: rpmver_cmp ignores RPM epoch (latent until version_matches on affected path)"]
 #[test_log::test(actix_web::test)]
 async fn s8_epoch_mismatch_openjdk(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -760,13 +747,11 @@ async fn s8_epoch_mismatch_openjdk(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5640: sub-stream cross-matching within same RHEL major"]
 #[test_log::test(actix_web::test)]
 async fn s9_substream_openssl(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -812,13 +797,11 @@ async fn s9_substream_openssl(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5750/TC-5730: CPE-context filter and known_not_affected not fully working"]
 #[test_log::test(actix_web::test)]
 async fn s10_describing_cpe_baseline(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -885,13 +868,11 @@ async fn s10_describing_cpe_baseline(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5732: version-less known_affected produces no matchable row"]
 #[test_log::test(actix_web::test)]
 async fn s11_bare_known_affected_firefox(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -937,13 +918,11 @@ async fn s11_bare_known_affected_firefox(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5730: known_not_affected is never honored"]
 #[test_log::test(actix_web::test)]
 async fn s12_not_affected_ignored_thunderbird(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -982,13 +961,11 @@ async fn s12_not_affected_ignored_thunderbird(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5731: OSV advisory with no CVE alias is dropped from correlation"]
 #[test_log::test(actix_web::test)]
 async fn s13_aliasless_osv_afire(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
@@ -1026,13 +1003,11 @@ async fn s13_aliasless_osv_afire(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[case::cdx("cdx")]
-#[case::spdx("spdx")]
 #[ignore = "TC-5750: product_status version-filter guard"]
 #[test_log::test(actix_web::test)]
 async fn s14_productstatus_version_filter_netty(
     ctx: &TrustifyContext,
-    #[case] fmt: &str,
+    #[values("cdx", "spdx")] fmt: &str,
 ) -> Result<(), anyhow::Error> {
     ingest_scenario_advisories(
         ctx,
