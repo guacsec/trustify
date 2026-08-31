@@ -5,9 +5,7 @@ use test_log::test;
 use trustify_test_context::{TrustifyContext, call::CallService};
 
 use crate::{
-    purl::model::details::purl::PurlDetails,
-    sbom::model::details::SbomAdvisory,
-    test::caller,
+    purl::model::details::purl::PurlDetails, sbom::model::details::SbomAdvisory, test::caller,
     vulnerability::model::AnalysisResponseV3,
 };
 
@@ -15,10 +13,15 @@ use crate::{
 // Assertion helpers
 // ---------------------------------------------------------------------------
 
+/// Collect all vulnerability identifiers from a `GET /sbom/{id}/advisory` response.
 fn advisory_cves(advisories: &[SbomAdvisory]) -> Vec<&str> {
     advisories
         .iter()
-        .flat_map(|adv| adv.status.iter().map(|s| s.vulnerability.identifier.as_str()))
+        .flat_map(|adv| {
+            adv.status
+                .iter()
+                .map(|s| s.vulnerability.identifier.as_str())
+        })
         .collect()
 }
 
@@ -38,6 +41,7 @@ fn assert_advisory_no_cve(advisories: &[SbomAdvisory], cve: &str) {
     );
 }
 
+/// Collect all vulnerability identifiers from a `POST /vulnerability/analyze` response for a given PURL.
 fn analyze_cves<'a>(response: &'a AnalysisResponseV3, purl: &str) -> Vec<&'a str> {
     response
         .get(purl)
@@ -66,6 +70,7 @@ fn assert_analyze_no_cve(response: &AnalysisResponseV3, purl: &str, cve: &str) {
     );
 }
 
+/// Collect vulnerability identifiers with status `"affected"` from a `GET /purl/{key}` response.
 fn purl_affected_cves(details: &PurlDetails) -> Vec<&str> {
     details
         .advisories
@@ -99,6 +104,7 @@ fn assert_purl_no_cve(details: &PurlDetails, cve: &str) {
 // Request helpers
 // ---------------------------------------------------------------------------
 
+/// Query `GET /api/v3/sbom/{id}/advisory` and deserialize the response.
 async fn get_sbom_advisories(app: &impl CallService, sbom_id: &str) -> Vec<SbomAdvisory> {
     app.call_and_read_body_json(
         TestRequest::get()
@@ -108,6 +114,7 @@ async fn get_sbom_advisories(app: &impl CallService, sbom_id: &str) -> Vec<SbomA
     .await
 }
 
+/// Query `POST /api/v3/vulnerability/analyze` with the given PURLs and deserialize the response.
 async fn post_analyze(app: &impl CallService, purls: &[&str]) -> AnalysisResponseV3 {
     app.call_and_read_body_json(
         TestRequest::post()
@@ -118,6 +125,7 @@ async fn post_analyze(app: &impl CallService, purls: &[&str]) -> AnalysisRespons
     .await
 }
 
+/// Query `GET /api/v3/purl/{key}` with the URL-encoded PURL and deserialize the response.
 async fn get_purl_details(app: &impl CallService, purl: &str) -> PurlDetails {
     app.call_and_read_body_json(
         TestRequest::get()
@@ -128,10 +136,10 @@ async fn get_purl_details(app: &impl CallService, purl: &str) -> PurlDetails {
 }
 
 // ---------------------------------------------------------------------------
-// Scenario helper: resolve VEX file paths (append .xz if the compressed
-// version exists, otherwise use the plain .json)
+// Scenario helpers
 // ---------------------------------------------------------------------------
 
+/// Resolve an advisory file path, preferring the `.xz`-compressed variant when it exists on disk.
 fn resolve_advisory_path(relative: &str) -> String {
     let workspace: std::path::PathBuf = env!("CARGO_WORKSPACE_ROOT").into();
     let base = workspace.join("etc/test-data").join(relative);
