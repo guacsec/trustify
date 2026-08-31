@@ -605,6 +605,9 @@ async fn s6_osv_baseline_urllib3(ctx: &TrustifyContext) -> Result<(), anyhow::Er
 // An SBOM component with a CPE but no PURL. The list count includes CVEs
 // matched via CPE identity, but the detail endpoint drops them because it
 // requires a qualified_purl_id.
+//
+// Only /sbom/{id}/advisory is tested — /vulnerability/analyze and /purl/{key}
+// require a PURL, which this CPE-only node does not have.
 // ===========================================================================
 
 #[test_context(TrustifyContext)]
