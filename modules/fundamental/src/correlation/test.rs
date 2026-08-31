@@ -1,109 +1,96 @@
 use actix_web::test::TestRequest;
-use serde_json::{Value, json};
+use serde_json::json;
 use test_context::test_context;
 use test_log::test;
 use trustify_test_context::{TrustifyContext, call::CallService};
 
-use crate::test::caller;
+use crate::{
+    purl::model::details::purl::PurlDetails,
+    sbom::model::details::SbomAdvisory,
+    test::caller,
+    vulnerability::model::AnalysisResponseV3,
+};
 
 // ---------------------------------------------------------------------------
 // Assertion helpers
 // ---------------------------------------------------------------------------
 
-fn advisory_cves(advisories: &Value) -> Vec<String> {
-    let empty = vec![];
+fn advisory_cves(advisories: &[SbomAdvisory]) -> Vec<&str> {
     advisories
-        .as_array()
-        .unwrap_or(&empty)
         .iter()
-        .flat_map(|adv| {
-            let empty = vec![];
-            adv["status"]
-                .as_array()
-                .unwrap_or(&empty)
-                .iter()
-                .filter_map(|s| s["identifier"].as_str().map(String::from))
-                .collect::<Vec<_>>()
-        })
+        .flat_map(|adv| adv.status.iter().map(|s| s.vulnerability.identifier.as_str()))
         .collect()
 }
 
-fn assert_advisory_has_cve(advisories: &Value, cve: &str) {
+fn assert_advisory_has_cve(advisories: &[SbomAdvisory], cve: &str) {
     let cves = advisory_cves(advisories);
     assert!(
-        cves.iter().any(|c| c == cve),
+        cves.contains(&cve),
         "Expected /sbom/advisory to contain {cve}, but got: {cves:?}"
     );
 }
 
-fn assert_advisory_no_cve(advisories: &Value, cve: &str) {
+fn assert_advisory_no_cve(advisories: &[SbomAdvisory], cve: &str) {
     let cves = advisory_cves(advisories);
     assert!(
-        !cves.iter().any(|c| c == cve),
+        !cves.contains(&cve),
         "Expected /sbom/advisory NOT to contain {cve}, but it was present"
     );
 }
 
-/// Collect all CVE identifiers from a `/vulnerability/analyze` response for a
-/// given PURL key.
-fn analyze_cves(response: &Value, purl: &str) -> Vec<String> {
-    response[purl]["details"]
-        .as_array()
-        .unwrap_or(&vec![])
-        .iter()
-        .filter_map(|d| d["identifier"].as_str().map(String::from))
-        .collect()
+fn analyze_cves<'a>(response: &'a AnalysisResponseV3, purl: &str) -> Vec<&'a str> {
+    response
+        .get(purl)
+        .map(|r| {
+            r.details
+                .iter()
+                .map(|d| d.head.identifier.as_str())
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
-fn assert_analyze_has_cve(response: &Value, purl: &str, cve: &str) {
+fn assert_analyze_has_cve(response: &AnalysisResponseV3, purl: &str, cve: &str) {
     let cves = analyze_cves(response, purl);
     assert!(
-        cves.iter().any(|c| c == cve),
+        cves.contains(&cve),
         "Expected /vulnerability/analyze[{purl}] to contain {cve}, but got: {cves:?}"
     );
 }
 
-fn assert_analyze_no_cve(response: &Value, purl: &str, cve: &str) {
+fn assert_analyze_no_cve(response: &AnalysisResponseV3, purl: &str, cve: &str) {
     let cves = analyze_cves(response, purl);
     assert!(
-        !cves.iter().any(|c| c == cve),
+        !cves.contains(&cve),
         "Expected /vulnerability/analyze[{purl}] NOT to contain {cve}, but it was present"
     );
 }
 
-/// Collect all CVE identifiers from a `/purl/{key}` response that have status
-/// "affected".
-fn purl_affected_cves(details: &Value) -> Vec<String> {
-    let empty = vec![];
-    details["advisories"]
-        .as_array()
-        .unwrap_or(&empty)
+fn purl_affected_cves(details: &PurlDetails) -> Vec<&str> {
+    details
+        .advisories
         .iter()
         .flat_map(|adv| {
-            let empty = vec![];
-            adv["status"]
-                .as_array()
-                .unwrap_or(&empty)
+            adv.status
                 .iter()
-                .filter(|s| s["status"].as_str() == Some("affected"))
-                .filter_map(|s| s["vulnerability"]["identifier"].as_str().map(String::from))
-                .collect::<Vec<_>>()
+                .filter(|s| s.status == "affected")
+                .map(|s| s.vulnerability.identifier.as_str())
         })
         .collect()
 }
 
-fn assert_purl_has_cve(details: &Value, cve: &str) {
+fn assert_purl_has_cve(details: &PurlDetails, cve: &str) {
     let cves = purl_affected_cves(details);
     assert!(
-        cves.iter().any(|c| c == cve),
+        cves.contains(&cve),
         "Expected /purl to show {cve} as affected, but got: {cves:?}"
     );
 }
 
-fn assert_purl_no_cve(details: &Value, cve: &str) {
+fn assert_purl_no_cve(details: &PurlDetails, cve: &str) {
     let cves = purl_affected_cves(details);
     assert!(
-        !cves.iter().any(|c| c == cve),
+        !cves.contains(&cve),
         "Expected /purl NOT to show {cve} as affected, but it was present"
     );
 }
@@ -112,7 +99,7 @@ fn assert_purl_no_cve(details: &Value, cve: &str) {
 // Request helpers
 // ---------------------------------------------------------------------------
 
-async fn get_sbom_advisories(app: &impl CallService, sbom_id: &str) -> Value {
+async fn get_sbom_advisories(app: &impl CallService, sbom_id: &str) -> Vec<SbomAdvisory> {
     app.call_and_read_body_json(
         TestRequest::get()
             .uri(&format!("/api/v3/sbom/urn:uuid:{sbom_id}/advisory"))
@@ -121,7 +108,7 @@ async fn get_sbom_advisories(app: &impl CallService, sbom_id: &str) -> Value {
     .await
 }
 
-async fn post_analyze(app: &impl CallService, purls: &[&str]) -> Value {
+async fn post_analyze(app: &impl CallService, purls: &[&str]) -> AnalysisResponseV3 {
     app.call_and_read_body_json(
         TestRequest::post()
             .uri("/api/v3/vulnerability/analyze")
@@ -131,7 +118,7 @@ async fn post_analyze(app: &impl CallService, purls: &[&str]) -> Value {
     .await
 }
 
-async fn get_purl_details(app: &impl CallService, purl: &str) -> Value {
+async fn get_purl_details(app: &impl CallService, purl: &str) -> PurlDetails {
     app.call_and_read_body_json(
         TestRequest::get()
             .uri(&format!("/api/v3/purl/{}", urlencoding::encode(purl)))
