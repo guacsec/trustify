@@ -4,6 +4,7 @@ pub mod limiter;
 pub mod multi_model;
 pub mod pagination_cache;
 pub mod query;
+pub mod rds_iam;
 
 mod create;
 mod func;
@@ -11,22 +12,27 @@ mod func;
 pub use create::*;
 pub use func::*;
 
+use crate::config::Database as DatabaseConfig;
+
 use actix_web::{HttpResponse, ResponseError};
 use anyhow::Context;
-use reqwest::Url;
+use url::Url;
 use sea_orm::{
     AccessMode, ConnectOptions, ConnectionTrait, DatabaseConnection, DatabaseTransaction,
-    DbBackend, DbErr, ExecResult, IsolationLevel, QueryResult, RuntimeErr, Statement, StreamTrait,
-    TransactionError, TransactionTrait, prelude::async_trait,
+    DbBackend, DbErr, ExecResult, IsolationLevel, QueryResult, RuntimeErr, SqlxPostgresConnector,
+    Statement, StreamTrait, TransactionError, TransactionTrait, prelude::async_trait,
 };
 use sea_orm_migration::{IntoSchemaManagerConnection, SchemaManagerConnection};
+use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions, PgSslMode};
 use std::{
     fmt::Display,
     ops::{Deref, DerefMut},
     pin::Pin,
     str::FromStr,
+    sync::Arc,
     time::Duration,
 };
+use tokio::{spawn, sync::oneshot, time};
 use tracing::instrument;
 
 /// Begin a REPEATABLE READ transaction for consistent read operations.
@@ -103,11 +109,23 @@ pub struct Database {
     db: DatabaseConnection,
     /// the database name
     name: String,
+    /// Keeps the RDS IAM token refresher task alive for exactly as long as any `Database`
+    /// clone lives. Non-IAM connections have no refresher, so this is `None` for them. When
+    /// the last clone is dropped, this shutdown sender is dropped, closing the oneshot channel
+    /// the task selects on; the task then exits, drops its `PgPool` clone, and lets the pool
+    /// (and its connections) be released.
+    _iam_refresher: Option<Arc<oneshot::Sender<()>>>,
 }
 
 impl Database {
     #[instrument(skip(database), fields(database = ?crate::redact::HideString(database, &database.password.0)), err(level=tracing::Level::INFO))]
-    pub async fn new(database: &crate::config::Database) -> Result<Self, anyhow::Error> {
+    pub async fn new(database: &DatabaseConfig) -> Result<Self, anyhow::Error> {
+        // RDS/Aurora IAM authentication uses a short-lived, auto-refreshed token as the
+        // password and requires a dedicated, self-refreshing connection pool.
+        if database.iam_auth {
+            return Self::new_with_iam_auth(database).await;
+        }
+
         let url = database.to_url();
 
         if log::log_enabled!(log::Level::Debug) {
@@ -135,7 +153,67 @@ impl Database {
         let db = sea_orm::Database::connect(opt).await?;
         let name = database.name.clone();
 
-        Ok(Self { db, name })
+        Ok(Self {
+            db,
+            name,
+            _iam_refresher: None,
+        })
+    }
+
+    /// Connect using AWS RDS/Aurora IAM authentication.
+    ///
+    /// Unlike [`Self::new`], the password is a short-lived IAM token rather than a static
+    /// secret. Because tokens expire (see [`rds_iam::RDS_IAM_TOKEN_EXPIRY`]) but a
+    /// connection pool opens new physical connections over its lifetime, this builds the
+    /// pool directly with `sqlx` and spawns a background task that regenerates the token
+    /// and swaps it into the pool via [`sqlx::Pool::set_connect_options`]. Every *new*
+    /// connection then authenticates with a fresh token; already-open connections keep
+    /// working past expiry.
+    #[instrument(skip(database), fields(host = database.host, name = database.name), err(level=tracing::Level::INFO))]
+    async fn new_with_iam_auth(database: &DatabaseConfig) -> Result<Self, anyhow::Error> {
+        anyhow::ensure!(
+            database.url.is_none(),
+            "'--db-url' cannot be combined with IAM authentication"
+        );
+        let (region, ssl_mode) = iam_auth_params(database)?;
+
+        log::info!(
+            "connecting to {}:{} db '{}' as '{}' using RDS IAM authentication (region: {region}, sslmode: {ssl_mode:?})",
+            database.host,
+            database.port,
+            database.name,
+            database.username,
+        );
+
+        let token = rds_iam::generate_rds_iam_token(
+            &database.host,
+            database.port,
+            &database.username,
+            &region,
+        )
+        .await
+        .context("failed to generate initial RDS IAM auth token")?;
+
+        let pool = PgPoolOptions::new()
+            .max_connections(database.max_conn)
+            .min_connections(database.min_conn)
+            .acquire_timeout(Duration::from_secs(database.acquire_timeout))
+            .max_lifetime(Duration::from_secs(database.max_lifetime))
+            .idle_timeout(Duration::from_secs(database.idle_timeout))
+            .connect_with(pg_connect_options(database, ssl_mode, &token))
+            .await
+            .context("failed to connect to database using RDS IAM authentication")?;
+
+        let shutdown = spawn_iam_token_refresher(pool.clone(), database.clone(), region, ssl_mode);
+
+        let db = SqlxPostgresConnector::from_sqlx_postgres_pool(pool);
+        let name = database.name.clone();
+
+        Ok(Self {
+            db,
+            name,
+            _iam_refresher: Some(Arc::new(shutdown)),
+        })
     }
 
     #[instrument(skip(self), err(level=tracing::Level::INFO))]
@@ -675,6 +753,182 @@ fn strip_password(url: String) -> String {
     }
 }
 
+/// Map trustify's [`crate::config::SslMode`] to sqlx's [`PgSslMode`].
+impl From<crate::config::SslMode> for PgSslMode {
+    fn from(mode: crate::config::SslMode) -> Self {
+        use crate::config::SslMode;
+        match mode {
+            SslMode::Disable => PgSslMode::Disable,
+            SslMode::Allow => PgSslMode::Allow,
+            SslMode::Prefer => PgSslMode::Prefer,
+            SslMode::Require => PgSslMode::Require,
+            SslMode::VerifyCa => PgSslMode::VerifyCa,
+            SslMode::VerifyFull => PgSslMode::VerifyFull,
+        }
+    }
+}
+
+/// Ensure the SSL mode enforces encryption, as required by RDS IAM authentication.
+///
+/// Modes weaker than `Require` (which permit an unencrypted connection) are rejected so the
+/// misconfiguration surfaces explicitly, rather than being silently overridden; `Require` and
+/// the stricter modes (`VerifyCa`, `VerifyFull`) are accepted as configured.
+fn require_tls(mode: PgSslMode) -> Result<PgSslMode, anyhow::Error> {
+    match mode {
+        PgSslMode::Disable | PgSslMode::Allow | PgSslMode::Prefer => Err(anyhow::anyhow!(
+            "RDS IAM authentication mandates TLS, but sslmode is set to {mode:?}; \
+             set '--db-sslmode' (TRUSTD_DB_SSLMODE) to 'require', 'verify-ca', or 'verify-full'"
+        )),
+        strict => Ok(strict),
+    }
+}
+
+/// Validate the prerequisites shared by every RDS IAM-authenticated connection and return
+/// the resolved region together with the TLS-enforced SSL mode.
+///
+/// Fails fast with a clear message when the region is missing or no AWS credentials are
+/// configured, instead of attempting an AWS-authenticated connection that cannot succeed.
+fn iam_auth_params(
+    database: &DatabaseConfig,
+) -> Result<(String, PgSslMode), anyhow::Error> {
+    let region = database.region.clone().ok_or_else(|| {
+        anyhow::anyhow!(
+            "'--db-region' (TRUSTD_DB_REGION) is required when IAM authentication is enabled"
+        )
+    })?;
+
+    // RDS IAM tokens are signed with AWS credentials from the default provider chain. If
+    // nothing in the environment points at a credential source, fail fast.
+    anyhow::ensure!(
+        crate::aws::aws_credentials_configured(),
+        "RDS IAM authentication is enabled but no AWS credentials are configured; \
+         set AWS credentials (e.g. AWS_ROLE_ARN + AWS_WEB_IDENTITY_TOKEN_FILE, or \
+         AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY), or set TRUSTD_AWS_USE_IMDS=true \
+         on an EC2 deployment using an instance-profile role"
+    );
+
+    // RDS IAM authentication mandates TLS; reject anything weaker than `Require`.
+    Ok((region, require_tls(database.sslmode.into())?))
+}
+
+/// Establish a single, short-lived administrative connection to the database named in
+/// `database`.
+///
+/// Bootstrap/setup connect to the `postgres` maintenance database to create (or drop) the
+/// target database. When RDS IAM authentication is enabled the static password is absent or
+/// invalid, so this generates a one-off IAM token (with TLS forced on, as IAM mandates)
+/// rather than relying on [`crate::config::Database::to_url`]'s static password. Unlike
+/// [`Database::new`] no token refresher is spawned: the connection is used once, well within
+/// a single token's lifetime, and then closed.
+#[instrument(skip(database), fields(host = database.host, name = database.name), err(level=tracing::Level::INFO))]
+pub async fn connect_admin(
+    database: &DatabaseConfig,
+) -> Result<DatabaseConnection, anyhow::Error> {
+    if !database.iam_auth {
+        let url = database.to_url();
+        if log::log_enabled!(log::Level::Debug) {
+            log::debug!("connect (admin) to {}", strip_password(url.clone()));
+        }
+        return Ok(sea_orm::Database::connect(url).await?);
+    }
+
+    let (region, ssl_mode) = iam_auth_params(database)?;
+
+    log::info!(
+        "connecting to {}:{} db '{}' as '{}' using RDS IAM authentication (admin, region: {region}, sslmode: {ssl_mode:?})",
+        database.host,
+        database.port,
+        database.name,
+        database.username,
+    );
+
+    let token =
+        rds_iam::generate_rds_iam_token(&database.host, database.port, &database.username, &region)
+            .await
+            .context("failed to generate RDS IAM auth token for administrative connection")?;
+
+    let pool = PgPoolOptions::new()
+        .max_connections(1)
+        .connect_with(pg_connect_options(database, ssl_mode, &token))
+        .await
+        .context("failed to connect to database using RDS IAM authentication (admin)")?;
+
+    Ok(SqlxPostgresConnector::from_sqlx_postgres_pool(pool))
+}
+
+/// Build the postgres connect options for an IAM-authenticated connection, using the
+/// given short-lived IAM token as the password.
+fn pg_connect_options(
+    database: &DatabaseConfig,
+    ssl_mode: PgSslMode,
+    token: &str,
+) -> PgConnectOptions {
+    PgConnectOptions::new()
+        .host(&database.host)
+        .port(database.port)
+        .username(&database.username)
+        .password(token)
+        .database(&database.name)
+        .ssl_mode(ssl_mode)
+}
+
+/// Spawn a background task that keeps a pool's RDS IAM token fresh.
+///
+/// Every [`rds_iam::RDS_IAM_TOKEN_REFRESH`] it regenerates the token and swaps it into the
+/// pool so subsequent new connections authenticate with a valid token. A failed refresh is
+/// logged and retried on the next tick — existing connections and the current (not-yet-expired)
+/// token remain usable in the meantime.
+///
+/// The task exits when the pool is explicitly closed (`is_closed()`), or when the returned
+/// shutdown sender is dropped. The caller ([`Database`]) holds that sender so the task is
+/// signalled to stop once the last `Database` clone is dropped; this is required because the
+/// task owns a strong `PgPool` clone and a merely-dropped (never-closed) pool never reports
+/// `is_closed()`, which would otherwise leak the task and its connections.
+fn spawn_iam_token_refresher(
+    pool: PgPool,
+    database: DatabaseConfig,
+    region: String,
+    ssl_mode: PgSslMode,
+) -> oneshot::Sender<()> {
+    let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
+    spawn(async move {
+        loop {
+            tokio::select! {
+                _ = time::sleep(rds_iam::RDS_IAM_TOKEN_REFRESH) => {}
+                // The sender is dropped (channel closed) when the last `Database` clone is
+                // dropped; stop refreshing so the task and its pool clone are released.
+                _ = &mut shutdown_rx => {
+                    log::debug!("Database dropped; stopping RDS IAM token refresher");
+                    break;
+                }
+            }
+
+            if pool.is_closed() {
+                log::debug!("database pool closed; stopping RDS IAM token refresher");
+                break;
+            }
+
+            match rds_iam::generate_rds_iam_token(
+                &database.host,
+                database.port,
+                &database.username,
+                &region,
+            )
+            .await
+            {
+                Ok(token) => {
+                    pool.set_connect_options(pg_connect_options(&database, ssl_mode, &token));
+                    log::debug!("refreshed RDS IAM auth token for new database connections");
+                }
+                Err(err) => {
+                    log::error!("failed to refresh RDS IAM auth token: {err:#}");
+                }
+            }
+        }
+    });
+    shutdown_tx
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -723,5 +977,28 @@ mod test {
 
         let result = ReadOnly::validate_access_mode(Some(AccessMode::ReadOnly));
         assert_eq!(result.unwrap(), Some(AccessMode::ReadOnly));
+    }
+
+    #[test]
+    fn require_tls_rejects_modes_weaker_than_require() {
+        for mode in [PgSslMode::Disable, PgSslMode::Allow, PgSslMode::Prefer] {
+            assert!(
+                require_tls(mode).is_err(),
+                "sslmode {mode:?} must be rejected under RDS IAM authentication"
+            );
+        }
+    }
+
+    #[test]
+    fn require_tls_accepts_require_and_stricter_modes() {
+        for mode in [
+            PgSslMode::Require,
+            PgSslMode::VerifyCa,
+            PgSslMode::VerifyFull,
+        ] {
+            // `PgSslMode` implements neither `PartialEq` nor `Clone`, so compare via `Debug`.
+            let expected = format!("{mode:?}");
+            assert_eq!(format!("{:?}", require_tls(mode).unwrap()), expected);
+        }
     }
 }

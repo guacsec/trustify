@@ -426,7 +426,7 @@ impl InitData {
             trustify_db::Database(&db).migrate().await?;
         }
 
-        let ro_config = run.database_ro.to_database_config(&run.database);
+        let ro_config = run.database_ro.to_database_config(&run.database)?;
         let db_ro = db::ReadOnly::new(db::Database::new(&ro_config).await?);
         let db_rw = db::ReadWrite::new(db.clone());
 

@@ -6,7 +6,7 @@ use crate::{
     },
 };
 use anyhow::{Context, anyhow, bail};
-use aws_config::AppName;
+use aws_config::{AppName, BehaviorVersion};
 use aws_sdk_s3::{
     Client,
     config::{
@@ -25,6 +25,7 @@ use std::{fmt::Debug, io, str::FromStr};
 use tokio::{fs, io::AsyncRead};
 use tokio_util::io::ReaderStream;
 use tracing::instrument;
+use trustify_common::aws::aws_credentials_configured;
 use urlencoding::encode;
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
@@ -94,7 +95,7 @@ impl S3Backend {
         // region
 
         let region = region.ok_or_else(|| anyhow!("region not provided"))?;
-        let mut config = if region.starts_with("http://") || region.starts_with("https://") {
+        let config = if region.starts_with("http://") || region.starts_with("https://") {
             config
                 .endpoint_resolver(StringResolver::from(region))
                 // we just use any region
@@ -103,12 +104,7 @@ impl S3Backend {
             config.region(Region::new(region))
         };
 
-        // credentials
-
-        if let Some((key_id, access_key)) = access_key.zip(secret_key) {
-            let credentials = Credentials::new(key_id, access_key, None, None, "config");
-            config = config.credentials_provider(credentials);
-        }
+        let config = configure_credentials(config, access_key, secret_key).await;
 
         // TLS
 
@@ -142,6 +138,59 @@ impl S3Backend {
             bucket: bucket.unwrap_or_default(),
             compression,
         })
+    }
+}
+
+/// Configure the credentials for the S3 client.
+///
+/// Two mutually exclusive credential sources are supported:
+///
+/// 1. Static credentials — an explicit access-key / secret-key pair. These are
+///    supplied directly (`--s3-access-key` / `--s3-secret-key`) or injected by
+///    the OpenShift Cloud Credential Operator (CCO) in `mint` / `passthrough` /
+///    `default` mode (as `TRUSTD_S3_ACCESS_KEY` / `TRUSTD_S3_SECRET_KEY`).
+///
+/// 2. The AWS default credential provider chain — used when no static keys are
+///    provided. This engages the SDK's built-in providers, including the
+///    Web Identity Token provider used by CCO `manual` (STS) mode. In that mode
+///    no static keys are set; credentials are instead derived from
+///    `AWS_ROLE_ARN` + `AWS_WEB_IDENTITY_TOKEN_FILE` (and/or
+///    `AWS_SHARED_CREDENTIALS_FILE`) by performing `AssumeRoleWithWebIdentity`,
+///    yielding short-lived credentials that the SDK refreshes automatically.
+///
+/// Note: `aws_sdk_s3::config::Builder` does *not* wire up any credential chain
+/// by itself — unlike a client built from `aws_config::defaults(..)`. Without
+/// the fallback below, omitting the static keys would leave the client with no
+/// credentials provider at all and token-based (STS) auth would never happen.
+async fn configure_credentials(
+    config: config::Builder,
+    access_key: Option<String>,
+    secret_key: Option<String>,
+) -> config::Builder {
+    match access_key.zip(secret_key) {
+        Some((key_id, access_key)) => {
+            let credentials = Credentials::new(key_id, access_key, None, None, "config");
+            config.credentials_provider(credentials)
+        }
+        // No static keys: only engage the AWS default credential provider chain when the
+        // environment actually points at an AWS credential source (e.g. CCO manual/STS
+        // mode sets `AWS_ROLE_ARN` + `AWS_WEB_IDENTITY_TOKEN_FILE`, or an EC2 deployment
+        // opts into IMDS with `TRUSTD_AWS_USE_IMDS=true`). Loading the chain otherwise just
+        // costs time and resolves to nothing, so skip AWS entirely — the client is left
+        // without a credentials provider, matching a non-AWS backend.
+        None if aws_credentials_configured() => {
+            let shared = aws_config::defaults(BehaviorVersion::latest()).load().await;
+            match shared.credentials_provider() {
+                Some(provider) => config.credentials_provider(provider),
+                None => config,
+            }
+        }
+        None => {
+            log::info!(
+                "No S3 static credentials and no AWS credential environment detected; not engaging the AWS credential provider chain"
+            );
+            config
+        }
     }
 }
 
@@ -429,5 +478,27 @@ mod test {
             err.downcast_ref::<super::S3CredentialError>(),
             Some(&super::S3CredentialError::AccessKeyMissing)
         );
+    }
+
+    /// With no static credentials, construction must still succeed. When the AWS
+    /// credential environment is present the backend engages the default provider chain
+    /// (which powers CCO `manual`/STS token auth); when it is absent the backend simply
+    /// skips AWS. Either way, construction does not fail — the chain, when used, is
+    /// resolved lazily on the first request.
+    #[test(tokio::test)]
+    async fn no_static_credentials_uses_default_chain() {
+        let result = S3Backend::new(
+            S3Config {
+                bucket: Some("test-bucket".to_string()),
+                region: Some("us-east-1".to_string()),
+                access_key: None,
+                secret_key: None,
+                trust_anchors: vec![],
+                path_style: false,
+            },
+            Compression::None,
+        )
+        .await;
+        assert!(result.is_ok());
     }
 }
