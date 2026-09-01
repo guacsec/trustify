@@ -74,6 +74,8 @@ mod m0002290_create_exploit_intelligence_job;
 mod m0002300_create_exploit;
 mod m0002310_create_change_log;
 mod m0002320_fix_unbounded_version_matches;
+mod m0002330_fix_rpmver_cmp;
+mod m0002340_backfill_rpm_epoch;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -163,6 +165,8 @@ impl MigratorExt for Migrator {
             .normal(m0002300_create_exploit::Migration)
             .normal(m0002310_create_change_log::Migration)
             .normal(m0002320_fix_unbounded_version_matches::Migration)
+            .normal(m0002330_fix_rpmver_cmp::Migration)
+            .normal(m0002340_backfill_rpm_epoch::Migration)
     }
 }
 

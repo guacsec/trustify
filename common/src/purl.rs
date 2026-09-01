@@ -115,14 +115,20 @@ impl Purl {
         Uuid::new_v5(&result, self.name.as_bytes())
     }
 
+    /// Version string for storage and comparison.
+    /// For RPM purls with epoch > 0, prepends `epoch:` to the version.
+    pub fn effective_version(&self) -> String {
+        if self.ty == "rpm"
+            && let Some(epoch) = self.qualifiers.get("epoch")
+            && epoch != "0"
+        {
+            return format!("{epoch}:{}", self.version.as_deref().unwrap_or_default());
+        }
+        self.version.clone().unwrap_or_default()
+    }
+
     fn then_version_uuid(&self, package: &Uuid) -> Uuid {
-        Uuid::new_v5(
-            package,
-            self.version
-                .as_ref()
-                .map(|v| v.as_bytes())
-                .unwrap_or_default(),
-        )
+        Uuid::new_v5(package, self.effective_version().as_bytes())
     }
 
     pub fn version_uuid(&self) -> Uuid {
