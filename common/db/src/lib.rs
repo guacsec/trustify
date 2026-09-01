@@ -65,13 +65,15 @@ impl<'a> Database<'a> {
             "Unable to bootstrap database with '--db-url'"
         );
 
-        let url = config::Database {
+        // Connect to the `postgres` maintenance database to create the target one. This
+        // honors RDS IAM authentication, generating a one-off token for the administrative
+        // connection, because under IAM there is no static password to fall back on.
+        let admin = config::Database {
             name: "postgres".into(),
             ..database.clone()
-        }
-        .to_url();
+        };
 
-        let db = sea_orm::Database::connect(url).await?;
+        let db = db::connect_admin(&admin).await?;
 
         db.execute(Statement::from_string(
             db.get_database_backend(),

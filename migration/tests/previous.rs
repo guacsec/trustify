@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 use migration::data::MigrationWithData;
 use test_context::test_context;
 use test_log::test;
