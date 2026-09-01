@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788250627182,
+  "lastUpdate": 1788252204003,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21334,6 +21334,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/c791b2c0814102d14daba3c67b001bda074de819"
         },
         "date": 1788250624520,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "f11a2e2b64ee916629ba7389fe3cc433098d4b8c",
+          "message": "feat(notification): use NOTIFY payload to avoid sweep query\n\nThe pg_notify trigger now sends the full row as a JSON payload\n(id, entity_type, entity_id, operation) instead of just the ID.\nThe ChangeListener parses the payload directly, eliminating the\nfollow-up SELECT query on each notification. Falls back to a\nsweep on parse failure or on the poll-interval path.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-09-01T08:11:34Z",
+          "tree_id": "b3f2d68894035e86b4c12414ad078c90c08107c1",
+          "url": "https://github.com/guacsec/trustify/commit/f11a2e2b64ee916629ba7389fe3cc433098d4b8c"
+        },
+        "date": 1788252201760,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
