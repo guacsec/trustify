@@ -1,1 +1,3 @@
 * xref:migration:index.adoc[Migration Guide]
+* xref:migration:data.adoc[Data Migration Guide]
+* xref:migration:concurrent-data-migration.adoc[Running Data Migrations with Concurrency]
