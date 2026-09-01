@@ -206,9 +206,15 @@ impl<'g> CsafLoader<'g> {
                 .clone(),
         );
 
-        creator.add_all(&product_status.fixed, "fixed");
-        creator.add_all(&product_status.known_not_affected, "not_affected");
-        creator.add_all(&product_status.known_affected, "affected");
+        creator
+            .add_all(&product_status.fixed, "fixed")
+            .map_err(Error::Generic)?;
+        creator
+            .add_all(&product_status.known_not_affected, "not_affected")
+            .map_err(Error::Generic)?;
+        creator
+            .add_all(&product_status.known_affected, "affected")
+            .map_err(Error::Generic)?;
 
         let product_id_mapping = creator.create(self.graph, connection).await?;
 

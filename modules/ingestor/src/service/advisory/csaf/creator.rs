@@ -38,11 +38,17 @@ pub struct ProductIdStatusMapping {
     pub product_status_ids: Vec<Uuid>,
 }
 
+/// Check if the CSAF document is published by Red Hat.
+fn is_redhat(csaf: &Csaf) -> bool {
+    csaf.document.publisher.namespace.host_str() == Some("www.redhat.com")
+}
+
 #[derive(Debug)]
 pub struct StatusCreator<'a> {
     cache: ResolveProductIdCache<'a>,
     advisory_id: Uuid,
     vulnerability_id: String,
+    is_redhat: bool,
     entries: HashSet<PurlStatus>,
     products: HashSet<ProductStatus>,
     product_id_to_product: HashMap<String, ProductStatus>,
@@ -56,6 +62,7 @@ impl<'a> StatusCreator<'a> {
             cache,
             advisory_id,
             vulnerability_id: vulnerability_identifier,
+            is_redhat: is_redhat(csaf),
             entries: HashSet::new(),
             products: HashSet::new(),
             product_id_to_product: HashMap::new(),
@@ -63,7 +70,11 @@ impl<'a> StatusCreator<'a> {
         }
     }
 
-    pub fn add_all(&mut self, ps: &Option<Vec<ProductIdT>>, status: &'static str) {
+    pub fn add_all(
+        &mut self,
+        ps: &Option<Vec<ProductIdT>>,
+        status: &'static str,
+    ) -> Result<(), anyhow::Error> {
         for r in ps.iter().flatten() {
             let mut product = ProductStatus {
                 status,
@@ -86,19 +97,20 @@ impl<'a> StatusCreator<'a> {
                 }
             };
             for product_id in product_ids {
-                product = self.cache.trace_product(product_id).iter().fold(
+                product = self.cache.trace_product(product_id).iter().try_fold(
                     product,
                     |mut product, branch| {
-                        product.update_from_branch(branch);
-                        product
+                        product.update_from_branch(branch)?;
+                        Ok::<_, anyhow::Error>(product)
                     },
-                );
+                )?;
             }
 
             self.product_id_to_product
                 .insert(r.0.clone(), product.clone());
             self.products.insert(product);
         }
+        Ok(())
     }
 
     #[instrument(skip_all, err(level=tracing::Level::INFO))]
@@ -246,41 +258,54 @@ impl<'a> StatusCreator<'a> {
             }
 
             for purl in &product.purls {
-                let scheme = VersionScheme::from(purl.ty.as_str());
+                if !product.vers_specs.is_empty() {
+                    for vers_info in &product.vers_specs {
+                        self.create_purl_status(
+                            &product,
+                            purl,
+                            vers_info.scheme,
+                            vers_info.spec.clone(),
+                            status_id,
+                        );
+                    }
+                } else {
+                    let (scheme, spec) = match &purl.version {
+                        Some(version) => (
+                            VersionScheme::from(purl.ty.as_str()),
+                            VersionSpec::Exact(version.clone()),
+                        ),
+                        None if self.is_redhat => (
+                            VersionScheme::from(purl.ty.as_str()),
+                            VersionSpec::Range(Version::Unbounded, Version::Unbounded),
+                        ),
+                        None => (VersionScheme::Generic, VersionSpec::Exact(String::new())),
+                    };
+                    self.create_purl_status(&product, purl, scheme, spec, status_id);
 
-                // Insert purl status
-                let spec = match &purl.version {
-                    Some(version) => VersionSpec::Exact(version.clone()),
-                    None => VersionSpec::Range(Version::Unbounded, Version::Unbounded),
-                };
-                self.create_purl_status(&product, purl, scheme, spec, status_id);
-
-                // For "fixed" status and Red Hat CSAF advisories,
-                // insert "affected" status up until this version.
-                // Let's keep this here for now as a special case. If more exceptions arise,
-                // we can refactor and provide support for vendor-specific parsing.
-                if let Ok(Status::Fixed) = Status::from_str(product.status)
-                    && let Some(cpe_vendor) = product
-                        .cpe
-                        .as_ref()
-                        .map(|cpe| cpe.vendor().as_ref().to_string())
-                    && cpe_vendor == "redhat"
-                    && let Some(version) = &purl.version
-                {
-                    let spec =
-                        VersionSpec::Range(Version::Unbounded, Version::Exclusive(version.clone()));
-                    self.create_purl_status(
-                        &product,
-                        purl,
-                        scheme,
-                        spec,
-                        graph
-                            .db_context
-                            .lock()
-                            .await
-                            .get_status_id(&Status::Affected.to_string(), connection)
-                            .await?,
-                    );
+                    // For "fixed" status and Red Hat CSAF advisories,
+                    // insert "affected" status up until this version.
+                    if let Ok(Status::Fixed) = Status::from_str(product.status)
+                        && self.is_redhat
+                        && let Some(version) = &purl.version
+                    {
+                        let scheme = VersionScheme::from(purl.ty.as_str());
+                        let spec = VersionSpec::Range(
+                            Version::Unbounded,
+                            Version::Exclusive(version.clone()),
+                        );
+                        self.create_purl_status(
+                            &product,
+                            purl,
+                            scheme,
+                            spec,
+                            graph
+                                .db_context
+                                .lock()
+                                .await
+                                .get_status_id(&Status::Affected.to_string(), connection)
+                                .await?,
+                        );
+                    }
                 }
             }
         }

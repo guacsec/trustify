@@ -48,6 +48,7 @@ tracing = { workspace = true }
 utoipa = { workspace = true }
 utoipa-actix-web = { workspace = true }
 uuid = { workspace = true, features = ["v7"] }
+vers-rs = { workspace = true }
 zip = { workspace = true }
 
 [dev-dependencies]

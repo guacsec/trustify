@@ -685,7 +685,6 @@ async fn s7_cpe_only_hummingbird(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[ignore = "TC-5733: rpmver_cmp ignores RPM epoch (latent until version_matches on affected path)"]
 #[test_log::test(actix_web::test)]
 async fn s8_epoch_mismatch_openjdk(
     ctx: &TrustifyContext,
@@ -868,7 +867,6 @@ async fn s10_describing_cpe_baseline(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[ignore = "TC-5732: version-less known_affected produces no matchable row"]
 #[test_log::test(actix_web::test)]
 async fn s11_bare_known_affected_firefox(
     ctx: &TrustifyContext,
