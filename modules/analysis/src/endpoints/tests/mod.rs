@@ -169,6 +169,51 @@ async fn test_quarkus_retrieve_analysis_endpoint(
     Ok(())
 }
 
+/// Verify pagination through the HTTP endpoint returns correct total and limited items.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn test_pagination_through_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_documents([
+        "spdx/quarkus-bom-3.2.11.Final-redhat-00001.json",
+        "spdx/quarkus-bom-3.2.12.Final-redhat-00002.json",
+    ])
+    .await?;
+
+    // When: request with limit=1, offset=0, total=true
+    let page1: Value = app
+        .req(Req {
+            what: What::Q("spymemcached"),
+            limit: Some(1),
+            offset: Some(0),
+            total: true,
+            ..Req::default()
+        })
+        .await?;
+
+    assert_eq!(page1["total"], 2);
+    assert_eq!(page1["items"].as_array().map(|a| a.len()), Some(1));
+
+    // When: request page 2
+    let page2: Value = app
+        .req(Req {
+            what: What::Q("spymemcached"),
+            limit: Some(1),
+            offset: Some(1),
+            total: true,
+            ..Req::default()
+        })
+        .await?;
+
+    assert_eq!(page2["total"], 2);
+    assert_eq!(page2["items"].as_array().map(|a| a.len()), Some(1));
+
+    // Then: pages contain different items
+    assert_ne!(page1["items"][0]["sbom_id"], page2["items"][0]["sbom_id"]);
+
+    Ok(())
+}
+
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn test_status_endpoint(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
