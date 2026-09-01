@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787840853587,
+  "lastUpdate": 1788250627182,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21305,6 +21305,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/bcb55e15564a72c8d7ca3a47193b75cd5e8732b2"
         },
         "date": 1787840851454,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "c791b2c0814102d14daba3c67b001bda074de819",
+          "message": "refactor(correlation): use #[values] instead of #[case] for format param\n\nCleaner rstest parameterization — one #[values(\"cdx\", \"spdx\")] annotation\ninstead of two #[case] blocks per test.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-01T07:38:01Z",
+          "tree_id": "f87436022c43ff7564b687cecd7f25ff3d5589ce",
+          "url": "https://github.com/guacsec/trustify/commit/c791b2c0814102d14daba3c67b001bda074de819"
+        },
+        "date": 1788250624520,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
