@@ -17,13 +17,118 @@ pub struct ModelCard {
 
 impl From<&Component> for ModelCard {
     fn from(c: &Component) -> Self {
-        let properties = Value::from(c.model_card.as_ref().and_then(|card| {
-            card.properties.as_ref().map(|v| {
-                v.iter()
-                    .map(|p| (p.name.clone(), p.value.clone().into()))
-                    .collect::<Map<_, _>>()
-            })
-        }));
+        let properties = match c.model_card.as_ref() {
+            Some(card) => {
+                let mut map = Map::new();
+
+                if let Some(params) = &card.model_parameters {
+                    if let Some(task) = &params.task {
+                        map.insert("primaryPurpose".to_string(), Value::String(task.clone()));
+                    }
+                    if let Some(approach) = &params.approach
+                        && let Some(type_val) = &approach.type_
+                    {
+                        map.insert("typeOfModel".to_string(), Value::String(type_val.clone()));
+                    }
+                }
+
+                if let Some(considerations) = &card.considerations {
+                    if let Some(limitations) = &considerations.technical_limitations
+                        && !limitations.is_empty()
+                    {
+                        map.insert(
+                            "limitation".to_string(),
+                            Value::String(limitations.join("; ")),
+                        );
+                    }
+
+                    if let Some(risks) = &considerations.ethical_considerations
+                        && !risks.is_empty()
+                    {
+                        let arr: Vec<Value> = risks
+                            .iter()
+                            .map(|r| {
+                                let mut obj = Map::new();
+                                if let Some(name) = &r.name {
+                                    obj.insert("name".to_string(), Value::String(name.clone()));
+                                }
+                                if let Some(ms) = &r.mitigation_strategy {
+                                    obj.insert(
+                                        "mitigationStrategy".to_string(),
+                                        Value::String(ms.clone()),
+                                    );
+                                }
+                                Value::Object(obj)
+                            })
+                            .collect();
+                        map.insert("safetyRiskAssessment".to_string(), Value::Array(arr));
+                    }
+
+                    if let Some(assessments) = &considerations.fairness_assessments
+                        && !assessments.is_empty()
+                    {
+                        let arr: Vec<Value> = assessments
+                            .iter()
+                            .map(|a| {
+                                let mut obj = Map::new();
+                                if let Some(v) = &a.group_at_risk {
+                                    obj.insert("groupAtRisk".to_string(), Value::String(v.clone()));
+                                }
+                                if let Some(v) = &a.benefits {
+                                    obj.insert("benefits".to_string(), Value::String(v.clone()));
+                                }
+                                if let Some(v) = &a.harms {
+                                    obj.insert("harms".to_string(), Value::String(v.clone()));
+                                }
+                                if let Some(v) = &a.mitigation_strategy {
+                                    obj.insert(
+                                        "mitigationStrategy".to_string(),
+                                        Value::String(v.clone()),
+                                    );
+                                }
+                                Value::Object(obj)
+                            })
+                            .collect();
+                        map.insert("fairnessAssessments".to_string(), Value::Array(arr));
+                    }
+
+                    if let Some(tradeoffs) = &considerations.performance_tradeoffs
+                        && !tradeoffs.is_empty()
+                    {
+                        map.insert(
+                            "performanceTradeoffs".to_string(),
+                            Value::String(tradeoffs.join("; ")),
+                        );
+                    }
+
+                    if let Some(use_cases) = &considerations.use_cases
+                        && !use_cases.is_empty()
+                    {
+                        map.insert("useCases".to_string(), Value::String(use_cases.join("; ")));
+                    }
+
+                    if let Some(users) = &considerations.users
+                        && !users.is_empty()
+                    {
+                        map.insert("users".to_string(), Value::String(users.join("; ")));
+                    }
+                }
+
+                // Generic properties take precedence over structured fields
+                if let Some(props) = &card.properties {
+                    for p in props {
+                        map.insert(p.name.clone(), p.value.clone().into());
+                    }
+                }
+
+                if map.is_empty() {
+                    Value::Null
+                } else {
+                    Value::Object(map)
+                }
+            }
+            None => Value::Null,
+        };
         ModelCard { properties }
     }
 }

@@ -246,6 +246,226 @@ mod test {
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
+    async fn ingest_ai_cyclonedx_nvidia_properties(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        let graph = Graph::new();
+        let data = document_bytes("cyclonedx/ai/nvidia_canary-1b-v2_aibom.json").await?;
+
+        let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
+
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::CycloneDX,
+                        [("type", "cyclonedx"), ("kind", "aibom")],
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
+
+        let models = sbom_ai::Entity::find().all(&ctx.db).await?;
+        assert_eq!(1, models.len());
+
+        let props = &models[0].properties;
+
+        // Generic properties take precedence over structured model_parameters.task
+        // modelParameters.task = "text-generation" but generic property primaryPurpose = "automatic-speech-recognition"
+        assert_eq!(
+            props.get("primaryPurpose").and_then(|v| v.as_str()),
+            Some("automatic-speech-recognition"),
+        );
+
+        // typeOfModel comes from generic properties (no structured approach.type_ in fixture)
+        assert_eq!(
+            props.get("typeOfModel").and_then(|v| v.as_str()),
+            Some("transformer"),
+        );
+
+        // limitation comes from generic properties (no structured considerations in fixture)
+        assert!(props.get("limitation").and_then(|v| v.as_str()).is_some(),);
+
+        // Other generic properties are also present
+        assert_eq!(
+            props.get("bomFormat").and_then(|v| v.as_str()),
+            Some("CycloneDX"),
+        );
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn ingest_ai_cyclonedx_ibm_properties(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        let graph = Graph::new();
+        let data =
+            document_bytes("cyclonedx/ai/ibm-granite_granite-docling-258M_aibom.json").await?;
+
+        let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
+
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::CycloneDX,
+                        [("type", "cyclonedx"), ("kind", "aibom")],
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
+
+        let models = sbom_ai::Entity::find().all(&ctx.db).await?;
+        assert_eq!(1, models.len());
+
+        let props = &models[0].properties;
+
+        // Generic property overrides structured model_parameters.task
+        // modelParameters.task = "text-generation" but generic property primaryPurpose = "image-text-to-text"
+        assert_eq!(
+            props.get("primaryPurpose").and_then(|v| v.as_str()),
+            Some("image-text-to-text"),
+        );
+
+        // typeOfModel from generic properties
+        assert_eq!(
+            props.get("typeOfModel").and_then(|v| v.as_str()),
+            Some("idefics3"),
+        );
+
+        // IBM fixture has no limitation property
+        assert!(props.get("limitation").is_none());
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn ingest_ai_cyclonedx_structured_fields(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        let graph = Graph::new();
+        let data = document_bytes("cyclonedx/ai/test_structured_model_card.json").await?;
+
+        let ingestor = IngestorService::new(graph, ctx.storage.clone(), Default::default());
+
+        ctx.db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &data,
+                        Format::CycloneDX,
+                        [("type", "cyclonedx"), ("kind", "aibom")],
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await?;
+
+        let models = sbom_ai::Entity::find().all(&ctx.db).await?;
+        assert_eq!(1, models.len());
+
+        let props = &models[0].properties;
+
+        // Structured field: modelParameters.task → primaryPurpose
+        assert_eq!(
+            props.get("primaryPurpose").and_then(|v| v.as_str()),
+            Some("text-generation"),
+        );
+
+        // Structured field: modelParameters.approach.type → typeOfModel
+        assert_eq!(
+            props.get("typeOfModel").and_then(|v| v.as_str()),
+            Some("supervised-learning"),
+        );
+
+        // Structured field: considerations.technicalLimitations → limitation (joined)
+        assert_eq!(
+            props.get("limitation").and_then(|v| v.as_str()),
+            Some("Limited to English text; Max 2048 tokens"),
+        );
+
+        // Structured field: considerations.ethicalConsiderations → safetyRiskAssessment
+        let risks = props.get("safetyRiskAssessment").and_then(|v| v.as_array());
+        assert!(risks.is_some());
+        let risks = risks.unwrap();
+        assert_eq!(risks.len(), 2);
+        assert_eq!(
+            risks[0].get("name").and_then(|v| v.as_str()),
+            Some("Bias in training data"),
+        );
+        assert_eq!(
+            risks[0].get("mitigationStrategy").and_then(|v| v.as_str()),
+            Some("Regular auditing of model outputs"),
+        );
+        assert_eq!(
+            risks[1].get("name").and_then(|v| v.as_str()),
+            Some("Privacy risks from memorization"),
+        );
+        assert!(risks[1].get("mitigationStrategy").is_none());
+
+        // Structured field: considerations.fairnessAssessments → fairnessAssessments
+        let assessments = props.get("fairnessAssessments").and_then(|v| v.as_array());
+        assert!(assessments.is_some());
+        let assessments = assessments.unwrap();
+        assert_eq!(assessments.len(), 1);
+        assert_eq!(
+            assessments[0].get("groupAtRisk").and_then(|v| v.as_str()),
+            Some("Non-English speakers"),
+        );
+        assert_eq!(
+            assessments[0].get("benefits").and_then(|v| v.as_str()),
+            Some("Improved accessibility"),
+        );
+        assert_eq!(
+            assessments[0].get("harms").and_then(|v| v.as_str()),
+            Some("Lower accuracy for underrepresented languages"),
+        );
+        assert_eq!(
+            assessments[0]
+                .get("mitigationStrategy")
+                .and_then(|v| v.as_str()),
+            Some("Multilingual fine-tuning planned"),
+        );
+
+        // Structured field: considerations.performanceTradeoffs → performanceTradeoffs
+        assert_eq!(
+            props.get("performanceTradeoffs").and_then(|v| v.as_str()),
+            Some("Speed vs accuracy on long sequences; Memory usage scales quadratically"),
+        );
+
+        // Structured field: considerations.useCases → useCases
+        assert_eq!(
+            props.get("useCases").and_then(|v| v.as_str()),
+            Some("Conversational AI; Document summarization"),
+        );
+
+        // Structured field: considerations.users → users
+        assert_eq!(
+            props.get("users").and_then(|v| v.as_str()),
+            Some("Developers; Researchers"),
+        );
+
+        // No generic properties in this fixture, so no bomFormat etc.
+        assert!(props.get("bomFormat").is_none());
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
     async fn ingest_cryptographic_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         let graph = Graph::new();
         let data = document_bytes("cyclonedx/cryptographic/cbom.json").await?;
