@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 mod m0002010;
 
 use migration::{
