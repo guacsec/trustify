@@ -221,6 +221,11 @@ fn cpe_context_subqueries(
             Expr::col((sdc.clone(), sbom_describing_cpe::Column::SbomId))
                 .in_subquery(sbom_ids.clone()),
         )
+        .cond_where(
+            Condition::any()
+                .add(Expr::col((c.clone(), cpe::Column::Edition)).is_null())
+                .add(Expr::col((c.clone(), cpe::Column::Edition)).eq("*")),
+        )
         .to_owned();
 
     let mut allowed_cpe_ids = sbom_describing_cpe::Entity::find()
