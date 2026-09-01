@@ -270,9 +270,9 @@ impl<'a> StatusCreator<'a> {
                     }
                 } else {
                     let (scheme, spec) = match &purl.version {
-                        Some(version) => (
+                        Some(_) => (
                             VersionScheme::from(purl.ty.as_str()),
-                            VersionSpec::Exact(version.clone()),
+                            VersionSpec::Exact(purl.effective_version()),
                         ),
                         None if self.is_redhat => (
                             VersionScheme::from(purl.ty.as_str()),
@@ -286,12 +286,12 @@ impl<'a> StatusCreator<'a> {
                     // insert "affected" status up until this version.
                     if let Ok(Status::Fixed) = Status::from_str(product.status)
                         && self.is_redhat
-                        && let Some(version) = &purl.version
+                        && purl.version.is_some()
                     {
                         let scheme = VersionScheme::from(purl.ty.as_str());
                         let spec = VersionSpec::Range(
                             Version::Unbounded,
-                            Version::Exclusive(version.clone()),
+                            Version::Exclusive(purl.effective_version()),
                         );
                         self.create_purl_status(
                             &product,
