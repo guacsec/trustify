@@ -50,6 +50,9 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@v2
 
+      - name: Install system dependencies
+        run: sudo apt-get install -y libossp-uuid16
+
       - name: Setup cargo-binstall
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
