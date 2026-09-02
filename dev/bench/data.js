@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788252204003,
+  "lastUpdate": 1788341112011,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21363,6 +21363,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/f11a2e2b64ee916629ba7389fe3cc433098d4b8c"
         },
         "date": 1788252201760,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "00hf11@gmail.com",
+            "name": "Helio Frota",
+            "username": "helio-frota"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "8c53e77730940379530a96045f01d68e4524713e",
+          "message": "fix(deps): update js-yaml to fix CVE-2026-59870\n\ndetails: https://github.com/guacsec/trustify/security/dependabot/57",
+          "timestamp": "2026-09-02T08:42:04Z",
+          "tree_id": "8f46c4d87d25dc071516af107624ecc66ee37f01",
+          "url": "https://github.com/guacsec/trustify/commit/8c53e77730940379530a96045f01d68e4524713e"
+        },
+        "date": 1788341109239,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
