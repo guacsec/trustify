@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use trustify_entity::version_range;
 use utoipa::ToSchema;
 
@@ -24,7 +24,22 @@ pub enum VersionRange {
         high_version: String,
         high_inclusive: bool,
     },
+    #[serde(deserialize_with = "deserialize_unbounded")]
     Unbounded,
+}
+
+fn deserialize_unbounded<'de, D: Deserializer<'de>>(deserializer: D) -> Result<(), D::Error> {
+    #[derive(Deserialize)]
+    struct Probe {
+        low_version: Option<String>,
+        high_version: Option<String>,
+    }
+    let probe = Probe::deserialize(deserializer)?;
+    if probe.low_version.is_none() && probe.high_version.is_none() {
+        Ok(())
+    } else {
+        Err(serde::de::Error::custom("not unbounded"))
+    }
 }
 
 impl VersionRange {

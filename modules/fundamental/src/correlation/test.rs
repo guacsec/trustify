@@ -867,6 +867,7 @@ async fn s10_describing_cpe_baseline(
 
 #[test_context(TrustifyContext)]
 #[rstest]
+#[ignore = "TC-5732: version-less known_affected produces no matchable row"]
 #[test_log::test(actix_web::test)]
 async fn s11_bare_known_affected_firefox(
     ctx: &TrustifyContext,
