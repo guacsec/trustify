@@ -282,6 +282,28 @@ where
     #[arg(id = "http-disable-log", long, env = "HTTP_SERVER_DISABLE_LOG")]
     pub disable_log: bool,
 
+    /// Allowed CORS origins. Repeat the flag or provide a comma-separated list.
+    /// When empty (the default), cross-origin requests are rejected (same-origin
+    /// only). The bundled UI is served same-origin and does not require CORS.
+    #[arg(
+        id = "http-server-cors-allowed-origins",
+        long,
+        env = "HTTP_SERVER_CORS_ALLOWED_ORIGINS",
+        value_delimiter = ','
+    )]
+    pub cors_allowed_origins: Vec<String>,
+
+    /// Allow ANY origin (development only). This reflects the request origin and
+    /// permits any method/header. Do not use in production; prefer
+    /// --http-server-cors-allowed-origins.
+    #[arg(
+        id = "http-server-cors-permissive",
+        long,
+        env = "HTTP_SERVER_CORS_PERMISSIVE",
+        default_value_t = false
+    )]
+    pub cors_permissive: bool,
+
     #[arg(skip)]
     _marker: Marker<E>,
 }
@@ -321,6 +343,8 @@ where
             tls_ciphers: None,
             tls_ciphersuites: None,
             disable_log: false,
+            cors_allowed_origins: Vec::new(),
+            cors_permissive: false,
             _marker: Default::default(),
         }
     }
@@ -358,6 +382,30 @@ where
             .bind(addr)
             .request_limit(value.request_limit.0.0 as _)
             .json_limit(value.json_limit.0.0 as _);
+
+        result = match (value.cors_permissive, value.cors_allowed_origins.as_slice()) {
+            (true, _) => {
+                log::warn!(
+                    "CORS is permissive (any origin allowed). Do not use this in production!"
+                );
+                result.cors(Cors::permissive)
+            }
+            (false, []) => result.cors_disabled(),
+            (false, origins) => {
+                let origins = origins.to_vec();
+                result.cors(move || {
+                    let mut cors = Cors::default()
+                        .allow_any_header()
+                        .allow_any_method()
+                        .supports_credentials()
+                        .max_age(3600);
+                    for origin in &origins {
+                        cors = cors.allowed_origin(origin);
+                    }
+                    cors
+                })
+            }
+        };
 
         if value.tls_enabled {
             if value.tls_security_profile == TlsSecurityProfile::Custom
@@ -483,7 +531,7 @@ impl HttpServerBuilder {
             post_configurator: None,
             bind: Bind::Address(DEFAULT_ADDR),
             tls: None,
-            cors_factory: Some(Arc::new(Cors::permissive)),
+            cors_factory: None,
             authenticator: None,
             authorizer: None,
             swagger_ui_oidc: None,
@@ -499,7 +547,8 @@ impl HttpServerBuilder {
 
     /// Set a custom CORS factory.
     ///
-    /// The default is [`Cors::permissive`].
+    /// The default is no CORS (same-origin only). Use this to opt into
+    /// cross-origin access for explicitly trusted origins.
     pub fn cors<F>(mut self, cors_factory: F) -> Self
     where
         F: Fn() -> Cors + Send + Sync + 'static,
@@ -817,6 +866,41 @@ mod test {
             };
             HttpServerBuilder::try_from(config).unwrap();
         }
+    }
+
+    /// Verifies the default config is fail-closed: no CORS (same-origin only).
+    #[test]
+    fn default_cors_is_fail_closed() {
+        let config = HttpServerConfig::<MockEndpoint>::default();
+        assert!(config.cors_allowed_origins.is_empty());
+        assert!(!config.cors_permissive);
+        let builder = HttpServerBuilder::try_from(config).unwrap();
+        assert!(
+            builder.cors_factory.is_none(),
+            "default CORS factory must be None (same-origin only)"
+        );
+    }
+
+    /// Verifies explicit allowed origins produce a CORS factory.
+    #[test]
+    fn explicit_cors_origins_enable_cors() {
+        let config = HttpServerConfig::<MockEndpoint> {
+            cors_allowed_origins: vec!["https://ui.example.com".to_string()],
+            ..Default::default()
+        };
+        let builder = HttpServerBuilder::try_from(config).unwrap();
+        assert!(builder.cors_factory.is_some());
+    }
+
+    /// Verifies the permissive opt-in produces a CORS factory.
+    #[test]
+    fn permissive_cors_opt_in() {
+        let config = HttpServerConfig::<MockEndpoint> {
+            cors_permissive: true,
+            ..Default::default()
+        };
+        let builder = HttpServerBuilder::try_from(config).unwrap();
+        assert!(builder.cors_factory.is_some());
     }
 
     /// Verifies that Custom profile with min_version is accepted.
