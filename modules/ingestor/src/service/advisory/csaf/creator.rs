@@ -274,10 +274,6 @@ impl<'a> StatusCreator<'a> {
                             VersionScheme::from(purl.ty.as_str()),
                             VersionSpec::Exact(purl.effective_version()),
                         ),
-                        None if self.is_redhat => (
-                            VersionScheme::from(purl.ty.as_str()),
-                            VersionSpec::Range(Version::Unbounded, Version::Unbounded),
-                        ),
                         None => (VersionScheme::Generic, VersionSpec::Exact(String::new())),
                     };
                     self.create_purl_status(&product, purl, scheme, spec, status_id);
