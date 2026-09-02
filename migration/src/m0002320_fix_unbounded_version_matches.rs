@@ -69,6 +69,10 @@ declare
     low_end integer;
     high_end integer;
 begin
+    if range_p.low_version is null and range_p.high_version is null then
+        return true;
+    end if;
+
     if range_p.low_version is not null then
         low_end := mavenver_cmp(version_p, range_p.low_version);
     end if;
@@ -104,7 +108,7 @@ begin
     end if;
 
     if low_end is null and high_end is null then
-        return true;
+        return false;
     end if;
 
     return true;
@@ -119,6 +123,10 @@ declare
     low_end integer;
     high_end integer;
 begin
+    if range_p.low_version is null and range_p.high_version is null then
+        return true;
+    end if;
+
     if range_p.low_version is not null then
         low_end := pythonver_cmp(version_p, range_p.low_version);
     end if;
@@ -154,7 +162,7 @@ begin
     end if;
 
     if low_end is null and high_end is null then
-        return true;
+        return false;
     end if;
 
     return true;
@@ -169,6 +177,10 @@ declare
     low_end integer;
     high_end integer;
 begin
+    if range_p.low_version is null and range_p.high_version is null then
+        return true;
+    end if;
+
     if range_p.low_version is not null then
         low_end := rpmver_cmp(version_p, range_p.low_version);
     end if;
@@ -204,7 +216,7 @@ begin
     end if;
 
     if low_end is null and high_end is null then
-        return true;
+        return false;
     end if;
 
     return true;
@@ -219,6 +231,10 @@ declare
     low_end integer;
     high_end integer;
 begin
+    if range_p.low_version is null and range_p.high_version is null then
+        return true;
+    end if;
+
     if range_p.low_version is not null then
         low_end := semver_cmp(version_p, range_p.low_version);
     end if;
@@ -254,7 +270,7 @@ begin
     end if;
 
     if low_end is null and high_end is null then
-        return true;
+        return false;
     end if;
 
     return true;

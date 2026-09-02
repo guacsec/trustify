@@ -94,6 +94,9 @@ jobs:
             non_md_changes:
               - '!**/*.md'
 
+      - name: Install system dependencies
+        run: sudo apt-get install -y libossp-uuid16
+
       - name: Cache Theseus Postgresql Installation
         uses: actions/cache@v6
         with:
