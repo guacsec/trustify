@@ -1,5 +1,5 @@
 use crate::{
-    app::{AppOptions, new_app},
+    app::{AppOptions, SecurityHeaders, new_app},
     endpoint::Endpoint,
     otel::{Metrics, Tracing},
 };
@@ -304,12 +304,50 @@ where
     )]
     pub cors_permissive: bool,
 
+    /// Disable the defense-in-depth security response headers
+    /// (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, CSP, HSTS).
+    #[arg(
+        id = "http-server-security-headers-disabled",
+        long,
+        env = "HTTP_SERVER_SECURITY_HEADERS_DISABLED",
+        default_value_t = false
+    )]
+    pub security_headers_disabled: bool,
+
+    /// The Content-Security-Policy header value. An empty value omits the
+    /// header. A full XSS-mitigating policy is deployment-specific because
+    /// `connect-src` must include the OIDC issuer used by the UI.
+    #[arg(
+        id = "http-server-csp",
+        long,
+        env = "HTTP_SERVER_CSP",
+        default_value = default::CSP
+    )]
+    pub csp: String,
+
+    /// The Strict-Transport-Security header value. An empty value omits the
+    /// header. Only honored by browsers over HTTPS.
+    #[arg(
+        id = "http-server-hsts",
+        long,
+        env = "HTTP_SERVER_HSTS",
+        default_value = default::HSTS
+    )]
+    pub hsts: String,
+
     #[arg(skip)]
     _marker: Marker<E>,
 }
 
 mod default {
     use super::*;
+
+    /// Non-breaking default: restrict framing (clickjacking defense) without
+    /// constraining content sources, which would require the deployment's OIDC
+    /// issuer in `connect-src`. Operators should tighten this per deployment.
+    pub const CSP: &str = "frame-ancestors 'none'";
+
+    pub const HSTS: &str = "max-age=31536000; includeSubDomains";
 
     pub fn bind_addr() -> String {
         "::1".to_string()
@@ -345,6 +383,9 @@ where
             disable_log: false,
             cors_allowed_origins: Vec::new(),
             cors_permissive: false,
+            security_headers_disabled: false,
+            csp: default::CSP.to_string(),
+            hsts: default::HSTS.to_string(),
             _marker: Default::default(),
         }
     }
@@ -407,6 +448,15 @@ where
             }
         };
 
+        result = result.security_headers(if value.security_headers_disabled {
+            None
+        } else {
+            Some(SecurityHeaders {
+                content_security_policy: value.csp,
+                strict_transport_security: value.hsts,
+            })
+        });
+
         if value.tls_enabled {
             if value.tls_security_profile == TlsSecurityProfile::Custom
                 && value.tls_min_version.is_none()
@@ -446,6 +496,7 @@ pub struct HttpServerBuilder {
     tls: Option<TlsConfiguration>,
 
     cors_factory: Option<Arc<dyn Fn() -> Cors + Send + Sync>>,
+    security_headers: Option<SecurityHeaders>,
     authenticator: Option<Arc<Authenticator>>,
     authorizer: Option<Authorizer>,
     swagger_ui_oidc: Option<Arc<SwaggerUiOidc>>,
@@ -532,6 +583,7 @@ impl HttpServerBuilder {
             bind: Bind::Address(DEFAULT_ADDR),
             tls: None,
             cors_factory: None,
+            security_headers: None,
             authenticator: None,
             authorizer: None,
             swagger_ui_oidc: None,
@@ -559,6 +611,12 @@ impl HttpServerBuilder {
 
     pub fn cors_disabled(mut self) -> Self {
         self.cors_factory = None;
+        self
+    }
+
+    /// Set the security response headers applied to every response.
+    pub fn security_headers(mut self, security_headers: Option<SecurityHeaders>) -> Self {
+        self.security_headers = security_headers;
         self
     }
 
@@ -700,6 +758,7 @@ impl HttpServerBuilder {
                 logger,
                 tracing_logger,
                 metrics,
+                security_headers: self.security_headers.clone(),
             })
             .app_data(json)
             .into_utoipa_app();
@@ -901,6 +960,28 @@ mod test {
         };
         let builder = HttpServerBuilder::try_from(config).unwrap();
         assert!(builder.cors_factory.is_some());
+    }
+
+    /// Verifies security headers are enabled by default with sane values.
+    #[test]
+    fn default_security_headers_enabled() {
+        let config = HttpServerConfig::<MockEndpoint>::default();
+        assert!(!config.security_headers_disabled);
+        assert_eq!(config.csp, default::CSP);
+        assert_eq!(config.hsts, default::HSTS);
+        let builder = HttpServerBuilder::try_from(config).unwrap();
+        assert!(builder.security_headers.is_some());
+    }
+
+    /// Verifies security headers can be disabled via config.
+    #[test]
+    fn security_headers_can_be_disabled() {
+        let config = HttpServerConfig::<MockEndpoint> {
+            security_headers_disabled: true,
+            ..Default::default()
+        };
+        let builder = HttpServerBuilder::try_from(config).unwrap();
+        assert!(builder.security_headers.is_none());
     }
 
     /// Verifies that Custom profile with min_version is accepted.
