@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788341112011,
+  "lastUpdate": 1788359077493,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21397,6 +21397,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mrizzi@redhat.com",
+            "name": "mrizzi",
+            "username": "mrizzi"
+          },
+          "committer": {
+            "email": "mrizzi@users.noreply.github.com",
+            "name": "Marco Rizzi",
+            "username": "mrizzi"
+          },
+          "distinct": true,
+          "id": "342fe3dc33d6cf6393bf18fc8f1c190cb6a67e24",
+          "message": "feat: enable clippy::absolute_paths lint to enforce import style\n\nEnable the clippy::absolute_paths restriction lint with\nabsolute-paths-max-segments = 3 to flag fully-qualified paths with 4+\nsegments at build time. Fix all 70 existing violations by replacing\ninline paths with use imports.\n\nThe threshold of 3 (flagging 4+ segments) was chosen over 2 (flagging\n3+ segments) to avoid maintaining a 30+ external crate allowlist.\nThree configurations were tested against the codebase:\n- max-segments=2, no allowlist: 526 violations / 165 files\n- max-segments=2, 30-crate allowlist: 196 violations / 63 files\n- max-segments=3, no allowlist: 70 violations / 35 files\n\nAlso document the qualified-names convention in CONVENTIONS.md: common\nnames like Model, Entity, from_value should stay qualified with a\n2-segment path even without a conflict in the current file.\n\nImplements TC-4513\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-09-02T13:45:32Z",
+          "tree_id": "b26d19cd37a91afecfb9fcdecb502eb8b955dff1",
+          "url": "https://github.com/guacsec/trustify/commit/342fe3dc33d6cf6393bf18fc8f1c190cb6a67e24"
+        },
+        "date": 1788359075989,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
             "unit": "s"
           }
         ]
