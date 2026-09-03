@@ -6,12 +6,15 @@ Date: 2026-09-03
 
 ACCEPTED
 
-Closes open items from [ADR 00008](00008-purls-recommendation.md):
+Closes the open advisory-ingest item from [ADR 00008](00008-purls-recommendation.md):
 
-* *"Provide a way to return different patterns of recommended purls"* — resolved via the
-  `trusted_source` flag on importers (source-scoped designation, not pattern-based matching).
 * *"Ingest remediation information from advisories and use them to provide more data to
   results of this endpoint (requires a separate ADR)"* — this is that ADR.
+
+The open item *"Provide a way to return different patterns of recommended purls"* is not
+addressed here. The `trusted_source` flag designates an entire advisory feed as authoritative
+(source-scoped), not a configurable per-pattern mechanism. Pattern-based recommendation
+selection is deferred to a future decision.
 
 ## Context
 
@@ -34,7 +37,7 @@ This approach has fundamental limitations:
 
 ### Advisory-encoded remediation data
 
-[Lightwell](https://lightwell.com/) publishes OSV advisories that explicitly encode the
+[Lightwell](https://www.redhat.com/en/lightwell) publishes OSV advisories that explicitly encode the
 remediation relationship between upstream and vendor packages. Each such advisory contains:
 
 * **`database_specific.backport_base_version`** — the upstream package version that was
@@ -77,12 +80,16 @@ decision, not a heuristic. The flag is not inferred automatically.
 For each OSV advisory ingested from a trusted source, the ingestor hook:
 
 1. Checks `database_specific.backport_base_version` — if absent, skips the advisory.
-2. Extracts the upstream version (`backport_base_version`) and the vendor version (from
-   the `fixed` event in the affected ranges).
-3. Resolves both versions to `versioned_purl` records in the database. If either cannot
-   be resolved (the PURL has not been ingested), the recommendation record is skipped.
-4. Creates a `recommendation` record linking the upstream versioned PURL to the vendor
-   versioned PURL, with a foreign key to the advisory for provenance.
+2. Iterates over `affected[].ranges[]`. For each range that contains a `fixed` event,
+   extracts one `(upstream_version, vendor_version)` pair: `backport_base_version` as the
+   upstream version and the `fixed` event value as the vendor version. If a range contains
+   multiple `fixed` events, each event yields a separate pair. Ranges without a `fixed`
+   event are skipped.
+3. Resolves each pair to `versioned_purl` records in the database. If either PURL cannot
+   be resolved (not yet ingested), that pair is skipped; other pairs from the same advisory
+   continue to be processed.
+4. Creates a `recommendation` record for each resolved pair, linking the upstream versioned
+   PURL to the vendor versioned PURL with a foreign key to the advisory for provenance.
 
 ### Recommendation entity schema
 
@@ -92,12 +99,17 @@ recommendation
 ├── upstream_versioned_purl   FK → versioned_purl (the upstream package version)
 ├── vendor_versioned_purl     FK → versioned_purl (the vendor/backport package version)
 ├── advisory                  FK → advisory (provenance — which advisory established this)
-└── (unique constraint on upstream_versioned_purl + vendor_versioned_purl)
+└── (unique constraint on upstream_versioned_purl + vendor_versioned_purl + advisory)
 ```
 
+Multiple provenance rows may exist for the same upstream/vendor pair — at most one row per
+advisory. Re-ingesting an advisory upserts only its own provenance rows. Retracting an
+advisory deletes only rows linked to that advisory; the recommendation pair remains active
+while at least one other advisory provenance row exists.
+
 The advisory foreign key provides full provenance: operators can trace every recommendation
-back to the advisory that established it, and re-ingest or retract recommendations by
-reprocessing the advisory.
+back to the advisory that established it, retract individual advisories without losing
+coverage from other authoritative sources, and re-process advisories to refresh recommendations.
 
 ### Query integration via DB JOIN
 
