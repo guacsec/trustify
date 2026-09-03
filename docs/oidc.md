@@ -81,6 +81,7 @@ The CLI alternative provides predefined scope mappings that cannot be customized
         "scopeMappings": {
           "create:document": [
             "create.advisory",
+            "create.exploit",
             "create.importer",
             "create.metadata",
             "create.sbom",
@@ -90,6 +91,7 @@ The CLI alternative provides predefined scope mappings that cannot be customized
           "read:document": [
             "ai",
             "read.advisory",
+            "read.exploit",
             "read.importer",
             "read.metadata",
             "read.sbom",
@@ -98,6 +100,7 @@ The CLI alternative provides predefined scope mappings that cannot be customized
           ],
           "update:document": [
             "update.advisory",
+            "update.exploit",
             "update.importer",
             "update.metadata",
             "update.sbom",
@@ -105,6 +108,7 @@ The CLI alternative provides predefined scope mappings that cannot be customized
           ],
           "delete:document": [
             "delete.advisory",
+            "delete.exploit",
             "delete.importer",
             "delete.metadata",
             "delete.sbom",

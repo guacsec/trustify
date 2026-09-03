@@ -122,6 +122,15 @@ permission! {
         CreateExploitIntelligence,
         #[strum(serialize = "read.exploitIntelligence")]
         ReadExploitIntelligence,
+
+        #[strum(serialize = "create.exploit")]
+        CreateExploit,
+        #[strum(serialize = "read.exploit")]
+        ReadExploit,
+        #[strum(serialize = "update.exploit")]
+        UpdateExploit,
+        #[strum(serialize = "delete.exploit")]
+        DeleteExploit,
     }
 }
 
