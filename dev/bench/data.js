@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788359077493,
+  "lastUpdate": 1788444287415,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21426,6 +21426,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "118d32f697f4d34256b377eb985f5d3edf0d89d5",
+          "message": "fix: remove dead `id` field from `RemediationSummary`\n\nThe `id: Uuid` field was added in 9a62e32a and later marked\n`#[serde(skip_serializing)]` in f839bb43 to hide the internal DB\nprimary key from API responses. However, `skip_serializing` only\nskips the write side — deserialization still required the field,\nwhich is absent from the serialized JSON. This caused a\n`missing field 'id'` panic when round-tripping any\n`/vulnerability/analyze` response that includes remediations.\n\nThe field was never read after construction and was only used in\ntests to zero it out before comparison. Remove it entirely.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-03T13:17:26Z",
+          "tree_id": "250ddab0462a7e59650bb2fb7b9632d4a21b27f5",
+          "url": "https://github.com/guacsec/trustify/commit/118d32f697f4d34256b377eb985f5d3edf0d89d5"
+        },
+        "date": 1788444285358,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
