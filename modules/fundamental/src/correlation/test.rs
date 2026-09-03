@@ -1101,3 +1101,69 @@ async fn s16_crossscheme_purlquery_golang(
 
     Ok(())
 }
+
+// ===========================================================================
+// S17: Cross-product OCP kernel vs Go advisory (TC-5171)
+//
+// CVE-2023-24538 is a Go html/template bug. Its Red Hat CSAF bundles a kernel
+// fix under the OCP CPE (cpe:/a:redhat:openshift:4.13::el9) alongside the real
+// go-toolset fix (cpe:/a:redhat:devtools:2023::el7). A plain RHEL 8 kernel must
+// not match the OCP kernel entry — the CVE isn't a kernel bug and the product
+// CPE is wrong. Child-node CPE escape-hatches (TC-5750); the comparison is also
+// cross-stream el8<el9 (TC-5640). go-toolset below the fix is the positive control.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5171: product_status CPE context not checked (OCP kernel matched to RHEL 8); TC-5640: dist-tag-blind el8<el9; TC-5750: child-node OS CPE not captured"]
+#[test_log::test(actix_web::test)]
+async fn s17_crossproduct_ocp_kernel_go(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S17_crossproduct_ocp_kernel_go",
+        &["vex/CVE-2023-24538.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // (SBOM base name, expected_affected)
+    let cases: &[(&str, bool)] = &[
+        // --- cross-product CPE-context axis: RHEL 8 kernel vs the OCP kernel entry ---
+        // CPE on a child node (escape hatch) — OCP entry must not match
+        ("sbom_kernel_rhel8", false),
+        // CPE on the describing/root node (captured) — filter should engage
+        ("sbom_kernel_rhel8_rootcpe", false),
+        // --- version axis: go-toolset (the affected product) vs fix 1.19.9-1.el7_9 ---
+        ("sbom_gotoolset_devtools_belowfix", true), // below fix → affected
+        ("sbom_gotoolset_devtools_atfix", false),   // at fix → not_affected
+        ("sbom_gotoolset_devtools_abovefix", false), // above fix → not_affected
+    ];
+
+    let mut mismatches = Vec::new();
+    for (base, expected_affected) in cases {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S17_crossproduct_ocp_kernel_go/{base}.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        let present = advisory_cves(&adv).contains(&"CVE-2023-24538");
+        if present != *expected_affected {
+            mismatches.push(format!(
+                "  {base} ({fmt}): expected affected={expected_affected}, /sbom/advisory present={present}"
+            ));
+        }
+    }
+
+    assert!(
+        mismatches.is_empty(),
+        "S17 CVE-2023-24538 correlation mismatches:\n{}",
+        mismatches.join("\n")
+    );
+
+    Ok(())
+}
