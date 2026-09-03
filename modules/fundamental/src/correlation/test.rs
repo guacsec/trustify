@@ -1035,3 +1035,82 @@ async fn s14_productstatus_version_filter_netty(
 
     Ok(())
 }
+
+// ===========================================================================
+// S15: Same-type RPM version comparison openssh (TC-5170 / TC-5640)
+//
+// The correct verdict for an openssh RPM is version-decided *against its own
+// stream's fix*. The VEX (CVE-2023-38408) fixes openssh at 8.0p1-19.el8_8
+// under cpe:/o:redhat:enterprise_linux:8::baseos, and has NO entry for the
+// el8_10 sub-stream. Three groups isolate distinct failure modes:
+//
+//   A. root CPE, same stream (el8_8, covered)  — version-decided:
+//        below -> affected, at/above -> not_affected.
+//   B. root CPE, different stream (el8_10, NOT in the VEX) — no applicable
+//        statement, so nothing correlates: all -> not_affected. A dist-tag
+//        blind comparator (TC-5640) wrongly matches the el8_8 fix and reports
+//        the below build affected.
+//   C. child CPE / no root CPE (same stream el8_8) — same correct verdicts as
+//        A, exercised through the CPE escape-hatch path.
+//
+// The SBOM product_status (CPE/name) paths match openssh by name only with no
+// version_matches (TC-5170), so at/above builds are over-reported affected.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5170: product_status matches openssh by name only (no version_matches); TC-5640: dist-tag-blind cross-stream match"]
+#[test_log::test(actix_web::test)]
+async fn s15_versioncmp_rpm_openssh(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S15_versioncmp_rpm_openssh",
+        &["vex/CVE-2023-38408.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // (SBOM base name, expected_affected)
+    let cases: &[(&str, bool)] = &[
+        // A. root CPE, same stream el8_8 (covered) — version-decided
+        ("sbom_openssh_rootcpe_el8_8_below-fix", true),
+        ("sbom_openssh_rootcpe_el8_8_at-fix", false),
+        ("sbom_openssh_rootcpe_el8_8_above-fix", false),
+        // B. root CPE, different stream el8_10 (not in VEX) — nothing correlates
+        ("sbom_openssh_rootcpe_el8_10_below-fix", false),
+        ("sbom_openssh_rootcpe_el8_10_at-fix", false),
+        ("sbom_openssh_rootcpe_el8_10_above-fix", false),
+        // C. child CPE / no root CPE, same stream el8_8 (covered) — version-decided
+        ("sbom_openssh_el8_below-fix", true),
+        ("sbom_openssh_el8_at-fix", false),
+        ("sbom_openssh_el8_above-fix", false),
+    ];
+
+    let mut mismatches = Vec::new();
+    for (base, expected_affected) in cases {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/{base}.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        let present = advisory_cves(&adv).contains(&"CVE-2023-38408");
+        if present != *expected_affected {
+            mismatches.push(format!(
+                "  {base} ({fmt}): expected affected={expected_affected}, /sbom/advisory present={present}"
+            ));
+        }
+    }
+
+    assert!(
+        mismatches.is_empty(),
+        "S15 CVE-2023-38408 correlation mismatches:\n{}",
+        mismatches.join("\n")
+    );
+
+    Ok(())
+}
