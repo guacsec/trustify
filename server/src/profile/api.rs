@@ -3,9 +3,10 @@ use crate::embedded_oidc;
 
 use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
+use anyhow::Context;
 use bytesize::ByteSize;
 use futures::FutureExt;
-use std::{env, process::ExitCode, sync::Arc};
+use std::{env, path::PathBuf, process::ExitCode, sync::Arc};
 use tokio::sync::oneshot;
 use trustify_auth::{
     auth::AuthConfigArguments,
@@ -99,6 +100,13 @@ pub struct Run {
         default_value_t = default::scan_limit()
     )]
     pub scan_limit: BinaryByteSize,
+
+    /// Path to a semantic validators configuration file (YAML).
+    ///
+    /// When unset (the default), no validators run and ingestion behaves as
+    /// before. See ADR 00020.
+    #[arg(long, env = "TRUSTD_VALIDATORS_CONFIG")]
+    pub validators_config: Option<PathBuf>,
 
     // flattened commands must go last
     //
@@ -363,6 +371,7 @@ struct InitData {
     broadcaster: ChangeBroadcaster,
     read_only: bool,
     ei_config: Option<ExploitIntelligenceConfig>,
+    validators: Vec<Arc<dyn trustify_module_ingestor::service::validation::Validator>>,
 }
 
 /// Groups all module configurations.
@@ -469,6 +478,21 @@ impl InitData {
 
         let ei_config = run.exploit_intelligence.into_config().await?;
 
+        // Build the semantic validator set (ADR 00020). With no config file,
+        // this is empty and ingestion behaves exactly as before.
+        let validators = match &run.validators_config {
+            Some(path) => {
+                let raw = tokio::fs::read_to_string(path)
+                    .await
+                    .with_context(|| format!("reading validators config {}", path.display()))?;
+                let config: trustify_module_ingestor::service::validation::ValidatorsConfig =
+                    serde_yml::from_str(&raw)
+                        .with_context(|| format!("parsing validators config {}", path.display()))?;
+                trustify_module_ingestor::service::validation::build(&config)?
+            }
+            None => Vec::new(),
+        };
+
         let broadcaster = ChangeBroadcaster::new(
             &db_rw,
             *run.notification.change_log_retention,
@@ -495,6 +519,7 @@ impl InitData {
             ui,
             read_only: run.read_only,
             ei_config,
+            validators,
         })
     }
 
@@ -532,6 +557,7 @@ impl InitData {
                             read_only: self.read_only,
                             ei_service: ei_service.clone(),
                             graph: graph.clone(),
+                            validators: self.validators.clone(),
                         },
                     );
                 })
@@ -619,6 +645,7 @@ pub(crate) struct Config {
     pub(crate) read_only: bool,
     pub(crate) ei_service: ExploitIntelligenceService,
     pub(crate) graph: Graph,
+    pub(crate) validators: Vec<Arc<dyn trustify_module_ingestor::service::validation::Validator>>,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
@@ -639,6 +666,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         read_only,
         ei_service,
         graph,
+        validators,
     } = config;
 
     let limit = ByteSize::gb(1).as_u64() as usize;
@@ -667,6 +695,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     db_rw.clone(),
                     storage.clone(),
                     Some(analysis.clone()),
+                    validators.clone(),
                 );
                 trustify_module_fundamental::endpoints::configure(
                     svc,
@@ -677,6 +706,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     analysis.clone(),
                     cache,
                     graph,
+                    validators,
                 );
                 trustify_module_exploit_intelligence::endpoints::configure(
                     svc,
@@ -775,6 +805,7 @@ mod test {
                             ei_service: ExploitIntelligenceService::new(None)
                                 .expect("disabled EI service"),
                             graph: Graph::new(),
+                            validators: Vec::new(),
                         },
                     );
                 })
@@ -861,6 +892,7 @@ mod test {
                     read_only,
                     ei_service,
                     graph,
+                    validators: Vec::new(),
                 },
             );
         })
@@ -1077,6 +1109,7 @@ mod test {
             #[cfg(feature = "garage-door")]
             embedded_oidc: None,
             ui: Default::default(),
+            validators: Vec::new(),
         };
         let graph = Graph::new();
 
@@ -1136,6 +1169,7 @@ mod test {
                     ei_service,
                     graph,
                     broadcaster,
+                    validators: Vec::new(),
                 },
             );
         })

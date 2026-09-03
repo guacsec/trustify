@@ -3,6 +3,7 @@ pub mod dataset;
 mod detect;
 pub mod kev;
 pub mod sbom;
+pub mod validation;
 pub mod weakness;
 
 mod format;
@@ -15,7 +16,13 @@ use crate::graph::Graph;
 use crate::graph::error::Error as GraphError;
 use crate::{
     model::IngestResult,
-    service::dataset::{DatasetIngestResult, DatasetLoader},
+    service::{
+        dataset::{DatasetIngestResult, DatasetLoader},
+        validation::{
+            Finding, OnError, Severity, ValidationMode, ValidationOutcome, ValidationReport,
+            Validator, ValidatorInput,
+        },
+    },
 };
 use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use anyhow::anyhow;
@@ -69,6 +76,8 @@ pub enum Error {
     PayloadTooLarge,
     #[error("unavailable")]
     Unavailable,
+    #[error("document rejected by validation")]
+    ValidationRejected(Vec<ValidationReport>),
 }
 
 impl From<DbErr> for Error {
@@ -169,6 +178,16 @@ impl ResponseError for Error {
                 message: self.to_string(),
                 details: None,
             }),
+            Self::ValidationRejected(reports) => {
+                // Return the reports as a structured array (not an escaped JSON
+                // string) so clients can consume findings directly. The
+                // `error`/`message` fields mirror `ErrorInformation`.
+                HttpResponse::UnprocessableEntity().json(serde_json::json!({
+                    "error": "ValidationRejected",
+                    "message": self.to_string(),
+                    "validation": reports,
+                }))
+            }
         }
     }
 }
@@ -200,6 +219,7 @@ pub struct IngestorService {
     graph: Graph,
     storage: DispatchBackend,
     analysis: Option<AnalysisService>,
+    validators: Arc<[Arc<dyn Validator>]>,
 }
 
 impl IngestorService {
@@ -212,11 +232,37 @@ impl IngestorService {
             graph,
             storage: storage.into(),
             analysis,
+            validators: Vec::new().into(),
         }
+    }
+
+    /// Attach the set of semantic validators run on every ingest.
+    ///
+    /// With an empty set (the default), ingestion behaves as if validation did
+    /// not exist. See ADR 00020.
+    pub fn with_validators(mut self, validators: Vec<Arc<dyn Validator>>) -> Self {
+        self.validators = validators.into();
+        self
     }
 
     pub fn storage(&self) -> &DispatchBackend {
         &self.storage
+    }
+
+    /// Run all applicable validators against a document.
+    ///
+    /// Returns the collected reports on success. Returns
+    /// [`Error::ValidationRejected`] if any [`ValidationMode::Verify`] validator
+    /// blocks the document — either because its outcome is
+    /// [`ValidationOutcome::Failed`], or because it errored while configured to
+    /// [`OnError::Block`].
+    #[instrument(skip(self, bytes), fields(bytes = bytes.len()), err(level = tracing::Level::INFO))]
+    async fn run_validators(
+        &self,
+        bytes: &[u8],
+        fmt: Format,
+    ) -> Result<Vec<ValidationReport>, Error> {
+        run_validators(&self.validators, bytes, fmt).await
     }
 
     #[instrument(skip_all, err(level=tracing::Level::INFO))]
@@ -234,15 +280,22 @@ impl IngestorService {
         let detector = DocumentDetector::detect_as(bytes, format)?;
         let fmt = detector.format();
 
+        // Run semantic validators before persisting anything. A blocking
+        // (verify) failure returns an error here, so no bytes are stored and no
+        // graph rows are created. See ADR 00020.
+        let reports = self.run_validators(bytes, fmt).await?;
+
         let result = self
             .storage
             .store(bytes)
             .await
             .map_err(|err| Error::Storage(anyhow!("{err}")))?;
 
-        let result = detector
+        let mut result = detector
             .load(&self.graph, labels.into(), issuer, &result.digests, tx)
             .await?;
+
+        attach_validation(&mut result, reports);
 
         let change_entity = match fmt {
             Format::CSAF | Format::CVE | Format::OSV => Some(ChangeEntity::Advisory),
@@ -319,6 +372,91 @@ impl IngestorService {
     }
 }
 
+/// Run all applicable validators against a document.
+///
+/// Returns the collected reports, or [`Error::ValidationRejected`] if a
+/// [`ValidationMode::Verify`] validator blocks the document. See ADR 00020.
+async fn run_validators(
+    validators: &[Arc<dyn Validator>],
+    bytes: &[u8],
+    fmt: Format,
+) -> Result<Vec<ValidationReport>, Error> {
+    if validators.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let input = ValidatorInput { bytes, format: fmt };
+    let mut reports = Vec::new();
+    let mut blocked = Vec::new();
+
+    for validator in validators {
+        if !validator.applies_to(fmt) {
+            continue;
+        }
+
+        match validator.validate(&input).await {
+            Ok(report) => {
+                if validator.mode() == ValidationMode::Verify
+                    && report.outcome == ValidationOutcome::Failed
+                {
+                    blocked.push(report.clone());
+                }
+                reports.push(report);
+            }
+            Err(err) => match (validator.mode(), validator.on_error()) {
+                (ValidationMode::Verify, OnError::Block) => {
+                    tracing::warn!(
+                        validator = validator.name(),
+                        "verify validator errored, blocking ingestion: {err}"
+                    );
+                    blocked.push(errored_report(validator.name(), &err));
+                }
+                _ => {
+                    tracing::warn!(
+                        validator = validator.name(),
+                        "validator errored, continuing ingestion: {err}"
+                    );
+                }
+            },
+        }
+    }
+
+    if blocked.is_empty() {
+        Ok(reports)
+    } else {
+        Err(Error::ValidationRejected(blocked))
+    }
+}
+
+/// Build a report representing a validator that failed to run.
+fn errored_report(name: &str, err: &validation::ValidatorError) -> ValidationReport {
+    ValidationReport {
+        validator: name.to_string(),
+        findings: vec![Finding {
+            severity: Severity::Fatal,
+            message: format!("validator failed to run: {err}"),
+            path: None,
+            rule: None,
+        }],
+        outcome: ValidationOutcome::Failed,
+    }
+}
+
+/// Attach validation reports to an ingest result, folding notable findings into
+/// the human-readable `warnings` list for backward compatibility.
+fn attach_validation(result: &mut IngestResult, reports: Vec<ValidationReport>) {
+    for report in &reports {
+        for finding in &report.findings {
+            if finding.severity >= Severity::Warning {
+                result
+                    .warnings
+                    .push(format!("[{}] {}", report.validator, finding.message));
+            }
+        }
+    }
+    result.validation = reports;
+}
+
 /// Capture warnings from the import process
 #[derive(Default)]
 pub(crate) struct Warnings(Arc<Mutex<Vec<String>>>);
@@ -352,4 +490,178 @@ pub struct Discard;
 
 impl ReportSink for Discard {
     fn error(&self, _msg: String) {}
+}
+
+#[cfg(test)]
+mod validation_tests {
+    use super::*;
+    use crate::service::validation::{
+        Finding, OnError, Severity, ValidationMode, ValidationOutcome, ValidationReport, Validator,
+        ValidatorError, ValidatorInput,
+    };
+    use sea_orm::prelude::async_trait;
+
+    /// A configurable mock validator for exercising the runner.
+    #[derive(Debug)]
+    struct MockValidator {
+        name: &'static str,
+        mode: ValidationMode,
+        on_error: OnError,
+        applies: bool,
+        result: MockResult,
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    enum MockResult {
+        Passed,
+        Failed,
+        Errored,
+    }
+
+    impl MockValidator {
+        fn new(name: &'static str, mode: ValidationMode, result: MockResult) -> Self {
+            Self {
+                name,
+                mode,
+                on_error: OnError::Block,
+                applies: true,
+                result,
+            }
+        }
+
+        fn on_error(mut self, on_error: OnError) -> Self {
+            self.on_error = on_error;
+            self
+        }
+
+        fn applies(mut self, applies: bool) -> Self {
+            self.applies = applies;
+            self
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Validator for MockValidator {
+        fn name(&self) -> &str {
+            self.name
+        }
+        fn mode(&self) -> ValidationMode {
+            self.mode
+        }
+        fn threshold(&self) -> Severity {
+            Severity::Error
+        }
+        fn on_error(&self) -> OnError {
+            self.on_error
+        }
+        fn applies_to(&self, _format: Format) -> bool {
+            self.applies
+        }
+        async fn validate(
+            &self,
+            _input: &ValidatorInput<'_>,
+        ) -> Result<ValidationReport, ValidatorError> {
+            match self.result {
+                MockResult::Errored => Err(ValidatorError::Timeout),
+                outcome => Ok(ValidationReport {
+                    validator: self.name.to_string(),
+                    findings: vec![Finding {
+                        severity: Severity::Error,
+                        message: "finding".into(),
+                        path: None,
+                        rule: None,
+                    }],
+                    outcome: match outcome {
+                        MockResult::Passed => ValidationOutcome::Passed,
+                        _ => ValidationOutcome::Failed,
+                    },
+                }),
+            }
+        }
+    }
+
+    fn run(validators: Vec<Arc<dyn Validator>>) -> Result<Vec<ValidationReport>, Error> {
+        tokio::runtime::Runtime::new()
+            .expect("runtime")
+            .block_on(run_validators(&validators, b"{}", Format::CSAF))
+    }
+
+    #[test]
+    fn empty_set_is_noop() {
+        let reports = run(vec![]).expect("ok");
+        assert!(reports.is_empty());
+    }
+
+    #[test]
+    fn report_mode_never_blocks_even_when_failed() {
+        let reports = run(vec![Arc::new(MockValidator::new(
+            "r",
+            ValidationMode::Report,
+            MockResult::Failed,
+        ))])
+        .expect("report mode must not block");
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].outcome, ValidationOutcome::Failed);
+    }
+
+    #[test]
+    fn verify_mode_blocks_on_failed() {
+        let err = run(vec![Arc::new(MockValidator::new(
+            "v",
+            ValidationMode::Verify,
+            MockResult::Failed,
+        ))])
+        .expect_err("verify + failed must block");
+        match err {
+            Error::ValidationRejected(reports) => assert_eq!(reports.len(), 1),
+            other => panic!("expected ValidationRejected, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn verify_mode_passes_when_ok() {
+        let reports = run(vec![Arc::new(MockValidator::new(
+            "v",
+            ValidationMode::Verify,
+            MockResult::Passed,
+        ))])
+        .expect("verify + passed must not block");
+        assert_eq!(reports.len(), 1);
+    }
+
+    #[test]
+    fn verify_error_is_fail_closed_by_default() {
+        let err = run(vec![Arc::new(MockValidator::new(
+            "v",
+            ValidationMode::Verify,
+            MockResult::Errored,
+        ))])
+        .expect_err("verify validator error must block (fail-closed)");
+        match err {
+            Error::ValidationRejected(reports) => {
+                assert_eq!(reports[0].outcome, ValidationOutcome::Failed);
+                assert_eq!(reports[0].findings[0].severity, Severity::Fatal);
+            }
+            other => panic!("expected ValidationRejected, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn verify_error_can_be_fail_open() {
+        let reports = run(vec![Arc::new(
+            MockValidator::new("v", ValidationMode::Verify, MockResult::Errored)
+                .on_error(OnError::Continue),
+        )])
+        .expect("on_error=continue must not block");
+        assert!(reports.is_empty());
+    }
+
+    #[test]
+    fn non_applicable_validator_is_skipped() {
+        let reports = run(vec![Arc::new(
+            MockValidator::new("v", ValidationMode::Verify, MockResult::Failed).applies(false),
+        )])
+        .expect("non-applicable validator must be skipped");
+        assert!(reports.is_empty());
+    }
 }

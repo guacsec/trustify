@@ -1,9 +1,10 @@
 use actix_web::web;
+use std::sync::Arc;
 use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_ingestor::common;
 use trustify_module_ingestor::graph::Graph;
-use trustify_module_ingestor::service::IngestorService;
+use trustify_module_ingestor::service::{IngestorService, validation::Validator};
 use trustify_module_storage::service::dispatch::DispatchBackend;
 use utoipa::{IntoParams, ToSchema};
 
@@ -29,8 +30,10 @@ pub fn configure(
     analysis: AnalysisService,
     cache: PaginationCache,
     graph: Graph,
+    validators: Vec<Arc<dyn Validator>>,
 ) {
-    let ingestor_service = IngestorService::new(graph, storage, Some(analysis));
+    let ingestor_service =
+        IngestorService::new(graph, storage, Some(analysis)).with_validators(validators);
     svc.app_data(web::Data::new(ingestor_service.clone()));
 
     advisory::endpoints::configure(

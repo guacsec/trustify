@@ -265,6 +265,7 @@ impl<'g> CveLoader<'g> {
             id: advisory.advisory.id.to_string(),
             document_id: Some(id.to_string()),
             warnings: warnings.into(),
+            validation: Vec::new(),
         })
     }
 

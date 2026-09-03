@@ -30,6 +30,7 @@ pub async fn caller_with(
             analysis.clone(),
             cache,
             graph,
+            Vec::new(),
         );
         trustify_module_analysis::endpoints::configure(svc, db_ro, analysis);
     })
