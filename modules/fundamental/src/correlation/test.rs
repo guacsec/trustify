@@ -1035,3 +1035,68 @@ async fn s14_productstatus_version_filter_netty(
 
     Ok(())
 }
+
+// ===========================================================================
+// S18: RHEL 8 curl not-affected overridden by cross-product match (TC-5171 + TC-5730)
+//
+// CVE-2022-32207 marks RHEL 8 curl known_not_affected, but the same CSAF fixes
+// curl under RHEL 9 (7.76.1-14.el9_0.5). When the CPE is on a child node the
+// filter escape-hatches: the el9 fix matches the el8 curl by name (dist-tag
+// blind), overriding the explicit el8 not_affected. Root-CPE captures the el8
+// context and should drop the el9 match; el9 below-fix is the positive control.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5171: product_status CPE context not checked; TC-5730: known_not_affected not honored; TC-5640: dist-tag-blind el8<->el9 cross-match"]
+#[test_log::test(actix_web::test)]
+async fn s18_crossproduct_curl_notaffected(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S18_crossproduct_curl_notaffected",
+        &["vex/CVE-2022-32207.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // (SBOM base name, expected_affected)
+    let cases: &[(&str, bool)] = &[
+        // --- CPE-context axis: RHEL 8 curl (known_not_affected) ---
+        // CPE on root (captured) → scopes to el8, honors known_not_affected
+        ("sbom_curl_rhel8_rootcpe", false),
+        // CPE on child (escape hatch) → el9 fix overrides the el8 not_affected
+        ("sbom_curl_rhel8_notaffected", false),
+        // --- version axis: RHEL 9 curl (the affected product) vs fix 7.76.1-14.el9_0.5 ---
+        ("sbom_curl_rhel9_belowfix", true), // below fix → affected
+        ("sbom_curl_rhel9_atfix", false),   // at fix → not_affected
+        ("sbom_curl_rhel9_abovefix", false), // above fix → not_affected
+    ];
+
+    let mut mismatches = Vec::new();
+    for (base, expected_affected) in cases {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S18_crossproduct_curl_notaffected/{base}.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        let present = advisory_cves(&adv).contains(&"CVE-2022-32207");
+        if present != *expected_affected {
+            mismatches.push(format!(
+                "  {base} ({fmt}): expected affected={expected_affected}, /sbom/advisory present={present}"
+            ));
+        }
+    }
+
+    assert!(
+        mismatches.is_empty(),
+        "S18 CVE-2022-32207 correlation mismatches:\n{}",
+        mismatches.join("\n")
+    );
+
+    Ok(())
+}
