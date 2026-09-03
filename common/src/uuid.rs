@@ -4,13 +4,14 @@ pub mod serde {
 
         use serde::{Deserialize, Deserializer, Serializer, de::Error};
         use uuid::Uuid;
+        use uuid::serde::urn::serialize as uuid_urn_serialize;
 
         pub fn serialize<S>(value: &Option<Uuid>, serializer: S) -> Result<S::Ok, S::Error>
         where
             S: Serializer,
         {
             match value {
-                Some(uuid) => uuid::serde::urn::serialize(uuid, serializer),
+                Some(uuid) => uuid_urn_serialize(uuid, serializer),
                 None => serializer.serialize_none(),
             }
         }

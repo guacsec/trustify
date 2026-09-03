@@ -6,6 +6,7 @@ mod purl;
 mod reingest;
 
 use super::*;
+use serde_cyclonedx::cyclonedx::v_1_6::CycloneDx;
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
@@ -148,11 +149,7 @@ where
     test_with(
         ctx,
         sbom,
-        |data| {
-            Ok(serde_json::from_slice::<
-                serde_cyclonedx::cyclonedx::v_1_6::CycloneDx,
-            >(data)?)
-        },
+        |data| Ok(serde_json::from_slice::<CycloneDx>(data)?),
         async move |ctx, sbom, tx| {
             Ok(ctx
                 .ingest_cyclonedx(Box::new(sbom.clone()), &Discard, tx)

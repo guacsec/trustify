@@ -1,10 +1,16 @@
 use actix_web::web;
 use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::service::AnalysisService;
+use trustify_module_ingestor::common;
 use trustify_module_ingestor::graph::Graph;
 use trustify_module_ingestor::service::IngestorService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 use utoipa::{IntoParams, ToSchema};
+
+use crate::{
+    advisory, exploit, license, organization, product, purl, sbom, sbom_group, vulnerability,
+    weakness,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Config {
@@ -27,33 +33,33 @@ pub fn configure(
     let ingestor_service = IngestorService::new(graph, storage, Some(analysis));
     svc.app_data(web::Data::new(ingestor_service.clone()));
 
-    crate::advisory::endpoints::configure(
+    advisory::endpoints::configure(
         svc,
         db_rw.clone(),
         db_ro.clone(),
         config.advisory_upload_limit,
         cache.clone(),
     );
-    crate::exploit::endpoints::configure(svc, db_ro.clone(), cache.clone());
-    crate::license::endpoints::configure(svc, db_ro.clone());
-    crate::organization::endpoints::configure(svc, db_ro.clone(), cache.clone());
-    crate::purl::endpoints::configure(svc, db_ro.clone(), cache.clone());
-    crate::product::endpoints::configure(svc, db_rw.clone(), db_ro.clone(), cache.clone());
-    crate::sbom::endpoints::configure(
+    exploit::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    license::endpoints::configure(svc, db_ro.clone());
+    organization::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    purl::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    product::endpoints::configure(svc, db_rw.clone(), db_ro.clone(), cache.clone());
+    sbom::endpoints::configure(
         svc,
         db_rw.clone(),
         db_ro.clone(),
         config.sbom_upload_limit,
         cache.clone(),
     );
-    crate::vulnerability::endpoints::configure(svc, db_ro.clone(), cache.clone());
-    crate::weakness::endpoints::configure(svc, db_ro.clone(), cache.clone());
-    crate::sbom_group::endpoints::configure(svc, db_rw, db_ro, config.max_group_name_length, cache);
+    vulnerability::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    weakness::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    sbom_group::endpoints::configure(svc, db_rw, db_ro, config.max_group_name_length, cache);
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default, ToSchema, serde::Deserialize, IntoParams)]
 pub struct Deprecation {
     #[serde(default)]
     #[param(inline)]
-    pub deprecated: trustify_module_ingestor::common::Deprecation,
+    pub deprecated: common::Deprecation,
 }

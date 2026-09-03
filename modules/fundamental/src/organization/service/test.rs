@@ -1,3 +1,4 @@
+use crate::organization::service::OrganizationService;
 use actix_web::cookie::time::OffsetDateTime;
 use test_context::test_context;
 use test_log::test;
@@ -29,8 +30,7 @@ async fn all_organizations(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         )
         .await?;
 
-    let service =
-        crate::organization::service::OrganizationService::new(PaginationCache::for_test());
+    let service = OrganizationService::new(PaginationCache::for_test());
 
     let orgs = service
         .fetch_organizations(

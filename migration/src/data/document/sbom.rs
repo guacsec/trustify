@@ -5,6 +5,7 @@ use sea_orm::{
     prelude::*,
     sea_query::{Expr, extension::postgres::PgExpr},
 };
+use serde_cyclonedx::cyclonedx::v_1_6::CycloneDx;
 use trustify_entity::{labels::Labels, sbom};
 use trustify_module_storage::service::StorageBackend;
 
@@ -16,7 +17,7 @@ pub struct Id {
 
 #[allow(clippy::large_enum_variant)]
 pub enum Sbom {
-    CycloneDx(serde_cyclonedx::cyclonedx::v_1_6::CycloneDx),
+    CycloneDx(CycloneDx),
     Spdx(spdx_rs::models::SPDX),
     Other(Bytes),
 }

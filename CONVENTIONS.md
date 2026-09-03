@@ -36,6 +36,44 @@ use sea_orm::{ConnectionTrait, TransactionTrait};
 This is a manual convention — `rustfmt`'s `imports_granularity = "Crate"` option is not
 available on the stable channel. Reviewers should flag un-nested imports during code review.
 
+### Import Style — Absolute Paths
+
+Fully-qualified paths with 4+ segments are enforced by the `clippy::absolute_paths` lint
+(configured in `.clippy.toml` with `absolute-paths-max-segments = 3`). Paths exceeding the
+threshold must be replaced with `use` imports:
+
+```rust
+// Good — imported
+use crate::graph::db_context::parse_status;
+parse_status(value)?;
+
+// Lint error — 4+ segment absolute path
+crate::graph::db_context::parse_status(value)?;
+```
+
+3-segment paths (e.g. `std::fmt::Result`, `entity::advisory_vulnerability::Model`) are not
+flagged by the lint and are acceptable.
+
+### Import Style — Qualified Names for Common Types
+
+Common or ambiguous names should stay qualified with a 2-segment path, even when there is
+no conflict in the current file. This keeps the code self-documenting and avoids confusion
+when reviewing:
+
+```rust
+// Good — qualified with module prefix
+let model: advisory_vulnerability::Model = ...;
+let result: std::fmt::Result = ...;
+let value = serde_json::from_value(...);
+
+// Avoid — bare name is ambiguous across modules
+let model: Model = ...;
+```
+
+Names that benefit from qualification include `Model`, `Entity`, `Column`, `ActiveModel`,
+`Relation`, `from_value`, `info`, and similar names that appear in many modules. This is a
+reviewer convention, not lint-enforced.
+
 ## Naming Conventions
 
 - Structs: PascalCase (`SbomService`, `AdvisoryService`, `SbomSummary`)

@@ -9,6 +9,7 @@ use tokio::{
     select,
     task::{LocalSet, spawn_local},
 };
+use trustify_server::profile::{api::Run as ApiRun, importer::Run as ImporterRun};
 
 mod db;
 mod openapi;
@@ -17,9 +18,9 @@ mod openapi;
 #[derive(clap::Subcommand, Debug)]
 pub enum Command {
     /// Run the API server
-    Api(trustify_server::profile::api::Run),
+    Api(ApiRun),
     /// Run the importer server
-    Importer(trustify_server::profile::importer::Run),
+    Importer(ImporterRun),
     /// Manage the database
     Db(db::Run),
     /// Access OpenAPI related information of the API server

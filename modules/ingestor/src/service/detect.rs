@@ -21,6 +21,7 @@ use cve::Cve;
 use osv::schema::Vulnerability;
 use quick_xml::{Reader, events::Event};
 use sea_orm::{ConnectionTrait, TransactionTrait};
+use serde_cyclonedx::cyclonedx::v_1_6::CycloneDx;
 use std::io::Cursor;
 use tracing::instrument;
 use trustify_common::hashing::Digests;
@@ -53,7 +54,7 @@ pub enum DetectedDocument {
     Osv(Box<Vulnerability>),
     /// SPDX keeps the raw Value because the loader applies license fixups before ingestion.
     Spdx(serde_json::Value),
-    CycloneDx(Box<serde_cyclonedx::cyclonedx::v_1_6::CycloneDx>),
+    CycloneDx(Box<CycloneDx>),
     ClearlyDefined(serde_json::Value),
     ClearlyDefinedCuration(Box<Curation>),
     /// XML kept as raw bytes; the loader parses with roxmltree internally.

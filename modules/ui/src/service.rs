@@ -1,5 +1,5 @@
 use crate::model::ExtractPackage;
-use serde_cyclonedx::cyclonedx::v_1_6::{Component, ComponentEvidenceIdentity};
+use serde_cyclonedx::cyclonedx::v_1_6::{Component, ComponentEvidenceIdentity, CycloneDx};
 use std::collections::BTreeMap;
 use trustify_common::purl::Purl;
 
@@ -30,7 +30,7 @@ pub fn extract_spdx_purls(
 
 /// Extract PURLs from a CycloneDX file
 pub fn extract_cyclonedx_purls(
-    sbom: serde_cyclonedx::cyclonedx::v_1_6::CycloneDx,
+    sbom: CycloneDx,
     warnings: &mut Vec<String>,
 ) -> BTreeMap<String, ExtractPackage> {
     let mut result = BTreeMap::new();

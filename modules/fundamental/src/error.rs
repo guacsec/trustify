@@ -4,7 +4,7 @@ use sea_orm::DbErr;
 use std::borrow::Cow;
 use trustify_auth::authenticator::error::AuthorizationError;
 use trustify_common::{
-    db::{DatabaseErrors, DbError, limiter::LimiterError, pagination_cache::LimitError},
+    db::{DatabaseErrors, DbError, limiter::LimiterError, pagination_cache::LimitError, query},
     decompress,
     error::ErrorInformation,
     id::IdError,
@@ -22,7 +22,7 @@ pub enum Error {
     #[error(transparent)]
     Database(DbErr),
     #[error(transparent)]
-    Query(#[from] trustify_common::db::query::Error),
+    Query(#[from] query::Error),
     #[error(transparent)]
     Ingestor(#[from] trustify_module_ingestor::service::Error),
     #[error(transparent)]

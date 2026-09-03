@@ -3,7 +3,7 @@ use utoipa::{
     IntoParams,
     openapi::{
         ObjectBuilder, Type,
-        path::{Parameter, ParameterIn},
+        path::{Parameter, ParameterBuilder, ParameterIn},
     },
 };
 
@@ -19,13 +19,13 @@ pub struct TrustifyQuery<T: Query> {
 impl<T: Query> IntoParams for TrustifyQuery<T> {
     fn into_params(_parameter_in_provider: impl Fn() -> Option<ParameterIn>) -> Vec<Parameter> {
         vec![
-            utoipa::openapi::path::ParameterBuilder::new()
+            ParameterBuilder::new()
                 .name("q")
                 .parameter_in(ParameterIn::Query)
                 .description(Some(T::generate_query_description()))
                 .schema(Some(ObjectBuilder::new().schema_type(Type::String)))
                 .build(),
-            utoipa::openapi::path::ParameterBuilder::new()
+            ParameterBuilder::new()
                 .name("sort")
                 .parameter_in(ParameterIn::Query)
                 .description(Some(T::generate_sort_description()))

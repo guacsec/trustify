@@ -5,7 +5,10 @@ use crate::{
     },
     purl::model::summary::purl::PurlSummary,
     sbom::model::{SbomPackage, SbomSummary},
-    test::{caller, label::Api},
+    test::{
+        caller, label::Api, label::update_labels as do_update_labels,
+        label::update_labels_not_found as do_update_labels_not_found,
+    },
 };
 use actix_http::StatusCode;
 use actix_web::{
@@ -1214,7 +1217,7 @@ async fn filter_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    crate::test::label::update_labels(
+    do_update_labels(
         ctx,
         Api::Sbom,
         "quarkus-bom-2.13.8.Final-redhat-00004.json",
@@ -1227,12 +1230,7 @@ async fn update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn update_labels_not_found(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    crate::test::label::update_labels_not_found(
-        ctx,
-        Api::Sbom,
-        "quarkus-bom-2.13.8.Final-redhat-00004.json",
-    )
-    .await
+    do_update_labels_not_found(ctx, Api::Sbom, "quarkus-bom-2.13.8.Final-redhat-00004.json").await
 }
 
 /// Test deleting an sbom

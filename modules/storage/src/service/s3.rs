@@ -18,7 +18,7 @@ use aws_sdk_s3::{
     types::{Delete, ObjectIdentifier},
 };
 use aws_smithy_http_client::tls::{Provider, TlsContext, TrustStore, rustls_provider::CryptoMode};
-use aws_smithy_types::endpoint::Endpoint;
+use aws_smithy_types::{byte_stream::error::Error as ByteStreamError, endpoint::Endpoint};
 use bytes::Bytes;
 use futures::{Stream, TryStreamExt};
 use std::{fmt::Debug, io, str::FromStr};
@@ -274,7 +274,7 @@ pub enum Error {
     #[error(transparent)]
     S3(#[from] aws_sdk_s3::Error),
     #[error(transparent)]
-    Bytes(#[from] aws_smithy_types::byte_stream::error::Error),
+    Bytes(#[from] ByteStreamError),
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error("{0}")]

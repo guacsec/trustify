@@ -1,6 +1,7 @@
 #![allow(clippy::expect_used)]
 
 use criterion::{Criterion, criterion_group, criterion_main};
+use serde_cyclonedx::cyclonedx::v_1_6::CycloneDx;
 use std::hint::black_box;
 use trustify_module_ingestor::service::{DocumentDetector, Format};
 use trustify_test_context::document_bytes;
@@ -23,7 +24,7 @@ fn try_parse_direct(bytes: &[u8]) -> Option<Format> {
     if serde_json::from_slice::<osv::schema::Vulnerability>(bytes).is_ok() {
         return Some(Format::OSV);
     }
-    if serde_json::from_slice::<serde_cyclonedx::cyclonedx::v_1_6::CycloneDx>(bytes).is_ok() {
+    if serde_json::from_slice::<CycloneDx>(bytes).is_ok() {
         return Some(Format::CycloneDX);
     }
     if serde_json::from_slice::<serde_json::Value>(bytes)

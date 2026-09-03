@@ -2,7 +2,7 @@ use crate::{
     graph::{
         Graph,
         advisory::{
-            product_status::ProductVersionRange,
+            product_status::{ProductStatus as GraphProductStatus, ProductVersionRange},
             purl_status::PurlStatus,
             version::{Version, VersionInfo, VersionSpec},
         },
@@ -216,7 +216,7 @@ impl<'a> StatusCreator<'a> {
                 let csaf_product_ids = product_to_csaf_ids.get(&product).cloned();
 
                 for package in packages {
-                    let product_status = crate::graph::advisory::product_status::ProductStatus {
+                    let product_status = GraphProductStatus {
                         cpe: product.cpe.clone(),
                         package,
                         status: status_id,

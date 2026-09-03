@@ -1,6 +1,13 @@
 #![cfg(test)]
 
-use actix_web::{App, HttpRequest, HttpResponse, http::StatusCode, test as actix, web};
+use actix_web::{
+    App, HttpRequest, HttpResponse,
+    http::{
+        StatusCode,
+        header::{HeaderMap, HeaderName},
+    },
+    test as actix, web,
+};
 use sea_orm::ConnectionTrait;
 use std::time::Duration;
 use test_context::test_context;
@@ -71,9 +78,9 @@ fn extract_token_empty_value() {
 
 #[test]
 fn extract_protocol_token_basic() {
-    let mut headers = actix_web::http::header::HeaderMap::new();
+    let mut headers = HeaderMap::new();
     headers.insert(
-        actix_web::http::header::HeaderName::from_static("sec-websocket-protocol"),
+        HeaderName::from_static("sec-websocket-protocol"),
         "access_token, jwt.value".parse().unwrap(),
     );
     assert_eq!(
@@ -84,9 +91,9 @@ fn extract_protocol_token_basic() {
 
 #[test]
 fn extract_protocol_token_missing() {
-    let mut headers = actix_web::http::header::HeaderMap::new();
+    let mut headers = HeaderMap::new();
     headers.insert(
-        actix_web::http::header::HeaderName::from_static("sec-websocket-protocol"),
+        HeaderName::from_static("sec-websocket-protocol"),
         "graphql-ws".parse().unwrap(),
     );
     assert_eq!(crate::inject_token::extract_protocol_token(&headers), None);
@@ -94,9 +101,9 @@ fn extract_protocol_token_missing() {
 
 #[test]
 fn extract_protocol_token_no_token_value() {
-    let mut headers = actix_web::http::header::HeaderMap::new();
+    let mut headers = HeaderMap::new();
     headers.insert(
-        actix_web::http::header::HeaderName::from_static("sec-websocket-protocol"),
+        HeaderName::from_static("sec-websocket-protocol"),
         "access_token".parse().unwrap(),
     );
     assert_eq!(crate::inject_token::extract_protocol_token(&headers), None);
@@ -104,9 +111,9 @@ fn extract_protocol_token_no_token_value() {
 
 #[test]
 fn extract_protocol_token_extra_whitespace() {
-    let mut headers = actix_web::http::header::HeaderMap::new();
+    let mut headers = HeaderMap::new();
     headers.insert(
-        actix_web::http::header::HeaderName::from_static("sec-websocket-protocol"),
+        HeaderName::from_static("sec-websocket-protocol"),
         "access_token ,  jwt.value ".parse().unwrap(),
     );
     assert_eq!(

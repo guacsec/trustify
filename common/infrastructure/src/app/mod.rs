@@ -13,7 +13,10 @@ use actix_web_httpauth::{extractors::bearer::BearerAuth, middleware::HttpAuthent
 use futures::{FutureExt, future::LocalBoxFuture};
 use opentelemetry_instrumentation_actix_web::{RequestMetrics, RequestTracing};
 use std::sync::Arc;
-use trustify_auth::{authenticator::Authenticator, authorizer::Authorizer};
+use trustify_auth::{
+    authenticator::{Authenticator, actix::openid_validator},
+    authorizer::Authorizer,
+};
 use trustify_common::middleware::StdMiddleware;
 
 #[derive(Default)]
@@ -42,11 +45,7 @@ pub fn new_auth(
     Condition::from_option(auth.map(move |authenticator| {
         HttpAuthentication::bearer(move |req, auth| {
             let authenticator = authenticator.clone();
-            Box::pin(async move {
-                trustify_auth::authenticator::actix::openid_validator(req, auth, authenticator)
-                    .await
-            })
-            .boxed_local()
+            Box::pin(async move { openid_validator(req, auth, authenticator).await }).boxed_local()
         })
     }))
 }
