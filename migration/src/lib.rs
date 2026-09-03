@@ -72,6 +72,12 @@ mod m0002270_fix_vulnerability_base_score_type;
 mod m0002280_backfill_sbom_suppliers;
 mod m0002290_create_exploit_intelligence_job;
 mod m0002300_create_exploit;
+mod m0002310_create_change_log;
+mod m0002320_fix_unbounded_version_matches;
+mod m0002330_fix_rpmver_cmp;
+mod m0002340_backfill_rpm_epoch;
+mod m0002350_drop_purl_status_gist_index;
+mod m0002360_pythonver_cmp_parallel_restricted;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -159,6 +165,12 @@ impl MigratorExt for Migrator {
             .data(m0002280_backfill_sbom_suppliers::Migration)
             .normal(m0002290_create_exploit_intelligence_job::Migration)
             .normal(m0002300_create_exploit::Migration)
+            .normal(m0002310_create_change_log::Migration)
+            .normal(m0002320_fix_unbounded_version_matches::Migration)
+            .normal(m0002330_fix_rpmver_cmp::Migration)
+            .normal(m0002340_backfill_rpm_epoch::Migration)
+            .normal(m0002350_drop_purl_status_gist_index::Migration)
+            .normal(m0002360_pythonver_cmp_parallel_restricted::Migration)
     }
 }
 
