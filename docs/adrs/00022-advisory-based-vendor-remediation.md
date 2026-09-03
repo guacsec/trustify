@@ -11,10 +11,9 @@ Closes open items from [ADR 00008](00008-purls-recommendation.md):
 * *"Ingest remediation information from advisories and use them to provide more data to
   results of this endpoint (requires a separate ADR)"* — this is that ADR.
 * *"Provide a way to return different patterns of recommended purls"* — resolved by
-  supersession: the `trusted_source` flag on importers replaces per-vendor regex patterns
-  as the mechanism for identifying recommendation relationships. The existing regex
-  heuristic endpoint is retained for backward compatibility and is a candidate for
-  deprecation in a future release.
+  making recommendation patterns configurable per importer (see Mechanism 2). The
+  hardcoded `redhat-[0-9]+$` regex is replaced by operator-supplied patterns on the
+  importer configuration, requiring no code changes to support new vendors or ecosystems.
 
 ## Context
 
@@ -28,12 +27,12 @@ Red Hat productized builds.
 This approach has fundamental limitations:
 
 * **Ecosystem-specific** — the regex is tied to Red Hat's Maven versioning convention and
-  cannot generalize to other ecosystems or vendors without maintaining a growing list of
-  per-vendor patterns.
+  cannot generalize to other ecosystems or vendors without a code change.
 * **Unreliable** — the suffix pattern guesses at a relationship that the advisory issuer
   already knows authoritatively. A package version matching the regex may not actually
   remediate the upstream version.
-* **Maintenance burden** — each new vendor or versioning scheme requires a code change.
+* **Not configurable** — operators cannot adapt the pattern to their vendor's versioning
+  convention without modifying and rebuilding Trustify.
 
 ### Advisory-encoded remediation data
 
@@ -65,50 +64,65 @@ from those that do not.
 
 Different advisory formats encode vendor package data differently:
 
-* **OSV with `backport_base_version`** — the upstream→vendor mapping is explicit. The
-  `backport_base_version` field directly names the upstream version that a vendor package
-  remediates. This is the richest signal available.
+* **OSV with `backport_base_version`** — the upstream→vendor mapping is explicit. This is
+  the richest signal available and requires no version string interpretation.
 * **CSAF security advisory (RHSA)** — vendor packages appear in the product tree with
-  explicit PURLs (including `repository_url` pointing to the Red Hat Maven repository)
-  and are associated with CVEs via `vendor_fix` remediations. However, CSAF does not
-  carry an equivalent of `backport_base_version` — the upstream version must be inferred
-  from the vendor version string or matched by coordinates.
-* **CSAF VEX** — vendor packages appear as `known_not_affected` in the product tree with
-  PURLs but without explicit upstream version mapping. The same limitation as CSAF
-  advisory applies.
+  explicit PURLs but without an equivalent of `backport_base_version`. The upstream version
+  must be identified by matching vendor version strings against a known pattern.
+* **CSAF VEX** — same limitation as CSAF advisory.
 
-This ADR defines two complementary recommendation mechanisms to cover both cases.
+This ADR defines two complementary mechanisms that together cover both cases without
+hardcoding any vendor-specific logic.
 
 ## Decision
 
 ### Trusted source designation via importer configuration
 
-Introduce a `trusted_source: bool` field on the importer configuration model (default:
-`false`). This field designates an advisory or SBOM feed as carrying authoritative vendor
-package data. When `true`, the ingestor activates recommendation extraction for that feed's
-content.
+Introduce the following fields on the importer configuration model:
 
-The flag is also exposed on the manual advisory upload endpoint (admin-gated), allowing
-operators to mark individual advisory uploads as trusted sources.
+```
+trusted_source: bool          (default: false)
+recommendation_patterns: []string  (default: [])
+```
 
-The decision to designate a feed as a trusted source is a deployment-time operator
-decision, not a heuristic. The flag is not inferred automatically.
+`trusted_source` designates the feed as carrying authoritative vendor package data and
+activates recommendation extraction. `recommendation_patterns` is a list of regular
+expressions that identify vendor version strings for Mechanism 2 (see below). Both fields
+are also exposed on the manual advisory upload endpoint (admin-gated).
 
-### Mechanism 1: Ingest-time recommendation records (OSV)
+Example configuration for a Red Hat CSAF/RHSA importer:
+
+```json
+{
+  "source": "https://security.access.redhat.com/data/csaf/v2/advisories/",
+  "trusted_source": true,
+  "recommendation_patterns": [
+    "^(.+)\\.redhat-[0-9]+$",
+    "^(.+)\\.SP[0-9]+-redhat-[0-9]+$"
+  ]
+}
+```
+
+The capture group `(.+)` extracts the upstream base version from the vendor version string.
+Operators supply patterns that match their vendor's versioning convention; no code change
+is required to support a new vendor or ecosystem.
+
+### Mechanism 1: Ingest-time recommendation records (OSV with `backport_base_version`)
 
 For each OSV advisory ingested from a trusted source, the ingestor hook:
 
-1. Checks `database_specific.backport_base_version` — if absent, skips to Mechanism 2.
+1. Checks `database_specific.backport_base_version` — if absent, skips to Mechanism 2 at
+   query time.
 2. Iterates over `affected[].ranges[]`. For each range that contains a `fixed` event,
    extracts one `(upstream_version, vendor_version)` pair: `backport_base_version` as the
    upstream version and the `fixed` event value as the vendor version. If a range contains
    multiple `fixed` events, each event yields a separate pair. Ranges without a `fixed`
    event are skipped.
 3. Resolves each pair to `versioned_purl` records in the database. If either PURL cannot
-   be resolved (not yet ingested), that pair is skipped; other pairs from the same advisory
-   continue to be processed.
-4. Creates a `recommendation` record for each resolved pair, linking the upstream versioned
-   PURL to the vendor versioned PURL with a foreign key to the advisory for provenance.
+   be resolved (not yet ingested), that pair is skipped; other pairs continue to be
+   processed.
+4. Creates a `recommendation` record for each resolved pair, with a foreign key to the
+   advisory for provenance.
 
 #### Recommendation entity schema
 
@@ -122,165 +136,148 @@ recommendation
 ```
 
 Multiple provenance rows may exist for the same upstream/vendor pair — at most one row per
-advisory. Re-ingesting an advisory upserts only its own provenance rows. Retracting an
-advisory deletes only rows linked to that advisory; the recommendation pair remains active
-while at least one other advisory provenance row exists.
+advisory. Re-ingesting an advisory upserts only its own rows. Retracting an advisory
+deletes only rows linked to that advisory; the recommendation pair remains active while at
+least one other provenance row exists.
 
-The advisory foreign key provides full provenance: operators can trace every recommendation
-back to the advisory that established it, retract individual advisories without losing
-coverage from other authoritative sources, and re-process advisories to refresh
-recommendations.
+Pre-computed records are served via DB JOIN with zero per-query overhead.
 
-#### Query integration via DB JOIN
+### Mechanism 2: Query-time configurable pattern matching (CSAF and other formats)
 
-Pre-computed recommendation records are served to consumers via database JOIN. Any query
-that needs to present recommendation data (vulnerability analysis, SBOM analysis, package
-detail views) joins the `recommendation` table directly:
+When a consumer requests recommendations for an upstream PURL and no Mechanism 1 record
+exists, the system applies the importer's `recommendation_patterns` at query time:
 
-* Zero per-row or per-page overhead — no secondary endpoint calls in response handlers.
-* Consistent data — all consumers read from the same source of truth.
-* No dependency on the heuristic endpoint's runtime behavior.
+1. For each trusted-source importer with at least one `recommendation_pattern`, apply
+   every pattern to the `versioned_purl` records ingested from that importer.
+2. For each pattern match, extract the upstream base version from the capture group.
+3. Find `versioned_purl` records in the database whose PURL coordinates (`type`,
+   `namespace`, `name`) match the upstream PURL and whose version equals the extracted
+   base version.
+4. Return the matched vendor PURLs as recommendations.
 
-### Mechanism 2: Query-time trusted-source version matching (all formats)
+This replaces the hardcoded `redhat-[0-9]+$` check in the current endpoint with
+operator-supplied patterns scoped to their trusted-source importers. The patterns express
+the same versioning-convention knowledge, but as deployment configuration rather than code.
 
-For packages ingested from a trusted-source importer that do not carry explicit
-`backport_base_version` data (CSAF advisories, trusted-source SBOMs), recommendation
-relationships are resolved at query time by coordinate and version matching.
+#### Scope and limitations
 
-When a consumer requests recommendations for an upstream PURL:
-
-1. Extract the `group:artifact` coordinates (or ecosystem-equivalent) from the upstream
-   PURL.
-2. Query for all `versioned_purl` records with the same coordinates whose version was
-   ingested from a trusted-source importer.
-3. Filter to records whose version string has the upstream version as a prefix (e.g.,
-   upstream `4.3.4` matches vendor `4.3.4.redhat-00008`, `4.3.4.SP1-redhat-00001`).
-4. Return the matched vendor PURLs as recommendations, annotated with their trusted-source
-   origin.
-
-This mechanism replaces the hardcoded regex in the current `/purl/recommend` endpoint: the
-trust signal comes from the importer configuration rather than a pattern match against the
-version string. The version-prefix comparison is simpler and more accurate than the regex
-— it does not require knowing the vendor-specific suffix format.
-
-Packages ingested from a trusted-source CSAF advisory (via its product tree PURLs, which
-include an explicit `repository_url` qualifier pointing to the vendor repository) are
-automatically eligible for this matching path.
+Mechanism 2 relies on the vendor's versioning convention being stable and expressible as a
+regular expression with one capture group for the upstream base version. This holds for
+Red Hat Maven packages (`4.3.4.redhat-00008` → base `4.3.4`) and similar conventions.
+Operators are responsible for validating their patterns against their vendor's actual
+version strings before enabling `trusted_source`.
 
 ### Relationship between the two mechanisms
 
-The two mechanisms are complementary and serve the same recommendation surface:
+| Signal | Format | Mechanism | Query overhead |
+|--------|--------|-----------|---------------|
+| `backport_base_version` | OSV | Ingest-time record | Zero |
+| Configurable pattern on vendor version | CSAF, any format | Query-time pattern match | One bounded query |
 
-| Signal | When available | Mechanism | Latency |
-|--------|---------------|-----------|---------|
-| `backport_base_version` in OSV advisory | Lightwell OSV feed | Ingest-time record | Zero at query time |
-| Package from trusted-source importer | CSAF, SBOM, any format | Query-time version match | One JOIN at query time |
-
-Mechanism 1 takes priority when a pre-computed record exists for a given upstream PURL.
-Mechanism 2 covers the remaining cases. Together they are format-agnostic and do not
-require any per-vendor regex.
+Mechanism 1 takes priority when a pre-computed record exists. Mechanism 2 covers the
+remaining cases. Lightwell OSV advisories (Java and Python) use Mechanism 1. Red Hat
+CSAF/RHSA advisories (Java/Maven) use Mechanism 2 with operator-configured patterns.
 
 ### Backward compatibility
 
-The existing `/purl/recommend` heuristic endpoint remains unchanged. Deployments that
-have not ingested trusted-source advisories or SBOMs continue to function as before. The
-endpoint can be deprecated in a future release once recommendation data from Mechanisms 1
-and 2 covers the required package ecosystem.
+The existing `/purl/recommend` heuristic endpoint remains unchanged. Deployments without
+`trusted_source` importers continue to function as before. The endpoint is a candidate for
+deprecation once Mechanisms 1 and 2 provide sufficient coverage for the deployed ecosystem.
 
-A re-index endpoint is provided to allow operators to re-process existing trusted-source
-advisories and populate recommendation records without re-ingesting from the source.
+A re-index endpoint allows operators to re-process existing trusted-source advisories and
+populate Mechanism 1 records without re-ingesting from the source.
 
 ## Alternatives considered
 
 ### Separate `recommendation_config` DB entity for source patterns
 
-Introduce a new `recommendation_config` table that maps source URLs or advisory feed
-identifiers to a "trusted" flag, decoupled from the importer configuration.
+Introduce a new `recommendation_config` table that maps source URLs to trusted flags and
+patterns, decoupled from the importer configuration.
 
 **Why not chosen:** The importer already owns the configuration for each advisory feed
-(URL, authentication, scheduling). Adding a parallel configuration entity would duplicate
-this ownership and create a new surface area to keep in sync. Extending the existing
-importer model with a single boolean follows the DRY principle and avoids a new
-administrative concept.
+(URL, authentication, scheduling). Adding a parallel configuration entity duplicates this
+ownership and creates a new surface area to keep in sync. Placing `trusted_source` and
+`recommendation_patterns` on the importer model follows the DRY principle.
 
-### Regex-based ingest-time computation
+### Hardcoded per-ecosystem version normalization
 
-At ingest time, apply the existing `redhat-[0-9]+$` regex (or a configurable pattern set)
-to infer remediation relationships from package version strings, without requiring
-advisory-encoded data.
+Replace the regex with ecosystem-specific semantic version parsers (Maven versioning for
+Java, PEP 440 for Python, semver for npm, etc.) to extract base versions without a
+pattern.
 
-**Why not chosen:** Regex patterns cannot reliably determine which upstream version a
-vendor package remediates without advisory authority. A vendor package version matching a
-pattern may not correspond to a backport of the specific upstream version in the advisory.
-The pattern approach is ecosystem-specific and requires ongoing maintenance. The advisory
-already encodes the answer; reading it is strictly more accurate. Mechanism 2 achieves the
-same version-string comparison but scoped to packages from trusted-source importers,
-removing the need for per-vendor pattern maintenance.
+**Why not chosen:** Each ecosystem requires its own parsing and comparison logic, including
+handling of pre-release qualifiers (`.rc`, `.beta`, `-pre`) that interact differently with
+vendor suffixes across ecosystems. This is significantly more implementation work than
+configurable patterns and still requires updating code to support new ecosystems. The
+operator-configurable regex keeps the same knowledge in configuration rather than code with
+equivalent reliability for stable versioning conventions.
 
-### Per-query heuristic evaluation (status quo)
+### Retain the hardcoded regex without `trusted_source`
 
-Continue using the current `/purl/recommend` endpoint logic at query time, calling it
-per-row or per-page from response handlers.
+Keep `redhat-[0-9]+$` as a global pattern applied to all ingested packages, without the
+trusted-source scoping.
 
-**Why not chosen:** Per-query calls add latency proportional to the result set size.
-The regex is also unreliable across ecosystems. Mechanism 1 (pre-computed records) has
-zero query-time overhead; Mechanism 2 (trusted-source version match) has a single
-bounded JOIN regardless of result set size.
+**Why not chosen:** Applying the regex globally means any package whose version happens to
+match the pattern is treated as a vendor package, regardless of its actual origin. The
+`trusted_source` flag ensures pattern matching is applied only to packages from importers
+the operator has explicitly designated as authoritative. This prevents false positives from
+coincidental version string matches.
 
-### OSV-only ingest-time records without a query-time fallback
+### OSV-only (no Mechanism 2)
 
 Rely solely on `backport_base_version` for recommendation extraction, skipping CSAF and
-SBOM-sourced vendor packages.
+other formats that lack this field.
 
-**Why not chosen:** CSAF advisories (RHSA, VEX) do not carry an equivalent of
-`backport_base_version`. Their product trees contain explicit vendor PURLs with
-`repository_url` qualifiers that reliably identify Red Hat vendor packages, but the
-upstream version must be inferred by coordinate and version matching. Ignoring this data
-would require operators to maintain a separate OSV advisory feed for all vendor packages
-they want recommendations for, which is operationally burdensome.
+**Why not chosen:** Lightwell currently publishes OSV advisories for Java and Python
+ecosystems. Red Hat CSAF/RHSA advisories cover Java packages not yet in the Lightwell OSV
+feed. Dropping Mechanism 2 would leave those packages without recommendations until OSV
+coverage expands. The configurable pattern approach covers CSAF at low implementation cost.
 
 ## Open items
 
 ### Digest-based recommendation (future ADR)
 
-A third class of vendor package is not covered by either mechanism above: packages that
-Red Hat ships under the **same PURL** as the upstream package (identical `group:artifact`
-and version string) but with a **different binary digest**, because the jar was rebuilt or
-patched without a version bump.
+Neither mechanism covers packages that Red Hat ships under the **same PURL** as the
+upstream package (identical coordinates and version string) but with a **different binary
+digest** — rebuilt or patched without a version bump. In this case:
 
-In this case:
-* Mechanism 1 cannot apply — there is no `backport_base_version` (the versions are
-  identical).
-* Mechanism 2 cannot apply — the version prefix match returns the same PURL, not a
-  distinct vendor version.
+* Mechanism 1 cannot apply — there is no `backport_base_version`.
+* Mechanism 2 cannot apply — no version string difference means no pattern can match.
 
-Detection requires comparing the digest of the package in the user's SBOM against the
-digest of the same PURL ingested from a trusted source. A mismatch signals that the
-trusted-source binary is a patched drop-in replacement for the upstream binary, and the
-trusted-source package should be recommended even though the version string is identical.
+Digest comparison would improve recommendations in three ways:
 
-This requires reliable digest coverage across ingested packages (consistent algorithm,
-present in both SBOMs being compared) and is deferred to a future ADR.
+1. **Same-PURL/different-binary detection** — the only signal for patched-without-version-bump
+   packages. A digest mismatch between a package in the user's SBOM and the same PURL from
+   a trusted-source importer identifies the trusted version as a patched drop-in replacement.
+
+2. **Mechanism 2 match validation** — after a pattern match produces a candidate
+   `(upstream, vendor)` pair, comparing digests confirms the binaries are actually
+   different, ruling out re-uploads of the upstream artifact to the vendor repository that
+   would produce a false recommendation.
+
+3. **Pre-release disambiguation** — when version patterns produce multiple candidate vendor
+   versions (e.g., both a GA and an RC vendor build match a pattern), digest comparison
+   against the upstream binary can identify the correct match.
+
+Digest-based recommendation requires reliable digest coverage across ingested packages
+(consistent algorithm, present in both SBOMs being compared) and is deferred to a future
+ADR.
 
 ## Consequences
 
-* Recommendation data is ecosystem-agnostic: any package covered by a trusted-source OSV
-  advisory with `backport_base_version` (Mechanism 1) or ingested from a trusted-source
-  importer with matching coordinates (Mechanism 2) is eligible.
-* The hardcoded `redhat-[0-9]+$` regex is superseded: trust is encoded in importer
-  configuration, not in version string patterns.
-* Mechanism 1 has zero per-query overhead — recommendations are pre-computed at ingest time.
-* Mechanism 2 has bounded query-time overhead — one JOIN on trusted-source versioned PURLs
+* The hardcoded `redhat-[0-9]+$` regex is replaced by operator-configurable
+  `recommendation_patterns` on trusted-source importers — no code change required to
+  support new vendors or ecosystems.
+* Mechanism 1 (OSV) has zero per-query overhead — recommendations are pre-computed at
+  ingest time with full advisory provenance.
+* Mechanism 2 (configurable patterns) has bounded query-time overhead — one query
   regardless of result set size.
-* Recommendation records (Mechanism 1) carry full provenance via the advisory foreign key,
-  enabling audit, retraction, and re-computation.
-* Recommendations only appear for packages covered by a trusted-source advisory or SBOM
-  that has been ingested. Deployments without trusted-source feeds configured will have no
-  recommendation data from either mechanism (the existing `/purl/recommend` heuristic
-  continues to serve those deployments).
+* Recommendation records (Mechanism 1) carry full advisory provenance, enabling audit,
+  retraction, and re-computation per advisory.
+* Recommendations appear only for packages covered by an ingested trusted-source advisory
+  or SBOM. Deployments without trusted-source importers configured fall back to the
+  existing `/purl/recommend` heuristic.
 * The existing `/purl/recommend` endpoint is unchanged and is a candidate for deprecation
-  in a future release once Mechanisms 1 and 2 provide sufficient coverage.
-* A re-index endpoint allows operators to populate Mechanism 1 recommendation records from
-  already-ingested trusted-source advisories without re-fetching from the source.
+  in a future release.
 * Packages patched without a version bump (same PURL, different binary) are not covered
-  and require a digest-based approach defined in a future ADR.
+  and require the digest-based approach defined in a future ADR.
