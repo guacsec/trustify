@@ -1,0 +1,40 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:17170000-0000-4000-8000-171700001200",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root",
+      "type": "application",
+      "name": "s17-ocp-kernel-go",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "os-node",
+      "type": "operating-system",
+      "name": "devtools",
+      "version": "2023",
+      "cpe": "cpe:/a:redhat:devtools:2023::el7"
+    },
+    {
+      "bom-ref": "pkg",
+      "type": "library",
+      "name": "go-toolset-1.19-golang",
+      "version": "1.19.11-1.el7_9",
+      "purl": "pkg:rpm/redhat/go-toolset-1.19-golang@1.19.11-1.el7_9?arch=x86_64&epoch=0"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": [
+        "os-node",
+        "pkg"
+      ]
+    }
+  ]
+}

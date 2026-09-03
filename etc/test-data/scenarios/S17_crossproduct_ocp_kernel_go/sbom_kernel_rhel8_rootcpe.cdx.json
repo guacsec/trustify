@@ -1,0 +1,33 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:17171000-0000-4000-8000-171710000000",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root",
+      "type": "operating-system",
+      "name": "rhel",
+      "version": "8.10",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg",
+      "type": "library",
+      "name": "kernel",
+      "version": "4.18.0-553.el8_10",
+      "purl": "pkg:rpm/redhat/kernel@4.18.0-553.el8_10?arch=x86_64&epoch=0&distro=rhel-8.10"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": [
+        "pkg"
+      ]
+    }
+  ]
+}
