@@ -1,0 +1,52 @@
+{
+  "advisories": [
+    "vex/CVE-2023-38408.json"
+  ],
+  "sboms": {
+    "sbom_openssh_rootcpe_el8_8_below-fix": {
+      "correct": {
+        "CVE-2023-38408": "affected"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_8_at-fix": {
+      "correct": {
+        "CVE-2023-38408": "not_affected"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_8_above-fix": {
+      "correct": {
+        "CVE-2023-38408": "not_affected"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_10_below-fix": {
+      "correct": {
+        "CVE-2023-38408": "not_affected"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_10_at-fix": {
+      "correct": {
+        "CVE-2023-38408": "not_affected"
+      }
+    },
+    "sbom_openssh_rootcpe_el8_10_above-fix": {
+      "correct": {
+        "CVE-2023-38408": "not_affected"
+      }
+    },
+    "sbom_openssh_el8_below-fix": {
+      "correct": {
+        "CVE-2023-38408": "affected"
+      }
+    },
+    "sbom_openssh_el8_at-fix": {
+      "correct": {
+        "CVE-2023-38408": "not_affected"
+      }
+    },
+    "sbom_openssh_el8_above-fix": {
+      "correct": {
+        "CVE-2023-38408": "not_affected"
+      }
+    }
+  }
+}
