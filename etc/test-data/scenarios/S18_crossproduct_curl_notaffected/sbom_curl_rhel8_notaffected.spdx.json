@@ -1,0 +1,67 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "s18-curl",
+  "documentNamespace": "https://trust-breaker/S18_crossproduct_curl_notaffected/curl_rhel8_notaffected",
+  "creationInfo": {
+    "created": "2026-09-02T00:00:00Z",
+    "creators": [
+      "Tool: trust-breaker-0.1"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-root"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-root",
+      "name": "s18-curl",
+      "versionInfo": "1",
+      "downloadLocation": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-os",
+      "name": "rhel",
+      "versionInfo": "8",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:o:redhat:enterprise_linux:8:*:baseos:*:*:*:*:*"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-pkg",
+      "name": "curl",
+      "versionInfo": "7.61.1-34.el8",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/curl@7.61.1-34.el8?arch=x86_64&epoch=0&distro=rhel-8.10"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-root"
+    },
+    {
+      "spdxElementId": "SPDXRef-root",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-os"
+    },
+    {
+      "spdxElementId": "SPDXRef-root",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-pkg"
+    }
+  ]
+}

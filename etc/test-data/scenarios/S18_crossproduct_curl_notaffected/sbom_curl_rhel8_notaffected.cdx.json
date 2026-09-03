@@ -1,0 +1,40 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:18180000-0000-4000-8000-181800000000",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root",
+      "type": "application",
+      "name": "s18-curl",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "os-node",
+      "type": "operating-system",
+      "name": "rhel",
+      "version": "8",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos"
+    },
+    {
+      "bom-ref": "pkg",
+      "type": "library",
+      "name": "curl",
+      "version": "7.61.1-34.el8",
+      "purl": "pkg:rpm/redhat/curl@7.61.1-34.el8?arch=x86_64&epoch=0&distro=rhel-8.10"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": [
+        "os-node",
+        "pkg"
+      ]
+    }
+  ]
+}
