@@ -6,15 +6,15 @@ Date: 2026-09-03
 
 ACCEPTED
 
-Closes the open advisory-ingest item from [ADR 00008](00008-purls-recommendation.md):
+Closes open items from [ADR 00008](00008-purls-recommendation.md):
 
 * *"Ingest remediation information from advisories and use them to provide more data to
   results of this endpoint (requires a separate ADR)"* — this is that ADR.
-
-The open item *"Provide a way to return different patterns of recommended purls"* is not
-addressed here. The `trusted_source` flag designates an entire advisory feed as authoritative
-(source-scoped), not a configurable per-pattern mechanism. Pattern-based recommendation
-selection is deferred to a future decision.
+* *"Provide a way to return different patterns of recommended purls"* — resolved by
+  supersession: advisory-based ingest replaces pattern-matching as the mechanism for
+  identifying recommendation relationships. Configurable patterns are not needed when the
+  advisory is the authoritative source. The existing regex heuristic endpoint is retained
+  for backward compatibility and is a candidate for deprecation in a future release.
 
 ## Context
 
