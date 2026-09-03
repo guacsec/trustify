@@ -440,14 +440,14 @@ async fn get_recommendations_dedup(ctx: &TrustifyContext) -> Result<(), anyhow::
     Ok(())
 }
 
-/// Verifies that a custom vulnerability status is reflected in the recommendation response.
+/// Verifies that overriding a vulnerability status to a different enum variant (Recommended) is reflected in the recommendation response.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
-    use trustify_entity::{purl_status, status};
+    use trustify_entity::{purl_status, status::Status};
 
-    // Given a package with a vulnerability whose status is overridden to a custom value
+    // Given a package with a vulnerability whose status is overridden to "recommended"
     ctx.graph
         .ingest_qualified_package(
             &Purl::from_str("pkg:cargo/hyper@0.14.1-redhat-00001")?,
@@ -456,15 +456,6 @@ async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), a
         .await?;
 
     ctx.ingest_documents(["osv/RUSTSEC-2021-0079.json"]).await?;
-
-    let custom_status_id = Uuid::new_v4();
-    let custom_status = status::ActiveModel {
-        id: Set(custom_status_id),
-        slug: Set("custom_status".to_string()),
-        name: Set("Custom Status".to_string()),
-        description: Set(Some("A custom status for testing".to_string())),
-    };
-    status::Entity::insert(custom_status).exec(&ctx.db).await?;
 
     let purl_statuses = purl_status::Entity::find()
         .filter(purl_status::Column::VulnerabilityId.eq("CVE-2021-32714"))
@@ -475,7 +466,7 @@ async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), a
 
     for ps in purl_statuses {
         let mut active: purl_status::ActiveModel = ps.into();
-        active.status_id = Set(custom_status_id);
+        active.status = Set(Status::Recommended);
         active.update(&ctx.db).await?;
     }
 
@@ -485,7 +476,7 @@ async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), a
 
     log::info!("{recommendations:#?}");
 
-    // Then the vulnerability status reflects the custom status
+    // Then the vulnerability status reflects the updated status
     let entry =
         &recommendations["recommendations"].as_object().unwrap()["pkg:cargo/hyper@0.14.1"][0];
     let vulns = entry["vulnerabilities"].as_array().unwrap();
@@ -494,7 +485,7 @@ async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), a
         .find(|v| v["id"].as_str().unwrap() == "CVE-2021-32714")
         .unwrap();
 
-    assert_eq!(vuln["status"], "custom_status");
+    assert_eq!(vuln["status"], "Recommended");
 
     Ok(())
 }
@@ -635,7 +626,7 @@ async fn get_recommendations_fallback_package_str(
 #[test(actix_web::test)]
 async fn get_recommendations_fixed_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
-    use trustify_entity::{purl_status, status};
+    use trustify_entity::{purl_status, status::Status};
 
     // Given a package with a vulnerability whose status is set to "fixed"
     ctx.graph
@@ -647,25 +638,6 @@ async fn get_recommendations_fixed_status(ctx: &TrustifyContext) -> Result<(), a
 
     ctx.ingest_documents(["osv/RUSTSEC-2021-0079.json"]).await?;
 
-    let fixed_status = status::Entity::find()
-        .filter(status::Column::Slug.eq("fixed"))
-        .one(&ctx.db)
-        .await?;
-
-    let status_id = if let Some(s) = fixed_status {
-        s.id
-    } else {
-        let id = Uuid::new_v4();
-        let new_status = status::ActiveModel {
-            id: Set(id),
-            slug: Set("fixed".to_string()),
-            name: Set("Fixed".to_string()),
-            description: Set(Some("Vulnerability has been fixed".to_string())),
-        };
-        status::Entity::insert(new_status).exec(&ctx.db).await?;
-        id
-    };
-
     let purl_statuses = purl_status::Entity::find()
         .filter(purl_status::Column::VulnerabilityId.eq("CVE-2021-32714"))
         .all(&ctx.db)
@@ -673,7 +645,7 @@ async fn get_recommendations_fixed_status(ctx: &TrustifyContext) -> Result<(), a
 
     for ps in purl_statuses {
         let mut active: purl_status::ActiveModel = ps.into();
-        active.status_id = Set(status_id);
+        active.status = Set(Status::Fixed);
         active.update(&ctx.db).await?;
     }
 

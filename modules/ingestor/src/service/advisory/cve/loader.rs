@@ -633,7 +633,7 @@ mod test {
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn cve_loader_stores_cpe_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-        use trustify_entity::{cpe as cpe_entity, cpe_status, status, version_range};
+        use trustify_entity::{cpe as cpe_entity, cpe_status, version_range};
 
         let graph = Graph::new();
 
@@ -653,8 +653,9 @@ mod test {
             .await?
             .expect("advisory must be ingested");
 
-        // Join cpe_status -> cpe -> status -> version_range so we can assert
-        // on human-readable vendor/product/status/version_range values.
+        // Join cpe_status -> cpe -> version_range so we can assert on
+        // human-readable vendor/product/version_range values; status is an
+        // enum column read directly off the cpe_status row.
         let rows = cpe_status::Entity::find()
             .filter(cpe_status::Column::AdvisoryId.eq(advisory.advisory.id))
             .all(&ctx.db)
@@ -687,11 +688,7 @@ mod test {
         let openssl_rows = by_vendor.get("openssl").expect("openssl rows");
         assert_eq!(openssl_rows.len(), 2);
         for row in openssl_rows {
-            let st = status::Entity::find_by_id(row.status_id)
-                .one(&ctx.db)
-                .await?
-                .expect("status must exist");
-            assert_eq!(st.slug, "affected");
+            assert_eq!(row.status.to_string(), "affected");
 
             let vr = version_range::Entity::find_by_id(row.version_range_id)
                 .one(&ctx.db)
@@ -707,11 +704,7 @@ mod test {
         let busybox_rows = by_vendor.get("busybox").expect("busybox rows");
         assert_eq!(busybox_rows.len(), 1);
         let busybox_row = &busybox_rows[0];
-        let st = status::Entity::find_by_id(busybox_row.status_id)
-            .one(&ctx.db)
-            .await?
-            .expect("status must exist");
-        assert_eq!(st.slug, "affected");
+        assert_eq!(busybox_row.status.to_string(), "affected");
         let vr = version_range::Entity::find_by_id(busybox_row.version_range_id)
             .one(&ctx.db)
             .await?
@@ -746,7 +739,7 @@ mod test {
     async fn cve_loader_stores_cpe_status_from_adp_container(
         ctx: &TrustifyContext,
     ) -> Result<(), anyhow::Error> {
-        use trustify_entity::{cpe as cpe_entity, cpe_status, status, version_range};
+        use trustify_entity::{cpe as cpe_entity, cpe_status, version_range};
 
         let graph = Graph::new();
 
@@ -784,11 +777,7 @@ mod test {
         assert_eq!(cpe.product.as_deref(), Some("u-boot"));
         assert_eq!(cpe.version.as_deref(), Some("*"));
 
-        let st = status::Entity::find_by_id(row.status_id)
-            .one(&ctx.db)
-            .await?
-            .expect("status must exist");
-        assert_eq!(st.slug, "affected");
+        assert_eq!(row.status.to_string(), "affected");
 
         let vr = version_range::Entity::find_by_id(row.version_range_id)
             .one(&ctx.db)

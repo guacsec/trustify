@@ -108,8 +108,7 @@ pub fn batch_severity_counts_sql() -> &'static str {
         FROM sbom_purl_info sp
         JOIN purl_status pst ON pst.base_purl_id = sp.base_purl_id
         JOIN version_range vr ON pst.version_range_id = vr.id
-        JOIN status ON pst.status_id = status.id
-        WHERE status.slug = 'affected'
+        WHERE pst.status = 'affected'
           AND version_matches(sp.version, vr.*)
           AND (
               pst.context_cpe_id IS NULL
@@ -134,9 +133,8 @@ pub fn batch_severity_counts_sql() -> &'static str {
             ps.vulnerability_id
         FROM product_status ps
         JOIN sbom_purl_info sp ON ps.package = sp.name
-        JOIN status ON ps.status_id = status.id
         JOIN advisory ON ps.advisory_id = advisory.id
-        WHERE status.slug = 'affected'
+        WHERE ps.status = 'affected'
           AND advisory.deprecated = false
           AND (
               ps.context_cpe_id IS NULL
@@ -153,10 +151,9 @@ pub fn batch_severity_counts_sql() -> &'static str {
             ps.vulnerability_id
         FROM product_status ps
         JOIN sbom_purl_info sp ON ps.package = CONCAT(sp.namespace, '/', sp.name)
-        JOIN status ON ps.status_id = status.id
         JOIN advisory ON ps.advisory_id = advisory.id
         WHERE sp.namespace IS NOT NULL
-          AND status.slug = 'affected'
+          AND ps.status = 'affected'
           AND advisory.deprecated = false
           AND (
               ps.context_cpe_id IS NULL
@@ -195,10 +192,9 @@ pub fn batch_severity_counts_sql() -> &'static str {
         JOIN cpe sc ON sc.vendor = p.vendor AND sc.product = p.product AND sc.part = 'a'
         JOIN cpe_status cs ON cs.cpe_id = sc.id
         JOIN version_range vr ON cs.version_range_id = vr.id
-        JOIN status ON cs.status_id = status.id
         JOIN advisory ON cs.advisory_id = advisory.id
         WHERE p.part = 'a'
-          AND status.slug = 'affected'
+          AND cs.status = 'affected'
           AND advisory.deprecated = false
           AND version_matches(p.version, vr.*)
     ),
@@ -289,7 +285,7 @@ pub fn cpe_advisory_info_sql() -> String {
             SELECT DISTINCT
                 cs.advisory_id,
                 cs.vulnerability_id,
-                cs.status_id,
+                cs.status,
                 cs.context_cpe_id,
                 p.qualified_purl_id,
                 p.sbom_id,
@@ -315,18 +311,17 @@ pub fn cpe_advisory_info_sql() -> String {
             m.qualified_purl_id AS "qualified_purl_id",
             m.sbom_id AS "sbom_id",
             m.node_id AS "node_id",
-            "status"."id" AS "status_id",
+            m.status::text AS "status",
             "cpe"."id" AS "cpe_id",
             "organization"."id" AS "organization_id"
         FROM cpe_status_matches m
-        JOIN "status" ON m.status_id = "status"."id"
         JOIN "advisory" ON m.advisory_id = "advisory"."id"
         LEFT JOIN "organization" ON "advisory"."issuer_id" = "organization"."id"
         JOIN "advisory_vulnerability" ON m.advisory_id = "advisory_vulnerability"."advisory_id"
             AND m.vulnerability_id = "advisory_vulnerability"."vulnerability_id"
         JOIN "vulnerability" ON "advisory_vulnerability"."vulnerability_id" = "vulnerability"."id"
         LEFT JOIN "cpe" ON m.context_cpe_id = "cpe"."id"
-        WHERE ($2::text[] = ARRAY[]::text[] OR "status"."slug" = ANY($2::text[]))
+        WHERE ($2::text[] = ARRAY[]::text[] OR m.status::text = ANY($2::text[]))
           AND "advisory"."deprecated" = false
         "#
     .to_string()
@@ -378,7 +373,7 @@ pub fn product_advisory_info_sql() -> String {
                 ps.id as product_status_id,
                 ps.advisory_id,
                 ps.vulnerability_id,
-                ps.status_id,
+                ps.status,
                 ps.context_cpe_id,
                 sp.qualified_purl_id,
                 sp.sbom_id,
@@ -396,7 +391,7 @@ pub fn product_advisory_info_sql() -> String {
                 ps.id as product_status_id,
                 ps.advisory_id,
                 ps.vulnerability_id,
-                ps.status_id,
+                ps.status,
                 ps.context_cpe_id,
                 sp.qualified_purl_id,
                 sp.sbom_id,
@@ -425,20 +420,19 @@ pub fn product_advisory_info_sql() -> String {
             m.qualified_purl_id AS "qualified_purl_id",
             m.sbom_id AS "sbom_id",
             m.node_id AS "node_id",
-            "status"."id" AS "status_id",
+            m.status::text AS "status",
             "cpe"."id" AS "cpe_id",
             "organization"."id" AS "organization_id"
         FROM all_matches m
         JOIN sbom_package ON sbom_package.sbom_id = m.sbom_id AND sbom_package.node_id = m.node_id
         JOIN sbom_node ON sbom_node.sbom_id = m.sbom_id AND sbom_node.node_id = m.node_id
-        JOIN "status" ON m.status_id = "status"."id"
         JOIN "advisory" ON m.advisory_id = "advisory"."id"
         LEFT JOIN "organization" ON "advisory"."issuer_id" = "organization"."id"
         JOIN "advisory_vulnerability" ON m.advisory_id = "advisory_vulnerability"."advisory_id"
             AND m.vulnerability_id = "advisory_vulnerability"."vulnerability_id"
         JOIN "vulnerability" ON "advisory_vulnerability"."vulnerability_id" = "vulnerability"."id"
         LEFT JOIN "cpe" ON m.context_cpe_id = "cpe"."id"
-        WHERE ($2::text[] = ARRAY[]::text[] OR "status"."slug" = ANY($2::text[]))
+        WHERE ($2::text[] = ARRAY[]::text[] OR m.status::text = ANY($2::text[]))
           AND "advisory"."deprecated" = false
         "#
     .to_string()

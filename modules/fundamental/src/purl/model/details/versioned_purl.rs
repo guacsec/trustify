@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use trustify_common::{db::VersionMatches, memo::Memo};
 use trustify_entity::{
     advisory, base_purl, organization, purl_status, qualified_purl, remediation,
-    remediation_purl_status, status, version_range, versioned_purl, vulnerability,
+    remediation_purl_status, status::Status, version_range, versioned_purl, vulnerability,
 };
 use utoipa::ToSchema;
 
@@ -115,16 +115,6 @@ impl VersionedPurlAdvisory {
             .map(|(advisory, org)| (advisory.id, org.clone()))
             .collect();
 
-        // Batch load status entities to avoid more queries
-        let status_models = statuses.load_one(status::Entity, tx).await?;
-
-        // Create a HashMap for fast status lookup by status ID
-        let status_map: HashMap<Uuid, Option<status::Model>> = statuses
-            .iter()
-            .zip(status_models.iter())
-            .map(|(purl_status, status)| (purl_status.status_id, status.clone()))
-            .collect();
-
         let remediations = statuses
             .load_many_to_many(remediation::Entity, remediation_purl_status::Entity, tx)
             .await?;
@@ -138,11 +128,13 @@ impl VersionedPurlAdvisory {
             .zip(remediations.iter())
         {
             if let (Some(vulnerability), Some(advisory)) = (vuln, advisory) {
-                let status_model = status_map.get(&purl_status.status_id).cloned().flatten();
-
-                let qualified_package_status =
-                    VersionedPurlStatus::from_entity(vulnerability, status_model, remediations, tx)
-                        .await?;
+                let qualified_package_status = VersionedPurlStatus::from_entity(
+                    vulnerability,
+                    purl_status.status,
+                    remediations,
+                    tx,
+                )
+                .await?;
 
                 if let Some(entry) = results.iter_mut().find(|e| e.head.uuid == advisory.id) {
                     entry.status.push(qualified_package_status)
@@ -176,14 +168,10 @@ pub struct VersionedPurlStatus {
 impl VersionedPurlStatus {
     pub async fn from_entity<C: ConnectionTrait>(
         vuln: &vulnerability::Model,
-        status_model: Option<status::Model>,
+        status: Status,
         remediations: &[remediation::Model],
         tx: &C,
     ) -> Result<Self, Error> {
-        let status = status_model
-            .map(|e| e.slug)
-            .unwrap_or("unknown".to_string());
-
         Ok(Self {
             vulnerability: VulnerabilityHead::from_vulnerability_entity(
                 vuln,
@@ -191,7 +179,7 @@ impl VersionedPurlStatus {
                 tx,
             )
             .await?,
-            status,
+            status: status.to_string(),
             remediations: RemediationSummary::from_entities(remediations),
         })
     }

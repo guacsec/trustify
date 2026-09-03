@@ -322,7 +322,7 @@ mod test {
     use test_context::test_context;
     use test_log::test;
     use time::macros::datetime;
-    use trustify_entity::{cpe as cpe_entity, cpe_status, status, version_range, version_scheme};
+    use trustify_entity::{cpe as cpe_entity, cpe_status, version_range, version_scheme};
     use trustify_test_context::{TrustifyContext, document};
 
     #[test_context(TrustifyContext)]
@@ -375,11 +375,7 @@ mod test {
         assert_eq!(cpe.product.as_deref(), Some("widget"));
         assert_eq!(cpe.version.as_deref(), Some("*"));
 
-        let st = status::Entity::find_by_id(row.status_id)
-            .one(&ctx.db)
-            .await?
-            .expect("status must exist");
-        assert_eq!(st.slug, "affected");
+        assert_eq!(row.status.to_string(), "affected");
 
         // The critical part: range stored under the `semver` scheme with
         // inclusive-low / exclusive-high bounds so ordered range matching works.

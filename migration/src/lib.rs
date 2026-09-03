@@ -73,6 +73,7 @@ mod m0002280_backfill_sbom_suppliers;
 mod m0002290_create_exploit_intelligence_job;
 mod m0002300_create_exploit;
 mod m0002310_create_change_log;
+mod m0002320_replace_status_with_enum;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -161,6 +162,7 @@ impl MigratorExt for Migrator {
             .normal(m0002290_create_exploit_intelligence_job::Migration)
             .normal(m0002300_create_exploit::Migration)
             .normal(m0002310_create_change_log::Migration)
+            .normal(m0002320_replace_status_with_enum::Migration)
     }
 }
 

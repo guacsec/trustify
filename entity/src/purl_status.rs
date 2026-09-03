@@ -1,3 +1,4 @@
+use super::status::Status;
 use sea_orm::LinkDef;
 use sea_orm::entity::prelude::*;
 
@@ -8,7 +9,7 @@ pub struct Model {
     pub id: Uuid,
     pub advisory_id: Uuid,
     pub vulnerability_id: String,
-    pub status_id: Uuid,
+    pub status: Status,
     pub base_purl_id: Uuid,
     pub version_range_id: Uuid,
     pub context_cpe_id: Option<Uuid>,
@@ -42,12 +43,6 @@ pub enum Relation {
         to = "super::advisory::Column::Id"
     )]
     Advisory,
-
-    #[sea_orm(belongs_to = "super::status::Entity",
-        from = "Column::StatusId"
-        to = "super::status::Column::Id"
-    )]
-    Status,
 
     #[sea_orm(belongs_to = "super::advisory_vulnerability::Entity",
         from = "(Column::AdvisoryId, Column::VulnerabilityId)"
@@ -103,12 +98,6 @@ impl Related<super::vulnerability::Entity> for Entity {
 impl Related<super::advisory::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Advisory.def()
-    }
-}
-
-impl Related<super::status::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Status.def()
     }
 }
 

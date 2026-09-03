@@ -11,7 +11,6 @@ pub mod purl;
 pub mod sbom;
 pub mod vulnerability;
 
-use db_context::DbContext;
 use hex::ToHex;
 use sea_orm::{
     ActiveValue::Set, ConnectionTrait, DbErr, EntityTrait, TransactionError, TransactionTrait,
@@ -19,19 +18,15 @@ use sea_orm::{
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
-    sync::Arc,
 };
 use time::OffsetDateTime;
-use tokio::sync::Mutex;
 use tracing::instrument;
 use trustify_common::hashing::Digests;
 use trustify_entity::source_document;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Default)]
-pub struct Graph {
-    pub(crate) db_context: Arc<Mutex<DbContext>>,
-}
+pub struct Graph {}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<E: Send> {
@@ -43,9 +38,7 @@ pub enum Error<E: Send> {
 
 impl Graph {
     pub fn new() -> Self {
-        Self {
-            db_context: Arc::new(Mutex::new(DbContext::new())),
-        }
+        Self {}
     }
 
     /// Create a new source document, or return an existing sha256 digest if a document with that

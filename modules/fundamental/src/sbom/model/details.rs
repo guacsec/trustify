@@ -15,10 +15,11 @@ use sea_orm::{
     ConnectionTrait, DbBackend, DbErr, EntityTrait, FromQueryResult, JoinType, ModelTrait,
     QueryFilter, QueryResult, QuerySelect, RelationTrait, Statement,
 };
-use sea_query::{Asterisk, Expr, Func, PgFunc, SimpleExpr};
+use sea_query::{Asterisk, Expr, ExprTrait, Func, PgFunc, SimpleExpr};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
+    str::FromStr,
     sync::Arc,
 };
 use tracing::{Instrument, info_span, instrument};
@@ -26,7 +27,7 @@ use trustify_common::{db::VersionMatches, memo::Memo};
 use trustify_entity::{
     advisory, advisory_vulnerability, advisory_vulnerability_score, base_purl, cpe, organization,
     purl_status, qualified_purl, sbom, sbom_node, sbom_node_purl_ref, sbom_package,
-    source_document, status, version_range, versioned_purl, vulnerability,
+    source_document, status::Status, version_range, versioned_purl, vulnerability,
 };
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -42,7 +43,7 @@ struct IdSet {
     advisory_vulnerability_vulnerability_id: String,
     vulnerability_id: String,
     context_cpe_id: Option<Uuid>,
-    status_id: Uuid,
+    status: Status,
     organization_id: Option<Uuid>,
 }
 
@@ -57,7 +58,8 @@ impl FromQueryResult for IdSet {
             advisory_vulnerability_vulnerability_id: res.try_get("", "av_vulnerability_id")?,
             vulnerability_id: res.try_get("", "vulnerability_id")?,
             context_cpe_id: res.try_get::<Option<Uuid>>("", "cpe_id")?,
-            status_id: res.try_get("", "status_id")?,
+            status: Status::from_str(&res.try_get::<String>("", "status")?)
+                .map_err(|e| DbErr::Custom(e.to_string()))?,
             organization_id: res.try_get::<Option<Uuid>>("", "organization_id")?,
         })
     }
@@ -100,7 +102,7 @@ impl SbomDetails {
             .column_as(qualified_purl::Column::Id, "qualified_purl_id")
             .column_as(sbom_package::Column::SbomId, "sbom_id")
             .column_as(sbom_package::Column::NodeId, "node_id")
-            .column_as(status::Column::Id, "status_id")
+            .column_as(purl_status::Column::Status, "status")
             .column_as(cpe::Column::Id, "cpe_id")
             .column_as(organization::Column::Id, "organization_id")
             .join(JoinType::Join, sbom_package::Relation::Node.def())
@@ -111,12 +113,14 @@ impl SbomDetails {
                 qualified_purl::Relation::VersionedPurl.def(),
             )
             .join(JoinType::LeftJoin, versioned_purl::Relation::BasePurl.def())
-            .join(JoinType::Join, base_purl::Relation::PurlStatus.def())
-            .join(JoinType::Join, purl_status::Relation::Status.def());
+            .join(JoinType::Join, base_purl::Relation::PurlStatus.def());
 
         if !statuses.is_empty() {
-            query = query
-                .filter(Expr::col((status::Entity, status::Column::Slug)).is_in(statuses.clone()));
+            query = query.filter(
+                Expr::col((purl_status::Entity, purl_status::Column::Status))
+                    .cast_as(sea_query::Alias::new("text"))
+                    .is_in(statuses.clone()),
+            );
         }
 
         query = query.filter(Expr::cust_with_values(
@@ -215,7 +219,6 @@ impl SbomDetails {
         let mut advisory_vulnerability_ids_set: BTreeSet<(Uuid, String)> = BTreeSet::new();
         let mut vulnerability_ids_set: BTreeSet<String> = BTreeSet::new();
         let mut cpe_ids_set: BTreeSet<Uuid> = BTreeSet::new();
-        let mut status_ids_set: BTreeSet<Uuid> = BTreeSet::new();
         let mut organization_ids_set: BTreeSet<Uuid> = BTreeSet::new();
 
         for id_set in &id_sets {
@@ -232,7 +235,6 @@ impl SbomDetails {
             if let Some(cpe_id) = id_set.context_cpe_id {
                 cpe_ids_set.insert(cpe_id);
             }
-            status_ids_set.insert(id_set.status_id);
             if let Some(org_id) = id_set.organization_id {
                 organization_ids_set.insert(org_id);
             }
@@ -245,7 +247,6 @@ impl SbomDetails {
             advisory_vulnerability_ids_set.into_iter().collect();
         let vulnerability_ids: Vec<String> = vulnerability_ids_set.into_iter().collect();
         let cpe_ids: Vec<Uuid> = cpe_ids_set.into_iter().collect();
-        let status_ids: Vec<Uuid> = status_ids_set.into_iter().collect();
         let organization_ids: Vec<Uuid> = organization_ids_set.into_iter().collect();
 
         // Pre-fetch all entities in bulk and build lookup maps with Arc
@@ -338,16 +339,6 @@ impl SbomDetails {
             .collect();
         log::debug!("Pre-fetched {} cpes", cpes_map.len());
 
-        let statuses_map: BTreeMap<Uuid, Arc<status::Model>> = status::Entity::find()
-            .filter(Expr::col(status::Column::Id).eq(PgFunc::any(status_ids)))
-            .all(tx)
-            .instrument(info_span!("fetch status"))
-            .await?
-            .into_iter()
-            .map(|s| (s.id, Arc::new(s)))
-            .collect();
-        log::debug!("Pre-fetched {} statuses", statuses_map.len());
-
         let organizations_map: BTreeMap<Uuid, Arc<organization::Model>> =
             organization::Entity::find()
                 .filter(Expr::col(organization::Column::Id).eq(PgFunc::any(organization_ids)))
@@ -438,9 +429,6 @@ impl SbomDetails {
             let context_cpe = id_set
                 .context_cpe_id
                 .and_then(|id| cpes_map.get(&id).cloned());
-            let status = statuses_map.get(&id_set.status_id).ok_or_else(|| {
-                Error::NotFound(format!("Status {} not found in lookup", id_set.status_id))
-            })?;
             let organization = id_set
                 .organization_id
                 .and_then(|id| organizations_map.get(&id).cloned());
@@ -453,7 +441,7 @@ impl SbomDetails {
                 advisory_vulnerability: Arc::clone(advisory_vulnerability),
                 vulnerability: Arc::clone(vulnerability),
                 context_cpe,
-                status: Arc::clone(status),
+                status: id_set.status,
                 organization,
             });
         }
@@ -512,7 +500,7 @@ impl SbomAdvisory {
             };
 
             let sbom_status = if let Some(status) = advisory.status.iter_mut().find(|status| {
-                status.status == each.status.slug
+                status.status == each.status.to_string()
                     && status.vulnerability.identifier == each.vulnerability.id
             }) {
                 status
@@ -520,7 +508,7 @@ impl SbomAdvisory {
                 let status = SbomStatus::new(
                     &each.advisory_vulnerability,
                     &each.vulnerability,
-                    each.status.slug.clone(),
+                    each.status.to_string(),
                     status_cpe,
                     vec![],
                     // Look up pre-fetched scores from the map

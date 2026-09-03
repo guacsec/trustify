@@ -17,7 +17,7 @@ use sea_orm::{
 use sea_query::{ColumnType, Expr, JoinType, UnionType, extension::postgres::PgExpr};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fmt::Debug, sync::Arc, vec::Vec};
+use std::{collections::HashMap, fmt::Debug, str::FromStr, sync::Arc, vec::Vec};
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
     cpe::Cpe,
@@ -39,7 +39,8 @@ use trustify_entity::{
     license, organization, package_relates_to_package, qualified_purl,
     relationship::Relationship,
     sbom, sbom_ai, sbom_group_assignment, sbom_license_expanded, sbom_node, sbom_node_cpe_ref,
-    sbom_node_purl_ref, sbom_package, sbom_package_license, source_document, status,
+    sbom_node_purl_ref, sbom_package, sbom_package_license, source_document,
+    status::Status,
     versioned_purl, vulnerability,
 };
 
@@ -1186,7 +1187,7 @@ pub struct QueryCatcher {
     pub advisory_vulnerability: Arc<advisory_vulnerability::Model>,
     pub vulnerability: Arc<vulnerability::Model>,
     pub context_cpe: Option<Arc<cpe::Model>>,
-    pub status: Arc<status::Model>,
+    pub status: Status,
     pub organization: Option<Arc<organization::Model>>,
 }
 
@@ -1226,11 +1227,8 @@ impl FromQueryResult for QueryCatcher {
             )?),
             context_cpe: Self::from_query_result_multi_model_optional(res, "", cpe::Entity)?
                 .map(Arc::new),
-            status: Arc::new(Self::from_query_result_multi_model(
-                res,
-                "",
-                status::Entity,
-            )?),
+            status: Status::from_str(&res.try_get::<String>("", "status")?)
+                .map_err(|e| DbErr::Custom(e.to_string()))?,
             organization: Self::from_query_result_multi_model_optional(
                 res,
                 "",
@@ -1252,7 +1250,6 @@ impl FromQueryResultMultiModel for QueryCatcher {
             .try_model_columns(qualified_purl::Entity)?
             .try_model_columns(sbom_package::Entity)?
             .try_model_columns(sbom_node::Entity)?
-            .try_model_columns(status::Entity)?
             .try_model_columns(cpe::Entity)?
             .try_model_columns(organization::Entity)
     }

@@ -31,7 +31,7 @@ use trustify_entity::{
     advisory, advisory_vulnerability_score, base_purl, cpe, license, organization, product,
     product_status, product_version, product_version_range, purl_status, qualified_purl, sbom,
     sbom_describing_cpe, sbom_license_expanded, sbom_node, sbom_node_purl_ref,
-    sbom_package_license, status, version_range, versioned_purl, vulnerability,
+    sbom_package_license, status::Status, version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::{Deprecation, DeprecationForExt};
 use utoipa::ToSchema;
@@ -274,7 +274,6 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
         )
         .join(JoinType::Join, cpe::Relation::Product.def())
         .join(JoinType::LeftJoin, product::Relation::ProductVersion.def())
-        .join(JoinType::Join, product_status::Relation::Status.def())
         .join(JoinType::Join, product_status::Relation::Advisory.def())
         .join(
             JoinType::Join,
@@ -299,7 +298,7 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
         ))
         .distinct_on([
             (product_status::Entity, product_status::Column::ContextCpeId),
-            (product_status::Entity, product_status::Column::StatusId),
+            (product_status::Entity, product_status::Column::Status),
             (product_status::Entity, product_status::Column::Package),
             (
                 product_status::Entity,
@@ -307,7 +306,7 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
             ),
         ])
         .order_by_asc(product_status::Column::ContextCpeId)
-        .order_by_asc(product_status::Column::StatusId)
+        .order_by_asc(product_status::Column::Status)
         .order_by_asc(product_status::Column::Package)
         .order_by_asc(product_status::Column::VulnerabilityId);
 
@@ -384,7 +383,7 @@ impl PurlAdvisory {
             let purl_status = PurlStatus::new(
                 &product_status.vulnerability,
                 &product_status.advisory,
-                product_status.status.slug.clone(),
+                product_status.status.to_string(),
                 Some(VersionRange::from_entity(product_status.version_range)?),
                 Some(product_status.cpe.to_string()),
                 tx,
@@ -501,11 +500,7 @@ impl PurlStatus {
         package_status: &purl_status::Model,
         tx: &C,
     ) -> Result<Self, Error> {
-        let status = status::Entity::find_by_id(package_status.status_id)
-            .one(tx)
-            .await?
-            .map(|e| e.slug)
-            .unwrap_or("unknown".into());
+        let status = package_status.status.to_string();
         let cpe = match package_status.context_cpe_id {
             Some(context_cpe) => {
                 let cpe = cpe::Entity::find_by_id(context_cpe).one(tx).await?;
@@ -589,17 +584,19 @@ pub struct ProductStatusCatcher {
     advisory: advisory::Model,
     vulnerability: vulnerability::Model,
     cpe: trustify_entity::cpe::Model,
-    status: status::Model,
+    status: Status,
     version_range: version_range::Model,
 }
 
 impl FromQueryResult for ProductStatusCatcher {
     fn from_query_result(res: &QueryResult, _pre: &str) -> Result<Self, DbErr> {
+        let product_status_model: product_status::Model =
+            Self::from_query_result_multi_model(res, "", product_status::Entity)?;
         Ok(Self {
             advisory: Self::from_query_result_multi_model(res, "", advisory::Entity)?,
             vulnerability: Self::from_query_result_multi_model(res, "", vulnerability::Entity)?,
             cpe: Self::from_query_result_multi_model(res, "", trustify_entity::cpe::Entity)?,
-            status: Self::from_query_result_multi_model(res, "", status::Entity)?,
+            status: product_status_model.status,
             version_range: Self::from_query_result_multi_model(res, "", version_range::Entity)?,
         })
     }
@@ -611,7 +608,7 @@ impl FromQueryResultMultiModel for ProductStatusCatcher {
             .try_model_columns(advisory::Entity)?
             .try_model_columns(vulnerability::Entity)?
             .try_model_columns(trustify_entity::cpe::Entity)?
-            .try_model_columns(status::Entity)?
+            .try_model_columns(product_status::Entity)?
             .try_model_columns(version_range::Entity)
     }
 }
