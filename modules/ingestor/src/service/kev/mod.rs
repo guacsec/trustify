@@ -90,6 +90,7 @@ impl KevLoader {
             id: digests.sha512.encode_hex(),
             document_id: Some(format!("{source}/{}", catalog.catalog_version)),
             warnings: dropped.into_warnings(),
+            validation: Vec::new(),
         })
     }
 }

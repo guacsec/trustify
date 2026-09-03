@@ -102,6 +102,7 @@ impl<'g> CsafLoader<'g> {
                 id: found.advisory.id.to_string(),
                 document_id: Some(advisory_id),
                 warnings: warnings.into(),
+                validation: Vec::new(),
             });
         }
 
@@ -133,6 +134,7 @@ impl<'g> CsafLoader<'g> {
             id: advisory.advisory.id.to_string(),
             document_id: Some(advisory_id),
             warnings: warnings.into(),
+            validation: Vec::new(),
         })
     }
 

@@ -31,6 +31,7 @@ parking_lot = { workspace = true }
 quick-xml = { workspace = true }
 roxmltree = { workspace = true }
 sbom-walker = { workspace = true }
+scheck = { workspace = true }
 sea-orm = { workspace = true }
 sea-query = { workspace = true }
 semver = { workspace = true }
@@ -60,6 +61,7 @@ criterion = { workspace = true }
 rand = { workspace = true }
 rstest = { workspace = true }
 serde_yml = { workspace = true }
+tempfile = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
 tokio = { workspace = true, features = ["full"] }

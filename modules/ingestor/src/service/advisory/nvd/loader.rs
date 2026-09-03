@@ -202,6 +202,7 @@ impl<'g> NvdLoader<'g> {
             id: advisory.advisory.id.to_string(),
             document_id: Some(id),
             warnings: warnings.into(),
+            validation: Vec::new(),
         })
     }
 }

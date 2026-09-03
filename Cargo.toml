@@ -118,6 +118,7 @@ roxmltree = "0.21.1"
 rstest = "0.26.1"
 sanitize-filename = "0.6.0"
 sbom-walker = { version = "0.17.0", default-features = false, features = ["crypto-openssl", "serde-cyclonedx", "spdx-rs"] }
+scheck = "0.7.0"
 schemars = "1.0"
 sea-orm = { version = "1.1.20", features = ["debug-print"] }
 sea-orm-migration = "1"
