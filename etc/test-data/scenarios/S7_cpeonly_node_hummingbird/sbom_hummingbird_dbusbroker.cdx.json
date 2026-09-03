@@ -1,0 +1,33 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:07070000-0000-4000-8000-0707humbdbusbr",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-hb",
+      "type": "operating-system",
+      "name": "hummingbird",
+      "version": "1",
+      "cpe": "cpe:/a:redhat:hummingbird:1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg",
+      "type": "library",
+      "name": "dbus-broker",
+      "version": "33-1.el9",
+      "purl": "pkg:rpm/redhat/dbus-broker@33-1.el9?arch=x86_64&epoch=0"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-hb",
+      "dependsOn": [
+        "pkg"
+      ]
+    }
+  ]
+}
