@@ -1035,3 +1035,69 @@ async fn s14_productstatus_version_filter_netty(
 
     Ok(())
 }
+
+// ===========================================================================
+// S16: Cross-scheme PURL query golang (TC-5170)
+//
+// CVE-2023-44487 marks `golang` known_affected only under Red Hat Storage 3
+// (cpe:/a:redhat:storage:3), as a bare component. A non-RPM golang PURL (OCI,
+// Maven) must NOT inherit that rpm/Storage-3 status: get_product_statuses_for_purl
+// matches by base name without checking PURL scheme or product context, so the
+// non-RPM packages leak. The positive control (rpm under Storage 3) is a
+// coincidental version match — the storage:3-derived range [3,4) contains
+// golang@3.5.0 only because the majors coincide.
+//
+// NOTE: the advisory here is a small synthetic CSAF (the real CVE-2023-44487
+// CSAF is huge); it carries the correct product_status shape.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5170: get_product_statuses_for_purl matches golang by name only, ignoring PURL scheme/product (Storage 3) context"]
+#[test_log::test(actix_web::test)]
+async fn s16_crossscheme_purlquery_golang(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S16_crossscheme_purlquery_golang",
+        &["vex/CVE-2023-44487.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // (SBOM base name, expected_affected)
+    let cases: &[(&str, bool)] = &[
+        // in-context rpm under Storage 3 → affected (coincidental major match)
+        ("sbom_golang_rpm_storage3", true),
+        // non-RPM golang must NOT inherit the rpm/Storage-3 status
+        ("sbom_golang_oci", false),
+        ("sbom_golang_maven", false),
+    ];
+
+    let mut mismatches = Vec::new();
+    for (base, expected_affected) in cases {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S16_crossscheme_purlquery_golang/{base}.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        let present = advisory_cves(&adv).contains(&"CVE-2023-44487");
+        if present != *expected_affected {
+            mismatches.push(format!(
+                "  {base} ({fmt}): expected affected={expected_affected}, /sbom/advisory present={present}"
+            ));
+        }
+    }
+
+    assert!(
+        mismatches.is_empty(),
+        "S16 CVE-2023-44487 correlation mismatches:\n{}",
+        mismatches.join("\n")
+    );
+
+    Ok(())
+}

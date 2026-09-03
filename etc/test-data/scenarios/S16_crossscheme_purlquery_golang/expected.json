@@ -1,0 +1,22 @@
+{
+  "advisories": [
+    "vex/CVE-2023-44487.json"
+  ],
+  "sboms": {
+    "sbom_golang_oci": {
+      "correct": {
+        "CVE-2023-44487": "not_affected"
+      }
+    },
+    "sbom_golang_maven": {
+      "correct": {
+        "CVE-2023-44487": "not_affected"
+      }
+    },
+    "sbom_golang_rpm_storage3": {
+      "correct": {
+        "CVE-2023-44487": "affected"
+      }
+    }
+  }
+}
