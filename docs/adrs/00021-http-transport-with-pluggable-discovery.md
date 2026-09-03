@@ -8,15 +8,19 @@ PROPOSED
 
 ## Context
 
-Trustify's existing importers rely on two transport mechanisms to fetch external data:
+Trustify's existing importers use three transport mechanisms:
 
-* **Git** — clone a repository and walk the filesystem (used by OSV, CSAF, CVE, CWE, SBOM
-  importers).
-* **OCI registry** — pull artifacts from a container registry (used by the Quay importer).
+* **HTTP** — used by CSAF and SBOM (via `csaf-walker`/`sbom-walker` Trusted Provider
+  discovery), NVD, CWE, and ClearlyDefined importers. Each builds its own HTTP client with
+  no shared transport layer.
+* **Git** — clone a repository and walk the filesystem (OSV, CVE, ClearlyDefined Curation).
+* **OCI registry** — pull artifacts from a container registry (Quay importer).
 
-Neither supports importing data served over plain HTTP. This is a gap because advisory and
+HTTP is already in use, but only through protocol-specific walkers (CSAF Trusted Provider)
+or one-off reqwest clients. There is no shared HTTP transport capable of fetching files from
+a generic content repository identified by a manifest. This is a gap because advisory and
 vulnerability data providers increasingly publish content through HTTP-based content
-repositories rather than git repositories or container registries.
+repositories that do not follow the CSAF Trusted Provider protocol.
 
 ### The HTTP file listing problem
 
