@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788526914356,
+  "lastUpdate": 1788529449426,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21513,6 +21513,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "a0303ee2f3ecf1cdae6ec07c2ec30e3f060735e3",
+          "message": "refactor(migration): compute UUID v5 in Rust instead of PostgreSQL uuid-ossp\n\nReplace the uuid-ossp extension with Rust-side UUID v5 computation using the\nexisting Purl::version_uuid() and effective_version() methods. This eliminates\nthe libossp-uuid16 system dependency from CI and avoids requiring the extension\nin all deployment environments.\n\nThe migration now pages through affected rows (LIMIT 5000) with an exclusive\ntable lock to prevent concurrent modifications, computes deterministic UUIDs\nin Rust, and writes results back via chunked inserts and parameterized updates.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-09-04T13:06:10Z",
+          "tree_id": "fd5af290be6446009704ce71013e7e40ce473336",
+          "url": "https://github.com/guacsec/trustify/commit/a0303ee2f3ecf1cdae6ec07c2ec30e3f060735e3"
+        },
+        "date": 1788529447098,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
             "unit": "s"
           }
         ]
