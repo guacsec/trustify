@@ -64,7 +64,7 @@ causes:
 | RPM epoch ignored by `rpmver_cmp` PL/pgSQL function | TC-5733 | Latent |
 | Child-node CPEs not included in `sbom_describing_cpe` | TC-5750 | False positive |
 
-### Performance
+### Current Performance
 
 All correlation is computed at query time via complex multi-CTE SQL. Benchmarks from a
 prototype in-memory engine (PR #2528) show the SQL path takes 57–434ms per request
@@ -115,6 +115,14 @@ different stream via standard RPM comparison, that match stands. Stream scoping 
 advisory's responsibility (via precise version ranges or separate assertions per stream),
 not the engine's — consistent with the decision to match on component identity only.
 
+**Known gap — source-to-binary PURL mismatch:** An advisory referencing a source RPM
+(e.g., `pkg:rpm/redhat/kernel?arch=src`) will not match an SBOM containing the binary
+RPM (e.g., `pkg:rpm/redhat/kernel-core@...?arch=x86_64`) — these have different
+`base_purl_id`s, no shared digest, and CPE matching is too coarse. The join between
+source and binary only exists through SBOM relationships (SPDX `GENERATED_FROM`) or
+build-system metadata (srpm→binary mapping). A relationship-based matching dimension
+could address this but is out of scope for the initial engine.
+
 **CPE identity matching (confidence: 0.8)** — for CVE/NVD data and CSAF advisories
 that identify components by CPE. Matches by vendor+product (part='a') with version
 comparison using `COALESCE(cpe_version, package_version)` for the SBOM side.
@@ -122,6 +130,9 @@ comparison using `COALESCE(cpe_version, package_version)` for the SBOM side.
 **Digest matching (confidence: 1.0)** — the strongest possible match per spec.
 Exact hash-value lookup with no version comparison needed. Requires ingestor extension
 to extract `product_identification_helper.hashes` from CSAF documents (prerequisite work).
+Confidence may be adjusted in the future based on SBOM trust signals (e.g., whether the
+SBOM is signed) — the policy model should leave space for this without implementing it
+in the initial version.
 
 ### Status Resolution
 
@@ -135,8 +146,13 @@ same `(sbom_node, vulnerability)`:
 
 ### Inbox Queue Pattern
 
-On document ingestion, a change event (via the existing `ChangeBroadcaster`) enqueues
-an entry in `correlation_inbox` with status `pending`. A background worker:
+The correlation inbox is a general-purpose work queue: any component that produces
+documents can enqueue a `pending` entry. The initial implementation subscribes to the
+existing `ChangeBroadcaster`, but the inbox interface is not coupled to it — batch
+imports, database triggers, CLI commands, or external orchestrators can all enqueue
+work through the same `correlation_inbox` table.
+
+A background worker:
 
 1. Picks up `pending` entries, marks them `processing`
 2. Builds or updates the in-memory index for the entity
@@ -228,10 +244,15 @@ CREATE TYPE evidence_source AS ENUM ('purl_status', 'cpe_status');
 |--------|------|---------|---------|
 | id | UUID PK | | |
 | name | TEXT UNIQUE | 'default' | |
+| ecosystem | TEXT | null | nullable — when set (e.g., `rpm`, `maven`), this policy overrides the global default for that ecosystem |
 | purl_type_strict | BOOLEAN | true | require PURL type match |
 | not_affected_suppresses | BOOLEAN | true | not_affected beats affected |
 | fixed_suppresses | BOOLEAN | true | fixed beats affected |
 | digest_matching | BOOLEAN | true | enable hash-based matching |
+
+The engine resolves the most specific policy for a given PURL type: an ecosystem-scoped
+policy (where `ecosystem` matches the PURL type) takes precedence over the global
+default (where `ecosystem IS NULL`).
 
 ### In-Memory Index Architecture
 
@@ -280,6 +301,7 @@ New endpoints under `/api/v4/correlation/`:
 | GET | `/sbom/{id}/summary` | Severity counts from materialized data |
 | POST | `/analyze` | Analyze PURLs against materialized + real-time |
 | GET | `/vulnerability/{id}` | All SBOMs affected by a vulnerability |
+| GET | `/vulnerability/{id}/summary` | Affected-SBOM count and severity breakdown |
 | GET | `/match/{id}/evidence` | Evidence for a specific match |
 | GET | `/inbox` | Inbox queue status |
 | GET | `/status` | Engine status (last run, index sizes, backlog) |
@@ -392,6 +414,28 @@ modules/correlation/
   manageable; for very large deployments the index may need partitioning or tiering.
 - **Migration effort**: existing v3 consumers continue working unchanged during the
   transition period, but full cutover requires testing the v3 adapter.
+
+### Known Limitations and Future Work
+
+- **Containers and layered products**: non-RPM content in container images (Go
+  modules, Maven artifacts) requires agreed PURL namespace conventions that are
+  not always standardized. The engine matches whatever PURLs are present in the
+  SBOM and advisory; namespace normalization or convention enforcement is out of
+  scope.
+- **Static linking and vendored dependencies**: a single vendored-module
+  vulnerability fans out across every binary that embedded it (e.g., Go stdlib).
+  The engine produces a match per SBOM node; deduplication or rollup across
+  binaries is a presentation/UI concern, not a matching concern.
+- **Name mismatch between vendors and NVD**: package names used by vendors (e.g.,
+  Red Hat) may differ from the names NVD publishes for the same component. This
+  can cause false negatives when the PURL or CPE names don't align. A future
+  aliasing/mapping table could bridge this gap.
+- **Source-to-binary PURL gap**: see the note under PURL matching above. A
+  relationship-based dimension (SPDX `GENERATED_FROM`, build metadata) is needed
+  to bridge source and binary package identities.
+- **SBOM trust signals**: digest matching confidence assumes the SBOM is
+  trustworthy. Signed SBOMs should carry higher weight than unsigned ones. The
+  policy model is designed to accommodate a future trust-level field.
 
 ### What This Does NOT Change
 
