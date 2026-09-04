@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788525007530,
+  "lastUpdate": 1788526914356,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21484,6 +21484,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "mrrajan",
+            "username": "mrrajan"
+          },
+          "committer": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "Rajan Ravi",
+            "username": "mrrajan"
+          },
+          "distinct": true,
+          "id": "52fcab7244cc2c709d27a11f5d5cf6ec6ffd0f26",
+          "message": "test(correlation): add S16 cross-scheme golang PURL-query scenario (TC-5170)\n\nNon-RPM golang (oci/maven) must not inherit the rpm/Storage-3 status;\nget_product_statuses_for_purl matches by name only. #[ignore] pending TC-5170.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-09-04T12:29:34Z",
+          "tree_id": "6b41ebc805b51a7881598f1b4b6d915054d08c3b",
+          "url": "https://github.com/guacsec/trustify/commit/52fcab7244cc2c709d27a11f5d5cf6ec6ffd0f26"
+        },
+        "date": 1788526912606,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
