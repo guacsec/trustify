@@ -5105,7 +5105,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with NotVulnerable finding (computed at query time).
+          description: Number of completed components with finding=not_vulnerable (computed at query time).
         product_id:
           type:
           - string
@@ -5134,7 +5134,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with Uncertain finding (computed at query time).
+          description: Number of completed components with finding=uncertain (computed at query time).
         updated:
           type: string
           description: Timestamp when the job was last updated.
@@ -5146,7 +5146,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with Vulnerable finding (computed at query time).
+          description: Number of completed components with finding=vulnerable (computed at query time).
     ExploitIntelligenceJobStatus:
       type: string
       description: Lifecycle status of an Exploit Intelligence analysis job.
@@ -5201,7 +5201,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with NotVulnerable finding (computed at query time).
+          description: Number of completed components with finding=not_vulnerable (computed at query time).
         product_id:
           type:
           - string
@@ -5230,7 +5230,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with Uncertain finding (computed at query time).
+          description: Number of completed components with finding=uncertain (computed at query time).
         updated:
           type: string
           description: Timestamp when the job was last updated.
@@ -5242,7 +5242,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with Vulnerable finding (computed at query time).
+          description: Number of completed components with finding=vulnerable (computed at query time).
     ExternalReferenceQuery:
       type: object
       properties:
@@ -5911,7 +5911,7 @@ components:
                 - integer
                 - 'null'
                 format: int32
-                description: Number of completed components with NotVulnerable finding (computed at query time).
+                description: Number of completed components with finding=not_vulnerable (computed at query time).
               product_id:
                 type:
                 - string
@@ -5940,7 +5940,7 @@ components:
                 - integer
                 - 'null'
                 format: int32
-                description: Number of completed components with Uncertain finding (computed at query time).
+                description: Number of completed components with finding=uncertain (computed at query time).
               updated:
                 type: string
                 description: Timestamp when the job was last updated.
@@ -5952,7 +5952,7 @@ components:
                 - integer
                 - 'null'
                 format: int32
-                description: Number of completed components with Vulnerable finding (computed at query time).
+                description: Number of completed components with finding=vulnerable (computed at query time).
         total:
           type:
           - integer
