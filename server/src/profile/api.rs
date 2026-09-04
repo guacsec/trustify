@@ -40,7 +40,10 @@ use trustify_module_exploit_intelligence::{
     runner::worker::start_worker,
     service::{ExploitIntelligenceConfig, ExploitIntelligenceService},
 };
-use trustify_module_ingestor::graph::Graph;
+use trustify_module_ingestor::{
+    graph::Graph,
+    service::validation::{self, Validator, ValidatorsConfig},
+};
 use trustify_module_notification::config::NotificationConfig;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 use trustify_module_ui::{UI, endpoints::UiResources};
@@ -371,7 +374,7 @@ struct InitData {
     broadcaster: ChangeBroadcaster,
     read_only: bool,
     ei_config: Option<ExploitIntelligenceConfig>,
-    validators: Vec<Arc<dyn trustify_module_ingestor::service::validation::Validator>>,
+    validators: Vec<Arc<dyn Validator>>,
 }
 
 /// Groups all module configurations.
@@ -485,10 +488,9 @@ impl InitData {
                 let raw = tokio::fs::read_to_string(path)
                     .await
                     .with_context(|| format!("reading validators config {}", path.display()))?;
-                let config: trustify_module_ingestor::service::validation::ValidatorsConfig =
-                    serde_yml::from_str(&raw)
-                        .with_context(|| format!("parsing validators config {}", path.display()))?;
-                trustify_module_ingestor::service::validation::build(&config)?
+                let config: ValidatorsConfig = serde_yml::from_str(&raw)
+                    .with_context(|| format!("parsing validators config {}", path.display()))?;
+                validation::build(&config)?
             }
             None => Vec::new(),
         };
@@ -645,7 +647,7 @@ pub(crate) struct Config {
     pub(crate) read_only: bool,
     pub(crate) ei_service: ExploitIntelligenceService,
     pub(crate) graph: Graph,
-    pub(crate) validators: Vec<Arc<dyn trustify_module_ingestor::service::validation::Validator>>,
+    pub(crate) validators: Vec<Arc<dyn Validator>>,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {

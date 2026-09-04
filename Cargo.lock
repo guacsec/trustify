@@ -4270,16 +4270,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libyml"
-version = "0.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3302702afa434ffa30847a83305f0a69d6abd74293b6554c18ec85c7ef30c980"
-dependencies = [
- "anyhow",
- "version_check",
-]
-
-[[package]]
 name = "libz-sys"
 version = "1.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6549,9 +6539,9 @@ dependencies = [
 
 [[package]]
 name = "scheck"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb496e6f62b13c7148482b3dd4c7469d1b62d17f784fdcab3ab2df7e1f78effc"
+checksum = "9300bbcf74ce990d5a84f8fd47bb9fe3887dfa2bd810a80c5fa9a68168af117b"
 dependencies = [
  "clap",
  "regex",
@@ -6559,7 +6549,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_json_path",
- "serde_yml",
+ "serde_norway",
  "thiserror 2.0.19",
  "txt2data",
 ]
@@ -7187,21 +7177,6 @@ dependencies = [
  "ryu",
  "serde",
  "unsafe-libyaml",
-]
-
-[[package]]
-name = "serde_yml"
-version = "0.0.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59e2dd588bf1597a252c3b920e0143eb99b0f76e4e082f4c92ce34fbc9e71ddd"
-dependencies = [
- "indexmap 2.14.0",
- "itoa",
- "libyml",
- "memchr",
- "ryu",
- "serde",
- "version_check",
 ]
 
 [[package]]
