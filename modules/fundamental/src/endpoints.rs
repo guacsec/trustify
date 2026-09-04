@@ -1,4 +1,5 @@
 use actix_web::web;
+use regex::Regex;
 use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_ingestor::common;
@@ -12,11 +13,14 @@ use crate::{
     weakness,
 };
 
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Config {
     pub sbom_upload_limit: usize,
     pub advisory_upload_limit: usize,
     pub max_group_name_length: usize,
+    /// Regex patterns used to identify vendor-rebuilt PURL versions for recommendations.
+    /// Each pattern must have exactly one capture group that extracts the upstream base version.
+    pub recommend_patterns: Vec<Regex>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -43,7 +47,7 @@ pub fn configure(
     exploit::endpoints::configure(svc, db_ro.clone(), cache.clone());
     license::endpoints::configure(svc, db_ro.clone());
     organization::endpoints::configure(svc, db_ro.clone(), cache.clone());
-    purl::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    purl::endpoints::configure(svc, db_ro.clone(), cache.clone(), config.recommend_patterns);
     product::endpoints::configure(svc, db_rw.clone(), db_ro.clone(), cache.clone());
     sbom::endpoints::configure(
         svc,

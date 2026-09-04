@@ -122,11 +122,25 @@ impl InputPurl {
 
 pub struct PurlService {
     cache: PaginationCache,
+    recommend_patterns: Vec<Regex>,
 }
 
 impl PurlService {
-    pub fn new(cache: PaginationCache) -> Self {
-        Self { cache }
+    pub fn new(cache: PaginationCache, recommend_patterns: Vec<Regex>) -> Self {
+        Self {
+            cache,
+            recommend_patterns,
+        }
+    }
+
+    /// Convenience constructor for tests — uses `^(.+)[.-]redhat-[0-9]+$` (one capture group).
+    /// Matches both dot-separated (`3.0.3.redhat-00002`) and hyphen-separated (`0.14.1-redhat-00001`) vendor rebuilds.
+    #[allow(clippy::expect_used)]
+    pub fn with_default_patterns(cache: PaginationCache) -> Self {
+        Self::new(
+            cache,
+            vec![Regex::new(r"^(.+)[.-]redhat-[0-9]+$").expect("valid default pattern")],
+        )
     }
 
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
@@ -515,9 +529,6 @@ impl PurlService {
             .map(|bp| (PurlKey::from_base_purl(bp), bp))
             .collect();
 
-        #[allow(clippy::unwrap_used)]
-        let pattern = Regex::new("redhat-[0-9]+$").unwrap();
-
         let mut winners = Vec::new();
 
         for ip in &input_purls {
@@ -527,11 +538,17 @@ impl PurlService {
                 continue;
             };
 
-            let highest = Self::find_highest_redhat_patch(
-                &pattern,
-                &ip.input_version,
-                versioned_by_base.get(&base.id),
-            );
+            let highest = self
+                .recommend_patterns
+                .iter()
+                .filter_map(|pattern| {
+                    Self::find_highest_vendor_patch(
+                        pattern,
+                        &ip.input_version,
+                        versioned_by_base.get(&base.id),
+                    )
+                })
+                .max_by(|a, b| a.version.cmp(&b.version));
 
             if let Some(winner_vp) = highest {
                 winners.push(Winner {
@@ -770,29 +787,38 @@ impl PurlService {
         Ok(by_base)
     }
 
-    /// Selects the versioned PURL with the highest Red Hat pre-release suffix matching the input version.
-    fn find_highest_redhat_patch<'a>(
+    /// Selects the versioned PURL with the highest vendor version matching the input upstream version.
+    ///
+    /// Uses capture group 1 of `pattern` to extract the upstream base version from the vendor version
+    /// string and matches it against `input_version` via semver. Among all matching vendor rebuilds,
+    /// returns the one with the lexicographically highest full vendor version string (e.g. prefers
+    /// `4.3.4.redhat-00002` over `4.3.4.redhat-00001`).
+    fn find_highest_vendor_patch<'a>(
         pattern: &Regex,
         input_version: &semver::Version,
         versioned_purls: Option<&'a Vec<versioned_purl::Model>>,
     ) -> Option<&'a versioned_purl::Model> {
         versioned_purls?
             .iter()
-            .filter(|vp| pattern.is_match(&vp.version))
             .filter_map(|vp| {
-                lenient_semver::parse(&vp.version)
+                let upstream_str = pattern.captures(&vp.version)?.get(1)?.as_str();
+                let upstream = lenient_semver::parse(upstream_str)
                     .inspect_err(|_| {
-                        log::debug!("purl version {:?} failed to parse", vp.version);
+                        log::debug!(
+                            "extracted upstream version {:?} from {:?} failed to parse",
+                            upstream_str,
+                            vp.version
+                        );
                     })
-                    .ok()
-                    .map(|v| (vp, v))
+                    .ok()?;
+                Some((vp, upstream))
             })
-            .filter(|(_, version)| {
-                version.major == input_version.major
-                    && version.minor == input_version.minor
-                    && version.patch == input_version.patch
+            .filter(|(_, upstream)| {
+                upstream.major == input_version.major
+                    && upstream.minor == input_version.minor
+                    && upstream.patch == input_version.patch
             })
-            .max_by(|(_, a), (_, b)| a.pre.cmp(&b.pre))
+            .max_by(|(a, _), (b, _)| a.version.cmp(&b.version))
             .map(|(vp, _)| vp)
     }
 }

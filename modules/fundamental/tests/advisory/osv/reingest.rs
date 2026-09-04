@@ -80,7 +80,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check status
 
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
     let purls = service
         .purls(Default::default(), Paginated::default(), &ctx.db)
         .await?;
