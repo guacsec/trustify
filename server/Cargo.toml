@@ -31,6 +31,7 @@ garage-door = { workspace = true, optional = true }
 humantime = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
+regex = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }

@@ -1,3 +1,4 @@
+use regex::Regex;
 use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::config::AnalysisConfig;
 use trustify_module_analysis::service::AnalysisService;
@@ -9,6 +10,22 @@ use trustify_test_context::{
 
 pub async fn caller(ctx: &TrustifyContext) -> anyhow::Result<impl CallService + '_> {
     caller_with(ctx, Config::default(), PaginationCache::for_test()).await
+}
+
+/// Test helper that configures the caller with the default `redhat-[0-9]+$` recommendation pattern.
+#[allow(dead_code, clippy::expect_used)]
+pub async fn caller_with_redhat_patterns(
+    ctx: &TrustifyContext,
+) -> anyhow::Result<impl CallService + '_> {
+    caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![Regex::new("redhat-[0-9]+$").expect("valid pattern")],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await
 }
 
 pub async fn caller_with(

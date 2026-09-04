@@ -97,7 +97,7 @@ async fn change_ps_list_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check info
 
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
     let purls = service
         .purls(
             Default::default(),
@@ -246,7 +246,7 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check info
 
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::with_default_patterns(PaginationCache::for_test());
     let purls = service
         .purls(
             Default::default(),
