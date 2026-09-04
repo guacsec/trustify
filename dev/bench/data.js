@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788529449426,
+  "lastUpdate": 1788536452035,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21542,6 +21542,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "mrrajan",
+            "username": "mrrajan"
+          },
+          "committer": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "Rajan Ravi",
+            "username": "mrrajan"
+          },
+          "distinct": true,
+          "id": "12a4b1a0e351faa70046e55229292b3b5a72cff5",
+          "message": "test(correlation): add S17 cross-product OCP-kernel vs Go scenario (TC-5171)\n\nA RHEL 8 kernel must not match the OCP-scoped kernel entry bundled in a Go\nCVE's advisory; product CPE context is not checked. Adds a lean go-toolset\nwithin-substream version sanity (below/at/above on .el7_9). #[ignore] pending TC-5171.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-09-04T14:54:28Z",
+          "tree_id": "77eee26e7d63a87fe4b22deebf28f5d6b2eab824",
+          "url": "https://github.com/guacsec/trustify/commit/12a4b1a0e351faa70046e55229292b3b5a72cff5"
+        },
+        "date": 1788536449306,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 10,
             "unit": "s"
           }
         ]
