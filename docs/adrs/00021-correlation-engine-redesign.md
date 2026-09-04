@@ -144,24 +144,74 @@ same `(sbom_node, vulnerability)`:
 3. `under_investigation` surfaces as-is
 4. `affected` is the default when no suppression applies
 
-### Inbox Queue Pattern
+### Inbox and Correlation State
 
-The correlation inbox is a general-purpose work queue: any component that produces
-documents can enqueue a `pending` entry. The initial implementation subscribes to the
-existing `ChangeBroadcaster`, but the inbox interface is not coupled to it — batch
-imports, database triggers, CLI commands, or external orchestrators can all enqueue
-work through the same `correlation_inbox` table.
+#### Correlation state on entities
 
-A background worker:
+Each SBOM and advisory carries a visible correlation state so the UI and API can
+highlight documents that are still awaiting or currently undergoing correlation.
+A `correlation_state` table (1:1 per entity) tracks the current state:
 
-1. Picks up `pending` entries, marks them `processing`
-2. Builds or updates the in-memory index for the entity
-3. Runs the matching pipeline
-4. Persists results to `correlation_match` and `correlation_evidence`
-5. Marks the inbox entry `completed` (or `failed` with error)
+| Column | Type | Notes |
+|--------|------|-------|
+| entity_type | correlation_entity_type | PK (composite) |
+| entity_id | UUID | PK (composite) |
+| status | correlation_inbox_status | `pending`, `processing`, `completed`, `failed` |
+| last_run_id | UUID FK → correlation_run | nullable |
+| updated_at | TIMESTAMPTZ | |
 
-This decouples ingestion from correlation, provides progress visibility, enables retry
-on failure, and supports backpressure during bulk ingestion.
+This is upserted on each state transition. The existing `SbomSummary` and
+`AdvisoryHead` response models include a `correlation_status` field populated via
+a LEFT JOIN — no modification to the core `sbom` or `advisory` tables.
+
+#### Work queue
+
+The `correlation_inbox` table is a work queue. Entries are created explicitly by
+the ingestor within the same transaction as the document insert — the same pattern
+used by `record_change()` today. This ensures the inbox entry is committed
+atomically with the document. Manual or batch re-correlation can also insert
+entries directly.
+
+#### Multi-worker concurrency
+
+Workers claim inbox items using `SELECT FOR UPDATE SKIP LOCKED`, allowing multiple
+processors to run safely in parallel — even across different pods or hosts:
+
+```sql
+BEGIN;
+SELECT * FROM correlation_inbox
+WHERE status = 'pending'
+ORDER BY created_at
+LIMIT $batch_size
+FOR UPDATE SKIP LOCKED;
+-- mark claimed rows as 'processing', update correlation_state
+-- ... run matching pipeline ...
+-- mark rows as 'completed' or 'failed', update correlation_state
+COMMIT;
+```
+
+Workers can process items individually or in configurable batches. On crash or
+timeout, the transaction rolls back and rows return to `pending` automatically.
+
+#### Read-only replica usage
+
+Matching reads (loading advisory/SBOM indexes, hydrating results) use the **RO
+replica** for read scaling. Inbox status updates, match persistence, and evidence
+writes use the **RW connection**. This accepts that a just-ingested document may
+not be visible on the replica for a few seconds — the worker retries on the next
+poll cycle if the entity is not yet visible.
+
+#### Worker loop
+
+1. Claim `pending` entries via `FOR UPDATE SKIP LOCKED`
+2. Update `correlation_state` to `processing`
+3. Load entity data from RO replica into in-memory index
+4. Run the matching pipeline
+5. Persist results to `correlation_match` and `correlation_evidence` via RW
+6. Update `correlation_state` to `completed` (or `failed` with error)
+
+This decouples ingestion from correlation, provides progress visibility, enables
+retry on failure, and supports backpressure during bulk ingestion.
 
 ### Database Schema
 
@@ -368,8 +418,8 @@ modules/correlation/
 
 - `CorrelationConfig` added to `Run` struct in `server/src/profile/api.rs`
 - `CorrelationEngine` constructed in `InitData::new()`, stored on `InitData`
-- Background worker spawned in `InitData::run()` (same pattern as EI worker)
-- Worker subscribes to existing `ChangeBroadcaster` (already in `InitData`)
+- Background worker(s) spawned in `InitData::run()` (same pattern as EI worker)
+- Workers poll `correlation_inbox` — no dependency on `ChangeBroadcaster`
 - Endpoints registered in `configure()` under `/api` scope
 
 ### Phased Delivery
@@ -378,7 +428,7 @@ modules/correlation/
 |-------|-------|-----------------|
 | 1 | Foundation | Crate skeleton, migration (5 tables + enums), entity models, Rust version comparators with unit tests |
 | 2 | Engine | AdvisoryIndex, SbomIndex, PurlMatcher, CpeMatcher, DigestMatcher, StatusResolver, scenario tests passing |
-| 3 | Persistence | Inbox service, background worker, ChangeBroadcaster subscription, persist/hydrate, evidence recording |
+| 3 | Persistence | Inbox + correlation_state tables, multi-worker with FOR UPDATE SKIP LOCKED, persist/hydrate, evidence recording, ingestor integration |
 | 4 | API | v4 endpoints, OpenAPI docs, policy/inbox management, server registration |
 | 5 | Migration | Feature-flagged v3 adapter, benchmarks, deprecation of `sbom/model/raw_sql.rs` |
 
