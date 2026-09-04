@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788536452035,
+  "lastUpdate": 1788549854940,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21571,6 +21571,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 10,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "707106607bce85864e35d99b676c6595a0d912d3",
+          "message": "chore: add validators env var in docs",
+          "timestamp": "2026-09-04T18:43:34Z",
+          "tree_id": "bef09f9d1bac50d88ebb2bb68c1eebdeac064d20",
+          "url": "https://github.com/guacsec/trustify/commit/707106607bce85864e35d99b676c6595a0d912d3"
+        },
+        "date": 1788549853329,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
