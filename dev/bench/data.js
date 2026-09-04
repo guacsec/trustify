@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788444287415,
+  "lastUpdate": 1788525007530,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21455,6 +21455,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "gilles@redhat.com",
+            "name": "gildub",
+            "username": "gildub"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "c9ba6a5b4f475cdd5775be59b00997d87156a3e1",
+          "message": "Regenerate oepnapi.yaml",
+          "timestamp": "2026-09-04T11:48:32Z",
+          "tree_id": "e2573dcd364e59cb495df510acbf54f2ba9dd0c4",
+          "url": "https://github.com/guacsec/trustify/commit/c9ba6a5b4f475cdd5775be59b00997d87156a3e1"
+        },
+        "date": 1788525004935,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
             "unit": "s"
           }
         ]
