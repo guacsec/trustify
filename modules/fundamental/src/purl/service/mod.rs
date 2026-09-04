@@ -133,12 +133,13 @@ impl PurlService {
         }
     }
 
-    /// Convenience constructor for tests — uses the default `redhat-[0-9]+$` pattern.
+    /// Convenience constructor for tests — uses `^(.+)[.-]redhat-[0-9]+$` (one capture group).
+    /// Matches both dot-separated (`3.0.3.redhat-00002`) and hyphen-separated (`0.14.1-redhat-00001`) vendor rebuilds.
     #[allow(clippy::expect_used)]
     pub fn with_default_patterns(cache: PaginationCache) -> Self {
         Self::new(
             cache,
-            vec![Regex::new("redhat-[0-9]+$").expect("valid default pattern")],
+            vec![Regex::new(r"^(.+)[.-]redhat-[0-9]+$").expect("valid default pattern")],
         )
     }
 
@@ -537,13 +538,17 @@ impl PurlService {
                 continue;
             };
 
-            let highest = self.recommend_patterns.iter().find_map(|pattern| {
-                Self::find_highest_vendor_patch(
-                    pattern,
-                    &ip.input_version,
-                    versioned_by_base.get(&base.id),
-                )
-            });
+            let highest = self
+                .recommend_patterns
+                .iter()
+                .filter_map(|pattern| {
+                    Self::find_highest_vendor_patch(
+                        pattern,
+                        &ip.input_version,
+                        versioned_by_base.get(&base.id),
+                    )
+                })
+                .max_by(|a, b| a.version.cmp(&b.version));
 
             if let Some(winner_vp) = highest {
                 winners.push(Winner {
@@ -782,10 +787,12 @@ impl PurlService {
         Ok(by_base)
     }
 
-    /// Selects the versioned PURL with the highest vendor pre-release suffix matching the input version.
+    /// Selects the versioned PURL with the highest vendor version matching the input upstream version.
     ///
-    /// Uses capture group 1 of `pattern` to extract the upstream base version from the vendor version string,
-    /// then compares it to `input_version` via semver. Returns the highest-prerelease match.
+    /// Uses capture group 1 of `pattern` to extract the upstream base version from the vendor version
+    /// string and matches it against `input_version` via semver. Among all matching vendor rebuilds,
+    /// returns the one with the lexicographically highest full vendor version string (e.g. prefers
+    /// `4.3.4.redhat-00002` over `4.3.4.redhat-00001`).
     fn find_highest_vendor_patch<'a>(
         pattern: &Regex,
         input_version: &semver::Version,
@@ -811,7 +818,7 @@ impl PurlService {
                     && upstream.minor == input_version.minor
                     && upstream.patch == input_version.patch
             })
-            .max_by(|(_, a), (_, b)| a.pre.cmp(&b.pre))
+            .max_by(|(a, _), (b, _)| a.version.cmp(&b.version))
             .map(|(vp, _)| vp)
     }
 }

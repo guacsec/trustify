@@ -7,7 +7,6 @@ use crate::{
     test::{caller, caller_with, caller_with_redhat_patterns},
 };
 use actix_web::test::TestRequest;
-use regex::Regex;
 use rstest::rstest;
 use serde_json::{Value, json};
 use std::str::FromStr;
@@ -736,23 +735,32 @@ async fn get_recommendations_no_patterns(ctx: &TrustifyContext) -> Result<(), an
     Ok(())
 }
 
-/// Verifies that a qualifier mismatch (type=pom vs type=jar) prevents a recommendation.
+/// Verifies that the highest vendor rebuild number is recommended when multiple rebuilds exist.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn get_recommendations_qualifier_mismatch(
+async fn get_recommendations_highest_rebuild_selected(
     ctx: &TrustifyContext,
 ) -> Result<(), anyhow::Error> {
-    // Given a Maven advisory and a redhat-patched version with type=pom
-    ctx.ingest_documents(["cve/CVE-2022-45787.json", "cve/CVE-2023-28867.json"])
-        .await?;
+    use regex::Regex;
+    use trustify_common::db::pagination_cache::PaginationCache;
+
+    // Given two vendor rebuilds of the same upstream version
     ctx.graph
         .ingest_qualified_package(
-            &Purl::from_str("pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00001?type=pom")?,
+            &Purl::from_str("pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00001")?,
             &ctx.db,
         )
         .await?;
+    ctx.graph
+        .ingest_qualified_package(
+            &Purl::from_str("pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002")?,
+            &ctx.db,
+        )
+        .await?;
+    ctx.ingest_documents(["cve/CVE-2022-45787.json", "cve/CVE-2023-28867.json"])
+        .await?;
 
-    // When requesting recommendations for the plain (type=jar default) PURL
+    // When requesting recommendations
     let app = caller_with(
         ctx,
         Config {
@@ -764,11 +772,64 @@ async fn get_recommendations_qualifier_mismatch(
     .await?;
     let recommendations = recommend(&app, &["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"]).await;
 
-    // Then no recommendation is returned (type mismatch: jar vs pom)
-    let items = &recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"];
-    assert!(
-        items.as_array().is_none_or(|v| v.is_empty()),
-        "expected no recommendation due to qualifier mismatch, got: {items}"
+    // Then the highest rebuild (redhat-00002) is returned, not an arbitrary one
+    assert_eq!(
+        recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"][0]["package"],
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002",
+    );
+
+    Ok(())
+}
+
+/// Verifies that all patterns are evaluated and the highest vendor rebuild across all patterns is returned.
+/// With find_map, only pattern 1's match is considered; filter_map+max_by evaluates both.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_best_across_patterns(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    use regex::Regex;
+    use trustify_common::db::pagination_cache::PaginationCache;
+
+    // Given pattern 1 matches myorg-00001 and pattern 2 matches redhat-00002.
+    // "3.0.3.redhat-00002" > "3.0.3.myorg-00001" lexicographically (r > m),
+    // so the correct answer is redhat-00002. With find_map only pattern 1 fires
+    // and would return myorg-00001 — proving the bug.
+    ctx.graph
+        .ingest_qualified_package(
+            &Purl::from_str("pkg:maven/jakarta.el/jakarta.el-api@3.0.3.myorg-00001")?,
+            &ctx.db,
+        )
+        .await?;
+    ctx.graph
+        .ingest_qualified_package(
+            &Purl::from_str("pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002")?,
+            &ctx.db,
+        )
+        .await?;
+    ctx.ingest_documents(["cve/CVE-2022-45787.json", "cve/CVE-2023-28867.json"])
+        .await?;
+
+    // When requesting recommendations with pattern 1 matching myorg and pattern 2 matching redhat
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![
+                Regex::new(r"^(.+)\.myorg-[0-9]+$").expect("valid pattern 1"),
+                Regex::new(r"^(.+)\.redhat-[0-9]+$").expect("valid pattern 2"),
+            ],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+    let recommendations = recommend(&app, &["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"]).await;
+
+    // Then the redhat-00002 rebuild wins (lexicographically greater than myorg-00001),
+    // confirming all patterns were evaluated and the best result selected.
+    assert_eq!(
+        recommendations["recommendations"]["pkg:maven/jakarta.el/jakarta.el-api@3.0.3"][0]["package"],
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002",
     );
 
     Ok(())

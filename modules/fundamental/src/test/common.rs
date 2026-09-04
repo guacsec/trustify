@@ -12,7 +12,8 @@ pub async fn caller(ctx: &TrustifyContext) -> anyhow::Result<impl CallService + 
     caller_with(ctx, Config::default(), PaginationCache::for_test()).await
 }
 
-/// Test helper that configures the caller with the default `redhat-[0-9]+$` recommendation pattern.
+/// Test helper that configures the caller with `^(.+)[.-]redhat-[0-9]+$` (one capture group).
+/// Matches both dot-separated (`3.0.3.redhat-00002`) and hyphen-separated (`0.14.1-redhat-00001`) vendor rebuilds.
 #[allow(dead_code, clippy::expect_used)]
 pub async fn caller_with_redhat_patterns(
     ctx: &TrustifyContext,
@@ -20,7 +21,7 @@ pub async fn caller_with_redhat_patterns(
     caller_with(
         ctx,
         Config {
-            recommend_patterns: vec![Regex::new("redhat-[0-9]+$").expect("valid pattern")],
+            recommend_patterns: vec![Regex::new(r"^(.+)[.-]redhat-[0-9]+$").expect("valid pattern")],
             ..Default::default()
         },
         PaginationCache::for_test(),
