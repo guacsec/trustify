@@ -164,13 +164,41 @@ This is upserted on each state transition. The existing `SbomSummary` and
 `AdvisoryHead` response models include a `correlation_status` field populated via
 a LEFT JOIN — no modification to the core `sbom` or `advisory` tables.
 
-#### Work queue
+#### SBOM-centric re-evaluation
 
-The `correlation_inbox` table is a work queue. Entries are created explicitly by
-the ingestor within the same transaction as the document insert — the same pattern
-used by `record_change()` today. This ensures the inbox entry is committed
-atomically with the document. Manual or batch re-correlation can also insert
-entries directly.
+All matching is SBOM-centric: a work item means "re-evaluate all correlations for
+SBOM X." The worker deletes existing matches for that SBOM, re-correlates from
+scratch against the full `AdvisoryIndex` (which excludes deprecated advisories),
+resolves statuses across all advisory assertions, and persists the result.
+
+This guarantees correctness for status resolution — the `effective_status` of a
+`(sbom_node, vulnerability)` depends on assertions from *all* advisories (e.g., A1
+says `affected`, A2 says `not_affected`). Processing one advisory in isolation
+cannot compute the correct effective status.
+
+#### Keeping correlations fresh
+
+Inbox entries are created by the ingestor within the same transaction as the
+document insert — the same pattern used by `record_change()` today.
+
+| Event | Inbox action | Effect |
+|-------|-------------|--------|
+| New SBOM ingested | Enqueue that SBOM | Evaluated against all advisories |
+| New advisory ingested | Find SBOMs with matching PURLs/CPEs, enqueue them | They pick up the new advisory |
+| Advisory deprecated (CSAF update) | Find SBOMs with existing matches against it, enqueue them | Re-evaluated without deprecated advisory; old matches disappear |
+| Advisory deleted | CASCADE removes matches; find affected SBOMs, enqueue them | Status resolution recalculated |
+| Manual re-correlation | Enqueue specific SBOMs or all SBOMs | Full rebuild |
+
+For advisory events, the ingestor (or a lightweight post-commit step) identifies
+affected SBOMs by querying which SBOMs contain the advisory's referenced
+identifiers (base_purl_ids, CPE vendor+product pairs) and enqueues them. This is
+a targeted fan-out, not a full scan of all SBOMs.
+
+For CSAF updates where the old version is deprecated and a new version ingested in
+the same transaction: the SBOMs matched by the old advisory are enqueued for
+re-evaluation. When the worker processes them, the deprecated advisory is excluded
+from the `AdvisoryIndex`, and the new advisory is included — so stale matches
+disappear and new ones appear in a single re-evaluation pass.
 
 #### Multi-worker concurrency
 
@@ -193,6 +221,10 @@ COMMIT;
 Workers can process items individually or in configurable batches. On crash or
 timeout, the transaction rolls back and rows return to `pending` automatically.
 
+Duplicate SBOM entries in the inbox (e.g., two advisories affecting the same SBOM
+arrive simultaneously) are harmless — the second re-evaluation is a no-op if the
+first already produced the correct matches.
+
 #### Read-only replica usage
 
 Matching reads (loading advisory/SBOM indexes, hydrating results) use the **RO
@@ -200,18 +232,6 @@ replica** for read scaling. Inbox status updates, match persistence, and evidenc
 writes use the **RW connection**. This accepts that a just-ingested document may
 not be visible on the replica for a few seconds — the worker retries on the next
 poll cycle if the entity is not yet visible.
-
-#### Worker loop
-
-1. Claim `pending` entries via `FOR UPDATE SKIP LOCKED`
-2. Update `correlation_state` to `processing`
-3. Load entity data from RO replica into in-memory index
-4. Run the matching pipeline
-5. Persist results to `correlation_match` and `correlation_evidence` via RW
-6. Update `correlation_state` to `completed` (or `failed` with error)
-
-This decouples ingestion from correlation, provides progress visibility, enables
-retry on failure, and supports backpressure during bulk ingestion.
 
 ### Database Schema
 
