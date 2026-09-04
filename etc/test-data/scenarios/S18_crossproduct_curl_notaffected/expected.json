@@ -1,0 +1,32 @@
+{
+  "advisories": [
+    "vex/CVE-2022-32207.json"
+  ],
+  "sboms": {
+    "sbom_curl_rhel8_notaffected": {
+      "correct": {
+        "CVE-2022-32207": "not_affected"
+      }
+    },
+    "sbom_curl_rhel8_rootcpe": {
+      "correct": {
+        "CVE-2022-32207": "not_affected"
+      }
+    },
+    "sbom_curl_rhel9_belowfix": {
+      "correct": {
+        "CVE-2022-32207": "affected"
+      }
+    },
+    "sbom_curl_rhel9_atfix": {
+      "correct": {
+        "CVE-2022-32207": "not_affected"
+      }
+    },
+    "sbom_curl_rhel9_abovefix": {
+      "correct": {
+        "CVE-2022-32207": "not_affected"
+      }
+    }
+  }
+}
