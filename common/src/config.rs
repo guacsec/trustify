@@ -30,6 +30,8 @@ const ENV_DB_ACQUIRE_TIMEOUT: &str = "TRUSTD_DB_ACQUIRE_TIMEOUT";
 const ENV_DB_MAX_LIFETIME: &str = "TRUSTD_DB_MAX_LIFETIME";
 const ENV_DB_IDLE_TIMEOUT: &str = "TRUSTD_DB_IDLE_TIMEOUT";
 const ENV_DB_SSLMODE: &str = "TRUSTD_DB_SSLMODE";
+const ENV_DB_IAM_AUTH: &str = "TRUSTD_DB_IAM_AUTH";
+const ENV_DB_REGION: &str = "TRUSTD_DB_REGION";
 
 const ENV_DB_RO_URL: &str = "TRUSTD_DB_RO_URL";
 const ENV_DB_RO_NAME: &str = "TRUSTD_DB_RO_NAME";
@@ -87,6 +89,18 @@ pub struct Database {
     pub min_conn: u32,
     #[arg(id="db-sslmode", long, env = ENV_DB_SSLMODE, default_value_t, conflicts_with = "db-url", value_enum)]
     pub sslmode: SslMode,
+
+    /// Authenticate to the database with an AWS RDS/Aurora IAM token instead of a
+    /// static password. When enabled, the password is generated (and periodically
+    /// refreshed) from AWS credentials and `region`, and TLS is forced on (RDS IAM
+    /// authentication mandates TLS). Set by the RHTPA operator when CCO-backed RDS IAM
+    /// authentication (`ccoRds`) is enabled.
+    #[arg(id="db-iam-auth", long, env = ENV_DB_IAM_AUTH, default_value_t = false, conflicts_with = "db-url")]
+    pub iam_auth: bool,
+
+    /// AWS region of the RDS/Aurora instance. Required when `iam_auth` is enabled.
+    #[arg(id="db-region", long, env = ENV_DB_REGION, conflicts_with = "db-url", required_if_eq("db-iam-auth", "true"))]
+    pub region: Option<String>,
 
     #[arg(id="db-conn-timeout", long, env = ENV_DB_CONNECT_TIMEOUT, default_value_t=DB_CONNECT_TIMEOUT.into(), conflicts_with = "db-url")]
     pub connect_timeout: u64,
@@ -147,6 +161,15 @@ impl Database {
                     .map_err(|s| anyhow!("Failed to convert '{s}' to SslMode"))?,
                 _ => Default::default(),
             },
+            iam_auth: match env::var(ENV_DB_IAM_AUTH) {
+                Ok(s) => s.parse::<bool>().map_err(|_| {
+                    anyhow!(
+                        "Invalid boolean for {ENV_DB_IAM_AUTH}: '{s}' (expected 'true' or 'false')"
+                    )
+                })?,
+                _ => false,
+            },
+            region: env::var(ENV_DB_REGION).ok(),
         })
     }
 
@@ -217,8 +240,24 @@ pub struct DatabaseReadOnly {
 
 impl DatabaseReadOnly {
     /// Builds a `Database` config by overlaying R/O values on top of the R/W fallback.
-    pub fn to_database_config(&self, fallback: &Database) -> Database {
-        Database {
+    ///
+    /// Fails when a read-only URL is supplied while IAM authentication is inherited from the
+    /// R/W config. IAM authentication injects a short-lived token as the password over a
+    /// connection built from the discrete host/port/user fields, so a complete DSN cannot
+    /// carry it — the same reason the R/W config forbids combining `--db-url` with
+    /// `--db-iam-auth`. Rejecting here (rather than silently dropping the URL and reusing the
+    /// R/W host, which would misroute reads to the primary) surfaces the misconfiguration with
+    /// an actionable message.
+    pub fn to_database_config(&self, fallback: &Database) -> Result<Database, anyhow::Error> {
+        if fallback.iam_auth && self.url.is_some() {
+            return Err(anyhow!(
+                "'--db-ro-url' ({ENV_DB_RO_URL}) cannot be combined with IAM authentication \
+                 (inherited from the read-write config); configure the read-only database with \
+                 the discrete '--db-ro-host'/'--db-ro-port'/'--db-ro-user' options instead"
+            ));
+        }
+
+        Ok(Database {
             url: self.url.clone().or_else(|| fallback.url.clone()),
             username: self
                 .username
@@ -234,11 +273,15 @@ impl DatabaseReadOnly {
             max_conn: self.max_conn.unwrap_or(fallback.max_conn),
             min_conn: self.min_conn.unwrap_or(fallback.min_conn),
             sslmode: self.sslmode.unwrap_or(fallback.sslmode),
+            // IAM authentication settings are inherited from the R/W config; a read-only
+            // replica reached with IAM auth uses the same mechanism and region.
+            iam_auth: fallback.iam_auth,
+            region: fallback.region.clone(),
             connect_timeout: self.connect_timeout.unwrap_or(fallback.connect_timeout),
             acquire_timeout: self.acquire_timeout.unwrap_or(fallback.acquire_timeout),
             max_lifetime: self.max_lifetime.unwrap_or(fallback.max_lifetime),
             idle_timeout: self.idle_timeout.unwrap_or(fallback.idle_timeout),
-        }
+        })
     }
 }
 
@@ -267,6 +310,8 @@ mod test {
                 max_lifetime: DB_MAX_LIFETIME,
                 idle_timeout: DB_IDLE_TIMEOUT,
                 sslmode: SslMode::default(),
+                iam_auth: false,
+                region: None,
             },
             result
         );
@@ -292,6 +337,8 @@ mod test {
                 max_lifetime: DB_MAX_LIFETIME,
                 idle_timeout: DB_IDLE_TIMEOUT,
                 sslmode: SslMode::Disable,
+                iam_auth: false,
+                region: None,
             },
             result
         );
@@ -318,6 +365,8 @@ mod test {
             max_lifetime: DB_MAX_LIFETIME,
             idle_timeout: DB_IDLE_TIMEOUT,
             sslmode: SslMode::default(),
+            iam_auth: false,
+            region: None,
         }
     }
 
@@ -329,7 +378,7 @@ mod test {
         let ro = DatabaseReadOnly::default();
 
         // when: building the R/O database config
-        let result = ro.to_database_config(&rw);
+        let result = ro.to_database_config(&rw).expect("must build");
 
         // then: the result is identical to the R/W config
         assert_eq!(result, rw);
@@ -347,7 +396,7 @@ mod test {
         };
 
         // when: building the R/O database config
-        let result = ro.to_database_config(&rw);
+        let result = ro.to_database_config(&rw).expect("must build");
 
         // then: host and port are overridden, everything else falls back to R/W
         assert_eq!(result.host, "replica.example.com");
@@ -371,7 +420,7 @@ mod test {
         };
 
         // when: building the R/O database config
-        let result = ro.to_database_config(&rw);
+        let result = ro.to_database_config(&rw).expect("must build");
 
         // then: the R/O URL wins
         assert_eq!(
@@ -392,12 +441,62 @@ mod test {
         };
 
         // when: building the R/O database config
-        let result = ro.to_database_config(&rw);
+        let result = ro.to_database_config(&rw).expect("must build");
 
         // then: credentials come from R/O, connection target falls back to R/W
         assert_eq!(result.username, "readonly_user");
         assert_eq!(result.password.0, "readonly_pass");
         assert_eq!(result.host, rw.host);
         assert_eq!(result.port, rw.port);
+    }
+
+    /// Verify that supplying a read-only URL while IAM auth is inherited is rejected, since
+    /// IAM authentication cannot inject its token into a complete DSN.
+    #[test]
+    fn ro_url_with_inherited_iam_auth_is_rejected() {
+        // given: an IAM-authenticated R/W config and an R/O config that supplies a URL
+        let rw = Database {
+            iam_auth: true,
+            region: Some("us-east-1".into()),
+            ..rw_default()
+        };
+        let ro = DatabaseReadOnly {
+            url: Some("postgres://replica:5433/trustify".into()),
+            ..Default::default()
+        };
+
+        // when: building the R/O database config
+        let result = ro.to_database_config(&rw);
+
+        // then: it fails with an actionable error mentioning the R/O URL flag
+        let err = result
+            .expect_err("must reject R/O URL under IAM auth")
+            .to_string();
+        assert!(err.contains(ENV_DB_RO_URL), "unexpected error: {err}");
+    }
+
+    /// Verify that IAM auth without a read-only URL still builds, inheriting IAM settings and
+    /// applying discrete R/O overrides.
+    #[test]
+    fn ro_discrete_fields_with_inherited_iam_auth_is_allowed() {
+        // given: an IAM-authenticated R/W config and an R/O config using discrete fields
+        let rw = Database {
+            iam_auth: true,
+            region: Some("us-east-1".into()),
+            ..rw_default()
+        };
+        let ro = DatabaseReadOnly {
+            host: Some("replica.example.com".into()),
+            ..Default::default()
+        };
+
+        // when: building the R/O database config
+        let result = ro.to_database_config(&rw).expect("must build");
+
+        // then: IAM settings are inherited and the discrete host override is applied
+        assert!(result.iam_auth);
+        assert_eq!(result.region.as_deref(), Some("us-east-1"));
+        assert_eq!(result.host, "replica.example.com");
+        assert_eq!(result.url, None);
     }
 }

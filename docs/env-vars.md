@@ -43,9 +43,11 @@
 | `TRUSTD_DB_MAX_LIFETIME`                 | Database max lifetime (humantime)                                                   | `7200s`                                 |
 | `TRUSTD_DB_IDLE_TIMEOUT`                 | Database idle timeout (humantime)                                                   | `600s`                                  |
 | `TRUSTD_DB_NAME`                         | Database name                                                                       | `trustify`                              |
-| `TRUSTD_DB_PASSWORD`                     | Database password                                                                   | `trustify`                              |
+| `TRUSTD_DB_PASSWORD`                     | Database password (ignored when IAM authentication is enabled)                      | `trustify`                              |
 | `TRUSTD_DB_PORT`                         | Database port                                                                       | `5432`                                  |
 | `TRUSTD_DB_USER`                         | Database username                                                                   | `postgres`                              |
+| `TRUSTD_DB_IAM_AUTH`                     | Authenticate with an AWS RDS/Aurora IAM token instead of a password                 | `false`                                 |
+| `TRUSTD_DB_REGION`                       | AWS region of the RDS/Aurora instance (required when `TRUSTD_DB_IAM_AUTH=true`)     |                                         |
 | `TRUSTD_PAGINATION_TOTAL_CACHE_TTL`      | TTL for cached pagination total counts (humantime)                                  | `60s`                                   |
 | `TRUSTD_ISSUER_URL`                      | Issuer URL for `--devmode`                                                          | `http://localhost:8090/realms/trustify` |
 | `TRUSTD_MAX_CACHE_SIZE`                  | Maximum size of the graph cache.                                                    | `200 MiB`                               |

@@ -1,4 +1,5 @@
 pub mod advisory;
+pub mod aws;
 pub mod config;
 pub mod cpe;
 pub mod db;
