@@ -400,7 +400,11 @@ pub async fn get_sbom_advisories(
     let tx = db.begin().await?;
 
     let statuses: Vec<String> = if include_resolved {
-        vec![]
+        vec![
+            "affected".to_string(),
+            "fixed".to_string(),
+            "not_affected".to_string(),
+        ]
     } else {
         vec!["affected".to_string()]
     };

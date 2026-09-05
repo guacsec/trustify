@@ -1533,8 +1533,16 @@ async fn get_advisories_include_resolved(ctx: &TrustifyContext) -> Result<(), an
         "include_resolved should return at least as many statuses"
     );
     assert!(
-        resolved_statuses.iter().any(|s| *s != "affected"),
-        "include_resolved should include non-affected statuses, got: {resolved_statuses:?}"
+        resolved_statuses
+            .iter()
+            .all(|s| matches!(*s, "affected" | "fixed" | "not_affected")),
+        "include_resolved returned an unexpected status, got: {resolved_statuses:?}"
+    );
+    assert!(
+        resolved_statuses
+            .iter()
+            .any(|s| *s == "fixed" || *s == "not_affected"),
+        "include_resolved should include fixed or not_affected statuses, got: {resolved_statuses:?}"
     );
 
     Ok(())
