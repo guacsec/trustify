@@ -495,6 +495,15 @@ impl InitData {
             None => Vec::new(),
         };
 
+        if validators.is_empty() {
+            log::info!("Semantic validation disabled (no validators configured)");
+        } else {
+            log::info!("Semantic validators engaged ({}):", validators.len());
+            for validator in &validators {
+                log::info!("  - {validator:?}");
+            }
+        }
+
         let broadcaster = ChangeBroadcaster::new(
             &db_rw,
             *run.notification.change_log_retention,

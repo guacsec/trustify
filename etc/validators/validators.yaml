@@ -1,0 +1,45 @@
+# Semantic validators configuration (ADR 00020).
+#
+# Point the server at this file to enable ingestion-time validation:
+#
+#   trustd api --validators-config etc/validators/validators.yaml
+#   # or
+#   TRUSTD_VALIDATORS_CONFIG=etc/validators/validators.yaml trustd api
+#
+# `rules` paths are resolved relative to the process working directory
+# (use absolute paths in production). When no validators are configured,
+# validation is disabled and ingestion behaves as before.
+
+validators:
+  # CSAF advisories: record findings only, never block ingestion.
+  - name: csaf-mandatory
+    backend: scheck
+    formats: [csaf]
+    rules:
+      - etc/validators/rules/csaf-mandatory.json
+    phase: structural
+    mode: report
+    threshold: error
+    on_error: continue
+
+  # SPDX SBOMs: gate ingestion. Any finding at or above `threshold`
+  # (error) rejects the document; if the validator itself errors,
+  # `on_error: block` treats that as a failed gate.
+  - name: spdx-min
+    backend: scheck
+    formats: [spdx]
+    rules:
+      - etc/validators/rules/spdx-min.json
+    mode: verify
+    threshold: error
+    on_error: block
+
+  # CycloneDX SBOMs: report-only.
+  - name: cyclonedx-min
+    backend: scheck
+    formats: [cyclonedx]
+    rules:
+      - etc/validators/rules/cyclonedx-min.json
+    mode: report
+    threshold: error
+    on_error: continue

@@ -1,0 +1,70 @@
+{
+  "title": "CycloneDX Minimum Elements",
+  "description": "Minimum structural checks for a CycloneDX 1.3+ JSON SBOM.",
+  "patterns": [
+    {
+      "name": "document-required",
+      "title": "Document-level required fields",
+      "rules": [
+        {
+          "context": "$",
+          "checks": [
+            {
+              "kind": "assert",
+              "test": { "type": "equals", "path": "$.bomFormat", "value": "CycloneDX" },
+              "message": "bomFormat must be CycloneDX",
+              "severity": "fatal"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "matches", "path": "$.specVersion", "pattern": "^1\\.[3-6]$" },
+              "message": "specVersion must be one of 1.3, 1.4, 1.5, 1.6",
+              "severity": "fatal"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.metadata.timestamp" },
+              "message": "metadata.timestamp is recommended",
+              "severity": "warning"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "components",
+      "title": "Component required fields",
+      "rules": [
+        {
+          "context": "$.components[*]",
+          "checks": [
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.type" },
+              "message": "component.type is required",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.name" },
+              "message": "component.name is required",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.version" },
+              "message": "component.version is recommended",
+              "severity": "warning"
+            },
+            {
+              "kind": "report",
+              "test": { "type": "exists", "path": "$.purl" },
+              "message": "component declares a purl",
+              "severity": "info"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

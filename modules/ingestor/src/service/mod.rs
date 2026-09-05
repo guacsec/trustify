@@ -396,6 +396,7 @@ async fn run_validators(
 
         match validator.validate(&input).await {
             Ok(report) => {
+                log_report(fmt, &report);
                 if validator.mode() == ValidationMode::Verify
                     && report.outcome == ValidationOutcome::Failed
                 {
@@ -424,7 +425,59 @@ async fn run_validators(
     if blocked.is_empty() {
         Ok(reports)
     } else {
+        let validators = blocked
+            .iter()
+            .map(|report| report.validator.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        tracing::warn!(
+            format = %fmt,
+            validators = %validators,
+            "document rejected by validation ({} report(s))",
+            blocked.len(),
+        );
         Err(Error::ValidationRejected(blocked))
+    }
+}
+
+/// Log a validation report and its findings.
+///
+/// The report summary logs at `info`; individual findings log at a level that
+/// reflects their severity, so operators can see validation outcomes in the
+/// server log without needing the ingest API response.
+fn log_report(fmt: Format, report: &ValidationReport) {
+    tracing::info!(
+        validator = %report.validator,
+        format = %fmt,
+        outcome = ?report.outcome,
+        findings = report.findings.len(),
+        "semantic validation report"
+    );
+    for finding in &report.findings {
+        let path = finding.path.as_deref().unwrap_or("-");
+        match finding.severity {
+            Severity::Fatal | Severity::Error => tracing::warn!(
+                validator = %report.validator,
+                severity = ?finding.severity,
+                path,
+                "{}",
+                finding.message,
+            ),
+            Severity::Warning => tracing::info!(
+                validator = %report.validator,
+                severity = ?finding.severity,
+                path,
+                "{}",
+                finding.message,
+            ),
+            Severity::Info => tracing::debug!(
+                validator = %report.validator,
+                severity = ?finding.severity,
+                path,
+                "{}",
+                finding.message,
+            ),
+        }
     }
 }
 
