@@ -56,7 +56,7 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = VulnerabilityService::new(PaginationCache::for_test());
 
     let result = service
-        .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db)
+        .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db, false)
         .await?;
 
     log::debug!("{:#?}", result);
@@ -167,7 +167,7 @@ async fn version_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // Version BELOW the fix threshold — known affected by CVE-2024-28834
     // (3.7.6-23.el9 < 3.7.6-23.el9_3.4, the fix version)
     let affected_result = service
-        .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db)
+        .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db, false)
         .await?;
 
     let affected_entry = &affected_result["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"];
@@ -188,7 +188,7 @@ async fn version_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     // Version ABOVE the fix threshold — not affected
     // (3.8.3-5.el9 > 3.8.3-4.el9_4, the highest fix range, so version_matches returns false)
     let fixed_result = service
-        .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.8.3-5.el9?arch=aarch64"], &ctx.db)
+        .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.8.3-5.el9?arch=aarch64"], &ctx.db, false)
         .await?;
 
     let fixed_entry = fixed_result.get("pkg:rpm/redhat/gnutls@3.8.3-5.el9?arch=aarch64");
