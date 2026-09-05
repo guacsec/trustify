@@ -1,10 +1,10 @@
-# 00020. Semantic validators on ingestion
+# 00021. Semantic validators on ingestion
 
 Date: 2026-09-03
 
 ## Status
 
-DRAFT
+APPROVED
 
 ## Context
 
@@ -285,3 +285,9 @@ Hard-code a `scheck` call in `ingest`.
 * 👎 The stated requirement is a *set* of validators from *third parties*; a one-off call
   would have to be torn out to support that. The trait is a small, justified abstraction that
   directly serves the requirement.
+
+## Consequences
+
+* need to think about hot reloading 
+* do we want a set of validator endpoints to arbritrarily validate eg. not just a process done at 
+ingest time
