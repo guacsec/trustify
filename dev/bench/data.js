@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788587886789,
+  "lastUpdate": 1788679128150,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21629,6 +21629,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "waldemar.kindler@think-ahead.tech",
+            "name": "Waldemar Kindler",
+            "username": "waldemar-kindler"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "9752caa642b15e43a1e69698ea09dffcd693269e",
+          "message": "feat(exploit): add dedicated exploit permissions\n\nAdd create, read, update and delete permissions for the exploit entity,\nmap them into the default document scopes, and require read.exploit on\nthe exploit endpoints instead of read.advisory.\n\nCloses #2596\nImplements TC-5743",
+          "timestamp": "2026-09-06T06:31:05Z",
+          "tree_id": "de06d3de73fa55c9d0016c97b9211b343c5492c7",
+          "url": "https://github.com/guacsec/trustify/commit/9752caa642b15e43a1e69698ea09dffcd693269e"
+        },
+        "date": 1788679125730,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
