@@ -367,12 +367,21 @@ pub async fn get(
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Default, serde::Deserialize, IntoParams)]
+pub struct SbomAdvisoryParams {
+    /// When true, include resolved statuses (fixed, not_affected)
+    /// alongside affected.
+    #[serde(default)]
+    pub include_resolved: bool,
+}
+
 /// Get advisories for an SBOM
 #[utoipa::path(
     tag = "sbom",
     operation_id = "getSbomAdvisories",
     params(
         ("id" = Id, Path),
+        SbomAdvisoryParams,
     ),
     responses(
         (status = 200, description = "Matching SBOM", body = Vec<SbomAdvisory>),
@@ -384,12 +393,21 @@ pub async fn get_sbom_advisories(
     fetcher: web::Data<SbomService>,
     db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
+    web::Query(SbomAdvisoryParams { include_resolved }): web::Query<SbomAdvisoryParams>,
     _: Require<GetSbomAdvisories>,
 ) -> Result<impl Responder, Error> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin().await?;
 
-    let statuses: Vec<String> = vec!["affected".to_string()];
+    let statuses: Vec<String> = if include_resolved {
+        vec![
+            "affected".to_string(),
+            "fixed".to_string(),
+            "not_affected".to_string(),
+        ]
+    } else {
+        vec!["affected".to_string()]
+    };
     match fetcher.fetch_sbom_details(id, statuses, &tx).await? {
         Some(v) => Ok(HttpResponse::Ok().json(v.advisories)),
         None => Ok(HttpResponse::NotFound().finish()),
