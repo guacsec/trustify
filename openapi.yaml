@@ -3458,6 +3458,14 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/Id'
+      - name: include_resolved
+        in: query
+        description: |-
+          When true, include resolved statuses (fixed, not_affected)
+          alongside affected.
+        required: false
+        schema:
+          type: boolean
       responses:
         '200':
           description: Matching SBOM
@@ -4538,6 +4546,11 @@ components:
       required:
       - purls
       properties:
+        include_resolved:
+          type: boolean
+          description: |-
+            When true, include resolved statuses (fixed, not_affected)
+            alongside affected.
         purls:
           type: array
           items:
