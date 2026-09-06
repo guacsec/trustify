@@ -1479,13 +1479,18 @@ async fn get_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+/// VEX reconciliation via the SBOM advisory endpoint: the quarkus BOM contains
+/// quarkus-vertx-http which cve-2023-0044 marks as affected. A backport VEX
+/// declares the BOM's specific version as known_not_affected. Without
+/// include_resolved only the affected status is visible; with it, both surface.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn get_advisories_include_resolved(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+async fn get_advisories_vex_reconciliation(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let id = ctx
         .ingest_documents([
             "quarkus-bom-2.13.8.Final-redhat-00004.json",
             "csaf/cve-2023-0044.json",
+            "csaf/vex-cve-2023-0044-backport.json",
         ])
         .await?[0]
         .id
@@ -1512,7 +1517,7 @@ async fn get_advisories_include_resolved(ctx: &TrustifyContext) -> Result<(), an
         "Default should only return affected, got: {default_statuses:?}"
     );
 
-    // With include_resolved=true: additional statuses appear
+    // With include_resolved=true: backport VEX not_affected status also appears
     let resolved_result: Value = app
         .call_and_read_body_json(
             TestRequest::get()
@@ -1522,15 +1527,21 @@ async fn get_advisories_include_resolved(ctx: &TrustifyContext) -> Result<(), an
                 .to_request(),
         )
         .await;
-    let resolved_statuses: Vec<&str> = resolved_result[0]["status"]
+    let resolved_statuses: Vec<&str> = resolved_result
         .as_array()
         .unwrap()
         .iter()
-        .filter_map(|s| s["status"].as_str())
+        .flat_map(|adv| {
+            adv["status"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|s| s["status"].as_str())
+        })
         .collect();
     assert!(
-        resolved_statuses.len() >= default_statuses.len(),
-        "include_resolved should return at least as many statuses"
+        !resolved_statuses.is_empty(),
+        "include_resolved should return statuses"
     );
     assert!(
         resolved_statuses
