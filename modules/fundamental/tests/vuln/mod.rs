@@ -129,3 +129,73 @@ async fn cpe_status_vulnerability_backlink(ctx: &TrustifyContext) -> Result<(), 
 
     Ok(())
 }
+
+/// Ingest the `cpe_edition` SBOM plus one advisory and return the set of SBOM
+/// names backlinked from `CVE-2024-99999` via `/vulnerability/{id}`.
+///
+/// The SBOM describes `cpe:/a:acme:widgetos:9.2` (no edition) and contains
+/// `pkg:rpm/acme/libwidget@1.0`. Each advisory creates a `purl_status` for that
+/// PURL with a context CPE that differs only in `edition`.
+async fn cpe_edition_backlinked_sboms(
+    ctx: &TrustifyContext,
+    advisory_path: &str,
+) -> Result<Vec<String>, anyhow::Error> {
+    ctx.ingest_document("cyclonedx/issues/cpe_edition/sbom.json")
+        .await?;
+    ctx.ingest_document(advisory_path).await?;
+
+    let service = VulnerabilityService::new();
+    let details = service
+        .fetch_vulnerability("CVE-2024-99999", Deprecation::Ignore, &ctx.db)
+        .await?
+        .expect("vulnerability must exist");
+
+    Ok(details
+        .advisories
+        .iter()
+        .flat_map(|adv| adv.sboms.iter())
+        .map(|sbom| sbom.head.name.clone())
+        .collect())
+}
+
+/// Regression for TC-5171: the `/vulnerability/{id}` backlink must apply the
+/// same CPE-context filter as `/purl` and `/sbom/{id}/advisory`, so a
+/// `purl_status` scoped to one product stream is not correlated to an SBOM that
+/// describes a different stream.
+///
+/// The advisory's context CPE `cpe:/a:acme:widgetos:9` (no edition) matches the
+/// SBOM's describing CPE `cpe:/a:acme:widgetos:9.2` via generalized
+/// major-version matching, so the SBOM MUST be backlinked.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn backlink_cpe_context_match(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let backlinked =
+        cpe_edition_backlinked_sboms(ctx, "csaf/issues/cpe_edition/advisory-edition-null.json")
+            .await?;
+    assert!(
+        !backlinked.is_empty(),
+        "edition-null context CPE matches the SBOM's describing CPE → SBOM must be backlinked, got {backlinked:?}"
+    );
+
+    Ok(())
+}
+
+/// Regression for TC-5171 (the fix): the advisory's context CPE
+/// `cpe:/a:acme:widgetos:9::el8` (edition `el8`) does NOT match the SBOM's
+/// edition-less describing CPE, so the SBOM MUST NOT be backlinked. Before the
+/// backlink CPE-context filter, this wrong-stream match leaked through.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn backlink_cpe_context_mismatch_suppressed(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let backlinked =
+        cpe_edition_backlinked_sboms(ctx, "csaf/issues/cpe_edition/advisory-edition-el8.json")
+            .await?;
+    assert!(
+        backlinked.is_empty(),
+        "edition-el8 context CPE must not correlate to the edition-less SBOM, got {backlinked:?}"
+    );
+
+    Ok(())
+}
