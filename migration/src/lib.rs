@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 pub use sea_orm_migration::prelude::*;
 
 mod m0000010_init;
