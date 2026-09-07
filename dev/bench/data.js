@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788679128150,
+  "lastUpdate": 1788779259773,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21658,6 +21658,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "7a4b8aba0848e5404b47f3892f4054936e6dc126",
+          "message": "test: verify create.exploit does not grant advisory/sbom upload\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-09-07T10:31:08Z",
+          "tree_id": "df39f1f089d224f699c5db86b57db98593332889",
+          "url": "https://github.com/guacsec/trustify/commit/7a4b8aba0848e5404b47f3892f4054936e6dc126"
+        },
+        "date": 1788779258143,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 6,
             "unit": "s"
           }
         ]
