@@ -1,3 +1,4 @@
+use trustify_auth::authorizer::Authorizer;
 use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::config::AnalysisConfig;
 use trustify_module_analysis::service::AnalysisService;
@@ -7,7 +8,7 @@ use trustify_test_context::{
 };
 
 pub async fn caller(ctx: &TrustifyContext) -> anyhow::Result<impl CallService + '_> {
-    caller_with(ctx, Config::default(), PaginationCache::for_test()).await
+    CallerBuilder::new(ctx).build().await
 }
 
 pub async fn caller_with(
@@ -15,20 +16,61 @@ pub async fn caller_with(
     config: Config,
     cache: PaginationCache,
 ) -> anyhow::Result<impl CallService + '_> {
-    let db_rw = db::ReadWrite::new(ctx.db.clone());
-    let db_ro = db::ReadOnly::new(ctx.db.clone());
-    let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
-    call::caller(|svc| {
-        configure(
-            svc,
-            config,
-            db_rw,
-            db_ro.clone(),
-            ctx.storage.clone(),
-            analysis.clone(),
-            cache,
-        );
-        trustify_module_analysis::endpoints::configure(svc, db_ro, analysis);
-    })
-    .await
+    CallerBuilder::new(ctx)
+        .config(config)
+        .pagination_cache(cache)
+        .build()
+        .await
+}
+
+pub struct CallerBuilder<'a> {
+    ctx: &'a TrustifyContext,
+    config: Config,
+    cache: PaginationCache,
+    authorizer: Authorizer,
+}
+
+impl<'a> CallerBuilder<'a> {
+    pub fn new(ctx: &'a TrustifyContext) -> Self {
+        Self {
+            ctx,
+            config: Config::default(),
+            cache: PaginationCache::for_test(),
+            authorizer: Authorizer::new(None),
+        }
+    }
+
+    pub fn config(mut self, config: Config) -> Self {
+        self.config = config;
+        self
+    }
+
+    pub fn pagination_cache(mut self, cache: PaginationCache) -> Self {
+        self.cache = cache;
+        self
+    }
+
+    pub fn authorizer(mut self, authorizer: Authorizer) -> Self {
+        self.authorizer = authorizer;
+        self
+    }
+
+    pub async fn build(self) -> anyhow::Result<impl CallService + 'a> {
+        let db_rw = db::ReadWrite::new(self.ctx.db.clone());
+        let db_ro = db::ReadOnly::new(self.ctx.db.clone());
+        let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
+        let config = self.config;
+        let cache = self.cache;
+        let storage = self.ctx.storage.clone();
+        let authorizer = self.authorizer;
+
+        call::caller_app(move |svc| {
+            svc.app_data(actix_web::web::Data::new(authorizer));
+            svc.service(utoipa_actix_web::scope("/api").configure(|svc| {
+                configure(svc, config, db_rw, db_ro.clone(), storage, analysis.clone(), cache);
+                trustify_module_analysis::endpoints::configure(svc, db_ro, analysis);
+            }));
+        })
+        .await
+    }
 }
