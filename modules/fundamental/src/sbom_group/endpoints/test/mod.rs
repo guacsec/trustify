@@ -76,7 +76,7 @@ impl Update {
         }
 
         let request = TestRequest::put()
-            .uri(&format!("/api/v3/group/sbom/{}", &self.id))
+            .uri(&format!("/api/v3/group/sbom/{}", self.id))
             .set_json(update_body);
 
         let request = add_if_match(request, self.if_match_type, &self.etag);
