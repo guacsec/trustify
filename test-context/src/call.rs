@@ -51,23 +51,12 @@ pub async fn caller_app<F>(cfg_fn: F) -> anyhow::Result<impl CallService>
 where
     F: FnOnce(&mut ServiceConfig),
 {
-    caller_app_auth(Authorizer::new(None), cfg_fn).await
-}
-
-/// Creates a test app with a custom [`Authorizer`] for testing permission checks.
-pub async fn caller_app_auth<F>(
-    authorizer: Authorizer,
-    cfg_fn: F,
-) -> anyhow::Result<impl CallService>
-where
-    F: FnOnce(&mut ServiceConfig),
-{
     Ok(actix_web::test::init_service(
         App::new()
             .std_middleware()
             .into_utoipa_app()
             .app_data(web::PayloadConfig::default().limit(5 * 1024 * 1024))
-            .app_data(web::Data::new(authorizer))
+            .app_data(web::Data::new(Authorizer::new(None)))
             .configure(cfg_fn)
             .into_app(),
     )

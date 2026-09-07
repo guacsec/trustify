@@ -12,6 +12,8 @@ pub async fn caller(ctx: &TrustifyContext) -> anyhow::Result<impl CallService + 
     CallerBuilder::new(ctx).build().await
 }
 
+// include!'d by integration tests that don't all use every item
+#[allow(dead_code)]
 pub async fn caller_with(
     ctx: &TrustifyContext,
     config: Config,
@@ -24,6 +26,8 @@ pub async fn caller_with(
         .await
 }
 
+// include!'d by integration tests that don't all use every item
+#[allow(dead_code)]
 pub struct CallerBuilder<'a> {
     ctx: &'a TrustifyContext,
     config: Config,
@@ -31,6 +35,8 @@ pub struct CallerBuilder<'a> {
     authorizer: Authorizer,
 }
 
+// include!'d by integration tests that don't all use every item
+#[allow(dead_code)]
 impl<'a> CallerBuilder<'a> {
     pub fn new(ctx: &'a TrustifyContext) -> Self {
         Self {
