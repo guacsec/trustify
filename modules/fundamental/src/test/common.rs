@@ -1,3 +1,4 @@
+use actix_web::web;
 use trustify_auth::authorizer::Authorizer;
 use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::config::AnalysisConfig;
@@ -71,7 +72,8 @@ impl<'a> CallerBuilder<'a> {
         let cache = self.cache;
         let storage = self.ctx.storage.clone();
 
-        call::caller_app_auth(self.authorizer, |svc| {
+        call::caller_app(|svc| {
+            svc.app_data(web::Data::new(self.authorizer));
             svc.service(utoipa_actix_web::scope("/api").configure(|svc| {
                 configure(svc, config, db_rw, db_ro.clone(), storage, analysis.clone(), cache, graph);
                 trustify_module_analysis::endpoints::configure(svc, db_ro, analysis);

@@ -43,7 +43,9 @@ impl Format {
     pub fn matches_hint(&self, hint: Format) -> bool {
         match hint {
             Format::Unknown => true,
-            Format::Advisory => matches!(self, Format::CSAF | Format::CVE | Format::OSV | Format::NVD),
+            Format::Advisory => {
+                matches!(self, Format::CSAF | Format::CVE | Format::OSV | Format::NVD)
+            }
             Format::SBOM => matches!(
                 self,
                 Format::SPDX
