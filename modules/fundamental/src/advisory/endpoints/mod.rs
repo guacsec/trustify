@@ -212,6 +212,7 @@ pub async fn upload(
     db: web::Data<db::ReadWrite>,
     _: Require<CreateAdvisory>,
 ) -> Result<impl Responder, Error> {
+    let format = format.ensure_allowed_for(Format::Advisory)?;
     let bytes = decompress_async(bytes, content_type.map(|ct| ct.0), config.upload_limit).await??;
 
     let tx = db.begin().await?;

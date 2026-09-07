@@ -54,6 +54,43 @@ pub enum Format {
 }
 
 impl Format {
+    /// Whether this is a concrete (fully-specified) format, not a category or unknown.
+    pub fn is_concrete(&self) -> bool {
+        !matches!(self, Format::Unknown | Format::Advisory | Format::SBOM)
+    }
+
+    /// Check whether this format satisfies a given hint.
+    pub fn matches_hint(&self, hint: Format) -> bool {
+        match hint {
+            Format::Unknown => true,
+            Format::Advisory => {
+                matches!(self, Format::CSAF | Format::CVE | Format::OSV)
+            }
+            Format::SBOM => matches!(
+                self,
+                Format::SPDX
+                    | Format::CycloneDX
+                    | Format::ClearlyDefined
+                    | Format::ClearlyDefinedCuration
+            ),
+            concrete => *self == concrete,
+        }
+    }
+
+    /// Validate that this format is allowed for an endpoint whose default
+    /// category is `endpoint_default`.
+    pub fn ensure_allowed_for(self, endpoint_default: Format) -> Result<Self, Error> {
+        if self == Format::Unknown {
+            return Ok(endpoint_default);
+        }
+        if self.matches_hint(endpoint_default) || self == endpoint_default {
+            return Ok(self);
+        }
+        Err(Error::UnsupportedFormat(format!(
+            "format '{self}' is not allowed on this endpoint"
+        )))
+    }
+
     #[instrument(skip_all)]
     pub async fn load(
         &self,
