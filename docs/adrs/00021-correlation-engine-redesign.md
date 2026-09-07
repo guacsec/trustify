@@ -144,94 +144,97 @@ same `(sbom_node, vulnerability)`:
 3. `under_investigation` surfaces as-is
 4. `affected` is the default when no suppression applies
 
-### Inbox and Correlation State
+### Correlation State and Work Queue
 
-#### Correlation state on entities
-
-Each SBOM and advisory carries a visible correlation state so the UI and API can
-highlight documents that are still awaiting or currently undergoing correlation.
-A `correlation_state` table (1:1 per entity) tracks the current state:
+A single `correlation_state` table serves as both the work queue (workers poll
+for `pending` rows) and the entity-level state tracker (API/UI reads the current
+status). One row per entity — no separate inbox table.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | entity_type | correlation_entity_type | PK (composite) |
 | entity_id | UUID | PK (composite) |
-| status | correlation_inbox_status | `pending`, `processing`, `completed`, `failed` |
+| status | correlation_state_status | `pending`, `processing`, `completed`, `failed` |
 | last_run_id | UUID FK → correlation_run | nullable |
-| updated_at | TIMESTAMPTZ | |
+| error_message | TEXT | nullable — failure reason |
+| updated_at | TIMESTAMPTZ | last state transition |
 
-This is upserted on each state transition. The existing `SbomSummary` and
-`AdvisoryHead` response models include a `correlation_status` field populated via
-a LEFT JOIN — no modification to the core `sbom` or `advisory` tables.
+When a document is ingested, the ingestor UPSERTs this row to `pending` in the
+same transaction — same pattern as `record_change()` today. When an entity is
+re-queued (e.g., because a new advisory affects it), the UPSERT resets the status
+to `pending` regardless of current state.
+
+The existing `SbomSummary` and `AdvisoryHead` response models include a
+`correlation_status` field populated via a LEFT JOIN — no modification to the
+core `sbom` or `advisory` tables.
 
 #### SBOM-centric re-evaluation
 
-All matching is SBOM-centric: a work item means "re-evaluate all correlations for
-SBOM X." The worker deletes existing matches for that SBOM, re-correlates from
-scratch against the full `AdvisoryIndex` (which excludes deprecated advisories),
-resolves statuses across all advisory assertions, and persists the result.
+All matching is SBOM-centric: a `pending` row means "re-evaluate all correlations
+for this SBOM." The worker deletes existing matches for that SBOM, re-correlates
+from scratch against the full `AdvisoryIndex` (which excludes deprecated
+advisories), resolves statuses across all advisory assertions, and persists the
+result.
 
 This guarantees correctness for status resolution — the `effective_status` of a
-`(sbom_node, vulnerability)` depends on assertions from *all* advisories (e.g., A1
-says `affected`, A2 says `not_affected`). Processing one advisory in isolation
+`(sbom_node, vulnerability)` depends on assertions from *all* advisories (e.g.,
+A1 says `affected`, A2 says `not_affected`). Processing one advisory in isolation
 cannot compute the correct effective status.
 
 #### Keeping correlations fresh
 
-Inbox entries are created by the ingestor within the same transaction as the
-document insert — the same pattern used by `record_change()` today.
-
-| Event | Inbox action | Effect |
+| Event | State action | Effect |
 |-------|-------------|--------|
-| New SBOM ingested | Enqueue that SBOM | Evaluated against all advisories |
-| New advisory ingested | Find SBOMs with matching PURLs/CPEs, enqueue them | They pick up the new advisory |
-| Advisory deprecated (CSAF update) | Find SBOMs with existing matches against it, enqueue them | Re-evaluated without deprecated advisory; old matches disappear |
-| Advisory deleted | CASCADE removes matches; find affected SBOMs, enqueue them | Status resolution recalculated |
-| Manual re-correlation | Enqueue specific SBOMs or all SBOMs | Full rebuild |
+| New SBOM ingested | UPSERT SBOM row to `pending` | Evaluated against all advisories |
+| New advisory ingested | Find SBOMs with matching PURLs/CPEs, UPSERT them to `pending` | They pick up the new advisory |
+| Advisory deprecated (CSAF update) | Find SBOMs with existing matches against it, UPSERT to `pending` | Re-evaluated without deprecated advisory; old matches disappear |
+| Advisory deleted | CASCADE removes matches; find affected SBOMs, UPSERT to `pending` | Status resolution recalculated |
+| Manual re-correlation | UPSERT specific SBOMs or all SBOMs to `pending` | Full rebuild |
 
 For advisory events, the ingestor (or a lightweight post-commit step) identifies
 affected SBOMs by querying which SBOMs contain the advisory's referenced
-identifiers (base_purl_ids, CPE vendor+product pairs) and enqueues them. This is
-a targeted fan-out, not a full scan of all SBOMs.
+identifiers (base_purl_ids, CPE vendor+product pairs) and UPSERTs them to
+`pending`. This is a targeted fan-out, not a full scan of all SBOMs.
 
 For CSAF updates where the old version is deprecated and a new version ingested in
-the same transaction: the SBOMs matched by the old advisory are enqueued for
-re-evaluation. When the worker processes them, the deprecated advisory is excluded
-from the `AdvisoryIndex`, and the new advisory is included — so stale matches
-disappear and new ones appear in a single re-evaluation pass.
+the same transaction: the SBOMs matched by the old advisory are set to `pending`.
+When the worker processes them, the deprecated advisory is excluded from the
+`AdvisoryIndex`, and the new advisory is included — stale matches disappear and
+new ones appear in a single re-evaluation pass.
+
+Because state is per-entity (not per-event), concurrent re-queue requests
+naturally deduplicate: if an SBOM is already `pending`, the UPSERT is a no-op.
+If it's `processing`, the UPSERT resets it to `pending` so it gets re-evaluated
+after the current run completes.
 
 #### Multi-worker concurrency
 
-Workers claim inbox items using `SELECT FOR UPDATE SKIP LOCKED`, allowing multiple
+Workers claim rows using `SELECT FOR UPDATE SKIP LOCKED`, allowing multiple
 processors to run safely in parallel — even across different pods or hosts:
 
 ```sql
 BEGIN;
-SELECT * FROM correlation_inbox
+SELECT * FROM correlation_state
 WHERE status = 'pending'
-ORDER BY created_at
+ORDER BY updated_at
 LIMIT $batch_size
 FOR UPDATE SKIP LOCKED;
--- mark claimed rows as 'processing', update correlation_state
+-- mark claimed rows as 'processing'
 -- ... run matching pipeline ...
--- mark rows as 'completed' or 'failed', update correlation_state
+-- mark rows as 'completed' or 'failed'
 COMMIT;
 ```
 
 Workers can process items individually or in configurable batches. On crash or
 timeout, the transaction rolls back and rows return to `pending` automatically.
 
-Duplicate SBOM entries in the inbox (e.g., two advisories affecting the same SBOM
-arrive simultaneously) are harmless — the second re-evaluation is a no-op if the
-first already produced the correct matches.
-
 #### Read-only replica usage
 
 Matching reads (loading advisory/SBOM indexes, hydrating results) use the **RO
-replica** for read scaling. Inbox status updates, match persistence, and evidence
-writes use the **RW connection**. This accepts that a just-ingested document may
-not be visible on the replica for a few seconds — the worker retries on the next
-poll cycle if the entity is not yet visible.
+replica** for read scaling. State updates, match persistence, and evidence writes
+use the **RW connection**. This accepts that a just-ingested document may not be
+visible on the replica for a few seconds — the worker retries on the next poll
+cycle if the entity is not yet visible.
 
 ### Database Schema
 
@@ -239,7 +242,7 @@ All fixed value sets use PostgreSQL ENUMs with `DeriveActiveEnum`:
 
 ```sql
 CREATE TYPE correlation_entity_type AS ENUM ('sbom', 'advisory');
-CREATE TYPE correlation_inbox_status AS ENUM ('pending', 'processing', 'completed', 'failed');
+CREATE TYPE correlation_state_status AS ENUM ('pending', 'processing', 'completed', 'failed');
 CREATE TYPE correlation_run_status AS ENUM ('running', 'completed', 'failed');
 CREATE TYPE correlation_trigger AS ENUM ('sbom_ingested', 'advisory_ingested', 'full_rebuild', 'manual');
 CREATE TYPE correlation_status AS ENUM ('affected', 'not_affected', 'fixed', 'under_investigation');
@@ -247,25 +250,16 @@ CREATE TYPE match_dimension AS ENUM ('purl', 'cpe_identity', 'digest');
 CREATE TYPE evidence_source AS ENUM ('purl_status', 'cpe_status');
 ```
 
-**`correlation_inbox`** — documents awaiting correlation:
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (v7) PK | |
-| entity_type | correlation_entity_type | |
-| entity_id | UUID | sbom_id or advisory.id |
-| status | correlation_inbox_status | pending → processing → completed/failed |
-| error_message | TEXT | nullable |
-| created_at | TIMESTAMPTZ | |
-| started_at | TIMESTAMPTZ | nullable |
-| completed_at | TIMESTAMPTZ | nullable |
+`correlation_state` is defined above in the [Correlation State and Work Queue](#correlation-state-and-work-queue)
+section.
 
 **`correlation_run`** — tracks each correlation execution:
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID (v7) PK | |
-| inbox_id | UUID FK → correlation_inbox | nullable (null for full rebuilds) |
+| entity_type | correlation_entity_type | which entity was re-evaluated |
+| entity_id | UUID | the sbom_id or advisory.id |
 | started_at | TIMESTAMPTZ | |
 | completed_at | TIMESTAMPTZ | nullable |
 | trigger_type | correlation_trigger | |
@@ -373,7 +367,7 @@ New endpoints under `/api/v4/correlation/`:
 | GET | `/vulnerability/{id}` | All SBOMs affected by a vulnerability |
 | GET | `/vulnerability/{id}/summary` | Affected-SBOM count and severity breakdown |
 | GET | `/match/{id}/evidence` | Evidence for a specific match |
-| GET | `/inbox` | Inbox queue status |
+| GET | `/state` | Correlation state across all entities (filterable by status) |
 | GET | `/status` | Engine status (last run, index sizes, backlog) |
 | POST | `/trigger` | Manual correlation trigger |
 | GET | `/policy` | Current policy |
@@ -421,7 +415,7 @@ modules/correlation/
       resolver.rs       -- StatusResolver
     service/
       mod.rs            -- CorrelationService
-      inbox.rs
+      state.rs            -- correlation_state queue management
       persist.rs
       hydrate.rs
       worker.rs
@@ -448,7 +442,7 @@ modules/correlation/
 |-------|-------|-----------------|
 | 1 | Foundation | Crate skeleton, migration (5 tables + enums), entity models, Rust version comparators with unit tests |
 | 2 | Engine | AdvisoryIndex, SbomIndex, PurlMatcher, CpeMatcher, DigestMatcher, StatusResolver, scenario tests passing |
-| 3 | Persistence | Inbox + correlation_state tables, multi-worker with FOR UPDATE SKIP LOCKED, persist/hydrate, evidence recording, ingestor integration |
+| 3 | Persistence | correlation_state work queue, multi-worker with FOR UPDATE SKIP LOCKED, persist/hydrate, evidence recording, ingestor integration |
 | 4 | API | v4 endpoints, OpenAPI docs, policy/inbox management, server registration |
 | 5 | Migration | Feature-flagged v3 adapter, benchmarks, deprecation of `sbom/model/raw_sql.rs` |
 
@@ -512,6 +506,10 @@ modules/correlation/
 - **Ingestion pipeline**: SBOMs and advisories are still ingested by the existing ingestor
   module. The `purl_status`, `product_status`, and `cpe_status` tables continue to be
   populated at ingestion time — the correlation engine reads from them.
+- **Change notification infrastructure**: the `ChangeBroadcaster`, `ChangeListener`, and
+  `change_log` table remain unchanged. They continue to serve the notification module and
+  any other consumers. The correlation module does not subscribe to them — it uses its
+  own `correlation_state` table as a work queue instead.
 - **Analysis module**: the graph-walking analysis service is orthogonal and unaffected.
 - **v3 API contract**: response shapes for v3 endpoints remain identical.
 
