@@ -205,6 +205,18 @@ async fn test_version_matches(ctx: TrustifyContext) -> Result<(), anyhow::Error>
         .await?
     );
 
+    // A fully-unbounded range (both bounds NULL) matches any version — a bare
+    // version-less known_affected. See TC-5732.
+    assert!(
+        version_matches(
+            db,
+            "1.0.2",
+            VersionRange::Range(Version::Unbounded, Version::Unbounded),
+            "semver"
+        )
+        .await?
+    );
+
     Ok(())
 }
 

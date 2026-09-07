@@ -36,6 +36,7 @@ mod m0002100_analysis_perf_indexes;
 mod m0002110_sbom_describing_cpe;
 mod m0002120_ancestor_walk_index;
 mod m0002250_create_cpe_status;
+mod m0002260_version_matches_unbounded;
 
 pub struct Migrator;
 
@@ -79,6 +80,7 @@ impl MigratorTrait for Migrator {
             Box::new(m0002110_sbom_describing_cpe::Migration),
             Box::new(m0002120_ancestor_walk_index::Migration),
             Box::new(m0002250_create_cpe_status::Migration),
+            Box::new(m0002260_version_matches_unbounded::Migration),
         ]
     }
 }
