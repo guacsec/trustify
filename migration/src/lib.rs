@@ -1,6 +1,8 @@
+#![recursion_limit = "512"]
 use crate::data::{
     Migration, MigrationTraitWithData, MigrationWithData, Migrations, MigratorWithData,
 };
+
 pub use sea_orm_migration::prelude::*;
 
 pub mod data;
