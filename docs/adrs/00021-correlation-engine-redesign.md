@@ -158,6 +158,7 @@ status). One row per entity — no separate inbox table.
 | error_message | TEXT | nullable — failure reason |
 | started_at | TIMESTAMPTZ | nullable — when processing began |
 | completed_at | TIMESTAMPTZ | nullable — when processing finished |
+| correlated_as_of | TIMESTAMPTZ | nullable — advisory landscape timestamp at start of last run |
 | trigger_type | correlation_trigger | nullable — what caused the last run |
 | matches_found | INT | nullable — matches produced by last run |
 | updated_at | TIMESTAMPTZ | last state transition |
@@ -186,24 +187,94 @@ cannot compute the correct effective status.
 
 #### Keeping correlations fresh
 
-| Event | State action | Effect |
-|-------|-------------|--------|
-| New SBOM ingested | UPSERT SBOM row to `pending` | Evaluated against all advisories |
-| New advisory ingested | Find SBOMs with matching PURLs/CPEs, UPSERT them to `pending` | They pick up the new advisory |
-| Advisory deprecated (CSAF update) | Find SBOMs with existing matches against it, UPSERT to `pending` | Re-evaluated without deprecated advisory; old matches disappear |
-| Advisory deleted | CASCADE removes matches; find affected SBOMs, UPSERT to `pending` | Status resolution recalculated |
-| Manual re-correlation | UPSERT specific SBOMs or all SBOMs to `pending` | Full rebuild |
+The ingestor marks the ingested entity as `pending` (in the same transaction as
+the document insert). Workers handle the rest in two phases:
 
-For advisory events, the ingestor (or a lightweight post-commit step) identifies
-affected SBOMs by querying which SBOMs contain the advisory's referenced
-identifiers (base_purl_ids, CPE vendor+product pairs) and UPSERTs them to
-`pending`. This is a targeted fan-out, not a full scan of all SBOMs.
+| Event | Ingestor action | Worker action |
+|-------|----------------|---------------|
+| New SBOM | UPSERT SBOM to `pending` | Re-evaluate SBOM against all advisories |
+| New advisory | UPSERT advisory to `pending` | Fan-out: find affected SBOMs, UPSERT them to `pending` |
+| Advisory deprecated | UPSERT advisory to `pending` | Fan-out: find SBOMs with matches against it, UPSERT to `pending` |
+| Advisory deleted | CASCADE removes matches; UPSERT advisory to `pending` | Fan-out: find affected SBOMs, UPSERT to `pending` |
+| Manual re-correlation | — | UPSERT specific SBOMs or all SBOMs to `pending` |
 
-For CSAF updates where the old version is deprecated and a new version ingested in
-the same transaction: the SBOMs matched by the old advisory are set to `pending`.
-When the worker processes them, the deprecated advisory is excluded from the
-`AdvisoryIndex`, and the new advisory is included — stale matches disappear and
-new ones appear in a single re-evaluation pass.
+**Phase 1 — Advisory fan-out.** When a worker claims an advisory entry, it runs a
+coarse DB query to identify affected SBOMs:
+
+```sql
+-- SBOMs containing PURLs referenced by this advisory
+SELECT DISTINCT spr.sbom_id
+FROM purl_status ps
+JOIN versioned_purl vp ON vp.base_purl_id = ps.base_purl_id
+JOIN qualified_purl qp ON qp.versioned_purl_id = vp.id
+JOIN sbom_node_purl_ref spr ON spr.qualified_purl_id = qp.id
+WHERE ps.advisory_id = $1
+UNION
+-- SBOMs containing CPEs referenced by this advisory
+SELECT DISTINCT scr.sbom_id
+FROM cpe_status cs
+JOIN cpe ac ON cs.cpe_id = ac.id
+JOIN cpe sc ON sc.vendor = ac.vendor AND sc.product = ac.product AND sc.part = 'a'
+JOIN sbom_node_cpe_ref scr ON scr.cpe_id = sc.id
+WHERE cs.advisory_id = $1
+```
+
+This is intentionally coarse — it matches by identifier but does not check version
+ranges. Over-enqueuing is safe (the re-evaluation produces no matches if versions
+don't overlap); missing SBOMs is not. The worker UPSERTs the affected SBOMs to
+`pending` and marks the advisory `completed`.
+
+**Phase 2 — SBOM re-evaluation.** Workers claim pending SBOM entries and perform
+the full delete-and-rebuild matching described under
+[SBOM-centric re-evaluation](#sbom-centric-re-evaluation).
+
+#### Consistency during re-evaluation
+
+The matching computation happens in memory (no transaction held). Results are then
+swapped atomically in a short transaction:
+
+```sql
+BEGIN;
+  DELETE FROM correlation_match WHERE sbom_id = $1;
+  -- CASCADE removes correlation_evidence rows
+  INSERT INTO correlation_match ... (new_matches);
+  INSERT INTO correlation_evidence ... (new_evidence);
+  UPDATE correlation_state
+    SET status = 'completed', completed_at = now(), matches_found = $2;
+COMMIT;
+```
+
+PostgreSQL MVCC guarantees that other connections see either all-old or all-new
+matches — never a partial state. While the worker is computing (before the swap),
+the old matches remain visible. After COMMIT, the new results replace them
+atomically.
+
+For a brand-new SBOM (no previous matches), `correlation_state.status = pending`
+and the API returns "no correlation data yet" — also consistent.
+
+#### Staleness detection
+
+Between an advisory being ingested and the fan-out completing, affected SBOMs
+still show `status = completed` with results that don't include the new advisory.
+Their state is internally consistent but potentially stale.
+
+To make this visible, `correlation_state` tracks a `correlated_as_of` timestamp
+(set at the start of re-evaluation). A separate system-level value tracks the
+timestamp of the last advisory change. The API includes both in SBOM responses:
+
+- `correlation_status: completed`
+- `correlated_as_of: 2026-09-07T10:00:00Z`
+- `advisories_changed_at: 2026-09-07T10:05:00Z` ← newer → results may be stale
+
+The UI can compare these to show a "results may not reflect recent advisories"
+indicator, even before the fan-out identifies which specific SBOMs are affected.
+
+Additionally, the API exposes the count of pending/processing advisory entries in
+`correlation_state`. The UI can show "3 advisories being processed — some
+correlation results may be incomplete" at the system level, giving users immediate
+visibility that work is in progress.
+
+#### Deduplication
 
 Because state is per-entity (not per-event), concurrent re-queue requests
 naturally deduplicate: if an SBOM is already `pending`, the UPSERT is a no-op.
