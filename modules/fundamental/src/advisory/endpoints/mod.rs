@@ -214,6 +214,7 @@ pub async fn upload(
     bytes: web::Bytes,
     _: Require<CreateAdvisory>,
 ) -> Result<impl Responder, Error> {
+    let format = format.ensure_allowed_for(default_format())?;
     let bytes = decompress_async(bytes, content_type.map(|ct| ct.0), config.upload_limit).await??;
     let result = service
         .ingest(
