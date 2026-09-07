@@ -1,10 +1,6 @@
 use crate::{
     advisory::model::{AdvisoryDetails, AdvisorySummary},
-    test::{
-        CallerBuilder, caller, caller_with, label::Api,
-        label::update_labels as do_update_labels,
-        label::update_labels_not_found as do_update_labels_not_found,
-    },
+    test::{CallerBuilder, caller, caller_with, label, label::Api},
 };
 use actix_http::StatusCode;
 use actix_web::{body::MessageBody, test::TestRequest};
@@ -609,14 +605,14 @@ async fn download_advisory_by_id(ctx: &TrustifyContext) -> Result<(), anyhow::Er
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    crate::test::label::update_labels(ctx, Api::Advisory, DOC, "csaf").await
+    label::update_labels(ctx, Api::Advisory, DOC, "csaf").await
 }
 
 /// Test updating labels, for a document that does not exist
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn update_labels_not_found(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    crate::test::label::update_labels_not_found(ctx, Api::Advisory, DOC).await
+    label::update_labels_not_found(ctx, Api::Advisory, DOC).await
 }
 
 /// Test deleing an advisory
