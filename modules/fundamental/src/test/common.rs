@@ -1,17 +1,21 @@
+use actix_web::{App, web};
 use trustify_auth::authorizer::Authorizer;
-use trustify_common::db::{self, pagination_cache::PaginationCache};
+use trustify_common::{
+    db::{self, pagination_cache::PaginationCache},
+    middleware::StdMiddleware,
+};
 use trustify_module_analysis::config::AnalysisConfig;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_ingestor::graph::Graph;
-use trustify_test_context::{
-    TrustifyContext,
-    call::{self, CallService},
-};
+use trustify_test_context::{TrustifyContext, call::CallService};
+use utoipa_actix_web::AppExt;
 
 pub async fn caller(ctx: &TrustifyContext) -> anyhow::Result<impl CallService + '_> {
     CallerBuilder::new(ctx).build().await
 }
 
+// include!'d by integration tests that don't all use every item
+#[allow(dead_code)]
 pub async fn caller_with(
     ctx: &TrustifyContext,
     config: Config,
@@ -24,6 +28,8 @@ pub async fn caller_with(
         .await
 }
 
+// include!'d by integration tests that don't all use every item
+#[allow(dead_code)]
 pub struct CallerBuilder<'a> {
     ctx: &'a TrustifyContext,
     config: Config,
@@ -31,6 +37,8 @@ pub struct CallerBuilder<'a> {
     authorizer: Authorizer,
 }
 
+// include!'d by integration tests that don't all use every item
+#[allow(dead_code)]
 impl<'a> CallerBuilder<'a> {
     pub fn new(ctx: &'a TrustifyContext) -> Self {
         Self {
@@ -65,12 +73,20 @@ impl<'a> CallerBuilder<'a> {
         let cache = self.cache;
         let storage = self.ctx.storage.clone();
 
-        call::caller_app_auth(self.authorizer, |svc| {
-            svc.service(utoipa_actix_web::scope("/api").configure(|svc| {
-                configure(svc, config, db_rw, db_ro.clone(), storage, analysis.clone(), cache, graph, Vec::new());
-                trustify_module_analysis::endpoints::configure(svc, db_ro, analysis);
-            }));
-        })
-        .await
+        Ok(actix_web::test::init_service(
+            App::new()
+                .std_middleware()
+                .into_utoipa_app()
+                .app_data(web::PayloadConfig::default().limit(5 * 1024 * 1024))
+                .app_data(web::Data::new(self.authorizer))
+                .configure(|svc| {
+                    svc.service(utoipa_actix_web::scope("/api").configure(|svc| {
+                        configure(svc, config, db_rw, db_ro.clone(), storage, analysis.clone(), cache, graph, Vec::new());
+                        trustify_module_analysis::endpoints::configure(svc, db_ro, analysis);
+                    }));
+                })
+                .into_app(),
+        )
+        .await)
     }
 }
