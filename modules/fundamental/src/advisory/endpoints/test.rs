@@ -6,6 +6,7 @@ use actix_http::StatusCode;
 use actix_web::test::TestRequest;
 use hex::ToHex;
 use jsonpath_rust::JsonPath;
+use rstest::rstest;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use test_context::test_context;
@@ -742,6 +743,93 @@ async fn all_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         ]),
     )
     .await?;
+
+    Ok(())
+}
+
+/// The `?format=` override must not allow uploading a document type that
+/// the endpoint's permission does not cover.
+#[derive(Clone, Copy, Debug)]
+enum Endpoint {
+    Advisory,
+    Sbom,
+}
+
+impl Endpoint {
+    fn uri(self, format: &str) -> String {
+        let base = match self {
+            Self::Advisory => "/api/v2/advisory",
+            Self::Sbom => "/api/v2/sbom",
+        };
+        format!("{base}?format={format}")
+    }
+}
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::advisory_accepts_csaf(
+    Endpoint::Advisory,
+    "csaf",
+    "csaf/cve-2023-33201.json",
+    StatusCode::CREATED
+)]
+#[case::advisory_rejects_spdx(
+    Endpoint::Advisory,
+    "spdx",
+    "spdx/simple.json",
+    StatusCode::BAD_REQUEST
+)]
+#[case::advisory_rejects_cyclonedx(
+    Endpoint::Advisory,
+    "cyclonedx",
+    "spdx/simple.json",
+    StatusCode::BAD_REQUEST
+)]
+#[case::advisory_rejects_sbom_category(
+    Endpoint::Advisory,
+    "sbom",
+    "spdx/simple.json",
+    StatusCode::BAD_REQUEST
+)]
+#[case::sbom_accepts_spdx(Endpoint::Sbom, "spdx", "spdx/simple.json", StatusCode::CREATED)]
+#[case::sbom_rejects_csaf(
+    Endpoint::Sbom,
+    "csaf",
+    "csaf/cve-2023-33201.json",
+    StatusCode::BAD_REQUEST
+)]
+#[case::sbom_rejects_cve(
+    Endpoint::Sbom,
+    "cve",
+    "csaf/cve-2023-33201.json",
+    StatusCode::BAD_REQUEST
+)]
+#[case::sbom_rejects_advisory_category(
+    Endpoint::Sbom,
+    "advisory",
+    "csaf/cve-2023-33201.json",
+    StatusCode::BAD_REQUEST
+)]
+#[test_log::test(actix_web::test)]
+async fn format_permission_enforcement(
+    ctx: &TrustifyContext,
+    #[case] endpoint: Endpoint,
+    #[case] format: &str,
+    #[case] document: &str,
+    #[case] expected: StatusCode,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    let payload = document_bytes(document).await?;
+    let uri = endpoint.uri(format);
+
+    let request = TestRequest::post()
+        .uri(&uri)
+        .set_payload(payload)
+        .to_request();
+
+    let response = app.call_service(request).await;
+    assert_eq!(response.status(), expected);
 
     Ok(())
 }
