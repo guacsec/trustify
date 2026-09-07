@@ -6,6 +6,7 @@ use actix_http::StatusCode;
 use actix_web::{body::MessageBody, test::TestRequest};
 use hex::ToHex;
 use jsonpath_rust::JsonPath;
+use rstest::rstest;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
@@ -31,12 +32,8 @@ use trustify_module_ingestor::{
 };
 use trustify_module_storage::service::{StorageBackend, StorageKey};
 use trustify_test_context::{
-    TrustifyContext,
-    auth::TestAuthentication,
-    call::CallService,
-    document_bytes,
+    TrustifyContext, auth::TestAuthentication, call::CallService, document_bytes,
 };
-use rstest::rstest;
 use urlencoding::encode;
 
 #[test_context(TrustifyContext)]
