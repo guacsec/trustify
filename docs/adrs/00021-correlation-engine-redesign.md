@@ -155,8 +155,11 @@ status). One row per entity — no separate inbox table.
 | entity_type | correlation_entity_type | PK (composite) |
 | entity_id | UUID | PK (composite) |
 | status | correlation_state_status | `pending`, `processing`, `completed`, `failed` |
-| last_run_id | UUID FK → correlation_run | nullable |
 | error_message | TEXT | nullable — failure reason |
+| started_at | TIMESTAMPTZ | nullable — when processing began |
+| completed_at | TIMESTAMPTZ | nullable — when processing finished |
+| trigger_type | correlation_trigger | nullable — what caused the last run |
+| matches_found | INT | nullable — matches produced by last run |
 | updated_at | TIMESTAMPTZ | last state transition |
 
 When a document is ingested, the ingestor UPSERTs this row to `pending` in the
@@ -243,7 +246,6 @@ All fixed value sets use PostgreSQL ENUMs with `DeriveActiveEnum`:
 ```sql
 CREATE TYPE correlation_entity_type AS ENUM ('sbom', 'advisory');
 CREATE TYPE correlation_state_status AS ENUM ('pending', 'processing', 'completed', 'failed');
-CREATE TYPE correlation_run_status AS ENUM ('running', 'completed', 'failed');
 CREATE TYPE correlation_trigger AS ENUM ('sbom_ingested', 'advisory_ingested', 'full_rebuild', 'manual');
 CREATE TYPE correlation_status AS ENUM ('affected', 'not_affected', 'fixed', 'under_investigation');
 CREATE TYPE match_dimension AS ENUM ('purl', 'cpe_identity', 'digest');
@@ -251,29 +253,15 @@ CREATE TYPE evidence_source AS ENUM ('purl_status', 'cpe_status');
 ```
 
 `correlation_state` is defined above in the [Correlation State and Work Queue](#correlation-state-and-work-queue)
-section.
-
-**`correlation_run`** — tracks each correlation execution:
-
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID (v7) PK | |
-| entity_type | correlation_entity_type | which entity was re-evaluated |
-| entity_id | UUID | the sbom_id or advisory.id |
-| started_at | TIMESTAMPTZ | |
-| completed_at | TIMESTAMPTZ | nullable |
-| trigger_type | correlation_trigger | |
-| trigger_entity_id | UUID | nullable |
-| matches_created | INT | |
-| matches_removed | INT | |
-| status | correlation_run_status | |
+section. It serves as both work queue and run metadata — only the latest run per
+entity is tracked, so no separate `correlation_run` table is needed and no
+retention policy is required.
 
 **`correlation_match`** — materialized result per (node, vuln, advisory):
 
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID (v7) PK | |
-| correlation_run_id | UUID FK → correlation_run | CASCADE |
 | sbom_id | UUID FK → sbom | CASCADE |
 | node_id | TEXT | sbom_package.node_id |
 | advisory_id | UUID FK → advisory | CASCADE |
@@ -440,7 +428,7 @@ modules/correlation/
 
 | Phase | Scope | Key deliverables |
 |-------|-------|-----------------|
-| 1 | Foundation | Crate skeleton, migration (5 tables + enums), entity models, Rust version comparators with unit tests |
+| 1 | Foundation | Crate skeleton, migration (4 tables + enums), entity models, Rust version comparators with unit tests |
 | 2 | Engine | AdvisoryIndex, SbomIndex, PurlMatcher, CpeMatcher, DigestMatcher, StatusResolver, scenario tests passing |
 | 3 | Persistence | correlation_state work queue, multi-worker with FOR UPDATE SKIP LOCKED, persist/hydrate, evidence recording, ingestor integration |
 | 4 | API | v4 endpoints, OpenAPI docs, policy/inbox management, server registration |
