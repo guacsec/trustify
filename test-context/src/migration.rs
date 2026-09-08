@@ -19,20 +19,29 @@ pub struct Migration {
 }
 
 impl Migration {
-    /// Create a new instance, detecting paths and the branch
-    pub fn new(commit: &str) -> anyhow::Result<Self> {
-        // get the base of the source code
+    /// Create a new instance.
+    ///
+    /// When `branch` is `Some`, that value is used directly. Otherwise the
+    /// branch is detected from `TRUSTIFY_MIGRATION_BRANCH` or the local git
+    /// checkout.
+    pub fn new(commit: &str, branch: Option<&str>) -> anyhow::Result<Self> {
+        let branch = match branch {
+            Some(b) => b.to_string(),
+            None => {
+                let cwd: PathBuf = match option_env!("CARGO_MANIFEST_DIR") {
+                    Some(cwd) => cwd.into(),
+                    None => {
+                        env::current_dir().context("unable to determine current directory")?
+                    }
+                };
 
-        let cwd: PathBuf = match option_env!("CARGO_MANIFEST_DIR") {
-            Some(cwd) => cwd.into(),
-            None => env::current_dir().context("unable to determine current directory")?,
+                env::var("TRUSTIFY_MIGRATION_BRANCH")
+                    .or_else(|_| current_branch(cwd))
+                    .context(
+                        "unable to determine branch, consider using 'TRUSTIFY_MIGRATION_BRANCH'",
+                    )?
+            }
         };
-
-        // evaluate the branch
-
-        let branch = env::var("TRUSTIFY_MIGRATION_BRANCH")
-            .or_else(|_| current_branch(cwd))
-            .context("unable to determine branch, consider using 'TRUSTIFY_MIGRATION_BRANCH'")?;
 
         log::info!("Using migration for branch: '{branch}'");
 
