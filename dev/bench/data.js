@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788779259773,
+  "lastUpdate": 1788873576015,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21687,6 +21687,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "15bd80709c2858785ce2f44fd87bf6a322604e5f",
+          "message": "fix(ci): add gate job to prevent silent-skip merges\n\nGitHub treats skipped jobs as passing for branch protection. When a\ndependency of the `ci` job fails, `ci` is skipped and the PR can still\nbe merged.\n\nRename the test job to `test` and add a `ci` gate job that depends on\nall required jobs and uses `if: always()` to ensure it always runs.\nThe gate fails explicitly when any dependency failed.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-08T12:08:26Z",
+          "tree_id": "5490e27adccd6eaf6a73ca59a3c2cdd07551c5e5",
+          "url": "https://github.com/guacsec/trustify/commit/15bd80709c2858785ce2f44fd87bf6a322604e5f"
+        },
+        "date": 1788873573865,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
