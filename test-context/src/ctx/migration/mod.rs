@@ -153,8 +153,8 @@ impl<ID: DumpId> TrustifyMigrationContext<ID> {
                     Some(id) => (format!("commit-{id}").into(), Some("main")),
                     None => ("latest".into(), None),
                 };
-                let migration = Migration::new(&id, branch)
-                    .context("failed to create migration manager")?;
+                let migration =
+                    Migration::new(&id, branch).context("failed to create migration manager")?;
 
                 let base = dumps.provide_raw("migration", migration.as_dump()).await?;
 

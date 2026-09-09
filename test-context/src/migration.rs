@@ -30,9 +30,7 @@ impl Migration {
             None => {
                 let cwd: PathBuf = match option_env!("CARGO_MANIFEST_DIR") {
                     Some(cwd) => cwd.into(),
-                    None => {
-                        env::current_dir().context("unable to determine current directory")?
-                    }
+                    None => env::current_dir().context("unable to determine current directory")?,
                 };
 
                 env::var("TRUSTIFY_MIGRATION_BRANCH")
