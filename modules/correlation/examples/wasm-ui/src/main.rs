@@ -400,17 +400,14 @@ fn apply_results(
     verdicts.sort_by(|a, b| a.vulnerability_id.cmp(&b.vulnerability_id));
     set_results.set(verdicts);
 
-    let trace_text = collector
-        .trace
-        .iter()
-        .map(|t| {
-            if let Some(ref d) = t.detail {
-                format!("{}: {d}", t.message)
-            } else {
-                t.message.clone()
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
+    let mut trace_text = String::new();
+    for t in &collector.trace {
+        trace_text.push_str(&t.message);
+        if let Some(ref d) = t.detail {
+            trace_text.push_str("\n      ");
+            trace_text.push_str(d);
+        }
+        trace_text.push('\n');
+    }
     set_trace_log.set(trace_text);
 }

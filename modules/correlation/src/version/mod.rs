@@ -40,11 +40,42 @@ pub enum VersionBound {
     Unbounded,
 }
 
+impl std::fmt::Display for VersionBound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Inclusive(v) => write!(f, "[{v}"),
+            Self::Exclusive(v) => write!(f, "({v}"),
+            Self::Unbounded => write!(f, "(.."),
+        }
+    }
+}
+
 /// A version range specification.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VersionRange {
     Exact(String),
     Range(VersionBound, VersionBound),
+}
+
+impl std::fmt::Display for VersionRange {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Exact(v) => write!(f, "={v}"),
+            Self::Range(lo, hi) => {
+                match lo {
+                    VersionBound::Inclusive(v) => write!(f, "[{v}")?,
+                    VersionBound::Exclusive(v) => write!(f, "({v}")?,
+                    VersionBound::Unbounded => write!(f, "(*..")?,
+                }
+                write!(f, ", ")?;
+                match hi {
+                    VersionBound::Inclusive(v) => write!(f, "{v}]"),
+                    VersionBound::Exclusive(v) => write!(f, "{v})"),
+                    VersionBound::Unbounded => write!(f, "..*)"),
+                }
+            }
+        }
+    }
 }
 
 /// Check whether `version` falls within `range` under the given `scheme`.

@@ -56,12 +56,16 @@ impl Default for InMemoryEngine {
 impl CorrelationEngine for InMemoryEngine {
     fn correlate_component(&self, component: &ComponentQuery, collector: &mut dyn Collector) {
         collector.on_trace(&TraceEntry {
-            message: format!("correlating component: {:?}", component.id),
-            detail: None,
+            message: format!("correlating component: {}", format_component_id(&component.id)),
+            detail: if component.describing_cpes.is_empty() {
+                Some("no describing CPEs on SBOM".into())
+            } else {
+                Some(format!("describing CPEs: {}", component.describing_cpes.join(", ")))
+            },
         });
 
-        // Group matching assertions by vulnerability_id
         let mut by_vuln: HashMap<&str, Vec<&StatusAssertion>> = HashMap::new();
+        let mut identity_match_count = 0u32;
 
         for assertion in &self.assertions {
             if matches_component(
@@ -69,6 +73,7 @@ impl CorrelationEngine for InMemoryEngine {
                 &assertion.matcher,
                 &component.describing_cpes,
             ) {
+                identity_match_count += 1;
                 let version_in_range = check_version(&component.id, &assertion.matcher);
                 let cpe_context_ok =
                     check_cpe_context(&assertion.matcher, &component.describing_cpes);
@@ -82,6 +87,36 @@ impl CorrelationEngine for InMemoryEngine {
                     cpe_context_matched: Some(cpe_context_ok),
                 });
 
+                let qualifier = if version_in_range && cpe_context_ok {
+                    "EFFECTIVE"
+                } else if !version_in_range {
+                    "SKIPPED (version out of range)"
+                } else {
+                    "SKIPPED (context CPE mismatch)"
+                };
+
+                collector.on_trace(&TraceEntry {
+                    message: format!(
+                        "  {} {} {} from {} [{}]",
+                        qualifier,
+                        assertion.vulnerability_id,
+                        assertion.status.as_str(),
+                        assertion.source.identifier,
+                        format_matcher(&assertion.matcher),
+                    ),
+                    detail: if !version_in_range || !cpe_context_ok {
+                        Some(explain_skip(
+                            &component.id,
+                            &assertion.matcher,
+                            &component.describing_cpes,
+                            version_in_range,
+                            cpe_context_ok,
+                        ))
+                    } else {
+                        None
+                    },
+                });
+
                 if version_in_range && cpe_context_ok {
                     by_vuln
                         .entry(&assertion.vulnerability_id)
@@ -91,8 +126,15 @@ impl CorrelationEngine for InMemoryEngine {
             }
         }
 
+        if identity_match_count == 0 {
+            collector.on_trace(&TraceEntry {
+                message: "  no identity matches found in any assertion".into(),
+                detail: None,
+            });
+        }
+
         for (vuln_id, matching) in &by_vuln {
-            let verdict = resolve_verdict(vuln_id, matching);
+            let verdict = resolve_verdict(vuln_id, matching, collector);
             collector.on_verdict(&verdict);
         }
     }
@@ -300,6 +342,118 @@ fn context_cpe_matches(sbom_cpe: &str, advisory_cpe: &str) -> bool {
     true
 }
 
+fn format_component_id(id: &ComponentId) -> String {
+    match id {
+        ComponentId::Purl {
+            ty,
+            namespace,
+            name,
+            version,
+            ..
+        } => {
+            let ns = namespace
+                .as_deref()
+                .map(|n| format!("{n}/"))
+                .unwrap_or_default();
+            let ver = version
+                .as_deref()
+                .map(|v| format!("@{v}"))
+                .unwrap_or_default();
+            format!("pkg:{ty}/{ns}{name}{ver}")
+        }
+        ComponentId::Cpe(cpe) => cpe.clone(),
+        ComponentId::Hash { algorithm, value } => format!("{algorithm}:{value}"),
+    }
+}
+
+fn format_matcher(matcher: &ComponentMatcher) -> String {
+    match matcher {
+        ComponentMatcher::Purl {
+            ty,
+            namespace,
+            name,
+            version,
+            context_cpe,
+        } => {
+            let ns = namespace
+                .as_deref()
+                .map(|n| format!("{n}/"))
+                .unwrap_or_default();
+            let ver = version
+                .as_ref()
+                .map(|v| format!(" version={}", v.range))
+                .unwrap_or_default();
+            let ctx = context_cpe
+                .as_deref()
+                .map(|c| format!(" context_cpe={c}"))
+                .unwrap_or_default();
+            format!("purl:{ty}/{ns}{name}{ver}{ctx}")
+        }
+        ComponentMatcher::CpeMatch { cpe, version } => {
+            let ver = version
+                .as_ref()
+                .map(|v| format!(" version={}", v.range))
+                .unwrap_or_default();
+            format!("cpe:{cpe}{ver}")
+        }
+        ComponentMatcher::CveProduct { product, version } => {
+            format!("product:{product} version={}", version.range)
+        }
+    }
+}
+
+fn explain_skip(
+    component: &ComponentId,
+    matcher: &ComponentMatcher,
+    describing_cpes: &[String],
+    version_ok: bool,
+    context_ok: bool,
+) -> String {
+    let mut parts = Vec::new();
+
+    if !version_ok {
+        let comp_ver = match component {
+            ComponentId::Purl {
+                version: Some(v), ..
+            } => v.as_str(),
+            _ => "(none)",
+        };
+        let constraint = match matcher {
+            ComponentMatcher::Purl {
+                version: Some(vc), ..
+            } => format!("{}", vc.range),
+            ComponentMatcher::CpeMatch {
+                version: Some(vc), ..
+            } => format!("{}", vc.range),
+            ComponentMatcher::CveProduct { version: vc, .. } => format!("{}", vc.range),
+            _ => "(none)".into(),
+        };
+        parts.push(format!("component version '{comp_ver}' is outside {constraint}"));
+    }
+
+    if !context_ok {
+        let ctx_cpe = match matcher {
+            ComponentMatcher::Purl {
+                context_cpe: Some(c),
+                ..
+            } => c.as_str(),
+            _ => "(none)",
+        };
+        if describing_cpes.is_empty() {
+            parts.push(format!(
+                "assertion requires context_cpe={ctx_cpe} but SBOM has no describing CPEs"
+            ));
+        } else {
+            parts.push(format!(
+                "context_cpe={ctx_cpe} does not match SBOM describing CPEs: {}",
+                describing_cpes.join(", ")
+            ));
+        }
+    }
+
+    parts.join("; ")
+}
+
 fn match_dimension(matcher: &ComponentMatcher) -> MatchDimension {
     match matcher {
         ComponentMatcher::Purl { .. } | ComponentMatcher::CveProduct { .. } => MatchDimension::Purl,
@@ -314,7 +468,11 @@ fn match_dimension(matcher: &ComponentMatcher) -> MatchDimension {
 ///
 /// For CPE-only assertions (product-level): affected takes precedence because
 /// any affected component under the product CPE makes the product affected.
-fn resolve_verdict(vuln_id: &str, assertions: &[&StatusAssertion]) -> Verdict {
+fn resolve_verdict(
+    vuln_id: &str,
+    assertions: &[&StatusAssertion],
+    collector: &mut dyn Collector,
+) -> Verdict {
     use crate::types::Status;
 
     let mut has_affected = false;
@@ -340,24 +498,33 @@ fn resolve_verdict(vuln_id: &str, assertions: &[&StatusAssertion]) -> Verdict {
         }
     }
 
-    let final_status = if all_cpe_only && has_affected {
-        // CPE-only product-level: any affected component → product is affected
-        Status::Affected
+    let (final_status, reason) = if all_cpe_only && has_affected {
+        (Status::Affected, "CPE-only match: affected wins at product level")
     } else if has_resolution {
-        // PURL/version-level: resolution wins
-        assertions
+        let status = assertions
             .iter()
             .find(|a| a.status.resolves_affected())
             .map(|a| a.status)
-            .unwrap_or(Status::NotAffected)
+            .unwrap_or(Status::NotAffected);
+        (status, "PURL-level match: resolution (fixed/not_affected) overrides affected")
     } else if has_affected {
-        Status::Affected
+        (Status::Affected, "only affected assertions matched")
     } else {
-        assertions
+        let status = assertions
             .first()
             .map(|a| a.status)
-            .unwrap_or(Status::Affected)
+            .unwrap_or(Status::Affected);
+        (status, "no affected or resolution assertions; using first match")
     };
+
+    collector.on_trace(&TraceEntry {
+        message: format!(
+            "  VERDICT {vuln_id} = {} ({} contributing assertions)",
+            final_status.as_str(),
+            assertions.len(),
+        ),
+        detail: Some(reason.to_string()),
+    });
 
     Verdict {
         vulnerability_id: vuln_id.to_string(),
