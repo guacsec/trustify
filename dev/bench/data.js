@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788954579055,
+  "lastUpdate": 1788962269329,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21740,6 +21740,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/5646d605c00114e37a3935be0cc18976d8e9135a"
         },
         "date": 1788954574876,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rhodulak@redhat.com",
+            "name": "rhodulak",
+            "username": "rhredhat"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "c5b53704051207a16d6572287379949bfc63a629",
+          "message": "build: Remove unused dependencies\n\n* Analysis done using `cargo-shear`.\n* Verified using the `precommit` task using `cargo-xtask`.\n* Ignored warnings about `vendored` feature flag to avoid potentially breaking builds.",
+          "timestamp": "2026-09-09T13:18:22Z",
+          "tree_id": "93fd3c6dba2fd538c21ee762cf27dde8b04ebf60",
+          "url": "https://github.com/guacsec/trustify/commit/c5b53704051207a16d6572287379949bfc63a629"
+        },
+        "date": 1788962265550,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
