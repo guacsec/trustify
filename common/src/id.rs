@@ -1,21 +1,17 @@
 use crate::purl::PurlErr;
+#[cfg(feature = "db")]
 use hex::ToHex;
-use ring::digest::Digest;
+#[cfg(feature = "db")]
 use sea_orm::{EntityTrait, QueryFilter, Select, SelectThree, SelectTwo, UpdateMany};
+#[cfg(feature = "db")]
 use sea_query::Condition;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{Error, Visitor},
 };
-use serde_json::json;
 use std::{
-    borrow::Cow,
     fmt::{Display, Formatter},
     str::FromStr,
-};
-use utoipa::{
-    PartialSchema, ToSchema,
-    openapi::{Object, RefOr, Schema, Type},
 };
 use uuid::Uuid;
 
@@ -47,15 +43,18 @@ impl Id {
 }
 
 /// Create a filter for an ID
+#[cfg(feature = "db")]
 pub trait TryFilterForId {
     /// Return a condition, filtering for the [`Id`]. Or an `Err(IdError::UnsupportedAlgorithm)` if the ID type is not supported.
     fn try_filter(id: Id) -> Result<Condition, IdError>;
 }
 
+#[cfg(feature = "db")]
 pub trait TrySelectForId: Sized {
     fn try_filter(self, id: Id) -> Result<Self, IdError>;
 }
 
+#[cfg(feature = "db")]
 impl<E> TrySelectForId for Select<E>
 where
     E: EntityTrait + TryFilterForId,
@@ -65,6 +64,7 @@ where
     }
 }
 
+#[cfg(feature = "db")]
 impl<E, F> TrySelectForId for SelectTwo<E, F>
 where
     E: EntityTrait + TryFilterForId,
@@ -75,6 +75,7 @@ where
     }
 }
 
+#[cfg(feature = "db")]
 impl<E, F, G> TrySelectForId for SelectThree<E, F, G>
 where
     E: EntityTrait + TryFilterForId,
@@ -86,6 +87,7 @@ where
     }
 }
 
+#[cfg(feature = "db")]
 impl<E> TrySelectForId for UpdateMany<E>
 where
     E: EntityTrait + TryFilterForId,
@@ -114,19 +116,23 @@ impl Id {
         }
     }
 
-    pub fn sha256(digest: &Digest) -> Self {
+    #[cfg(feature = "db")]
+    pub fn sha256(digest: &ring::digest::Digest) -> Self {
         Self::from_digest(digest, Id::Sha256)
     }
 
-    pub fn sha384(digest: &Digest) -> Self {
+    #[cfg(feature = "db")]
+    pub fn sha384(digest: &ring::digest::Digest) -> Self {
         Self::from_digest(digest, Id::Sha384)
     }
 
-    pub fn sha512(digest: &Digest) -> Self {
+    #[cfg(feature = "db")]
+    pub fn sha512(digest: &ring::digest::Digest) -> Self {
         Self::from_digest(digest, Id::Sha512)
     }
 
-    fn from_digest<F>(digest: &Digest, f: F) -> Self
+    #[cfg(feature = "db")]
+    fn from_digest<F>(digest: &ring::digest::Digest, f: F) -> Self
     where
         F: FnOnce(String) -> Self,
     {
@@ -141,15 +147,17 @@ impl Id {
     }
 }
 
-impl ToSchema for Id {
-    fn name() -> Cow<'static, str> {
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for Id {
+    fn name() -> std::borrow::Cow<'static, str> {
         "Id".into()
     }
 }
 
-impl PartialSchema for Id {
-    fn schema() -> RefOr<Schema> {
-        let mut obj = Object::with_type(Type::String);
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for Id {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::Schema> {
+        let mut obj = utoipa::openapi::Object::with_type(utoipa::openapi::Type::String);
         obj.description = Some(
             r#"Identifier to a document, prefixed with the ID type.
 
@@ -157,11 +165,11 @@ Either an internal ID of the document with the `urn:uuid:` scheme. Or using a di
             .to_string(),
         );
         obj.examples = vec![
-            json!("urn:uuid:018123ef-a791-40d8-b62a-f70a350245d4"),
-            json!("sha256:dc60aeb735c16a71b6fc56e84ddb8193e3a6d1ef0b7e958d77e78fc039a5d04e"),
+            serde_json::json!("urn:uuid:018123ef-a791-40d8-b62a-f70a350245d4"),
+            serde_json::json!("sha256:dc60aeb735c16a71b6fc56e84ddb8193e3a6d1ef0b7e958d77e78fc039a5d04e"),
         ];
 
-        RefOr::T(Schema::Object(obj))
+        utoipa::openapi::RefOr::T(utoipa::openapi::Schema::Object(obj))
     }
 }
 

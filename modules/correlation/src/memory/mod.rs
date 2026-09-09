@@ -1,0 +1,367 @@
+use std::collections::HashMap;
+
+use crate::{
+    engine::{Collector, CorrelationEngine},
+    extract,
+    sbom::extract_sbom,
+    types::{
+        AssertionRef, ComponentId, ComponentMatcher, ComponentQuery, MatchDimension, MatchEvidence,
+        SbomInput, StatusAssertion, TraceEntry, Verdict,
+    },
+    version::version_matches,
+};
+
+/// An in-memory correlation engine that loads advisories from parsed JSON.
+pub struct InMemoryEngine {
+    assertions: Vec<StatusAssertion>,
+}
+
+impl InMemoryEngine {
+    pub fn new() -> Self {
+        Self {
+            assertions: Vec::new(),
+        }
+    }
+
+    /// Load a single advisory JSON document.
+    pub fn load_advisory(&mut self, source_file: &str, json: &serde_json::Value) {
+        let extracted = extract::extract_advisory(source_file, json);
+        self.assertions.extend(extracted);
+    }
+
+    /// Load an SBOM and correlate all its components, returning the parsed SBOM.
+    pub fn load_and_correlate_sbom(
+        &self,
+        name: &str,
+        json: &serde_json::Value,
+        collector: &mut dyn Collector,
+    ) -> Option<SbomInput> {
+        let sbom = extract_sbom(name, json)?;
+        self.correlate_sbom(&sbom, collector);
+        Some(sbom)
+    }
+
+    /// Return the number of loaded assertions.
+    pub fn assertion_count(&self) -> usize {
+        self.assertions.len()
+    }
+}
+
+impl Default for InMemoryEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CorrelationEngine for InMemoryEngine {
+    fn correlate_component(&self, component: &ComponentQuery, collector: &mut dyn Collector) {
+        collector.on_trace(&TraceEntry {
+            message: format!("correlating component: {:?}", component.id),
+            detail: None,
+        });
+
+        // Group matching assertions by vulnerability_id
+        let mut by_vuln: HashMap<&str, Vec<&StatusAssertion>> = HashMap::new();
+
+        for assertion in &self.assertions {
+            if matches_component(
+                &component.id,
+                &assertion.matcher,
+                &component.describing_cpes,
+            ) {
+                let version_in_range = check_version(&component.id, &assertion.matcher);
+                let cpe_context_ok =
+                    check_cpe_context(&assertion.matcher, &component.describing_cpes);
+
+                collector.on_match(&MatchEvidence {
+                    assertion_source: assertion.source.clone(),
+                    vulnerability_id: assertion.vulnerability_id.clone(),
+                    status: assertion.status,
+                    dimension: match_dimension(&assertion.matcher),
+                    version_in_range: Some(version_in_range),
+                    cpe_context_matched: Some(cpe_context_ok),
+                });
+
+                if version_in_range && cpe_context_ok {
+                    by_vuln
+                        .entry(&assertion.vulnerability_id)
+                        .or_default()
+                        .push(assertion);
+                }
+            }
+        }
+
+        for (vuln_id, matching) in &by_vuln {
+            let verdict = resolve_verdict(vuln_id, matching);
+            collector.on_verdict(&verdict);
+        }
+    }
+
+    fn correlate_sbom(&self, sbom: &SbomInput, collector: &mut dyn Collector) {
+        collector.on_trace(&TraceEntry {
+            message: format!(
+                "correlating SBOM '{}' with {} components and {} assertions",
+                sbom.name,
+                sbom.components.len(),
+                self.assertions.len()
+            ),
+            detail: None,
+        });
+
+        for component in &sbom.components {
+            let query = ComponentQuery {
+                id: component.id.clone(),
+                describing_cpes: sbom.describing_cpes.clone(),
+            };
+            self.correlate_component(&query, collector);
+        }
+    }
+}
+
+/// Check whether an assertion's matcher identifies the same component.
+fn matches_component(
+    component: &ComponentId,
+    matcher: &ComponentMatcher,
+    describing_cpes: &[String],
+) -> bool {
+    match (component, matcher) {
+        (
+            ComponentId::Purl {
+                ty: comp_ty,
+                namespace: comp_ns,
+                name: comp_name,
+                ..
+            },
+            ComponentMatcher::Purl {
+                ty: match_ty,
+                namespace: match_ns,
+                name: match_name,
+                context_cpe,
+                ..
+            },
+        ) => {
+            if comp_ty != match_ty {
+                return false;
+            }
+            if comp_ns != match_ns {
+                return false;
+            }
+            if comp_name != match_name {
+                return false;
+            }
+            if let Some(ctx_cpe) = context_cpe
+                && !cpe_matches_any(ctx_cpe, describing_cpes)
+            {
+                return false;
+            }
+            true
+        }
+        (ComponentId::Cpe(comp_cpe), ComponentMatcher::CpeMatch { cpe: match_cpe, .. }) => {
+            cpe_prefix_matches(comp_cpe, match_cpe)
+        }
+        (
+            ComponentId::Purl {
+                name: comp_name, ..
+            },
+            ComponentMatcher::CveProduct { product, .. },
+        ) => comp_name.eq_ignore_ascii_case(product),
+        _ => false,
+    }
+}
+
+/// Check whether the component's version satisfies the assertion's version constraint.
+fn check_version(component: &ComponentId, matcher: &ComponentMatcher) -> bool {
+    let comp_version = match component {
+        ComponentId::Purl {
+            version: Some(v),
+            ty,
+            qualifiers,
+            ..
+        } => {
+            // For RPM, prepend epoch if present and non-zero
+            if ty == "rpm" {
+                if let Some(epoch) = qualifiers.get("epoch") {
+                    if epoch != "0" {
+                        format!("{epoch}:{v}")
+                    } else {
+                        v.clone()
+                    }
+                } else {
+                    v.clone()
+                }
+            } else {
+                v.clone()
+            }
+        }
+        ComponentId::Purl { version: None, .. } => return true,
+        _ => return true,
+    };
+
+    let constraint = match matcher {
+        ComponentMatcher::Purl {
+            version: Some(vc), ..
+        } => vc,
+        ComponentMatcher::Purl { version: None, .. } => return true,
+        ComponentMatcher::CpeMatch {
+            version: Some(vc), ..
+        } => vc,
+        ComponentMatcher::CpeMatch { version: None, .. } => return true,
+        ComponentMatcher::CveProduct { version: vc, .. } => vc,
+    };
+
+    version_matches(&comp_version, &constraint.range, constraint.scheme)
+}
+
+/// Check whether the assertion's context_cpe matches any of the SBOM's describing CPEs.
+fn check_cpe_context(matcher: &ComponentMatcher, describing_cpes: &[String]) -> bool {
+    match matcher {
+        ComponentMatcher::Purl {
+            context_cpe: Some(ctx),
+            ..
+        } => cpe_matches_any(ctx, describing_cpes),
+        _ => true,
+    }
+}
+
+fn cpe_matches_any(ctx_cpe: &str, describing_cpes: &[String]) -> bool {
+    if describing_cpes.is_empty() {
+        // SBOM declares no product stream — cannot verify context, so reject
+        return false;
+    }
+    describing_cpes
+        .iter()
+        .any(|desc| context_cpe_matches(desc, ctx_cpe))
+}
+
+/// Normalize a CPE string to CPE 2.3 format for comparison.
+/// Converts `cpe:/part:vendor:product:version...` (2.2) to
+/// `cpe:2.3:part:vendor:product:version:*:*:*:*:*:*:*` (2.3).
+fn normalize_cpe(cpe: &str) -> Vec<String> {
+    if cpe.starts_with("cpe:2.3:") {
+        cpe.split(':').map(|s| s.to_lowercase()).collect()
+    } else if let Some(rest) = cpe.strip_prefix("cpe:/") {
+        let mut parts = vec!["cpe".to_string(), "2.3".to_string()];
+        for segment in rest.split(':') {
+            parts.push(segment.to_lowercase());
+        }
+        while parts.len() < 13 {
+            parts.push("*".to_string());
+        }
+        parts
+    } else {
+        cpe.split(':').map(|s| s.to_lowercase()).collect()
+    }
+}
+
+/// CPE prefix match — does `candidate` match `pattern`?
+/// Normalizes both to CPE 2.3, then compares segments. `*` matches any segment.
+fn cpe_prefix_matches(candidate: &str, pattern: &str) -> bool {
+    let cand_parts = normalize_cpe(candidate);
+    let pat_parts = normalize_cpe(pattern);
+
+    for (i, pat) in pat_parts.iter().enumerate() {
+        if pat == "*" {
+            continue;
+        }
+        match cand_parts.get(i) {
+            Some(cand) => {
+                if cand == "*" {
+                    continue;
+                }
+                if cand != pat {
+                    return false;
+                }
+            }
+            None => return false,
+        }
+    }
+    true
+}
+
+/// Context-CPE match for advisory filtering.
+/// Compares vendor:product:version (segments 3,4,5 in CPE 2.3), ignoring
+/// part (o vs a) and update channel (baseos vs appstream). This matches the
+/// semantic intent: "same product family, possibly different repo".
+fn context_cpe_matches(sbom_cpe: &str, advisory_cpe: &str) -> bool {
+    let sbom_parts = normalize_cpe(sbom_cpe);
+    let adv_parts = normalize_cpe(advisory_cpe);
+
+    // Compare vendor (3), product (4), version (5) — indices in CPE 2.3 format
+    for idx in [3, 4, 5] {
+        let s = sbom_parts.get(idx).map(String::as_str).unwrap_or("*");
+        let a = adv_parts.get(idx).map(String::as_str).unwrap_or("*");
+        if s == "*" || a == "*" {
+            continue;
+        }
+        if s != a {
+            return false;
+        }
+    }
+    true
+}
+
+fn match_dimension(matcher: &ComponentMatcher) -> MatchDimension {
+    match matcher {
+        ComponentMatcher::Purl { .. } | ComponentMatcher::CveProduct { .. } => MatchDimension::Purl,
+        ComponentMatcher::CpeMatch { .. } => MatchDimension::Cpe,
+    }
+}
+
+/// Resolve conflicting assertions for the same vulnerability.
+///
+/// For PURL-matched assertions (with version constraints): fixed/not_affected
+/// overrides affected at a specific version.
+///
+/// For CPE-only assertions (product-level): affected takes precedence because
+/// any affected component under the product CPE makes the product affected.
+fn resolve_verdict(vuln_id: &str, assertions: &[&StatusAssertion]) -> Verdict {
+    use crate::types::Status;
+
+    let mut has_affected = false;
+    let mut has_resolution = false;
+    let mut all_cpe_only = true;
+    let mut contributing = Vec::new();
+
+    for assertion in assertions {
+        contributing.push(AssertionRef {
+            source: assertion.source.clone(),
+            status: assertion.status,
+            matched_by: match_dimension(&assertion.matcher),
+        });
+
+        match assertion.status {
+            Status::Affected => has_affected = true,
+            Status::Fixed | Status::NotAffected => has_resolution = true,
+            _ => {}
+        }
+
+        if !matches!(assertion.matcher, ComponentMatcher::CpeMatch { .. }) {
+            all_cpe_only = false;
+        }
+    }
+
+    let final_status = if all_cpe_only && has_affected {
+        // CPE-only product-level: any affected component → product is affected
+        Status::Affected
+    } else if has_resolution {
+        // PURL/version-level: resolution wins
+        assertions
+            .iter()
+            .find(|a| a.status.resolves_affected())
+            .map(|a| a.status)
+            .unwrap_or(Status::NotAffected)
+    } else if has_affected {
+        Status::Affected
+    } else {
+        assertions
+            .first()
+            .map(|a| a.status)
+            .unwrap_or(Status::Affected)
+    };
+
+    Verdict {
+        vulnerability_id: vuln_id.to_string(),
+        status: final_status,
+        contributing_assertions: contributing,
+    }
+}

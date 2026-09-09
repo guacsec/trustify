@@ -2,23 +2,18 @@ use cpe::{
     cpe::Cpe as _,
     uri::{OwnedUri, Uri},
 };
-use deepsize::{Context, DeepSizeOf};
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{Error, Visitor},
 };
 use std::{
-    borrow::Cow,
     cmp::Ordering,
     fmt::{Debug, Display, Formatter},
     str::FromStr,
 };
-use utoipa::{
-    PartialSchema, ToSchema,
-    openapi::{KnownFormat, ObjectBuilder, RefOr, Schema, SchemaFormat, Type},
-};
 use uuid::Uuid;
 
+#[cfg(feature = "db")]
 use crate::db::query::Valuable;
 
 #[derive(Clone, Hash, Eq, PartialEq)]
@@ -26,19 +21,20 @@ pub struct Cpe {
     uri: OwnedUri,
 }
 
-impl DeepSizeOf for Cpe {
-    fn deep_size_of_children(&self, context: &mut Context) -> usize {
-        fn comp(value: cpe::component::Component, ctx: &mut Context) -> usize {
+#[cfg(feature = "db")]
+impl deepsize::DeepSizeOf for Cpe {
+    fn deep_size_of_children(&self, context: &mut deepsize::Context) -> usize {
+        fn comp(value: cpe::component::Component, ctx: &mut deepsize::Context) -> usize {
             if let cpe::component::Component::Value(v) = value {
-                v.deep_size_of_children(ctx)
+                deepsize::DeepSizeOf::deep_size_of_children(v.as_ref(), ctx)
             } else {
                 0
             }
         }
 
-        fn lang(lang: &cpe::cpe::Language, ctx: &mut Context) -> usize {
+        fn lang(lang: &cpe::cpe::Language, ctx: &mut deepsize::Context) -> usize {
             if let cpe::cpe::Language::Language(v) = lang {
-                v.as_str().deep_size_of_children(ctx)
+                deepsize::DeepSizeOf::deep_size_of_children(&v.as_str(), ctx)
             } else {
                 0
             }
@@ -56,17 +52,21 @@ impl DeepSizeOf for Cpe {
     }
 }
 
-impl ToSchema for Cpe {
-    fn name() -> Cow<'static, str> {
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for Cpe {
+    fn name() -> std::borrow::Cow<'static, str> {
         "Cpe".into()
     }
 }
 
-impl PartialSchema for Cpe {
-    fn schema() -> RefOr<Schema> {
-        ObjectBuilder::new()
-            .schema_type(Type::String)
-            .format(Some(SchemaFormat::KnownFormat(KnownFormat::Uri)))
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for Cpe {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::Schema> {
+        utoipa::openapi::ObjectBuilder::new()
+            .schema_type(utoipa::openapi::Type::String)
+            .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Uri,
+            )))
             .into()
     }
 }
@@ -95,6 +95,7 @@ impl<'de> Deserialize<'de> for Cpe {
     }
 }
 
+#[cfg(feature = "db")]
 impl Valuable for Cpe {
     fn like(&self, other: &str) -> bool {
         match Cpe::from_str(other) {

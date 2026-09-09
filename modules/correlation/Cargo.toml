@@ -1,0 +1,19 @@
+[package]
+name = "trustify-module-correlation"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+test-log = { workspace = true, features = ["log", "trace"] }
+liblzma = { workspace = true }

@@ -8691,6 +8691,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "trustify-module-correlation"
+version = "0.6.0-rc.1"
+dependencies = [
+ "anyhow",
+ "liblzma",
+ "regex",
+ "rstest",
+ "serde",
+ "serde_json",
+ "test-log",
+ "tracing",
+]
+
+[[package]]
 name = "trustify-module-exploit-intelligence"
 version = "0.6.0-rc.1"
 dependencies = [

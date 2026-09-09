@@ -6,58 +6,92 @@ publish.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+default = ["db", "openapi"]
+db = [
+    "dep:actix-web",
+    "dep:async-compression",
+    "dep:bytes",
+    "dep:bytesize",
+    "dep:clap",
+    "dep:deepsize",
+    "dep:flate2",
+    "dep:hide",
+    "dep:human-date-parser",
+    "dep:humantime",
+    "dep:lzma-rust2",
+    "dep:moka",
+    "dep:native-tls",
+    "dep:opentelemetry",
+    "dep:pem",
+    "dep:reqwest",
+    "dep:ring",
+    "dep:sbom-walker",
+    "dep:sea-orm",
+    "dep:sea-orm-migration",
+    "dep:sea-query",
+    "dep:serde-cyclonedx",
+    "dep:spdx-expression",
+    "dep:spdx-rs",
+    "dep:sqlx",
+    "dep:tokio",
+    "dep:walker-common",
+]
+openapi = ["dep:utoipa"]
+
 [dependencies]
-actix-web = { workspace = true }
+actix-web = { workspace = true, optional = true }
 anyhow = { workspace = true }
-async-compression = { workspace = true, features = ["gzip", "lzma", "tokio"] }
-bytes = { workspace = true }
-bytesize = { workspace = true, features = ["serde"] }
+async-compression = { workspace = true, features = ["gzip", "lzma", "tokio"], optional = true }
+bytes = { workspace = true, optional = true }
+bytesize = { workspace = true, features = ["serde"], optional = true }
 chrono = { workspace = true }
-clap = { workspace = true, features = ["derive", "env"] }
+clap = { workspace = true, features = ["derive", "env"], optional = true }
 cpe = { workspace = true }
-deepsize = { workspace = true }
-flate2 = { workspace = true }
+deepsize = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
 hex = { workspace = true }
-hide = { workspace = true }
-human-date-parser = { workspace = true }
-humantime = { workspace = true }
+hide = { workspace = true, optional = true }
+human-date-parser = { workspace = true, optional = true }
+humantime = { workspace = true, optional = true }
 isx = { workspace = true }
 itertools = { workspace = true }
 lenient_semver = { workspace = true }
 log = { workspace = true }
-lzma-rust2 = { workspace = true }
-moka = { workspace = true, features = ["future"] }
-native-tls = { workspace = true }
-opentelemetry = { workspace = true, features = ["metrics"] }
+lzma-rust2 = { workspace = true, optional = true }
+moka = { workspace = true, features = ["future"], optional = true }
+native-tls = { workspace = true, optional = true }
+opentelemetry = { workspace = true, features = ["metrics"], optional = true }
 packageurl = { workspace = true }
-pem = { workspace = true }
+pem = { workspace = true, optional = true }
 regex = { workspace = true }
-reqwest = { workspace = true, features = ["native-tls"] }
-ring = { workspace = true }
-sbom-walker = { workspace = true }
+reqwest = { workspace = true, features = ["native-tls"], optional = true }
+ring = { workspace = true, optional = true }
+sbom-walker = { workspace = true, optional = true }
 schemars = { workspace = true }
-sea-orm = { workspace = true, features = ["sea-query-binder", "sqlx-postgres", "runtime-tokio-rustls", "macros"] }
-sea-orm-migration = { workspace = true }
-sea-query = { workspace = true }
+sea-orm = { workspace = true, features = ["sea-query-binder", "sqlx-postgres", "runtime-tokio-rustls", "macros"], optional = true }
+sea-orm-migration = { workspace = true, optional = true }
+sea-query = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
-serde-cyclonedx = { workspace = true }
+serde-cyclonedx = { workspace = true, optional = true }
 serde_json = { workspace = true }
-spdx-expression = { workspace = true }
-spdx-rs = { workspace = true }
-sqlx = { workspace = true }
+spdx-expression = { workspace = true, optional = true }
+spdx-rs = { workspace = true, optional = true }
+sqlx = { workspace = true, optional = true }
 strum = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, optional = true }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
-utoipa = { workspace = true, features = ["url"] }
+utoipa = { workspace = true, features = ["url"], optional = true }
 uuid = { workspace = true, features = ["v5", "v7", "serde"] }
-walker-common = { workspace = true, features = ["bzip2", "lzma", "flate2"] }
+walker-common = { workspace = true, features = ["bzip2", "lzma", "flate2"], optional = true }
 
 [dev-dependencies]
 chrono = { workspace = true }
 rand = { workspace = true }
+reqwest = { workspace = true }
 rstest = { workspace = true }
 serde_json = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }

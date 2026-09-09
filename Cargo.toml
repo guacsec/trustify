@@ -9,6 +9,7 @@ members = [
     "entity",
     "migration",
     "modules/analysis",
+    "modules/correlation",
     "modules/exploit-intelligence",
     "modules/fundamental",
     "modules/importer",

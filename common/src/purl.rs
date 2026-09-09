@@ -1,23 +1,18 @@
-use deepsize::DeepSizeOf;
 use packageurl::PackageUrl;
-use sea_orm::FromJsonQueryResult;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
     de::{Error, Visitor},
 };
-use std::{borrow::Cow, cmp::Ordering};
+use std::cmp::Ordering;
 use std::{
     collections::BTreeMap,
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
     str::FromStr,
 };
-use utoipa::{
-    PartialSchema, ToSchema,
-    openapi::{KnownFormat, ObjectBuilder, RefOr, Schema, SchemaFormat, Type},
-};
 use uuid::Uuid;
 
+#[cfg(feature = "db")]
 use crate::db::query::Valuable;
 
 #[derive(Debug, thiserror::Error)]
@@ -28,7 +23,11 @@ pub enum PurlErr {
     Package(#[from] packageurl::Error),
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, DeepSizeOf, FromJsonQueryResult)]
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "db",
+    derive(deepsize::DeepSizeOf, sea_orm::FromJsonQueryResult)
+)]
 pub struct Purl {
     pub ty: String,
     pub namespace: Option<String>,
@@ -37,6 +36,7 @@ pub struct Purl {
     pub qualifiers: BTreeMap<String, String>,
 }
 
+#[cfg(feature = "db")]
 impl Valuable for Purl {
     fn like(&self, pat: &str) -> bool {
         match urlencoding::decode(pat) {
@@ -68,17 +68,21 @@ impl PartialEq<String> for Purl {
     }
 }
 
-impl ToSchema for Purl {
-    fn name() -> Cow<'static, str> {
+#[cfg(feature = "openapi")]
+impl utoipa::ToSchema for Purl {
+    fn name() -> std::borrow::Cow<'static, str> {
         "Purl".into()
     }
 }
 
-impl PartialSchema for Purl {
-    fn schema() -> RefOr<Schema> {
-        ObjectBuilder::new()
-            .schema_type(Type::String)
-            .format(Some(SchemaFormat::KnownFormat(KnownFormat::Uri)))
+#[cfg(feature = "openapi")]
+impl utoipa::PartialSchema for Purl {
+    fn schema() -> utoipa::openapi::RefOr<utoipa::openapi::Schema> {
+        utoipa::openapi::ObjectBuilder::new()
+            .schema_type(utoipa::openapi::Type::String)
+            .format(Some(utoipa::openapi::SchemaFormat::KnownFormat(
+                utoipa::openapi::KnownFormat::Uri,
+            )))
             .into()
     }
 }

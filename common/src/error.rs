@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ErrorInformation {
     /// A machine-readable error type
     pub error: Cow<'static, str>,
