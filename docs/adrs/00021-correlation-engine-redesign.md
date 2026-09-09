@@ -96,7 +96,8 @@ Create a new `modules/correlation/` crate that:
    the user's responsibility via labels, groups, or external tooling
 4. **Persists materialized results** in new database tables
 5. **Records match evidence** so users can inspect why a match was made
-6. **Uses in-memory indexes** for the hot matching path, with DB persistence for results
+6. **Uses SQL-based background workers** with existing PostgreSQL version functions
+   for matching, writing results to DB
 7. **Provides configurable knobs** via a policy table and CLI args
 8. **Tracks correlation progress** via an inbox queue pattern
 
@@ -377,42 +378,36 @@ The engine resolves the most specific policy for a given PURL type: an ecosystem
 policy (where `ecosystem` matches the PURL type) takes precedence over the global
 default (where `ecosystem IS NULL`).
 
-### In-Memory Index Architecture
+### SQL-Based Matching
 
-Two index structures behind `ArcSwap` for lock-free concurrent reads:
+Workers run a single correct SQL query that replaces the current five inconsistent
+code paths. The query uses the existing PostgreSQL version functions
+(`version_matches()`, `rpmver_cmp()`, `semver_cmp()`) — no Rust-side version
+comparator ports needed.
 
-**`AdvisoryIndex`** — loaded at startup, updated incrementally on advisory ingest/delete:
-- `by_base_purl: HashMap<Uuid, Vec<AdvisoryAssertion>>` — keyed by `base_purl_id`
-- `by_cpe_identity: HashMap<(Arc<str>, Arc<str>), Vec<AdvisoryAssertion>>` — keyed by
-  (vendor, product)
-- `by_digest: HashMap<(Arc<str>, Arc<str>), Vec<AdvisoryAssertion>>` — keyed by
-  (algorithm, hash_value)
+The matching query:
 
-**`SbomIndex`** — built per-SBOM, cached via `moka` (bounded LRU, configurable size):
-- `packages_by_base_purl: HashMap<Uuid, Vec<SbomPackageEntry>>`
-- `packages_by_cpe: HashMap<(Arc<str>, Arc<str>), Vec<SbomPackageEntry>>`
-- `packages_by_digest: HashMap<(Arc<str>, Arc<str>), Vec<SbomPackageEntry>>`
+1. **PURL dimension**: joins SBOM packages (`sbom_node_purl_ref` → `qualified_purl`
+   → `versioned_purl` → `base_purl`) against `purl_status`, with:
+   - PURL type enforcement (`base_purl.type` must match between SBOM and advisory)
+   - `version_matches()` for version range comparison
+   - All VEX statuses included (not just `affected`)
 
-`AdvisoryAssertion` carries the matcher criteria as a discriminated enum:
+2. **CPE dimension**: joins SBOM package CPEs (`sbom_node_cpe_ref` → `cpe`) against
+   `cpe_status`, with:
+   - vendor+product identity matching (part='a')
+   - `version_matches()` with `COALESCE(cpe_version, package_version)`
 
-```rust
-enum MatchCriteria {
-    Purl {
-        purl_type: Arc<str>,
-        version_range: VersionRange,
-        version_scheme: VersionScheme,
-    },
-    CpeIdentity {
-        version_range: VersionRange,
-        version_scheme: VersionScheme,
-    },
-    Digest,
-}
-```
+3. **Digest dimension** (future): joins SBOM package hashes against advisory-side
+   hashes. Requires ingestor extension.
 
-Version comparators are ported to Rust (from the PL/pgSQL functions) and support:
-semver (npm, cargo, golang, gem, nuget, etc.), RPM (with epoch), Maven,
-Python (PEP 440), and generic (exact string equality).
+The results are UNIONed, then status resolution is applied: for each
+`(sbom_node, vulnerability)`, if any assertion says `not_affected`, it suppresses
+`affected` (configurable via policy).
+
+No in-memory indexes, no ArcSwap, no moka cache. The matching runs in background
+workers against the database. If SQL throughput proves insufficient for very large
+deployments, in-memory matching can be introduced as a future optimization.
 
 ### API Surface
 
@@ -445,8 +440,6 @@ CLI args on the server's `Run` struct, mirroring the `correlation_policy` table:
 | `--correlation-purl-type-strict` | `TRUSTD_CORRELATION_PURL_TYPE_STRICT` | true |
 | `--correlation-not-affected-suppresses` | `TRUSTD_CORRELATION_NOT_AFFECTED_SUPPRESSES` | true |
 | `--correlation-digest-matching` | `TRUSTD_CORRELATION_DIGEST_MATCHING` | true |
-| `--correlation-sbom-cache-size` | `TRUSTD_CORRELATION_SBOM_CACHE_SIZE` | 500 |
-
 ### Module Structure
 
 ```
@@ -456,33 +449,17 @@ modules/correlation/
     lib.rs
     config.rs
     error.rs
-    engine/
-      mod.rs            -- CorrelationEngine
-      index.rs          -- AdvisoryIndex, SbomIndex
-      matcher/
-        mod.rs          -- MatchPipeline, RawMatch
-        purl.rs         -- PurlMatcher
-        cpe.rs          -- CpeMatcher
-        digest.rs       -- DigestMatcher
-      version/
-        mod.rs          -- VersionComparator trait
-        semver.rs
-        rpm.rs
-        maven.rs
-        python.rs
-        generic.rs
-      resolver.rs       -- StatusResolver
     service/
       mod.rs            -- CorrelationService
-      state.rs            -- correlation_state queue management
-      persist.rs
-      hydrate.rs
-      worker.rs
+      state.rs          -- correlation_state queue management
+      matching.rs       -- The matching SQL (one query, replacing 5 paths)
+      persist.rs        -- Atomic swap of results
+      worker.rs         -- Background worker loop
     model/
-      mod.rs
-      evidence.rs
+      mod.rs            -- API response types
+      evidence.rs       -- Evidence response model
     endpoints/
-      mod.rs
+      mod.rs            -- configure(), route handlers
       query.rs
       test.rs
 ```
@@ -490,19 +467,18 @@ modules/correlation/
 ### Server Integration
 
 - `CorrelationConfig` added to `Run` struct in `server/src/profile/api.rs`
-- `CorrelationEngine` constructed in `InitData::new()`, stored on `InitData`
 - Background worker(s) spawned in `InitData::run()` (same pattern as EI worker)
-- Workers poll `correlation_inbox` — no dependency on `ChangeBroadcaster`
+- Workers poll `correlation_state` — no in-memory engine, no startup delay
 - Endpoints registered in `configure()` under `/api` scope
 
 ### Phased Delivery
 
 | Phase | Scope | Key deliverables |
 |-------|-------|-----------------|
-| 1 | Foundation | Crate skeleton, migration (4 tables + enums), entity models, Rust version comparators with unit tests |
-| 2 | Engine | AdvisoryIndex, SbomIndex, PurlMatcher, CpeMatcher, DigestMatcher, StatusResolver, scenario tests passing |
-| 3 | Persistence | correlation_state work queue, multi-worker with FOR UPDATE SKIP LOCKED, persist/hydrate, evidence recording, ingestor integration |
-| 4 | API | v4 endpoints, OpenAPI docs, policy/inbox management, server registration |
+| 1 | Foundation | Crate skeleton, migration (4 tables + enums), entity models |
+| 2 | Matching | SQL matching query, worker loop, atomic swap, scenario tests passing |
+| 3 | State management | correlation_state queue, multi-worker with FOR UPDATE SKIP LOCKED, ingestor integration, advisory fan-out |
+| 4 | API | v4 endpoints, OpenAPI docs, policy/state management, server registration |
 | 5 | Migration | Feature-flagged v3 adapter, benchmarks, deprecation of `sbom/model/raw_sql.rs` |
 
 ### Prerequisite Work (separate PRs)
@@ -520,8 +496,8 @@ modules/correlation/
   dropping flawed matching paths (product_status, describing CPE, dist-tag scoping),
   remaining bugs fixed with correct implementations (PURL type check, status resolution,
   unbounded ranges, epoch handling)
-- **Performance**: in-memory matching replaces query-time SQL, with materialized results
-  eliminating repeated computation
+- **Performance**: materialized results eliminate repeated query-time computation;
+  API reads are simple index lookups on `correlation_match`
 - **Transparency**: every match carries evidence explaining why it was made
 - **Configurability**: policy knobs let users tune matching behavior without code changes
 - **Progress tracking**: inbox pattern provides visibility into correlation backlog
@@ -533,8 +509,6 @@ modules/correlation/
   to (SBOMs x advisories x matches). Most matches produce 1–3 evidence rows.
 - **Eventual consistency**: correlation results may lag behind ingestion by the time it
   takes the worker to process the inbox. The inbox endpoint provides visibility into this.
-- **Memory usage**: the AdvisoryIndex is held in memory. For the DS3 dataset this is
-  manageable; for very large deployments the index may need partitioning or tiering.
 - **Migration effort**: existing v3 consumers continue working unchanged during the
   transition period, but full cutover requires testing the v3 adapter.
 
