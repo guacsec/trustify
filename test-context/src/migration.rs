@@ -34,6 +34,7 @@ impl Migration {
                 };
 
                 env::var("TRUSTIFY_MIGRATION_BRANCH")
+                    .map(|b| is_merge_queue(&b).unwrap_or(b))
                     .or_else(|_| current_branch(cwd))
                     .context(
                         "unable to determine branch, consider using 'TRUSTIFY_MIGRATION_BRANCH'",
