@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788873576015,
+  "lastUpdate": 1788954579055,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21711,6 +21711,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/15bd80709c2858785ce2f44fd87bf6a322604e5f"
         },
         "date": 1788873573865,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "5646d605c00114e37a3935be0cc18976d8e9135a",
+          "message": "docs(adr): fix context section — HTTP already used by existing importers\n\nCSAF, NVD, CWE, ClearlyDefined already use HTTP transport. The gap\nis a shared manifest-based transport, not HTTP support itself.\n\nCo-Authored-By: Claude Sonnet 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-09T11:07:32Z",
+          "tree_id": "bcda23b302e2cc1ae7da92d3d73b71502d168a8c",
+          "url": "https://github.com/guacsec/trustify/commit/5646d605c00114e37a3935be0cc18976d8e9135a"
+        },
+        "date": 1788954574876,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
