@@ -13,8 +13,6 @@ trustify-infrastructure = { workspace = true }
 
 clap = { workspace = true }
 humantime = { workspace = true }
-
-actix-http = { workspace = true }
 actix-web = { workspace = true }
 actix-ws = { workspace = true }
 anyhow = { workspace = true }

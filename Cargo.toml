@@ -33,7 +33,6 @@ license = "Apache-2.0"
 rust-version = "1.92.0"
 
 [workspace.dependencies]
-actix = "0.13.3"
 actix-cors = "0.7"
 actix-http = "3.3.1"
 actix-tls = "3"
@@ -44,7 +43,6 @@ actix-web-httpauth = "0.8"
 actix-web-static-files = "4.0.1"
 anyhow = "1.0.72"
 async-compression = "0.4.13"
-async-recursion = "1"
 async-tar = { version = "0.6", default-features = false, features = ["runtime-tokio"] }
 async-trait = "0.1.74"
 aws-config = { version = "1.8.14", features = ["behavior-version-latest"] }
@@ -55,7 +53,6 @@ base16ct = "1"
 base64 = "0.22"
 build-info = "0.0.44"
 build-info-build = "0.0.44"
-build-info-common = "0.0.44"
 bytes = "1.5"
 bytesize = "2.0"
 chrono = { version = "0.4.35", default-features = false }
@@ -92,7 +89,6 @@ liblzma = "0.4"
 lzma-rust2 = "0.16.1"
 libz-sys = "*"
 log = "0.4.19"
-mime = "0.3.17"
 moka = "0.12.15"
 native-tls = "0.2"
 num-traits = "0.2"
@@ -144,7 +140,6 @@ thiserror = "2"
 time = "0.3"
 tokio = "1.52"
 tokio-util = "0.7"
-tokio_schedule = "0.3"
 tracing = "0.1"
 tracing-core = "0.1"
 tracing-flame = "0.2.0"
@@ -185,12 +180,6 @@ trustify-query-derive = {path = "query/query-derive" }
 trustify-server = { path = "server", default-features = false }
 trustify-test-context = { path = "test-context" }
 trustify-ui = { git = "https://github.com/guacsec/trustify-ui.git", branch = "publish/main" }
-
-# These dependencies are active during both the build time and the run time. So they are normal dependencies
-# as well as build-dependencies. However, we can't control feature flags for build dependencies the way we do
-# it for normal dependencies. So enabling the vendor feature for openssl-sys doesn't work for the build-dependencies.
-# This will fail the build on targets where we need vendoring for openssl. Using rustls instead works around this issue.
-postgresql_archive = { version = "0.20.0", default-features = false, features = ["theseus", "rustls"] }
 postgresql_embedded = { version = "0.20.0", default-features = false, features = ["theseus", "rustls"] }
 postgresql_commands = { version = "0.20.0", default-features = false, features = ["tokio"] }
 

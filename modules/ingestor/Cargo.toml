@@ -58,7 +58,6 @@ trustify-test-context = { workspace = true }
 
 actix-http = { workspace = true }
 criterion = { workspace = true }
-rand = { workspace = true }
 rstest = { workspace = true }
 serde_yml = { workspace = true }
 tempfile = { workspace = true }

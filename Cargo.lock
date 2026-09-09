@@ -8532,7 +8532,6 @@ name = "trustify-db"
 version = "0.6.0-rc.1"
 dependencies = [
  "anyhow",
- "async-compression",
  "log",
  "postgresql_commands",
  "postgresql_embedded",
@@ -8548,7 +8547,6 @@ dependencies = [
 name = "trustify-entity"
 version = "0.6.0-rc.1"
 dependencies = [
- "anyhow",
  "cpe",
  "csaf",
  "cvss",
@@ -8561,13 +8559,10 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.28.0",
- "test-context",
  "test-log",
  "thiserror 2.0.19",
  "time",
- "tokio",
  "trustify-common",
- "trustify-test-context",
  "utoipa",
 ]
 
@@ -8586,7 +8581,6 @@ dependencies = [
  "futures",
  "http 1.5.0",
  "log",
- "mime",
  "openssl",
  "opentelemetry",
  "opentelemetry-instrumentation-actix-web",
@@ -8629,7 +8623,6 @@ dependencies = [
  "test-context",
  "test-log",
  "tokio",
- "tokio-util",
  "tracing",
  "tracing-subscriber",
  "trustify-common",
@@ -8648,22 +8641,17 @@ dependencies = [
  "actix-http",
  "actix-web",
  "anyhow",
- "bytes",
  "bytesize",
  "clap",
  "cpe",
- "csaf",
  "deepsize",
  "fixedbitset",
  "futures",
- "hex",
  "humantime",
- "itertools 0.14.0",
  "jsonpath-rust",
  "log",
  "moka",
  "opentelemetry",
- "packageurl",
  "parking_lot",
  "petgraph",
  "rstest",
@@ -8671,13 +8659,11 @@ dependencies = [
  "sea-query",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "test-context",
  "test-log",
  "thiserror 2.0.19",
  "time",
  "tokio",
- "tokio-util",
  "tracing",
  "trustify-auth",
  "trustify-common",
@@ -8687,21 +8673,18 @@ dependencies = [
  "utoipa",
  "utoipa-actix-web",
  "uuid",
- "zip 8.6.0",
 ]
 
 [[package]]
 name = "trustify-module-exploit-intelligence"
 version = "0.6.0-rc.1"
 dependencies = [
- "actix-http",
  "actix-web",
  "anyhow",
  "bytes",
  "futures-util",
  "reqwest 0.13.4",
  "sea-orm",
- "sea-query",
  "serde",
  "serde_json",
  "test-context",
@@ -8732,9 +8715,7 @@ dependencies = [
  "actix-http",
  "actix-web",
  "anyhow",
- "async-trait",
  "bytes",
- "bytesize",
  "chrono",
  "cpe",
  "criterion",
@@ -8767,11 +8748,9 @@ dependencies = [
  "serde-cyclonedx",
  "serde_json",
  "serde_qs",
- "serde_yaml_ng",
  "sha2 0.11.0",
  "spdx",
  "spdx-expression",
- "spdx-rs",
  "strum 0.28.0",
  "tar",
  "test-context",
@@ -8779,7 +8758,6 @@ dependencies = [
  "thiserror 2.0.19",
  "time",
  "tokio",
- "tokio-util",
  "tracing",
  "tracing-core",
  "tracing-futures",
@@ -8801,7 +8779,6 @@ dependencies = [
  "utoipa-actix-web",
  "uuid",
  "walkdir",
- "wiremock",
  "zip 8.6.0",
 ]
 
@@ -8883,7 +8860,6 @@ dependencies = [
  "packageurl",
  "parking_lot",
  "quick-xml",
- "rand 0.10.2",
  "roxmltree",
  "rstest",
  "sbom-walker",
@@ -8922,7 +8898,6 @@ dependencies = [
 name = "trustify-module-notification"
 version = "0.6.0-rc.1"
 dependencies = [
- "actix-http",
  "actix-web",
  "actix-ws",
  "anyhow",
@@ -8962,11 +8937,9 @@ dependencies = [
  "log",
  "rand 0.10.2",
  "rstest",
- "serde_json",
  "sha2 0.11.0",
  "strum 0.28.0",
  "tempfile",
- "test-context",
  "test-log",
  "thiserror 2.0.19",
  "tokio",
@@ -9073,7 +9046,6 @@ dependencies = [
  "trustify-module-user",
  "trustify-test-context",
  "url",
- "urlencoding",
  "utoipa",
  "utoipa-actix-web",
 ]

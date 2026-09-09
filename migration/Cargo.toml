@@ -49,4 +49,3 @@ trustify-test-context = { workspace = true }
 anyhow = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
-tokio-util = { workspace = true }

@@ -32,9 +32,7 @@ uuid = { workspace = true, features = ["v4"] }
 [dev-dependencies]
 rand = { workspace = true }
 rstest = { workspace = true }
-serde_json = { workspace = true }
 sha2 = { workspace = true }
-test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
 uuid = { workspace = true, features = ["v4"] }
 
