@@ -1479,6 +1479,86 @@ async fn get_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+/// VEX reconciliation via the SBOM advisory endpoint: the quarkus BOM contains
+/// quarkus-vertx-http which cve-2023-0044 marks as affected. A backport VEX
+/// declares the BOM's specific version as known_not_affected. Without
+/// include_resolved only the affected status is visible; with it, both surface.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_advisories_vex_reconciliation(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let id = ctx
+        .ingest_documents([
+            "quarkus-bom-2.13.8.Final-redhat-00004.json",
+            "csaf/cve-2023-0044.json",
+            "csaf/vex-cve-2023-0044-backport.json",
+        ])
+        .await?[0]
+        .id
+        .to_string();
+
+    let app = caller(ctx).await?;
+
+    // Default: only affected statuses
+    let default_result: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("/api/v3/sbom/urn:uuid:{id}/advisory"))
+                .to_request(),
+        )
+        .await;
+    let default_statuses: Vec<&str> = default_result[0]["status"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["status"].as_str())
+        .collect();
+    assert!(
+        default_statuses.iter().all(|s| *s == "affected"),
+        "Default should only return affected, got: {default_statuses:?}"
+    );
+
+    // With include_resolved=true: backport VEX not_affected status also appears
+    let resolved_result: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!(
+                    "/api/v3/sbom/urn:uuid:{id}/advisory?include_resolved=true"
+                ))
+                .to_request(),
+        )
+        .await;
+    let resolved_statuses: Vec<&str> = resolved_result
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|adv| {
+            adv["status"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|s| s["status"].as_str())
+        })
+        .collect();
+    assert!(
+        !resolved_statuses.is_empty(),
+        "include_resolved should return statuses"
+    );
+    assert!(
+        resolved_statuses
+            .iter()
+            .all(|s| matches!(*s, "affected" | "fixed" | "not_affected")),
+        "include_resolved returned an unexpected status, got: {resolved_statuses:?}"
+    );
+    assert!(
+        resolved_statuses
+            .iter()
+            .any(|s| *s == "fixed" || *s == "not_affected"),
+        "include_resolved should include fixed or not_affected statuses, got: {resolved_statuses:?}"
+    );
+
+    Ok(())
+}
+
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_advisories_with_deprecated_filtering(

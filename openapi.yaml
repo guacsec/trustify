@@ -3591,6 +3591,14 @@ paths:
         required: true
         schema:
           $ref: '#/components/schemas/Id'
+      - name: include_resolved
+        in: query
+        description: |-
+          When true, include resolved statuses (fixed, not_affected)
+          alongside affected.
+        required: false
+        schema:
+          type: boolean
       responses:
         '200':
           description: Matching SBOM
@@ -4696,6 +4704,11 @@ components:
       required:
       - purls
       properties:
+        include_resolved:
+          type: boolean
+          description: |-
+            When true, include resolved statuses (fixed, not_affected)
+            alongside affected.
         purls:
           type: array
           items:
@@ -5297,7 +5310,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with NotVulnerable finding (computed at query time).
+          description: Number of completed components with finding=not_vulnerable (computed at query time).
         product_id:
           type:
           - string
@@ -5326,7 +5339,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with Uncertain finding (computed at query time).
+          description: Number of completed components with finding=uncertain (computed at query time).
         updated:
           type: string
           description: Timestamp when the job was last updated.
@@ -5338,7 +5351,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with Vulnerable finding (computed at query time).
+          description: Number of completed components with finding=vulnerable (computed at query time).
     ExploitIntelligenceJobStatus:
       type: string
       description: Lifecycle status of an Exploit Intelligence analysis job.
@@ -5393,7 +5406,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with NotVulnerable finding (computed at query time).
+          description: Number of completed components with finding=not_vulnerable (computed at query time).
         product_id:
           type:
           - string
@@ -5422,7 +5435,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with Uncertain finding (computed at query time).
+          description: Number of completed components with finding=uncertain (computed at query time).
         updated:
           type: string
           description: Timestamp when the job was last updated.
@@ -5434,7 +5447,7 @@ components:
           - integer
           - 'null'
           format: int32
-          description: Number of completed components with Vulnerable finding (computed at query time).
+          description: Number of completed components with finding=vulnerable (computed at query time).
     ExternalReferenceQuery:
       type: object
       properties:
@@ -5482,6 +5495,29 @@ components:
           items:
             type: string
           description: warnings while parsing
+    Finding:
+      type: object
+      description: A single validation finding produced by a validator.
+      required:
+      - severity
+      - message
+      properties:
+        message:
+          type: string
+          description: Human-readable description of the finding.
+        path:
+          type:
+          - string
+          - 'null'
+          description: Location within the document (e.g. a JSONPath), when available.
+        rule:
+          type:
+          - string
+          - 'null'
+          description: Identifier of the rule that produced the finding, when available.
+        severity:
+          $ref: '#/components/schemas/Severity'
+          description: The severity of this finding.
     Format:
       type: string
       enum:
@@ -5719,6 +5755,15 @@ components:
         id:
           $ref: '#/components/schemas/Id'
           description: The internal ID of the document
+        validation:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationReport'
+          description: |-
+            Structured reports from semantic validators run during ingestion.
+
+            See ADR 00020. Empty when no validators are configured or none apply
+            to the document's format.
         warnings:
           type: array
           items:
@@ -6140,7 +6185,7 @@ components:
                 - integer
                 - 'null'
                 format: int32
-                description: Number of completed components with NotVulnerable finding (computed at query time).
+                description: Number of completed components with finding=not_vulnerable (computed at query time).
               product_id:
                 type:
                 - string
@@ -6169,7 +6214,7 @@ components:
                 - integer
                 - 'null'
                 format: int32
-                description: Number of completed components with Uncertain finding (computed at query time).
+                description: Number of completed components with finding=uncertain (computed at query time).
               updated:
                 type: string
                 description: Timestamp when the job was last updated.
@@ -6181,7 +6226,7 @@ components:
                 - integer
                 - 'null'
                 format: int32
-                description: Number of completed components with Vulnerable finding (computed at query time).
+                description: Number of completed components with finding=vulnerable (computed at query time).
         total:
           type:
           - integer
@@ -7698,6 +7743,30 @@ components:
         oneOf:
         - type: 'null'
         - type: string
+    ValidationOutcome:
+      type: string
+      description: Whether a validator considered the document acceptable.
+      enum:
+      - passed
+      - failed
+    ValidationReport:
+      type: object
+      description: A structured report produced by a single validator run.
+      required:
+      - validator
+      - outcome
+      properties:
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Finding'
+          description: Findings produced by the validator.
+        outcome:
+          $ref: '#/components/schemas/ValidationOutcome'
+          description: The overall outcome, derived from the findings and the validator's threshold.
+        validator:
+          type: string
+          description: The [`Validator::name`] that produced this report.
     VersionRange:
       oneOf:
       - type: object

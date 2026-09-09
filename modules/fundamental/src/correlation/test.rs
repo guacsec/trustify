@@ -685,7 +685,6 @@ async fn s7_cpe_only_hummingbird(
 
 #[test_context(TrustifyContext)]
 #[rstest]
-#[ignore = "TC-5733: rpmver_cmp ignores RPM epoch (latent until version_matches on affected path)"]
 #[test_log::test(actix_web::test)]
 async fn s8_epoch_mismatch_openjdk(
     ctx: &TrustifyContext,
@@ -1032,6 +1031,138 @@ async fn s14_productstatus_version_filter_netty(
 
     let purl_details = get_purl_details(&app, purl).await;
     assert_purl_has_cve(&purl_details, "CVE-2021-37136");
+
+    Ok(())
+}
+
+// ===========================================================================
+// S16: Cross-scheme PURL query golang (TC-5170)
+//
+// CVE-2023-44487 marks `golang` known_affected only under Red Hat Storage 3
+// (cpe:/a:redhat:storage:3), as a bare component. A non-RPM golang PURL (OCI,
+// Maven) must NOT inherit that rpm/Storage-3 status: get_product_statuses_for_purl
+// matches by base name without checking PURL scheme or product context, so the
+// non-RPM packages leak. The positive control (rpm under Storage 3) is a
+// coincidental version match — the storage:3-derived range [3,4) contains
+// golang@3.5.0 only because the majors coincide.
+//
+// NOTE: the advisory here is a small synthetic CSAF (the real CVE-2023-44487
+// CSAF is huge); it carries the correct product_status shape.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5170: get_product_statuses_for_purl matches golang by name only, ignoring PURL scheme/product (Storage 3) context"]
+#[test_log::test(actix_web::test)]
+async fn s16_crossscheme_purlquery_golang(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S16_crossscheme_purlquery_golang",
+        &["vex/CVE-2023-44487.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // (SBOM base name, expected_affected)
+    let cases: &[(&str, bool)] = &[
+        // in-context rpm under Storage 3 → affected (coincidental major match)
+        ("sbom_golang_rpm_storage3", true),
+        // non-RPM golang must NOT inherit the rpm/Storage-3 status
+        ("sbom_golang_oci", false),
+        ("sbom_golang_maven", false),
+    ];
+
+    let mut mismatches = Vec::new();
+    for (base, expected_affected) in cases {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S16_crossscheme_purlquery_golang/{base}.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        let present = advisory_cves(&adv).contains(&"CVE-2023-44487");
+        if present != *expected_affected {
+            mismatches.push(format!(
+                "  {base} ({fmt}): expected affected={expected_affected}, /sbom/advisory present={present}"
+            ));
+        }
+    }
+
+    assert!(
+        mismatches.is_empty(),
+        "S16 CVE-2023-44487 correlation mismatches:\n{}",
+        mismatches.join("\n")
+    );
+
+    Ok(())
+}
+
+// ===========================================================================
+// S17: Cross-product OCP kernel vs Go advisory (TC-5171)
+//
+// CVE-2023-24538 is a Go html/template bug. Its Red Hat CSAF bundles a kernel
+// fix under the OCP CPE (cpe:/a:redhat:openshift:4.13::el9) alongside the real
+// go-toolset fix (cpe:/a:redhat:devtools:2023::el7). A plain RHEL 8 kernel must
+// not match the OCP kernel entry — the CVE isn't a kernel bug and the product
+// CPE is wrong. Child-node CPE escape-hatches (TC-5750); the comparison is also
+// cross-stream el8<el9 (TC-5640). go-toolset below the fix is the positive control.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5171: product_status CPE context not checked (OCP kernel matched to RHEL 8); TC-5640: dist-tag-blind el8<el9; TC-5750: child-node OS CPE not captured"]
+#[test_log::test(actix_web::test)]
+async fn s17_crossproduct_ocp_kernel_go(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S17_crossproduct_ocp_kernel_go",
+        &["vex/CVE-2023-24538.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // (SBOM base name, expected_affected)
+    let cases: &[(&str, bool)] = &[
+        // --- cross-product CPE-context axis: RHEL 8 kernel vs the OCP kernel entry ---
+        // CPE on a child node (escape hatch) — OCP entry must not match
+        ("sbom_kernel_rhel8", false),
+        // CPE on the describing/root node (captured) — filter should engage
+        ("sbom_kernel_rhel8_rootcpe", false),
+        // --- version axis: go-toolset (the affected product) vs fix 1.19.9-1.el7_9 ---
+        ("sbom_gotoolset_devtools_belowfix", true), // below fix → affected
+        ("sbom_gotoolset_devtools_atfix", false),   // at fix → not_affected
+        ("sbom_gotoolset_devtools_abovefix", false), // above fix → not_affected
+    ];
+
+    let mut mismatches = Vec::new();
+    for (base, expected_affected) in cases {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S17_crossproduct_ocp_kernel_go/{base}.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        let present = advisory_cves(&adv).contains(&"CVE-2023-24538");
+        if present != *expected_affected {
+            mismatches.push(format!(
+                "  {base} ({fmt}): expected affected={expected_affected}, /sbom/advisory present={present}"
+            ));
+        }
+    }
+
+    assert!(
+        mismatches.is_empty(),
+        "S17 CVE-2023-24538 correlation mismatches:\n{}",
+        mismatches.join("\n")
+    );
 
     Ok(())
 }

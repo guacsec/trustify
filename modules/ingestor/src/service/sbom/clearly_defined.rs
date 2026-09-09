@@ -70,6 +70,7 @@ impl<'g> ClearlyDefinedLoader<'g> {
                 id: sbom.sbom.sbom_id.to_string(),
                 document_id: sbom.sbom.document_id,
                 warnings: vec![],
+                validation: Vec::new(),
             })
         } else {
             Err(Error::Generic(anyhow!("No valid information")))

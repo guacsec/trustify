@@ -1,5 +1,8 @@
 use super::util::branch_purl;
-use crate::graph::advisory::version::{Version, VersionInfo, VersionSpec};
+use crate::graph::advisory::{
+    vers::parse_vers,
+    version::{Version, VersionInfo, VersionSpec},
+};
 use cpe::cpe::Cpe;
 use csaf::definitions::{Branch, BranchCategory, FullProductName};
 use trustify_common::purl::Purl;
@@ -14,22 +17,19 @@ pub struct ProductStatus {
     pub status: &'static str,
     pub purls: Vec<Purl>,
     pub packages: Vec<String>,
+    pub vers_specs: Vec<VersionInfo>,
 }
 
 impl ProductStatus {
-    // Method to update ProductStatus from a branch
-    pub fn update_from_branch(&mut self, branch: &Branch) {
+    pub fn update_from_branch(&mut self, branch: &Branch) -> Result<(), anyhow::Error> {
         match branch.category {
-            // Get product related info
             BranchCategory::ProductName => {
                 self.product = branch.name.clone();
                 self.set_version(branch.product.clone());
             }
-            // Get organisation info
             BranchCategory::Vendor => {
                 self.vendor = Some(branch.name.clone());
             }
-            // Get package/purl info
             BranchCategory::ProductVersion => {
                 match branch.product.clone() {
                     Some(full_name) => match full_name.product_identification_helper {
@@ -42,7 +42,13 @@ impl ProductStatus {
                     None => self.packages.push(branch.name.clone()),
                 };
             }
-            // For everything else, for now see if we can get any purls
+            BranchCategory::ProductVersionRange => {
+                let version_infos = parse_vers(&branch.name)?;
+                self.vers_specs.extend(version_infos);
+                if let Some(purl) = branch_purl(branch) {
+                    self.purls.push(Purl::from(purl.clone()));
+                }
+            }
             _ => {
                 if let Some(purl) = branch_purl(branch) {
                     let purl = Purl::from(purl.clone());
@@ -50,6 +56,7 @@ impl ProductStatus {
                 }
             }
         }
+        Ok(())
     }
 
     /// Parse cpe or purl from product identifier helper

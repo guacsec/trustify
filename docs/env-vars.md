@@ -58,6 +58,7 @@
 | `TRUSTD_SLOW_SQL_THRESHOLD`              | Override threshold for slow SQL statements (humantime)                              | `1m`                                    |
 | `TRUSTD_STORAGE_FS_PATH`                 | Path for storage file system strategy                                               | `./.trustify/storage`                   |
 | `TRUSTD_STORAGE_STRATEGY`                | Specifies the storage strategy to use                                               | `File system`                           |
+| `TRUSTD_VALIDATORS_CONFIG`               | Path to a semantic validators configuration file (YAML); unset disables validation  |                                         |
 | `UI_CLIENT_ID`                           | Client ID used by the UI                                                            | `frontend`                              |
 | `UI_ISSUER_URL`                          | Issuer URL used by the UI                                                           | `http://localhost:8090/realms/trustify` |
 | `UI_LOAD_USER`                           | Whether to load user info                                                           | `true`                                  |

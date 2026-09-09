@@ -1,0 +1,32 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:16160000-0000-4000-8000-1616golangmaven",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-s16",
+      "type": "application",
+      "name": "s16-crossscheme-target",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg-golang",
+      "type": "library",
+      "name": "golang",
+      "version": "3.5.0",
+      "purl": "pkg:maven/org.golang/golang@3.5.0?type=jar"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-s16",
+      "dependsOn": [
+        "pkg-golang"
+      ]
+    }
+  ]
+}

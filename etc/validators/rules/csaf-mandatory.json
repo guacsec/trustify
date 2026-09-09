@@ -1,0 +1,140 @@
+{
+  "title": "CSAF 2.0 Mandatory Checks",
+  "description": "A trimmed set of structural checks for CSAF 2.0 advisories: document, tracking and publisher required fields, plus well-formed CVE identifiers. See CSAF 2.0 section 6.1.",
+  "default_phase": "structural",
+  "phases": [
+    {
+      "name": "structural",
+      "active_patterns": ["document-required", "tracking-required", "publisher-required"]
+    },
+    {
+      "name": "full",
+      "active_patterns": [
+        "document-required",
+        "tracking-required",
+        "publisher-required",
+        "vulnerability-fields"
+      ]
+    }
+  ],
+  "patterns": [
+    {
+      "name": "document-required",
+      "title": "Document-level required fields (CSAF 3.1)",
+      "rules": [
+        {
+          "context": "$",
+          "checks": [
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.document" },
+              "message": "document property is required",
+              "severity": "fatal"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.document.category" },
+              "message": "document.category is required",
+              "severity": "fatal"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "matches", "path": "$.document.csaf_version", "pattern": "^2\\.0$" },
+              "message": "document.csaf_version must be 2.0",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.document.title" },
+              "message": "document.title is required",
+              "severity": "error"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "tracking-required",
+      "title": "Tracking required fields (CSAF 3.1.7)",
+      "rules": [
+        {
+          "context": "$.document.tracking",
+          "checks": [
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.id" },
+              "message": "tracking.id is required",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.status" },
+              "message": "tracking.status is required",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": {
+                "type": "matches",
+                "path": "$.status",
+                "pattern": "^(draft|final|interim)$"
+              },
+              "message": "tracking.status must be draft, final, or interim",
+              "severity": "warning"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "publisher-required",
+      "title": "Publisher required fields (CSAF 3.1.8)",
+      "rules": [
+        {
+          "context": "$.document.publisher",
+          "checks": [
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.category" },
+              "message": "publisher.category is required",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.name" },
+              "message": "publisher.name is required",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.namespace" },
+              "message": "publisher.namespace is required",
+              "severity": "error"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "vulnerability-fields",
+      "title": "Vulnerability identifiers must be well-formed",
+      "rules": [
+        {
+          "context": "$..vulnerabilities[*]",
+          "checks": [
+            {
+              "kind": "assert",
+              "test": {
+                "type": "or",
+                "left": { "type": "not_exists", "path": "$.cve" },
+                "right": { "type": "matches", "path": "$.cve", "pattern": "^CVE-\\d{4}-\\d{4,}$" }
+              },
+              "message": "cve must match CVE-YYYY-NNNN+ format",
+              "severity": "warning"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

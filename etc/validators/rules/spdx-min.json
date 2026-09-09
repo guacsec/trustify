@@ -1,0 +1,103 @@
+{
+  "title": "SPDX Minimum Elements",
+  "description": "Minimum required fields for a valid SPDX 2.2/2.3 document (JSON format), per the SPDX specification.",
+  "patterns": [
+    {
+      "name": "document-required",
+      "title": "Document-level required fields",
+      "rules": [
+        {
+          "context": "$",
+          "checks": [
+            {
+              "kind": "assert",
+              "test": { "type": "matches", "path": "$.spdxVersion", "pattern": "^SPDX-2\\.[23]$" },
+              "message": "spdxVersion must be SPDX-2.2 or SPDX-2.3",
+              "severity": "fatal"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "equals", "path": "$.dataLicense", "value": "CC0-1.0" },
+              "message": "dataLicense must be CC0-1.0",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "equals", "path": "$.SPDXID", "value": "SPDXRef-DOCUMENT" },
+              "message": "SPDXID must be SPDXRef-DOCUMENT",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.name" },
+              "message": "name is required",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "matches", "path": "$.documentNamespace", "pattern": "^https?://" },
+              "message": "documentNamespace must be a URI",
+              "severity": "error"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "creation-info",
+      "title": "Creation info required fields",
+      "rules": [
+        {
+          "context": "$.creationInfo",
+          "checks": [
+            {
+              "kind": "assert",
+              "test": {
+                "type": "matches",
+                "path": "$.created",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+              },
+              "message": "creationInfo.created must be an ISO 8601 datetime",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "count", "path": "$.creators[*]", "cmp": ">=", "expected": 1 },
+              "message": "creationInfo.creators must have at least one entry",
+              "severity": "error"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "packages",
+      "title": "Package required fields",
+      "rules": [
+        {
+          "context": "$.packages[*]",
+          "checks": [
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.name" },
+              "message": "package.name is required",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.downloadLocation" },
+              "message": "package.downloadLocation is required",
+              "severity": "error"
+            },
+            {
+              "kind": "assert",
+              "test": { "type": "exists", "path": "$.versionInfo" },
+              "message": "package.versionInfo is recommended",
+              "severity": "warning"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

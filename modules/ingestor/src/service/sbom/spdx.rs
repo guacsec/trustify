@@ -67,6 +67,7 @@ impl<'g> SpdxLoader<'g> {
             id: sbom.sbom.sbom_id.to_string(),
             document_id: Some(document_id),
             warnings: warnings.into(),
+            validation: Vec::new(),
         })
     }
 }

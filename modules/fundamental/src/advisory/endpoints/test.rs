@@ -1,20 +1,22 @@
 use crate::{
     advisory::model::{AdvisoryDetails, AdvisorySummary},
-    test::{
-        caller, caller_with, label::Api, label::update_labels as do_update_labels,
-        label::update_labels_not_found as do_update_labels_not_found,
-    },
+    test::{CallerBuilder, caller, caller_with, label, label::Api},
 };
 use actix_http::StatusCode;
 use actix_web::{body::MessageBody, test::TestRequest};
 use hex::ToHex;
 use jsonpath_rust::JsonPath;
+use rstest::rstest;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 use test_context::test_context;
 use test_log::test;
 use time::OffsetDateTime;
+use trustify_auth::{
+    authenticator::user::UserDetails,
+    authorizer::{Authorizer, AuthorizerConfig},
+};
 use trustify_common::{
     db::pagination_cache::PaginationCache, error::ErrorInformation, hashing::Digests,
     model::PaginatedResults,
@@ -29,7 +31,9 @@ use trustify_module_ingestor::{
     service::Format,
 };
 use trustify_module_storage::service::{StorageBackend, StorageKey};
-use trustify_test_context::{TrustifyContext, call::CallService, document_bytes};
+use trustify_test_context::{
+    TrustifyContext, auth::TestAuthentication, call::CallService, document_bytes,
+};
 use urlencoding::encode;
 
 #[test_context(TrustifyContext)]
@@ -601,14 +605,14 @@ async fn download_advisory_by_id(ctx: &TrustifyContext) -> Result<(), anyhow::Er
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    do_update_labels(ctx, Api::Advisory, DOC, "csaf").await
+    label::update_labels(ctx, Api::Advisory, DOC, "csaf").await
 }
 
 /// Test updating labels, for a document that does not exist
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn update_labels_not_found(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    do_update_labels_not_found(ctx, Api::Advisory, DOC).await
+    label::update_labels_not_found(ctx, Api::Advisory, DOC).await
 }
 
 /// Test deleing an advisory
@@ -864,6 +868,159 @@ async fn list_advisories_limit_exceeded(ctx: &TrustifyContext) -> Result<(), any
         serde_json::from_slice(&body).expect("response body should be valid JSON");
     assert_eq!(info.error, "LimitExceeded");
     assert!(info.message.contains("10"));
+
+    Ok(())
+}
+
+/// The `?format=` override must not allow uploading a document type that
+/// the endpoint's permission does not cover, and endpoints must enforce
+/// their own permission.
+#[derive(Clone, Copy, Debug)]
+enum Endpoint {
+    Advisory,
+    Sbom,
+}
+
+impl Endpoint {
+    fn uri(self, format: &str) -> String {
+        let base = match self {
+            Self::Advisory => "/api/v3/advisory",
+            Self::Sbom => "/api/v3/sbom",
+        };
+        format!("{base}?format={format}")
+    }
+}
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case::advisory_accepts_csaf(
+    Endpoint::Advisory,
+    "csaf",
+    "csaf/cve-2023-33201.json",
+    "create.advisory",
+    StatusCode::CREATED
+)] // correct permission + matching format
+#[case::advisory_rejects_spdx(
+    Endpoint::Advisory,
+    "spdx",
+    "spdx/simple.json",
+    "create.advisory",
+    StatusCode::BAD_REQUEST
+)] // wrong format category
+#[case::advisory_rejects_cyclonedx(
+    Endpoint::Advisory,
+    "cyclonedx",
+    "spdx/simple.json",
+    "create.advisory",
+    StatusCode::BAD_REQUEST
+)] // wrong format category
+#[case::advisory_rejects_unknown_sbom(
+    Endpoint::Advisory,
+    "unknown",
+    "spdx/simple.json",
+    "create.advisory",
+    StatusCode::BAD_REQUEST
+)] // unknown narrows to advisory
+#[case::advisory_rejects_sbom_category(
+    Endpoint::Advisory,
+    "sbom",
+    "spdx/simple.json",
+    "create.advisory",
+    StatusCode::BAD_REQUEST
+)] // non-concrete cross-category
+#[case::advisory_forbidden_sbom(
+    Endpoint::Advisory,
+    "csaf",
+    "csaf/cve-2023-33201.json",
+    "create.sbom",
+    StatusCode::FORBIDDEN
+)] // wrong permission
+#[case::advisory_forbidden_exploit(
+    Endpoint::Advisory,
+    "csaf",
+    "csaf/cve-2023-33201.json",
+    "create.exploit",
+    StatusCode::FORBIDDEN
+)] // exploit permission doesn't grant advisory upload
+#[case::sbom_accepts_spdx(
+    Endpoint::Sbom,
+    "spdx",
+    "spdx/simple.json",
+    "create.sbom",
+    StatusCode::CREATED
+)] // correct permission + matching format
+#[case::sbom_rejects_csaf(
+    Endpoint::Sbom,
+    "csaf",
+    "csaf/cve-2023-33201.json",
+    "create.sbom",
+    StatusCode::BAD_REQUEST
+)] // wrong format category
+#[case::sbom_rejects_cve(
+    Endpoint::Sbom,
+    "cve",
+    "csaf/cve-2023-33201.json",
+    "create.sbom",
+    StatusCode::BAD_REQUEST
+)] // wrong format category
+#[case::sbom_rejects_unknown_advisory(
+    Endpoint::Sbom,
+    "unknown",
+    "csaf/cve-2023-33201.json",
+    "create.sbom",
+    StatusCode::BAD_REQUEST
+)] // unknown narrows to sbom
+#[case::sbom_rejects_advisory_category(
+    Endpoint::Sbom,
+    "advisory",
+    "csaf/cve-2023-33201.json",
+    "create.sbom",
+    StatusCode::BAD_REQUEST
+)] // non-concrete cross-category
+#[case::sbom_forbidden_advisory(
+    Endpoint::Sbom,
+    "spdx",
+    "spdx/simple.json",
+    "create.advisory",
+    StatusCode::FORBIDDEN
+)] // wrong permission
+#[case::sbom_forbidden_exploit(
+    Endpoint::Sbom,
+    "spdx",
+    "spdx/simple.json",
+    "create.exploit",
+    StatusCode::FORBIDDEN
+)] // exploit permission doesn't grant sbom upload
+#[test_log::test(actix_web::test)]
+async fn format_permission_enforcement(
+    ctx: &TrustifyContext,
+    #[case] endpoint: Endpoint,
+    #[case] format: &str,
+    #[case] document: &str,
+    #[case] permission: &str,
+    #[case] expected: StatusCode,
+) -> Result<(), anyhow::Error> {
+    let app = CallerBuilder::new(ctx)
+        .authorizer(Authorizer::new(Some(AuthorizerConfig {})))
+        .build()
+        .await?;
+
+    let user = UserDetails {
+        id: "test-user".into(),
+        permissions: vec![permission.into()],
+    };
+
+    let payload = document_bytes(document).await?;
+    let uri = endpoint.uri(format);
+
+    let request = TestRequest::post()
+        .uri(&uri)
+        .set_payload(payload)
+        .to_request()
+        .test_auth_details(user);
+
+    let response = app.call_service(request).await;
+    assert_eq!(response.status(), expected);
 
     Ok(())
 }

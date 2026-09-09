@@ -1,0 +1,32 @@
+{
+  "advisories": [
+    "vex/CVE-2023-24538.json"
+  ],
+  "sboms": {
+    "sbom_kernel_rhel8": {
+      "correct": {
+        "CVE-2023-24538": "not_affected"
+      }
+    },
+    "sbom_kernel_rhel8_rootcpe": {
+      "correct": {
+        "CVE-2023-24538": "not_affected"
+      }
+    },
+    "sbom_gotoolset_devtools_belowfix": {
+      "correct": {
+        "CVE-2023-24538": "affected"
+      }
+    },
+    "sbom_gotoolset_devtools_atfix": {
+      "correct": {
+        "CVE-2023-24538": "not_affected"
+      }
+    },
+    "sbom_gotoolset_devtools_abovefix": {
+      "correct": {
+        "CVE-2023-24538": "not_affected"
+      }
+    }
+  }
+}

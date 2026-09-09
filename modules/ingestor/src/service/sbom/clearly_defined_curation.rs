@@ -44,6 +44,7 @@ impl<'g> ClearlyDefinedCurationLoader<'g> {
             id: sbom.sbom.sbom_id.to_string(),
             document_id: sbom.sbom.document_id,
             warnings: vec![],
+            validation: Vec::new(),
         })
     }
 }

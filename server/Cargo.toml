@@ -32,6 +32,7 @@ humantime = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
+serde_yml = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }
 utoipa = { workspace = true, features = ["actix_extras", "yaml"] }
