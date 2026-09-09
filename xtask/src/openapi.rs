@@ -57,7 +57,7 @@ pub async fn generate_openapi(base: Option<&Path>) -> anyhow::Result<()> {
 
     // write
 
-    println!("Writing openapi to {:?}", &path);
+    println!("Writing openapi to {:?}", path);
 
     fs::write(path, doc).context("Failed to write openapi spec")?;
 

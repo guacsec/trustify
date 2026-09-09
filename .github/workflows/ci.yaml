@@ -124,6 +124,7 @@ jobs:
           RUST_LOG: info,sqlx=error,sea_orm=error
           TRUSTIFY_S3_AWS_REGION: eu-west-1
           TRUSTIFY_S3_AWS_BUCKET: guacsec-migration-dumps
+          TRUSTIFY_MIGRATION_BRANCH: ${{ github.base_ref || github.ref_name }}
           TMPDIR: /mnt/trustify
 
       - name: Doc tests

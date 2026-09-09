@@ -227,7 +227,7 @@ impl UpdateAssignments {
         let initial_etag = self.etag.clone();
 
         let request = TestRequest::put()
-            .uri(&format!("/api/v3/group/sbom-assignment/{}", &self.sbom_id))
+            .uri(&format!("/api/v3/group/sbom-assignment/{}", self.sbom_id))
             .set_json(&self.group_ids);
 
         let request = match self.etag {
