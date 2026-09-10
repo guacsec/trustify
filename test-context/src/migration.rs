@@ -30,9 +30,18 @@ impl Migration {
 
         // evaluate the branch
 
-        let branch = env::var("TRUSTIFY_MIGRATION_BRANCH")
-            .or_else(|_| current_branch(cwd))
-            .context("unable to determine branch, consider using 'TRUSTIFY_MIGRATION_BRANCH'")?;
+        let branch = match env::var("TRUSTIFY_MIGRATION_BRANCH")
+            .ok()
+            .filter(|branch| !branch.is_empty())
+        {
+            Some(branch) => branch,
+            None => current_branch(cwd).context(
+                "unable to determine branch, consider using 'TRUSTIFY_MIGRATION_BRANCH'",
+            )?,
+        };
+
+        // the provided branch may still be a merge queue branch, in which case we need its base
+        let branch = is_merge_queue(&branch).unwrap_or(branch);
 
         log::info!("Using migration for branch: '{branch}'");
 
