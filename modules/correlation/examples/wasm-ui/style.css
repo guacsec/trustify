@@ -110,8 +110,8 @@ h2 {
     border-color: #3498db;
 }
 
-/* PURL input */
-.purl-input {
+/* Query input */
+.query-input {
     width: 100%;
     padding: 8px;
     box-sizing: border-box;
@@ -122,7 +122,7 @@ h2 {
     font-family: monospace;
 }
 
-.purl-input:focus {
+.query-input:focus {
     outline: none;
     border-color: #3498db;
     box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);

@@ -5,7 +5,7 @@ use trustify_module_correlation::{
     collector::VecCollector,
     engine::CorrelationEngine,
     memory::InMemoryEngine,
-    types::{ComponentQuery, parse_purl},
+    types::{ComponentId, ComponentQuery, parse_purl},
 };
 use wasm_bindgen::prelude::*;
 
@@ -25,6 +25,8 @@ struct VerdictDisplay {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum QueryMode {
     Purl,
+    Cpe,
+    Digest,
     Sbom,
 }
 
@@ -87,6 +89,8 @@ fn App() -> impl IntoView {
     let (assertion_count, set_assertion_count) = signal(0usize);
     let (sbom_data, set_sbom_data) = signal(Option::<(String, serde_json::Value)>::None);
     let (purl_input, set_purl_input) = signal(String::new());
+    let (cpe_input, set_cpe_input) = signal(String::new());
+    let (digest_input, set_digest_input) = signal(String::new());
     let (results, set_results) = signal(Vec::<VerdictDisplay>::new());
     let (trace_log, set_trace_log) = signal(String::new());
     let (error_msg, set_error_msg) = signal(Option::<String>::None);
@@ -194,6 +198,40 @@ fn App() -> impl IntoView {
                 eng.correlate_component(&query, &mut collector);
                 apply_results(&collector, &set_results, &set_trace_log);
             }
+            QueryMode::Cpe => {
+                let input = cpe_input.get();
+                if input.trim().is_empty() {
+                    return;
+                }
+
+                let mut collector = VecCollector::default();
+                let query = ComponentQuery {
+                    id: ComponentId::Cpe(input.trim().to_string()),
+                };
+                eng.correlate_component(&query, &mut collector);
+                apply_results(&collector, &set_results, &set_trace_log);
+            }
+            QueryMode::Digest => {
+                let input = digest_input.get();
+                if input.trim().is_empty() {
+                    return;
+                }
+
+                let trimmed = input.trim();
+                let (algorithm, value) = trimmed
+                    .split_once(':')
+                    .unwrap_or(("sha256", trimmed));
+
+                let mut collector = VecCollector::default();
+                let query = ComponentQuery {
+                    id: ComponentId::Hash {
+                        algorithm: algorithm.to_string(),
+                        value: value.to_string(),
+                    },
+                };
+                eng.correlate_component(&query, &mut collector);
+                apply_results(&collector, &set_results, &set_trace_log);
+            }
             QueryMode::Sbom => {
                 let data = sbom_data.get();
                 let Some((name, json)) = data else {
@@ -216,7 +254,7 @@ fn App() -> impl IntoView {
         <main class="app">
             <h1>"Trustify Correlation Engine"</h1>
             <p class="subtitle">
-                "Drop advisory files, then query by PURL or correlate an SBOM."
+                "Drop advisory files, then query by PURL, CPE, or digest \u{2014} or correlate an SBOM."
             </p>
 
             {move || error_msg.get().map(|msg| view! {
@@ -264,11 +302,19 @@ fn App() -> impl IntoView {
                     <button
                         on:click=move |_| set_mode.set(QueryMode::Purl)
                         class=move || if mode.get() == QueryMode::Purl { "btn selected" } else { "btn" }
-                    >"PURL Query"</button>
+                    >"PURL"</button>
+                    <button
+                        on:click=move |_| set_mode.set(QueryMode::Cpe)
+                        class=move || if mode.get() == QueryMode::Cpe { "btn selected" } else { "btn" }
+                    >"CPE"</button>
+                    <button
+                        on:click=move |_| set_mode.set(QueryMode::Digest)
+                        class=move || if mode.get() == QueryMode::Digest { "btn selected" } else { "btn" }
+                    >"Digest"</button>
                     <button
                         on:click=move |_| set_mode.set(QueryMode::Sbom)
                         class=move || if mode.get() == QueryMode::Sbom { "btn selected" } else { "btn" }
-                    >"SBOM Correlation"</button>
+                    >"SBOM"</button>
                 </div>
 
                 {move || match mode.get() {
@@ -276,12 +322,40 @@ fn App() -> impl IntoView {
                         <div>
                             <input
                                 type="text"
-                                class="purl-input"
+                                class="query-input"
                                 placeholder="pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=x86_64&epoch=1"
                                 prop:value=move || purl_input.get()
                                 on:input=move |ev| {
                                     let val = event_target_value(&ev);
                                     set_purl_input.set(val);
+                                }
+                            />
+                        </div>
+                    }.into_any(),
+                    QueryMode::Cpe => view! {
+                        <div>
+                            <input
+                                type="text"
+                                class="query-input"
+                                placeholder="cpe:/o:redhat:enterprise_linux:8"
+                                prop:value=move || cpe_input.get()
+                                on:input=move |ev| {
+                                    let val = event_target_value(&ev);
+                                    set_cpe_input.set(val);
+                                }
+                            />
+                        </div>
+                    }.into_any(),
+                    QueryMode::Digest => view! {
+                        <div>
+                            <input
+                                type="text"
+                                class="query-input"
+                                placeholder="sha256:abcdef1234... or just the hex value"
+                                prop:value=move || digest_input.get()
+                                on:input=move |ev| {
+                                    let val = event_target_value(&ev);
+                                    set_digest_input.set(val);
                                 }
                             />
                         </div>
