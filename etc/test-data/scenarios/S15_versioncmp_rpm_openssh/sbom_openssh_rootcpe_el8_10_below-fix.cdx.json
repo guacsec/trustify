@@ -1,0 +1,33 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:15150000-0000-4000-8000-151500000004",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root",
+      "type": "operating-system",
+      "name": "rhel",
+      "version": "8.10",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg-openssh",
+      "type": "library",
+      "name": "openssh",
+      "version": "8.0p1-4.el8_10",
+      "purl": "pkg:rpm/redhat/openssh@8.0p1-4.el8_10?arch=x86_64&epoch=0&distro=rhel-8.10&upstream=openssh-8.0p1-4.el8_10.src.rpm"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": [
+        "pkg-openssh"
+      ]
+    }
+  ]
+}

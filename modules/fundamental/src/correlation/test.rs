@@ -1036,6 +1036,132 @@ async fn s14_productstatus_version_filter_netty(
 }
 
 // ===========================================================================
+// S15: RPM version-comparison openssh (TC-5170/TC-5640)
+//
+// Nine SBOMs in three groups (product enterprise_linux:8, package openssh),
+// varying CPE placement, sub-stream and version vs the fix:
+// - A root CPE, el8_8 (covered): version-decided (correct today)
+// - B root CPE, el8_10 (absent from VEX): must not correlate; below leaks via
+//   dist-tag-blind rpmvercmp (TC-5640)
+// - C child CPE, el8_8: product_status skips version_matches; at/above leak (TC-5170)
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5170/TC-5640: product_status path skips version_matches + dist-tag-blind rpmvercmp"]
+#[test_log::test(actix_web::test)]
+async fn s15_versioncmp_rpm_openssh(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S15_versioncmp_rpm_openssh",
+        &["vex/CVE-2023-38408.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // --- Group A: root-CPE el8_8 (covered by VEX) → version-based decision ---
+    // below-fix → affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_8_below-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2023-38408");
+    }
+    // at-fix → not_affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_8_at-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+    // above-fix → not_affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_8_above-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+
+    // --- Group B: root-CPE el8_10 (absent from VEX) → TC-5640 cross-stream leak ---
+    // below-fix → should NOT correlate (el8_10 absent from advisory), but does
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_10_below-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+    // at-fix + above-fix also should not correlate
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_10_at-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_10_above-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+
+    // --- Group C: child-CPE el8_8 → TC-5170 product_status skips version_matches ---
+    // below-fix → affected (correct)
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_el8_below-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2023-38408");
+    }
+    // at-fix → should be not_affected (version at fix), but product_status path leaks
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_el8_at-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+    // above-fix → should be not_affected, but product_status path leaks
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_el8_above-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
 // S16: Cross-scheme PURL query golang (TC-5170)
 //
 // CVE-2023-44487 marks `golang` known_affected only under Red Hat Storage 3
