@@ -23,6 +23,13 @@ they differ only in where the CPE sits, so the correct verdict is identical.
 | `sbom_thunderbird_el8_root-cpe` | — | — | — | not_affected |
 | `sbom_thunderbird_el8_child-cpe` | — | — | — | not_affected |
 
+## Current status: ignored (TC-5643)
+The thunderbird sub-SBOMs fail because the advisory declares `known_not_affected` for
+`red_hat_enterprise_linux_8:thunderbird` via a versionless PURL (`pkg:rpm/redhat/thunderbird`).
+Per the PURL spec (ECMA-427), a versionless PURL is an identifier, not a wildcard — the upstream
+CSAF data does not correctly express the intent. The `sbom_combined_el8` expectations (openssl,
+urllib3, bind-libs) are unaffected and pass independently.
+
 ## Files
 - SBOMs: `sbom_combined_el8.{cdx,spdx}.json`, `sbom_thunderbird_el8_root-cpe.{cdx,spdx}.json`, `sbom_thunderbird_el8_child-cpe.{cdx,spdx}.json`.
 - Advisories: `vex/CVE-2022-4304.json`, `vex/CVE-2024-4076.json`, `vex/CVE-2024-6602.json` (Red Hat CSAF); `osv/GHSA-g4mx-q9vg-27p4.json` (urllib3); `cve/` MITRE records.

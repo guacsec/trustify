@@ -178,14 +178,22 @@ fn scenario_s8_epoch_mismatch_openjdk_spdx() {
     run_scenario_format("S8_epoch_mismatch_openjdk", "spdx");
 }
 
+/// The thunderbird sub-SBOMs expect `not_affected` from a versionless PURL
+/// (`pkg:rpm/redhat/thunderbird`) declared `known_not_affected` in the CSAF advisory.
+/// Per the PURL spec (ECMA-427), a versionless PURL is an identifier, not a wildcard
+/// for all versions. The upstream CSAF data does not express its intent correctly.
+/// The engine correctly produces `affected` (SBOM version is below the sub-stream fix).
 #[test]
-#[ignore = "TC-5643: versionless not_affected PURLs need product-level override support"]
+#[ignore = "TC-5643: upstream CSAF uses versionless PURLs for product-level not_affected"]
 fn scenario_s10_combined_describing_cpe() {
     run_scenario("S10_combined_describing_cpe");
 }
 
+/// Same root cause as S10: the advisory declares `known_not_affected` for
+/// `red_hat_enterprise_linux_8:thunderbird` which resolves to a versionless PURL.
+/// A versionless PURL matcher only matches versionless components per spec.
 #[test]
-#[ignore = "TC-5643: versionless not_affected PURLs need product-level override support"]
+#[ignore = "TC-5643: upstream CSAF uses versionless PURLs for product-level not_affected"]
 fn scenario_s12_notaffected_ignored_thunderbird() {
     run_scenario("S12_notaffected_ignored_thunderbird");
 }
