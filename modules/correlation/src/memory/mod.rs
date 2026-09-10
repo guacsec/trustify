@@ -56,11 +56,17 @@ impl Default for InMemoryEngine {
 impl CorrelationEngine for InMemoryEngine {
     fn correlate_component(&self, component: &ComponentQuery, collector: &mut dyn Collector) {
         collector.on_trace(&TraceEntry {
-            message: format!("correlating component: {}", format_component_id(&component.id)),
+            message: format!(
+                "correlating component: {}",
+                format_component_id(&component.id)
+            ),
             detail: if component.describing_cpes.is_empty() {
                 Some("no describing CPEs on SBOM".into())
             } else {
-                Some(format!("describing CPEs: {}", component.describing_cpes.join(", ")))
+                Some(format!(
+                    "describing CPEs: {}",
+                    component.describing_cpes.join(", ")
+                ))
             },
         });
 
@@ -178,6 +184,7 @@ fn matches_component(
                 ty: match_ty,
                 namespace: match_ns,
                 name: match_name,
+                qualifiers,
                 context_cpe,
                 ..
             },
@@ -189,6 +196,9 @@ fn matches_component(
                 return false;
             }
             if comp_name != match_name {
+                return false;
+            }
+            if !qualifiers_match(qualifiers, component) {
                 return false;
             }
             if let Some(ctx_cpe) = context_cpe
@@ -209,6 +219,23 @@ fn matches_component(
         ) => comp_name.eq_ignore_ascii_case(product),
         _ => false,
     }
+}
+
+fn qualifiers_match(
+    expected: &std::collections::BTreeMap<String, String>,
+    component: &ComponentId,
+) -> bool {
+    let ComponentId::Purl {
+        qualifiers: actual, ..
+    } = component
+    else {
+        return false;
+    };
+
+    expected
+        .iter()
+        .filter(|(key, _)| key.as_str() != "epoch")
+        .all(|(key, value)| actual.get(key).is_some_and(|actual| actual == value))
 }
 
 /// Check whether the component's version satisfies the assertion's version constraint.
@@ -372,6 +399,7 @@ fn format_matcher(matcher: &ComponentMatcher) -> String {
             ty,
             namespace,
             name,
+            qualifiers,
             version,
             context_cpe,
         } => {
@@ -387,7 +415,12 @@ fn format_matcher(matcher: &ComponentMatcher) -> String {
                 .as_deref()
                 .map(|c| format!(" context_cpe={c}"))
                 .unwrap_or_default();
-            format!("purl:{ty}/{ns}{name}{ver}{ctx}")
+            let qualifiers = if qualifiers.is_empty() {
+                String::new()
+            } else {
+                format!(" qualifiers={qualifiers:?}")
+            };
+            format!("purl:{ty}/{ns}{name}{qualifiers}{ver}{ctx}")
         }
         ComponentMatcher::CpeMatch { cpe, version } => {
             let ver = version
@@ -428,7 +461,9 @@ fn explain_skip(
             ComponentMatcher::CveProduct { version: vc, .. } => format!("{}", vc.range),
             _ => "(none)".into(),
         };
-        parts.push(format!("component version '{comp_ver}' is outside {constraint}"));
+        parts.push(format!(
+            "component version '{comp_ver}' is outside {constraint}"
+        ));
     }
 
     if !context_ok {
@@ -458,6 +493,55 @@ fn match_dimension(matcher: &ComponentMatcher) -> MatchDimension {
     match matcher {
         ComponentMatcher::Purl { .. } | ComponentMatcher::CveProduct { .. } => MatchDimension::Purl,
         ComponentMatcher::CpeMatch { .. } => MatchDimension::Cpe,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::qualifiers_match;
+    use crate::types::ComponentId;
+    use std::collections::BTreeMap;
+
+    fn component(qualifiers: &[(&str, &str)]) -> ComponentId {
+        ComponentId::Purl {
+            ty: "rpm".into(),
+            namespace: Some("redhat".into()),
+            name: "kernel-core".into(),
+            version: Some("6.12.0-211.30.1.el10_2".into()),
+            qualifiers: qualifiers
+                .iter()
+                .map(|(key, value)| ((*key).into(), (*value).into()))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn qualifier_match_requires_matching_values() {
+        let expected = BTreeMap::from([(String::from("distro"), String::from("rhel-8"))]);
+
+        assert!(!qualifiers_match(
+            &expected,
+            &component(&[("distro", "rhel-10")]),
+        ));
+        assert!(qualifiers_match(
+            &expected,
+            &component(&[("distro", "rhel-8"), ("arch", "x86_64")]),
+        ));
+    }
+
+    #[test]
+    fn empty_qualifier_matcher_matches_any_qualifiers() {
+        assert!(qualifiers_match(
+            &BTreeMap::new(),
+            &component(&[("arch", "x86_64")])
+        ));
+    }
+
+    #[test]
+    fn epoch_qualifier_is_version_metadata_not_identity() {
+        let expected = BTreeMap::from([(String::from("epoch"), String::from("1"))]);
+
+        assert!(qualifiers_match(&expected, &component(&[])));
     }
 }
 
@@ -499,14 +583,20 @@ fn resolve_verdict(
     }
 
     let (final_status, reason) = if all_cpe_only && has_affected {
-        (Status::Affected, "CPE-only match: affected wins at product level")
+        (
+            Status::Affected,
+            "CPE-only match: affected wins at product level",
+        )
     } else if has_resolution {
         let status = assertions
             .iter()
             .find(|a| a.status.resolves_affected())
             .map(|a| a.status)
             .unwrap_or(Status::NotAffected);
-        (status, "PURL-level match: resolution (fixed/not_affected) overrides affected")
+        (
+            status,
+            "PURL-level match: resolution (fixed/not_affected) overrides affected",
+        )
     } else if has_affected {
         (Status::Affected, "only affected assertions matched")
     } else {
@@ -514,7 +604,10 @@ fn resolve_verdict(
             .first()
             .map(|a| a.status)
             .unwrap_or(Status::Affected);
-        (status, "no affected or resolution assertions; using first match")
+        (
+            status,
+            "no affected or resolution assertions; using first match",
+        )
     };
 
     collector.on_trace(&TraceEntry {

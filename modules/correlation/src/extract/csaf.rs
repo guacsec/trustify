@@ -217,6 +217,7 @@ fn extract_product_status(
                             ref name,
                             version: Some(ref vc),
                             ref context_cpe,
+                            ref qualifiers,
                         } = matcher
                         && let VersionRange::Exact(ref fix_ver) = vc.range
                     {
@@ -228,6 +229,7 @@ fn extract_product_status(
                                 ty: ty.clone(),
                                 namespace: namespace.clone(),
                                 name: name.clone(),
+                                qualifiers: qualifiers.clone(),
                                 version: Some(VersionConstraint {
                                     scheme: vc.scheme,
                                     range: VersionRange::Range(
@@ -326,6 +328,7 @@ fn make_purl_matcher(purl_str: &str, context_cpe: Option<String>) -> Option<Comp
                 ty,
                 namespace,
                 name,
+                qualifiers,
                 version: version_constraint,
                 context_cpe,
             })

@@ -39,14 +39,15 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
         let ecosystem = package.get("ecosystem").and_then(|v| v.as_str());
 
         // Determine base PURL matcher
-        let (ty, namespace, name) = if let Some(purl_str) = purl_str {
+        let (ty, namespace, name, qualifiers) = if let Some(purl_str) = purl_str {
             match parse_purl(purl_str) {
                 Some(crate::types::ComponentId::Purl {
                     ty,
                     namespace,
                     name,
+                    qualifiers,
                     ..
-                }) => (ty, namespace, name),
+                }) => (ty, namespace, name, qualifiers),
                 _ => continue,
             }
         } else {
@@ -90,6 +91,7 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                             ty: ty.clone(),
                             namespace: namespace.clone(),
                             name: name.clone(),
+                            qualifiers: qualifiers.clone(),
                             version: Some(VersionConstraint {
                                 scheme,
                                 range: VersionRange::Range(
@@ -119,6 +121,7 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                             ty: ty.clone(),
                             namespace: namespace.clone(),
                             name: name.clone(),
+                            qualifiers: qualifiers.clone(),
                             version: Some(VersionConstraint {
                                 scheme,
                                 range: VersionRange::Range(
@@ -150,6 +153,7 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                         ty: ty.clone(),
                         namespace: namespace.clone(),
                         name: name.clone(),
+                        qualifiers: qualifiers.clone(),
                         version: Some(VersionConstraint {
                             scheme,
                             range: VersionRange::Range(low, VersionBound::Unbounded),

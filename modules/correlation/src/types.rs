@@ -103,7 +103,7 @@ pub fn parse_purl(purl_str: &str) -> Option<ComponentId> {
             q.split('&')
                 .filter_map(|kv| {
                     let (k, v) = kv.split_once('=')?;
-                    Some((k.to_string(), percent_decode(v)))
+                    Some((percent_decode(k).to_ascii_lowercase(), percent_decode(v)))
                 })
                 .collect()
         })
@@ -167,6 +167,9 @@ pub enum ComponentMatcher {
         ty: String,
         namespace: Option<String>,
         name: String,
+        /// Qualifiers supplied by the advisory. An empty map matches any
+        /// component qualifiers; present qualifiers must match exactly.
+        qualifiers: BTreeMap<String, String>,
         version: Option<VersionConstraint>,
         context_cpe: Option<String>,
     },
