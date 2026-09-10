@@ -124,6 +124,9 @@ jobs:
           RUST_LOG: info,sqlx=error,sea_orm=error
           TRUSTIFY_S3_AWS_REGION: eu-west-1
           TRUSTIFY_S3_AWS_BUCKET: guacsec-migration-dumps
+          # the base branch of this run, used to pick the migration dump. On a PR the checkout is
+          # detached, so the branch can't be discovered from git.
+          TRUSTIFY_MIGRATION_BRANCH: ${{ github.base_ref || github.ref_name }}
           TMPDIR: /mnt/trustify
 
       - name: Doc tests
