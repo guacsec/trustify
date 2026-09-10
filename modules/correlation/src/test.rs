@@ -239,9 +239,14 @@ fn scenario_s1_crossstream_bind_libs() {
 }
 
 #[test]
-#[ignore = "TC-2622: wrong version scheme for golang OCI"]
+#[ignore = "TC-2622: DATA — bare component name, no PURL/CPE; see S2a for data fix"]
 fn scenario_s2_wrongscheme_golang_oci() {
     run_scenario("S2_wrongscheme_golang_oci");
+}
+
+#[test]
+fn scenario_s2a_cpe_golang_oci() {
+    run_scenario("S2a_cpe_golang_oci");
 }
 
 #[test]

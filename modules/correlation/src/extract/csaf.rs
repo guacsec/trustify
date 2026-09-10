@@ -234,9 +234,12 @@ fn resolve_product_id(
                 return make_purl_matcher(purl_str, info.version_range.as_ref());
             }
             if let Some(ref cpe) = info.cpe {
+                let version = component_info
+                    .and_then(|ci| ci.version_range.clone())
+                    .or(info.version_range.clone());
                 return Some(ComponentMatcher::CpeMatch {
                     cpe: cpe.clone(),
-                    version: None,
+                    version,
                 });
             }
         }
@@ -251,7 +254,7 @@ fn resolve_product_id(
         if let Some(ref cpe) = info.cpe {
             return Some(ComponentMatcher::CpeMatch {
                 cpe: cpe.clone(),
-                version: None,
+                version: info.version_range.clone(),
             });
         }
     }

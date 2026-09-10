@@ -230,6 +230,10 @@ fn check_version(component: &ComponentId, matcher: &ComponentMatcher) -> bool {
             }
         }
         ComponentId::Purl { version: None, .. } => return true,
+        ComponentId::Cpe(cpe) => match cpe_version(cpe) {
+            Some(v) => v,
+            None => return true,
+        },
         _ => return true,
     };
 
@@ -266,6 +270,12 @@ fn normalize_cpe(cpe: &str) -> Vec<String> {
     } else {
         cpe.split(':').map(|s| s.to_lowercase()).collect()
     }
+}
+
+/// Extract the version from a CPE string (index 5 in normalized CPE 2.3).
+fn cpe_version(cpe: &str) -> Option<String> {
+    let parts = normalize_cpe(cpe);
+    parts.get(5).filter(|v| v.as_str() != "*").cloned()
 }
 
 /// CPE prefix match — does `candidate` match `pattern`?

@@ -25,7 +25,6 @@ fn extract_component(comp: &serde_json::Value, out: &mut Vec<SbomComponent>) {
         && let Some(id) = parse_purl(purl_str)
     {
         out.push(SbomComponent { id });
-        return;
     }
 
     if let Some(cpe) = comp.get("cpe").and_then(|v| v.as_str()) {
