@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788970515392,
+  "lastUpdate": 1789048859910,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21797,6 +21797,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/16a6a12205d96cab0145c633e1e0233b7e5a10d6"
         },
         "date": 1788970512721,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "e3c8529f4471926f958fd4ad662d33995025c120",
+          "message": "fix(ci): resolve merge queue branch name from TRUSTIFY_MIGRATION_BRANCH\n\nWhen the merge queue runs CI, github.ref_name is the full merge queue\nref (gh-readonly-queue/release/0.6.z/pr-...) which gets passed as\nTRUSTIFY_MIGRATION_BRANCH. The env var takes priority over the Rust\nis_merge_queue() detection in current_branch(), so the full ref was\nused as the S3 branch path.\n\nApply is_merge_queue() to the env var value so merge queue refs are\nresolved to the base branch (e.g. release/0.6.z).\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-10T13:19:05Z",
+          "tree_id": "ec82bb077c7d9862cf4a1e66db8cd517db8f3132",
+          "url": "https://github.com/guacsec/trustify/commit/e3c8529f4471926f958fd4ad662d33995025c120"
+        },
+        "date": 1789048857297,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
