@@ -94,13 +94,15 @@ fn App() -> impl IntoView {
     let (adv_dragging, set_adv_dragging) = signal(false);
     let (sbom_dragging, set_sbom_dragging) = signal(false);
 
+    // Track advisory loads so the effect re-runs when advisories change
+    let (advisory_version, set_advisory_version) = signal(0u32);
+
     let engine_for_clear = engine.clone();
     let clear_advisories = move |_| {
         *engine_for_clear.borrow_mut() = InMemoryEngine::new();
         set_advisory_names.set(Vec::new());
         set_assertion_count.set(0);
-        set_results.set(Vec::new());
-        set_trace_log.set(String::new());
+        set_advisory_version.update(|v| *v += 1);
     };
 
     let engine_for_drop = engine.clone();
@@ -123,6 +125,7 @@ fn App() -> impl IntoView {
                             eng.load_advisory(&name, &json);
                             set_assertion_count.set(eng.assertion_count());
                             set_advisory_names.update(|names| names.push(name));
+                            set_advisory_version.update(|v| *v += 1);
                             set_error_msg.set(None);
                         }
                         Err(e) => {
@@ -162,24 +165,24 @@ fn App() -> impl IntoView {
     };
 
     let engine_for_correlate = engine.clone();
-    let run_correlation = move || {
+    Effect::new(move || {
+        let current_mode = mode.get();
+        advisory_version.get();
+
         set_error_msg.set(None);
         set_results.set(Vec::new());
         set_trace_log.set(String::new());
 
-        let current_mode = mode.get_untracked();
         let eng = engine_for_correlate.borrow();
 
         match current_mode {
             QueryMode::Purl => {
-                let input = purl_input.get_untracked();
+                let input = purl_input.get();
                 if input.trim().is_empty() {
-                    set_error_msg.set(Some("Enter a PURL to query".into()));
                     return;
                 }
 
-                let parsed = parse_purl(input.trim());
-                let Some(component_id) = parsed else {
+                let Some(component_id) = parse_purl(input.trim()) else {
                     set_error_msg.set(Some(format!("Invalid PURL: {}", input.trim())));
                     return;
                 };
@@ -192,9 +195,8 @@ fn App() -> impl IntoView {
                 apply_results(&collector, &set_results, &set_trace_log);
             }
             QueryMode::Sbom => {
-                let data = sbom_data.get_untracked();
+                let data = sbom_data.get();
                 let Some((name, json)) = data else {
-                    set_error_msg.set(Some("Load an SBOM first".into()));
                     return;
                 };
 
@@ -208,7 +210,7 @@ fn App() -> impl IntoView {
                 apply_results(&collector, &set_results, &set_trace_log);
             }
         }
-    };
+    });
 
     view! {
         <main class="app">
@@ -307,10 +309,6 @@ fn App() -> impl IntoView {
                     }.into_any(),
                 }}
 
-                <button
-                    on:click=move |_| run_correlation()
-                    class="btn-primary"
-                >"Correlate"</button>
             </section>
 
             // Results
