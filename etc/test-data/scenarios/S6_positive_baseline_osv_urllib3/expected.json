@@ -15,7 +15,7 @@
     },
     "sbom_python3-urllib3_rpm_el8": {
       "correct": {
-        "CVE-2023-45803": "not_affected"
+        "CVE-2023-45803": "none"
       }
     }
   }

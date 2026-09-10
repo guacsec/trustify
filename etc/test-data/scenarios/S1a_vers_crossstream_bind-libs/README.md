@@ -35,7 +35,7 @@ without needing CPE-scoped VERS or cross-stream inference.
 
 | CVE | el8 | el9 affected range | el9 fix | el10 |
 |---|---|---|---|---|
-| CVE-2022-0396 | `known_not_affected` | `vers:rpm/>=0\|<32:9.16.23-5.el9_1` | `32:9.16.23-5.el9_1` | (no entry) |
+| CVE-2022-0396 | `known_not_affected` | `vers:rpm/>=0\|<32:9.16.23-5.el9_1` | `32:9.16.23-5.el9_1` | `known_not_affected` (`vers:rpm/>=32:9.17.0-0`) |
 | CVE-2023-5517 | `known_not_affected` | `vers:rpm/>=0\|<32:9.16.23-1.el9_0.5` | `32:9.16.23-1.el9_0.5` | `known_affected` (`vers:rpm/>=32:9.17.0-0`) |
 | CVE-2024-4076 | `known_not_affected` | `vers:rpm/>=0\|<32:9.16.23-1.el9_0.7` | `32:9.16.23-1.el9_0.7` | `known_affected` (`vers:rpm/>=32:9.17.0-0`) |
 

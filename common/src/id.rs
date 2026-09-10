@@ -166,7 +166,9 @@ Either an internal ID of the document with the `urn:uuid:` scheme. Or using a di
         );
         obj.examples = vec![
             serde_json::json!("urn:uuid:018123ef-a791-40d8-b62a-f70a350245d4"),
-            serde_json::json!("sha256:dc60aeb735c16a71b6fc56e84ddb8193e3a6d1ef0b7e958d77e78fc039a5d04e"),
+            serde_json::json!(
+                "sha256:dc60aeb735c16a71b6fc56e84ddb8193e3a6d1ef0b7e958d77e78fc039a5d04e"
+            ),
         ];
 
         utoipa::openapi::RefOr::T(utoipa::openapi::Schema::Object(obj))

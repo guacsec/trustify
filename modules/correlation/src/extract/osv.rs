@@ -102,6 +102,26 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                         },
                     });
 
+                    // Per OSV spec, versions >= fixed are not vulnerable.
+                    assertions.push(StatusAssertion {
+                        source: advisory_ref.clone(),
+                        vulnerability_id: vuln_id.to_string(),
+                        status: Status::Fixed,
+                        matcher: ComponentMatcher::Purl {
+                            ty: ty.clone(),
+                            namespace: namespace.clone(),
+                            name: name.clone(),
+                            qualifiers: qualifiers.clone(),
+                            version: Some(VersionConstraint {
+                                scheme,
+                                range: VersionRange::Range(
+                                    VersionBound::Inclusive(fixed.to_string()),
+                                    VersionBound::Unbounded,
+                                ),
+                            }),
+                        },
+                    });
+
                     introduced = None;
                 }
 

@@ -1,7 +1,7 @@
 use crate::types::{
     AdvisoryRef, ComponentMatcher, Status, StatusAssertion, VersionConstraint, parse_purl,
 };
-use crate::version::{VersionRange, VersionScheme, vers::parse_vers};
+use crate::version::{VersionBound, VersionRange, VersionScheme, vers::parse_vers};
 use std::collections::HashMap;
 
 /// Extract status assertions from a CSAF/VEX document.
@@ -197,7 +197,12 @@ fn extract_product_status(
                     None => continue,
                 };
 
-                if let Some(matcher) = resolve_product_id(pid, branch_index, relationship_index) {
+                if let Some(mut matcher) =
+                    resolve_product_id(pid, branch_index, relationship_index)
+                {
+                    if *field == "first_fixed" {
+                        promote_exact_to_lower_bound(&mut matcher);
+                    }
                     assertions.push(StatusAssertion {
                         source: advisory_ref.clone(),
                         vulnerability_id: vuln_id.to_string(),
@@ -305,5 +310,29 @@ fn make_purl_matcher(
             })
         }
         _ => None,
+    }
+}
+
+/// Convert an exact version constraint to a `>=version` range.
+///
+/// CSAF `first_fixed` means "this is the first version containing the fix",
+/// implying all subsequent versions also carry it. When the product uses a
+/// `product_version` (exact PURL version), we promote it to a lower-bounded
+/// range so the engine matches every version at or above the fix.
+fn promote_exact_to_lower_bound(matcher: &mut ComponentMatcher) {
+    let constraint = match matcher {
+        ComponentMatcher::Purl {
+            version: Some(vc), ..
+        } => vc,
+        ComponentMatcher::CpeMatch {
+            version: Some(vc), ..
+        } => vc,
+        _ => return,
+    };
+    if let VersionRange::Exact(v) = &constraint.range {
+        constraint.range = VersionRange::Range(
+            VersionBound::Inclusive(v.clone()),
+            VersionBound::Unbounded,
+        );
     }
 }

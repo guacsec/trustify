@@ -38,4 +38,3 @@ pub fn extract(name: &str, doc: &serde_json::Value) -> SbomInput {
         components,
     }
 }
-

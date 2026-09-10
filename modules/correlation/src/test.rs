@@ -87,19 +87,27 @@ fn run_scenario_formats(scenario_name: &str, formats: &[&str]) {
 
             for (cve_id, expected_status_str) in &expectation.correct {
                 let expected_status = match expected_status_str.as_str() {
-                    "affected" => Status::Affected,
-                    "not_affected" => Status::NotAffected,
-                    "fixed" => Status::Fixed,
+                    "affected" => Some(Status::Affected),
+                    "not_affected" => Some(Status::NotAffected),
+                    "fixed" => Some(Status::Fixed),
+                    "none" => None,
                     other => panic!("unknown expected status: {other}"),
                 };
 
                 let actual = verdict_map.get(cve_id.as_str());
-                match actual {
-                    Some(actual_status) => {
-                        // For expected "not_affected", accept both NotAffected and Fixed
-                        let ok = match expected_status {
+                match (expected_status, actual) {
+                    (None, None) => {}
+                    (None, Some(actual_status)) => {
+                        panic!(
+                            "{scenario_name}/{sbom_name}.{format}: {cve_id}: \
+                             expected no verdict, got {}",
+                            actual_status.as_str()
+                        );
+                    }
+                    (Some(expected), Some(actual_status)) => {
+                        let ok = match expected {
                             Status::NotAffected => actual_status.resolves_affected(),
-                            _ => *actual_status == expected_status,
+                            _ => *actual_status == expected,
                         };
                         assert!(
                             ok,
@@ -108,33 +116,22 @@ fn run_scenario_formats(scenario_name: &str, formats: &[&str]) {
                             actual_status.as_str()
                         );
                     }
-                    None => {
-                        if expected_status == Status::Affected {
-                            // If we expected affected and found no verdict, that might
-                            // mean no assertion matched at all. This is a test failure.
-                            panic!(
-                                "{scenario_name}/{sbom_name}.{format}: {cve_id}: \
-                                 expected {expected_status_str}, but no verdict produced. \
-                                 Collected {} verdicts: {:?}",
-                                collector.verdicts.len(),
-                                collector
-                                    .verdicts
-                                    .iter()
-                                    .map(|v| format!(
-                                        "{}={}",
-                                        v.vulnerability_id,
-                                        v.status.as_str()
-                                    ))
-                                    .collect::<Vec<_>>()
-                            );
-                        } else if expected_status == Status::NotAffected
-                            || expected_status == Status::Fixed
-                        {
-                            // No verdict at all for this CVE — it means the advisory
-                            // didn't match this component, which is also "not affected"
-                            // in the sense that the component isn't flagged.
-                            // This is acceptable for not_affected expectations.
-                        }
+                    (Some(_), None) => {
+                        panic!(
+                            "{scenario_name}/{sbom_name}.{format}: {cve_id}: \
+                             expected {expected_status_str}, but no verdict produced. \
+                             Collected {} verdicts: {:?}",
+                            collector.verdicts.len(),
+                            collector
+                                .verdicts
+                                .iter()
+                                .map(|v| format!(
+                                    "{}={}",
+                                    v.vulnerability_id,
+                                    v.status.as_str()
+                                ))
+                                .collect::<Vec<_>>()
+                        );
                     }
                 }
             }
