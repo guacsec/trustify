@@ -15,7 +15,8 @@ use tokio::{
 /// Manage the download of migration dumps
 #[derive(Debug)]
 pub struct Migration {
-    url: String,
+    /// Base URLs to try, in order.
+    urls: Vec<String>,
 }
 
 impl Migration {
@@ -53,26 +54,43 @@ impl Migration {
 
         // done
 
-        Ok(Self {
-            url: format!(
-                "https://{bucket}.s3.{region}.amazonaws.com/{branch}/{commit}",
-                bucket = bucket,
-                region = region,
-                branch = branch,
-            ),
-        })
+        let base =
+            |branch: &str| format!("https://{bucket}.s3.{region}.amazonaws.com/{branch}/{commit}");
+
+        let mut urls = vec![base(&branch)];
+
+        // Commit specific dumps are only uploaded for the branch the commit was pushed to. So a
+        // branch forked off `main` (like `release/*`) doesn't have them, even though the commit is
+        // part of its history. As the content of such a dump only depends on the commit, and not on
+        // the branch, we can fall back to `main`.
+        if commit.starts_with("commit-") && branch != "main" {
+            urls.push(base("main"));
+        }
+
+        Ok(Self { urls })
     }
 
-    /// Provide the base dump path, for this branch.
+    /// Provide the base dumps to try, in order of preference.
     ///
     /// This may include downloading content from S3.
-    pub fn as_dump(&self) -> Dump<'_, &'static str> {
-        Dump {
-            url: &self.url,
+    pub fn as_dumps(&self) -> impl Iterator<Item = Dump<'_, &'static str>> {
+        self.urls.iter().map(|url| Dump {
+            url,
             files: &["dump.sql.xz", "dump.tar"],
             digests: true,
-        }
+        })
     }
+}
+
+/// Check if an error was caused by a dump not being present in the bucket.
+///
+/// The bucket doesn't allow listing its content, so a missing object is reported as `403` instead
+/// of `404`.
+pub fn is_missing(err: &anyhow::Error) -> bool {
+    err.chain()
+        .filter_map(|err| err.downcast_ref::<reqwest::Error>())
+        .filter_map(|err| err.status())
+        .any(|status| status == StatusCode::NOT_FOUND || status == StatusCode::FORBIDDEN)
 }
 
 /// Discover the base branch name
