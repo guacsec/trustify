@@ -1,6 +1,9 @@
 use anyhow::Context;
 use postgresql_embedded::{PostgreSQL, Settings, VersionReq};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 use tracing::{Instrument, info_span};
 use trustify_common::{db::Database, decompress::decompress_async_read};
 
@@ -14,6 +17,9 @@ pub fn default_settings() -> anyhow::Result<Settings> {
         username: "postgres".to_string(),
         password: "trustify".to_string(),
         temporary: true,
+        // The default of 5s is not enough for `initdb` (and the other commands) on a loaded CI
+        // runner, where several test binaries bring up their own instance in parallel.
+        timeout: Some(Duration::from_secs(60)),
         ..Default::default()
     })
 }
