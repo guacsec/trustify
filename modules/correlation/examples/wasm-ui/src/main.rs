@@ -187,7 +187,6 @@ fn App() -> impl IntoView {
                 let mut collector = VecCollector::default();
                 let query = ComponentQuery {
                     id: component_id,
-                    describing_cpes: Vec::new(),
                 };
                 eng.correlate_component(&query, &mut collector);
                 apply_results(&collector, &set_results, &set_trace_log);

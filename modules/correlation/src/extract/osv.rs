@@ -99,7 +99,6 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                                     VersionBound::Exclusive(fixed.to_string()),
                                 ),
                             }),
-                            context_cpe: None,
                         },
                     });
 
@@ -129,7 +128,6 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                                     VersionBound::Inclusive(last_affected.to_string()),
                                 ),
                             }),
-                            context_cpe: None,
                         },
                     });
 
@@ -158,7 +156,6 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                             scheme,
                             range: VersionRange::Range(low, VersionBound::Unbounded),
                         }),
-                        context_cpe: None,
                     },
                 });
             }

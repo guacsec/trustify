@@ -73,7 +73,6 @@ struct BranchInfo {
 #[derive(Debug, Clone)]
 struct RelationshipInfo {
     product_reference: String,
-    relates_to: String,
 }
 
 fn walk_branches(
@@ -143,11 +142,6 @@ fn index_relationships(
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let relates_to = rel
-                .get("relates_to_product_reference")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string();
 
             if let Some(pih) = full_product.get("product_identification_helper") {
                 let info = BranchInfo {
@@ -166,7 +160,6 @@ fn index_relationships(
                 product_id,
                 RelationshipInfo {
                     product_reference: product_ref,
-                    relates_to,
                 },
             );
         }
@@ -216,7 +209,6 @@ fn extract_product_status(
                             ref namespace,
                             ref name,
                             version: Some(ref vc),
-                            ref context_cpe,
                             ref qualifiers,
                         } = matcher
                         && let VersionRange::Exact(ref fix_ver) = vc.range
@@ -237,7 +229,6 @@ fn extract_product_status(
                                         VersionBound::Exclusive(fix_ver.clone()),
                                     ),
                                 }),
-                                context_cpe: context_cpe.clone(),
                             },
                         });
                     }
@@ -254,18 +245,16 @@ fn resolve_product_id(
 ) -> Option<ComponentMatcher> {
     if let Some(rel) = relationship_index.get(product_id) {
         let component_info = branch_index.get(&rel.product_reference);
-        let context_info = branch_index.get(&rel.relates_to);
-        let context_cpe = context_info.and_then(|info| info.cpe.clone());
 
         if let Some(info) = component_info
             && let Some(ref purl_str) = info.purl
         {
-            return make_purl_matcher(purl_str, context_cpe);
+            return make_purl_matcher(purl_str);
         }
 
         if let Some(info) = branch_index.get(product_id) {
             if let Some(ref purl_str) = info.purl {
-                return make_purl_matcher(purl_str, context_cpe);
+                return make_purl_matcher(purl_str);
             }
             if let Some(ref cpe) = info.cpe {
                 return Some(ComponentMatcher::CpeMatch {
@@ -280,7 +269,7 @@ fn resolve_product_id(
 
     if let Some(info) = branch_index.get(product_id) {
         if let Some(ref purl_str) = info.purl {
-            return make_purl_matcher(purl_str, info.cpe.clone());
+            return make_purl_matcher(purl_str);
         }
         if let Some(ref cpe) = info.cpe {
             return Some(ComponentMatcher::CpeMatch {
@@ -293,7 +282,7 @@ fn resolve_product_id(
     None
 }
 
-fn make_purl_matcher(purl_str: &str, context_cpe: Option<String>) -> Option<ComponentMatcher> {
+fn make_purl_matcher(purl_str: &str) -> Option<ComponentMatcher> {
     let parsed = parse_purl(purl_str)?;
     match parsed {
         crate::types::ComponentId::Purl {
@@ -330,7 +319,6 @@ fn make_purl_matcher(purl_str: &str, context_cpe: Option<String>) -> Option<Comp
                 name,
                 qualifiers,
                 version: version_constraint,
-                context_cpe,
             })
         }
         _ => None,

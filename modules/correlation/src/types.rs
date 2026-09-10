@@ -171,7 +171,6 @@ pub enum ComponentMatcher {
         /// component qualifiers; present qualifiers must match exactly.
         qualifiers: BTreeMap<String, String>,
         version: Option<VersionConstraint>,
-        context_cpe: Option<String>,
     },
     CpeMatch {
         cpe: String,
@@ -215,7 +214,6 @@ pub struct MatchEvidence {
     pub status: Status,
     pub dimension: MatchDimension,
     pub version_in_range: Option<bool>,
-    pub cpe_context_matched: Option<bool>,
 }
 
 /// A single entry in the decision trace.
@@ -236,14 +234,12 @@ pub struct SbomComponent {
 pub struct SbomInput {
     pub name: String,
     pub components: Vec<SbomComponent>,
-    pub describing_cpes: Vec<String>,
 }
 
 /// Query for a single component.
 #[derive(Debug, Clone)]
 pub struct ComponentQuery {
     pub id: ComponentId,
-    pub describing_cpes: Vec<String>,
 }
 
 /// A scenario definition loaded from `expected.json`.

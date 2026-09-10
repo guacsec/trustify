@@ -60,29 +60,16 @@ impl CorrelationEngine for InMemoryEngine {
                 "correlating component: {}",
                 format_component_id(&component.id)
             ),
-            detail: if component.describing_cpes.is_empty() {
-                Some("no describing CPEs on SBOM".into())
-            } else {
-                Some(format!(
-                    "describing CPEs: {}",
-                    component.describing_cpes.join(", ")
-                ))
-            },
+            detail: None,
         });
 
         let mut by_vuln: HashMap<&str, Vec<&StatusAssertion>> = HashMap::new();
         let mut identity_match_count = 0u32;
 
         for assertion in &self.assertions {
-            if matches_component(
-                &component.id,
-                &assertion.matcher,
-                &component.describing_cpes,
-            ) {
+            if matches_component(&component.id, &assertion.matcher) {
                 identity_match_count += 1;
                 let version_in_range = check_version(&component.id, &assertion.matcher);
-                let cpe_context_ok =
-                    check_cpe_context(&assertion.matcher, &component.describing_cpes);
 
                 collector.on_match(&MatchEvidence {
                     assertion_source: assertion.source.clone(),
@@ -90,15 +77,12 @@ impl CorrelationEngine for InMemoryEngine {
                     status: assertion.status,
                     dimension: match_dimension(&assertion.matcher),
                     version_in_range: Some(version_in_range),
-                    cpe_context_matched: Some(cpe_context_ok),
                 });
 
-                let qualifier = if version_in_range && cpe_context_ok {
+                let qualifier = if version_in_range {
                     "EFFECTIVE"
-                } else if !version_in_range {
-                    "SKIPPED (version out of range)"
                 } else {
-                    "SKIPPED (context CPE mismatch)"
+                    "SKIPPED (version out of range)"
                 };
 
                 collector.on_trace(&TraceEntry {
@@ -110,20 +94,14 @@ impl CorrelationEngine for InMemoryEngine {
                         assertion.source.identifier,
                         format_matcher(&assertion.matcher),
                     ),
-                    detail: if !version_in_range || !cpe_context_ok {
-                        Some(explain_skip(
-                            &component.id,
-                            &assertion.matcher,
-                            &component.describing_cpes,
-                            version_in_range,
-                            cpe_context_ok,
-                        ))
+                    detail: if !version_in_range {
+                        Some(explain_skip(&component.id, &assertion.matcher))
                     } else {
                         None
                     },
                 });
 
-                if version_in_range && cpe_context_ok {
+                if version_in_range {
                     by_vuln
                         .entry(&assertion.vulnerability_id)
                         .or_default()
@@ -159,7 +137,6 @@ impl CorrelationEngine for InMemoryEngine {
         for component in &sbom.components {
             let query = ComponentQuery {
                 id: component.id.clone(),
-                describing_cpes: sbom.describing_cpes.clone(),
             };
             self.correlate_component(&query, collector);
         }
@@ -167,11 +144,7 @@ impl CorrelationEngine for InMemoryEngine {
 }
 
 /// Check whether an assertion's matcher identifies the same component.
-fn matches_component(
-    component: &ComponentId,
-    matcher: &ComponentMatcher,
-    describing_cpes: &[String],
-) -> bool {
+fn matches_component(component: &ComponentId, matcher: &ComponentMatcher) -> bool {
     match (component, matcher) {
         (
             ComponentId::Purl {
@@ -185,7 +158,6 @@ fn matches_component(
                 namespace: match_ns,
                 name: match_name,
                 qualifiers,
-                context_cpe,
                 ..
             },
         ) => {
@@ -199,11 +171,6 @@ fn matches_component(
                 return false;
             }
             if !qualifiers_match(qualifiers, component) {
-                return false;
-            }
-            if let Some(ctx_cpe) = context_cpe
-                && !cpe_matches_any(ctx_cpe, describing_cpes)
-            {
                 return false;
             }
             true
@@ -270,7 +237,7 @@ fn check_version(component: &ComponentId, matcher: &ComponentMatcher) -> bool {
         ComponentMatcher::Purl {
             version: Some(vc), ..
         } => vc,
-        ComponentMatcher::Purl { version: None, .. } => return true,
+        ComponentMatcher::Purl { version: None, .. } => return false,
         ComponentMatcher::CpeMatch {
             version: Some(vc), ..
         } => vc,
@@ -279,27 +246,6 @@ fn check_version(component: &ComponentId, matcher: &ComponentMatcher) -> bool {
     };
 
     version_matches(&comp_version, &constraint.range, constraint.scheme)
-}
-
-/// Check whether the assertion's context_cpe matches any of the SBOM's describing CPEs.
-fn check_cpe_context(matcher: &ComponentMatcher, describing_cpes: &[String]) -> bool {
-    match matcher {
-        ComponentMatcher::Purl {
-            context_cpe: Some(ctx),
-            ..
-        } => cpe_matches_any(ctx, describing_cpes),
-        _ => true,
-    }
-}
-
-fn cpe_matches_any(ctx_cpe: &str, describing_cpes: &[String]) -> bool {
-    if describing_cpes.is_empty() {
-        // SBOM declares no product stream — cannot verify context, so reject
-        return false;
-    }
-    describing_cpes
-        .iter()
-        .any(|desc| context_cpe_matches(desc, ctx_cpe))
 }
 
 /// Normalize a CPE string to CPE 2.3 format for comparison.
@@ -347,28 +293,6 @@ fn cpe_prefix_matches(candidate: &str, pattern: &str) -> bool {
     true
 }
 
-/// Context-CPE match for advisory filtering.
-/// Compares vendor:product:version (segments 3,4,5 in CPE 2.3), ignoring
-/// part (o vs a) and update channel (baseos vs appstream). This matches the
-/// semantic intent: "same product family, possibly different repo".
-fn context_cpe_matches(sbom_cpe: &str, advisory_cpe: &str) -> bool {
-    let sbom_parts = normalize_cpe(sbom_cpe);
-    let adv_parts = normalize_cpe(advisory_cpe);
-
-    // Compare vendor (3), product (4), version (5) — indices in CPE 2.3 format
-    for idx in [3, 4, 5] {
-        let s = sbom_parts.get(idx).map(String::as_str).unwrap_or("*");
-        let a = adv_parts.get(idx).map(String::as_str).unwrap_or("*");
-        if s == "*" || a == "*" {
-            continue;
-        }
-        if s != a {
-            return false;
-        }
-    }
-    true
-}
-
 fn format_component_id(id: &ComponentId) -> String {
     match id {
         ComponentId::Purl {
@@ -401,7 +325,6 @@ fn format_matcher(matcher: &ComponentMatcher) -> String {
             name,
             qualifiers,
             version,
-            context_cpe,
         } => {
             let ns = namespace
                 .as_deref()
@@ -411,16 +334,12 @@ fn format_matcher(matcher: &ComponentMatcher) -> String {
                 .as_ref()
                 .map(|v| format!(" version={}", v.range))
                 .unwrap_or_default();
-            let ctx = context_cpe
-                .as_deref()
-                .map(|c| format!(" context_cpe={c}"))
-                .unwrap_or_default();
             let qualifiers = if qualifiers.is_empty() {
                 String::new()
             } else {
                 format!(" qualifiers={qualifiers:?}")
             };
-            format!("purl:{ty}/{ns}{name}{qualifiers}{ver}{ctx}")
+            format!("purl:{ty}/{ns}{name}{qualifiers}{ver}")
         }
         ComponentMatcher::CpeMatch { cpe, version } => {
             let ver = version
@@ -435,58 +354,24 @@ fn format_matcher(matcher: &ComponentMatcher) -> String {
     }
 }
 
-fn explain_skip(
-    component: &ComponentId,
-    matcher: &ComponentMatcher,
-    describing_cpes: &[String],
-    version_ok: bool,
-    context_ok: bool,
-) -> String {
-    let mut parts = Vec::new();
-
-    if !version_ok {
-        let comp_ver = match component {
-            ComponentId::Purl {
-                version: Some(v), ..
-            } => v.as_str(),
-            _ => "(none)",
-        };
-        let constraint = match matcher {
-            ComponentMatcher::Purl {
-                version: Some(vc), ..
-            } => format!("{}", vc.range),
-            ComponentMatcher::CpeMatch {
-                version: Some(vc), ..
-            } => format!("{}", vc.range),
-            ComponentMatcher::CveProduct { version: vc, .. } => format!("{}", vc.range),
-            _ => "(none)".into(),
-        };
-        parts.push(format!(
-            "component version '{comp_ver}' is outside {constraint}"
-        ));
-    }
-
-    if !context_ok {
-        let ctx_cpe = match matcher {
-            ComponentMatcher::Purl {
-                context_cpe: Some(c),
-                ..
-            } => c.as_str(),
-            _ => "(none)",
-        };
-        if describing_cpes.is_empty() {
-            parts.push(format!(
-                "assertion requires context_cpe={ctx_cpe} but SBOM has no describing CPEs"
-            ));
-        } else {
-            parts.push(format!(
-                "context_cpe={ctx_cpe} does not match SBOM describing CPEs: {}",
-                describing_cpes.join(", ")
-            ));
-        }
-    }
-
-    parts.join("; ")
+fn explain_skip(component: &ComponentId, matcher: &ComponentMatcher) -> String {
+    let comp_ver = match component {
+        ComponentId::Purl {
+            version: Some(v), ..
+        } => v.as_str(),
+        _ => "(none)",
+    };
+    let constraint = match matcher {
+        ComponentMatcher::Purl {
+            version: Some(vc), ..
+        } => format!("{}", vc.range),
+        ComponentMatcher::CpeMatch {
+            version: Some(vc), ..
+        } => format!("{}", vc.range),
+        ComponentMatcher::CveProduct { version: vc, .. } => format!("{}", vc.range),
+        _ => "(none)".into(),
+    };
+    format!("component version '{comp_ver}' is outside {constraint}")
 }
 
 fn match_dimension(matcher: &ComponentMatcher) -> MatchDimension {

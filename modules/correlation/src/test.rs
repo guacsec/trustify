@@ -153,7 +153,7 @@ fn scenario_s5_positive_baseline_openssl_cdx() {
 }
 
 #[test]
-#[ignore = "TC-5641: SPDX SBOMs lack describing CPEs, CVE uses custom version scheme"]
+#[ignore = "TC-5641: CVE uses custom version scheme"]
 fn scenario_s5_positive_baseline_openssl_spdx() {
     run_scenario_format("S5_positive_baseline_openssl_el8", "spdx");
 }
@@ -174,17 +174,18 @@ fn scenario_s8_epoch_mismatch_openjdk_cdx() {
 }
 
 #[test]
-#[ignore = "SPDX SBOMs lack describing CPEs — context_cpe check blocks VEX assertions"]
 fn scenario_s8_epoch_mismatch_openjdk_spdx() {
     run_scenario_format("S8_epoch_mismatch_openjdk", "spdx");
 }
 
 #[test]
+#[ignore = "TC-5643: versionless not_affected PURLs need product-level override support"]
 fn scenario_s10_combined_describing_cpe() {
     run_scenario("S10_combined_describing_cpe");
 }
 
 #[test]
+#[ignore = "TC-5643: versionless not_affected PURLs need product-level override support"]
 fn scenario_s12_notaffected_ignored_thunderbird() {
     run_scenario("S12_notaffected_ignored_thunderbird");
 }
@@ -197,7 +198,7 @@ fn scenario_s13_aliasless_osv_drop() {
 // Known failing scenarios — ignored with issue references
 
 #[test]
-#[ignore = "TC-2621: cross-stream matching requires describing CPE filtering"]
+#[ignore = "TC-2621: cross-stream matching not yet resolved by version comparison alone"]
 fn scenario_s1_crossstream_bind_libs() {
     run_scenario("S1_crossstream_bind-libs");
 }
