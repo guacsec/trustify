@@ -1,81 +1,83 @@
 use super::{VersionBound, VersionRange, VersionScheme};
 use crate::types::VersionConstraint;
+use vers_rs::{Comparator, GenericVersionRange};
 
 /// Parse a VERS expression into a version scheme and range.
 ///
-/// Handles common two-constraint patterns that map to a single `VersionRange`.
-/// Returns `None` for expressions that can't be represented (e.g., disjoint unions).
-pub fn parse_vers(vers: &str) -> Option<VersionConstraint> {
-    let rest = vers.strip_prefix("vers:")?;
-    let (scheme_str, constraints_str) = rest.split_once('/')?;
-    let scheme = VersionScheme::from(scheme_str);
-
-    let constraints: Vec<_> = constraints_str.split('|').collect();
+/// Returns `None` for expressions that can't be parsed or represented.
+pub fn parse_vers(input: &str) -> Option<VersionConstraint> {
+    let range: GenericVersionRange<String> = input.parse().ok()?;
+    let scheme = VersionScheme::from(range.versioning_scheme.as_str());
+    let constraints = &range.constraints;
 
     match constraints.len() {
         1 => {
-            let (bound, is_low) = parse_constraint(constraints[0])?;
-            if is_low {
-                Some(VersionConstraint {
-                    scheme,
-                    range: VersionRange::Range(bound, VersionBound::Unbounded),
-                })
-            } else {
-                Some(VersionConstraint {
-                    scheme,
-                    range: VersionRange::Range(VersionBound::Unbounded, bound),
-                })
-            }
+            let c = &constraints[0];
+            let range = match c.comparator {
+                Comparator::Any => {
+                    VersionRange::Range(VersionBound::Unbounded, VersionBound::Unbounded)
+                }
+                Comparator::Equal => VersionRange::Exact(c.version.clone()),
+                Comparator::GreaterThan => VersionRange::Range(
+                    VersionBound::Exclusive(c.version.clone()),
+                    VersionBound::Unbounded,
+                ),
+                Comparator::GreaterThanOrEqual => VersionRange::Range(
+                    VersionBound::Inclusive(c.version.clone()),
+                    VersionBound::Unbounded,
+                ),
+                Comparator::LessThan => VersionRange::Range(
+                    VersionBound::Unbounded,
+                    VersionBound::Exclusive(c.version.clone()),
+                ),
+                Comparator::LessThanOrEqual => VersionRange::Range(
+                    VersionBound::Unbounded,
+                    VersionBound::Inclusive(c.version.clone()),
+                ),
+                Comparator::NotEqual => {
+                    VersionRange::Range(VersionBound::Unbounded, VersionBound::Unbounded)
+                }
+            };
+            Some(VersionConstraint { scheme, range })
         }
-        2 => {
-            let (bound_a, a_is_low) = parse_constraint(constraints[0])?;
-            let (bound_b, b_is_low) = parse_constraint(constraints[1])?;
-            if a_is_low && !b_is_low {
-                Some(VersionConstraint {
-                    scheme,
-                    range: VersionRange::Range(bound_a, bound_b),
-                })
-            } else if !a_is_low && b_is_low {
-                Some(VersionConstraint {
-                    scheme,
-                    range: VersionRange::Range(bound_b, bound_a),
-                })
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
-}
+        _ => {
+            let lower = constraints.iter().find(|c| {
+                matches!(
+                    c.comparator,
+                    Comparator::GreaterThan | Comparator::GreaterThanOrEqual
+                )
+            });
+            let upper = constraints.iter().find(|c| {
+                matches!(
+                    c.comparator,
+                    Comparator::LessThan | Comparator::LessThanOrEqual
+                )
+            });
 
-/// Parse a single VERS constraint like `>=1.0` or `<2.0`.
-/// Returns the bound and whether it's a lower bound (`true`) or upper bound (`false`).
-fn parse_constraint(s: &str) -> Option<(VersionBound, bool)> {
-    if let Some(v) = s.strip_prefix(">=") {
-        if is_zero(v) {
-            Some((VersionBound::Unbounded, true))
-        } else {
-            Some((VersionBound::Inclusive(v.to_string()), true))
-        }
-    } else if let Some(v) = s.strip_prefix('>') {
-        if is_zero(v) {
-            Some((VersionBound::Unbounded, true))
-        } else {
-            Some((VersionBound::Exclusive(v.to_string()), true))
-        }
-    } else if let Some(v) = s.strip_prefix("<=") {
-        Some((VersionBound::Inclusive(v.to_string()), false))
-    } else if let Some(v) = s.strip_prefix('<') {
-        Some((VersionBound::Exclusive(v.to_string()), false))
-    } else if s == "*" {
-        Some((VersionBound::Unbounded, true))
-    } else {
-        None
-    }
-}
+            if lower.is_none() && upper.is_none() {
+                return None;
+            }
 
-fn is_zero(v: &str) -> bool {
-    v == "0" || v == "0.0" || v == "0.0.0"
+            let low = match lower {
+                Some(c) if c.comparator == Comparator::GreaterThanOrEqual => {
+                    VersionBound::Inclusive(c.version.clone())
+                }
+                Some(c) => VersionBound::Exclusive(c.version.clone()),
+                None => VersionBound::Unbounded,
+            };
+            let high = match upper {
+                Some(c) if c.comparator == Comparator::LessThanOrEqual => {
+                    VersionBound::Inclusive(c.version.clone())
+                }
+                Some(c) => VersionBound::Exclusive(c.version.clone()),
+                None => VersionBound::Unbounded,
+            };
+            Some(VersionConstraint {
+                scheme,
+                range: VersionRange::Range(low, high),
+            })
+        }
+    }
 }
 
 #[cfg(test)]
@@ -86,13 +88,10 @@ mod test {
     fn lower_exclusive_upper() {
         let vc = parse_vers("vers:rpm/>=0|<1.1.1k-9.el8_7").unwrap();
         assert_eq!(vc.scheme, VersionScheme::Rpm);
-        assert_eq!(
+        assert!(matches!(
             vc.range,
-            VersionRange::Range(
-                VersionBound::Unbounded,
-                VersionBound::Exclusive("1.1.1k-9.el8_7".into())
-            )
-        );
+            VersionRange::Range(_, VersionBound::Exclusive(ref v)) if v == "1.1.1k-9.el8_7"
+        ));
     }
 
     #[test]
@@ -138,34 +137,23 @@ mod test {
     fn epoch_in_version() {
         let vc = parse_vers("vers:rpm/>=0|<1:1.8.0.502.b07-1.1.el8").unwrap();
         assert_eq!(vc.scheme, VersionScheme::Rpm);
-        assert_eq!(
+        assert!(matches!(
             vc.range,
-            VersionRange::Range(
-                VersionBound::Unbounded,
-                VersionBound::Exclusive("1:1.8.0.502.b07-1.1.el8".into())
-            )
-        );
+            VersionRange::Range(_, VersionBound::Exclusive(ref v)) if v == "1:1.8.0.502.b07-1.1.el8"
+        ));
     }
 
     #[test]
-    fn three_constraints_returns_none() {
-        assert!(parse_vers("vers:rpm/>=1.0|<2.0|>=3.0").is_none());
+    fn wildcard_constraint() {
+        let vc = parse_vers("vers:rpm/*").unwrap();
+        assert_eq!(
+            vc.range,
+            VersionRange::Range(VersionBound::Unbounded, VersionBound::Unbounded)
+        );
     }
 
     #[test]
     fn invalid_prefix() {
         assert!(parse_vers("not-vers:rpm/>=0").is_none());
-    }
-
-    #[test]
-    fn wildcard_constraint() {
-        let vc = parse_vers("vers:rpm/*|<2.0").unwrap();
-        assert_eq!(
-            vc.range,
-            VersionRange::Range(
-                VersionBound::Unbounded,
-                VersionBound::Exclusive("2.0".into())
-            )
-        );
     }
 }

@@ -8712,6 +8712,7 @@ dependencies = [
  "serde_json",
  "test-log",
  "tracing",
+ "vers-rs",
 ]
 
 [[package]]
