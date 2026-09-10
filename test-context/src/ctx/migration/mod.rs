@@ -3,9 +3,9 @@ mod snapshot;
 use crate::{
     TrustifyTestContext,
     ctx::migration::snapshot::Snapshot,
-    migration::{Dump, Dumps, Migration},
+    migration::{Dump, Dumps, Migration, is_missing},
 };
-use anyhow::Context;
+use anyhow::{Context, bail};
 use std::{borrow::Cow, marker::PhantomData, ops::Deref};
 use test_context::AsyncTestContext;
 use uuid::Uuid;
@@ -156,7 +156,30 @@ impl<ID: DumpId> TrustifyMigrationContext<ID> {
                 let migration =
                     Migration::new(&id).context("failed to create migration manager")?;
 
-                let base = dumps.provide_raw("migration", migration.as_dump()).await?;
+                let mut base = None;
+                let mut last = None;
+
+                for dump in migration.as_dumps() {
+                    let url = dump.url.to_string();
+                    match dumps.provide_raw("migration", dump).await {
+                        Ok(path) => {
+                            base = Some(path);
+                            break;
+                        }
+                        // only fall back to the next candidate if the dump is simply not there
+                        Err(err) if is_missing(&err) => {
+                            log::info!("no migration dump at '{url}', trying next: {err}");
+                            last = Some(err);
+                        }
+                        Err(err) => return Err(err),
+                    }
+                }
+
+                let base = match (base, last) {
+                    (Some(base), _) => base,
+                    (None, Some(err)) => return Err(err),
+                    (None, None) => bail!("no migration dump candidates"),
+                };
 
                 Snapshot {
                     id: source_id,
