@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     fs,
-    io::Read,
     path::{Path, PathBuf},
 };
 
@@ -20,10 +19,8 @@ fn load_json(path: &Path) -> serde_json::Value {
         if xz_path.exists() {
             let compressed = fs::read(&xz_path)
                 .unwrap_or_else(|e| panic!("failed to read {}: {e}", xz_path.display()));
-            let mut decompressor = liblzma::read::XzDecoder::new(&compressed[..]);
             let mut json_bytes = Vec::new();
-            decompressor
-                .read_to_end(&mut json_bytes)
+            lzma_rs::xz_decompress(&mut std::io::Cursor::new(&compressed), &mut json_bytes)
                 .unwrap_or_else(|e| panic!("failed to decompress {}: {e}", xz_path.display()));
             return serde_json::from_slice(&json_bytes).unwrap_or_else(|e| {
                 panic!("failed to parse JSON from {}: {e}", xz_path.display())
@@ -147,7 +144,12 @@ fn run_scenario_formats(scenario_name: &str, formats: &[&str]) {
 
 // ---- Scenario tests ----
 
+/// S5 relies on implied-affected logic (synthesizing `affected` for all versions below `fixed`)
+/// which was removed because it is not spec-compliant. The upstream CSAF data does not use
+/// `product_version_range` with VERS to declare affected ranges. See S5a for the spec-compliant
+/// replacement.
 #[test]
+#[ignore = "TC-5643: upstream CSAF lacks VERS ranges; relied on removed implied-affected logic"]
 fn scenario_s5_positive_baseline_openssl_cdx() {
     run_scenario_format("S5_positive_baseline_openssl_el8", "cdx");
 }
@@ -168,12 +170,19 @@ fn scenario_s7_cpeonly_node_hummingbird() {
     run_scenario("S7_cpeonly_node_hummingbird");
 }
 
+/// S8 relies on implied-affected logic (synthesizing `affected` for all versions below `fixed`)
+/// which was removed because it is not spec-compliant. The upstream CSAF data does not use
+/// `product_version_range` with VERS to declare affected ranges. See S8a for the spec-compliant
+/// replacement.
 #[test]
+#[ignore = "TC-5643: upstream CSAF lacks VERS ranges; relied on removed implied-affected logic"]
 fn scenario_s8_epoch_mismatch_openjdk_cdx() {
     run_scenario_format("S8_epoch_mismatch_openjdk", "cdx");
 }
 
+/// Same as S8 CDX — see doc comment above.
 #[test]
+#[ignore = "TC-5643: upstream CSAF lacks VERS ranges; relied on removed implied-affected logic"]
 fn scenario_s8_epoch_mismatch_openjdk_spdx() {
     run_scenario_format("S8_epoch_mismatch_openjdk", "spdx");
 }
@@ -181,10 +190,11 @@ fn scenario_s8_epoch_mismatch_openjdk_spdx() {
 /// The thunderbird sub-SBOMs expect `not_affected` from a versionless PURL
 /// (`pkg:rpm/redhat/thunderbird`) declared `known_not_affected` in the CSAF advisory.
 /// Per the PURL spec (ECMA-427), a versionless PURL is an identifier, not a wildcard
-/// for all versions. The upstream CSAF data does not express its intent correctly.
-/// The engine correctly produces `affected` (SBOM version is below the sub-stream fix).
+/// for all versions. Additionally, `sbom_combined_el8` expects `affected` for openssl
+/// (CVE-2022-4304), which relied on the removed implied-affected logic — the upstream
+/// CSAF lacks VERS ranges for affected versions.
 #[test]
-#[ignore = "TC-5643: upstream CSAF uses versionless PURLs for product-level not_affected"]
+#[ignore = "TC-5643: upstream CSAF uses versionless PURLs and lacks VERS ranges"]
 fn scenario_s10_combined_describing_cpe() {
     run_scenario("S10_combined_describing_cpe");
 }
@@ -201,6 +211,21 @@ fn scenario_s12_notaffected_ignored_thunderbird() {
 #[test]
 fn scenario_s13_aliasless_osv_drop() {
     run_scenario("S13_aliasless_osv_drop");
+}
+
+#[test]
+fn scenario_s5a_vers_affected_openssl_el8() {
+    run_scenario("S5a_vers_affected_openssl_el8");
+}
+
+#[test]
+fn scenario_s8a_vers_epoch_openjdk() {
+    run_scenario("S8a_vers_epoch_openjdk");
+}
+
+#[test]
+fn scenario_s12a_vers_affected_thunderbird() {
+    run_scenario("S12a_vers_affected_thunderbird");
 }
 
 // Known failing scenarios — ignored with issue references

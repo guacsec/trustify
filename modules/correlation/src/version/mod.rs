@@ -3,6 +3,7 @@ pub mod maven;
 pub mod python;
 pub mod rpm;
 pub mod semver;
+pub mod vers;
 
 use std::cmp::Ordering;
 

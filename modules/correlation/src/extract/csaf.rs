@@ -1,7 +1,7 @@
 use crate::types::{
     AdvisoryRef, ComponentMatcher, Status, StatusAssertion, VersionConstraint, parse_purl,
 };
-use crate::version::{VersionBound, VersionRange, VersionScheme};
+use crate::version::{VersionRange, VersionScheme, vers::parse_vers};
 use std::collections::HashMap;
 
 /// Extract status assertions from a CSAF/VEX document.
@@ -16,11 +16,6 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
         identifier: tracking_id,
         source_file: Some(source_file.to_string()),
     };
-
-    let is_redhat = doc
-        .pointer("/document/publisher/namespace")
-        .and_then(|v| v.as_str())
-        .is_some_and(|ns| ns.contains("redhat.com"));
 
     let mut branch_index: HashMap<String, BranchInfo> = HashMap::new();
     let mut relationship_index: HashMap<String, RelationshipInfo> = HashMap::new();
@@ -50,7 +45,6 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                     product_status,
                     &branch_index,
                     &relationship_index,
-                    is_redhat,
                     &mut assertions,
                 );
             }
@@ -68,6 +62,7 @@ struct BranchInfo {
     product_name: Option<String>,
     #[allow(dead_code)]
     vendor: Option<String>,
+    version_range: Option<VersionConstraint>,
 }
 
 #[derive(Debug, Clone)]
@@ -93,12 +88,20 @@ fn walk_branches(
             if p.cpe.is_some() {
                 info.cpe.clone_from(&p.cpe);
             }
+            if p.version_range.is_some() {
+                info.version_range.clone_from(&p.version_range);
+            }
         }
 
         match category {
             Some("vendor") => info.vendor = name.map(|s| s.to_string()),
             Some("product_name" | "product_family") => {
                 info.product_name = name.map(|s| s.to_string());
+            }
+            Some("product_version_range") => {
+                if let Some(vers_str) = name {
+                    info.version_range = parse_vers(vers_str);
+                }
             }
             _ => {}
         }
@@ -152,6 +155,7 @@ fn index_relationships(
                         .and_then(|v| v.as_str())
                         .map(String::from),
                     vendor: None,
+                    version_range: None,
                 };
                 branch_index.insert(product_id.clone(), info);
             }
@@ -172,7 +176,6 @@ fn extract_product_status(
     product_status: &serde_json::Value,
     branch_index: &HashMap<String, BranchInfo>,
     relationship_index: &HashMap<String, RelationshipInfo>,
-    is_redhat: bool,
     assertions: &mut Vec<StatusAssertion>,
 ) {
     let status_mappings = [
@@ -199,39 +202,8 @@ fn extract_product_status(
                         source: advisory_ref.clone(),
                         vulnerability_id: vuln_id.to_string(),
                         status: *status,
-                        matcher: matcher.clone(),
+                        matcher,
                     });
-
-                    if *status == Status::Fixed
-                        && is_redhat
-                        && let ComponentMatcher::Purl {
-                            ref ty,
-                            ref namespace,
-                            ref name,
-                            version: Some(ref vc),
-                            ref qualifiers,
-                        } = matcher
-                        && let VersionRange::Exact(ref fix_ver) = vc.range
-                    {
-                        assertions.push(StatusAssertion {
-                            source: advisory_ref.clone(),
-                            vulnerability_id: vuln_id.to_string(),
-                            status: Status::Affected,
-                            matcher: ComponentMatcher::Purl {
-                                ty: ty.clone(),
-                                namespace: namespace.clone(),
-                                name: name.clone(),
-                                qualifiers: qualifiers.clone(),
-                                version: Some(VersionConstraint {
-                                    scheme: vc.scheme,
-                                    range: VersionRange::Range(
-                                        VersionBound::Unbounded,
-                                        VersionBound::Exclusive(fix_ver.clone()),
-                                    ),
-                                }),
-                            },
-                        });
-                    }
                 }
             }
         }
@@ -249,12 +221,12 @@ fn resolve_product_id(
         if let Some(info) = component_info
             && let Some(ref purl_str) = info.purl
         {
-            return make_purl_matcher(purl_str);
+            return make_purl_matcher(purl_str, info.version_range.as_ref());
         }
 
         if let Some(info) = branch_index.get(product_id) {
             if let Some(ref purl_str) = info.purl {
-                return make_purl_matcher(purl_str);
+                return make_purl_matcher(purl_str, info.version_range.as_ref());
             }
             if let Some(ref cpe) = info.cpe {
                 return Some(ComponentMatcher::CpeMatch {
@@ -269,7 +241,7 @@ fn resolve_product_id(
 
     if let Some(info) = branch_index.get(product_id) {
         if let Some(ref purl_str) = info.purl {
-            return make_purl_matcher(purl_str);
+            return make_purl_matcher(purl_str, info.version_range.as_ref());
         }
         if let Some(ref cpe) = info.cpe {
             return Some(ComponentMatcher::CpeMatch {
@@ -282,7 +254,14 @@ fn resolve_product_id(
     None
 }
 
-fn make_purl_matcher(purl_str: &str) -> Option<ComponentMatcher> {
+/// Build a PURL-based component matcher.
+///
+/// When `version_override` is provided (from a `product_version_range` branch), it
+/// replaces the PURL's own version — this is how CSAF VERS ranges are applied.
+fn make_purl_matcher(
+    purl_str: &str,
+    version_override: Option<&VersionConstraint>,
+) -> Option<ComponentMatcher> {
     let parsed = parse_purl(purl_str)?;
     match parsed {
         crate::types::ComponentId::Purl {
@@ -292,27 +271,31 @@ fn make_purl_matcher(purl_str: &str) -> Option<ComponentMatcher> {
             version,
             qualifiers,
         } => {
-            let effective_version = if ty == "rpm" {
-                if let (Some(v), Some(epoch)) = (&version, qualifiers.get("epoch")) {
-                    if epoch != "0" {
-                        Some(format!("{epoch}:{v}"))
+            let version_constraint = if let Some(vc) = version_override {
+                Some(vc.clone())
+            } else {
+                let effective_version = if ty == "rpm" {
+                    if let (Some(v), Some(epoch)) = (&version, qualifiers.get("epoch")) {
+                        if epoch != "0" {
+                            Some(format!("{epoch}:{v}"))
+                        } else {
+                            version.clone()
+                        }
                     } else {
                         version.clone()
                     }
                 } else {
                     version.clone()
-                }
-            } else {
-                version.clone()
-            };
+                };
 
-            let version_constraint = effective_version.map(|v| {
-                let scheme = VersionScheme::from(ty.as_str());
-                VersionConstraint {
-                    scheme,
-                    range: VersionRange::Exact(v),
-                }
-            });
+                effective_version.map(|v| {
+                    let scheme = VersionScheme::from(ty.as_str());
+                    VersionConstraint {
+                        scheme,
+                        range: VersionRange::Exact(v),
+                    }
+                })
+            };
             Some(ComponentMatcher::Purl {
                 ty,
                 namespace,

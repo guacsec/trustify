@@ -1,0 +1,6 @@
+{ "$schema":"http://cyclonedx.org/schema/bom-1.6.schema.json","bomFormat":"CycloneDX","specVersion":"1.6",
+  "serialNumber":"urn:uuid:12120000-0000-4000-8000-1212tbnotaff0","version":1,
+  "metadata":{"component":{"bom-ref":"root-s12","type":"application","name":"s12-notaffected-target","version":"1"}},
+  "components":[{"bom-ref":"pkg-tb","type":"application","name":"thunderbird","version":"115.10.1-1.el8",
+    "purl":"pkg:rpm/redhat/thunderbird@115.10.1-1.el8?arch=x86_64&epoch=0&distro=rhel-8.10"}],
+  "dependencies":[{"ref":"root-s12","dependsOn":["pkg-tb"]}] }

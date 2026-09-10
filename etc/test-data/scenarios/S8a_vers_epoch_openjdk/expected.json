@@ -1,0 +1,17 @@
+{
+  "advisories": [
+    "vex/CVE-2026-41254.json"
+  ],
+  "sboms": {
+    "sbom_openjdk_no-epoch": {
+      "correct": {
+        "CVE-2026-41254": "affected"
+      }
+    },
+    "sbom_openjdk_with-epoch": {
+      "correct": {
+        "CVE-2026-41254": "affected"
+      }
+    }
+  }
+}
