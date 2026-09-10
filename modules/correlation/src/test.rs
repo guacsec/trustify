@@ -214,6 +214,11 @@ fn scenario_s13_aliasless_osv_drop() {
 }
 
 #[test]
+fn scenario_s1a_vers_crossstream_bind_libs() {
+    run_scenario("S1a_vers_crossstream_bind-libs");
+}
+
+#[test]
 fn scenario_s5a_vers_affected_openssl_el8() {
     run_scenario("S5a_vers_affected_openssl_el8");
 }
