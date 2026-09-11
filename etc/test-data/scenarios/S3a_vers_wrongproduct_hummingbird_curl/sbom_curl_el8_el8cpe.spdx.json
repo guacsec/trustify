@@ -1,0 +1,13 @@
+{ "spdxVersion":"SPDX-2.3","dataLicense":"CC0-1.0","SPDXID":"SPDXRef-DOCUMENT","name":"rhel",
+  "documentNamespace":"https://trust-breaker/s3/curl-el8cpe",
+  "creationInfo":{"created":"2026-08-24T00:00:00Z","creators":["Tool: trust-breaker-0.1"]},
+  "documentDescribes":["SPDXRef-root"],
+  "packages":[
+    {"SPDXID":"SPDXRef-root","name":"rhel","versionInfo":"8.10","downloadLocation":"NOASSERTION",
+     "externalRefs":[{"referenceCategory":"SECURITY","referenceType":"cpe22Type","referenceLocator":"cpe:/o:redhat:enterprise_linux:8::baseos"}]},
+    {"SPDXID":"SPDXRef-curl","name":"curl","versionInfo":"7.61.1-34.el8_10.11","downloadLocation":"NOASSERTION",
+     "externalRefs":[{"referenceCategory":"PACKAGE-MANAGER","referenceType":"purl","referenceLocator":"pkg:rpm/redhat/curl@7.61.1-34.el8_10.11?arch=x86_64&distro=rhel-8.10&upstream=curl-7.61.1-34.el8_10.11.src.rpm"}]}
+  ],
+  "relationships":[
+    {"spdxElementId":"SPDXRef-DOCUMENT","relationshipType":"DESCRIBES","relatedSpdxElement":"SPDXRef-root"},
+    {"spdxElementId":"SPDXRef-root","relationshipType":"CONTAINS","relatedSpdxElement":"SPDXRef-curl"}]}
