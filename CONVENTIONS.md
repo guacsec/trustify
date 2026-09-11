@@ -74,6 +74,24 @@ Names that benefit from qualification include `Model`, `Entity`, `Column`, `Acti
 `Relation`, `from_value`, `info`, and similar names that appear in many modules. This is a
 reviewer convention, not lint-enforced.
 
+### Import Style — Prefer `use` Over Inline Qualified Paths
+
+Always bring items into scope with a `use` import. Only keep inline qualification when the
+bare name would conflict with or be confused for another name already in scope (see
+[Qualified Names for Common Types](#import-style--qualified-names-for-common-types)).
+
+```rust
+// Good — imported
+use std::env::VarError;
+fn foo() -> Result<(), VarError> { ... }
+
+// Avoid — inline qualification when there is no conflict
+fn foo() -> Result<(), std::env::VarError> { ... }
+```
+
+This is a reviewer convention; the clippy `absolute_paths` lint only enforces 4+ segment
+paths (see [Absolute Paths](#import-style--absolute-paths)).
+
 ## Naming Conventions
 
 - Structs: PascalCase (`SbomService`, `AdvisoryService`, `SbomSummary`)
@@ -141,6 +159,26 @@ Named `m<7-digit-number>_<description>.rs` (e.g., `m0002030_create_ai.rs`). SQL 
 - `From<DbErr>` is implemented manually (not via `#[from]`) to handle `RecordNotFound` → `NotFound` conversion
 - Use `?` with automatic `From` conversions throughout service and endpoint code
 - Endpoints return `actix_web::Result<impl Responder>`
+- Internal library functions (non-endpoint, non-`main`) must return typed errors using
+  `thiserror`-derived enums, not `anyhow::Result`. Use named variants with `#[source]` on
+  wrapped causes so callers can match on specific error cases and error chains remain
+  inspectable. `anyhow` is appropriate only at application boundaries (CLI entry points,
+  `main`, test helpers) where structured matching is not needed.
+
+```rust
+// Good — typed error in library code
+use std::io::Error;
+
+#[derive(Debug, thiserror::Error)]
+enum ResolveError {
+    #[error("failed to read file '{path}': {source}")]
+    FileRead { path: String, #[source] source: Error },
+}
+fn resolve(path: &str) -> Result<String, ResolveError> { ... }
+
+// Avoid — anyhow in library code hides error structure from callers
+fn resolve(path: &str) -> anyhow::Result<String> { ... }
+```
 
 ## Testing Conventions
 
