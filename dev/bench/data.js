@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789048859910,
+  "lastUpdate": 1789128844530,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21831,6 +21831,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": true,
+          "id": "e2d18c5a48b6482bfd5d2ebe785c226342047091",
+          "message": "chore(migration): drop unused GiST index purl_status_vulnerability_id_gist\n\nThe index uses gist_trgm_ops but every access on vulnerability_id is an\nequality join, already served by purl_status_vuln_id_idx and\npurl_status_combo_idx (both B-tree, 509M scans in production). The GiST\nindex had 0 scans and consumed ~47 GB of disk in a production v2.2.6\ninstance. Rollback restores it via down().\n\nImplements TC-6169\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-09-11T11:28:47Z",
+          "tree_id": "e562d88e7bf24e0642d97ac7c4ce9a822e847dcd",
+          "url": "https://github.com/guacsec/trustify/commit/e2d18c5a48b6482bfd5d2ebe785c226342047091"
+        },
+        "date": 1789128842100,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
             "unit": "s"
           }
         ]
