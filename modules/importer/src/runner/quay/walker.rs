@@ -1,8 +1,8 @@
 use super::oci::Reference;
 use crate::{
-    model::QuayImporter,
+    model::{QuayImporter, auth::CredentialConfig},
     runner::{
-        common::Error,
+        common::{Error, http::build_http_client},
         context::RunContext,
         progress::{Progress, ProgressInstance},
         quay::oci,
@@ -11,7 +11,6 @@ use crate::{
 };
 use anyhow::anyhow;
 use futures::{Stream, TryStreamExt, stream};
-use reqwest::header;
 use serde::Deserialize;
 use std::{collections::HashMap, future, sync::Arc};
 use time::OffsetDateTime;
@@ -45,11 +44,12 @@ impl<C: RunContext> QuayWalker<C> {
         db: ReadWrite,
         report: Arc<Mutex<ReportBuilder>>,
         context: C,
+        credential_config: CredentialConfig,
     ) -> Result<Self, Error> {
-        let client = match importer.api_token {
-            Some(ref token) => authorized_client(token)?,
+        let client = match &importer.auth {
+            Some(auth) => build_http_client(Some(auth), &credential_config)?,
             None => {
-                log::warn!("Quay API token not configured; results may be limited");
+                log::warn!("Quay auth not configured; results may be limited");
                 Default::default()
             }
         };
@@ -250,17 +250,6 @@ impl<C: RunContext> QuayWalker<C> {
     }
 }
 
-fn authorized_client(token: &str) -> Result<reqwest::Client, Error> {
-    let token = format!("Bearer {token}");
-    let mut auth_value = header::HeaderValue::from_str(&token)?;
-    auth_value.set_sensitive(true);
-    let mut headers = header::HeaderMap::new();
-    headers.insert(header::AUTHORIZATION, auth_value);
-    Ok(reqwest::Client::builder()
-        .default_headers(headers)
-        .build()?)
-}
-
 #[derive(Debug, Deserialize)]
 struct Repository {
     namespace: Option<String>,
@@ -315,13 +304,14 @@ struct Sbom {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::model::auth::{AuthConfig, AuthMethod, CredentialSource};
     use test_context::test_context;
     use test_log::test;
     use trustify_common::db::ReadWrite;
     use trustify_test_context::TrustifyContext;
     use wiremock::{
         Mock, MockServer, ResponseTemplate,
-        matchers::{method, path, path_regex},
+        matchers::{header, method, path, path_regex},
     };
 
     #[test_context(TrustifyContext)]
@@ -338,6 +328,7 @@ mod test {
             ReadWrite::new(ctx.db.clone()),
             Arc::new(Mutex::new(ReportBuilder::new())),
             (),
+            CredentialConfig::default(),
         )?
         .continuation(LastModified(Some(
             OffsetDateTime::now_utc().unix_timestamp(),
@@ -398,6 +389,7 @@ mod test {
             ReadWrite::new(ctx.db.clone()),
             report.clone(),
             (),
+            CredentialConfig::default(),
         )?;
         walker.run().await?;
 
@@ -442,6 +434,7 @@ mod test {
             ReadWrite::new(ctx.db.clone()),
             report.clone(),
             (),
+            CredentialConfig::default(),
         )?;
         walker.run().await?;
 
@@ -449,6 +442,79 @@ mod test {
         assert_eq!(0, report.number_of_items);
         // 5 404's: 4 sboms + 1 repo details
         assert_eq!(5, report.messages[&Phase::Retrieval].len());
+
+        Ok(())
+    }
+
+    /// Verifies that QuayWalker sends the Authorization header when Bearer auth is configured.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn walk_mock_quay_with_bearer_auth(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        // Given a mock Quay server that requires an Authorization: Bearer header
+        let quay = MockServer::start().await;
+        let token = "test-token-abc";
+
+        Mock::given(method("GET"))
+            .and(path("/api/v1/repository"))
+            .and(header("Authorization", format!("Bearer {token}").as_str()))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(include_str!("../../../../../etc/test-data/quay/repos.json")),
+            )
+            .mount(&quay)
+            .await;
+        Mock::given(method("GET"))
+            .and(path_regex(
+                "/api/v1/repository/redhat-user-workloads/o(11|22)y",
+            ))
+            .and(header("Authorization", format!("Bearer {token}").as_str()))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(include_str!("../../../../../etc/test-data/quay/repo.json")),
+            )
+            .mount(&quay)
+            .await;
+        Mock::given(method("GET"))
+            .and(path_regex(r".+sha256-.+\.sbom$"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(include_str!(
+                "../../../../../etc/test-data/quay/manifest.json"
+            )))
+            .mount(&quay)
+            .await;
+        Mock::given(method("GET"))
+            .and(path_regex(r".+/blobs/sha256:.+$"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(include_str!("../../../../../etc/test-data/quay/sbom.json")),
+            )
+            .mount(&quay)
+            .await;
+
+        // When a walker is created with Bearer + Inline credential source
+        let report = Arc::new(Mutex::new(ReportBuilder::new()));
+        let walker = QuayWalker::new(
+            QuayImporter {
+                source: quay.uri()[7..].to_string(),
+                unencrypted: true,
+                auth: Some(AuthConfig {
+                    method: AuthMethod::Bearer {
+                        token: CredentialSource::Inline(token.into()),
+                    },
+                }),
+                ..Default::default()
+            },
+            ctx.ingestor.clone(),
+            ReadWrite::new(ctx.db.clone()),
+            report.clone(),
+            (),
+            CredentialConfig::default(),
+        )?;
+        walker.run().await?;
+
+        // Then the walk succeeds — the mock only matches requests with the Authorization header
+        let report = Arc::try_unwrap(report).unwrap().into_inner().build();
+        assert_eq!(8, report.number_of_items);
+        assert_eq!(0, report.messages.len());
 
         Ok(())
     }
@@ -465,6 +531,7 @@ mod test {
             ReadWrite::new(ctx.db.clone()),
             Arc::new(Mutex::new(ReportBuilder::new())),
             (),
+            CredentialConfig::default(),
         )?;
         assert!(walker.run().await.is_err());
 

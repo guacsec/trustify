@@ -1,3 +1,4 @@
+use crate::model::auth::AuthConfig;
 use trustify_common::model::BinaryByteSize;
 
 use super::*;
@@ -22,9 +23,9 @@ pub struct QuayImporter {
     #[serde(default = "default::source")]
     pub source: String,
 
-    /// The API token authorizing access to the quay registry
+    /// Authentication configuration for accessing the Quay registry.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub api_token: Option<String>,
+    pub auth: Option<AuthConfig>,
 
     /// The namespace of the registry to "walk"
     #[serde(default, skip_serializing_if = "Option::is_none")]

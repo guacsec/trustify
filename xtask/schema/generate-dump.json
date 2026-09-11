@@ -650,11 +650,15 @@
           "type": "string",
           "default": "quay.io"
         },
-        "apiToken": {
-          "description": "The API token authorizing access to the quay registry",
-          "type": [
-            "string",
-            "null"
+        "auth": {
+          "description": "Authentication configuration for accessing the Quay registry.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthConfig"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "namespace": {
@@ -692,6 +696,138 @@
       },
       "required": [
         "period"
+      ]
+    },
+    "AuthConfig": {
+      "description": "Authentication configuration for HTTP-based importers.\n\nWraps an [`AuthMethod`] whose credentials are resolved from\na [`CredentialSource`] at import time — not at configuration time.",
+      "type": "object",
+      "properties": {
+        "method": {
+          "$ref": "#/$defs/AuthMethod"
+        }
+      },
+      "required": [
+        "method"
+      ]
+    },
+    "AuthMethod": {
+      "description": "HTTP authentication method applied on each import request.",
+      "oneOf": [
+        {
+          "description": "HTTP Basic authentication.",
+          "type": "object",
+          "properties": {
+            "username": {
+              "$ref": "#/$defs/CredentialSource"
+            },
+            "password": {
+              "$ref": "#/$defs/CredentialSource"
+            },
+            "type": {
+              "type": "string",
+              "const": "basic"
+            }
+          },
+          "required": [
+            "type",
+            "username",
+            "password"
+          ]
+        },
+        {
+          "description": "Bearer token in the Authorization header.",
+          "type": "object",
+          "properties": {
+            "token": {
+              "$ref": "#/$defs/CredentialSource"
+            },
+            "type": {
+              "type": "string",
+              "const": "bearer"
+            }
+          },
+          "required": [
+            "type",
+            "token"
+          ]
+        },
+        {
+          "description": "Arbitrary header/value pair (e.g. API key headers).",
+          "type": "object",
+          "properties": {
+            "header": {
+              "type": "string"
+            },
+            "value": {
+              "$ref": "#/$defs/CredentialSource"
+            },
+            "type": {
+              "type": "string",
+              "const": "apiKey"
+            }
+          },
+          "required": [
+            "type",
+            "header",
+            "value"
+          ]
+        }
+      ]
+    },
+    "CredentialSource": {
+      "description": "How a credential value is sourced at import time.\n\nInline stores the value directly (dev only). Env and File store\nonly a reference — the value is resolved from the environment or\nfilesystem at each import run, enabling K8s Secret rotation.",
+      "oneOf": [
+        {
+          "description": "Literal value stored in the database.\n\n**Security:** the credential is stored in plaintext in the database.\nPrefer [`CredentialSource::Env`] or [`CredentialSource::File`] for production use.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "inline"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "description": "Name of an environment variable read at import time.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "env"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        },
+        {
+          "description": "Filesystem path to a file whose content is read at import time.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "file"
+            },
+            "value": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ]
+        }
       ]
     }
   }

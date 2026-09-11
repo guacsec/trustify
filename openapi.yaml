@@ -4670,6 +4670,63 @@ components:
         status:
           $ref: '#/components/schemas/ExploitIntelligenceJobStatus'
           description: Current lifecycle status of the job.
+    AuthConfig:
+      type: object
+      description: |-
+        Authentication configuration for HTTP-based importers.
+
+        Wraps an [`AuthMethod`] whose credentials are resolved from
+        a [`CredentialSource`] at import time — not at configuration time.
+      required:
+      - method
+      properties:
+        method:
+          $ref: '#/components/schemas/AuthMethod'
+    AuthMethod:
+      oneOf:
+      - type: object
+        description: HTTP Basic authentication.
+        required:
+        - username
+        - password
+        - type
+        properties:
+          password:
+            $ref: '#/components/schemas/CredentialSource'
+          type:
+            type: string
+            enum:
+            - basic
+          username:
+            $ref: '#/components/schemas/CredentialSource'
+      - type: object
+        description: Bearer token in the Authorization header.
+        required:
+        - token
+        - type
+        properties:
+          token:
+            $ref: '#/components/schemas/CredentialSource'
+          type:
+            type: string
+            enum:
+            - bearer
+      - type: object
+        description: Arbitrary header/value pair (e.g. API key headers).
+        required:
+        - header
+        - value
+        - type
+        properties:
+          header:
+            type: string
+          type:
+            type: string
+            enum:
+            - apiKey
+          value:
+            $ref: '#/components/schemas/CredentialSource'
+      description: HTTP authentication method applied on each import request.
     BasePurlDetails:
       allOf:
       - $ref: '#/components/schemas/BasePurlHead'
@@ -4949,6 +5006,61 @@ components:
         id:
           type: string
           description: The ID of the newly created group
+    CredentialSource:
+      oneOf:
+      - type: object
+        description: |-
+          Literal value stored in the database.
+
+          **Security:** the credential is stored in plaintext in the database.
+          Prefer [`CredentialSource::Env`] or [`CredentialSource::File`] for production use.
+        required:
+        - value
+        - type
+        properties:
+          type:
+            type: string
+            enum:
+            - inline
+          value:
+            type: string
+            description: |-
+              Literal value stored in the database.
+
+              **Security:** the credential is stored in plaintext in the database.
+              Prefer [`CredentialSource::Env`] or [`CredentialSource::File`] for production use.
+      - type: object
+        description: Name of an environment variable read at import time.
+        required:
+        - value
+        - type
+        properties:
+          type:
+            type: string
+            enum:
+            - env
+          value:
+            type: string
+            description: Name of an environment variable read at import time.
+      - type: object
+        description: Filesystem path to a file whose content is read at import time.
+        required:
+        - value
+        - type
+        properties:
+          type:
+            type: string
+            enum:
+            - file
+          value:
+            type: string
+            description: Filesystem path to a file whose content is read at import time.
+      description: |-
+        How a credential value is sourced at import time.
+
+        Inline stores the value directly (dev only). Env and File store
+        only a reference — the value is resolved from the environment or
+        filesystem at each import run, enabling K8s Secret rotation.
     CsafImporter:
       allOf:
       - $ref: '#/components/schemas/CommonImporter'
@@ -6882,11 +6994,11 @@ components:
       - $ref: '#/components/schemas/CommonImporter'
       - type: object
         properties:
-          apiToken:
-            type:
-            - string
-            - 'null'
-            description: The API token authorizing access to the quay registry
+          auth:
+            oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/AuthConfig'
+              description: Authentication configuration for accessing the Quay registry.
           concurrency:
             type:
             - integer

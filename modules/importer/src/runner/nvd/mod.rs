@@ -260,7 +260,7 @@ async fn fetch_meta_sha256(client: &reqwest::Client, url: &str) -> anyhow::Resul
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::runner::ImportRunner;
+    use crate::{model::auth::CredentialConfig, runner::ImportRunner};
     use liblzma::write::XzEncoder;
     use std::io::Write;
     use test_context::test_context;
@@ -348,6 +348,7 @@ mod test {
             storage: ctx.storage.clone().into(),
             working_dir: None,
             analysis: None,
+            credential_config: CredentialConfig::default(),
         };
 
         // First run: the year is new, so the feed is downloaded and ingested.

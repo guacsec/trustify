@@ -4,6 +4,7 @@ use trustify_common::id::IdError;
 
 pub mod filter;
 pub mod heartbeat;
+pub mod http;
 pub mod processing_error;
 pub mod storage;
 pub mod validation;
