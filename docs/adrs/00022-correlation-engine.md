@@ -6,6 +6,185 @@ Date: 2026-09-11
 
 ACCEPTED
 
+## Definition of Vulnerability Correlation
+
+Regardless of implementation we need a stable, constrained definition of 
+vulnerability correlation.
+
+For this document, vulnerability correlation determines whether an advisory's 
+vulnerability assertion applies to a specific component and version.
+
+The result is an evidence-backed verdict (eg. not just a name-only lookup).
+
+The fundamental unit is:
+
+```text
+(component, vulnerability) -> verdict + provenance(evidence)
+```
+
+Correlating an SBOM means constructing correlation queries from all relevant
+evidence declared by the SBOM (where matching components in sbom are applicable). 
+
+The atomic result is still a verdict for one component and one vulnerability but the query may use several scopes of 
+identity and context:
+
+- **Component identity**: correlate a package or artifact by PURL, CPE, hash,
+  digest, or another supported component identifier.
+- **Component plus context**: correlate a package together with the product,
+  operating system, image, platform, or other describing CPE under which it is
+  installed.
+- **Product or CPE-only identity**: correlate a product node when the SBOM
+  declares a product CPE but no package identity. This is a product-level
+  assessment, not proof that every package in the product is installed.
+- **Grouped components**: use package relationships, containment, dependency
+  edges, or image/application membership to establish context or scope. A
+  grouping must not make an advisory for one package apply to an unrelated
+  package merely because they share a name or SBOM.
+- **Whole-SBOM context**: use the SBOM as the container for the queries and to
+  aggregate component verdicts. The SBOM itself is not a substitute for a
+  component identity unless the advisory assertion is explicitly product-level.
+
+The same model applies when a caller starts with a single PURL, CPE, digest,
+component group, or complete SBOM. Each query is normalized into component
+identity, context, applicability and evidence before producing a verdict.
+
+Determining correlation has three conceptual stages:
+
+```text
+data -> evidence -> verdict
+```
+
+### Data
+Raw advisory and SBOM documents in their original formats:
+- CSAF/VEX
+- CVE 5.x/OSV
+- CycloneDX/SPDX
+
+### Evidence
+While underlying data artifacts provide original 'evidence' there should be a normalised
+set of format-independent facts extracted from such raw documents:
+- Vulnerability assertions
+- Component identities
+- Grouping/Product ( and arch, operating-system context, etc)
+- Version constraints
+- Assertion source and identifier
+
+An assertion says that a vulnerability has a status for a component identity,
+optionally subject to a version constraint.
+
+### Verdict
+
+A resolved determination for one component and one vulnerability. Every
+verdict should retain the assertions and matching decisions/provenance/evidence 
+that produced it as well as confidence in determination.
+
+### Component Identity
+
+Component identity may include:
+
+- PURL type or ecosystem
+- PURL namespace and name
+- PURL qualifiers
+- Component version
+- CPE
+- Hash or digest
+- Describing product or operating-system context
+- Package relationship to that context
+
+Identity matching must use the strongest available evidence.
+
+### Matching Rules
+
+Correlation requires two decisions.
+
+#### Identity Match
+
+The advisory assertion must identify the same component (or grouping/product):
+
+- PURL type or scheme must match.
+- PURL namespace and name must match.
+- Relevant qualifiers must match.
+- CPE vendor and product identity must match.
+- Hashes must match exactly when used.
+- Grouping/Product-scoped assertions require matching group/product context.
+
+For example, a package installed under a product CPE, the required identity would need:
+
+```text
+package identity matches
+AND
+describing product context matches
+```
+
+#### Applicability Match
+
+After identity matches, the component must satisfy an advisory's
+applicability rules, for example:
+
+- Use version scheme declared by the advisory.
+- Compare component versions with component version ranges.
+- A bare `known_affected` assertion applies to all versions within its identity scope.
+- An exact fixed assertion applies only according to its declared scope and version semantics.
+- Do not infer an affected range from an exact fixed version unless that is an explicit policy.
+
+### Status Resolution
+
+All applicable assertions for the same component and vulnerability are grouped
+before producing a verdict with resolution rules such as follows:
+
+- `affected` means an applicable assertion says the component is affected.
+- `fixed` resolves an applicable affected assertion for the same component and version.
+- `not_affected` resolves an applicable affected assertion for the same component and version.
+- More specific package evidence takes precedence over broader product evidence.
+- For CPE-only product assertions, an affected assertion may conservatively win when the product has no component-level identity.
+- Conflicts must resolve deterministically and retain all contributing evidence.
+
+### Verdict Semantics
+
+| Verdict | Meaning |
+|---|---|
+| `affected` | An applicable affected assertion remains after resolution. |
+| `fixed` | An applicable fixed assertion resolves the component. |
+| `not_affected` | An applicable non-affected assertion resolves the component. |
+| `none` | No applicable assertion was found. This is unknown, not proof of safety. |
+| `under_investigation` | An assertion applies, but it does not establish a definitive result. |
+
+The following distinction is mandatory:
+
+```text
+no applicable assertion != not affected
+```
+
+An absent match must not be converted into a negative security claim.
+
+### Evidence And Traceability
+
+Each verdict should expose:
+
+- Component identity used for the query
+- Vulnerability identifier
+- Identity matcher that matched
+- Version constraint and comparison result
+- Assertion source document
+- Assertion status
+- Product or CPE context
+- Resolution rule applied
+
+This allows a consumer to answer both:
+
+```text
+What is the result?
+```
+
+and:
+
+```text
+Why did the engine produce it?
+```
+
+A verdict must include evidence and providence of its decision along with a measure of confidence in the verdict reflecting quality of data, strength
+of evidence as well as contradictory evidence.
+
 ## Context
 
 Trustify correlates SBOM components with advisory data to determine vulnerability status.
@@ -36,11 +215,12 @@ and database structures where they work; extend them where they fall short. Star
 correlation **right** — validate matching semantics against concrete scenarios before
 integrating with the server.
 
+
 ## Decision
 
 ### The correlation pipeline
 
-The engine is structured as a pipeline with clear conceptual stages:
+The engine will be structured as a pipeline with clear conceptual stages:
 
 ```
 Data → Evidence → Verdict
