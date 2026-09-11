@@ -186,6 +186,22 @@ Any files modified by steps 1–2 (e.g., `openapi.yaml`, JSON schema files) must
 - Edition 2024 with resolver 3
 - Key crate choices: `actix-web` (HTTP), `sea-orm` (ORM), `utoipa` (OpenAPI), `tokio` (async), `serde` (serialization), `anyhow`/`thiserror` (errors), `clap` (CLI)
 
+## CLI Argument Patterns
+
+- Use `value_parser` to parse CLI arguments directly into their target type rather than accepting `String` and converting later. This moves validation to parse time and produces clear clap error messages on startup.
+
+  ```rust
+  // Good — parse and validate at arg-parse time
+  #[arg(long, env = "TRUSTD_FOO", value_parser = parse_foo)]
+  pub foo: Vec<MyType>,
+
+  fn parse_foo(s: &str) -> Result<MyType, String> { ... }
+
+  // Avoid — accept String, convert/validate later in business logic
+  #[arg(long, env = "TRUSTD_FOO", value_delimiter = ',')]
+  pub foo: Vec<String>,
+  ```
+
 ## Endpoint Patterns
 
 - Endpoints are registered in a `configure()` function that takes `ServiceConfig`, the `ReadOnly` and/or `ReadWrite` connection types, and config params
