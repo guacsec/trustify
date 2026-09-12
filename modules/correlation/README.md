@@ -71,7 +71,11 @@ cargo run -p trustify-module-correlation --example correlate -- advisory.json sb
 
 The example extracts `AdvisoryEvidence` and `SbomEvidence`, joins them into
 `Evidence`, and passes that complete input to `engine::correlate` to obtain
-owned verdicts.
+owned verdicts. Use `engine::correlate_with_options` with
+`VersionlessMatchPolicy::Allow` when a caller explicitly permits constrained
+assertions to match versionless components.
+
+The WASM UI exposes the same policy as the **Allow version-constrained assertions to match versionless components** checkbox, which is off by default.
 
 ## Architecture
 

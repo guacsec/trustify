@@ -2,6 +2,7 @@
 
 use crate::{
     evidence::SbomEvidence,
+    options::{CorrelationOptions, VersionlessMatchPolicy},
     types::{
         ComponentId, ComponentMatcher, ComponentQuery, MatchDimension, MatchEvidence,
         StatusAssertion, VersionConstraint,
@@ -108,7 +109,11 @@ fn qualifiers_match(
         .all(|(key, value)| actual.get(key).is_some_and(|actual| actual == value))
 }
 
-pub(crate) fn check_version(component: &ComponentId, assertion: &StatusAssertion) -> bool {
+pub(crate) fn check_version(
+    component: &ComponentId,
+    assertion: &StatusAssertion,
+    options: &CorrelationOptions,
+) -> bool {
     let comp_version = match component {
         ComponentId::Purl {
             version: Some(v),
@@ -130,10 +135,12 @@ pub(crate) fn check_version(component: &ComponentId, assertion: &StatusAssertion
                 v.clone()
             }
         }
-        ComponentId::Purl { version: None, .. } => return true,
+        ComponentId::Purl { version: None, .. } => {
+            return versionless_component_allowed(&assertion.matcher, options);
+        }
         ComponentId::Cpe(cpe) => match cpe_version(cpe) {
             Some(v) => v,
-            None => return true,
+            None => return versionless_component_allowed(&assertion.matcher, options),
         },
         _ => return true,
     };
@@ -159,6 +166,21 @@ pub(crate) fn check_version(component: &ComponentId, assertion: &StatusAssertion
     };
 
     version_matches(&comp_version, &constraint.range, constraint.scheme)
+}
+
+fn versionless_component_allowed(matcher: &ComponentMatcher, options: &CorrelationOptions) -> bool {
+    let constrained = matches!(
+        matcher,
+        ComponentMatcher::Purl {
+            version: Some(_),
+            ..
+        } | ComponentMatcher::CpeMatch {
+            version: Some(_),
+            ..
+        } | ComponentMatcher::CveProduct { .. }
+    );
+
+    !constrained || matches!(options.versionless_matches, VersionlessMatchPolicy::Allow)
 }
 
 fn normalize_cpe(cpe: &str) -> Vec<String> {
@@ -332,9 +354,12 @@ pub(crate) fn match_evidence(
 #[cfg(test)]
 mod tests {
     use super::{check_version, qualifiers_match};
+    use crate::options::{CorrelationOptions, VersionlessMatchPolicy};
     use crate::types::{
-        AdvisoryRef, AssertionStatus, ComponentId, ComponentMatcher, StatusAssertion, VersionPolicy,
+        AdvisoryRef, AssertionStatus, ComponentId, ComponentMatcher, StatusAssertion,
+        VersionConstraint, VersionPolicy,
     };
+    use crate::version::{VersionRange, VersionScheme};
     use std::collections::BTreeMap;
 
     fn component(qualifiers: &[(&str, &str)]) -> ComponentId {
@@ -378,6 +403,51 @@ mod tests {
     }
 
     #[test]
+    fn versionless_component_rejects_constrained_assertion_by_default() {
+        let assertion = StatusAssertion {
+            source: AdvisoryRef {
+                identifier: "CVE-test".into(),
+                source_file: None,
+            },
+            vulnerability_id: "CVE-test".into(),
+            status: AssertionStatus::Affected,
+            version_policy: VersionPolicy::IdentityOnly,
+            matcher: ComponentMatcher::Purl {
+                ty: "rpm".into(),
+                namespace: Some("redhat".into()),
+                name: "openssl".into(),
+                qualifiers: BTreeMap::new(),
+                version: Some(VersionConstraint {
+                    scheme: VersionScheme::Rpm,
+                    range: VersionRange::Exact("3.0.0".into()),
+                }),
+            },
+            context: Vec::new(),
+            grouping: Vec::new(),
+        };
+        let component = ComponentId::Purl {
+            ty: "rpm".into(),
+            namespace: Some("redhat".into()),
+            name: "openssl".into(),
+            version: None,
+            qualifiers: BTreeMap::new(),
+        };
+
+        assert!(!check_version(
+            &component,
+            &assertion,
+            &CorrelationOptions::default()
+        ));
+        assert!(check_version(
+            &component,
+            &assertion,
+            &CorrelationOptions {
+                versionless_matches: VersionlessMatchPolicy::Allow,
+            }
+        ));
+    }
+
+    #[test]
     fn bare_affected_purl_applies_to_versioned_component() {
         let matcher = ComponentMatcher::Purl {
             ty: "rpm".into(),
@@ -405,6 +475,10 @@ mod tests {
             version: Some("3.0.0".into()),
             qualifiers: BTreeMap::new(),
         };
-        assert!(check_version(&component, &assertion));
+        assert!(check_version(
+            &component,
+            &assertion,
+            &CorrelationOptions::default()
+        ));
     }
 }

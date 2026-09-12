@@ -126,6 +126,7 @@ applicability rules, for example:
 - A bare `known_affected` assertion applies to all versions within its identity scope.
 - An exact fixed assertion applies only according to its declared scope and version semantics.
 - Do not infer an affected range from an exact fixed version unless that is an explicit policy.
+- Version-constrained assertions reject versionless components by default; callers may explicitly opt into versionless matching as a runtime policy.
 
 ### Status Resolution
 

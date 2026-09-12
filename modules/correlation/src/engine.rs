@@ -3,6 +3,7 @@
 use crate::{
     evidence::{AdvisoryEvidence, Evidence},
     matching::{self, format_component_id, format_matcher},
+    options::CorrelationOptions,
     resolution::resolve_verdict,
     types::{ComponentQuery, MatchEvidence, TraceEntry, Verdict},
 };
@@ -24,19 +25,35 @@ pub trait Collector {
 
 /// Resolve complete evidence into owned verdicts.
 pub fn correlate(evidence: &Evidence, collector: &mut dyn Collector) -> Vec<Verdict> {
-    verdicts_from_evidence(evidence, collector)
+    correlate_with_options(evidence, &CorrelationOptions::default(), collector)
 }
 
-fn verdicts_from_evidence(evidence: &Evidence, collector: &mut dyn Collector) -> Vec<Verdict> {
+/// Resolve complete evidence with explicit runtime matching policies.
+pub fn correlate_with_options(
+    evidence: &Evidence,
+    options: &CorrelationOptions,
+    collector: &mut dyn Collector,
+) -> Vec<Verdict> {
+    verdicts_from_evidence(evidence, options, collector)
+}
+
+fn verdicts_from_evidence(
+    evidence: &Evidence,
+    options: &CorrelationOptions,
+    collector: &mut dyn Collector,
+) -> Vec<Verdict> {
     matching::queries_from_sbom(&evidence.sbom)
         .into_iter()
-        .flat_map(|query| correlate_component_evidence(&query, &evidence.advisory, collector))
+        .flat_map(|query| {
+            correlate_component_evidence(&query, &evidence.advisory, options, collector)
+        })
         .collect()
 }
 
 fn correlate_component_evidence(
     component: &ComponentQuery,
     advisory: &AdvisoryEvidence,
+    options: &CorrelationOptions,
     collector: &mut dyn Collector,
 ) -> Vec<Verdict> {
     collector.on_trace(&TraceEntry {
@@ -54,7 +71,7 @@ fn correlate_component_evidence(
     for assertion in &advisory.assertions {
         if matching::matches_component(component, assertion) {
             identity_match_count += 1;
-            let version_in_range = matching::check_version(&component.id, assertion);
+            let version_in_range = matching::check_version(&component.id, assertion, options);
 
             collector.on_match(&matching::match_evidence(
                 &component.id,
@@ -120,7 +137,7 @@ fn correlate_component_evidence(
         .into_iter()
         .map(|vuln_id| {
             let matching = by_vuln.get(&vuln_id).cloned().unwrap_or_default();
-            let verdict = resolve_verdict(component, &vuln_id, &matching, collector);
+            let verdict = resolve_verdict(component, &vuln_id, &matching, options, collector);
             collector.on_verdict(&verdict);
             verdict
         })

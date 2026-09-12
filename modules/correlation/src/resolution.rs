@@ -3,6 +3,7 @@
 use crate::{
     engine::Collector,
     matching::{check_version, match_dimension, match_evidence, version_constraint},
+    options::CorrelationOptions,
     types::{
         AssertionRef, ComponentMatcher, ComponentQuery, MatchSpecificity, ResolutionRule,
         StatusAssertion, TraceEntry, Verdict, VerdictStatus,
@@ -13,12 +14,13 @@ pub(crate) fn resolve_verdict(
     component: &ComponentQuery,
     vuln_id: &str,
     assertions: &[&StatusAssertion],
+    options: &CorrelationOptions,
     collector: &mut dyn Collector,
 ) -> Verdict {
     let applicable: Vec<_> = assertions
         .iter()
         .copied()
-        .filter(|assertion| check_version(&component.id, assertion))
+        .filter(|assertion| check_version(&component.id, assertion, options))
         .collect();
     let mut ordered = applicable;
     ordered.sort_by(assertion_order);
@@ -37,7 +39,7 @@ pub(crate) fn resolve_verdict(
         });
     }
     for assertion in assertions {
-        let version_in_range = check_version(&component.id, assertion);
+        let version_in_range = check_version(&component.id, assertion, options);
         evidence.push(match_evidence(&component.id, assertion, version_in_range));
     }
 

@@ -5,10 +5,11 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 use leptos::prelude::*;
 use trustify_module_correlation::{
     collector::VecCollector,
-    engine::correlate,
+    engine::correlate_with_options,
     evidence::{AdvisoryEvidence, Evidence, SbomEvidence},
     extract,
     memory::AdvisoryIndex,
+    options::{CorrelationOptions, VersionlessMatchPolicy},
     types::{ComponentId, ComponentQuery, Verdict, parse_purl},
 };
 use wasm_bindgen::prelude::*;
@@ -117,6 +118,7 @@ fn App() -> impl IntoView {
     let (mode, set_mode) = signal(QueryMode::Purl);
     let (adv_dragging, set_adv_dragging) = signal(false);
     let (sbom_dragging, set_sbom_dragging) = signal(false);
+    let (allow_versionless_matches, set_allow_versionless_matches) = signal(false);
 
     // Track advisory loads so the effect re-runs when advisories change
     let (advisory_version, set_advisory_version) = signal(0u32);
@@ -199,6 +201,13 @@ fn App() -> impl IntoView {
         set_trace_log.set(String::new());
 
         let eng = engine_for_correlate.borrow();
+        let options = CorrelationOptions {
+            versionless_matches: if allow_versionless_matches.get() {
+                VersionlessMatchPolicy::Allow
+            } else {
+                VersionlessMatchPolicy::Reject
+            },
+        };
 
         match current_mode {
             QueryMode::Purl => {
@@ -219,7 +228,7 @@ fn App() -> impl IntoView {
                     grouping: Vec::new(),
                 };
                 let evidence = component_evidence(eng.evidence(), &query);
-                let verdicts = correlate(&evidence, &mut collector);
+                let verdicts = correlate_with_options(&evidence, &options, &mut collector);
                 apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
             QueryMode::Cpe => {
@@ -235,7 +244,7 @@ fn App() -> impl IntoView {
                     grouping: Vec::new(),
                 };
                 let evidence = component_evidence(eng.evidence(), &query);
-                let verdicts = correlate(&evidence, &mut collector);
+                let verdicts = correlate_with_options(&evidence, &options, &mut collector);
                 apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
             QueryMode::Digest => {
@@ -257,7 +266,7 @@ fn App() -> impl IntoView {
                     grouping: Vec::new(),
                 };
                 let evidence = component_evidence(eng.evidence(), &query);
-                let verdicts = correlate(&evidence, &mut collector);
+                let verdicts = correlate_with_options(&evidence, &options, &mut collector);
                 apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
             QueryMode::Sbom => {
@@ -274,7 +283,7 @@ fn App() -> impl IntoView {
                     return;
                 }
                 let evidence = Evidence::new(eng.evidence(), sbom.unwrap());
-                let verdicts = correlate(&evidence, &mut collector);
+                let verdicts = correlate_with_options(&evidence, &options, &mut collector);
                 apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
         }
@@ -328,6 +337,20 @@ fn App() -> impl IntoView {
             // Step 2: Query
             <section>
                 <h2>"2. Query"</h2>
+                <label class="option-toggle">
+                    <input
+                        type="checkbox"
+                        prop:checked=move || allow_versionless_matches.get()
+                        on:change=move |ev| {
+                            set_allow_versionless_matches.set(event_target_checked(&ev));
+                        }
+                    />
+                    "Allow version-constrained assertions to match versionless components"
+                </label>
+                <div class="hint">
+                    "Off by default; enabling this can broaden advisory applicability."
+                </div>
+
                 <div style="margin-bottom: 8px;">
                     <button
                         on:click=move |_| set_mode.set(QueryMode::Purl)
