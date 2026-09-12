@@ -1,3 +1,5 @@
+//! Collector implementations for evidence, verdict, and trace events.
+
 use crate::{
     engine::Collector,
     types::{MatchEvidence, TraceEntry, Verdict},

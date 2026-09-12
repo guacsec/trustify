@@ -1,3 +1,5 @@
+//! Scenario-based correlation tests and expected-verdict assertions.
+
 use std::{
     collections::HashMap,
     fs,
@@ -6,8 +8,11 @@ use std::{
 
 use crate::{
     collector::VecCollector,
-    memory::InMemoryEngine,
-    types::{ScenarioExpected, Status},
+    engine::correlate,
+    evidence::Evidence,
+    extract,
+    memory::AdvisoryIndex,
+    types::{ScenarioExpected, VerdictStatus},
 };
 
 const SCENARIO_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../etc/test-data/scenarios");
@@ -50,12 +55,15 @@ fn run_scenario_formats(scenario_name: &str, formats: &[&str]) {
             .unwrap_or_else(|e| panic!("failed to parse expected.json for {scenario_name}: {e}"))
     };
 
-    let mut engine = InMemoryEngine::new();
+    let mut advisories = AdvisoryIndex::new();
 
     for advisory_path in &expected.advisories {
         let full_path = dir.join(advisory_path);
         let json = load_json(&full_path);
-        engine.load_advisory(advisory_path, &json);
+        let evidence = extract::extract_advisory(advisory_path, &json).unwrap_or_else(|| {
+            panic!("{scenario_name}: unrecognized advisory format: {advisory_path}")
+        });
+        advisories.add(evidence);
     }
 
     // Test each SBOM in requested formats
@@ -68,46 +76,40 @@ fn run_scenario_formats(scenario_name: &str, formats: &[&str]) {
 
             let sbom_json = load_json(&sbom_file);
             let mut collector = VecCollector::default();
-            let sbom = engine.load_and_correlate_sbom(sbom_name, &sbom_json, &mut collector);
-            assert!(
-                sbom.is_some(),
-                "{scenario_name}/{sbom_name}.{format}: failed to parse SBOM"
-            );
+            let sbom = extract::extract_sbom(sbom_name, &sbom_json).unwrap_or_else(|| {
+                panic!("{scenario_name}/{sbom_name}.{format}: failed to parse SBOM")
+            });
+            let evidence = Evidence::new(advisories.evidence(), sbom);
+            let verdicts = correlate(&evidence, &mut collector);
 
             // Build verdict map: CVE → resolved status
-            let mut verdict_map: HashMap<String, Status> = HashMap::new();
-            for verdict in &collector.verdicts {
-                // If multiple verdicts for same CVE, resolution wins
+            let mut verdict_map: HashMap<String, VerdictStatus> = HashMap::new();
+            for verdict in &verdicts {
+                // A definitive verdict from any component dominates a `none`
+                // result emitted for another component in the same SBOM.
                 let existing = verdict_map.get(&verdict.vulnerability_id);
-                let dominated = matches!(existing, Some(s) if s.resolves_affected());
-                if !dominated {
+                let keep_existing = existing
+                    .is_some_and(|status| verdict_rank(*status) >= verdict_rank(verdict.status));
+                if !keep_existing {
                     verdict_map.insert(verdict.vulnerability_id.clone(), verdict.status);
                 }
             }
 
             for (cve_id, expected_status_str) in &expectation.correct {
                 let expected_status = match expected_status_str.as_str() {
-                    "affected" => Some(Status::Affected),
-                    "not_affected" => Some(Status::NotAffected),
-                    "fixed" => Some(Status::Fixed),
-                    "none" => None,
+                    "affected" => VerdictStatus::Affected,
+                    "not_affected" => VerdictStatus::NotAffected,
+                    "fixed" => VerdictStatus::Fixed,
+                    "none" => VerdictStatus::None,
                     other => panic!("unknown expected status: {other}"),
                 };
 
                 let actual = verdict_map.get(cve_id.as_str());
-                match (expected_status, actual) {
-                    (None, None) => {}
-                    (None, Some(actual_status)) => {
-                        panic!(
-                            "{scenario_name}/{sbom_name}.{format}: {cve_id}: \
-                             expected no verdict, got {}",
-                            actual_status.as_str()
-                        );
-                    }
-                    (Some(expected), Some(actual_status)) => {
-                        let ok = match expected {
-                            Status::NotAffected => actual_status.resolves_affected(),
-                            _ => *actual_status == expected,
+                match actual {
+                    Some(actual_status) => {
+                        let ok = match expected_status {
+                            VerdictStatus::NotAffected => actual_status.resolves_affected(),
+                            expected => *actual_status == expected,
                         };
                         assert!(
                             ok,
@@ -116,26 +118,31 @@ fn run_scenario_formats(scenario_name: &str, formats: &[&str]) {
                             actual_status.as_str()
                         );
                     }
-                    (Some(_), None) => {
+                    None => {
                         panic!(
                             "{scenario_name}/{sbom_name}.{format}: {cve_id}: \
                              expected {expected_status_str}, but no verdict produced. \
                              Collected {} verdicts: {:?}",
-                            collector.verdicts.len(),
-                            collector
-                                .verdicts
+                            verdicts.len(),
+                            verdicts
                                 .iter()
-                                .map(|v| format!(
-                                    "{}={}",
-                                    v.vulnerability_id,
-                                    v.status.as_str()
-                                ))
+                                .map(|v| format!("{}={}", v.vulnerability_id, v.status.as_str()))
                                 .collect::<Vec<_>>()
                         );
                     }
                 }
             }
         }
+    }
+}
+
+fn verdict_rank(status: VerdictStatus) -> u8 {
+    match status {
+        VerdictStatus::None => 0,
+        VerdictStatus::UnderInvestigation => 1,
+        VerdictStatus::Affected => 2,
+        VerdictStatus::NotAffected => 3,
+        VerdictStatus::Fixed => 4,
     }
 }
 

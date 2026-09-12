@@ -1,18 +1,21 @@
-pub mod csaf;
-pub mod cve;
-pub mod osv;
+//! Raw-document extraction boundary for advisory and SBOM evidence.
 
-use crate::types::StatusAssertion;
+pub mod advisory;
+pub mod sbom;
 
-/// Detect advisory format and extract status assertions.
-pub fn extract_advisory(source_file: &str, json: &serde_json::Value) -> Vec<StatusAssertion> {
-    if json.pointer("/document/csaf_version").is_some() {
-        csaf::extract(source_file, json)
-    } else if json.get("dataType").and_then(|v| v.as_str()) == Some("CVE_RECORD") {
-        cve::extract(source_file, json)
-    } else if json.get("schema_version").is_some() && json.get("affected").is_some() {
-        osv::extract(source_file, json)
-    } else {
-        Vec::new()
-    }
+use crate::evidence::{AdvisoryEvidence, SbomEvidence};
+
+/// Convert a raw advisory document into normalized advisory evidence.
+///
+/// Returns `None` when the document is not a recognized advisory format.
+pub fn extract_advisory(
+    source_file: &str,
+    document: &serde_json::Value,
+) -> Option<AdvisoryEvidence> {
+    advisory::extract(source_file, document).map(|assertions| AdvisoryEvidence { assertions })
+}
+
+/// Convert a raw SBOM document into normalized SBOM evidence.
+pub fn extract_sbom(name: &str, document: &serde_json::Value) -> Option<SbomEvidence> {
+    sbom::extract(name, document)
 }

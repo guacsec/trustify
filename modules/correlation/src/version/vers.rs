@@ -1,3 +1,5 @@
+//! VERS expression parsing into normalized version constraints.
+
 use super::{VersionBound, VersionRange, VersionScheme};
 use crate::types::VersionConstraint;
 use vers_rs::{Comparator, GenericVersionRange};

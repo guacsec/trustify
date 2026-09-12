@@ -1,3 +1,5 @@
+//! Equality-oriented generic and Git version comparison.
+
 use super::VersionBound;
 
 /// Generic/Git version matching: equality-only against inclusive bounds,

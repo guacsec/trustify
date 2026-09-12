@@ -1,3 +1,5 @@
+//! Shared identity, assertion, evidence, and verdict data types.
+
 use crate::version::{VersionRange, VersionScheme};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -12,7 +14,7 @@ pub struct AdvisoryRef {
 /// VEX status values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Status {
+pub enum AssertionStatus {
     Affected,
     Fixed,
     NotAffected,
@@ -20,7 +22,7 @@ pub enum Status {
     Recommended,
 }
 
-impl Status {
+impl AssertionStatus {
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Affected => "affected",
@@ -37,8 +39,39 @@ impl Status {
     }
 }
 
+/// Compatibility name for assertion statuses. Verdicts use `VerdictStatus` and
+/// therefore cannot accidentally represent `recommended` as a verdict.
+pub type Status = AssertionStatus;
+
+/// Status of a resolved component/vulnerability verdict.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VerdictStatus {
+    None,
+    Affected,
+    Fixed,
+    NotAffected,
+    UnderInvestigation,
+}
+
+impl VerdictStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Affected => "affected",
+            Self::Fixed => "fixed",
+            Self::NotAffected => "not_affected",
+            Self::UnderInvestigation => "under_investigation",
+        }
+    }
+
+    pub fn resolves_affected(&self) -> bool {
+        matches!(self, Self::Fixed | Self::NotAffected)
+    }
+}
+
 /// Identifier for a component being queried.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ComponentId {
     Purl {
         ty: String,
@@ -145,23 +178,70 @@ fn hex_val(b: u8) -> Option<u8> {
 }
 
 /// A version range bundled with its comparison scheme.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct VersionConstraint {
     pub scheme: VersionScheme,
     pub range: VersionRange,
 }
 
 /// A single assertion from an advisory about a component's vulnerability status.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VersionPolicy {
+    /// A status without a version constraint applies to every version in its
+    /// identity scope. This is the policy used for bare `known_affected`.
+    AnyVersion,
+    /// A versionless identity only applies to another versionless identity.
+    IdentityOnly,
+}
+
+impl VersionPolicy {
+    pub fn for_assertion(status: AssertionStatus, matcher: &ComponentMatcher) -> Self {
+        if status == AssertionStatus::Affected
+            && matches!(matcher, ComponentMatcher::Purl { version: None, .. })
+        {
+            Self::AnyVersion
+        } else {
+            Self::IdentityOnly
+        }
+    }
+}
+
+/// A single assertion from an advisory about a component's vulnerability status.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct StatusAssertion {
     pub source: AdvisoryRef,
     pub vulnerability_id: String,
-    pub status: Status,
+    pub status: AssertionStatus,
     pub matcher: ComponentMatcher,
+    #[serde(default)]
+    pub context: Vec<ContextRef>,
+    #[serde(default)]
+    pub grouping: Vec<GroupRef>,
+    pub version_policy: VersionPolicy,
+}
+
+impl StatusAssertion {
+    pub fn new(
+        source: AdvisoryRef,
+        vulnerability_id: String,
+        status: AssertionStatus,
+        matcher: ComponentMatcher,
+    ) -> Self {
+        Self {
+            version_policy: VersionPolicy::for_assertion(status, &matcher),
+            source,
+            vulnerability_id,
+            status,
+            matcher,
+            context: Vec::new(),
+            grouping: Vec::new(),
+        }
+    }
 }
 
 /// How a status assertion identifies matching components.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ComponentMatcher {
     Purl {
         ty: String,
@@ -176,6 +256,10 @@ pub enum ComponentMatcher {
         cpe: String,
         version: Option<VersionConstraint>,
     },
+    Hash {
+        algorithm: String,
+        value: String,
+    },
     /// CVE 5.x product/vendor name — matched heuristically against SBOM components.
     CveProduct {
         product: String,
@@ -183,20 +267,65 @@ pub enum ComponentMatcher {
     },
 }
 
+/// The kind of product or platform context describing a component.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContextKind {
+    Product,
+    OperatingSystem,
+    Image,
+    Other,
+}
+
+/// A context identity, such as a describing product CPE or operating system.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ContextRef {
+    pub id: ComponentId,
+    pub kind: ContextKind,
+}
+
+/// A relationship that groups a component with a containing or describing identity.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GroupingRelation {
+    Contains,
+    DependsOn,
+    Describes,
+    Other,
+}
+
+/// A typed edge between two identities. Grouping is never inferred from names.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GroupRef {
+    pub subject: ComponentId,
+    pub target: ComponentId,
+    pub relationship: GroupingRelation,
+}
+
 /// The resolved verdict for a single vulnerability against a single component.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Verdict {
+    pub component: ComponentId,
+    #[serde(default)]
+    pub context: Vec<ContextRef>,
     pub vulnerability_id: String,
-    pub status: Status,
+    pub status: VerdictStatus,
     pub contributing_assertions: Vec<AssertionRef>,
+    pub evidence: Vec<MatchEvidence>,
+    pub resolution_rule: ResolutionRule,
 }
 
 /// A lightweight reference to an assertion that contributed to a verdict.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssertionRef {
     pub source: AdvisoryRef,
-    pub status: Status,
+    pub status: AssertionStatus,
     pub matched_by: MatchDimension,
+    pub matcher: ComponentMatcher,
+    pub version_constraint: Option<VersionConstraint>,
+    pub version_in_range: Option<bool>,
+    #[serde(default)]
+    pub context: Vec<ContextRef>,
 }
 
 /// Which matching dimension produced the match.
@@ -204,16 +333,45 @@ pub struct AssertionRef {
 pub enum MatchDimension {
     Purl,
     Cpe,
+    Hash,
+    Product,
+}
+
+/// Ordered strength of identity evidence used during resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MatchSpecificity {
+    Product,
+    Cpe,
+    Purl,
+    QualifiedPurl,
+    Hash,
 }
 
 /// Evidence explaining why a specific assertion matched (or didn't).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchEvidence {
+    pub component: ComponentId,
     pub assertion_source: AdvisoryRef,
     pub vulnerability_id: String,
-    pub status: Status,
+    pub status: AssertionStatus,
     pub dimension: MatchDimension,
+    pub matcher: ComponentMatcher,
     pub version_in_range: Option<bool>,
+    pub version_constraint: Option<VersionConstraint>,
+    #[serde(default)]
+    pub context: Vec<ContextRef>,
+}
+
+/// Structured explanation of how a verdict was selected.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResolutionRule {
+    NoApplicableAssertion,
+    CpeAffectedWins,
+    SpecificResolution,
+    AffectedOnly,
+    UnderInvestigationOnly,
 }
 
 /// A single entry in the decision trace.
@@ -224,22 +382,33 @@ pub struct TraceEntry {
 }
 
 /// An SBOM component extracted from a CycloneDX or SPDX document.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SbomComponent {
     pub id: ComponentId,
-}
-
-/// The input for correlating an entire SBOM.
-#[derive(Debug, Clone)]
-pub struct SbomInput {
-    pub name: String,
-    pub components: Vec<SbomComponent>,
+    #[serde(default)]
+    pub context: Vec<ContextRef>,
+    #[serde(default)]
+    pub grouping: Vec<GroupRef>,
 }
 
 /// Query for a single component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComponentQuery {
     pub id: ComponentId,
+    #[serde(default)]
+    pub context: Vec<ContextRef>,
+    #[serde(default)]
+    pub grouping: Vec<GroupRef>,
+}
+
+impl ComponentQuery {
+    pub fn new(id: ComponentId) -> Self {
+        Self {
+            id,
+            context: Vec::new(),
+            grouping: Vec::new(),
+        }
+    }
 }
 
 /// A scenario definition loaded from `expected.json`.

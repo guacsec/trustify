@@ -1,3 +1,5 @@
+//! RPM version comparison, including epochs and release markers.
+
 use std::cmp::Ordering;
 
 /// Extract segments from an RPM version string, matching the SQL regex

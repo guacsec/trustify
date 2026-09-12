@@ -1,5 +1,8 @@
+//! OSV affected-event extraction and ecosystem version mapping.
+
 use crate::types::{
-    AdvisoryRef, ComponentMatcher, Status, StatusAssertion, VersionConstraint, parse_purl,
+    AdvisoryRef, ComponentMatcher, Status, StatusAssertion, VersionConstraint, VersionPolicy,
+    parse_purl,
 };
 use crate::version::{VersionBound, VersionRange, VersionScheme};
 
@@ -87,6 +90,9 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                         source: advisory_ref.clone(),
                         vulnerability_id: vuln_id.to_string(),
                         status: Status::Affected,
+                        version_policy: VersionPolicy::IdentityOnly,
+                        context: Vec::new(),
+                        grouping: Vec::new(),
                         matcher: ComponentMatcher::Purl {
                             ty: ty.clone(),
                             namespace: namespace.clone(),
@@ -107,6 +113,9 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                         source: advisory_ref.clone(),
                         vulnerability_id: vuln_id.to_string(),
                         status: Status::Fixed,
+                        version_policy: VersionPolicy::IdentityOnly,
+                        context: Vec::new(),
+                        grouping: Vec::new(),
                         matcher: ComponentMatcher::Purl {
                             ty: ty.clone(),
                             namespace: namespace.clone(),
@@ -136,6 +145,9 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                         source: advisory_ref.clone(),
                         vulnerability_id: vuln_id.to_string(),
                         status: Status::Affected,
+                        version_policy: VersionPolicy::IdentityOnly,
+                        context: Vec::new(),
+                        grouping: Vec::new(),
                         matcher: ComponentMatcher::Purl {
                             ty: ty.clone(),
                             namespace: namespace.clone(),
@@ -167,6 +179,9 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
                     source: advisory_ref.clone(),
                     vulnerability_id: vuln_id.to_string(),
                     status: Status::Affected,
+                    version_policy: VersionPolicy::IdentityOnly,
+                    context: Vec::new(),
+                    grouping: Vec::new(),
                     matcher: ComponentMatcher::Purl {
                         ty: ty.clone(),
                         namespace: namespace.clone(),

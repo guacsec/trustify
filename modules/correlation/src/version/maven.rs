@@ -1,3 +1,5 @@
+//! Maven version comparison with qualifier ordering.
+
 use std::cmp::Ordering;
 
 fn is_numeric(s: &str) -> bool {

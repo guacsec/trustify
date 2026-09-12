@@ -1,11 +1,15 @@
+//! Browser UI for loading advisory/SBOM data and inspecting verdicts.
+
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use leptos::prelude::*;
 use trustify_module_correlation::{
     collector::VecCollector,
-    engine::CorrelationEngine,
-    memory::InMemoryEngine,
-    types::{ComponentId, ComponentQuery, parse_purl},
+    engine::correlate,
+    evidence::{AdvisoryEvidence, Evidence, SbomEvidence},
+    extract,
+    memory::AdvisoryIndex,
+    types::{ComponentId, ComponentQuery, Verdict, parse_purl},
 };
 use wasm_bindgen::prelude::*;
 
@@ -32,6 +36,22 @@ enum QueryMode {
 
 fn status_class(status: &str) -> String {
     format!("status-{status}")
+}
+
+fn component_evidence(advisory: AdvisoryEvidence, query: &ComponentQuery) -> Evidence {
+    Evidence::new(
+        advisory,
+        SbomEvidence {
+            name: "component-query".into(),
+            components: vec![trustify_module_correlation::types::SbomComponent {
+                id: query.id.clone(),
+                context: query.context.clone(),
+                grouping: query.grouping.clone(),
+            }],
+            context: Vec::new(),
+            grouping: Vec::new(),
+        },
+    )
 }
 
 /// Read a file and deliver its content as a JSON string.
@@ -84,7 +104,7 @@ fn decompress_xz(data: &[u8]) -> Result<Vec<u8>, lzma_rs::error::Error> {
 
 #[component]
 fn App() -> impl IntoView {
-    let engine = Rc::new(RefCell::new(InMemoryEngine::new()));
+    let advisories = Rc::new(RefCell::new(AdvisoryIndex::new()));
     let (advisory_names, set_advisory_names) = signal(Vec::<String>::new());
     let (assertion_count, set_assertion_count) = signal(0usize);
     let (sbom_data, set_sbom_data) = signal(Option::<(String, serde_json::Value)>::None);
@@ -101,15 +121,15 @@ fn App() -> impl IntoView {
     // Track advisory loads so the effect re-runs when advisories change
     let (advisory_version, set_advisory_version) = signal(0u32);
 
-    let engine_for_clear = engine.clone();
+    let engine_for_clear = advisories.clone();
     let clear_advisories = move |_| {
-        *engine_for_clear.borrow_mut() = InMemoryEngine::new();
+        *engine_for_clear.borrow_mut() = AdvisoryIndex::new();
         set_advisory_names.set(Vec::new());
         set_assertion_count.set(0);
         set_advisory_version.update(|v| *v += 1);
     };
 
-    let engine_for_drop = engine.clone();
+    let engine_for_drop = advisories.clone();
     let on_advisory_drop = move |ev: web_sys::DragEvent| {
         ev.prevent_default();
         set_adv_dragging.set(false);
@@ -122,19 +142,22 @@ fn App() -> impl IntoView {
             let eng = engine_for_drop.clone();
             read_file(
                 &file,
-                move |name, content| {
-                    match serde_json::from_str::<serde_json::Value>(&content) {
-                        Ok(json) => {
+                move |name, content| match serde_json::from_str::<serde_json::Value>(&content) {
+                    Ok(json) => match extract::extract_advisory(&name, &json) {
+                        Some(evidence) => {
                             let mut eng = eng.borrow_mut();
-                            eng.load_advisory(&name, &json);
+                            eng.add(evidence);
                             set_assertion_count.set(eng.assertion_count());
                             set_advisory_names.update(|names| names.push(name));
                             set_advisory_version.update(|v| *v += 1);
                             set_error_msg.set(None);
                         }
-                        Err(e) => {
-                            set_error_msg.set(Some(format!("Failed to parse {name}: {e}")));
+                        None => {
+                            set_error_msg.set(Some(format!("Unrecognized advisory format: {name}")));
                         }
+                    },
+                    Err(e) => {
+                        set_error_msg.set(Some(format!("Failed to parse {name}: {e}")));
                     }
                 },
                 move |e| set_error_msg.set(Some(e)),
@@ -152,15 +175,13 @@ fn App() -> impl IntoView {
         if let Some(file) = files.get(0) {
             read_file(
                 &file,
-                move |name, content| {
-                    match serde_json::from_str::<serde_json::Value>(&content) {
-                        Ok(json) => {
-                            set_sbom_data.set(Some((name, json)));
-                            set_error_msg.set(None);
-                        }
-                        Err(e) => {
-                            set_error_msg.set(Some(format!("Failed to parse SBOM: {e}")));
-                        }
+                move |name, content| match serde_json::from_str::<serde_json::Value>(&content) {
+                    Ok(json) => {
+                        set_sbom_data.set(Some((name, json)));
+                        set_error_msg.set(None);
+                    }
+                    Err(e) => {
+                        set_error_msg.set(Some(format!("Failed to parse SBOM: {e}")));
                     }
                 },
                 move |e| set_error_msg.set(Some(e)),
@@ -168,7 +189,7 @@ fn App() -> impl IntoView {
         }
     };
 
-    let engine_for_correlate = engine.clone();
+    let engine_for_correlate = advisories.clone();
     Effect::new(move || {
         let current_mode = mode.get();
         advisory_version.get();
@@ -194,9 +215,12 @@ fn App() -> impl IntoView {
                 let mut collector = VecCollector::default();
                 let query = ComponentQuery {
                     id: component_id,
+                    context: Vec::new(),
+                    grouping: Vec::new(),
                 };
-                eng.correlate_component(&query, &mut collector);
-                apply_results(&collector, &set_results, &set_trace_log);
+                let evidence = component_evidence(eng.evidence(), &query);
+                let verdicts = correlate(&evidence, &mut collector);
+                apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
             QueryMode::Cpe => {
                 let input = cpe_input.get();
@@ -207,9 +231,12 @@ fn App() -> impl IntoView {
                 let mut collector = VecCollector::default();
                 let query = ComponentQuery {
                     id: ComponentId::Cpe(input.trim().to_string()),
+                    context: Vec::new(),
+                    grouping: Vec::new(),
                 };
-                eng.correlate_component(&query, &mut collector);
-                apply_results(&collector, &set_results, &set_trace_log);
+                let evidence = component_evidence(eng.evidence(), &query);
+                let verdicts = correlate(&evidence, &mut collector);
+                apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
             QueryMode::Digest => {
                 let input = digest_input.get();
@@ -218,9 +245,7 @@ fn App() -> impl IntoView {
                 }
 
                 let trimmed = input.trim();
-                let (algorithm, value) = trimmed
-                    .split_once(':')
-                    .unwrap_or(("sha256", trimmed));
+                let (algorithm, value) = trimmed.split_once(':').unwrap_or(("sha256", trimmed));
 
                 let mut collector = VecCollector::default();
                 let query = ComponentQuery {
@@ -228,9 +253,12 @@ fn App() -> impl IntoView {
                         algorithm: algorithm.to_string(),
                         value: value.to_string(),
                     },
+                    context: Vec::new(),
+                    grouping: Vec::new(),
                 };
-                eng.correlate_component(&query, &mut collector);
-                apply_results(&collector, &set_results, &set_trace_log);
+                let evidence = component_evidence(eng.evidence(), &query);
+                let verdicts = correlate(&evidence, &mut collector);
+                apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
             QueryMode::Sbom => {
                 let data = sbom_data.get();
@@ -239,13 +267,15 @@ fn App() -> impl IntoView {
                 };
 
                 let mut collector = VecCollector::default();
-                let sbom = eng.load_and_correlate_sbom(&name, &json, &mut collector);
+                let sbom = extract::extract_sbom(&name, &json);
 
                 if sbom.is_none() {
                     set_error_msg.set(Some("Failed to parse SBOM format".into()));
                     return;
                 }
-                apply_results(&collector, &set_results, &set_trace_log);
+                let evidence = Evidence::new(eng.evidence(), sbom.unwrap());
+                let verdicts = correlate(&evidence, &mut collector);
+                apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
         }
     });
@@ -440,12 +470,13 @@ fn App() -> impl IntoView {
 }
 
 fn apply_results(
+    verdicts: &[Verdict],
     collector: &VecCollector,
     set_results: &WriteSignal<Vec<VerdictDisplay>>,
     set_trace_log: &WriteSignal<String>,
 ) {
     let mut verdict_map = HashMap::<String, VerdictDisplay>::new();
-    for v in &collector.verdicts {
+    for v in verdicts {
         let status_str = v.status.as_str().to_string();
         let display = VerdictDisplay {
             vulnerability_id: v.vulnerability_id.clone(),

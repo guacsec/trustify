@@ -1,6 +1,6 @@
-# Correlation Engine
+# Correlation Pipeline
 
-Standalone advisory-to-SBOM correlation engine. Matches CSAF, CVE 5.x, and OSV
+Standalone advisory-to-SBOM correlation pipeline. Matches CSAF, CVE 5.x, and OSV
 advisories against CycloneDX/SPDX SBOMs to determine vulnerability status per
 component, without requiring a database.
 
@@ -58,29 +58,45 @@ Then in the browser:
 cargo test -p trustify-module-correlation
 ```
 
-Runs 113 tests including 7 scenario tests (S5-CDX, S6, S7, S8-CDX, S10, S12,
-S13). 11 scenarios are ignored with Jira issue references tracking known
-limitations.
+Runs the unit and scenario suite. Scenarios that describe known limitations are
+ignored with Jira issue references.
+
+## Example
+
+Run the complete normalized flow with one advisory and one SBOM:
+
+```sh
+cargo run -p trustify-module-correlation --example correlate -- advisory.json sbom.json
+```
+
+The example extracts `AdvisoryEvidence` and `SbomEvidence`, joins them into
+`Evidence`, and passes that complete input to `engine::correlate` to obtain
+owned verdicts.
 
 ## Architecture
 
 ```
 src/
-  engine.rs        CorrelationEngine + Collector traits
+  extract/         Raw advisory/SBOM documents -> normalized evidence
+    advisory/      Advisory extraction peer
+      csaf.rs      CSAF/VEX (product tree walking, version policies)
+      cve.rs       CVE 5.x (version ranges + CPE assertions)
+      osv.rs       OSV (affected ranges, ecosystem mapping)
+    sbom/          SBOM extraction peer
+      cyclonedx.rs CycloneDX components, metadata context, dependencies
+      spdx.rs      SPDX packages, describing relationships, dependencies
+  evidence.rs      AdvisoryEvidence + SbomEvidence -> Evidence input
+  verdict.rs       Verdict type exports
+  engine.rs        Stateless correlate function + Collector contract
   collector.rs     Built-in collectors (VecCollector, VerdictCollector, TraceCollector)
-  types.rs         StatusAssertion, Verdict, ComponentId, ComponentMatcher
-  extract/         Advisory JSON -> Vec<StatusAssertion>
-    csaf.rs        CSAF/VEX (product tree walking, Red Hat implied-affected)
-    cve.rs         CVE 5.x (version ranges + CPE assertions)
-    osv.rs         OSV (affected ranges, ecosystem mapping)
-  sbom/            SBOM JSON -> SbomInput
-    cyclonedx.rs   CycloneDX component + describing CPE extraction
-    spdx.rs        SPDX package + external ref extraction
+  matching.rs       Identity and applicability matching
+  resolution.rs    Deterministic verdict resolution
+  types.rs         Shared assertion, identity, context, and verdict vocabulary
   version/         Version comparison (ported from PL/pgSQL)
     semver.rs      Lenient semver (also used for npm, golang, gem, etc.)
     rpm.rs         RPM version comparison with epoch handling
     maven.rs       Maven qualifier-aware comparison
     python.rs      PEP 440 comparison
     generic.rs     Exact string equality
-  memory/          InMemoryEngine implementation
+  memory/          AdvisoryIndex
 ```

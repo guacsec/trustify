@@ -1,3 +1,5 @@
+//! Lenient semantic-version comparison for ecosystem packages.
+
 use std::cmp::Ordering;
 
 fn is_numeric(s: &str) -> bool {

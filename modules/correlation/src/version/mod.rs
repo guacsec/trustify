@@ -1,3 +1,5 @@
+//! Version schemes and range semantics used by applicability matching.
+
 pub mod generic;
 pub mod maven;
 pub mod python;
@@ -8,7 +10,7 @@ pub mod vers;
 use std::cmp::Ordering;
 
 /// Version comparison scheme, independent of the entity crate's SeaORM-derived enum.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum VersionScheme {
     Generic,
     Git,
@@ -34,7 +36,7 @@ impl From<&str> for VersionScheme {
 }
 
 /// A version bound in a range.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum VersionBound {
     Inclusive(String),
     Exclusive(String),
@@ -52,7 +54,7 @@ impl std::fmt::Display for VersionBound {
 }
 
 /// A version range specification.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum VersionRange {
     Exact(String),
     Range(VersionBound, VersionBound),

@@ -1,5 +1,8 @@
+//! CSAF product-tree and product-status extraction.
+
 use crate::types::{
-    AdvisoryRef, ComponentMatcher, Status, StatusAssertion, VersionConstraint, parse_purl,
+    AdvisoryRef, ComponentMatcher, Status, StatusAssertion, VersionConstraint, VersionPolicy,
+    parse_purl,
 };
 use crate::version::{VersionBound, VersionRange, VersionScheme, vers::parse_vers};
 use std::collections::HashMap;
@@ -197,17 +200,20 @@ fn extract_product_status(
                     None => continue,
                 };
 
-                if let Some(mut matcher) =
-                    resolve_product_id(pid, branch_index, relationship_index)
+                if let Some(mut matcher) = resolve_product_id(pid, branch_index, relationship_index)
                 {
                     if *field == "first_fixed" {
                         promote_exact_to_lower_bound(&mut matcher);
                     }
+                    let version_policy = VersionPolicy::for_assertion(*status, &matcher);
                     assertions.push(StatusAssertion {
                         source: advisory_ref.clone(),
                         vulnerability_id: vuln_id.to_string(),
                         status: *status,
+                        version_policy,
                         matcher,
+                        context: Vec::new(),
+                        grouping: Vec::new(),
                     });
                 }
             }
@@ -333,9 +339,7 @@ fn promote_exact_to_lower_bound(matcher: &mut ComponentMatcher) {
         _ => return,
     };
     if let VersionRange::Exact(v) = &constraint.range {
-        constraint.range = VersionRange::Range(
-            VersionBound::Inclusive(v.clone()),
-            VersionBound::Unbounded,
-        );
+        constraint.range =
+            VersionRange::Range(VersionBound::Inclusive(v.clone()), VersionBound::Unbounded);
     }
 }

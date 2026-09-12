@@ -1,4 +1,8 @@
-use crate::types::{AdvisoryRef, ComponentMatcher, Status, StatusAssertion, VersionConstraint};
+//! CVE 5.x affected-version and CPE extraction.
+
+use crate::types::{
+    AdvisoryRef, ComponentMatcher, Status, StatusAssertion, VersionConstraint, VersionPolicy,
+};
 use crate::version::{VersionBound, VersionRange, VersionScheme};
 
 /// Extract status assertions from a CVE 5.x record.
@@ -57,14 +61,18 @@ fn extract_from_container(
             if let Some(status) = status {
                 for cpe_val in cpes {
                     if let Some(cpe) = cpe_val.as_str() {
+                        let matcher = ComponentMatcher::CpeMatch {
+                            cpe: cpe.to_string(),
+                            version: None,
+                        };
                         assertions.push(StatusAssertion {
                             source: advisory_ref.clone(),
                             vulnerability_id: cve_id.to_string(),
                             status,
-                            matcher: ComponentMatcher::CpeMatch {
-                                cpe: cpe.to_string(),
-                                version: None,
-                            },
+                            version_policy: VersionPolicy::for_assertion(status, &matcher),
+                            matcher,
+                            context: Vec::new(),
+                            grouping: Vec::new(),
                         });
                     }
                 }
@@ -116,14 +124,18 @@ fn extract_from_container(
                 _ => continue,
             };
 
+            let matcher = ComponentMatcher::CveProduct {
+                product: product_name.to_string(),
+                version: VersionConstraint { scheme, range },
+            };
             assertions.push(StatusAssertion {
                 source: advisory_ref.clone(),
                 vulnerability_id: cve_id.to_string(),
                 status,
-                matcher: ComponentMatcher::CveProduct {
-                    product: product_name.to_string(),
-                    version: VersionConstraint { scheme, range },
-                },
+                version_policy: VersionPolicy::for_assertion(status, &matcher),
+                matcher,
+                context: Vec::new(),
+                grouping: Vec::new(),
             });
         }
     }

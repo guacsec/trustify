@@ -1,3 +1,5 @@
+//! Python and PEP 440-style version comparison.
+
 use std::cmp::Ordering;
 
 /// Extract the numeric prefix of a Python version string — everything before

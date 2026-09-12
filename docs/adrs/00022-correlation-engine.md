@@ -220,7 +220,7 @@ integrating with the server.
 
 ### The correlation pipeline
 
-The engine will be structured as a pipeline with clear conceptual stages:
+The correlation flow is structured as a pipeline with clear conceptual stages:
 
 ```
 Data → Evidence → Verdict
@@ -250,7 +250,7 @@ Data → Evidence → Verdict
    Each verdict carries references back to the evidence that produced it, making the
    reasoning traceable.
 
-This pipeline is the conceptual model regardless of where each stage runs — in-memory for
+This pipeline is the conceptual model regardless of where each stage runs — with an in-memory index for
 scenario testing, in the database for production queries, or in WASM for browser tooling.
 The stages and their contracts stay the same; the execution substrate can change.
 
@@ -307,6 +307,48 @@ surface, building a growing regression suite:
 | S16 | Cross-scheme PURL query (golang) | fail | TC-2628 |
 | S17 | Cross-product OCP kernel/go | fail | TC-2629 |
 
+### Flow
+
+```mermaid
+flowchart
+    A[Raw advisory JSON] --> AE[extract::extract_advisory]
+    AE --> AV[AdvisoryEvidence]
+
+    S[Raw SBOM JSON] --> SE[extract::extract_sbom]
+    SE --> SV[SbomEvidence]
+
+    AV --> IDX[AdvisoryIndex::add]
+    IDX --> AV2[AdvisoryIndex::evidence]
+
+    AV2 --> JOIN[Evidence::new]
+    SV --> JOIN
+
+    JOIN --> E[Complete Evidence]
+    E --> CORR[engine::correlate]
+    CORR --> MATCH[Identity + applicability matching]
+    MATCH --> RES[Deterministic resolution]
+    RES --> V[Vec<Verdict>]
+
+    MATCH --> OBS[Collector observer]
+    RES --> OBS
+```
+
+### Example
+
+Entry point
+```rust
+let advisory = extract::extract_advisory("advisory.json", &advisory_json);
+let sbom = extract::extract_sbom("sbom.json", &sbom_json)?;
+
+let mut advisories = AdvisoryIndex::new();
+advisories.add(advisory);
+
+let evidence = Evidence::new(advisories.evidence(), sbom);
+let mut collector = VecCollector::default();
+
+let verdicts = correlate(&evidence, &mut collector);
+```
+
 ## Consequences
 
 ### Positive
@@ -340,7 +382,7 @@ surface, building a growing regression suite:
   the engine needs. Expose via HTTP endpoints and/or background jobs.
 * **Convergence** — as the engine proves correct, migrate existing ingestion-time resolution
   to use the same pipeline, establishing a single source of truth.
-* **Scaling** — the initial in-memory engine uses linear scanning. The production path will
+* **Scaling** — the initial in-memory advisory index uses linear scanning. The production path will
   need database-backed querying or indexing for the full dataset.
 * **Confidence scoring** — augment verdicts with match-quality signals (exact PURL vs CPE
   prefix, version constraint precision, assertion recency).
