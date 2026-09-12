@@ -27,6 +27,7 @@ struct VerdictDisplay {
     vulnerability_id: String,
     status: String,
     status_class: String,
+    confidence: String,
     assertions: String,
 }
 
@@ -575,6 +576,7 @@ fn App() -> impl IntoView {
                                 <tr>
                                     <td class="vuln-id">{v.vulnerability_id}</td>
                                     <td class=format!("status {}", v.status_class)>{v.status}</td>
+                                    <td class="confidence">{v.confidence}</td>
                                     <td class="sources">{v.assertions}</td>
                                 </tr>
                             }
@@ -590,6 +592,7 @@ fn App() -> impl IntoView {
                                         <tr>
                                             <th>"Vulnerability"</th>
                                             <th>"Status"</th>
+                                            <th>"Confidence"</th>
                                             <th>"Sources"</th>
                                         </tr>
                                     </thead>
@@ -627,6 +630,11 @@ fn apply_results(
             vulnerability_id: v.vulnerability_id.clone(),
             status_class: status_class(&status_str),
             status: status_str,
+            confidence: format!(
+                "{} ({}%)",
+                v.confidence.tier.as_str(),
+                v.confidence.score
+            ),
             assertions: v
                 .contributing_assertions
                 .iter()

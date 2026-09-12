@@ -102,6 +102,14 @@ pub(crate) fn resolve_verdict(
         )
     };
 
+    let contradictory = ordered
+        .iter()
+        .any(|assertion| assertion.status == crate::types::AssertionStatus::Affected)
+        && ordered
+            .iter()
+            .any(|assertion| assertion.status.resolves_affected());
+    let confidence = crate::confidence::assess(&evidence, contradictory);
+
     let reason = match rule {
         ResolutionRule::NoApplicableAssertion => "no applicable assertion",
         ResolutionRule::CpeAffectedWins => "CPE-only match: affected wins at product level",
@@ -119,7 +127,7 @@ pub(crate) fn resolve_verdict(
                 final_status.as_str(),
                 ordered.len(),
             ),
-            detail: Some(reason.to_string()),
+            detail: Some(format!("{}; {}", reason, confidence.explanation())),
         });
     }
 
@@ -131,6 +139,7 @@ pub(crate) fn resolve_verdict(
         contributing_assertions: contributing,
         evidence,
         resolution_rule: rule,
+        confidence,
     }
 }
 

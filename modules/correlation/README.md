@@ -92,6 +92,8 @@ src/
       cyclonedx.rs CycloneDX components, metadata context, dependencies
       spdx.rs      SPDX packages, describing relationships, dependencies
   evidence.rs      AdvisoryEvidence + SbomEvidence -> Evidence input
+  confidence.rs    Evidence-derived confidence tiers and scores
+  options.rs       Runtime matching, resolution, and trace policies
   verdict.rs       Verdict type exports
   engine.rs        Stateless correlate function + Collector contract
   collector.rs     Built-in collectors (VecCollector, VerdictCollector, TraceCollector)

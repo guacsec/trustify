@@ -313,6 +313,7 @@ pub struct Verdict {
     pub contributing_assertions: Vec<AssertionRef>,
     pub evidence: Vec<MatchEvidence>,
     pub resolution_rule: ResolutionRule,
+    pub confidence: crate::confidence::Confidence,
 }
 
 /// A lightweight reference to an assertion that contributed to a verdict.
@@ -358,6 +359,8 @@ pub struct MatchEvidence {
     pub dimension: MatchDimension,
     pub matcher: ComponentMatcher,
     pub version_in_range: Option<bool>,
+    pub identity_precision: crate::confidence::IdentityPrecision,
+    pub version_quality: crate::confidence::VersionMatchQuality,
     pub version_constraint: Option<VersionConstraint>,
     #[serde(default)]
     pub context: Vec<ContextRef>,

@@ -193,6 +193,44 @@ Why did the engine produce it?
 A verdict must include evidence and providence of its decision along with a measure of confidence in the verdict reflecting quality of data, strength
 of evidence as well as contradictory evidence.
 
+### Confidence - Degradation as a first-class, testable concern
+
+Confidence is **not** a static per-dimension prior. It is a **computed function over
+evidence attributes**, so that behavior as data degrades is explicit and testable:
+
+For example,
+```
+confidence = f(identity_precision, version_match_quality, source_trust, sbom_trust)
+```
+
+- **identity_precision** — digest > fully-qualified PURL (arch/distro/epoch) > base PURL >
+  CPE vendor+product > name-only.
+- **version_match_quality** — exact version in a bounded range > match against an unbounded
+  range > coarse/name-only (no version check).
+- **source_trust** — per-advisory-source weighting.
+- **sbom_trust** — signed SBOMs weigh more than unsigned (leave room in the model now;
+  implement later).
+
+Named **degradation tiers** make the expectations explicit and become the acceptance
+criteria better represented in a matrix such as:
+
+| Tier | Available evidence | Behavior | Confidence band |
+|------|--------------------|----------|-----------------|
+| Exact | matching digest (ideally on a signed SBOM) | authoritative match | ~1.0 |
+| Strong | qualified PURL + bounded version match | normal match | ~0.85–0.95 |
+| Coarse | base PURL or CPE identity + version match | normal match, wider fan-out | ~0.7–0.85 |
+| Weak | unbounded range / missing qualifiers | match, flagged low-confidence | ~0.4–0.7 |
+| Name-only | advisory has only a human name (opt-in) | flagged `unverified` | < 0.4 |
+
+The point is not the exact numbers but that **each drop in evidence quality maps to a
+defined, testable change in output** — the "how it degrades when data degrades" contract.
+
+The current implementation exposes this assessment as structured `Confidence` on each
+`Verdict`. Matching records `IdentityPrecision` and `VersionMatchQuality` on
+`MatchEvidence`; resolution derives the tier and score from the strongest applicable
+match and lowers it when applicable assertions contradict one another. Source and SBOM
+trust are reserved as optional factors until those inputs are available.
+
 ## Context
 
 Trustify correlates SBOM components with advisory data to determine vulnerability status.
@@ -397,8 +435,8 @@ let verdicts = correlate_with_options(&evidence, &options, &mut collector);
   to use the same pipeline, establishing a single source of truth.
 * **Scaling** — the initial in-memory advisory index uses linear scanning. The production path will
   need database-backed querying or indexing for the full dataset.
-* **Confidence scoring** — augment verdicts with match-quality signals (exact PURL vs CPE
-  prefix, version constraint precision, assertion recency).
+* **Confidence enrichment** — extend the current structured degradation score with
+  source trust, signed-SBOM trust, and assertion recency when those inputs are available.
 
 ## References
 

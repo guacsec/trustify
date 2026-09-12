@@ -339,6 +339,52 @@ pub(crate) fn version_constraint(matcher: &ComponentMatcher) -> Option<VersionCo
     }
 }
 
+pub(crate) fn identity_precision(
+    matcher: &ComponentMatcher,
+) -> crate::confidence::IdentityPrecision {
+    match matcher {
+        ComponentMatcher::Hash { .. } => crate::confidence::IdentityPrecision::Digest,
+        ComponentMatcher::Purl { qualifiers, .. } if !qualifiers.is_empty() => {
+            crate::confidence::IdentityPrecision::QualifiedPurl
+        }
+        ComponentMatcher::Purl { .. } => crate::confidence::IdentityPrecision::BasePurl,
+        ComponentMatcher::CpeMatch { .. } => crate::confidence::IdentityPrecision::Cpe,
+        ComponentMatcher::CveProduct { .. } => crate::confidence::IdentityPrecision::NameOnly,
+    }
+}
+
+pub(crate) fn version_match_quality(
+    matcher: &ComponentMatcher,
+) -> crate::confidence::VersionMatchQuality {
+    match matcher {
+        ComponentMatcher::Purl { version, .. } | ComponentMatcher::CpeMatch { version, .. } => {
+            version
+                .as_ref()
+                .map(|constraint| version_range_quality(&constraint.range))
+                .unwrap_or(crate::confidence::VersionMatchQuality::NotChecked)
+        }
+        ComponentMatcher::CveProduct { version, .. } => version_range_quality(&version.range),
+        ComponentMatcher::Hash { .. } => crate::confidence::VersionMatchQuality::NotChecked,
+    }
+}
+
+fn version_range_quality(
+    range: &crate::version::VersionRange,
+) -> crate::confidence::VersionMatchQuality {
+    match range {
+        crate::version::VersionRange::Exact(_) => crate::confidence::VersionMatchQuality::Exact,
+        crate::version::VersionRange::Range(low, high)
+            if !matches!(low, crate::version::VersionBound::Unbounded)
+                && !matches!(high, crate::version::VersionBound::Unbounded) =>
+        {
+            crate::confidence::VersionMatchQuality::Bounded
+        }
+        crate::version::VersionRange::Range(..) => {
+            crate::confidence::VersionMatchQuality::Unbounded
+        }
+    }
+}
+
 /// Build a [`MatchEvidence`] record for an assertion that matched a component.
 ///
 /// Shared by the streaming `Collector::on_match` path and by the verdict's
@@ -356,6 +402,8 @@ pub(crate) fn match_evidence(
         dimension: match_dimension(&assertion.matcher),
         matcher: assertion.matcher.clone(),
         version_in_range: Some(version_in_range),
+        identity_precision: identity_precision(&assertion.matcher),
+        version_quality: version_match_quality(&assertion.matcher),
         version_constraint: version_constraint(&assertion.matcher),
         context: assertion.context.clone(),
     }
