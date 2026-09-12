@@ -127,6 +127,13 @@ applicability rules, for example:
 - An exact fixed assertion applies only according to its declared scope and version semantics.
 - Do not infer an affected range from an exact fixed version unless that is an explicit policy.
 - Version-constrained assertions reject versionless components by default; callers may explicitly opt into versionless matching as a runtime policy.
+Runtime correlation options make deployment/query policy explicit without changing identity semantics:
+
+- `VersionlessMatchPolicy` controls whether a missing component version may satisfy a constrained assertion; the default is `reject`.
+- `ProductMatchPolicy` controls heuristic CVE product-name evidence; the default is `allow`.
+- `ResolutionPolicy` selects conservative CPE handling or specificity-first resolution; the default is `conservative`.
+- `NoneVerdictPolicy` selects all known, identity-matched, or explicitly queried vulnerability scope; the default is `all_known` for the scenario/WASM path.
+- `TraceOptions` controls decision-trace emission; tracing is enabled by default.
 
 ### Status Resolution
 
@@ -325,7 +332,8 @@ flowchart
     SV --> JOIN
 
     JOIN --> E[Complete Evidence]
-    E --> CORR[engine::correlate]
+    E --> O[CorrelationOptions]
+    O --> CORR[engine::correlate_with_options]
     CORR --> MATCH[Identity + applicability matching]
     MATCH --> RES[Deterministic resolution]
     RES --> V[Vec<Verdict>]
@@ -345,9 +353,13 @@ let mut advisories = AdvisoryIndex::new();
 advisories.add(advisory);
 
 let evidence = Evidence::new(advisories.evidence(), sbom);
+let options = CorrelationOptions {
+    versionless_matches: VersionlessMatchPolicy::Reject,
+    ..CorrelationOptions::default()
+};
 let mut collector = VecCollector::default();
 
-let verdicts = correlate(&evidence, &mut collector);
+let verdicts = correlate_with_options(&evidence, &options, &mut collector);
 ```
 
 ## Consequences

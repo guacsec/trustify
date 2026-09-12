@@ -22,11 +22,18 @@ pub struct SbomEvidence {
 pub struct Evidence {
     pub advisory: AdvisoryEvidence,
     pub sbom: SbomEvidence,
+    /// Optional vulnerability scope for `NoneVerdictPolicy::ExplicitlyQueried`.
+    #[serde(default)]
+    pub requested_vulnerabilities: Vec<String>,
 }
 
 impl Evidence {
     pub fn new(advisory: AdvisoryEvidence, sbom: SbomEvidence) -> Self {
-        Self { advisory, sbom }
+        Self {
+            advisory,
+            sbom,
+            requested_vulnerabilities: Vec::new(),
+        }
     }
 }
 

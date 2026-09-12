@@ -67,15 +67,17 @@ Run the complete normalized flow with one advisory and one SBOM:
 
 ```sh
 cargo run -p trustify-module-correlation --example correlate -- advisory.json sbom.json
+# Optional: allow constrained assertions to match versionless components
+cargo run -p trustify-module-correlation --example correlate -- advisory.json sbom.json --allow-versionless
 ```
 
 The example extracts `AdvisoryEvidence` and `SbomEvidence`, joins them into
 `Evidence`, and passes that complete input to `engine::correlate` to obtain
-owned verdicts. Use `engine::correlate_with_options` with
-`VersionlessMatchPolicy::Allow` when a caller explicitly permits constrained
-assertions to match versionless components.
+owned verdicts using `CorrelationOptions`. The optional `--allow-versionless`
+flag selects `VersionlessMatchPolicy::Allow`; otherwise the safe reject policy
+is used.
 
-The WASM UI exposes the same policy as the **Allow version-constrained assertions to match versionless components** checkbox, which is off by default.
+The WASM UI exposes the runtime policies used by correlation. Versionless matching is off by default; the other controls cover product-name matches, conflict resolution, none-verdict scope, and decision tracing. The **Explicitly queried** none-verdict mode uses the comma-separated vulnerability ID field.
 
 ## Architecture
 

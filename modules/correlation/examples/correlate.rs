@@ -2,15 +2,25 @@
 
 use std::{env, fs};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use trustify_module_correlation::{
-    collector::VecCollector, engine::correlate, evidence::Evidence, extract, memory::AdvisoryIndex,
+    collector::VecCollector,
+    engine::correlate_with_options,
+    evidence::Evidence,
+    extract,
+    memory::AdvisoryIndex,
+    options::{CorrelationOptions, VersionlessMatchPolicy},
 };
 
 fn main() -> Result<()> {
     let mut args = env::args().skip(1);
     let advisory_path = args.next().context("missing advisory JSON path")?;
     let sbom_path = args.next().context("missing SBOM JSON path")?;
+    let allow_versionless = match args.next().as_deref() {
+        None => false,
+        Some("--allow-versionless") => true,
+        Some(value) => bail!("unknown option: {value}"),
+    };
 
     let advisory_json = read_json(&advisory_path)?;
     let sbom_json = read_json(&sbom_path)?;
@@ -24,8 +34,16 @@ fn main() -> Result<()> {
     advisories.add(advisory);
 
     let evidence = Evidence::new(advisories.evidence(), sbom);
+    let options = CorrelationOptions {
+        versionless_matches: if allow_versionless {
+            VersionlessMatchPolicy::Allow
+        } else {
+            VersionlessMatchPolicy::Reject
+        },
+        ..CorrelationOptions::default()
+    };
     let mut collector = VecCollector::default();
-    let verdicts = correlate(&evidence, &mut collector);
+    let verdicts = correlate_with_options(&evidence, &options, &mut collector);
 
     for verdict in verdicts {
         println!(

@@ -9,7 +9,10 @@ use trustify_module_correlation::{
     evidence::{AdvisoryEvidence, Evidence, SbomEvidence},
     extract,
     memory::AdvisoryIndex,
-    options::{CorrelationOptions, VersionlessMatchPolicy},
+    options::{
+        CorrelationOptions, NoneVerdictPolicy, ProductMatchPolicy, ResolutionPolicy, TraceOptions,
+        VersionlessMatchPolicy,
+    },
     types::{ComponentId, ComponentQuery, Verdict, parse_purl},
 };
 use wasm_bindgen::prelude::*;
@@ -53,6 +56,16 @@ fn component_evidence(advisory: AdvisoryEvidence, query: &ComponentQuery) -> Evi
             grouping: Vec::new(),
         },
     )
+}
+
+fn with_requested_vulnerabilities(mut evidence: Evidence, raw: &str) -> Evidence {
+    evidence.requested_vulnerabilities = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(str::to_owned)
+        .collect();
+    evidence
 }
 
 /// Read a file and deliver its content as a JSON string.
@@ -119,6 +132,12 @@ fn App() -> impl IntoView {
     let (adv_dragging, set_adv_dragging) = signal(false);
     let (sbom_dragging, set_sbom_dragging) = signal(false);
     let (allow_versionless_matches, set_allow_versionless_matches) = signal(false);
+    let (product_match_policy, set_product_match_policy) =
+        signal(ProductMatchPolicy::Allow);
+    let (resolution_policy, set_resolution_policy) = signal(ResolutionPolicy::Conservative);
+    let (none_verdict_policy, set_none_verdict_policy) = signal(NoneVerdictPolicy::AllKnown);
+    let (trace_enabled, set_trace_enabled) = signal(true);
+    let (requested_vulnerabilities, set_requested_vulnerabilities) = signal(String::new());
 
     // Track advisory loads so the effect re-runs when advisories change
     let (advisory_version, set_advisory_version) = signal(0u32);
@@ -201,11 +220,18 @@ fn App() -> impl IntoView {
         set_trace_log.set(String::new());
 
         let eng = engine_for_correlate.borrow();
+        let requested_vulnerabilities = requested_vulnerabilities.get();
         let options = CorrelationOptions {
             versionless_matches: if allow_versionless_matches.get() {
                 VersionlessMatchPolicy::Allow
             } else {
                 VersionlessMatchPolicy::Reject
+            },
+            product_matches: product_match_policy.get(),
+            resolution: resolution_policy.get(),
+            none_verdicts: none_verdict_policy.get(),
+            trace: TraceOptions {
+                enabled: trace_enabled.get(),
             },
         };
 
@@ -227,7 +253,10 @@ fn App() -> impl IntoView {
                     context: Vec::new(),
                     grouping: Vec::new(),
                 };
-                let evidence = component_evidence(eng.evidence(), &query);
+                let evidence = with_requested_vulnerabilities(
+                    component_evidence(eng.evidence(), &query),
+                    &requested_vulnerabilities,
+                );
                 let verdicts = correlate_with_options(&evidence, &options, &mut collector);
                 apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
@@ -243,7 +272,10 @@ fn App() -> impl IntoView {
                     context: Vec::new(),
                     grouping: Vec::new(),
                 };
-                let evidence = component_evidence(eng.evidence(), &query);
+                let evidence = with_requested_vulnerabilities(
+                    component_evidence(eng.evidence(), &query),
+                    &requested_vulnerabilities,
+                );
                 let verdicts = correlate_with_options(&evidence, &options, &mut collector);
                 apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
@@ -265,7 +297,10 @@ fn App() -> impl IntoView {
                     context: Vec::new(),
                     grouping: Vec::new(),
                 };
-                let evidence = component_evidence(eng.evidence(), &query);
+                let evidence = with_requested_vulnerabilities(
+                    component_evidence(eng.evidence(), &query),
+                    &requested_vulnerabilities,
+                );
                 let verdicts = correlate_with_options(&evidence, &options, &mut collector);
                 apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
@@ -282,7 +317,10 @@ fn App() -> impl IntoView {
                     set_error_msg.set(Some("Failed to parse SBOM format".into()));
                     return;
                 }
-                let evidence = Evidence::new(eng.evidence(), sbom.unwrap());
+                let evidence = with_requested_vulnerabilities(
+                    Evidence::new(eng.evidence(), sbom.unwrap()),
+                    &requested_vulnerabilities,
+                );
                 let verdicts = correlate_with_options(&evidence, &options, &mut collector);
                 apply_results(&verdicts, &collector, &set_results, &set_trace_log);
             }
@@ -349,6 +387,90 @@ fn App() -> impl IntoView {
                 </label>
                 <div class="hint">
                     "Off by default; enabling this can broaden advisory applicability."
+                </div>
+                <label>
+                    "Requested vulnerability IDs (comma-separated)"
+                    <input
+                        type="text"
+                        class="query-input"
+                        placeholder="CVE-2024-1234, GHSA-example"
+                        prop:value=move || requested_vulnerabilities.get()
+                        on:input=move |ev| {
+                            set_requested_vulnerabilities.set(event_target_value(&ev));
+                        }
+                    />
+                </label>
+                <div class="option-grid">
+                    <label>
+                        "Product matches"
+                        <select
+                            prop:value=move || match product_match_policy.get() {
+                                ProductMatchPolicy::Allow => "allow",
+                                ProductMatchPolicy::EvidenceOnly => "evidence_only",
+                                ProductMatchPolicy::Reject => "reject",
+                            }
+                            on:change=move |ev| {
+                                set_product_match_policy.set(match event_target_value(&ev).as_str() {
+                                    "evidence_only" => ProductMatchPolicy::EvidenceOnly,
+                                    "reject" => ProductMatchPolicy::Reject,
+                                    _ => ProductMatchPolicy::Allow,
+                                });
+                            }
+                        >
+                            <option value="allow">"Allow"</option>
+                            <option value="evidence_only">"Evidence only"</option>
+                            <option value="reject">"Reject"</option>
+                        </select>
+                    </label>
+                    <label>
+                        "Resolution"
+                        <select
+                            prop:value=move || match resolution_policy.get() {
+                                ResolutionPolicy::Conservative => "conservative",
+                                ResolutionPolicy::SpecificityFirst => "specificity_first",
+                            }
+                            on:change=move |ev| {
+                                set_resolution_policy.set(match event_target_value(&ev).as_str() {
+                                    "specificity_first" => ResolutionPolicy::SpecificityFirst,
+                                    _ => ResolutionPolicy::Conservative,
+                                });
+                            }
+                        >
+                            <option value="conservative">"Conservative"</option>
+                            <option value="specificity_first">"Specificity first"</option>
+                        </select>
+                    </label>
+                    <label>
+                        "None verdicts"
+                        <select
+                            prop:value=move || match none_verdict_policy.get() {
+                                NoneVerdictPolicy::AllKnown => "all_known",
+                                NoneVerdictPolicy::IdentityMatched => "identity_matched",
+                                NoneVerdictPolicy::ExplicitlyQueried => "explicitly_queried",
+                            }
+                            on:change=move |ev| {
+                                set_none_verdict_policy.set(match event_target_value(&ev).as_str() {
+                                    "identity_matched" => NoneVerdictPolicy::IdentityMatched,
+                                    "explicitly_queried" => NoneVerdictPolicy::ExplicitlyQueried,
+                                    _ => NoneVerdictPolicy::AllKnown,
+                                });
+                            }
+                        >
+                            <option value="all_known">"All known"</option>
+                            <option value="identity_matched">"Identity matched"</option>
+                            <option value="explicitly_queried">"Explicitly queried"</option>
+                        </select>
+                    </label>
+                    <label class="option-toggle">
+                        <input
+                            type="checkbox"
+                            prop:checked=move || trace_enabled.get()
+                            on:change=move |ev| {
+                                set_trace_enabled.set(event_target_checked(&ev));
+                            }
+                        />
+                        "Decision trace"
+                    </label>
                 </div>
 
                 <div style="margin-bottom: 8px;">

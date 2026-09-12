@@ -35,7 +35,11 @@ pub(crate) fn queries_from_sbom(sbom: &SbomEvidence) -> Vec<ComponentQuery> {
         .collect()
 }
 
-pub(crate) fn matches_component(query: &ComponentQuery, assertion: &StatusAssertion) -> bool {
+pub(crate) fn matches_component(
+    query: &ComponentQuery,
+    assertion: &StatusAssertion,
+    options: &CorrelationOptions,
+) -> bool {
     if !assertion
         .context
         .iter()
@@ -87,7 +91,13 @@ pub(crate) fn matches_component(query: &ComponentQuery, assertion: &StatusAssert
                 name: comp_name, ..
             },
             ComponentMatcher::CveProduct { product, .. },
-        ) => comp_name.eq_ignore_ascii_case(product),
+        ) => {
+            comp_name.eq_ignore_ascii_case(product)
+                && !matches!(
+                    options.product_matches,
+                    crate::options::ProductMatchPolicy::Reject
+                )
+        }
         _ => false,
     }
 }
@@ -443,6 +453,7 @@ mod tests {
             &assertion,
             &CorrelationOptions {
                 versionless_matches: VersionlessMatchPolicy::Allow,
+                ..CorrelationOptions::default()
             }
         ));
     }

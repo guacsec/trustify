@@ -45,7 +45,13 @@ fn verdicts_from_evidence(
     matching::queries_from_sbom(&evidence.sbom)
         .into_iter()
         .flat_map(|query| {
-            correlate_component_evidence(&query, &evidence.advisory, options, collector)
+            correlate_component_evidence(
+                &query,
+                &evidence.advisory,
+                &evidence.requested_vulnerabilities,
+                options,
+                collector,
+            )
         })
         .collect()
 }
@@ -53,23 +59,26 @@ fn verdicts_from_evidence(
 fn correlate_component_evidence(
     component: &ComponentQuery,
     advisory: &AdvisoryEvidence,
+    requested_vulnerabilities: &[String],
     options: &CorrelationOptions,
     collector: &mut dyn Collector,
 ) -> Vec<Verdict> {
-    collector.on_trace(&TraceEntry {
-        message: format!(
-            "correlating component: {}",
-            format_component_id(&component.id)
-        ),
-        detail: None,
-    });
+    if options.trace.enabled {
+        collector.on_trace(&TraceEntry {
+            message: format!(
+                "correlating component: {}",
+                format_component_id(&component.id)
+            ),
+            detail: None,
+        });
+    }
 
     let mut by_vuln: std::collections::BTreeMap<String, Vec<&crate::types::StatusAssertion>> =
         std::collections::BTreeMap::new();
     let mut identity_match_count = 0u32;
 
     for assertion in &advisory.assertions {
-        if matching::matches_component(component, assertion) {
+        if matching::matches_component(component, assertion, options) {
             identity_match_count += 1;
             let version_in_range = matching::check_version(&component.id, assertion, options);
 
@@ -85,21 +94,23 @@ fn correlate_component_evidence(
                 "SKIPPED (version out of range)"
             };
 
-            collector.on_trace(&TraceEntry {
-                message: format!(
-                    "  {} {} {} from {} [{}]",
-                    qualifier,
-                    assertion.vulnerability_id,
-                    assertion.status.as_str(),
-                    assertion.source.identifier,
-                    format_matcher(&assertion.matcher),
-                ),
-                detail: if !version_in_range {
-                    Some(matching::explain_skip(&component.id, &assertion.matcher))
-                } else {
-                    None
-                },
-            });
+            if options.trace.enabled {
+                collector.on_trace(&TraceEntry {
+                    message: format!(
+                        "  {} {} {} from {} [{}]",
+                        qualifier,
+                        assertion.vulnerability_id,
+                        assertion.status.as_str(),
+                        assertion.source.identifier,
+                        format_matcher(&assertion.matcher),
+                    ),
+                    detail: if !version_in_range {
+                        Some(matching::explain_skip(&component.id, &assertion.matcher))
+                    } else {
+                        None
+                    },
+                });
+            }
 
             by_vuln
                 .entry(assertion.vulnerability_id.clone())
@@ -108,14 +119,26 @@ fn correlate_component_evidence(
         }
     }
 
-    if identity_match_count == 0 {
+    if identity_match_count == 0 && options.trace.enabled {
         collector.on_trace(&TraceEntry {
             message: "  no identity matches found in any assertion".into(),
             detail: None,
         });
     }
 
-    // NOTE: this iterates over *every* vulnerability present in the advisory
+    let vulnerability_ids: std::collections::BTreeSet<String> = match options.none_verdicts {
+        crate::options::NoneVerdictPolicy::AllKnown => advisory
+            .assertions
+            .iter()
+            .map(|assertion| assertion.vulnerability_id.clone())
+            .collect(),
+        crate::options::NoneVerdictPolicy::IdentityMatched => by_vuln.keys().cloned().collect(),
+        crate::options::NoneVerdictPolicy::ExplicitlyQueried => {
+            requested_vulnerabilities.iter().cloned().collect()
+        }
+    };
+
+    // NOTE: the default `AllKnown` policy iterates over *every* vulnerability present in the advisory
     // evidence and emits a verdict for each — producing `VerdictStatus::None`
     // for vulnerabilities that had no identity match against this component.
     // That yields a component x vulnerability cross product and conflates
@@ -129,11 +152,7 @@ fn correlate_component_evidence(
     // match), otherwise output grows with the whole corpus. See ADR 00022,
     // "Verdict Semantics": `none` is the result of a query, not a fact asserted
     // about every vulnerability in existence.
-    advisory
-        .assertions
-        .iter()
-        .map(|assertion| assertion.vulnerability_id.clone())
-        .collect::<std::collections::BTreeSet<_>>()
+    vulnerability_ids
         .into_iter()
         .map(|vuln_id| {
             let matching = by_vuln.get(&vuln_id).cloned().unwrap_or_default();

@@ -53,6 +53,12 @@ pub(crate) fn resolve_verdict(
             strongest_dimension
                 .is_none_or(|specificity| matcher_specificity(&assertion.matcher) == specificity)
         })
+        .filter(|assertion| {
+            !matches!(
+                options.product_matches,
+                crate::options::ProductMatchPolicy::EvidenceOnly
+            ) || !matches!(assertion.matcher, ComponentMatcher::CveProduct { .. })
+        })
         .collect();
 
     let has_affected = relevant
@@ -65,10 +71,15 @@ pub(crate) fn resolve_verdict(
         && relevant
             .iter()
             .all(|assertion| matches!(assertion.matcher, ComponentMatcher::CpeMatch { .. }));
-
     let (final_status, rule) = if ordered.is_empty() {
         (VerdictStatus::None, ResolutionRule::NoApplicableAssertion)
-    } else if all_cpe_only && has_affected {
+    } else if all_cpe_only
+        && has_affected
+        && matches!(
+            options.resolution,
+            crate::options::ResolutionPolicy::Conservative
+        )
+    {
         (VerdictStatus::Affected, ResolutionRule::CpeAffectedWins)
     } else if has_resolution {
         let status = relevant
@@ -101,14 +112,16 @@ pub(crate) fn resolve_verdict(
         ResolutionRule::UnderInvestigationOnly => "only non-definitive assertions matched",
     };
 
-    collector.on_trace(&TraceEntry {
-        message: format!(
-            "  VERDICT {vuln_id} = {} ({} contributing assertions)",
-            final_status.as_str(),
-            ordered.len(),
-        ),
-        detail: Some(reason.to_string()),
-    });
+    if options.trace.enabled {
+        collector.on_trace(&TraceEntry {
+            message: format!(
+                "  VERDICT {vuln_id} = {} ({} contributing assertions)",
+                final_status.as_str(),
+                ordered.len(),
+            ),
+            detail: Some(reason.to_string()),
+        });
+    }
 
     Verdict {
         component: component.id.clone(),
