@@ -1,0 +1,423 @@
+= Running data migrations with concurrency
+
+Some upgrades require data migrations that re-process all stored documents (SBOMs, advisories).
+For large databases this can take a significant amount of time.
+Trustify supports running data migrations with in-process parallelism and across multiple runner instances to speed up the process.
+
+This guide describes how to run data migrations on a pre-existing database copy, with full control over concurrency and partitioning.
+
+== Prerequisites
+
+* A writable copy of the database from the previous version (e.g. created via `pg_dump` / `pg_restore` or a filesystem-level snapshot)
+* The `trustd` binary (or container image) from the **new** version
+* Access to the document storage backend (S3 or filesystem) that holds the original documents
+* The database copy must be accessible from all migration runner instances
+
+== Environment variables
+
+=== Database connection
+
+Point these at the **copy** database, not the production database.
+
+[cols="2,3,1"]
+|===
+| Variable | Description | Default
+
+| `TRUSTD_DB_HOST` | Database address | `localhost`
+| `TRUSTD_DB_PORT` | Database port | `5432`
+| `TRUSTD_DB_NAME` | Database name | `trustify`
+| `TRUSTD_DB_USER` | Database username | `postgres`
+| `TRUSTD_DB_PASSWORD` | Database password | `trustify`
+|===
+
+=== Document storage
+
+The migration runners need read access to the original documents.
+
+[cols="2,3,1"]
+|===
+| Variable | Description | Default
+
+| `TRUSTD_STORAGE_STRATEGY` | Storage backend (`s3` or `fs`) | `fs`
+| `TRUSTD_STORAGE_FS_PATH` | Path for filesystem storage | `./.trustify/storage`
+| `TRUSTD_S3_ACCESS_KEY` | S3 access key | —
+| `TRUSTD_S3_SECRET_KEY` | S3 secret key | —
+| `TRUSTD_S3_REGION` | S3 region | —
+| `TRUSTD_S3_BUCKET` | S3 bucket name | —
+|===
+
+=== Migration concurrency
+
+[cols="2,3,1"]
+|===
+| Variable | Description | Default
+
+| `MIGRATION_DATA_CONCURRENT`
+| Number of documents processed concurrently within a single runner. `0` auto-detects the number of logical CPUs.
+| `0`
+
+| `MIGRATION_DATA_TOTAL_RUNNER`
+| Total number of runner instances. Documents are hash-partitioned across runners.
+| `1`
+
+| `MIGRATION_DATA_CURRENT_RUNNER`
+| Zero-based index of this runner instance (must be unique per runner, from `0` to `TOTAL_RUNNER - 1`).
+| `0`
+|===
+
+=== Skipping migrations
+
+[cols="2,3,1"]
+|===
+| Variable | Description | Default
+
+| `MIGRATION_DATA_SKIP`
+| Comma-separated list of data migration names to skip.
+| —
+
+| `MIGRATION_DATA_SKIP_ALL`
+| Skip all data migrations. Conflicts with `MIGRATION_DATA_SKIP`.
+| `false`
+|===
+
+== Procedure
+
+=== Step 1: Prepare the database copy
+
+Ensure the database copy is:
+
+* Writable (not a read-only replica)
+* Accessible from all migration runner instances
+* Using the schema from the **old** version (migrations have not been run yet)
+
+=== Step 2: Run data migrations on the copy
+
+Use `trustd db data <migration-name>` to run specific data migrations.
+Each migration must be run separately.
+
+==== Single runner (simplest)
+
+Run a single instance and let it auto-detect CPU count for in-process parallelism:
+
+[source,bash]
+----
+export TRUSTD_DB_HOST=db-copy.example.com
+export TRUSTD_DB_NAME=trustify_copy
+export TRUSTD_DB_USER=postgres
+export TRUSTD_DB_PASSWORD=secret
+
+export TRUSTD_STORAGE_STRATEGY=s3
+export TRUSTD_S3_ACCESS_KEY=...
+export TRUSTD_S3_SECRET_KEY=...
+export TRUSTD_S3_REGION=us-east-1
+export TRUSTD_S3_BUCKET=trustify-documents
+
+trustd db data m0002000_add_sbom_properties
+trustd db data m0002010_add_advisory_scores
+----
+
+==== Multiple runners (parallel execution)
+
+For faster processing, run multiple instances where each processes a partition of the documents.
+The following example uses 4 runners, each processing 5 documents concurrently.
+
+Start each runner with a unique `MIGRATION_DATA_CURRENT_RUNNER` value:
+
+[source,bash]
+----
+# Common environment for all runners
+export TRUSTD_DB_HOST=db-copy.example.com
+export TRUSTD_DB_NAME=trustify_copy
+export TRUSTD_DB_USER=postgres
+export TRUSTD_DB_PASSWORD=secret
+export TRUSTD_STORAGE_STRATEGY=s3
+export TRUSTD_S3_ACCESS_KEY=...
+export TRUSTD_S3_SECRET_KEY=...
+export TRUSTD_S3_REGION=us-east-1
+export TRUSTD_S3_BUCKET=trustify-documents
+
+export MIGRATION_DATA_CONCURRENT=5
+export MIGRATION_DATA_TOTAL_RUNNER=4
+
+# Runner 0 (e.g. on host/pod 1)
+MIGRATION_DATA_CURRENT_RUNNER=0 trustd db data m0002000_add_sbom_properties
+
+# Runner 1 (e.g. on host/pod 2)
+MIGRATION_DATA_CURRENT_RUNNER=1 trustd db data m0002000_add_sbom_properties
+
+# Runner 2 (e.g. on host/pod 3)
+MIGRATION_DATA_CURRENT_RUNNER=2 trustd db data m0002000_add_sbom_properties
+
+# Runner 3 (e.g. on host/pod 4)
+MIGRATION_DATA_CURRENT_RUNNER=3 trustd db data m0002000_add_sbom_properties
+----
+
+All runners must complete before proceeding.
+Repeat for each data migration that needs to run.
+
+==== Kubernetes Job example
+
+The following example runs a data migration across 4 parallel pods, each processing 5 documents concurrently.
+It uses `completionMode: Indexed` so that Kubernetes automatically assigns each pod a unique runner index.
+
+Create one Job per data migration.
+All pods of a Job must complete before starting the next migration's Job.
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: data-migration-db
+type: Opaque
+stringData:
+  host: db-copy.example.com
+  username: postgres
+  password: secret
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: data-migration-s3
+type: Opaque
+stringData:
+  access-key: "<your-s3-access-key>"
+  secret-key: "<your-s3-secret-key>"
+---
+# Job 1: Run m0002000_add_sbom_properties
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-migration-sbom-properties
+spec:
+  completions: 4                    # <1>
+  completionMode: Indexed           # <2>
+  parallelism: 4                    # <3>
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: quay.io/trustify/trustd:latest
+          command:
+            - /usr/local/bin/trustd
+            - db
+            - data
+            - m0002000_add_sbom_properties  # <4>
+          env:
+            # Concurrency
+            - name: MIGRATION_DATA_CONCURRENT
+              value: "5"                    # <5>
+            - name: MIGRATION_DATA_TOTAL_RUNNER
+              value: "4"                    # <6>
+            - name: MIGRATION_DATA_CURRENT_RUNNER
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']  # <7>
+
+            # Database (pointing at the copy)
+            - name: TRUSTD_DB_NAME
+              value: trustify_copy
+            - name: TRUSTD_DB_PORT
+              value: "5432"
+            - name: TRUSTD_DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-db
+                  key: host
+            - name: TRUSTD_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-db
+                  key: username
+            - name: TRUSTD_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-db
+                  key: password
+
+            # Storage
+            - name: TRUSTD_STORAGE_STRATEGY
+              value: s3
+            - name: TRUSTD_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-s3
+                  key: access-key
+            - name: TRUSTD_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-s3
+                  key: secret-key
+            - name: TRUSTD_S3_REGION
+              value: us-east-1
+            - name: TRUSTD_S3_BUCKET
+              value: trustify-documents
+
+            - name: RUST_LOG
+              value: info
+---
+# Job 2: Run m0002010_add_advisory_scores
+# Apply this only AFTER Job 1 has completed.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-migration-advisory-scores
+spec:
+  completions: 4
+  completionMode: Indexed
+  parallelism: 4
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: quay.io/trustify/trustd:latest
+          command:
+            - /usr/local/bin/trustd
+            - db
+            - data
+            - m0002010_add_advisory_scores  # <8>
+          env:
+            - name: MIGRATION_DATA_CONCURRENT
+              value: "5"
+            - name: MIGRATION_DATA_TOTAL_RUNNER
+              value: "4"
+            - name: MIGRATION_DATA_CURRENT_RUNNER
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+            - name: TRUSTD_DB_NAME
+              value: trustify_copy
+            - name: TRUSTD_DB_PORT
+              value: "5432"
+            - name: TRUSTD_DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-db
+                  key: host
+            - name: TRUSTD_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-db
+                  key: username
+            - name: TRUSTD_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-db
+                  key: password
+            - name: TRUSTD_STORAGE_STRATEGY
+              value: s3
+            - name: TRUSTD_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-s3
+                  key: access-key
+            - name: TRUSTD_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-s3
+                  key: secret-key
+            - name: TRUSTD_S3_REGION
+              value: us-east-1
+            - name: TRUSTD_S3_BUCKET
+              value: trustify-documents
+            - name: RUST_LOG
+              value: info
+---
+# Job 3: Run schema migration (after all data migration Jobs have completed)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-migration-schema
+spec:
+  completions: 1
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: quay.io/trustify/trustd:latest
+          command:
+            - /usr/local/bin/trustd
+            - db
+            - migrate
+          env:
+            # Skip already-completed data migrations
+            - name: MIGRATION_DATA_SKIP    # <9>
+              value: "m0002000_add_sbom_properties,m0002010_add_advisory_scores"
+
+            - name: TRUSTD_DB_NAME
+              value: trustify_copy
+            - name: TRUSTD_DB_PORT
+              value: "5432"
+            - name: TRUSTD_DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-db
+                  key: host
+            - name: TRUSTD_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-db
+                  key: username
+            - name: TRUSTD_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: data-migration-db
+                  key: password
+            - name: RUST_LOG
+              value: info
+----
+<1> Total number of pods (= total runners).
+<2> Each pod receives a unique index via `batch.kubernetes.io/job-completion-index`.
+<3> Run all pods in parallel. Set lower than `completions` to limit resource usage.
+<4> The data migration to run. One Job per migration.
+<5> In-process parallelism per pod. Tune based on available CPU and database capacity.
+<6> Must match `completions`.
+<7> Kubernetes automatically assigns `0`, `1`, `2`, `3` to each pod.
+<8> Second migration — apply this Job only after the first Job completes.
+<9> Skip these during schema migration since they were already processed by the data migration Jobs.
+
+TIP: Apply the Jobs sequentially: `kubectl apply -f` the secrets first, then Job 1, wait for completion (`kubectl wait --for=condition=complete job/data-migration-sbom-properties`), then Job 2, wait, then Job 3.
+
+=== Step 3: Run the schema migration
+
+After data migrations have completed on the copy, run the full SeaORM schema migration.
+Since the data migrations have already been applied, tell the migrator to skip them:
+
+[source,bash]
+----
+export MIGRATION_DATA_SKIP=m0002000_add_sbom_properties,m0002010_add_advisory_scores
+
+trustd db migrate
+----
+
+The schema migration will apply all DDL changes and skip the listed data migrations because they were already processed in step 2.
+
+=== Step 4: Verify
+
+Start the application against the migrated database copy and verify:
+
+[source,bash]
+----
+trustd api
+----
+
+* Check the health endpoints (`/health/live`, `/health/ready`)
+* Spot-check data integrity (e.g. query SBOMs and advisories via the API)
+
+=== Step 5: Switch over
+
+Once verified, replace the production database with the migrated copy:
+
+* Stop the old application
+* Switch the database connection to the migrated copy (e.g. DNS switch, connection string update)
+* Start the new application version
+
+== Notes
+
+* Data migrations are **idempotent** — each document is processed in its own transaction. If a runner crashes, it can be restarted safely and will re-process any documents that were not committed.
+* The partitioning is based on a hash of the document ID. This provides an even distribution across runners without coordination.
+* Progress is logged periodically (every 60 seconds) with throughput statistics.
+* The `--concurrent`, `--current-runner`, and `--total-runner` CLI flags can be used instead of environment variables.
