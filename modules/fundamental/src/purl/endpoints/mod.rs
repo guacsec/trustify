@@ -182,7 +182,7 @@ mod v3 {
         request_body = RecommendReportRequest,
         responses(
             (status = 200, description = "Aggregated recommendation report for the requested SBOMs", body = RecommendReportResponse),
-            (status = 400, description = "Total package count across requested SBOMs exceeds the configured limit"),
+            (status = 413, description = "Total package count across requested SBOMs exceeds the configured limit"),
         )
     )]
     #[post("/v3/recommend/report")]
@@ -198,7 +198,7 @@ mod v3 {
             .count_sbom_packages(&request.sbom_ids, &tx)
             .await?;
         if total > purl_service.report_package_limit {
-            return Ok(HttpResponse::BadRequest().json(serde_json::json!({
+            return Ok(HttpResponse::PayloadTooLarge().json(serde_json::json!({
                 "error": "package_limit_exceeded",
                 "message": format!(
                     "Total packages ({total}) exceeds maximum ({}).",

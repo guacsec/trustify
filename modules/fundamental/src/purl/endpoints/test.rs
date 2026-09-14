@@ -1053,8 +1053,8 @@ async fn recommend_report_package_limit_exceeded(
         )
         .await;
 
-    // Then a 400 is returned with the package_limit_exceeded error code
-    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    // Then 413 is returned with the package_limit_exceeded error code
+    assert_eq!(resp.status(), StatusCode::PAYLOAD_TOO_LARGE);
     let body: Value = actix_web::test::read_body_json(resp).await;
     assert_eq!(body["error"], "package_limit_exceeded");
 
