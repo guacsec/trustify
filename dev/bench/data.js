@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789128844530,
+  "lastUpdate": 1789371094168,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21860,6 +21860,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": false,
+          "id": "2d7441c8500085d62fcf3f4c578cd32d5ed9ebe6",
+          "message": "chore(refactor): use builder pattern\n\nSigned-off-by: Ruben Romero Montes <rromerom@redhat.com>",
+          "timestamp": "2026-09-14T06:50:54Z",
+          "tree_id": "1cf68a49bbb8ed7455481cdec9c22c7c255077b2",
+          "url": "https://github.com/guacsec/trustify/commit/2d7441c8500085d62fcf3f4c578cd32d5ed9ebe6"
+        },
+        "date": 1789371091572,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
