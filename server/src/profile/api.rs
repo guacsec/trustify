@@ -5,7 +5,20 @@ use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
 use bytesize::ByteSize;
 use futures::FutureExt;
+use regex::Regex;
 use std::{env, process::ExitCode, sync::Arc};
+
+/// Clap value parser for `TRUSTD_RECOMMEND_PATTERNS`: compiles the regex and validates it has exactly one capture group.
+fn parse_recommend_pattern(s: &str) -> Result<Regex, String> {
+    let re = Regex::new(s).map_err(|e| format!("invalid regex pattern {s:?}: {e}"))?;
+    if re.captures_len() != 2 {
+        return Err(format!(
+            "pattern {s:?} must have exactly 1 capture group, found {}",
+            re.captures_len() - 1
+        ));
+    }
+    Ok(re)
+}
 use tokio::sync::oneshot;
 use trustify_auth::{
     auth::AuthConfigArguments,
@@ -81,6 +94,17 @@ pub struct Run {
     /// The maximum group name length
     #[arg(long, env = "TRUSTD_MAX_GROUP_NAME_LENGTH", default_value_t = 255)]
     pub max_group_name_length: usize,
+
+    /// Vendor rebuild patterns for PURL recommendations.
+    /// Each pattern must have exactly one capture group extracting the upstream base version.
+    /// When absent or empty, the recommendation endpoint returns no results.
+    #[arg(
+        long,
+        env = "TRUSTD_RECOMMEND_PATTERNS",
+        value_delimiter = ',',
+        value_parser = parse_recommend_pattern
+    )]
+    pub recommend_patterns: Vec<Regex>,
 
     /// The size limit of documents in a dataset, uncompressed.
     #[arg(
@@ -451,6 +475,8 @@ impl InitData {
                 sbom_upload_limit: run.sbom_upload_limit.into(),
                 advisory_upload_limit: run.advisory_upload_limit.into(),
                 max_group_name_length: run.max_group_name_length,
+                recommend_patterns: run.recommend_patterns,
+                ..Default::default()
             },
             ingestor: trustify_module_ingestor::endpoints::Config {
                 dataset_entry_limit: run.dataset_entry_limit.into(),

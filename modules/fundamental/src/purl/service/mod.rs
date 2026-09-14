@@ -4,7 +4,8 @@ use crate::{
     Error,
     common::license_filtering::LICENSE,
     purl::model::{
-        RecommendEntry, VexStatus, VulnerabilityStatus,
+        RecommendEntry, RecommendReportImpactSummary, RecommendReportPackage,
+        RecommendReportResponse, RecommendReportSbom, VexStatus, VulnerabilityStatus,
         details::{
             base_purl::BasePurlDetails, purl::PurlDetails, versioned_purl::VersionedPurlDetails,
         },
@@ -35,8 +36,8 @@ use trustify_common::{
 use trustify_entity::{
     advisory, base_purl, license, purl_status,
     qualified_purl::{self, CanonicalPurl},
-    remediation, remediation_purl_status, sbom_license_expanded, sbom_node, sbom_node_purl_ref,
-    sbom_package_license, status, version_range, versioned_purl, vulnerability,
+    remediation, remediation_purl_status, sbom, sbom_license_expanded, sbom_node,
+    sbom_node_purl_ref, sbom_package_license, status, version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::Deprecation;
 
@@ -56,6 +57,43 @@ struct StatusInfo {
     /// The most recent date from the advisory that reported this status, used to pick the
     /// latest assessment when the same vulnerability appears in multiple advisories.
     advisory_date: Option<time::OffsetDateTime>,
+    /// The advisory identifier that reported this status, used for report provenance.
+    advisory_id: Option<String>,
+}
+
+/// A PURL-to-SBOM association row fetched for the recommendation report endpoint.
+#[derive(FromQueryResult)]
+struct SbomPurlRow {
+    sbom_id: Uuid,
+    base_purl_id: Uuid,
+    version: String,
+    purl_type: String,
+    purl_namespace: Option<String>,
+    purl_name: String,
+}
+
+/// SBOM root-node name row used to populate the report's sboms list.
+#[derive(FromQueryResult)]
+struct SbomNameRow {
+    sbom_id: Uuid,
+    name: String,
+}
+
+/// Metadata collected per `(base_purl_id, version)` group during report generation.
+struct VersionGroup {
+    purl_type: String,
+    namespace: Option<String>,
+    name: String,
+    sbom_ids: Vec<Uuid>,
+}
+
+/// A winning vendor recommendation for an upstream package, assembled during report generation.
+struct ReportWinner {
+    upstream_purl: String,
+    recommended_purl: String,
+    base_purl_id: Uuid,
+    winner_vp_id: Uuid,
+    found_in: Vec<Uuid>,
 }
 
 /// The highest Red Hat patch version selected for a given input PURL, used to build the recommendation.
@@ -123,6 +161,7 @@ impl InputPurl {
 pub struct PurlService {
     cache: PaginationCache,
     recommend_patterns: Vec<Regex>,
+    pub(crate) report_package_limit: u64,
 }
 
 impl PurlService {
@@ -130,8 +169,10 @@ impl PurlService {
         Self {
             cache,
             recommend_patterns: vec![],
+            report_package_limit: 10_000,
         }
     }
+
 
     pub fn with_default_patterns(self) -> Self {
         Self {
@@ -146,6 +187,15 @@ impl PurlService {
             ..self
         }
     }
+
+    /// Sets the maximum total package count allowed for a recommendation report request.
+    pub fn with_report_package_limit(self, limit: u64) -> Self {
+        Self {
+            report_package_limit: limit,
+            ..self
+        }
+    }
+
 
     /// Returns the configured recommend patterns.
     pub fn recommend_patterns(&self) -> &[Regex] {
@@ -547,9 +597,6 @@ impl PurlService {
             .map(|bp| (PurlKey::from_base_purl(bp), bp))
             .collect();
 
-        #[allow(clippy::unwrap_used)]
-        let pattern = Regex::new("redhat-[0-9]+$").unwrap();
-
         let mut winners = Vec::new();
 
         for ip in &input_purls {
@@ -559,11 +606,17 @@ impl PurlService {
                 continue;
             };
 
-            let highest = Self::find_highest_redhat_patch(
-                &pattern,
-                &ip.input_version,
-                versioned_by_base.get(&base.id),
-            );
+            let highest = self
+                .recommend_patterns
+                .iter()
+                .filter_map(|pattern| {
+                    Self::find_highest_vendor_patch(
+                        pattern,
+                        &ip.input_version,
+                        versioned_by_base.get(&base.id),
+                    )
+                })
+                .max_by(|a, b| a.version.cmp(&b.version));
 
             if let Some(winner_vp) = highest {
                 winners.push(Winner {
@@ -681,6 +734,7 @@ impl PurlService {
                             status_slug: slug,
                             remediations: rems,
                             advisory_date: advisory.modified.or(advisory.published),
+                            advisory_id: Some(advisory.identifier.clone()),
                         });
                 }
             }
@@ -802,30 +856,322 @@ impl PurlService {
         Ok(by_base)
     }
 
-    /// Selects the versioned PURL with the highest Red Hat pre-release suffix matching the input version.
-    fn find_highest_redhat_patch<'a>(
+    /// Selects the versioned PURL with the highest vendor version matching the input upstream version.
+    ///
+    /// Uses capture group 1 of `pattern` to extract the upstream base version from the vendor version
+    /// string and matches it against `input_version` via semver. Among all matching vendor rebuilds,
+    /// returns the one with the lexicographically highest full vendor version string (e.g. prefers
+    /// `4.3.4.redhat-00002` over `4.3.4.redhat-00001`).
+    fn find_highest_vendor_patch<'a>(
         pattern: &Regex,
         input_version: &semver::Version,
         versioned_purls: Option<&'a Vec<versioned_purl::Model>>,
     ) -> Option<&'a versioned_purl::Model> {
         versioned_purls?
             .iter()
-            .filter(|vp| pattern.is_match(&vp.version))
             .filter_map(|vp| {
-                lenient_semver::parse(&vp.version)
+                let upstream_str = pattern.captures(&vp.version)?.get(1)?.as_str();
+                let upstream = lenient_semver::parse(upstream_str)
                     .inspect_err(|_| {
-                        log::debug!("purl version {:?} failed to parse", vp.version);
+                        log::debug!(
+                            "extracted upstream version {:?} from {:?} failed to parse",
+                            upstream_str,
+                            vp.version
+                        );
                     })
-                    .ok()
-                    .map(|v| (vp, v))
+                    .ok()?;
+                Some((vp, upstream))
             })
-            .filter(|(_, version)| {
-                version.major == input_version.major
-                    && version.minor == input_version.minor
-                    && version.patch == input_version.patch
+            .filter(|(_, upstream)| {
+                upstream.major == input_version.major
+                    && upstream.minor == input_version.minor
+                    && upstream.patch == input_version.patch
             })
-            .max_by(|(_, a), (_, b)| a.pre.cmp(&b.pre))
+            .max_by(|(a, _), (b, _)| a.version.cmp(&b.version))
             .map(|(vp, _)| vp)
+    }
+
+    /// Counts the total number of PURL-to-SBOM associations for the given SBOM IDs.
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
+    pub async fn count_sbom_packages<C: ConnectionTrait>(
+        &self,
+        sbom_ids: &[Uuid],
+        connection: &C,
+    ) -> Result<u64, Error> {
+        use sea_orm::PaginatorTrait;
+        Ok(sbom_node_purl_ref::Entity::find()
+            .filter(sbom_node_purl_ref::Column::SbomId.is_in(sbom_ids.iter().copied()))
+            .count(connection)
+            .await?)
+    }
+
+    /// Generates an aggregated recommendation report for a set of SBOMs using query-time pattern matching.
+    ///
+    /// For each SBOM package whose upstream version can be matched to a vendor rebuild via
+    /// `recommend_patterns`, the report collects: the recommended vendor PURL, associated
+    /// vulnerabilities, the advisory that reported the status, and which SBOMs contain the package.
+    #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
+    pub async fn report_for_sboms<C: ConnectionTrait>(
+        &self,
+        sbom_ids: &[Uuid],
+        connection: &C,
+    ) -> Result<RecommendReportResponse, Error> {
+        if sbom_ids.is_empty() || self.recommend_patterns.is_empty() {
+            return Ok(RecommendReportResponse::default());
+        }
+
+        // --- Fetch SBOM names ---
+        let sbom_name_map = Self::fetch_sbom_names(sbom_ids, connection).await?;
+
+        // --- Fetch all (sbom_id, base_purl, version) rows for the requested SBOMs ---
+        let rows = Self::fetch_sbom_purl_rows(sbom_ids, connection).await?;
+
+        if rows.is_empty() {
+            let sboms = sbom_ids
+                .iter()
+                .map(|id| RecommendReportSbom {
+                    id: *id,
+                    name: sbom_name_map.get(id).cloned().unwrap_or_default(),
+                    addressable_packages: 0,
+                    vulnerability_count: 0,
+                })
+                .collect();
+            return Ok(RecommendReportResponse {
+                sboms,
+                ..Default::default()
+            });
+        }
+
+        // Group rows by (base_purl_id, version) → VersionGroup with SBOM IDs.
+        let mut version_groups: HashMap<(Uuid, String), VersionGroup> = HashMap::new();
+        let mut unique_base_ids: HashSet<Uuid> = HashSet::new();
+
+        for row in &rows {
+            let group = version_groups
+                .entry((row.base_purl_id, row.version.clone()))
+                .or_insert_with(|| VersionGroup {
+                    purl_type: row.purl_type.clone(),
+                    namespace: row.purl_namespace.clone(),
+                    name: row.purl_name.clone(),
+                    sbom_ids: Vec::new(),
+                });
+            group.sbom_ids.push(row.sbom_id);
+            unique_base_ids.insert(row.base_purl_id);
+        }
+
+        // Deduplicate sbom_ids per group.
+        for group in version_groups.values_mut() {
+            group.sbom_ids.sort();
+            group.sbom_ids.dedup();
+        }
+
+        // Fetch all versioned PURLs for the relevant base PURLs to find vendor patches.
+        let base_purl_ids_vec: Vec<Uuid> = unique_base_ids.into_iter().collect();
+        let base_purls: Vec<base_purl::Model> = base_purl::Entity::find()
+            .filter(base_purl::Column::Id.is_in(base_purl_ids_vec))
+            .all(connection)
+            .await?;
+        let versioned_by_base =
+            Self::fetch_versioned_purls_by_base(&base_purls, connection).await?;
+
+        // Pattern-match each (base, version) to find the highest vendor patch.
+        let mut winners: Vec<ReportWinner> = Vec::new();
+
+        for ((base_id, version), group) in &version_groups {
+            let Ok(input_version) = lenient_semver::parse(version) else {
+                continue;
+            };
+
+            let highest = self
+                .recommend_patterns
+                .iter()
+                .filter_map(|pattern| {
+                    Self::find_highest_vendor_patch(
+                        pattern,
+                        &input_version,
+                        versioned_by_base.get(base_id),
+                    )
+                })
+                .max_by(|a, b| a.version.cmp(&b.version));
+
+            let Some(winner_vp) = highest else {
+                continue;
+            };
+
+            let upstream_purl = Purl {
+                ty: group.purl_type.clone(),
+                namespace: group.namespace.clone(),
+                name: group.name.clone(),
+                version: Some(version.clone()),
+                qualifiers: Default::default(),
+            }
+            .to_string();
+
+            let recommended_purl = Purl {
+                ty: group.purl_type.clone(),
+                namespace: group.namespace.clone(),
+                name: group.name.clone(),
+                version: Some(winner_vp.version.clone()),
+                qualifiers: Default::default(),
+            }
+            .to_string();
+
+            winners.push(ReportWinner {
+                upstream_purl,
+                recommended_purl,
+                base_purl_id: *base_id,
+                winner_vp_id: winner_vp.id,
+                found_in: group.sbom_ids.clone(),
+            });
+        }
+
+        if winners.is_empty() {
+            let sboms = sbom_ids
+                .iter()
+                .map(|id| RecommendReportSbom {
+                    id: *id,
+                    name: sbom_name_map.get(id).cloned().unwrap_or_default(),
+                    addressable_packages: 0,
+                    vulnerability_count: 0,
+                })
+                .collect();
+            return Ok(RecommendReportResponse {
+                sboms,
+                ..Default::default()
+            });
+        }
+
+        // Fetch vulnerability statuses for all winning versioned PURLs.
+        let statuses_by_base = Self::fetch_vulnerability_statuses(
+            winners.iter().map(|w| w.base_purl_id).unique(),
+            winners.iter().map(|w| w.winner_vp_id),
+            connection,
+        )
+        .await?;
+
+        // Per-SBOM accumulators for the sboms list.
+        let mut sbom_addressable: HashMap<Uuid, HashSet<String>> = HashMap::new();
+        let mut sbom_vulns: HashMap<Uuid, HashSet<String>> = HashMap::new();
+
+        let mut packages: Vec<RecommendReportPackage> = Vec::with_capacity(winners.len());
+
+        for winner in &winners {
+            // Pick the best StatusInfo per vulnerability (most recent advisory wins).
+            let mut best_by_vuln: HashMap<&str, &StatusInfo> = HashMap::new();
+            for info in statuses_by_base
+                .get(&winner.base_purl_id)
+                .into_iter()
+                .flatten()
+            {
+                best_by_vuln
+                    .entry(&info.vuln_id)
+                    .and_modify(|existing| {
+                        if info.advisory_date > existing.advisory_date {
+                            *existing = info;
+                        }
+                    })
+                    .or_insert(info);
+            }
+
+            let vulnerabilities: Vec<String> = best_by_vuln.keys().map(|s| s.to_string()).collect();
+
+            // Advisory ID from the most recent advisory across all vulnerabilities.
+            let advisory_id = best_by_vuln
+                .values()
+                .max_by(|a, b| a.advisory_date.cmp(&b.advisory_date))
+                .and_then(|info| info.advisory_id.clone());
+
+            for sbom_id in &winner.found_in {
+                sbom_addressable
+                    .entry(*sbom_id)
+                    .or_default()
+                    .insert(winner.upstream_purl.clone());
+                for vuln in &vulnerabilities {
+                    sbom_vulns.entry(*sbom_id).or_default().insert(vuln.clone());
+                }
+            }
+
+            packages.push(RecommendReportPackage {
+                purl: winner.upstream_purl.clone(),
+                recommended_purl: winner.recommended_purl.clone(),
+                advisory_id,
+                vulnerabilities,
+                found_in: winner.found_in.clone(),
+            });
+        }
+
+        let sboms: Vec<RecommendReportSbom> = sbom_ids
+            .iter()
+            .map(|id| RecommendReportSbom {
+                id: *id,
+                name: sbom_name_map.get(id).cloned().unwrap_or_default(),
+                addressable_packages: sbom_addressable.get(id).map(|s| s.len()).unwrap_or(0),
+                vulnerability_count: sbom_vulns.get(id).map(|s| s.len()).unwrap_or(0),
+            })
+            .collect();
+
+        let sboms_with_recommendations =
+            sboms.iter().filter(|s| s.addressable_packages > 0).count();
+        let addressable_packages = packages.len();
+
+        Ok(RecommendReportResponse {
+            impact_summary: RecommendReportImpactSummary {
+                sboms_with_recommendations,
+                addressable_packages,
+            },
+            sboms,
+            packages,
+        })
+    }
+
+    /// Fetches the root-node name for each of the given SBOM IDs.
+    async fn fetch_sbom_names<C: ConnectionTrait>(
+        sbom_ids: &[Uuid],
+        connection: &C,
+    ) -> Result<HashMap<Uuid, String>, Error> {
+        let rows = sbom::Entity::find()
+            .select_only()
+            .column_as(sbom::Column::SbomId, "sbom_id")
+            .column_as(sbom_node::Column::Name, "name")
+            .join(JoinType::InnerJoin, sbom::Relation::SbomNode.def())
+            .filter(sbom::Column::SbomId.is_in(sbom_ids.iter().copied()))
+            .into_model::<SbomNameRow>()
+            .all(connection)
+            .await?;
+
+        Ok(rows.into_iter().map(|r| (r.sbom_id, r.name)).collect())
+    }
+
+    /// Fetches all (sbom_id, base_purl, version) associations for the given SBOM IDs.
+    async fn fetch_sbom_purl_rows<C: ConnectionTrait>(
+        sbom_ids: &[Uuid],
+        connection: &C,
+    ) -> Result<Vec<SbomPurlRow>, Error> {
+        Ok(sbom_node_purl_ref::Entity::find()
+            .select_only()
+            .column_as(sbom_node_purl_ref::Column::SbomId, "sbom_id")
+            .column_as(versioned_purl::Column::BasePurlId, "base_purl_id")
+            .column_as(versioned_purl::Column::Version, "version")
+            .column_as(base_purl::Column::Type, "purl_type")
+            .column_as(base_purl::Column::Namespace, "purl_namespace")
+            .column_as(base_purl::Column::Name, "purl_name")
+            .join(
+                JoinType::InnerJoin,
+                sbom_node_purl_ref::Relation::Purl.def(),
+            )
+            .join(
+                JoinType::InnerJoin,
+                qualified_purl::Relation::VersionedPurl.def(),
+            )
+            .join(
+                JoinType::InnerJoin,
+                versioned_purl::Relation::BasePurl.def(),
+            )
+            .filter(sbom_node_purl_ref::Column::SbomId.is_in(sbom_ids.iter().copied()))
+            .distinct()
+            .into_model::<SbomPurlRow>()
+            .all(connection)
+            .await?)
     }
 }
 
