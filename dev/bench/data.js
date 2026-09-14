@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789371094168,
+  "lastUpdate": 1789388033055,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21889,6 +21889,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "mrrajan",
+            "username": "mrrajan"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "87d7f5746941f4db00f7381822d1bc6ddc47be0b",
+          "message": "test(correlation): add S15 openssh RPM version-comparison scenario (TC-5170/TC-5640)\n\nNine SBOMs in three groups (product enterprise_linux:8, package openssh),\nvarying CPE placement, sub-stream and version vs the fix:\n- A root CPE, el8_8 (covered): version-decided (correct today)\n- B root CPE, el8_10 (absent from VEX): must not correlate; below leaks via\n  dist-tag-blind rpmvercmp (TC-5640)\n- C child CPE, el8_8: product_status skips version_matches; at/above leak (TC-5170)\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-09-14T11:27:05Z",
+          "tree_id": "7e470fb5d30a5fc1d7714ea4059c2334fe52dc70",
+          "url": "https://github.com/guacsec/trustify/commit/87d7f5746941f4db00f7381822d1bc6ddc47be0b"
+        },
+        "date": 1789388031302,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
