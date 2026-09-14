@@ -2881,7 +2881,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendReportResponse'
-        '400':
+        '413':
           description: Total package count across requested SBOMs exceeds the configured limit
   /api/v3/sbom:
     get:

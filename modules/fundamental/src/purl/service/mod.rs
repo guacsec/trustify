@@ -916,7 +916,7 @@ impl PurlService {
         sbom_ids: &[Uuid],
         connection: &C,
     ) -> Result<RecommendReportResponse, Error> {
-        if sbom_ids.is_empty() || self.recommend_patterns.is_empty() {
+        if sbom_ids.is_empty() {
             return Ok(RecommendReportResponse::default());
         }
 

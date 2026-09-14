@@ -1010,7 +1010,7 @@ async fn recommend_report_deduplication(ctx: &TrustifyContext) -> Result<(), any
     Ok(())
 }
 
-/// Verifies that the report returns 400 package_limit_exceeded when total packages exceed the limit.
+/// Verifies that the report returns 413 package_limit_exceeded when total packages exceed the limit.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn recommend_report_package_limit_exceeded(
@@ -1085,6 +1085,53 @@ async fn recommend_report_empty_result(ctx: &TrustifyContext) -> Result<(), anyh
     assert_eq!(report["impact_summary"]["addressable_packages"], 0);
     assert_eq!(report["packages"].as_array().unwrap().len(), 0);
     assert_eq!(report["sboms"][0]["addressable_packages"], 0);
+
+    Ok(())
+}
+
+/// Verifies that when no recommendation patterns are configured, the report still returns
+/// one per-SBOM entry with zero counts rather than an empty sboms list.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_no_patterns(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given an SBOM with a package
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-no-patterns",
+            "00000000-0000-0000-0000-000000000007",
+            &[(
+                "jakarta.el-api",
+                "3.0.3",
+                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When requesting a report with no recommendation patterns configured
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then the sboms list has one entry with zero counts (not an empty list)
+    let sboms = report["sboms"].as_array().unwrap();
+    assert_eq!(
+        sboms.len(),
+        1,
+        "expected one SBOM entry even with no patterns"
+    );
+    assert_eq!(sboms[0]["addressable_packages"], 0);
+    assert_eq!(sboms[0]["vulnerability_count"], 0);
+    assert_eq!(report["packages"].as_array().unwrap().len(), 0);
+    assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 0);
 
     Ok(())
 }
