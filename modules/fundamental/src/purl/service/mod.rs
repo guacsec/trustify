@@ -1073,7 +1073,20 @@ impl PurlService {
                     .or_insert(info);
             }
 
-            let vulnerabilities: Vec<String> = best_by_vuln.keys().map(|s| s.to_string()).collect();
+            // Only include vulnerabilities whose best advisory status is actionable (affected or
+            // under_investigation). Fixed and not_affected statuses are intentionally excluded:
+            // the report returns raw CVE IDs with no status context, so callers cannot filter
+            // downstream — server-side filtering is required.
+            let vulnerabilities: Vec<String> = best_by_vuln
+                .iter()
+                .filter(|(_, info)| {
+                    matches!(
+                        info.status_slug.as_str(),
+                        "affected" | "under_investigation"
+                    )
+                })
+                .map(|(id, _)| id.to_string())
+                .collect();
 
             // Advisory ID from the most recent advisory across all vulnerabilities.
             let advisory_id = best_by_vuln

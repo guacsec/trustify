@@ -1135,3 +1135,56 @@ async fn recommend_report_no_patterns(ctx: &TrustifyContext) -> Result<(), anyho
 
     Ok(())
 }
+
+/// Verifies that vulnerabilities with non-active status (not_affected, fixed) are excluded
+/// from the report's vulnerabilities list, leaving only affected/under_investigation CVEs.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_filters_inactive_vuln_statuses(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given CVE-2022-45787 has status "not_affected" for jakarta.el-api@3.0.3.redhat-00002
+    // (the vendor patch found by the redhat pattern)
+    ctx.ingest_documents(["cve/CVE-2022-45787.json"]).await?;
+
+    // And an SBOM containing the upstream package
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-vuln-filter",
+            "00000000-0000-0000-0000-000000000008",
+            &[(
+                "jakarta.el-api",
+                "3.0.3",
+                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When generating the report
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    log::info!("{report:#?}");
+
+    // Then the vendor patch is found (package entry exists)
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(packages.len(), 1);
+    assert_eq!(
+        packages[0]["recommended_purl"],
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002"
+    );
+
+    // But the not_affected CVE does NOT appear in the vulnerabilities list
+    let vulns = packages[0]["vulnerabilities"].as_array().unwrap();
+    assert!(
+        !vulns.iter().any(|v| v.as_str() == Some("CVE-2022-45787")),
+        "CVE-2022-45787 (not_affected) should not appear in vulnerabilities, got: {vulns:?}"
+    );
+
+    // And per-SBOM vulnerability_count reflects only active-status vulnerabilities
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 0);
+
+    Ok(())
+}
