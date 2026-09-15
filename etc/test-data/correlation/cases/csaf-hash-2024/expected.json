@@ -1,0 +1,38 @@
+{
+  "id": "public.csaf-hash-2024",
+  "description": "CISA CSAF product hash identity coverage",
+  "tags": [
+    "priority0",
+    "csaf",
+    "checksum",
+    "hash",
+    "pending"
+  ],
+  "ignored": true,
+  "ignore_reason": "CSAF product hashes are not yet extracted as correlation hash assertions",
+  "advisories": [
+    {
+      "path": "../../advisories/csaf/icsa-24-235-03.json",
+      "vulnerability": "CVE-2023-34873"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "mobotix-firmware-hash",
+      "artifacts": [],
+      "expected": {},
+      "components": [
+        {
+          "id": "mobotix-mx-system-4-7311",
+          "checksum": {
+            "algorithm": "sha256",
+            "value": "b5d7249844c1a46e7de34a563eac824e7dc3a57ea181edc4636925b9e2e6985c"
+          },
+          "expected": {
+            "CVE-2023-34873": "affected"
+          }
+        }
+      ]
+    }
+  ]
+}

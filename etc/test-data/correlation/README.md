@@ -38,6 +38,38 @@ Important breadth beyond the foundation: additional package ecosystems, producer
 | `public.cve-2026-no-match` | Pass | Reused negative CVE case |
 | `public.rust-openssl-2026` | Pending | Rust/Cargo OSV range correlation |
 
+## Coverage Status
+
+The public corpus currently covers:
+
+| Behavior | Current coverage |
+|---|---|
+| OSV PURL range matching | Requests and urllib3 affected/fixed versions |
+| Fixed-version boundaries | Requests, urllib3, and Express |
+| Versionless PURLs | urllib3 direct component case |
+| CycloneDX/SPDX parity | Requests, urllib3, and Express SBOMs |
+| Duplicate advisory sources | Duplicate public OSV records for Requests |
+| Negative matching | Unrelated public CVEs and checksum/CPE negatives |
+| Ecosystem breadth | PyPI and npm, with pending Cargo coverage |
+
+Priority 0 gaps still represented by legacy scenarios or pending cases:
+
+| Gap | Related legacy scenario or case |
+|---|---|
+| Positive CPE-only matching | `S7_cpeonly_node_hummingbird`, pending `public.cpe-2026` and `public.csaf-vers-2026` |
+| Positive checksum/hash matching | Pending `public.csaf-hash-2024` |
+| CSAF VERS ranges | `S5a_vers_affected_openssl_el8`, pending `public.csaf-vers-2026` |
+| RPM epoch and release boundaries | `S8a_vers_epoch_openjdk` |
+| Red Hat stream/substream isolation | `S1a_vers_crossstream_bind-libs`, `S9_substream_openssl_el8` |
+| Wrong-product CPE context | `S3a_vers_wrongproduct_hummingbird_curl`, `S4_wrongproduct_satellite_chardet` |
+| `known_not_affected` suppression | `S10_combined_describing_cpe`, `S12_notaffected_ignored_thunderbird` |
+| Aliasless OSV identifiers | `S13_aliasless_osv_drop` |
+| CVEProject advisory identity parity | Pending `public.cve-requests-2025` |
+| End-to-end ingestion/API parity | Covered only by legacy `modules/fundamental` tests |
+
+These gaps should be added to the public corpus when suitable external data is
+available. Until then, pending cases may remain ignored with an explicit reason.
+
 The suite counts describe behavioral case coverage, not source-code coverage.
 Use `cargo llvm-cov` for line and branch coverage.
 
@@ -105,6 +137,15 @@ Source: `https://api.osv.dev/v1/vulns`
   `72e56af89d92cca2f40bd44ae3afa0bc8393cd67d20c67a3d146dde63e685424`
 - `advisories/osv/GHSA-qw6h-vgh9-j6wx.json`
   `4275bf6bdc2d5796874d7e5bcd03afa011e9f8d127fe17902660b3a6c4f51bbc`
+
+### CISA CSAF
+
+Source: `https://github.com/cisagov/CSAF`
+
+- `advisories/csaf/icsa-26-076-01.json`
+  `da121b677f4055bc31f656b661080c5be2fba56722a2d6a6277f9e822734f633`
+- `advisories/csaf/icsa-24-235-03.json`
+  `92b769d532b65e77caec5e7bdb124a65b9f4734a2a495f45e7a8812b77626c52`
 
 ### Syft
 
@@ -185,6 +226,9 @@ Current cases:
 - `cases/cve-requests-2025/expected.json` is a pending CVE-versus-Syft parity
   case. It is intentionally ignored until CVE package assertions are extracted
   with enough identity information for correlation.
+- `cases/csaf-vers-2026/expected.json` is a pending public CISA CSAF VERS/CPE
+  case.
+- `cases/csaf-hash-2024/expected.json` is a pending public CISA CSAF hash case.
 
 Cases may set `ignored: true` and an `ignore_reason` while the corresponding
 engine behavior is being implemented. Active cases run with

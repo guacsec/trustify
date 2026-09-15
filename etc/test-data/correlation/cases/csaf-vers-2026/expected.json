@@ -1,0 +1,35 @@
+{
+  "id": "public.csaf-vers-2026",
+  "description": "CISA CSAF product version range and CPE identity coverage",
+  "tags": [
+    "priority0",
+    "csaf",
+    "vers-range",
+    "cpe",
+    "pending"
+  ],
+  "ignored": true,
+  "ignore_reason": "Public CSAF VERS/CPE matching is not yet passing in the pure engine",
+  "advisories": [
+    {
+      "path": "../../advisories/csaf/icsa-26-076-01.json",
+      "vulnerability": "CVE-2025-2595"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "festo-codesys-cpe",
+      "artifacts": [],
+      "expected": {},
+      "components": [
+        {
+          "id": "codesys-development-system-3.0",
+          "cpe": "cpe:2.3:a:codesys:development_system:3.0:*:*:*:*:*:*:*",
+          "expected": {
+            "CVE-2025-2595": "affected"
+          }
+        }
+      ]
+    }
+  ]
+}
