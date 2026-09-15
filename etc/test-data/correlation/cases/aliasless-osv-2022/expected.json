@@ -1,0 +1,40 @@
+{
+  "id": "public.aliasless-osv-2022",
+  "description": "Public OSV advisory without a CVE alias",
+  "tags": [
+    "priority0",
+    "osv",
+    "aliasless",
+    "purl",
+    "version-range"
+  ],
+  "advisories": [
+    {
+      "path": "../../advisories/osv/GHSA-4fx9-vc88-q2xc.json",
+      "vulnerability": "GHSA-4fx9-vc88-q2xc"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "pillow-8.4.0",
+      "artifacts": [],
+      "expected": {},
+      "components": [
+        {
+          "id": "pillow-8.4.0-purl",
+          "purl": "pkg:pypi/pillow@8.4.0",
+          "expected": {
+            "GHSA-4fx9-vc88-q2xc": "affected"
+          }
+        },
+        {
+          "id": "pillow-9.0.0-purl",
+          "purl": "pkg:pypi/pillow@9.0.0",
+          "expected": {
+            "GHSA-4fx9-vc88-q2xc": "not_affected"
+          }
+        }
+      ]
+    }
+  ]
+}

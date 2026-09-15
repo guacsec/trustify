@@ -11,7 +11,7 @@ the suite output but do not fail the active suite.
 
 | Suite | Priority | Active | Pending | Command |
 |---|---:|---:|---:|---|
-| `priority0` | 0 | 4 | 4 | `cargo test -p trustify-module-correlation correlation_cases -- --nocapture` |
+| `priority0` | 0 | 5 | 5 | `cargo test -p trustify-module-correlation correlation_cases -- --nocapture` |
 | `priority1` | 1 | 3 | 1 | `cargo test -p trustify-module-correlation correlation_priority1_cases -- --nocapture` |
 
 ### Priority 0
@@ -22,6 +22,7 @@ Foundational correlation behavior required for confidence in the core engine: PU
 |---|---|---|
 | `public.requests-2026` | Pass | OSV, PURL ranges, fixed boundaries, CycloneDX, SPDX, checksum/CPE negatives |
 | `public.urllib3-2026` | Pass | OSV, versionless PURL, fixed boundary, CycloneDX, SPDX |
+| `public.aliasless-osv-2022` | Pass | Native GHSA identifier without a CVE alias |
 | `public.cve-2026-no-match` | Pass | CVE negative correlation, CycloneDX, SPDX |
 | `public.requests-duplicate-2026` | Pass | Duplicate OSV advisories for one vulnerability |
 | `public.cpe-2026` | Pending | Public CVE CPE-positive matching |
@@ -66,6 +67,7 @@ Priority 0 gaps still represented by legacy scenarios or pending cases:
 | Wrong-product CPE context | `S3a_vers_wrongproduct_hummingbird_curl`, `S4_wrongproduct_satellite_chardet` |
 | `known_not_affected` suppression | `S10_combined_describing_cpe`, `S12_notaffected_ignored_thunderbird` |
 | Aliasless OSV identifiers | `S13_aliasless_osv_drop` |
+| Malformed/degraded PURL identity | Pending `public.degraded-purl-2026` |
 | CVEProject advisory identity parity | Pending `public.cve-requests-2025` |
 | End-to-end ingestion/API parity | Covered only by legacy `modules/fundamental` tests |
 
@@ -139,6 +141,8 @@ Source: `https://api.osv.dev/v1/vulns`
   `72e56af89d92cca2f40bd44ae3afa0bc8393cd67d20c67a3d146dde63e685424`
 - `advisories/osv/GHSA-qw6h-vgh9-j6wx.json`
   `4275bf6bdc2d5796874d7e5bcd03afa011e9f8d127fe17902660b3a6c4f51bbc`
+- `advisories/osv/GHSA-4fx9-vc88-q2xc.json`
+  `6af8a2413bcbcede70f0980e9e01554534b87044214a7fbd31bba3c23bd70b44`
 
 ### CISA CSAF
 
@@ -216,6 +220,8 @@ Current cases:
   affected and fixed urllib3 releases, including a versionless PURL.
 - `cases/requests-duplicate-2026/expected.json` checks duplicate public OSV
   records for one vulnerability.
+- `cases/aliasless-osv-2022/expected.json` checks a public OSV record using its
+  native GHSA identifier without a CVE alias.
 - `cases/express-2024/expected.json` checks the npm ecosystem using public
   Express releases before and after the OSV fix.
 - `cases/rust-openssl-2026/expected.json` is a pending public Cargo ecosystem
@@ -228,6 +234,8 @@ Current cases:
 - `cases/csaf-vers-2026/expected.json` is a pending public CISA CSAF VERS/CPE
   case.
 - `cases/csaf-hash-2024/expected.json` is a pending public CISA CSAF hash case.
+- `cases/degraded-purl-2026/expected.json` is a pending malformed-identity
+  contract case based on a public OSV advisory.
 - `cases/cve-requests-2025/expected.json` is a pending CVE-versus-Syft parity
   case. It is intentionally ignored until CVE package assertions are extracted
   with enough identity information for correlation.

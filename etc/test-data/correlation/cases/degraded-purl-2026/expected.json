@@ -1,0 +1,34 @@
+{
+  "id": "public.degraded-purl-2026",
+  "description": "Pending degraded-identity behavior for malformed PURLs",
+  "tags": [
+    "priority0",
+    "degraded",
+    "malformed-purl",
+    "pending"
+  ],
+  "ignored": true,
+  "ignore_reason": "Malformed PURL behavior is not yet specified as a pure-engine contract",
+  "advisories": [
+    {
+      "path": "../../advisories/osv/PYSEC-2026-1996.json",
+      "vulnerability": "CVE-2026-21441"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "urllib3-malformed-purl",
+      "artifacts": [],
+      "expected": {},
+      "components": [
+        {
+          "id": "malformed-purl",
+          "purl": "pkg:pypi/urllib3@@2.6.2",
+          "expected": {
+            "CVE-2026-21441": "none"
+          }
+        }
+      ]
+    }
+  ]
+}
