@@ -161,7 +161,7 @@ impl InputPurl {
 pub struct PurlService {
     cache: PaginationCache,
     recommend_patterns: Vec<Regex>,
-    pub(crate) report_package_limit: u64,
+    report_package_limit: u64,
 }
 
 impl PurlService {
@@ -203,6 +203,14 @@ impl PurlService {
     #[allow(clippy::expect_used)]
     pub fn default_recommend_patterns() -> Vec<Regex> {
         vec![Regex::new(r"^(.+)[.-]redhat-[0-9]+$").expect("valid default pattern")]
+    }
+
+    pub fn report_package_limit(&self) -> u64 {
+        self.report_package_limit
+    }
+
+    pub fn recommend_patterns(&self) -> &[Regex] {
+        &self.recommend_patterns
     }
 
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
