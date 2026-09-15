@@ -496,6 +496,7 @@ impl InitData {
                 advisory_upload_limit: run.advisory_upload_limit.into(),
                 max_group_name_length: run.max_group_name_length,
                 recommend_patterns: run.recommend_patterns,
+                ..Default::default()
             },
             ingestor: trustify_module_ingestor::endpoints::Config {
                 dataset_entry_limit: run.dataset_entry_limit.into(),

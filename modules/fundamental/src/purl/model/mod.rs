@@ -166,6 +166,62 @@ pub enum VexStatus {
     Other(String),
 }
 
+/// Request body for the `POST /v3/recommend/report` endpoint.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct RecommendReportRequest {
+    /// SBOM IDs to include in the report.
+    pub sbom_ids: Vec<Uuid>,
+}
+
+/// High-level impact summary for a recommendation report.
+#[derive(Serialize, Deserialize, Debug, Default, ToSchema)]
+pub struct RecommendReportImpactSummary {
+    /// Number of SBOMs containing at least one package with a vendor recommendation.
+    pub sboms_with_recommendations: usize,
+    /// Count of distinct upstream packages that have a vendor recommendation.
+    pub addressable_packages: usize,
+}
+
+/// Per-SBOM summary in a recommendation report.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct RecommendReportSbom {
+    /// SBOM identifier.
+    pub id: Uuid,
+    /// SBOM document name.
+    pub name: String,
+    /// Number of packages in this SBOM that have a vendor recommendation.
+    pub addressable_packages: usize,
+    /// Number of distinct vulnerabilities across addressable packages in this SBOM.
+    pub vulnerability_count: usize,
+}
+
+/// A deduplicated package entry in a recommendation report.
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct RecommendReportPackage {
+    /// The upstream package PURL (type+namespace+name+version, no qualifiers).
+    pub purl: String,
+    /// The recommended vendor-rebuilt PURL.
+    pub recommended_purl: String,
+    /// Advisory ID that provides provenance for the recommendation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub advisory_id: Option<String>,
+    /// CVE identifiers associated with this recommendation.
+    pub vulnerabilities: Vec<String>,
+    /// IDs of the SBOMs that contain this upstream package.
+    pub found_in: Vec<Uuid>,
+}
+
+/// Aggregated recommendation report for a set of SBOMs.
+#[derive(Serialize, Deserialize, Debug, Default, ToSchema)]
+pub struct RecommendReportResponse {
+    /// High-level impact summary.
+    pub impact_summary: RecommendReportImpactSummary,
+    /// Per-SBOM breakdown.
+    pub sboms: Vec<RecommendReportSbom>,
+    /// Deduplicated list of packages with vendor recommendations.
+    pub packages: Vec<RecommendReportPackage>,
+}
+
 impl From<&VersionedPurlStatus> for VexStatus {
     fn from(value: &VersionedPurlStatus) -> Self {
         match value.status.as_str() {

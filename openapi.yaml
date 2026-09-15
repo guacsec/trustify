@@ -2858,6 +2858,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PurlDetails'
+  /api/v3/recommend/report:
+    post:
+      tags:
+      - purl
+      summary: Generate an aggregated vendor recommendation report for a set of SBOMs.
+      operationId: recommendReport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendReportRequest'
+        required: true
+      responses:
+        '200':
+          description: Aggregated recommendation report for the requested SBOMs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendReportResponse'
+        '413':
+          description: Total package count across requested SBOMs exceeds the configured limit
   /api/v3/sbom:
     get:
       tags:
@@ -6921,6 +6942,109 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/VulnerabilityStatus'
+    RecommendReportImpactSummary:
+      type: object
+      description: High-level impact summary for a recommendation report.
+      required:
+      - sboms_with_recommendations
+      - addressable_packages
+      properties:
+        addressable_packages:
+          type: integer
+          description: Count of distinct upstream packages that have a vendor recommendation.
+          minimum: 0
+        sboms_with_recommendations:
+          type: integer
+          description: Number of SBOMs containing at least one package with a vendor recommendation.
+          minimum: 0
+    RecommendReportPackage:
+      type: object
+      description: A deduplicated package entry in a recommendation report.
+      required:
+      - purl
+      - recommended_purl
+      - vulnerabilities
+      - found_in
+      properties:
+        advisory_id:
+          type:
+          - string
+          - 'null'
+          description: Advisory ID that provides provenance for the recommendation.
+        found_in:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: IDs of the SBOMs that contain this upstream package.
+        purl:
+          type: string
+          description: The upstream package PURL (type+namespace+name+version, no qualifiers).
+        recommended_purl:
+          type: string
+          description: The recommended vendor-rebuilt PURL.
+        vulnerabilities:
+          type: array
+          items:
+            type: string
+          description: CVE identifiers associated with this recommendation.
+    RecommendReportRequest:
+      type: object
+      description: Request body for the `POST /v3/recommend/report` endpoint.
+      required:
+      - sbom_ids
+      properties:
+        sbom_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: SBOM IDs to include in the report.
+    RecommendReportResponse:
+      type: object
+      description: Aggregated recommendation report for a set of SBOMs.
+      required:
+      - impact_summary
+      - sboms
+      - packages
+      properties:
+        impact_summary:
+          $ref: '#/components/schemas/RecommendReportImpactSummary'
+          description: High-level impact summary.
+        packages:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendReportPackage'
+          description: Deduplicated list of packages with vendor recommendations.
+        sboms:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendReportSbom'
+          description: Per-SBOM breakdown.
+    RecommendReportSbom:
+      type: object
+      description: Per-SBOM summary in a recommendation report.
+      required:
+      - id
+      - name
+      - addressable_packages
+      - vulnerability_count
+      properties:
+        addressable_packages:
+          type: integer
+          description: Number of packages in this SBOM that have a vendor recommendation.
+          minimum: 0
+        id:
+          type: string
+          format: uuid
+          description: SBOM identifier.
+        name:
+          type: string
+          description: SBOM document name.
+        vulnerability_count:
+          type: integer
+          description: Number of distinct vulnerabilities across addressable packages in this SBOM.
+          minimum: 0
     RecommendRequest:
       type: object
       required:

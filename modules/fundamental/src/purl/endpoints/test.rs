@@ -844,3 +844,347 @@ async fn get_recommendations_best_across_patterns(
 
     Ok(())
 }
+
+// ── Recommendation report tests ────────────────────────────────────────────
+
+async fn recommend_report_req(app: &impl CallService, sbom_ids: &[Uuid]) -> Value {
+    app.call_and_read_body_json(
+        TestRequest::post()
+            .uri("/api/v3/recommend/report")
+            .set_json(json!({ "sbom_ids": sbom_ids }))
+            .to_request(),
+    )
+    .await
+}
+
+/// Builds a minimal CycloneDX 1.4 SBOM JSON with the given packages.
+///
+/// `serial` must be unique across ingested documents to prevent deduplication.
+/// `packages` is a slice of `(name, version, purl)` tuples.
+fn minimal_cdx(name: &str, serial: &str, packages: &[(&str, &str, &str)]) -> Value {
+    json!({
+        "bomFormat": "CycloneDX",
+        "specVersion": "1.4",
+        "version": 1,
+        "serialNumber": format!("urn:uuid:{serial}"),
+        "metadata": {
+            "component": {"type": "application", "name": name, "version": "1.0"}
+        },
+        "components": packages.iter().map(|(n, v, p)| json!({
+            "type": "library",
+            "name": n,
+            "version": v,
+            "purl": p,
+        })).collect::<Vec<_>>()
+    })
+}
+
+/// Verifies that a report for two SBOMs returns correct aggregated data.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_aggregated_data(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given CVE advisories that create both upstream and vendor versioned PURLs in the DB
+    ctx.ingest_documents(["cve/CVE-2022-45787.json", "cve/CVE-2023-28867.json"])
+        .await?;
+
+    // And two SBOMs each containing the upstream jakarta.el-api@3.0.3
+    let sbom1 = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-report-1",
+            "00000000-0000-0000-0000-000000000001",
+            &[(
+                "jakarta.el-api",
+                "3.0.3",
+                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+    let sbom2 = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-report-2",
+            "00000000-0000-0000-0000-000000000002",
+            &[(
+                "jakarta.el-api",
+                "3.0.3",
+                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When generating the report
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom1, sbom2]).await;
+
+    log::info!("{report:#?}");
+
+    // Then the impact summary reflects 2 SBOMs and 1 distinct addressable package
+    assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 2);
+    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+
+    // And the packages list has one entry pointing to the vendor patch
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(packages.len(), 1);
+    assert_eq!(
+        packages[0]["purl"],
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3"
+    );
+    assert_eq!(
+        packages[0]["recommended_purl"],
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002"
+    );
+
+    // And each SBOM shows 1 addressable package
+    let sboms = report["sboms"].as_array().unwrap();
+    assert_eq!(sboms.len(), 2);
+    for sbom in sboms {
+        assert_eq!(sbom["addressable_packages"], 1);
+    }
+
+    Ok(())
+}
+
+/// Verifies that the same package in two SBOMs appears once with both SBOM IDs in found_in.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_deduplication(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given a CVE advisory that creates the upstream and vendor versioned PURLs
+    ctx.ingest_documents(["cve/CVE-2022-45787.json"]).await?;
+
+    // And two SBOMs each containing the same upstream package
+    let sbom1 = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-dedup-1",
+            "00000000-0000-0000-0000-000000000003",
+            &[(
+                "jakarta.el-api",
+                "3.0.3",
+                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+    let sbom2 = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-dedup-2",
+            "00000000-0000-0000-0000-000000000004",
+            &[(
+                "jakarta.el-api",
+                "3.0.3",
+                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When generating the report for both SBOMs
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom1, sbom2]).await;
+
+    // Then the package appears exactly once
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(
+        packages.len(),
+        1,
+        "expected exactly one deduplicated package"
+    );
+
+    // And found_in contains both SBOM IDs
+    let found_in = packages[0]["found_in"].as_array().unwrap();
+    assert_eq!(found_in.len(), 2, "expected both SBOM IDs in found_in");
+
+    let mut found_ids: Vec<String> = found_in
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
+    found_ids.sort();
+    let mut expected = vec![sbom1.to_string(), sbom2.to_string()];
+    expected.sort();
+    assert_eq!(found_ids, expected);
+
+    Ok(())
+}
+
+/// Verifies that the report returns 413 package_limit_exceeded when total packages exceed the limit.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_package_limit_exceeded(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    use actix_web::http::StatusCode;
+
+    // Given an SBOM with one package
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-limit",
+            "00000000-0000-0000-0000-000000000005",
+            &[(
+                "jakarta.el-api",
+                "3.0.3",
+                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When the package limit is 0 (always exceeded)
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: PurlService::default_recommend_patterns(),
+            recommend_report_package_limit: 0,
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+    let resp = app
+        .call_service(
+            TestRequest::post()
+                .uri("/api/v3/recommend/report")
+                .set_json(json!({ "sbom_ids": [sbom_id] }))
+                .to_request(),
+        )
+        .await;
+
+    // Then 413 is returned with the package_limit_exceeded error code
+    assert_eq!(resp.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let body: Value = actix_web::test::read_body_json(resp).await;
+    assert_eq!(body["error"], "package_limit_exceeded");
+
+    Ok(())
+}
+
+/// Verifies that SBOMs with no matching recommendations return a valid empty report with zero counts.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_empty_result(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given an SBOM with a package that has no vendor recommendation in the DB
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-empty",
+            "00000000-0000-0000-0000-000000000006",
+            &[("some-lib", "1.0.0", "pkg:maven/com.example/some-lib@1.0.0")],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When generating the report (no advisories → no vendor patches available)
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then the report has zero counts and an empty packages list
+    assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 0);
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+    assert_eq!(report["packages"].as_array().unwrap().len(), 0);
+    assert_eq!(report["sboms"][0]["addressable_packages"], 0);
+
+    Ok(())
+}
+
+/// Verifies that when no recommendation patterns are configured, the report still returns
+/// one per-SBOM entry with zero counts rather than an empty sboms list.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_no_patterns(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given an SBOM with a package
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-no-patterns",
+            "00000000-0000-0000-0000-000000000007",
+            &[(
+                "jakarta.el-api",
+                "3.0.3",
+                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When requesting a report with no recommendation patterns configured
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    // Then the sboms list has one entry with zero counts (not an empty list)
+    let sboms = report["sboms"].as_array().unwrap();
+    assert_eq!(
+        sboms.len(),
+        1,
+        "expected one SBOM entry even with no patterns"
+    );
+    assert_eq!(sboms[0]["addressable_packages"], 0);
+    assert_eq!(sboms[0]["vulnerability_count"], 0);
+    assert_eq!(report["packages"].as_array().unwrap().len(), 0);
+    assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 0);
+
+    Ok(())
+}
+
+/// Verifies that vulnerabilities with non-active status (not_affected, fixed) are excluded
+/// from the report's vulnerabilities list, leaving only affected/under_investigation CVEs.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_filters_inactive_vuln_statuses(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given CVE-2022-45787 has status "not_affected" for jakarta.el-api@3.0.3.redhat-00002
+    // (the vendor patch found by the redhat pattern)
+    ctx.ingest_documents(["cve/CVE-2022-45787.json"]).await?;
+
+    // And an SBOM containing the upstream package
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-vuln-filter",
+            "00000000-0000-0000-0000-000000000008",
+            &[(
+                "jakarta.el-api",
+                "3.0.3",
+                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When generating the report
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    log::info!("{report:#?}");
+
+    // Then the vendor patch is found (package entry exists)
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(packages.len(), 1);
+    assert_eq!(
+        packages[0]["recommended_purl"],
+        "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002"
+    );
+
+    // But the not_affected CVE does NOT appear in the vulnerabilities list
+    let vulns = packages[0]["vulnerabilities"].as_array().unwrap();
+    assert!(
+        !vulns.iter().any(|v| v.as_str() == Some("CVE-2022-45787")),
+        "CVE-2022-45787 (not_affected) should not appear in vulnerabilities, got: {vulns:?}"
+    );
+
+    // And per-SBOM vulnerability_count reflects only active-status vulnerabilities
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 0);
+
+    Ok(())
+}
