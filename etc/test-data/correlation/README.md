@@ -11,7 +11,7 @@ the suite output but do not fail the active suite.
 
 | Suite | Priority | Active | Pending | Command |
 |---|---:|---:|---:|---|
-| `priority0` | 0 | 4 | 2 | `cargo test -p trustify-module-correlation correlation_cases -- --nocapture` |
+| `priority0` | 0 | 4 | 4 | `cargo test -p trustify-module-correlation correlation_cases -- --nocapture` |
 | `priority1` | 1 | 3 | 1 | `cargo test -p trustify-module-correlation correlation_priority1_cases -- --nocapture` |
 
 ### Priority 0
@@ -25,6 +25,8 @@ Foundational correlation behavior required for confidence in the core engine: PU
 | `public.cve-2026-no-match` | Pass | CVE negative correlation, CycloneDX, SPDX |
 | `public.requests-duplicate-2026` | Pass | Duplicate OSV advisories for one vulnerability |
 | `public.cpe-2026` | Pending | Public CVE CPE-positive matching |
+| `public.csaf-vers-2026` | Pending | Public CSAF VERS/CPE matching |
+| `public.csaf-hash-2024` | Pending | Public CSAF product-hash matching |
 | `public.cve-requests-2025` | Pending | CVEProject-to-Syft format parity |
 
 ### Priority 1
@@ -223,6 +225,9 @@ Current cases:
 - `cases/cpe-2026/expected.json` is a pending public CPE-positive case. It is
   intentionally ignored until CVE CPE assertions are correlated by the pure
   engine.
+- `cases/csaf-vers-2026/expected.json` is a pending public CISA CSAF VERS/CPE
+  case.
+- `cases/csaf-hash-2024/expected.json` is a pending public CISA CSAF hash case.
 - `cases/cve-requests-2025/expected.json` is a pending CVE-versus-Syft parity
   case. It is intentionally ignored until CVE package assertions are extracted
   with enough identity information for correlation.
