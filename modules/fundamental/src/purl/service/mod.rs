@@ -1041,13 +1041,26 @@ impl PurlService {
             });
         }
 
-        // Fetch vulnerability statuses for all winning versioned PURLs.
-        let statuses_by_base = Self::fetch_vulnerability_statuses(
-            winners.iter().map(|w| w.base_purl_id).unique(),
-            winners.iter().map(|w| w.winner_vp_id),
-            connection,
-        )
-        .await?;
+        // Fetch vulnerability statuses per winner, keyed by winner_vp_id.
+        // Using one call per winner rather than a single batch call avoids cross-version
+        // contamination: when the same base PURL appears with two different upstream versions
+        // (two different winner_vp_ids), a batch call groups both versions' statuses under
+        // the same base_purl_id bucket. The best_by_vuln picker then selects by advisory date
+        // across both versions, which can assign a status from the wrong version to a winner.
+        // Isolating each winner to its own query ensures version-range matching is scoped to
+        // that winner's specific versioned PURL.
+        let mut statuses_by_vp: HashMap<Uuid, Vec<StatusInfo>> = HashMap::new();
+        for winner in &winners {
+            let per_winner = Self::fetch_vulnerability_statuses(
+                std::iter::once(winner.base_purl_id),
+                std::iter::once(winner.winner_vp_id),
+                connection,
+            )
+            .await?;
+            if let Some(infos) = per_winner.into_values().next() {
+                statuses_by_vp.insert(winner.winner_vp_id, infos);
+            }
+        }
 
         // Per-SBOM accumulators for the sboms list.
         let mut sbom_addressable: HashMap<Uuid, HashSet<String>> = HashMap::new();
@@ -1058,8 +1071,8 @@ impl PurlService {
         for winner in &winners {
             // Pick the best StatusInfo per vulnerability (most recent advisory wins).
             let mut best_by_vuln: HashMap<&str, &StatusInfo> = HashMap::new();
-            for info in statuses_by_base
-                .get(&winner.base_purl_id)
+            for info in statuses_by_vp
+                .get(&winner.winner_vp_id)
                 .into_iter()
                 .flatten()
             {

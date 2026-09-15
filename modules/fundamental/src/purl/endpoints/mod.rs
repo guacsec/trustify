@@ -192,6 +192,7 @@ mod v3 {
         db: web::Data<db::ReadOnly>,
         request: web::Json<RecommendReportRequest>,
         _: Require<ReadAdvisory>,
+        _: Require<ReadSbom>,
     ) -> Result<impl Responder, Error> {
         let tx = db.begin().await?;
         let total = purl_service
