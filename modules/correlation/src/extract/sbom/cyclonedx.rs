@@ -73,6 +73,7 @@ fn component_id(comp: &serde_json::Value) -> Option<ComponentId> {
         comp.get("cpe")
             .and_then(|v| v.as_str())
             .map(|cpe| ComponentId::Cpe(cpe.to_string()))
+            .or_else(|| first_hash(comp))
     }
 }
 
@@ -94,6 +95,8 @@ fn extract_component(comp: &serde_json::Value, out: &mut Vec<SbomComponent>) {
             grouping: Vec::new(),
         });
     }
+
+    extract_hashes(comp, out);
 
     // Evidence identities can provide additional PURLs/CPEs
     if let Some(identities) = comp
@@ -130,6 +133,37 @@ fn extract_component(comp: &serde_json::Value, out: &mut Vec<SbomComponent>) {
     }
 }
 
+fn extract_hashes(comp: &serde_json::Value, out: &mut Vec<SbomComponent>) {
+    let Some(hashes) = comp.get("hashes").and_then(|value| value.as_array()) else {
+        return;
+    };
+
+    for hash in hashes {
+        let Some(algorithm) = hash.get("alg").and_then(|value| value.as_str()) else {
+            continue;
+        };
+        let Some(value) = hash.get("content").and_then(|value| value.as_str()) else {
+            continue;
+        };
+        out.push(SbomComponent {
+            id: ComponentId::Hash {
+                algorithm: algorithm.to_string(),
+                value: value.to_string(),
+            },
+            context: Vec::new(),
+            grouping: Vec::new(),
+        });
+    }
+}
+
+fn first_hash(comp: &serde_json::Value) -> Option<ComponentId> {
+    let hash = comp.get("hashes")?.as_array()?.first()?;
+    Some(ComponentId::Hash {
+        algorithm: hash.get("alg")?.as_str()?.to_string(),
+        value: hash.get("content")?.as_str()?.to_string(),
+    })
+}
+
 fn extract_context(comp: &serde_json::Value, out: &mut Vec<ContextRef>) {
     if let Some(purl) = comp.get("purl").and_then(|v| v.as_str())
         && let Some(id) = parse_purl(purl)
@@ -144,5 +178,30 @@ fn extract_context(comp: &serde_json::Value, out: &mut Vec<ContextRef>) {
             id: ComponentId::Cpe(cpe.to_string()),
             kind: ContextKind::Product,
         });
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::extract;
+    use crate::types::ComponentId;
+
+    #[test]
+    fn extracts_component_hashes() {
+        let document = serde_json::json!({
+            "components": [{
+                "name": "firmware",
+                "hashes": [{"alg": "SHA-256", "content": "abc123"}]
+            }]
+        });
+
+        let evidence = extract("test.cdx.json", &document);
+        assert!(evidence.components.iter().any(|component| {
+            component.id
+                == (ComponentId::Hash {
+                    algorithm: "SHA-256".into(),
+                    value: "abc123".into(),
+                })
+        }));
     }
 }

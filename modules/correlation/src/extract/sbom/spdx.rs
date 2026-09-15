@@ -46,6 +46,30 @@ pub fn extract(name: &str, doc: &serde_json::Value) -> SbomEvidence {
                     _ => {}
                 }
             }
+
+            if let Some(checksums) = pkg.get("checksums").and_then(|value| value.as_array()) {
+                for checksum in checksums {
+                    let Some(algorithm) =
+                        checksum.get("algorithm").and_then(|value| value.as_str())
+                    else {
+                        continue;
+                    };
+                    let Some(value) = checksum
+                        .get("checksumValue")
+                        .and_then(|value| value.as_str())
+                    else {
+                        continue;
+                    };
+                    components.push(SbomComponent {
+                        id: ComponentId::Hash {
+                            algorithm: algorithm.to_string(),
+                            value: value.to_string(),
+                        },
+                        context: Vec::new(),
+                        grouping: Vec::new(),
+                    });
+                }
+            }
         }
     }
 
@@ -103,4 +127,34 @@ fn pkg_id(pkg: &serde_json::Value) -> String {
         .and_then(|v| v.as_str())
         .unwrap_or_default()
         .to_string()
+}
+
+#[cfg(test)]
+mod test {
+    use super::extract;
+    use crate::types::ComponentId;
+
+    #[test]
+    fn extracts_package_checksums() {
+        let document = serde_json::json!({
+            "packages": [{
+                "SPDXID": "SPDXRef-Package",
+                "name": "firmware",
+                "checksums": [{
+                    "algorithm": "SHA256",
+                    "checksumValue": "abc123"
+                }]
+            }],
+            "relationships": []
+        });
+
+        let evidence = extract("test.spdx.json", &document);
+        assert!(evidence.components.iter().any(|component| {
+            component.id
+                == (ComponentId::Hash {
+                    algorithm: "SHA256".into(),
+                    value: "abc123".into(),
+                })
+        }));
+    }
 }

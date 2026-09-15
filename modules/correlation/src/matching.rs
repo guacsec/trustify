@@ -85,7 +85,7 @@ pub(crate) fn matches_component(
                 algorithm: match_algorithm,
                 value: match_value,
             },
-        ) => comp_algorithm.eq_ignore_ascii_case(match_algorithm) && comp_value == match_value,
+        ) => hash_algorithm_eq(comp_algorithm, match_algorithm) && comp_value == match_value,
         (
             ComponentId::Purl {
                 name: comp_name, ..
@@ -100,6 +100,18 @@ pub(crate) fn matches_component(
         }
         _ => false,
     }
+}
+
+fn hash_algorithm_eq(left: &str, right: &str) -> bool {
+    let normalize = |algorithm: &str| {
+        algorithm
+            .chars()
+            .filter(|character| character.is_ascii_alphanumeric())
+            .flat_map(char::to_lowercase)
+            .collect::<String>()
+    };
+
+    normalize(left) == normalize(right)
 }
 
 fn qualifiers_match(
@@ -411,11 +423,11 @@ pub(crate) fn match_evidence(
 
 #[cfg(test)]
 mod tests {
-    use super::{check_version, qualifiers_match};
+    use super::{check_version, matches_component, qualifiers_match};
     use crate::options::{CorrelationOptions, VersionlessMatchPolicy};
     use crate::types::{
-        AdvisoryRef, AssertionStatus, ComponentId, ComponentMatcher, StatusAssertion,
-        VersionConstraint, VersionPolicy,
+        AdvisoryRef, AssertionStatus, ComponentId, ComponentMatcher, ComponentQuery,
+        StatusAssertion, VersionConstraint, VersionPolicy,
     };
     use crate::version::{VersionRange, VersionScheme};
     use std::collections::BTreeMap;
@@ -535,6 +547,32 @@ mod tests {
             qualifiers: BTreeMap::new(),
         };
         assert!(check_version(
+            &component,
+            &assertion,
+            &CorrelationOptions::default()
+        ));
+    }
+
+    #[test]
+    fn hash_algorithms_match_across_common_spellings() {
+        let component = ComponentQuery::new(ComponentId::Hash {
+            algorithm: "SHA-256".into(),
+            value: "abc123".into(),
+        });
+        let assertion = StatusAssertion::new(
+            AdvisoryRef {
+                identifier: "CVE-test".into(),
+                source_file: None,
+            },
+            "CVE-test".into(),
+            AssertionStatus::Affected,
+            ComponentMatcher::Hash {
+                algorithm: "sha256".into(),
+                value: "abc123".into(),
+            },
+        );
+
+        assert!(matches_component(
             &component,
             &assertion,
             &CorrelationOptions::default()

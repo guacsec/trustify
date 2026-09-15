@@ -61,6 +61,7 @@ pub fn extract(source_file: &str, doc: &serde_json::Value) -> Vec<StatusAssertio
 struct BranchInfo {
     cpe: Option<String>,
     purl: Option<String>,
+    hashes: Vec<(String, String)>,
     #[allow(dead_code)]
     product_name: Option<String>,
     #[allow(dead_code)]
@@ -94,6 +95,9 @@ fn walk_branches(
             if p.version_range.is_some() {
                 info.version_range.clone_from(&p.version_range);
             }
+            if !p.hashes.is_empty() {
+                info.hashes.clone_from(&p.hashes);
+            }
         }
 
         match category {
@@ -117,6 +121,7 @@ fn walk_branches(
                 if let Some(purl) = pih.get("purl").and_then(|v| v.as_str()) {
                     info.purl = Some(purl.to_string());
                 }
+                info.hashes.extend(extract_hashes(pih));
             }
 
             if let Some(pid) = prod.get("product_id").and_then(|v| v.as_str()) {
@@ -153,6 +158,7 @@ fn index_relationships(
                 let info = BranchInfo {
                     cpe: pih.get("cpe").and_then(|v| v.as_str()).map(String::from),
                     purl: pih.get("purl").and_then(|v| v.as_str()).map(String::from),
+                    hashes: extract_hashes(pih),
                     product_name: full_product
                         .get("name")
                         .and_then(|v| v.as_str())
@@ -171,6 +177,23 @@ fn index_relationships(
             );
         }
     }
+}
+
+fn extract_hashes(product_identification_helper: &serde_json::Value) -> Vec<(String, String)> {
+    product_identification_helper
+        .get("hashes")
+        .and_then(|hashes| hashes.as_array())
+        .into_iter()
+        .flatten()
+        .filter_map(|hash| hash.get("file_hashes"))
+        .filter_map(|file_hashes| file_hashes.as_array())
+        .flatten()
+        .filter_map(|file_hash| {
+            let algorithm = file_hash.get("algorithm")?.as_str()?;
+            let value = file_hash.get("value")?.as_str()?;
+            Some((algorithm.to_ascii_lowercase(), value.to_string()))
+        })
+        .collect()
 }
 
 fn extract_product_status(
@@ -200,21 +223,22 @@ fn extract_product_status(
                     None => continue,
                 };
 
-                if let Some(mut matcher) = resolve_product_id(pid, branch_index, relationship_index)
-                {
-                    if *field == "first_fixed" {
-                        promote_exact_to_lower_bound(&mut matcher);
+                if let Some(matchers) = resolve_product_id(pid, branch_index, relationship_index) {
+                    for mut matcher in matchers {
+                        if *field == "first_fixed" {
+                            promote_exact_to_lower_bound(&mut matcher);
+                        }
+                        let version_policy = VersionPolicy::for_assertion(*status, &matcher);
+                        assertions.push(StatusAssertion {
+                            source: advisory_ref.clone(),
+                            vulnerability_id: vuln_id.to_string(),
+                            status: *status,
+                            version_policy,
+                            matcher,
+                            context: Vec::new(),
+                            grouping: Vec::new(),
+                        });
                     }
-                    let version_policy = VersionPolicy::for_assertion(*status, &matcher);
-                    assertions.push(StatusAssertion {
-                        source: advisory_ref.clone(),
-                        vulnerability_id: vuln_id.to_string(),
-                        status: *status,
-                        version_policy,
-                        matcher,
-                        context: Vec::new(),
-                        grouping: Vec::new(),
-                    });
                 }
             }
         }
@@ -225,28 +249,39 @@ fn resolve_product_id(
     product_id: &str,
     branch_index: &HashMap<String, BranchInfo>,
     relationship_index: &HashMap<String, RelationshipInfo>,
-) -> Option<ComponentMatcher> {
+) -> Option<Vec<ComponentMatcher>> {
     if let Some(rel) = relationship_index.get(product_id) {
         let component_info = branch_index.get(&rel.product_reference);
 
         if let Some(info) = component_info
             && let Some(ref purl_str) = info.purl
         {
-            return make_purl_matcher(purl_str, info.version_range.as_ref());
+            return make_purl_matcher(purl_str, info.version_range.as_ref())
+                .map(|matcher| vec![matcher]);
+        }
+
+        if let Some(info) = component_info
+            && let Some(matchers) = hash_matchers(info)
+        {
+            return Some(matchers);
         }
 
         if let Some(info) = branch_index.get(product_id) {
             if let Some(ref purl_str) = info.purl {
-                return make_purl_matcher(purl_str, info.version_range.as_ref());
+                return make_purl_matcher(purl_str, info.version_range.as_ref())
+                    .map(|matcher| vec![matcher]);
+            }
+            if let Some(matchers) = hash_matchers(info) {
+                return Some(matchers);
             }
             if let Some(ref cpe) = info.cpe {
                 let version = component_info
                     .and_then(|ci| ci.version_range.clone())
                     .or(info.version_range.clone());
-                return Some(ComponentMatcher::CpeMatch {
+                return Some(vec![ComponentMatcher::CpeMatch {
                     cpe: cpe.clone(),
                     version,
-                });
+                }]);
             }
         }
 
@@ -255,17 +290,33 @@ fn resolve_product_id(
 
     if let Some(info) = branch_index.get(product_id) {
         if let Some(ref purl_str) = info.purl {
-            return make_purl_matcher(purl_str, info.version_range.as_ref());
+            return make_purl_matcher(purl_str, info.version_range.as_ref())
+                .map(|matcher| vec![matcher]);
+        }
+        if let Some(matchers) = hash_matchers(info) {
+            return Some(matchers);
         }
         if let Some(ref cpe) = info.cpe {
-            return Some(ComponentMatcher::CpeMatch {
+            return Some(vec![ComponentMatcher::CpeMatch {
                 cpe: cpe.clone(),
                 version: info.version_range.clone(),
-            });
+            }]);
         }
     }
 
     None
+}
+
+fn hash_matchers(info: &BranchInfo) -> Option<Vec<ComponentMatcher>> {
+    (!info.hashes.is_empty()).then(|| {
+        info.hashes
+            .iter()
+            .map(|(algorithm, value)| ComponentMatcher::Hash {
+                algorithm: algorithm.clone(),
+                value: value.clone(),
+            })
+            .collect()
+    })
 }
 
 /// Build a PURL-based component matcher.
@@ -341,5 +392,49 @@ fn promote_exact_to_lower_bound(matcher: &mut ComponentMatcher) {
     if let VersionRange::Exact(v) = &constraint.range {
         constraint.range =
             VersionRange::Range(VersionBound::Inclusive(v.clone()), VersionBound::Unbounded);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn extracts_product_file_hashes() {
+        let document = serde_json::json!({
+            "document": {"tracking": {"id": "CVE-TEST-0001"}},
+            "product_tree": {
+                "branches": [{
+                    "category": "product_version",
+                    "name": "firmware",
+                    "product": {
+                        "product_id": "firmware-1",
+                        "product_identification_helper": {
+                            "hashes": [{
+                                "filename": "firmware.bin",
+                                "file_hashes": [{
+                                    "algorithm": "SHA-256",
+                                    "value": "abc123"
+                                }]
+                            }]
+                        }
+                    }
+                }]
+            },
+            "vulnerabilities": [{
+                "cve": "CVE-TEST-0001",
+                "product_status": {"known_affected": ["firmware-1"]}
+            }]
+        });
+
+        let assertions = extract("test.json", &document);
+        assert!(assertions.iter().any(|assertion| {
+            assertion.status == Status::Affected
+                && assertion.matcher
+                    == ComponentMatcher::Hash {
+                        algorithm: "sha-256".to_string(),
+                        value: "abc123".to_string(),
+                    }
+        }));
     }
 }
