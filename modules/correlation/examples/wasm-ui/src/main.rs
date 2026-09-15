@@ -43,6 +43,17 @@ fn status_class(status: &str) -> String {
     format!("status-{status}")
 }
 
+fn status_rank(status: &str) -> u8 {
+    match status {
+        "none" => 0,
+        "under_investigation" => 1,
+        "affected" => 2,
+        "not_affected" => 3,
+        "fixed" => 4,
+        _ => 0,
+    }
+}
+
 fn component_evidence(advisory: AdvisoryEvidence, query: &ComponentQuery) -> Evidence {
     Evidence::new(
         advisory,
@@ -188,7 +199,7 @@ fn App() -> impl IntoView {
     let (allow_versionless_matches, set_allow_versionless_matches) = signal(false);
     let (product_match_policy, set_product_match_policy) = signal(ProductMatchPolicy::Allow);
     let (resolution_policy, set_resolution_policy) = signal(ResolutionPolicy::Conservative);
-    let (none_verdict_policy, set_none_verdict_policy) = signal(NoneVerdictPolicy::AllKnown);
+    let (none_verdict_policy, set_none_verdict_policy) = signal(NoneVerdictPolicy::IdentityMatched);
     let (trace_enabled, set_trace_enabled) = signal(true);
     let (requested_vulnerabilities, set_requested_vulnerabilities) = signal(String::new());
 
@@ -694,6 +705,7 @@ fn apply_results(
     let mut verdict_map = HashMap::<String, VerdictDisplay>::new();
     for v in verdicts {
         let status_str = v.status.as_str().to_string();
+        let current_rank = status_rank(&status_str);
         let display = VerdictDisplay {
             vulnerability_id: v.vulnerability_id.clone(),
             status_class: status_class(&status_str),
@@ -706,26 +718,48 @@ fn apply_results(
                 .collect::<Vec<_>>()
                 .join(", "),
         };
-        let existing = verdict_map.get(&v.vulnerability_id);
-        let dominated = existing
-            .as_ref()
-            .is_some_and(|e| e.status == "fixed" || e.status == "not_affected");
-        if !dominated {
+        let replace = verdict_map
+            .get(&v.vulnerability_id)
+            .is_none_or(|existing| current_rank > status_rank(&existing.status));
+        if replace {
             verdict_map.insert(v.vulnerability_id.clone(), display);
         }
     }
 
     let mut verdicts: Vec<_> = verdict_map.into_values().collect();
     verdicts.sort_by(|a, b| a.vulnerability_id.cmp(&b.vulnerability_id));
+    let summary = verdicts
+        .iter()
+        .map(|verdict| {
+            format!(
+                "{}: {} ({})",
+                verdict.vulnerability_id, verdict.status, verdict.confidence
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
     set_results.set(verdicts);
 
     let mut trace_text = String::new();
     for t in &collector.trace {
-        trace_text.push_str(&t.message);
+        if t.message.starts_with("correlating component:") {
+            if !trace_text.is_empty() {
+                trace_text.push('\n');
+            }
+            trace_text.push_str(&t.message);
+        } else {
+            trace_text.push_str("  ");
+            trace_text.push_str(t.message.trim_start());
+        }
         if let Some(ref d) = t.detail {
             trace_text.push_str("\n      ");
             trace_text.push_str(d);
         }
+        trace_text.push('\n');
+    }
+    if !summary.is_empty() {
+        trace_text.push_str("\nSummary\n");
+        trace_text.push_str(&summary);
         trace_text.push('\n');
     }
     set_trace_log.set(trace_text);
