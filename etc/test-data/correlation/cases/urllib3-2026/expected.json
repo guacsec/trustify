@@ -1,0 +1,87 @@
+{
+  "id": "public.urllib3-2026",
+  "description": "OSV 2026 advisory correlated with Syft-generated urllib3 SBOMs",
+  "tags": [
+    "priority0",
+    "priority1",
+    "purl",
+    "osv",
+    "version-range",
+    "fixed-boundary",
+    "versionless-purl",
+    "cyclonedx",
+    "spdx",
+    "checksum-negative",
+    "cpe-negative"
+  ],
+  "advisories": [
+    {
+      "path": "../../advisories/osv/PYSEC-2026-1996.json",
+      "vulnerability": "CVE-2026-21441"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "urllib3-2.6.2",
+      "artifacts": [
+        "../../sboms/cyclonedx/urllib3-2.6.2-syft-1.51.1.cdx.json",
+        "../../sboms/spdx/urllib3-2.6.2-syft-1.51.1.spdx.json"
+      ],
+      "expected": {
+        "CVE-2026-21441": "affected"
+      },
+      "components": [
+        {
+          "id": "urllib3-2.6.2-purl",
+          "purl": "pkg:pypi/urllib3@2.6.2",
+          "expected": {
+            "CVE-2026-21441": "affected"
+          }
+        },
+        {
+          "id": "urllib3-2.6.2-versionless-purl",
+          "purl": "pkg:pypi/urllib3",
+          "expected": {
+            "CVE-2026-21441": "none"
+          }
+        },
+        {
+          "id": "urllib3-2.6.2-cpe",
+          "cpe": "cpe:2.3:a:python:urllib3:2.6.2:*:*:*:*:*:*:*",
+          "expected": {
+            "CVE-2026-21441": "none"
+          }
+        },
+        {
+          "id": "urllib3-2.6.2-checksum",
+          "checksum": {
+            "algorithm": "sha256",
+            "value": "ec21cddfe7724fc7cb4ba4bea7aa8e2ef36f607a4bab81aa6ce42a13dc3f03dd"
+          },
+          "expected": {
+            "CVE-2026-21441": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "urllib3-2.6.3",
+      "artifacts": [
+        "../../sboms/cyclonedx/urllib3-2.6.3-syft-1.51.1.cdx.json",
+        "../../sboms/spdx/urllib3-2.6.3-syft-1.51.1.spdx.json"
+      ],
+      "expected": {
+        "CVE-2026-21441": "not_affected"
+      },
+      "components": [
+        {
+          "id": "urllib3-2.6.3-purl",
+          "purl": "pkg:pypi/urllib3@2.6.3",
+          "expected": {
+            "CVE-2026-21441": "not_affected"
+          }
+        }
+      ]
+    }
+  ]
+}

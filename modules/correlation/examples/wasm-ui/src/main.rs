@@ -111,6 +111,59 @@ fn read_file(
     let _ = reader.read_as_array_buffer(file);
 }
 
+fn read_advisory_file(
+    file: &web_sys::File,
+    engine: &Rc<RefCell<AdvisoryIndex>>,
+    set_advisory_names: WriteSignal<Vec<String>>,
+    set_assertion_count: WriteSignal<usize>,
+    set_advisory_version: WriteSignal<u32>,
+    set_error_msg: WriteSignal<Option<String>>,
+) {
+    let engine = engine.clone();
+    read_file(
+        file,
+        move |name, content| match serde_json::from_str::<serde_json::Value>(&content) {
+            Ok(json) => match extract::extract_advisory(&name, &json) {
+                Some(evidence) => {
+                    let mut engine = engine.borrow_mut();
+                    engine.add(evidence);
+                    set_assertion_count.set(engine.assertion_count());
+                    set_advisory_names.update(|names| names.push(name));
+                    set_advisory_version.update(|version| *version += 1);
+                    set_error_msg.set(None);
+                }
+                None => {
+                    set_error_msg.set(Some(format!("Unrecognized advisory format: {name}")));
+                }
+            },
+            Err(error) => {
+                set_error_msg.set(Some(format!("Failed to parse {name}: {error}")));
+            }
+        },
+        move |error| set_error_msg.set(Some(error)),
+    );
+}
+
+fn read_sbom_file(
+    file: &web_sys::File,
+    set_sbom_data: WriteSignal<Option<(String, serde_json::Value)>>,
+    set_error_msg: WriteSignal<Option<String>>,
+) {
+    read_file(
+        file,
+        move |name, content| match serde_json::from_str::<serde_json::Value>(&content) {
+            Ok(json) => {
+                set_sbom_data.set(Some((name, json)));
+                set_error_msg.set(None);
+            }
+            Err(error) => {
+                set_error_msg.set(Some(format!("Failed to parse SBOM: {error}")));
+            }
+        },
+        move |error| set_error_msg.set(Some(error)),
+    );
+}
+
 fn decompress_xz(data: &[u8]) -> Result<Vec<u8>, lzma_rs::error::Error> {
     let mut output = Vec::new();
     lzma_rs::xz_decompress(&mut std::io::Cursor::new(data), &mut output)?;
@@ -133,8 +186,7 @@ fn App() -> impl IntoView {
     let (adv_dragging, set_adv_dragging) = signal(false);
     let (sbom_dragging, set_sbom_dragging) = signal(false);
     let (allow_versionless_matches, set_allow_versionless_matches) = signal(false);
-    let (product_match_policy, set_product_match_policy) =
-        signal(ProductMatchPolicy::Allow);
+    let (product_match_policy, set_product_match_policy) = signal(ProductMatchPolicy::Allow);
     let (resolution_policy, set_resolution_policy) = signal(ResolutionPolicy::Conservative);
     let (none_verdict_policy, set_none_verdict_policy) = signal(NoneVerdictPolicy::AllKnown);
     let (trace_enabled, set_trace_enabled) = signal(true);
@@ -151,7 +203,20 @@ fn App() -> impl IntoView {
         set_advisory_version.update(|v| *v += 1);
     };
 
-    let engine_for_drop = advisories.clone();
+    let load_advisory = Rc::new({
+        let advisories = advisories.clone();
+        move |file: web_sys::File| {
+            read_advisory_file(
+                &file,
+                &advisories,
+                set_advisory_names,
+                set_assertion_count,
+                set_advisory_version,
+                set_error_msg,
+            );
+        }
+    });
+    let load_advisory_for_drop = load_advisory.clone();
     let on_advisory_drop = move |ev: web_sys::DragEvent| {
         ev.prevent_default();
         set_adv_dragging.set(false);
@@ -161,55 +226,11 @@ fn App() -> impl IntoView {
 
         for i in 0..files.length() {
             let Some(file) = files.get(i) else { continue };
-            let eng = engine_for_drop.clone();
-            read_file(
-                &file,
-                move |name, content| match serde_json::from_str::<serde_json::Value>(&content) {
-                    Ok(json) => match extract::extract_advisory(&name, &json) {
-                        Some(evidence) => {
-                            let mut eng = eng.borrow_mut();
-                            eng.add(evidence);
-                            set_assertion_count.set(eng.assertion_count());
-                            set_advisory_names.update(|names| names.push(name));
-                            set_advisory_version.update(|v| *v += 1);
-                            set_error_msg.set(None);
-                        }
-                        None => {
-                            set_error_msg.set(Some(format!("Unrecognized advisory format: {name}")));
-                        }
-                    },
-                    Err(e) => {
-                        set_error_msg.set(Some(format!("Failed to parse {name}: {e}")));
-                    }
-                },
-                move |e| set_error_msg.set(Some(e)),
-            );
+            load_advisory_for_drop(file);
         }
     };
 
-    let on_sbom_drop = move |ev: web_sys::DragEvent| {
-        ev.prevent_default();
-        set_sbom_dragging.set(false);
-
-        let Some(dt) = ev.data_transfer() else { return };
-        let Some(files) = dt.files() else { return };
-
-        if let Some(file) = files.get(0) {
-            read_file(
-                &file,
-                move |name, content| match serde_json::from_str::<serde_json::Value>(&content) {
-                    Ok(json) => {
-                        set_sbom_data.set(Some((name, json)));
-                        set_error_msg.set(None);
-                    }
-                    Err(e) => {
-                        set_error_msg.set(Some(format!("Failed to parse SBOM: {e}")));
-                    }
-                },
-                move |e| set_error_msg.set(Some(e)),
-            );
-        }
-    };
+    let load_advisory_for_picker = load_advisory.clone();
 
     let engine_for_correlate = advisories.clone();
     Effect::new(move || {
@@ -350,9 +371,29 @@ fn App() -> impl IntoView {
                     }
                     on:dragleave=move |_| set_adv_dragging.set(false)
                     class=move || if adv_dragging.get() { "dropzone active" } else { "dropzone" }
-                >
-                    "Drop advisory files here (CSAF, CVE, OSV \u{2014} .json or .json.xz)"
-                </div>
+                 >
+                     "Drop advisory files here (CSAF, CVE, OSV \u{2014} .json or .json.xz)"
+                     <label class="btn upload-btn">
+                         "Choose advisory files"
+                         <input
+                             class="file-input"
+                             type="file"
+                             multiple=true
+                             accept=".json,.xz,application/json,application/x-xz"
+                             on:change=move |ev| {
+                                 let input = event_target::<web_sys::HtmlInputElement>(&ev);
+                                 if let Some(files) = input.files() {
+                                     for index in 0..files.length() {
+                                         if let Some(file) = files.get(index) {
+                                             load_advisory_for_picker(file);
+                                         }
+                                     }
+                                 }
+                                 input.set_value("");
+                             }
+                         />
+                     </label>
+                 </div>
                 <div class="hint-row">
                     <span class="hint">
                         {move || {
@@ -538,17 +579,44 @@ fn App() -> impl IntoView {
                     }.into_any(),
                     QueryMode::Sbom => view! {
                         <div>
-                            <div
-                                on:drop=on_sbom_drop
+                             <div
+                                 on:drop=move |ev: web_sys::DragEvent| {
+                                     ev.prevent_default();
+                                     set_sbom_dragging.set(false);
+
+                                     let Some(dt) = ev.data_transfer() else { return };
+                                     let Some(files) = dt.files() else { return };
+
+                                     if let Some(file) = files.get(0) {
+                                         read_sbom_file(&file, set_sbom_data, set_error_msg);
+                                     }
+                                 }
                                 on:dragover=move |ev: web_sys::DragEvent| {
                                     ev.prevent_default();
                                     set_sbom_dragging.set(true);
                                 }
                                 on:dragleave=move |_| set_sbom_dragging.set(false)
                                 class=move || if sbom_dragging.get() { "dropzone sbom active" } else { "dropzone" }
-                            >
-                                "Drop SBOM file here (CycloneDX or SPDX \u{2014} .json or .json.xz)"
-                            </div>
+                             >
+                                 "Drop SBOM file here (CycloneDX or SPDX \u{2014} .json or .json.xz)"
+                                 <label class="btn upload-btn">
+                                     "Choose SBOM file"
+                                     <input
+                                         class="file-input"
+                                         type="file"
+                                         accept=".json,.xz,application/json,application/x-xz"
+                                         on:change=move |ev| {
+                                             let input = event_target::<web_sys::HtmlInputElement>(&ev);
+                                             if let Some(files) = input.files()
+                                                 && let Some(file) = files.get(0)
+                                             {
+                                                 read_sbom_file(&file, set_sbom_data, set_error_msg);
+                                             }
+                                             input.set_value("");
+                                         }
+                                     />
+                                 </label>
+                             </div>
                             <div class="hint">
                                 {move || match sbom_data.get() {
                                     Some((name, _)) => format!("SBOM loaded: {name}"),
@@ -630,11 +698,7 @@ fn apply_results(
             vulnerability_id: v.vulnerability_id.clone(),
             status_class: status_class(&status_str),
             status: status_str,
-            confidence: format!(
-                "{} ({}%)",
-                v.confidence.tier.as_str(),
-                v.confidence.score
-            ),
+            confidence: format!("{} ({}%)", v.confidence.tier.as_str(), v.confidence.score),
             assertions: v
                 .contributing_assertions
                 .iter()

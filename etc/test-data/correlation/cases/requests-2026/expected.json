@@ -1,0 +1,87 @@
+{
+  "id": "public.requests-2026",
+  "description": "OSV 2026 advisories correlated with Syft-generated requests SBOMs",
+  "tags": [
+    "priority0",
+    "purl",
+    "osv",
+    "version-range",
+    "fixed-boundary",
+    "cyclonedx",
+    "spdx",
+    "checksum-negative",
+    "cpe-negative"
+  ],
+  "advisories": [
+    {
+      "path": "../../advisories/osv/PYSEC-2026-1872.json",
+      "vulnerability": "CVE-2024-47081"
+    },
+    {
+      "path": "../../advisories/osv/PYSEC-2026-1873.json",
+      "vulnerability": "CVE-2024-35195"
+    },
+    {
+      "path": "../../advisories/osv/GHSA-gc5v-m9x4-r6x2.json",
+      "vulnerability": "CVE-2026-25645"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "requests-2.32.3",
+      "artifacts": [
+        "../../sboms/cyclonedx/requests-2.32.3-syft-1.51.1.cdx.json",
+        "../../sboms/spdx/requests-2.32.3-syft-1.51.1.spdx.json"
+      ],
+      "expected": {
+        "CVE-2024-47081": "affected",
+        "CVE-2024-35195": "not_affected",
+        "CVE-2026-25645": "affected"
+      },
+      "components": [
+        {
+          "id": "requests-2.32.3-purl",
+          "purl": "pkg:pypi/requests@2.32.3",
+          "expected": {
+            "CVE-2024-47081": "affected",
+            "CVE-2024-35195": "not_affected",
+            "CVE-2026-25645": "affected"
+          }
+        },
+        {
+          "id": "requests-2.32.3-checksum",
+          "checksum": {
+            "algorithm": "sha256",
+            "value": "70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6"
+          },
+          "expected": {
+            "CVE-2024-47081": "none",
+            "CVE-2024-35195": "none",
+            "CVE-2026-25645": "none"
+          }
+        },
+        {
+          "id": "requests-2.32.3-cpe",
+          "cpe": "cpe:2.3:a:python:requests:2.32.3:*:*:*:*:*:*:*",
+          "expected": {
+            "CVE-2024-47081": "none",
+            "CVE-2024-35195": "none",
+            "CVE-2026-25645": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "requests-2.33.0",
+      "artifacts": [
+        "../../sboms/cyclonedx/requests-2.33.0-syft-1.51.1.cdx.json",
+        "../../sboms/spdx/requests-2.33.0-syft-1.51.1.spdx.json"
+      ],
+      "expected": {
+        "CVE-2024-47081": "not_affected",
+        "CVE-2024-35195": "not_affected",
+        "CVE-2026-25645": "not_affected"
+      }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "id": "public.express-2024",
+  "description": "OSV npm advisory correlated with Syft-generated Express SBOMs",
+  "tags": [
+    "priority1",
+    "npm",
+    "osv",
+    "purl",
+    "version-range",
+    "fixed-boundary",
+    "cyclonedx",
+    "spdx"
+  ],
+  "advisories": [
+    {
+      "path": "../../advisories/osv/GHSA-qw6h-vgh9-j6wx.json",
+      "vulnerability": "CVE-2024-43796"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "express-4.19.2",
+      "artifacts": [
+        "../../sboms/cyclonedx/express-4.19.2-syft-1.51.1.cdx.json",
+        "../../sboms/spdx/express-4.19.2-syft-1.51.1.spdx.json"
+      ],
+      "expected": {
+        "CVE-2024-43796": "affected"
+      },
+      "components": [
+        {
+          "id": "express-4.19.2-purl",
+          "purl": "pkg:npm/express@4.19.2",
+          "expected": {
+            "CVE-2024-43796": "affected"
+          }
+        }
+      ]
+    },
+    {
+      "id": "express-4.20.0",
+      "artifacts": [
+        "../../sboms/cyclonedx/express-4.20.0-syft-1.51.1.cdx.json",
+        "../../sboms/spdx/express-4.20.0-syft-1.51.1.spdx.json"
+      ],
+      "expected": {
+        "CVE-2024-43796": "not_affected"
+      },
+      "components": [
+        {
+          "id": "express-4.20.0-purl",
+          "purl": "pkg:npm/express@4.20.0",
+          "expected": {
+            "CVE-2024-43796": "not_affected"
+          }
+        }
+      ]
+    }
+  ]
+}

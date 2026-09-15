@@ -1,0 +1,59 @@
+{
+  "id": "public.rust-openssl-2026",
+  "description": "OSV 2026 Rust advisory correlated with Syft-generated Cargo SBOMs",
+  "ignored": true,
+  "ignore_reason": "OSV crates.io range correlation is not yet working in the pure engine",
+  "tags": [
+    "priority1",
+    "rust",
+    "cargo",
+    "osv",
+    "version-range",
+    "fixed-boundary",
+    "spdx"
+  ],
+  "advisories": [
+    {
+      "path": "../../advisories/osv/GHSA-8c75-8mhr-p7r9.json",
+      "vulnerability": "CVE-2026-41678"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "openssl-0.10.77",
+      "artifacts": [
+        "../../sboms/spdx/openssl-0.10.77-syft-1.51.1.spdx.json"
+      ],
+      "expected": {
+        "CVE-2026-41678": "affected"
+      },
+      "components": [
+        {
+          "id": "openssl-0.10.77-purl",
+          "purl": "pkg:cargo/openssl@0.10.77",
+          "expected": {
+            "CVE-2026-41678": "affected"
+          }
+        }
+      ]
+    },
+    {
+      "id": "openssl-0.10.78",
+      "artifacts": [
+        "../../sboms/spdx/openssl-0.10.78-syft-1.51.1.spdx.json"
+      ],
+      "expected": {
+        "CVE-2026-41678": "not_affected"
+      },
+      "components": [
+        {
+          "id": "openssl-0.10.78-purl",
+          "purl": "pkg:cargo/openssl@0.10.78",
+          "expected": {
+            "CVE-2026-41678": "not_affected"
+          }
+        }
+      ]
+    }
+  ]
+}

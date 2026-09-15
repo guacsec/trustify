@@ -1,0 +1,41 @@
+{
+  "id": "public.cpe-2026",
+  "description": "CPE matching from a public 2026 CVE record",
+  "tags": [
+    "priority0",
+    "cpe",
+    "pending",
+    "cve"
+  ],
+  "ignored": true,
+  "ignore_reason": "CVE CPE assertions are not yet correlated by the pure engine",
+  "advisories": [
+    {
+      "path": "../../advisories/cve/CVE-2026-12039.json",
+      "vulnerability": "CVE-2026-12039"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "docker-sandboxes-cpe",
+      "artifacts": [],
+      "expected": {},
+      "components": [
+        {
+          "id": "docker-sandboxes-1.0-cpe",
+          "cpe": "cpe:2.3:a:docker:docker_sandboxes:1.0:*:*:*:*:*:*:*",
+          "expected": {
+            "CVE-2026-12039": "affected"
+          }
+        },
+        {
+          "id": "unrelated-cpe",
+          "cpe": "cpe:2.3:a:docker:other_product:1.0:*:*:*:*:*:*:*",
+          "expected": {
+            "CVE-2026-12039": "none"
+          }
+        }
+      ]
+    }
+  ]
+}

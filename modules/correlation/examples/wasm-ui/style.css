@@ -66,6 +66,28 @@ h2 {
     color: #27ae60;
 }
 
+.upload-btn {
+    display: inline-block;
+    margin-top: 12px;
+    color: #2c3e50;
+    background: #fff;
+}
+
+.upload-btn:hover {
+    border-color: #3498db;
+    background: #f4f9fd;
+}
+
+.file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    clip-path: inset(50%);
+}
+
 .hint-row {
     display: flex;
     align-items: center;

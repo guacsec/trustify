@@ -1,0 +1,45 @@
+{
+  "id": "public.requests-duplicate-2026",
+  "description": "Two public OSV records for one CVE correlate without duplicate verdicts",
+  "tags": [
+    "priority0",
+    "purl",
+    "osv",
+    "duplicate-advisories",
+    "fixed-boundary",
+    "cyclonedx",
+    "spdx"
+  ],
+  "advisories": [
+    {
+      "path": "../../advisories/osv/PYSEC-2026-1872.json",
+      "vulnerability": "CVE-2024-47081"
+    },
+    {
+      "path": "../../advisories/osv/GHSA-9hjg-9r4m-mvj7.json",
+      "vulnerability": "CVE-2024-47081"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "requests-2.32.3",
+      "artifacts": [
+        "../../sboms/cyclonedx/requests-2.32.3-syft-1.51.1.cdx.json",
+        "../../sboms/spdx/requests-2.32.3-syft-1.51.1.spdx.json"
+      ],
+      "expected": {
+        "CVE-2024-47081": "affected"
+      }
+    },
+    {
+      "id": "requests-2.33.0",
+      "artifacts": [
+        "../../sboms/cyclonedx/requests-2.33.0-syft-1.51.1.cdx.json",
+        "../../sboms/spdx/requests-2.33.0-syft-1.51.1.spdx.json"
+      ],
+      "expected": {
+        "CVE-2024-47081": "not_affected"
+      }
+    }
+  ]
+}

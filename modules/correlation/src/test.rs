@@ -22,7 +22,7 @@ const CASES_DIR: &str = concat!(
 );
 const SUITES_DIR: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../etc/test-data/correlation/suites"
+    "/../../etc/test-data/correlation"
 );
 
 #[derive(Debug, serde::Deserialize)]
