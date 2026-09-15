@@ -9,13 +9,75 @@ use std::{
 use crate::{
     collector::VecCollector,
     engine::correlate,
-    evidence::Evidence,
+    evidence::{Evidence, SbomEvidence},
     extract,
     memory::AdvisoryIndex,
-    types::{ScenarioExpected, VerdictStatus},
+    types::{ComponentId, SbomComponent, ScenarioExpected, Verdict, VerdictStatus, parse_purl},
 };
 
 const SCENARIO_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../etc/test-data/scenarios");
+const CASES_DIR: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../etc/test-data/correlation/cases"
+);
+const SUITES_DIR: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../etc/test-data/correlation/suites"
+);
+
+#[derive(Debug, serde::Deserialize)]
+struct CorrelationCase {
+    id: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    advisories: Vec<CaseAdvisory>,
+    sboms: Vec<CaseSbom>,
+    #[serde(default)]
+    ignored: bool,
+    #[serde(default)]
+    ignore_reason: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CorrelationSuite {
+    id: String,
+    description: String,
+    priority: u8,
+    include_tags: Vec<String>,
+    #[serde(default)]
+    exclude_tags: Vec<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CaseAdvisory {
+    path: String,
+    vulnerability: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CaseSbom {
+    id: String,
+    #[serde(default)]
+    artifacts: Vec<String>,
+    #[serde(default)]
+    components: Vec<CaseComponent>,
+    expected: HashMap<String, VerdictStatus>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CaseComponent {
+    id: String,
+    purl: Option<String>,
+    checksum: Option<CaseChecksum>,
+    cpe: Option<String>,
+    expected: HashMap<String, VerdictStatus>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CaseChecksum {
+    algorithm: String,
+    value: String,
+}
 
 fn load_json(path: &Path) -> serde_json::Value {
     // Try .xz first if the plain file doesn't exist
@@ -82,55 +144,187 @@ fn run_scenario_formats(scenario_name: &str, formats: &[&str]) {
             let evidence = Evidence::new(advisories.evidence(), sbom);
             let verdicts = correlate(&evidence, &mut collector);
 
-            // Build verdict map: CVE → resolved status
-            let mut verdict_map: HashMap<String, VerdictStatus> = HashMap::new();
-            for verdict in &verdicts {
-                // A definitive verdict from any component dominates a `none`
-                // result emitted for another component in the same SBOM.
-                let existing = verdict_map.get(&verdict.vulnerability_id);
-                let keep_existing = existing
-                    .is_some_and(|status| verdict_rank(*status) >= verdict_rank(verdict.status));
-                if !keep_existing {
-                    verdict_map.insert(verdict.vulnerability_id.clone(), verdict.status);
-                }
-            }
+            assert_expected_statuses(
+                &format!("{scenario_name}/{sbom_name}.{format}"),
+                &parse_legacy_expectations(&expectation.correct),
+                &verdicts,
+            );
+        }
+    }
+}
 
-            for (cve_id, expected_status_str) in &expectation.correct {
-                let expected_status = match expected_status_str.as_str() {
-                    "affected" => VerdictStatus::Affected,
-                    "not_affected" => VerdictStatus::NotAffected,
-                    "fixed" => VerdictStatus::Fixed,
-                    "none" => VerdictStatus::None,
-                    other => panic!("unknown expected status: {other}"),
+fn load_case(case_dir: &Path) -> CorrelationCase {
+    let manifest_path = case_dir.join("expected.json");
+    let manifest_data = fs::read(&manifest_path)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", manifest_path.display()));
+    serde_json::from_slice(&manifest_data)
+        .unwrap_or_else(|e| panic!("failed to parse {}: {e}", manifest_path.display()))
+}
+
+fn run_case(case_dir: &Path, case: &CorrelationCase) {
+    let case_name = case_dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_else(|| panic!("invalid case directory: {}", case_dir.display()));
+
+    let mut advisories = AdvisoryIndex::new();
+    for advisory in &case.advisories {
+        let path = case_dir.join(&advisory.path);
+        let json = load_json(&path);
+        let evidence = extract::extract_advisory(&advisory.path, &json).unwrap_or_else(|| {
+            panic!(
+                "{}: unrecognized advisory format: {}",
+                case.id, advisory.path
+            )
+        });
+        assert!(
+            evidence
+                .assertions
+                .iter()
+                .any(|assertion| assertion.vulnerability_id == advisory.vulnerability),
+            "{}: {} did not produce {}",
+            case.id,
+            advisory.path,
+            advisory.vulnerability
+        );
+        advisories.add(evidence);
+    }
+
+    for sbom in &case.sboms {
+        for artifact in &sbom.artifacts {
+            let path = case_dir.join(artifact);
+            let json = load_json(&path);
+            let sbom_evidence = extract::extract_sbom(artifact, &json)
+                .unwrap_or_else(|| panic!("{}/{}: failed to parse SBOM", case.id, artifact));
+            let evidence = Evidence::new(advisories.evidence(), sbom_evidence);
+            let mut collector = VecCollector::default();
+            let verdicts = correlate(&evidence, &mut collector);
+
+            assert_expected_statuses(
+                &format!("{case_name}/{} ({artifact})", sbom.id),
+                &sbom.expected,
+                &verdicts,
+            );
+        }
+
+        for component in &sbom.components {
+            let component_id = component_id(component);
+            let sbom_evidence = SbomEvidence {
+                name: format!("{}/{}", case.id, component.id),
+                components: vec![SbomComponent {
+                    id: component_id,
+                    context: Vec::new(),
+                    grouping: Vec::new(),
+                }],
+                context: Vec::new(),
+                grouping: Vec::new(),
+            };
+            let evidence = Evidence::new(advisories.evidence(), sbom_evidence);
+            let mut collector = VecCollector::default();
+            let verdicts = correlate(&evidence, &mut collector);
+
+            assert_expected_statuses(
+                &format!("{case_name}/{} ({})", sbom.id, component.id),
+                &component.expected,
+                &verdicts,
+            );
+        }
+    }
+}
+
+fn component_id(component: &CaseComponent) -> ComponentId {
+    let ids = [
+        component.purl.is_some(),
+        component.checksum.is_some(),
+        component.cpe.is_some(),
+    ]
+    .into_iter()
+    .filter(|present| *present)
+    .count();
+    assert_eq!(
+        ids, 1,
+        "component '{}' must define exactly one identity",
+        component.id
+    );
+
+    if let Some(purl) = &component.purl {
+        return parse_purl(purl)
+            .unwrap_or_else(|| panic!("component '{}' has invalid PURL: {purl}", component.id));
+    }
+    if let Some(checksum) = &component.checksum {
+        return ComponentId::Hash {
+            algorithm: checksum.algorithm.clone(),
+            value: checksum.value.clone(),
+        };
+    }
+    ComponentId::Cpe(
+        component
+            .cpe
+            .clone()
+            .unwrap_or_else(|| panic!("component '{}' has no identity", component.id)),
+    )
+}
+
+fn parse_legacy_expectations(expected: &HashMap<String, String>) -> HashMap<String, VerdictStatus> {
+    expected
+        .iter()
+        .map(|(vulnerability_id, status)| (vulnerability_id.clone(), parse_expected_status(status)))
+        .collect()
+}
+
+fn parse_expected_status(status: &str) -> VerdictStatus {
+    match status {
+        "affected" => VerdictStatus::Affected,
+        "not_affected" => VerdictStatus::NotAffected,
+        "fixed" => VerdictStatus::Fixed,
+        "none" => VerdictStatus::None,
+        other => panic!("unknown expected status: {other}"),
+    }
+}
+
+fn assert_expected_statuses(
+    label: &str,
+    expected: &HashMap<String, VerdictStatus>,
+    verdicts: &[Verdict],
+) {
+    // A definitive verdict from any component dominates a `none` result emitted for another
+    // component in the same SBOM.
+    let mut verdict_map: HashMap<String, VerdictStatus> = HashMap::new();
+    for verdict in verdicts {
+        let existing = verdict_map.get(&verdict.vulnerability_id);
+        let keep_existing =
+            existing.is_some_and(|status| verdict_rank(*status) >= verdict_rank(verdict.status));
+        if !keep_existing {
+            verdict_map.insert(verdict.vulnerability_id.clone(), verdict.status);
+        }
+    }
+
+    for (vulnerability_id, expected_status) in expected {
+        let actual = verdict_map.get(vulnerability_id.as_str());
+        match actual {
+            Some(actual_status) => {
+                let ok = match *expected_status {
+                    VerdictStatus::NotAffected => actual_status.resolves_affected(),
+                    expected => *actual_status == expected,
                 };
-
-                let actual = verdict_map.get(cve_id.as_str());
-                match actual {
-                    Some(actual_status) => {
-                        let ok = match expected_status {
-                            VerdictStatus::NotAffected => actual_status.resolves_affected(),
-                            expected => *actual_status == expected,
-                        };
-                        assert!(
-                            ok,
-                            "{scenario_name}/{sbom_name}.{format}: {cve_id}: \
-                             expected {expected_status_str}, got {}",
-                            actual_status.as_str()
-                        );
-                    }
-                    None => {
-                        panic!(
-                            "{scenario_name}/{sbom_name}.{format}: {cve_id}: \
-                             expected {expected_status_str}, but no verdict produced. \
-                             Collected {} verdicts: {:?}",
-                            verdicts.len(),
-                            verdicts
-                                .iter()
-                                .map(|v| format!("{}={}", v.vulnerability_id, v.status.as_str()))
-                                .collect::<Vec<_>>()
-                        );
-                    }
-                }
+                assert!(
+                    ok,
+                    "{label}: {vulnerability_id}: expected {}, got {}",
+                    expected_status.as_str(),
+                    actual_status.as_str()
+                );
+            }
+            None => {
+                panic!(
+                    "{label}: {vulnerability_id}: expected {}, but no verdict produced. \
+                     Collected {} verdicts: {:?}",
+                    expected_status.as_str(),
+                    verdicts.len(),
+                    verdicts
+                        .iter()
+                        .map(|v| format!("{}={}", v.vulnerability_id, v.status.as_str()))
+                        .collect::<Vec<_>>()
+                );
             }
         }
     }
@@ -144,6 +338,128 @@ fn verdict_rank(status: VerdictStatus) -> u8 {
         VerdictStatus::NotAffected => 3,
         VerdictStatus::Fixed => 4,
     }
+}
+
+#[test]
+fn correlation_cases() {
+    run_suite("priority0", false);
+}
+
+#[test]
+fn correlation_priority1_cases() {
+    run_suite("priority1", false);
+}
+
+#[test]
+#[ignore = "runs intentionally pending correlation cases"]
+fn ignored_correlation_cases() {
+    run_suite("priority0", true);
+}
+
+fn run_suite(suite_id: &str, ignored_only: bool) {
+    let suite_path = PathBuf::from(SUITES_DIR).join(format!("{suite_id}.json"));
+    let suite_data = fs::read(&suite_path)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", suite_path.display()));
+    let suite: CorrelationSuite = serde_json::from_slice(&suite_data)
+        .unwrap_or_else(|e| panic!("failed to parse {}: {e}", suite_path.display()));
+
+    let cases = case_dirs()
+        .into_iter()
+        .map(|path| {
+            let case = load_case(&path);
+            (case.id.clone(), (path, case))
+        })
+        .collect::<HashMap<_, _>>();
+    let selected_case_ids = selected_case_ids(&suite, &cases);
+    assert!(
+        !selected_case_ids.is_empty(),
+        "suite {} selected no cases",
+        suite.id
+    );
+
+    println!(
+        "suite '{}' [priority {}] - {}",
+        suite.id, suite.priority, suite.description
+    );
+
+    let mut active_cases = 0;
+    let mut pending_cases = 0;
+    for case_id in selected_case_ids {
+        let (case_dir, case) = cases
+            .get(&case_id)
+            .unwrap_or_else(|| panic!("suite {suite_id} references unknown case {case_id}"));
+        let tags = if case.tags.is_empty() {
+            "untagged".to_string()
+        } else {
+            case.tags.join(", ")
+        };
+
+        if case.ignored {
+            pending_cases += 1;
+        }
+        if case.ignored != ignored_only {
+            if case.ignored {
+                println!(
+                    "  IGNORE {} [{}] - {}",
+                    case.id,
+                    tags,
+                    case.ignore_reason.as_deref().unwrap_or("pending")
+                );
+            }
+            continue;
+        }
+
+        if !ignored_only {
+            active_cases += 1;
+        }
+        run_case(case_dir, case);
+        println!(
+            "  {} {} [{}]",
+            if ignored_only { "PENDING" } else { "PASS" },
+            case.id,
+            tags
+        );
+    }
+
+    if !ignored_only {
+        println!("  cases: {active_cases} passed, {pending_cases} pending");
+        assert!(active_cases > 0, "suite {suite_id} has no active cases");
+    } else {
+        println!("  pending cases exercised: {pending_cases}");
+    }
+}
+
+fn selected_case_ids(
+    suite: &CorrelationSuite,
+    cases: &HashMap<String, (PathBuf, CorrelationCase)>,
+) -> Vec<String> {
+    let mut selected = cases
+        .iter()
+        .filter(|(_, (_, case))| {
+            suite
+                .include_tags
+                .iter()
+                .all(|tag| case.tags.iter().any(|case_tag| case_tag == tag))
+                && suite
+                    .exclude_tags
+                    .iter()
+                    .all(|tag| !case.tags.iter().any(|case_tag| case_tag == tag))
+        })
+        .map(|(case_id, _)| case_id.clone())
+        .collect::<Vec<_>>();
+    selected.sort();
+    selected
+}
+
+fn case_dirs() -> Vec<PathBuf> {
+    let mut case_dirs = fs::read_dir(CASES_DIR)
+        .unwrap_or_else(|e| panic!("failed to read {CASES_DIR}: {e}"))
+        .map(|entry| entry.unwrap_or_else(|e| panic!("failed to read correlation case: {e}")))
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect::<Vec<_>>();
+    case_dirs.sort();
+    case_dirs
 }
 
 // ---- Scenario tests ----
