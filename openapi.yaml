@@ -48,6 +48,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendResponse'
+        '503':
+          description: Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured
       deprecated: true
   /api/v2/sbom:
     get:
@@ -2830,6 +2832,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendResponse'
+        '503':
+          description: Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured
   /api/v3/purl/{key}:
     get:
       tags:
@@ -2879,6 +2883,8 @@ paths:
                 $ref: '#/components/schemas/RecommendReportResponse'
         '413':
           description: Total package count across requested SBOMs exceeds the configured limit
+        '503':
+          description: Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured
   /api/v3/sbom:
     get:
       tags:

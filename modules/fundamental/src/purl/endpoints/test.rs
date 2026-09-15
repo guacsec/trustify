@@ -715,21 +715,13 @@ async fn get_recommendations_fixed_status(ctx: &TrustifyContext) -> Result<(), a
     Ok(())
 }
 
-/// Verifies that the recommend endpoint returns empty when no patterns are configured.
+/// Verifies that the recommend endpoint returns 503 FEATURE_UNCONFIGURED when no patterns are configured.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_recommendations_no_patterns(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    // Given the Hyper advisory and a redhat-patched version ingested
-    ctx.ingest_documents(["osv/RUSTSEC-2021-0079.json", "cve/CVE-2021-32714.json"])
-        .await?;
-    ctx.graph
-        .ingest_qualified_package(
-            &Purl::from_str("pkg:cargo/hyper@0.14.1.redhat-00001")?,
-            &ctx.db,
-        )
-        .await?;
+    use actix_web::http::StatusCode;
 
-    // When requesting recommendations with no patterns configured
+    // Given an app with no recommendation patterns configured
     let app = caller_with(
         ctx,
         Config {
@@ -739,14 +731,58 @@ async fn get_recommendations_no_patterns(ctx: &TrustifyContext) -> Result<(), an
         PaginationCache::for_test(),
     )
     .await?;
-    let recommendations = recommend(&app, &["pkg:cargo/hyper@0.14.1"]).await;
 
-    // Then no recommendations are returned
-    let items = &recommendations["recommendations"]["pkg:cargo/hyper@0.14.1"];
-    assert!(
-        items.as_array().is_none_or(|v| v.is_empty()),
-        "expected no recommendations when patterns are empty, got: {items}"
-    );
+    // When requesting recommendations
+    let resp = app
+        .call_service(
+            TestRequest::post()
+                .uri("/api/v3/purl/recommend")
+                .set_json(serde_json::json!({ "purls": ["pkg:cargo/hyper@0.14.1"] }))
+                .to_request(),
+        )
+        .await;
+
+    // Then 503 FEATURE_UNCONFIGURED is returned
+    assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    assert_eq!(body["status"], 503);
+    assert_eq!(body["code"], "FEATURE_UNCONFIGURED");
+
+    Ok(())
+}
+
+/// Verifies that the v2 recommend endpoint returns 503 FEATURE_UNCONFIGURED when no patterns are configured.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn v2_recommend_no_patterns_returns_503(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use actix_web::http::StatusCode;
+
+    // Given an app with no recommendation patterns configured
+    let app = caller_with(
+        ctx,
+        Config {
+            recommend_patterns: vec![],
+            ..Default::default()
+        },
+        PaginationCache::for_test(),
+    )
+    .await?;
+
+    // When requesting recommendations via the v2 endpoint
+    let resp = app
+        .call_service(
+            TestRequest::post()
+                .uri("/api/v2/purl/recommend")
+                .set_json(serde_json::json!({ "purls": ["pkg:cargo/hyper@0.14.1"] }))
+                .to_request(),
+        )
+        .await;
+
+    // Then 503 FEATURE_UNCONFIGURED is returned
+    assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    assert_eq!(body["status"], 503);
+    assert_eq!(body["code"], "FEATURE_UNCONFIGURED");
 
     Ok(())
 }
@@ -1089,27 +1125,14 @@ async fn recommend_report_empty_result(ctx: &TrustifyContext) -> Result<(), anyh
     Ok(())
 }
 
-/// Verifies that when no recommendation patterns are configured, the report still returns
-/// one per-SBOM entry with zero counts rather than an empty sboms list.
+/// Verifies that the recommend report endpoint returns 503 FEATURE_UNCONFIGURED when no patterns are configured.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn recommend_report_no_patterns(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    // Given an SBOM with a package
-    let sbom_id = Uuid::parse_str(
-        &ctx.ingest_json(minimal_cdx(
-            "sbom-no-patterns",
-            "00000000-0000-0000-0000-000000000007",
-            &[(
-                "jakarta.el-api",
-                "3.0.3",
-                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
-            )],
-        ))
-        .await?
-        .id,
-    )?;
+    use actix_web::http::StatusCode;
+    use uuid::Uuid;
 
-    // When requesting a report with no recommendation patterns configured
+    // Given an app with no recommendation patterns configured
     let app = caller_with(
         ctx,
         Config {
@@ -1119,19 +1142,22 @@ async fn recommend_report_no_patterns(ctx: &TrustifyContext) -> Result<(), anyho
         PaginationCache::for_test(),
     )
     .await?;
-    let report = recommend_report_req(&app, &[sbom_id]).await;
 
-    // Then the sboms list has one entry with zero counts (not an empty list)
-    let sboms = report["sboms"].as_array().unwrap();
-    assert_eq!(
-        sboms.len(),
-        1,
-        "expected one SBOM entry even with no patterns"
-    );
-    assert_eq!(sboms[0]["addressable_packages"], 0);
-    assert_eq!(sboms[0]["vulnerability_count"], 0);
-    assert_eq!(report["packages"].as_array().unwrap().len(), 0);
-    assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 0);
+    // When requesting a recommendation report
+    let resp = app
+        .call_service(
+            TestRequest::post()
+                .uri("/api/v3/recommend/report")
+                .set_json(serde_json::json!({ "sbom_ids": [Uuid::now_v7()] }))
+                .to_request(),
+        )
+        .await;
+
+    // Then 503 FEATURE_UNCONFIGURED is returned
+    assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let body: serde_json::Value = actix_web::test::read_body_json(resp).await;
+    assert_eq!(body["status"], 503);
+    assert_eq!(body["code"], "FEATURE_UNCONFIGURED");
 
     Ok(())
 }

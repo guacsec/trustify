@@ -160,7 +160,7 @@ impl InputPurl {
 
 pub struct PurlService {
     cache: PaginationCache,
-    recommend_patterns: Vec<Regex>,
+    pub(crate) recommend_patterns: Vec<Regex>,
     pub(crate) report_package_limit: u64,
 }
 
