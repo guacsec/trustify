@@ -2,7 +2,7 @@
   "id": "public.csaf-hash-2024",
   "description": "CISA CSAF product hash identity coverage",
   "tags": [
-    "priority0",
+    "priority1",
     "csaf",
     "checksum",
     "hash",

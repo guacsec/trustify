@@ -11,8 +11,8 @@ the suite output but do not fail the active suite.
 
 | Suite | Priority | Active | Pending | Command |
 |---|---:|---:|---:|---|
-| `priority0` | 0 | 5 | 5 | `cargo test -p trustify-module-correlation correlation_cases -- --nocapture` |
-| `priority1` | 1 | 3 | 1 | `cargo test -p trustify-module-correlation correlation_priority1_cases -- --nocapture` |
+| `priority0` | 0 | 5 | 3 | `cargo test -p trustify-module-correlation correlation_cases -- --nocapture` |
+| `priority1` | 1 | 3 | 3 | `cargo test -p trustify-module-correlation correlation_priority1_cases -- --nocapture` |
 
 ### Priority 0
 
@@ -27,7 +27,6 @@ Foundational correlation behavior required for confidence in the core engine: PU
 | `public.requests-duplicate-2026` | Pass | Duplicate OSV advisories for one vulnerability |
 | `public.cpe-2026` | Pending | Public CVE CPE-positive matching |
 | `public.csaf-vers-2026` | Pending | Public CSAF VERS/CPE matching |
-| `public.csaf-hash-2024` | Pending | Public CSAF product-hash matching |
 | `public.cve-requests-2025` | Pending | CVEProject-to-Syft format parity |
 
 ### Priority 1
@@ -40,6 +39,8 @@ Important breadth beyond the foundation: additional package ecosystems, producer
 | `public.urllib3-2026` | Pass | Reused Python ecosystem range case |
 | `public.cve-2026-no-match` | Pass | Reused negative CVE case |
 | `public.rust-openssl-2026` | Pending | Rust/Cargo OSV range correlation |
+| `public.csaf-hash-2024` | Pending | CSAF product-hash matching |
+| `public.degraded-purl-2026` | Pending | Malformed/degraded PURL behavior |
 
 ## Coverage Status
 
@@ -60,14 +61,14 @@ Priority 0 gaps still represented by legacy scenarios or pending cases:
 | Gap | Related legacy scenario or case |
 |---|---|
 | Positive CPE-only matching | `S7_cpeonly_node_hummingbird`, pending `public.cpe-2026` and `public.csaf-vers-2026` |
-| Positive checksum/hash matching | Pending `public.csaf-hash-2024` |
+| Positive checksum/hash matching | Priority 1: pending `public.csaf-hash-2024` |
 | CSAF VERS ranges | `S5a_vers_affected_openssl_el8`, pending `public.csaf-vers-2026` |
 | RPM epoch and release boundaries | `S8a_vers_epoch_openjdk` |
 | Red Hat stream/substream isolation | `S1a_vers_crossstream_bind-libs`, `S9_substream_openssl_el8` |
 | Wrong-product CPE context | `S3a_vers_wrongproduct_hummingbird_curl`, `S4_wrongproduct_satellite_chardet` |
 | `known_not_affected` suppression | `S10_combined_describing_cpe`, `S12_notaffected_ignored_thunderbird` |
 | Aliasless OSV identifiers | `S13_aliasless_osv_drop` |
-| Malformed/degraded PURL identity | Pending `public.degraded-purl-2026` |
+| Malformed/degraded PURL identity | Priority 1: pending `public.degraded-purl-2026` |
 | CVEProject advisory identity parity | Pending `public.cve-requests-2025` |
 | End-to-end ingestion/API parity | Covered only by legacy `modules/fundamental` tests |
 

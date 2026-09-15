@@ -2,7 +2,7 @@
   "id": "public.degraded-purl-2026",
   "description": "Pending degraded-identity behavior for malformed PURLs",
   "tags": [
-    "priority0",
+    "priority1",
     "degraded",
     "malformed-purl",
     "pending"
