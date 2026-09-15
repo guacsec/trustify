@@ -64,10 +64,13 @@ impl super::ImportRunner {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::runner::{
-        ImportRunner,
-        kev::walker::KevWalker,
-        report::{Phase, ReportBuilder, Severity},
+    use crate::{
+        model::auth::CredentialConfig,
+        runner::{
+            ImportRunner,
+            kev::walker::KevWalker,
+            report::{Phase, ReportBuilder, Severity},
+        },
     };
     use sea_orm::EntityTrait;
     use std::{collections::HashSet, time::Duration};
@@ -102,6 +105,7 @@ mod test {
             storage: ctx.storage.clone().into(),
             working_dir: None,
             analysis: None,
+            credential_config: CredentialConfig::default(),
         }
     }
 

@@ -9,7 +9,7 @@ use trustify_common::{
     },
 };
 use trustify_infrastructure::{Infrastructure, InfrastructureConfig, InitContext};
-use trustify_module_importer::server::importer;
+use trustify_module_importer::{model::auth::CredentialConfig, server::importer};
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 
 /// Run the importer server
@@ -31,6 +31,14 @@ pub struct Run {
         default_value = "1"
     )]
     pub concurrency: usize,
+
+    /// Allowed base paths for file credential sources; files not under these directories are rejected. Default = empty list = allow none.
+    #[arg(long, env = "IMPORTER_CREDENTIAL_PATHS", value_delimiter = ',')]
+    pub allowed_credential_paths: Option<Vec<String>>,
+
+    /// The required prefix for environment variable credential sources. Default = empty list = allow none.
+    #[arg(long, env = "IMPORTER_ENV_PREFIXES", value_delimiter = ',')]
+    pub env_prefixes: Option<Vec<String>>,
 
     // flattened commands must go last
     //
@@ -59,6 +67,7 @@ struct InitData {
     working_dir: Option<PathBuf>,
     concurrency: usize,
     read_only: bool,
+    credential_config: CredentialConfig,
 }
 
 impl Run {
@@ -95,6 +104,10 @@ impl InitData {
             working_dir: run.working_dir,
             concurrency: run.concurrency,
             read_only: run.read_only,
+            credential_config: CredentialConfig {
+                allowed_prefixes: run.env_prefixes.clone(),
+                allowed_paths: run.allowed_credential_paths.clone(),
+            },
         })
     }
 
@@ -111,6 +124,7 @@ impl InitData {
                 None, // Running the importer, we don't need an analysis graph update
                 self.concurrency,
                 self.read_only,
+                self.credential_config,
             )
             .await
         }
