@@ -596,6 +596,10 @@ impl PurlService {
         Ok(recommendations)
     }
 
+    pub fn recommend_patterns(&self) -> &Vec<Regex> {
+        &self.recommend_patterns
+    }
+
     /// Batch-loads vulnerability statuses for the winning versioned PURLs, grouped by base PURL ID.
     /// Chunks by base PURL IDs to stay within Postgres bind parameter limits.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
