@@ -222,7 +222,7 @@ struct PurlVisitor;
 impl Visitor<'_> for PurlVisitor {
     type Value = Purl;
 
-    fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
         formatter.write_str("a pURL")
     }
 
@@ -235,13 +235,13 @@ impl Visitor<'_> for PurlVisitor {
 }
 
 impl Display for Purl {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut purl = PackageUrl::new(&self.ty, &self.name).map_err(|_| fmt::Error)?;
         if let Some(ns) = &self.namespace {
-            purl.with_namespace(ns);
+            purl.with_namespace(ns).map_err(|_| fmt::Error)?;
         }
         if let Some(version) = &self.version {
-            purl.with_version(version);
+            purl.with_version(version).map_err(|_| fmt::Error)?;
         }
         for (key, value) in &self.qualifiers {
             purl.add_qualifier(key, value).map_err(|_| fmt::Error)?;
@@ -251,7 +251,7 @@ impl Display for Purl {
 }
 
 impl Debug for Purl {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
     }
 }
@@ -438,6 +438,11 @@ mod tests {
         assert_eq!(
             purl.to_string().as_str(),
             "pkg:npm/%40fastify/this%40that@3.8-%236.el8"
+        );
+        let purl = Purl::from_str("pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0")?;
+        assert_eq!(
+            purl.to_string().as_str(),
+            "pkg:generic/ibm-granite%2Fgranite-docling-258M@1.0"
         );
 
         Ok(())
