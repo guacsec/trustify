@@ -613,3 +613,10 @@ fn scenario_s17_crossproduct_ocp_kernel_go() {
 fn scenario_s14_productstatus_versionfilter_netty() {
     run_scenario("S14_productstatus_versionfilter_netty");
 }
+
+#[test]
+fn case_suse_curl_2024() {
+    let case_dir = PathBuf::from(CASES_DIR).join("suse-curl-2024");
+    let case = load_case(&case_dir);
+    run_case(&case_dir, &case);
+}

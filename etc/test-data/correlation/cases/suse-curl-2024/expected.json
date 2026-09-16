@@ -1,0 +1,89 @@
+{
+  "id": "public.suse-curl-2024",
+  "description": "SUSE VEX CSAF advisory (CVE-2024-7264) correlated with RPM SBOM components via PURL",
+  "tags": [
+    "priority0",
+    "csaf",
+    "purl",
+    "suse"
+  ],
+  "advisories": [
+    {
+      "path": "../../advisories/csaf/suse-vex-cve-2024-7264.json",
+      "vulnerability": "CVE-2024-7264"
+    }
+  ],
+  "sboms": [
+    {
+      "id": "suse-curl-at-fix",
+      "artifacts": [],
+      "expected": {
+        "CVE-2024-7264": "not_affected"
+      },
+      "components": [
+        {
+          "id": "curl-fixed-with-upstream",
+          "purl": "pkg:rpm/suse/curl@8.6.0-150600.4.3.1?upstream=curl-8.6.0-150600.4.3.1.src.rpm",
+          "expected": {
+            "CVE-2024-7264": "not_affected"
+          }
+        },
+        {
+          "id": "libcurl4-fixed-with-upstream",
+          "purl": "pkg:rpm/suse/libcurl4@8.6.0-150600.4.3.1?upstream=curl-8.6.0-150600.4.3.1.src.rpm",
+          "expected": {
+            "CVE-2024-7264": "not_affected"
+          }
+        }
+      ]
+    },
+    {
+      "id": "suse-curl-without-upstream-qualifier",
+      "artifacts": [],
+      "expected": {
+        "CVE-2024-7264": "none"
+      },
+      "components": [
+        {
+          "id": "curl-fixed-bare-purl",
+          "purl": "pkg:rpm/suse/curl@8.6.0-150600.4.3.1",
+          "expected": {
+            "CVE-2024-7264": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "suse-curl-pre-fix",
+      "artifacts": [],
+      "expected": {
+        "CVE-2024-7264": "none"
+      },
+      "components": [
+        {
+          "id": "curl-older-version",
+          "purl": "pkg:rpm/suse/curl@8.6.0-150600.4.2.1?upstream=curl-8.6.0-150600.4.2.1.src.rpm",
+          "expected": {
+            "CVE-2024-7264": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "suse-unrelated-package",
+      "artifacts": [],
+      "expected": {
+        "CVE-2024-7264": "none"
+      },
+      "components": [
+        {
+          "id": "wget-unrelated",
+          "purl": "pkg:rpm/suse/wget@1.21.4-150600.1.1?upstream=wget-1.21.4-150600.1.1.src.rpm",
+          "expected": {
+            "CVE-2024-7264": "none"
+          }
+        }
+      ]
+    }
+  ]
+}
