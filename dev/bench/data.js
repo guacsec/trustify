@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789563575076,
+  "lastUpdate": 1789569193137,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21947,6 +21947,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": true,
+          "id": "c8f6bf95a40228e774a4f309e5f348a8c9eb574f",
+          "message": "chore(refactor): rebase conflict\n\nSigned-off-by: Ruben Romero Montes <rromerom@redhat.com>",
+          "timestamp": "2026-09-16T13:46:24Z",
+          "tree_id": "d1b228d9ee5a27eaa1b6c196db9b8a4d74954b2e",
+          "url": "https://github.com/guacsec/trustify/commit/c8f6bf95a40228e774a4f309e5f348a8c9eb574f"
+        },
+        "date": 1789569190877,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 6,
             "unit": "s"
           }
         ]
