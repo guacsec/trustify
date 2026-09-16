@@ -121,26 +121,33 @@ pub fn parse_purl(purl_str: &str) -> Option<ComponentId> {
 
     let (s, _subpath) = s.split_once('#').map_or((s, None), |(s, sp)| (s, Some(sp)));
     let (s, qualifiers_str) = s.split_once('?').map_or((s, None), |(s, q)| (s, Some(q)));
-    let (s, version) = s
-        .split_once('@')
-        .map_or((s, None), |(s, v)| (s, Some(percent_decode(v))));
+    let (s, version) = match s.split_once('@') {
+        Some((s, v)) => (s, Some(preserve_percent_encoding(v)?)),
+        None => (s, None),
+    };
 
     let (ty, rest) = s.split_once('/')?;
     let (namespace, name) = match rest.rsplit_once('/') {
-        Some((ns, n)) => (Some(percent_decode(ns)), percent_decode(n)),
-        None => (None, percent_decode(rest)),
+        Some((ns, n)) => (
+            Some(preserve_percent_encoding(ns)?),
+            preserve_percent_encoding(n)?,
+        ),
+        None => (None, preserve_percent_encoding(rest)?),
     };
 
-    let qualifiers = qualifiers_str
-        .map(|q| {
-            q.split('&')
-                .filter_map(|kv| {
-                    let (k, v) = kv.split_once('=')?;
-                    Some((percent_decode(k).to_ascii_lowercase(), percent_decode(v)))
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let qualifiers = match qualifiers_str {
+        Some(q) => q
+            .split('&')
+            .map(|kv| {
+                let (k, v) = kv.split_once('=')?;
+                Some((
+                    preserve_percent_encoding(k)?.to_ascii_lowercase(),
+                    preserve_percent_encoding(v)?,
+                ))
+            })
+            .collect::<Option<BTreeMap<_, _>>>()?,
+        None => BTreeMap::new(),
+    };
 
     Some(ComponentId::Purl {
         ty: ty.to_lowercase(),
@@ -151,21 +158,25 @@ pub fn parse_purl(purl_str: &str) -> Option<ComponentId> {
     })
 }
 
-fn percent_decode(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    let mut chars = s.bytes();
-    while let Some(b) = chars.next() {
-        if b == b'%' {
-            let hi = chars.next().and_then(hex_val);
-            let lo = chars.next().and_then(hex_val);
-            if let (Some(h), Some(l)) = (hi, lo) {
-                result.push(char::from(h << 4 | l));
+fn preserve_percent_encoding(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    let mut index = 0;
+
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            if index + 2 >= bytes.len()
+                || hex_val(bytes[index + 1]).is_none()
+                || hex_val(bytes[index + 2]).is_none()
+            {
+                return None;
             }
+            index += 3;
         } else {
-            result.push(char::from(b));
+            index += 1;
         }
     }
-    result
+
+    Some(s.to_string())
 }
 
 fn hex_val(b: u8) -> Option<u8> {
@@ -487,11 +498,18 @@ mod test {
             }) => {
                 assert_eq!(ty, "golang");
                 assert!(namespace.is_none());
-                assert_eq!(name, "github.com/example/pkg");
+                assert_eq!(name, "github.com%2Fexample%2Fpkg");
                 assert_eq!(version.as_deref(), Some("1.0.0"));
             }
             other => panic!("expected Purl, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parse_purl_rejects_invalid_percent_encoding() {
+        assert!(parse_purl("pkg:pypi/requests%ZZ@2.0.0").is_none());
+        assert!(parse_purl("pkg:pypi/requests%@2.0.0").is_none());
+        assert!(parse_purl("pkg:pypi/requests@2.0.0?source=%ZZ").is_none());
     }
 
     #[test]
