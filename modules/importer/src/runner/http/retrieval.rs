@@ -186,9 +186,8 @@ mod test {
             .mount(&server)
             .await;
 
-        let url: url::Url = format!("{}/file.txt", server.uri())
-            .parse()
-            .expect("valid URL");
+        let url_str = format!("{}/file.txt", server.uri());
+        let url: url::Url = url_str.parse().expect("valid URL");
         let file = DiscoveredFile {
             url,
             sha256: None,
@@ -214,11 +213,20 @@ mod test {
         )
         .await;
 
-        // Then: error is recorded, on_file is never called
+        // Then: error recorded under Phase::Retrieval for the mock URL with Error::Fetch text
         let built = report.lock().clone().build();
+        let retrieval_errors = built
+            .messages
+            .get(&Phase::Retrieval)
+            .expect("expected errors recorded under Phase::Retrieval");
+        let url_errors = retrieval_errors
+            .get(&url_str)
+            .expect("expected errors recorded for the mock URL");
         assert!(
-            !built.messages.is_empty(),
-            "expected at least one error recorded in report"
+            url_errors
+                .iter()
+                .any(|m| m.message.contains("fetch failed for")),
+            "expected Error::Fetch message text, got: {url_errors:?}"
         );
         assert!(
             !on_file_called.load(Ordering::SeqCst),
