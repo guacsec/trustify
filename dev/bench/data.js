@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789388033055,
+  "lastUpdate": 1789563575076,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21918,6 +21918,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": true,
+          "id": "cf6993604abf4c682918151f8db53540a35eb93c",
+          "message": "chore(deps): upgrade vulnerable deps\n\nSigned-off-by: Ruben Romero Montes <rromerom@redhat.com>",
+          "timestamp": "2026-09-16T12:16:41Z",
+          "tree_id": "215cfbb6eead867fe758849d2a697f1002fb5724",
+          "url": "https://github.com/guacsec/trustify/commit/cf6993604abf4c682918151f8db53540a35eb93c"
+        },
+        "date": 1789563572718,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
