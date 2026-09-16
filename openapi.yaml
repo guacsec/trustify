@@ -6994,7 +6994,7 @@ components:
           description: CVE identifiers associated with this recommendation.
     RecommendReportRequest:
       type: object
-      description: Request body for the `POST /v3/recommend/report` endpoint.
+      description: Request body for the `POST /api/v3/recommend/report` endpoint.
       required:
       - sbom_ids
       properties:
