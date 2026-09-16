@@ -6,6 +6,7 @@ pub mod context;
 pub mod csaf;
 pub mod cve;
 pub mod cwe;
+pub mod http;
 pub mod kev;
 pub mod nvd;
 pub mod osv;
