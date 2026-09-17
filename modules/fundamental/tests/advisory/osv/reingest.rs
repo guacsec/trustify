@@ -80,7 +80,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check status
 
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::new(PaginationCache::for_test()).with_default_patterns();
     let purls = service
         .purls(Default::default(), Paginated::default(), &ctx.db)
         .await?;
@@ -169,6 +169,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 title: Some("Denial of Service (DoS) vulnerability".into()),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "osv")])
             },
+            fixed_versions: vec![],
         }]
     );
 
@@ -209,6 +210,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 title: Some("Denial of Service (DoS) vulnerability".into()),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "osv")])
             },
+            fixed_versions: vec![],
         }]
     );
 
