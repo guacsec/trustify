@@ -1,7 +1,7 @@
 use crate::runner::http::discovery::{DiscoveredFile, DiscoveryStrategy};
 use bytes::Bytes;
 use regex::Regex;
-use std::{future::Future, str::FromStr, sync::Arc};
+use std::{future::Future, sync::Arc};
 use url::Url;
 use walker_common::fetcher::{self, Fetcher};
 
@@ -59,7 +59,7 @@ fn is_valid_sha256(digest: &str) -> bool {
 ///
 /// The Pulp manifest format is a simple three-column, unquoted CSV
 /// (`filename,sha256hex,size_bytes`). Quoted fields and commas inside
-/// filenames are not part of the Pulp spec, so a plain `splitn` is correct;
+/// filenames are not part of the Pulp spec, so a plain split is correct;
 /// a Pulp-generated filename never contains a comma.
 ///
 /// Each non-empty line is validated for a non-empty safe filename, a 64-char
@@ -71,31 +71,37 @@ fn parse_manifest(content: &str) -> Result<Vec<ManifestEntry>, Error> {
         if line.is_empty() {
             continue;
         }
-        let parts: Vec<&str> = line.splitn(3, ',').collect();
-        if parts.len() != 3 {
+        let line_no = i + 1;
+        let Some((filename_raw, rest)) = line.split_once(',') else {
             return Err(Error::ManifestParse {
-                line: i + 1,
+                line: line_no,
                 content: line.to_string(),
             });
-        }
-        let filename = parts[0].trim().to_string();
-        let sha256 = parts[1].trim().to_string();
-        let size_str = parts[2].trim();
+        };
+        let Some((sha256_raw, size_str)) = rest.split_once(',') else {
+            return Err(Error::ManifestParse {
+                line: line_no,
+                content: line.to_string(),
+            });
+        };
+        let filename = filename_raw.trim().to_string();
+        let sha256 = sha256_raw.trim().to_string();
+        let size_str = size_str.trim();
 
         if !is_safe_filename(&filename) {
             return Err(Error::ManifestParse {
-                line: i + 1,
+                line: line_no,
                 content: line.to_string(),
             });
         }
         if !is_valid_sha256(&sha256) {
             return Err(Error::ManifestParse {
-                line: i + 1,
+                line: line_no,
                 content: line.to_string(),
             });
         }
         let size = size_str.parse::<u64>().map_err(|_| Error::ManifestParse {
-            line: i + 1,
+            line: line_no,
             content: line.to_string(),
         })?;
         entries.push(ManifestEntry {
@@ -107,29 +113,26 @@ fn parse_manifest(content: &str) -> Result<Vec<ManifestEntry>, Error> {
     Ok(entries)
 }
 
-/// Appends `PULP_MANIFEST` to `base`, ensuring exactly one `/` separator.
-fn manifest_url(base: &Url) -> Url {
+/// Appends `segment` to the path of `base`, ensuring exactly one `/` separator.
+fn append_path(base: &Url, segment: &str) -> Url {
     let mut url = base.clone();
     let mut path = url.path().to_owned();
     if !path.ends_with('/') {
         path.push('/');
     }
-    path.push_str("PULP_MANIFEST");
+    path.push_str(segment);
     url.set_path(&path);
     url
 }
 
-/// Constructs the download URL for a manifest entry by appending `filename` to `base`.
+/// Returns the URL for the `PULP_MANIFEST` index at `base`.
+fn manifest_url(base: &Url) -> Url {
+    append_path(base, "PULP_MANIFEST")
+}
+
+/// Returns the download URL for a manifest entry relative to `base`.
 fn file_url(base: &Url, filename: &str) -> Url {
-    let mut url = base.clone();
-    let mut path = url.path().to_owned();
-    if !path.ends_with('/') {
-        path.push('/');
-    }
-    let filename = filename.trim_start_matches('/');
-    path.push_str(filename);
-    url.set_path(&path);
-    url
+    append_path(base, filename)
 }
 
 /// Returns `true` when `filename` matches at least one compiled regex in `patterns`,
@@ -141,7 +144,7 @@ fn matches_patterns(filename: &str, patterns: &[Regex]) -> bool {
     if patterns.is_empty() {
         return true;
     }
-    let name = filename.rsplit('/').next().unwrap_or(filename);
+    let name = filename.rsplit_once('/').map_or(filename, |(_, b)| b);
     patterns.iter().any(|p| p.is_match(name))
 }
 
@@ -164,7 +167,7 @@ impl PulpManifest {
         let compiled = only_patterns
             .into_iter()
             .map(|p| {
-                Regex::from_str(&p).map_err(|e| Error::InvalidPattern {
+                p.parse::<Regex>().map_err(|e| Error::InvalidPattern {
                     pattern: p,
                     source: e,
                 })
@@ -301,7 +304,7 @@ mod test {
     #[test]
     fn only_patterns_filters_by_regex() {
         // Given
-        let json_re = Regex::from_str(r".*\.json$").expect("valid regex");
+        let json_re = Regex::new(r".*\.json$").expect("valid regex");
         let filenames = ["Packages/foo.json", "Packages/bar.xml", "README"];
 
         // When: .*\.json$ pattern applied
