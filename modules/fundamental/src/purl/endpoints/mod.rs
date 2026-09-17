@@ -183,7 +183,7 @@ mod v3 {
             (status = 413, description = "Total package count across requested SBOMs exceeds the configured limit"),
         )
     )]
-    #[post("/v3/recommend/report")]
+    #[post("/api/v3/recommend/report")]
     /// Generate an aggregated vendor recommendation report for a set of SBOMs.
     pub async fn recommend_report(
         purl_service: web::Data<PurlService>,

@@ -30,6 +30,27 @@ paths:
                     type: boolean
                   version:
                     type: string
+  /api/api/v3/recommend/report:
+    post:
+      tags:
+      - purl
+      summary: Generate an aggregated vendor recommendation report for a set of SBOMs.
+      operationId: recommendReport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendReportRequest'
+        required: true
+      responses:
+        '200':
+          description: Aggregated recommendation report for the requested SBOMs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendReportResponse'
+        '413':
+          description: Total package count across requested SBOMs exceeds the configured limit
   /api/v2/purl/recommend:
     post:
       tags:
@@ -2862,27 +2883,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PurlDetails'
-  /api/v3/recommend/report:
-    post:
-      tags:
-      - purl
-      summary: Generate an aggregated vendor recommendation report for a set of SBOMs.
-      operationId: recommendReport
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RecommendReportRequest'
-        required: true
-      responses:
-        '200':
-          description: Aggregated recommendation report for the requested SBOMs
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RecommendReportResponse'
-        '413':
-          description: Total package count across requested SBOMs exceeds the configured limit
   /api/v3/sbom:
     get:
       tags:
