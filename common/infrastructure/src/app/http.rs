@@ -347,7 +347,7 @@ mod default {
     /// issuer in `connect-src`. Operators should tighten this per deployment.
     pub const CSP: &str = "frame-ancestors 'none'";
 
-    pub const HSTS: &str = "max-age=31536000; includeSubDomains";
+    pub const HSTS: &str = "";
 
     pub fn bind_addr() -> String {
         "::1".to_string()
@@ -453,7 +453,12 @@ where
         } else {
             Some(SecurityHeaders {
                 content_security_policy: value.csp,
-                strict_transport_security: value.hsts,
+                // HSTS must never be advertised by a plain HTTP listener, and
+                // remains opt-in even when TLS is configured.
+                strict_transport_security: value
+                    .tls_enabled
+                    .then_some(value.hsts)
+                    .unwrap_or_default(),
             })
         });
 
@@ -970,7 +975,26 @@ mod test {
         assert_eq!(config.csp, default::CSP);
         assert_eq!(config.hsts, default::HSTS);
         let builder = HttpServerBuilder::try_from(config).unwrap();
-        assert!(builder.security_headers.is_some());
+        let headers = builder.security_headers.expect("security headers enabled");
+        assert!(headers.strict_transport_security.is_empty());
+    }
+
+    /// Verifies that HSTS is opt-in and only applied to TLS listeners.
+    #[test]
+    fn hsts_is_enabled_for_tls_only() {
+        let config = HttpServerConfig::<MockEndpoint> {
+            tls_enabled: true,
+            tls_key_file: Some(PathBuf::from("/tmp/key.pem")),
+            tls_certificate_file: Some(PathBuf::from("/tmp/cert.pem")),
+            hsts: "max-age=31536000; includeSubDomains".to_string(),
+            ..Default::default()
+        };
+        let builder = HttpServerBuilder::try_from(config).unwrap();
+        let headers = builder.security_headers.expect("security headers enabled");
+        assert_eq!(
+            headers.strict_transport_security,
+            "max-age=31536000; includeSubDomains"
+        );
     }
 
     /// Verifies security headers can be disabled via config.
