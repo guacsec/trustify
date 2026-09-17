@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789569193137,
+  "lastUpdate": 1789660754847,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -21976,6 +21976,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": false,
+          "id": "be6f2f90a3cf8ced84b44be937427e1c4c637f8c",
+          "message": "chore(deps): remove exact version pins for aws-smithy-http-client and aws-smithy-types\n\nExact = pins block patch-level security updates and cause resolution\nfailures when any other crate needs a different patch of the same dep.\nCargo.lock already guarantees reproducible builds at the resolved version;\nusing semver ranges in Cargo.toml is the correct layer for expressing\nrequirements.\n\nAssisted-by: Claude Code\nCo-Authored-By: Claude Sonnet 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-17T14:51:08Z",
+          "tree_id": "f51526849c730ef2c969c487ed185d5e80fed42d",
+          "url": "https://github.com/guacsec/trustify/commit/be6f2f90a3cf8ced84b44be937427e1c4c637f8c"
+        },
+        "date": 1789660752844,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
