@@ -95,16 +95,21 @@ impl S3Backend {
         // region
 
         let region = region.ok_or_else(|| anyhow!("region not provided"))?;
-        let config = if region.starts_with("http://") || region.starts_with("https://") {
-            config
-                .endpoint_resolver(StringResolver::from(region))
-                // we just use any region
-                .region(Region::from_static("us-east-1"))
+        let (config, region) = if region.starts_with("http://") || region.starts_with("https://") {
+            // we just use any region
+            let any_region = Region::from_static("us-east-1");
+            (
+                config
+                    .endpoint_resolver(StringResolver::from(region))
+                    .region(any_region.clone()),
+                any_region,
+            )
         } else {
-            config.region(Region::new(region))
+            let region = Region::new(region);
+            (config.region(region.clone()), region)
         };
 
-        let config = configure_credentials(config, access_key, secret_key).await;
+        let config = configure_credentials(config, region, access_key, secret_key).await;
 
         // TLS
 
@@ -164,6 +169,7 @@ impl S3Backend {
 /// credentials provider at all and token-based (STS) auth would never happen.
 async fn configure_credentials(
     config: config::Builder,
+    region: Region,
     access_key: Option<String>,
     secret_key: Option<String>,
 ) -> config::Builder {
@@ -179,7 +185,15 @@ async fn configure_credentials(
         // costs time and resolves to nothing, so skip AWS entirely — the client is left
         // without a credentials provider, matching a non-AWS backend.
         None if aws_credentials_configured() => {
-            let shared = defaults(BehaviorVersion::latest()).load().await;
+            // The region must be handed to the chain explicitly: setting it on the S3 client
+            // config only tells the *client* where to send S3 requests. The credential
+            // providers resolve their own endpoints, and the Web Identity/STS provider used in
+            // CCO manual mode fails with "Invalid Configuration: Missing Region" when the
+            // chain's own region is unset (nothing in a CCO manual-mode pod sets `AWS_REGION`).
+            let shared = defaults(BehaviorVersion::latest())
+                .region(region)
+                .load()
+                .await;
             match shared.credentials_provider() {
                 Some(provider) => config.credentials_provider(provider),
                 None => config,
