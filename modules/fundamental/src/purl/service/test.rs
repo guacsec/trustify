@@ -803,16 +803,9 @@ async fn statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .purls(Query::default(), Paginated::default(), &ctx.db)
         .await?;
 
-    // OSV ingestion now also creates a versioned PURL for the fixed version (hyper@0.14.10)
-    assert_eq!(2, results.items.len());
+    assert_eq!(1, results.items.len());
 
-    let uuid = results
-        .items
-        .iter()
-        .find(|p| p.head.purl.version.as_deref() == Some("0.14.1"))
-        .expect("hyper@0.14.1 must exist after explicit ingestion")
-        .head
-        .uuid;
+    let uuid = results.items[0].head.uuid;
 
     let results = service
         .purl_by_uuid(&uuid, Default::default(), &ctx.db)

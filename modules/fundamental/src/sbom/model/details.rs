@@ -641,6 +641,7 @@ pub struct SbomStatus {
     pub scores: Vec<ScoredVector>,
     /// Versions that fix this vulnerability, extracted from "fixed" advisory entries
     #[serde(default)]
+    #[schema(required)]
     pub fixed_versions: Vec<String>,
 }
 
