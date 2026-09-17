@@ -14,8 +14,10 @@ pub mod vulnerability;
 use db_context::DbContext;
 use hex::ToHex;
 use sea_orm::{
-    ActiveValue::Set, ConnectionTrait, DbErr, EntityTrait, TransactionError, TransactionTrait,
+    ActiveValue::Set, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter,
+    TransactionError, TransactionTrait,
 };
+use sea_query::Expr;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -87,6 +89,19 @@ impl Graph {
                     .to_string()
                     .contains("duplicate key value violates unique constraint") =>
             {
+                // Refresh ingested timestamp so re-uploading the same document moves it
+                // to the top when sorted by `ingested`.
+                source_document::Entity::update_many()
+                    .col_expr(
+                        source_document::Column::Ingested,
+                        Expr::value(OffsetDateTime::now_utc()),
+                    )
+                    .filter(
+                        source_document::Column::Sha256.eq(digests.sha256.encode_hex::<String>()),
+                    )
+                    .exec(connection)
+                    .await?;
+
                 // evaluate the replacement value
                 match f(digests.sha256.encode_hex()).await? {
                     // and return it
