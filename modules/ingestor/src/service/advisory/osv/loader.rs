@@ -163,144 +163,172 @@ impl<'g> OsvLoader<'g> {
 
                         match (&range.range_type, &package.ecosystem) {
                             (RangeType::Semver, _) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Semver,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Semver,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Git, _) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Git,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Git,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::Maven(_)) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Maven,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Maven,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::PyPI | Ecosystem::Python) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Python,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Python,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::Go) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Golang,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Golang,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::Npm) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Npm,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Npm,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::Packagist) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Packagist,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Packagist,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::NuGet) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::NuGet,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::NuGet,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::RubyGems) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Gem,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Gem,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::Hex) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Hex,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Hex,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::SwiftURL) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Swift,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Swift,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::Pub) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Pub,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Pub,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (RangeType::Ecosystem, Ecosystem::CratesIO) => {
-                                for entry in build_package_status(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    VersionScheme::Cargo,
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        VersionScheme::Cargo,
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                             (_, _) => {
-                                for entry in build_package_status_versions(
-                                    &advisory_vuln,
-                                    &purl,
-                                    range,
-                                    affected.versions.iter().flatten(),
-                                ) {
-                                    purl_status_creator.add(entry);
-                                }
+                                process_status_entries(
+                                    build_package_status_versions(
+                                        &advisory_vuln,
+                                        &purl,
+                                        range,
+                                        affected.versions.iter().flatten(),
+                                    ),
+                                    &mut purl_status_creator,
+                                    &mut purl_creator,
+                                );
                             }
                         }
                     }
@@ -321,6 +349,23 @@ impl<'g> OsvLoader<'g> {
             document_id: Some(osv.id),
             warnings: warnings.into(),
         })
+    }
+}
+
+/// Process status entries: add to purl_status_creator and also create versioned_purl
+/// records for "fixed" entries with exact versions so the recommend endpoint can find them.
+fn process_status_entries(
+    entries: Vec<PurlStatusEntry>,
+    purl_status_creator: &mut PurlStatusCreator,
+    purl_creator: &mut PurlCreator,
+) {
+    for entry in entries {
+        if entry.status == "fixed"
+            && let VersionSpec::Exact(ref version) = entry.version_info.spec
+        {
+            purl_creator.add(entry.purl.clone().with_version(version));
+        }
+        purl_status_creator.add(entry);
     }
 }
 

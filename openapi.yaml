@@ -4129,7 +4129,7 @@ paths:
           values = value , { "|" , value } ;
           filter = field , operator , values ;
           operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<" ;
-          field = ("id" | "title" | "reserved" | "published" | "modified" | "withdrawn" | "cwes" | "base_score" | "base_severity")
+          field = ("id" | "title" | "reserved" | "published" | "modified" | "withdrawn" | "cwes" | "base_score" | "base_severity" | "has_fix_versions")
           value = { value_char } ;
           value_char = escaped_char | normal_char ;
           escaped_char = "\" , special_char ;
@@ -4152,7 +4152,7 @@ paths:
           ```text
               sort = field [ ':', order ] { ',' sort }
               order = ( "asc" | "desc" )
-              field = ("id" | "title" | "reserved" | "published" | "modified" | "withdrawn" | "cwes" | "base_score" | "base_severity")
+              field = ("id" | "title" | "reserved" | "published" | "modified" | "withdrawn" | "cwes" | "base_score" | "base_severity" | "has_fix_versions")
           ```
           The optional _order_ should be one of "asc" or "desc". If
           omitted, the order defaults to "asc".
@@ -6799,6 +6799,10 @@ components:
           oneOf:
           - type: 'null'
           - $ref: '#/components/schemas/StatusContext'
+        fixed_versions:
+          type: array
+          items:
+            type: string
         scores:
           type: array
           items:
@@ -7259,6 +7263,11 @@ components:
             oneOf:
             - type: 'null'
             - $ref: '#/components/schemas/StatusContext'
+          fixed_versions:
+            type: array
+            items:
+              type: string
+            description: Versions that fix this vulnerability, extracted from "fixed" advisory entries
           packages:
             type: array
             items:

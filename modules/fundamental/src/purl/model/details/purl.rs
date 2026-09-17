@@ -17,7 +17,7 @@ use sea_orm::{
     Select, SelectColumns,
 };
 use sea_query::{
-    Alias, Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr, UnionType,
+    Alias, Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, PgFunc, SimpleExpr, UnionType,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, hash_map::Entry};
@@ -116,6 +116,7 @@ impl PurlDetails {
             qualified_package.id,
             &package.name,
             package.namespace.as_deref(),
+            &package_version.version,
         )
         .await?;
 
@@ -244,6 +245,7 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
     qualified_package_id: Uuid,
     purl_name: &str,
     namespace_name: Option<&str>,
+    version: &str,
 ) -> Result<Vec<ProductStatusCatcher>, Error> {
     // Subquery to get all SBOM IDs for the given purl
     let sbom_ids_query = sbom::Entity::find()
@@ -297,6 +299,11 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
                 Expr::col(product_status::Column::Package).eq(format!("{ns}/{purl_name}"))
             }),
         ))
+        .filter(SimpleExpr::FunctionCall(
+            Func::cust(VersionMatches)
+                .arg(Expr::value(version.to_string()))
+                .arg(Expr::col((version_range::Entity, Asterisk))),
+        ))
         .distinct_on([
             (product_status::Entity, product_status::Column::ContextCpeId),
             (product_status::Entity, product_status::Column::StatusId),
@@ -319,6 +326,13 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
     Ok(product_statuses)
 }
 
+#[derive(Debug, FromQueryResult)]
+struct FixVersionEntry {
+    advisory_id: Uuid,
+    vulnerability_id: String,
+    high_version: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct PurlAdvisory {
     #[serde(flatten)]
@@ -335,6 +349,65 @@ impl PurlAdvisory {
         let vulns = purl_statuses.load_one(vulnerability::Entity, tx).await?;
 
         let advisories = purl_statuses.load_one(advisory::Entity, tx).await?;
+
+        // Bulk-fetch fix versions for all (advisory, vulnerability) pairs
+        let mut all_advisory_ids: Vec<Uuid> = purl_statuses.iter().map(|s| s.advisory_id).collect();
+        let mut all_vuln_ids: Vec<String> = purl_statuses
+            .iter()
+            .map(|s| s.vulnerability_id.clone())
+            .collect();
+        for ps in &product_statuses {
+            all_advisory_ids.push(ps.advisory.id);
+            all_vuln_ids.push(ps.vulnerability.id.clone());
+        }
+        all_advisory_ids.sort();
+        all_advisory_ids.dedup();
+        all_vuln_ids.sort();
+        all_vuln_ids.dedup();
+
+        let fix_versions_map = if all_advisory_ids.is_empty() {
+            HashMap::new()
+        } else {
+            let advisory_ids = all_advisory_ids.to_vec();
+            let vulnerability_ids = all_vuln_ids.clone();
+
+            let fix_version_entries: Vec<FixVersionEntry> = purl_status::Entity::find()
+                .select_only()
+                .column_as(purl_status::Column::AdvisoryId, "advisory_id")
+                .column_as(purl_status::Column::VulnerabilityId, "vulnerability_id")
+                .column_as(version_range::Column::HighVersion, "high_version")
+                .join(JoinType::Join, purl_status::Relation::Status.def())
+                .join(JoinType::Join, purl_status::Relation::VersionRange.def())
+                .filter(Expr::col((status::Entity, status::Column::Slug)).eq("fixed"))
+                .filter(
+                    Expr::col((purl_status::Entity, purl_status::Column::AdvisoryId))
+                        .eq(PgFunc::any(advisory_ids)),
+                )
+                .filter(
+                    Expr::col((purl_status::Entity, purl_status::Column::VulnerabilityId))
+                        .eq(PgFunc::any(vulnerability_ids)),
+                )
+                .distinct()
+                .into_model::<FixVersionEntry>()
+                .all(tx)
+                .await?;
+
+            let mut map: HashMap<(Uuid, String), Vec<String>> = HashMap::new();
+            for entry in fix_version_entries {
+                if let Some(version) = entry.high_version {
+                    if version.starts_with("sha256:") {
+                        continue;
+                    }
+                    let versions = map
+                        .entry((entry.advisory_id, entry.vulnerability_id))
+                        .or_default();
+                    if !versions.contains(&version) {
+                        versions.push(version);
+                    }
+                }
+            }
+            map
+        };
 
         let mut results: Vec<PurlAdvisory> = Vec::new();
 
@@ -359,8 +432,13 @@ impl PurlAdvisory {
             });
 
             if let Some(advisory) = advisory {
+                let fv = fix_versions_map
+                    .get(&(status.advisory_id, status.vulnerability_id.clone()))
+                    .cloned()
+                    .unwrap_or_default();
+
                 let qualified_package_status =
-                    PurlStatus::from_entity(&vulnerability, advisory, status, tx).await?;
+                    PurlStatus::from_entity(&vulnerability, advisory, status, fv, tx).await?;
 
                 if let Some(entry) = results.iter_mut().find(|e| e.head.uuid == advisory.id) {
                     entry.status.push(qualified_package_status)
@@ -381,12 +459,21 @@ impl PurlAdvisory {
         }
 
         for product_status in product_statuses {
+            let fv = fix_versions_map
+                .get(&(
+                    product_status.advisory.id,
+                    product_status.vulnerability.id.clone(),
+                ))
+                .cloned()
+                .unwrap_or_default();
+
             let purl_status = PurlStatus::new(
                 &product_status.vulnerability,
                 &product_status.advisory,
                 product_status.status.slug.clone(),
                 Some(VersionRange::from_entity(product_status.version_range)?),
                 Some(product_status.cpe.to_string()),
+                fv,
                 tx,
             )
             .await?;
@@ -429,6 +516,8 @@ pub struct PurlStatus {
     #[schema(required)]
     pub context: Option<StatusContext>,
     pub version_range: Option<VersionRange>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fixed_versions: Vec<String>,
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug, ToSchema, PartialEq, Eq)]
@@ -445,6 +534,7 @@ impl PurlStatus {
         status: String,
         version_range: Option<VersionRange>,
         cpe: Option<String>,
+        fixed_versions: Vec<String>,
         tx: &C,
     ) -> Result<Self, Error> {
         // Query scores from the new advisory_vulnerability_score table
@@ -468,6 +558,7 @@ impl PurlStatus {
             status,
             context: cpe.map(StatusContext::Cpe),
             version_range,
+            fixed_versions,
         })
     }
 
@@ -478,6 +569,7 @@ impl PurlStatus {
         version_range: Option<VersionRange>,
         cpe: Option<String>,
         score_models: &[advisory_vulnerability_score::Model],
+        fixed_versions: Vec<String>,
     ) -> Result<Self, Error> {
         let scores = score_models
             .iter()
@@ -492,6 +584,7 @@ impl PurlStatus {
             status,
             context: cpe.map(StatusContext::Cpe),
             version_range,
+            fixed_versions,
         })
     }
 
@@ -499,6 +592,7 @@ impl PurlStatus {
         vuln: &vulnerability::Model,
         advisory: &advisory::Model,
         package_status: &purl_status::Model,
+        fixed_versions: Vec<String>,
         tx: &C,
     ) -> Result<Self, Error> {
         let status = status::Entity::find_by_id(package_status.status_id)
@@ -519,7 +613,16 @@ impl PurlStatus {
             .map(VersionRange::from_entity)
             .transpose()?;
 
-        PurlStatus::new(vuln, advisory, status, version_range, cpe, tx).await
+        PurlStatus::new(
+            vuln,
+            advisory,
+            status,
+            version_range,
+            cpe,
+            fixed_versions,
+            tx,
+        )
+        .await
     }
 }
 

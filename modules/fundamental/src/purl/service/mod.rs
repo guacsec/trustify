@@ -122,11 +122,48 @@ impl InputPurl {
 
 pub struct PurlService {
     cache: PaginationCache,
+    recommend_patterns: Vec<Regex>,
+    pub(crate) report_package_limit: u64,
 }
 
 impl PurlService {
     pub fn new(cache: PaginationCache) -> Self {
-        Self { cache }
+        Self {
+            cache,
+            recommend_patterns: vec![],
+            report_package_limit: 10_000,
+        }
+    }
+
+    pub fn with_default_patterns(self) -> Self {
+        Self {
+            recommend_patterns: Self::default_recommend_patterns(),
+            ..self
+        }
+    }
+
+    pub fn with_recommend_patterns(self, patterns: Vec<Regex>) -> Self {
+        Self {
+            recommend_patterns: patterns,
+            ..self
+        }
+    }
+
+    /// Sets the maximum total package count allowed for a recommendation report request.
+    pub fn with_report_package_limit(self, limit: u64) -> Self {
+        Self {
+            report_package_limit: limit,
+            ..self
+        }
+    }
+
+    /// Default recommend patterns for vendor rebuilds.
+    ///
+    /// Matches both dot-separated (`3.0.3.redhat-00002`) and hyphen-separated (`0.14.1-redhat-00001`) vendor rebuilds.
+    /// `expect` is safe: the regex is a hardcoded literal known to be valid at compile time.
+    #[allow(clippy::expect_used)]
+    pub fn default_recommend_patterns() -> Vec<Regex> {
+        vec![Regex::new(r"^(.+)[.-]redhat-[0-9]+$").expect("valid default pattern")]
     }
 
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
