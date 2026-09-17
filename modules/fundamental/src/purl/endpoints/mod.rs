@@ -3,13 +3,14 @@ use crate::{
     endpoints::Deprecation,
     purl::{
         model::{
-            RecommendRequest, RecommendResponse, details::purl::PurlDetails,
-            summary::purl::PurlSummary,
+            RecommendReportRequest, RecommendReportResponse, RecommendRequest, RecommendResponse,
+            details::purl::PurlDetails, summary::purl::PurlSummary,
         },
         service::PurlService,
     },
 };
 use actix_web::{HttpResponse, Responder, get, post, web};
+use regex::Regex;
 use sea_orm::prelude::Uuid;
 use std::str::FromStr;
 use trustify_auth::{ReadAdvisory, ReadSbom, authorizer::Require};
@@ -29,8 +30,12 @@ pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
     db: db::ReadOnly,
     cache: PaginationCache,
+    recommend_patterns: Vec<Regex>,
+    report_package_limit: u64,
 ) {
-    let purl_service = PurlService::new(cache);
+    let purl_service = PurlService::new(cache)
+        .with_recommend_patterns(recommend_patterns)
+        .with_report_package_limit(report_package_limit);
 
     config
         .app_data(web::Data::new(db))
@@ -39,6 +44,7 @@ pub fn configure(
         .service(base::all_base_purls)
         .service(v2::recommend) // Must be before `get` to avoid {key} matching "recommend"
         .service(v3::recommend) // Must be before `get` to avoid {key} matching "recommend"
+        .service(v3::recommend_report)
         .service(all)
         .service(get);
 }
@@ -106,7 +112,8 @@ mod v2 {
         tag = "purl",
         request_body = RecommendRequest,
         responses(
-            (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse)
+            (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse),
+            (status = 503, description = "Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured"),
         )
     )]
     #[post("/v2/purl/recommend")]
@@ -117,6 +124,13 @@ mod v2 {
         request: web::Json<RecommendRequest>,
         _: Require<ReadAdvisory>,
     ) -> Result<impl Responder, Error> {
+        if purl_service.recommend_patterns().is_empty() {
+            return Ok(HttpResponse::ServiceUnavailable().json(serde_json::json!({
+                "status": 503,
+                "code": "FEATURE_UNCONFIGURED",
+                "message": "This endpoint is disabled until the required regex pattern TRUSTD_RECOMMEND_PATTERNS is configured on the server."
+            })));
+        }
         let tx = db.begin().await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
@@ -134,7 +148,8 @@ mod v3 {
         tag = "purl",
         request_body = RecommendRequest,
         responses(
-            (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse)
+            (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse),
+            (status = 503, description = "Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured"),
         )
     )]
     #[post("/v3/purl/recommend")]
@@ -144,11 +159,55 @@ mod v3 {
         request: web::Json<RecommendRequest>,
         _: Require<ReadAdvisory>,
     ) -> Result<impl Responder, Error> {
+        if purl_service.recommend_patterns().is_empty() {
+            return Ok(HttpResponse::ServiceUnavailable().json(serde_json::json!({
+                "status": 503,
+                "code": "FEATURE_UNCONFIGURED",
+                "message": "This endpoint is disabled until the required regex pattern TRUSTD_RECOMMEND_PATTERNS is configured on the server."
+            })));
+        }
         let tx = db.begin().await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
         let response = RecommendResponse { recommendations };
 
         Ok(HttpResponse::Ok().json(response))
+    }
+
+    #[utoipa::path(
+        operation_id = "recommendReport",
+        tag = "purl",
+        request_body = RecommendReportRequest,
+        responses(
+            (status = 200, description = "Aggregated recommendation report for the requested SBOMs", body = RecommendReportResponse),
+            (status = 413, description = "Total package count across requested SBOMs exceeds the configured limit"),
+        )
+    )]
+    #[post("/v3/recommend/report")]
+    /// Generate an aggregated vendor recommendation report for a set of SBOMs.
+    pub async fn recommend_report(
+        purl_service: web::Data<PurlService>,
+        db: web::Data<db::ReadOnly>,
+        request: web::Json<RecommendReportRequest>,
+        _: Require<ReadAdvisory>,
+        _: Require<ReadSbom>,
+    ) -> Result<impl Responder, Error> {
+        let tx = db.begin().await?;
+        let total = purl_service
+            .count_sbom_packages(&request.sbom_ids, &tx)
+            .await?;
+        if total > purl_service.report_package_limit() {
+            return Ok(HttpResponse::PayloadTooLarge().json(serde_json::json!({
+                "error": "package_limit_exceeded",
+                "message": format!(
+                    "Total packages ({total}) exceeds maximum ({}).",
+                    purl_service.report_package_limit()
+                )
+            })));
+        }
+        let report = purl_service
+            .report_for_sboms(&request.sbom_ids, &tx)
+            .await?;
+        Ok(HttpResponse::Ok().json(report))
     }
 }

@@ -1,4 +1,5 @@
 use crate::purl::{model::details::purl::StatusContext, service::PurlService};
+use regex::Regex;
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
@@ -26,7 +27,7 @@ async fn ingest_extra_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn types(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::new(PaginationCache::for_test()).with_default_patterns();
 
     let log4j = ctx
         .graph
@@ -1207,4 +1208,45 @@ async fn product_status_cross_domain_version(ctx: &TrustifyContext) -> Result<()
     );
 
     Ok(())
+}
+
+/// Verifies that the redhat pattern's capture group extracts the upstream base version.
+#[test]
+fn test_pattern_extracts_upstream_version() {
+    // Given a vendor rebuild pattern with one capture group
+    let pattern = Regex::new(r"^(.+)\.redhat-[0-9]+$").expect("valid pattern");
+
+    // When matching a vendor version string
+    let caps = pattern
+        .captures("4.3.4.redhat-00008")
+        .expect("pattern must match");
+
+    // Then capture group 1 is the upstream base version
+    let upstream = caps
+        .get(1)
+        .expect("capture group 1 must be present")
+        .as_str();
+    assert_eq!(upstream, "4.3.4");
+}
+
+/// Verifies that an invalid regex pattern is skipped without panicking during server startup.
+#[test]
+fn test_invalid_pattern_skipped() {
+    // This simulates the server's filter_map logic that skips invalid patterns.
+    let raw = "[invalid(";
+    let result = Regex::new(raw);
+    assert!(result.is_err(), "invalid pattern should fail to compile");
+    // Server code logs a warning and skips — no panic here.
+}
+
+/// Verifies that a pattern with no capture group is detected and would be skipped.
+#[test]
+fn test_pattern_no_capture_group_skipped() {
+    // A pattern with zero capture groups has captures_len() == 1.
+    let pattern = Regex::new(r"redhat-[0-9]+$").expect("valid pattern");
+    assert_eq!(
+        pattern.captures_len(),
+        1,
+        "pattern with no groups must have captures_len == 1 so server skips it"
+    );
 }

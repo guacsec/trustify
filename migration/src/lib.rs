@@ -78,6 +78,8 @@ mod m0002310_create_change_log;
 mod m0002320_fix_unbounded_version_matches;
 mod m0002330_fix_rpmver_cmp;
 mod m0002340_backfill_rpm_epoch;
+mod m0002350_drop_purl_status_gist_index;
+mod m0002360_pythonver_cmp_parallel_restricted;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -169,6 +171,8 @@ impl MigratorExt for Migrator {
             .normal(m0002320_fix_unbounded_version_matches::Migration)
             .normal(m0002330_fix_rpmver_cmp::Migration)
             .normal(m0002340_backfill_rpm_epoch::Migration)
+            .normal(m0002350_drop_purl_status_gist_index::Migration)
+            .normal(m0002360_pythonver_cmp_parallel_restricted::Migration)
     }
 }
 

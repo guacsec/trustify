@@ -31,6 +31,7 @@ garage-door = { workspace = true, optional = true }
 humantime = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
+regex = { workspace = true }
 serde = { workspace = true }
 serde_yml = { workspace = true }
 tokio = { workspace = true }
@@ -41,7 +42,6 @@ utoipa-actix-web = { workspace = true }
 [dev-dependencies]
 rstest = { workspace = true }
 serde_json = { workspace = true }
-urlencoding = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
 trustify-test-context = { workspace = true }

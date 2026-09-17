@@ -24,11 +24,6 @@ thiserror = { workspace = true }
 utoipa = { workspace = true }
 
 [dev-dependencies]
-anyhow = { workspace = true }
 log = { workspace = true }
 rstest = { workspace = true }
-test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
-tokio = { workspace = true, features = ["full"] }
-
-trustify-test-context = { workspace = true }
