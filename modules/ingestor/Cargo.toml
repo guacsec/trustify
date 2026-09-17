@@ -15,6 +15,7 @@ trustify-module-analysis = { workspace = true }
 
 actix-web = { workspace = true }
 anyhow = { workspace = true }
+base64 = { workspace = true }
 bytes = { workspace = true }
 cpe = { workspace = true }
 csaf = { workspace = true }

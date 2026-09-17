@@ -527,6 +527,59 @@ async fn test_license_pagination_with_count(ctx: &TrustifyContext) -> Result<(),
     Ok(())
 }
 
+/// Test that CycloneDX 1.7 extended license details land in `licensing_infos`
+/// Verifies: name, text (plain and base64-encoded) and URL are retrievable, and that a
+/// license carrying only an SPDX `id` is not recorded
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn test_cyclonedx_1dot7_extracted_licensing_infos(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let service = LicenseService::new();
+
+    let result = ctx.ingest_document("cyclonedx/licenses_1dot7.json").await?;
+    let sbom_id = Uuid::parse_str(&result.id)?;
+
+    let infos = service
+        .license_export(Id::Uuid(sbom_id), &ctx.db)
+        .await?
+        .extracted_licensing_infos;
+
+    let by_id = |license_id: &str| {
+        infos
+            .iter()
+            .find(|info| info.license_id == license_id)
+            .unwrap_or_else(|| panic!("missing licensing info for {license_id}"))
+    };
+
+    // the SPDX-id-only license is self-describing, so it is not recorded
+    assert_eq!(3, infos.len(), "unexpected licensing infos: {infos:#?}");
+
+    // `bom-ref` identifies the license, plain text is stored verbatim, URL becomes the comment
+    let acme = by_id("LicenseRef-acme");
+    assert_eq!("Acme Proprietary License", acme.name);
+    assert_eq!(
+        "Permission is granted to do absolutely nothing with this software.",
+        acme.extracted_text
+    );
+    assert_eq!("https://acme.example/license", acme.comment);
+
+    // base64 attachments are decoded
+    let encoded = by_id("LicenseRef-encoded");
+    assert_eq!("Encoded License", encoded.name);
+    assert_eq!(
+        "This license text arrived base64-encoded.",
+        encoded.extracted_text
+    );
+
+    // without a `bom-ref`, the name identifies the license
+    let named = by_id("Named Without Bom Ref");
+    assert_eq!("Named Without Bom Ref", named.name);
+    assert_eq!("", named.extracted_text);
+
+    Ok(())
+}
+
 /// Test that pre-loaded SPDX dictionary entries appear in license listing
 /// Verifies: LEFT JOIN on sbom_package_license allows pre-loaded licenses to be visible
 #[test_context(TrustifyContext)]
