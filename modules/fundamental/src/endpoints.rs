@@ -23,7 +23,7 @@ pub struct Config {
     /// Each pattern must have exactly one capture group that extracts the upstream base version.
     pub recommend_patterns: Vec<Regex>,
     /// Maximum total package count (across all requested SBOMs) allowed for a single
-    /// `POST /api/v3/recommend/report` request. Overrides `TRUSTD_RECOMMEND_REPORT_PACKAGE_LIMIT`
+    /// `POST /api/v3/purl/recommend/report` request. Overrides `TRUSTD_RECOMMEND_REPORT_PACKAGE_LIMIT`
     /// when set explicitly. Default: 10 000.
     pub recommend_report_package_limit: u64,
 }

@@ -166,7 +166,7 @@ pub enum VexStatus {
     Other(String),
 }
 
-/// Request body for the `POST /api/v3/recommend/report` endpoint.
+/// Request body for the `POST /api/v3/purl/recommend/report` endpoint.
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct RecommendReportRequest {
     /// SBOM IDs to include in the report.
