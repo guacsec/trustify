@@ -510,6 +510,7 @@ pub struct PurlStatus {
     pub context: Option<StatusContext>,
     pub version_range: Option<VersionRange>,
     #[serde(default)]
+    #[schema(required)]
     pub fixed_versions: Vec<String>,
 }
 

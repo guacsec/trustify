@@ -171,7 +171,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Semver,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Git, _) => {
@@ -183,7 +182,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Git,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::Maven(_)) => {
@@ -195,7 +193,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Maven,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::PyPI | Ecosystem::Python) => {
@@ -207,7 +204,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Python,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::Go) => {
@@ -219,7 +215,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Golang,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::Npm) => {
@@ -231,7 +226,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Npm,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::Packagist) => {
@@ -243,7 +237,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Packagist,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::NuGet) => {
@@ -255,7 +248,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::NuGet,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::RubyGems) => {
@@ -267,7 +259,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Gem,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::Hex) => {
@@ -279,7 +270,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Hex,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::SwiftURL) => {
@@ -291,7 +281,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Swift,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::Pub) => {
@@ -303,7 +292,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Pub,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (RangeType::Ecosystem, Ecosystem::CratesIO) => {
@@ -315,7 +303,6 @@ impl<'g> OsvLoader<'g> {
                                         VersionScheme::Cargo,
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                             (_, _) => {
@@ -327,7 +314,6 @@ impl<'g> OsvLoader<'g> {
                                         affected.versions.iter().flatten(),
                                     ),
                                     &mut purl_status_creator,
-                                    &mut purl_creator,
                                 );
                             }
                         }
@@ -353,19 +339,12 @@ impl<'g> OsvLoader<'g> {
     }
 }
 
-/// Process status entries: add to purl_status_creator and also create versioned_purl
-/// records for "fixed" entries with exact versions so the recommend endpoint can find them.
+/// Process status entries: add each entry to purl_status_creator.
 fn process_status_entries(
     entries: Vec<PurlStatusEntry>,
     purl_status_creator: &mut PurlStatusCreator,
-    purl_creator: &mut PurlCreator,
 ) {
     for entry in entries {
-        if entry.status == "fixed"
-            && let VersionSpec::Exact(ref version) = entry.version_info.spec
-        {
-            purl_creator.add(entry.purl.clone().with_version(version));
-        }
         purl_status_creator.add(entry);
     }
 }

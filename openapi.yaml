@@ -6972,6 +6972,7 @@ components:
       - scores
       - status
       - context
+      - fixed_versions
       properties:
         advisory:
           $ref: '#/components/schemas/AdvisoryHead'
@@ -7541,6 +7542,7 @@ components:
         - status
         - packages
         - scores
+        - fixed_versions
         properties:
           context:
             oneOf:
