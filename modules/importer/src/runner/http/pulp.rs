@@ -15,6 +15,9 @@ pub enum Error {
         #[source]
         source: fetcher::Error,
     },
+    /// The `PULP_MANIFEST` response body is not valid UTF-8.
+    #[error("PULP_MANIFEST at {url} is not valid UTF-8")]
+    ManifestEncoding { url: String },
     /// A line in `PULP_MANIFEST` does not conform to the expected `filename,sha256,size` format.
     #[error("malformed PULP_MANIFEST line {line}: {content:?}")]
     ManifestParse {
@@ -113,15 +116,21 @@ fn parse_manifest(content: &str) -> Result<Vec<ManifestEntry>, Error> {
     Ok(entries)
 }
 
-/// Appends `segment` to the path of `base`, ensuring exactly one `/` separator.
+/// Appends the `/`-separated parts of `segment` to `base` using the url crate's
+/// `path_segments_mut` API.
+///
+/// Using `path_segments_mut` rather than string manipulation avoids two hazards:
+/// 1. Double-encoding: `url.path()` returns the serialised (percent-encoded) path;
+///    concatenating to it and calling `set_path` re-encodes existing `%XX` sequences.
+/// 2. Percent-encoded dot traversal: `set_path` would interpret `%2e%2e` as a dot
+///    segment and shorten the path; `path_segments_mut().push()` encodes `%` as `%25`,
+///    keeping each segment opaque.
 fn append_path(base: &Url, segment: &str) -> Url {
     let mut url = base.clone();
-    let mut path = url.path().to_owned();
-    if !path.ends_with('/') {
-        path.push('/');
+    if let Ok(mut segs) = url.path_segments_mut() {
+        segs.pop_if_empty();
+        segs.extend(segment.split('/').filter(|s| !s.is_empty()));
     }
-    path.push_str(segment);
-    url.set_path(&path);
     url
 }
 
@@ -156,7 +165,9 @@ fn matches_patterns(filename: &str, patterns: &[Regex]) -> bool {
 /// to the shared retrieval layer.
 pub struct PulpManifest {
     fetcher: Arc<Fetcher>,
-    only_patterns: Vec<Regex>,
+    /// Compiled patterns stored in an `Arc` so each `discover()` call increments a
+    /// reference count rather than deep-copying every `Regex`.
+    only_patterns: Arc<[Regex]>,
 }
 
 impl PulpManifest {
@@ -175,7 +186,7 @@ impl PulpManifest {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             fetcher: Arc::new(fetcher),
-            only_patterns: compiled,
+            only_patterns: compiled.into(),
         })
     }
 }
@@ -187,7 +198,7 @@ impl DiscoveryStrategy for PulpManifest {
     ) -> impl Future<Output = anyhow::Result<Vec<DiscoveredFile>>> + Send {
         let fetcher = Arc::clone(&self.fetcher);
         let source = source.clone();
-        let patterns = self.only_patterns.clone();
+        let patterns = Arc::clone(&self.only_patterns);
 
         async move {
             let murl = manifest_url(&source);
@@ -198,25 +209,24 @@ impl DiscoveryStrategy for PulpManifest {
                     .fetch(murl.as_str())
                     .await
                     .map_err(|e| Error::ManifestFetch {
-                        url: murl_str,
+                        url: murl_str.clone(),
                         source: e,
                     })?;
 
-            let content = String::from_utf8_lossy(&bytes);
-            let entries = parse_manifest(&content)?;
+            let content = std::str::from_utf8(&bytes)
+                .map_err(|_| Error::ManifestEncoding { url: murl_str })?;
 
-            let mut files = Vec::with_capacity(entries.len());
-            for entry in entries {
-                if !matches_patterns(&entry.filename, &patterns) {
-                    continue;
-                }
-                let url = file_url(&source, &entry.filename);
-                files.push(DiscoveredFile {
-                    url,
+            let entries = parse_manifest(content)?;
+
+            let files = entries
+                .into_iter()
+                .filter(|entry| matches_patterns(&entry.filename, &patterns))
+                .map(|entry| DiscoveredFile {
+                    url: file_url(&source, &entry.filename),
                     sha256: Some(entry.sha256),
                     size: Some(entry.size),
-                });
-            }
+                })
+                .collect();
 
             Ok(files)
         }
@@ -342,6 +352,28 @@ mod test {
         assert_eq!(
             manifest_url(&without_slash).as_str(),
             "https://repo.example.com/pub/PULP_MANIFEST"
+        );
+    }
+
+    /// Verifies that `file_url` correctly constructs multi-segment paths from manifest
+    /// entries with subdirectories, and that `%2e%2e` is not treated as a dot segment.
+    #[test]
+    fn file_url_constructs_correctly() {
+        let base: Url = "https://repo.example.com/pub/".parse().expect("static URL");
+
+        // Multi-segment path
+        assert_eq!(
+            file_url(&base, "Packages/foo.rpm").as_str(),
+            "https://repo.example.com/pub/Packages/foo.rpm"
+        );
+
+        // Percent-encoded literal in manifest filename — must NOT be treated as traversal.
+        // path_segments_mut encodes % as %25, so %2e%2e becomes %252e%252e (no traversal).
+        let traversal_attempt = file_url(&base, "%2e%2e/secret");
+        let path = traversal_attempt.path();
+        assert!(
+            !path.contains("/secret") || path.contains("%252e"),
+            "percent-encoded dot segments must not produce path traversal, got: {path}"
         );
     }
 }
