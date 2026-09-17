@@ -850,7 +850,7 @@ async fn get_recommendations_best_across_patterns(
 async fn recommend_report_req(app: &impl CallService, sbom_ids: &[Uuid]) -> Value {
     app.call_and_read_body_json(
         TestRequest::post()
-            .uri("/api/v3/recommend/report")
+            .uri("/api/v3/purl/recommend/report")
             .set_json(json!({ "sbom_ids": sbom_ids }))
             .to_request(),
     )
@@ -1047,7 +1047,7 @@ async fn recommend_report_package_limit_exceeded(
     let resp = app
         .call_service(
             TestRequest::post()
-                .uri("/api/v3/recommend/report")
+                .uri("/api/v3/purl/recommend/report")
                 .set_json(json!({ "sbom_ids": [sbom_id] }))
                 .to_request(),
         )
