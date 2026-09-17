@@ -293,20 +293,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "actix-ws"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12d4f2fbee3ef7a22fa6cb0e416b962237a167ed0419f22d4e451da2d7f082f8"
-dependencies = [
- "actix-codec",
- "actix-http",
- "actix-web",
- "bytestring",
- "futures-core",
- "tokio",
-]
-
-[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3157,19 +3143,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gloo-utils"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "037fcb07216cb3a30f7292bd0176b050b7b9a052ba830ef7d5d65f6dc64ba58e"
-dependencies = [
- "js-sys",
- "serde",
- "serde_json",
- "wasm-bindgen",
- "web-sys",
-]
-
-[[package]]
 name = "group"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3862,15 +3835,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4250ce6452e92010fdf7268ccc5d14faa80bb12fc741938534c58f16804e03c7"
 dependencies = [
  "hybrid-array",
-]
-
-[[package]]
-name = "inventory"
-version = "0.3.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4f0c30c76f2f4ccee3fe55a2435f691ca00c0e4bd87abe4f4a851b1d4dac39b"
-dependencies = [
- "rustversion",
 ]
 
 [[package]]
@@ -6585,23 +6549,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "scheck"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9300bbcf74ce990d5a84f8fd47bb9fe3887dfa2bd810a80c5fa9a68168af117b"
-dependencies = [
- "clap",
- "regex",
- "roxmltree",
- "serde",
- "serde_json",
- "serde_json_path",
- "serde_norway",
- "thiserror 2.0.20",
- "txt2data",
-]
-
-[[package]]
 name = "schemafy_core"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6989,17 +6936,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde-wasm-bindgen"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3b143e2833c57ab9ad3ea280d21fd34e285a42837aeb0ee301f4f41890fa00e"
-dependencies = [
- "js-sys",
- "serde",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "serde_core"
 version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7017,17 +6953,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.5",
-]
-
-[[package]]
-name = "serde_derive_internals"
-version = "0.28.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e578a843d40b4189a4d66bba51d7684f57da5bd7c304c64e14bd63efbef49509"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
 ]
 
 [[package]]
@@ -7064,56 +6989,6 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
-]
-
-[[package]]
-name = "serde_json_path"
-version = "0.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b992cea3194eea663ba99a042d61cea4bd1872da37021af56f6a37e0359b9d33"
-dependencies = [
- "inventory",
- "nom",
- "regex",
- "serde",
- "serde_json",
- "serde_json_path_core",
- "serde_json_path_macros",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "serde_json_path_core"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dde67d8dfe7d4967b5a95e247d4148368ddd1e753e500adb34b3ffe40c6bc1bc"
-dependencies = [
- "inventory",
- "serde",
- "serde_json",
- "thiserror 2.0.20",
-]
-
-[[package]]
-name = "serde_json_path_macros"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "517acfa7f77ddaf5c43d5f119c44a683774e130b4247b7d3210f8924506cfac8"
-dependencies = [
- "inventory",
- "serde_json_path_core",
- "serde_json_path_macros_internal",
-]
-
-[[package]]
-name = "serde_json_path_macros_internal"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aafbefbe175fa9bf03ca83ef89beecff7d2a95aaacd5732325b90ac8c3bd7b90"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
 ]
 
 [[package]]
@@ -8437,7 +8312,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-auth"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -8470,7 +8345,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-cli"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "anyhow",
  "chrono",
@@ -8489,7 +8364,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-common"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -8550,9 +8425,10 @@ dependencies = [
 
 [[package]]
 name = "trustify-db"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "anyhow",
+ "async-compression",
  "log",
  "postgresql_commands",
  "postgresql_embedded",
@@ -8566,8 +8442,9 @@ dependencies = [
 
 [[package]]
 name = "trustify-entity"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
+ "anyhow",
  "cpe",
  "csaf",
  "cvss",
@@ -8580,16 +8457,19 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.28.0",
+ "test-context",
  "test-log",
  "thiserror 2.0.20",
  "time",
+ "tokio",
  "trustify-common",
+ "trustify-test-context",
  "utoipa",
 ]
 
 [[package]]
 name = "trustify-infrastructure"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-cors",
  "actix-tls",
@@ -8602,6 +8482,7 @@ dependencies = [
  "futures",
  "http 1.5.0",
  "log",
+ "mime",
  "openssl",
  "opentelemetry",
  "opentelemetry-instrumentation-actix-web",
@@ -8623,7 +8504,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-migration"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8644,6 +8525,7 @@ dependencies = [
  "test-context",
  "test-log",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
  "trustify-common",
@@ -8657,22 +8539,27 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-analysis"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-http",
  "actix-web",
  "anyhow",
+ "bytes",
  "bytesize",
  "clap",
  "cpe",
+ "csaf",
  "deepsize",
  "fixedbitset",
  "futures",
+ "hex",
  "humantime",
+ "itertools 0.14.0",
  "jsonpath-rust",
  "log",
  "moka",
  "opentelemetry",
+ "packageurl",
  "parking_lot",
  "petgraph",
  "rstest",
@@ -8680,11 +8567,13 @@ dependencies = [
  "sea-query",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
  "test-context",
  "test-log",
  "thiserror 2.0.20",
  "time",
  "tokio",
+ "tokio-util",
  "tracing",
  "trustify-auth",
  "trustify-common",
@@ -8694,18 +8583,21 @@ dependencies = [
  "utoipa",
  "utoipa-actix-web",
  "uuid",
+ "zip 8.6.0",
 ]
 
 [[package]]
 name = "trustify-module-exploit-intelligence"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
+ "actix-http",
  "actix-web",
  "anyhow",
  "bytes",
  "futures-util",
  "reqwest 0.13.5",
  "sea-orm",
+ "sea-query",
  "serde",
  "serde_json",
  "test-context",
@@ -8731,12 +8623,14 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-fundamental"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-http",
  "actix-web",
  "anyhow",
+ "async-trait",
  "bytes",
+ "bytesize",
  "chrono",
  "cpe",
  "criterion",
@@ -8769,9 +8663,11 @@ dependencies = [
  "serde-cyclonedx",
  "serde_json",
  "serde_qs",
+ "serde_yaml_ng",
  "sha2 0.11.0",
  "spdx",
  "spdx-expression",
+ "spdx-rs",
  "strum 0.28.0",
  "tar",
  "test-context",
@@ -8779,6 +8675,7 @@ dependencies = [
  "thiserror 2.0.20",
  "time",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-core",
  "tracing-futures",
@@ -8800,12 +8697,13 @@ dependencies = [
  "utoipa-actix-web",
  "uuid",
  "walkdir",
+ "wiremock",
  "zip 8.6.0",
 ]
 
 [[package]]
 name = "trustify-module-importer"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -8861,7 +8759,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-ingestor"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -8881,10 +8779,10 @@ dependencies = [
  "packageurl",
  "parking_lot",
  "quick-xml",
+ "rand 0.10.2",
  "roxmltree",
  "rstest",
  "sbom-walker",
- "scheck",
  "sea-orm",
  "sea-query",
  "semver",
@@ -8895,7 +8793,6 @@ dependencies = [
  "spdx-expression",
  "spdx-rs",
  "strum 0.28.0",
- "tempfile",
  "test-context",
  "test-log",
  "thiserror 2.0.20",
@@ -8911,39 +8808,12 @@ dependencies = [
  "utoipa",
  "utoipa-actix-web",
  "uuid",
- "vers-rs",
  "zip 8.6.0",
 ]
 
 [[package]]
-name = "trustify-module-notification"
-version = "0.6.0-rc.1"
-dependencies = [
- "actix-web",
- "actix-ws",
- "anyhow",
- "clap",
- "futures",
- "humantime",
- "sea-orm",
- "serde",
- "serde_json",
- "test-context",
- "test-log",
- "tokio",
- "tracing",
- "trustify-auth",
- "trustify-common",
- "trustify-infrastructure",
- "trustify-test-context",
- "url",
- "utoipa-actix-web",
- "uuid",
-]
-
-[[package]]
 name = "trustify-module-storage"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -8958,9 +8828,11 @@ dependencies = [
  "log",
  "rand 0.10.2",
  "rstest",
+ "serde_json",
  "sha2 0.11.0",
  "strum 0.28.0",
  "tempfile",
+ "test-context",
  "test-log",
  "thiserror 2.0.20",
  "tokio",
@@ -8973,7 +8845,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-ui"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-web",
  "actix-web-static-files",
@@ -8995,7 +8867,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-user"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9017,14 +8889,14 @@ dependencies = [
 
 [[package]]
 name = "trustify-query"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "utoipa",
 ]
 
 [[package]]
 name = "trustify-query-derive"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "quote",
  "syn 2.0.119",
@@ -9032,7 +8904,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-server"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -9045,11 +8917,9 @@ dependencies = [
  "humantime",
  "log",
  "rand 0.10.2",
- "regex",
  "rstest",
  "serde",
  "serde_json",
- "serde_yaml_ng",
  "test-context",
  "test-log",
  "tokio",
@@ -9062,19 +8932,19 @@ dependencies = [
  "trustify-module-fundamental",
  "trustify-module-importer",
  "trustify-module-ingestor",
- "trustify-module-notification",
  "trustify-module-storage",
  "trustify-module-ui",
  "trustify-module-user",
  "trustify-test-context",
  "url",
+ "urlencoding",
  "utoipa",
  "utoipa-actix-web",
 ]
 
 [[package]]
 name = "trustify-test-context"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9124,7 +8994,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-trustd"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -9146,7 +9016,7 @@ dependencies = [
 [[package]]
 name = "trustify-ui"
 version = "0.1.0"
-source = "git+https://github.com/guacsec/trustify-ui.git?branch=publish%2Fmain#9ca232fc7b8b06aa5ec37d7c065b487780654522"
+source = "git+https://github.com/guacsec/trustify-ui.git?branch=publish%2Frelease%2F0.6.z#696c175d7af5d4aa913cf17889028ed96078671c"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -9162,41 +9032,6 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
-
-[[package]]
-name = "tsify"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6b26cf145f2f3b9ff84e182c448eaf05468e247f148cf3d2a7d67d78ff023a0"
-dependencies = [
- "gloo-utils",
- "serde",
- "serde_json",
- "tsify-macros",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "tsify-macros"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a94b0f0954b3e59bfc2c246b4c8574390d94a4ad4ad246aaf2fb07d7dfd3b47"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde_derive_internals 0.28.0",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "txt2data"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fc25092e08636ff74b83888641275ea87aac449ffaa59b9522f6f299690a5dc"
-dependencies = [
- "thiserror 2.0.20",
- "unicode-general-category",
-]
 
 [[package]]
 name = "typed-path"
@@ -9227,12 +9062,6 @@ name = "unicode-bidi"
 version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c1cb5db39152898a79168971543b1cb5020dff7fe43c8dc468b0885f5e29df5"
-
-[[package]]
-name = "unicode-general-category"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b993bddc193ae5bd0d623b49ec06ac3e9312875fdae725a975c51db1cc1677f"
 
 [[package]]
 name = "unicode-ident"
@@ -9467,23 +9296,6 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
-
-[[package]]
-name = "vers-rs"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6143511ab2bfe590aa7231a98fbb124d47462ee0cac70eabae56ee0ec6ba951"
-dependencies = [
- "derive_more 2.1.1",
- "js-sys",
- "percent-encoding",
- "semver",
- "serde",
- "serde-wasm-bindgen",
- "thiserror 2.0.20",
- "tsify",
- "wasm-bindgen",
-]
 
 [[package]]
 name = "version_check"
@@ -10100,7 +9912,7 @@ checksum = "66fee0b777b0f5ac1c69bb06d361268faafa61cd4682ae064a171c16c433e9e4"
 
 [[package]]
 name = "xtask"
-version = "0.6.0-rc.1"
+version = "0.6.0-rc.5"
 dependencies = [
  "anyhow",
  "bytes",
