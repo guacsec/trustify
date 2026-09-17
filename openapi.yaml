@@ -30,7 +30,6 @@ paths:
                     type: boolean
                   version:
                     type: string
-  /api/api/v3/recommend/report:
     post:
       tags:
       - purl
