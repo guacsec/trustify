@@ -13,9 +13,14 @@
 | `CLIENT_TLS_CA_CERTIFICATES`             | Additional certificates which will be added as trust anchors                        |                                         |
 | `CLIENT_TLS_INSECURE`                    | Make the TLS client insecure, disabling all validation                              | `false`                                 |
 | `HTTP_SERVER_BIND_ADDR`                  | Address to listen on                                                                | `::1`                                   |
+| `HTTP_SERVER_CORS_ALLOWED_ORIGINS`       | Comma-separated list of origins allowed for cross-origin requests; empty means same-origin only |                                         |
+| `HTTP_SERVER_CORS_PERMISSIVE`            | Allow any CORS origin, method, and header; development only and unsafe for production | `false`                                 |
 | `HTTP_SERVER_DISABLE_LOG`                | Disable the request log                                                             | `false`                                 |
 | `HTTP_SERVER_JSON_LIMIT`                 | JSON request limit                                                                  | `2 MiB`                                 |
 | `HTTP_SERVER_REQUEST_LIMIT`              | Overall request limit                                                               | `256 KiB`                               |
+| `HTTP_SERVER_SECURITY_HEADERS_DISABLED`  | Disable the default security response headers; disabling weakens defense-in-depth protections | `false`                                 |
+| `HTTP_SERVER_CSP`                        | Content-Security-Policy header value; empty omits CSP                              | `frame-ancestors 'none'`               |
+| `HTTP_SERVER_HSTS`                       | Strict-Transport-Security value; opt-in, only applied when TLS is enabled, and honored over HTTPS |                                         |
 | `HTTP_SERVER_TLS_CERTIFICATE_FILE`       | Path to the TLS certificate in PEM format                                           |                                         |
 | `HTTP_SERVER_TLS_CIPHERS`                | TLS 1.2 cipher list in OpenSSL format (custom profile only)                         |                                         |
 | `HTTP_SERVER_TLS_CIPHERSUITES`           | TLS 1.3 ciphersuites in OpenSSL format (custom profile only)                        |                                         |
