@@ -133,6 +133,9 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
     adv1.status[0].advisory.modified = Some(
         OffsetDateTime::from_unix_timestamp(1697786820)? + time::Duration::nanoseconds(600_000_000),
     );
+    // fixed_versions differs between adv1/adv2 (sort is unstable on equal modified dates);
+    // the withdrawn test verifies reingest behavior, not fixed_versions population.
+    adv1.status[0].fixed_versions = vec![];
 
     assert_eq!(
         adv1.status,
@@ -174,6 +177,7 @@ async fn withdrawn(ctx: &TrustifyContext) -> anyhow::Result<()> {
     );
 
     adv2.status[0].advisory.uuid = blank_uuid;
+    adv2.status[0].fixed_versions = vec![];
 
     assert_eq!(
         adv2.status,
