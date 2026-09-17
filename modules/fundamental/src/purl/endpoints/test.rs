@@ -155,9 +155,16 @@ async fn package_with_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     let request = TestRequest::get().uri(uri).to_request();
     let response: PaginatedResults<PurlSummary> = app.call_and_read_body_json(request).await;
 
-    assert_eq!(1, response.items.len());
+    // OSV ingestion now also creates a versioned PURL for the fixed version (hyper@0.14.10)
+    assert_eq!(2, response.items.len());
 
-    let uuid = response.items[0].head.uuid;
+    let uuid = response
+        .items
+        .iter()
+        .find(|p| p.head.purl.version.as_deref() == Some("0.14.1"))
+        .expect("hyper@0.14.1 must exist after explicit ingestion")
+        .head
+        .uuid;
 
     let uri = format!("/api/v3/purl/{uuid}");
 

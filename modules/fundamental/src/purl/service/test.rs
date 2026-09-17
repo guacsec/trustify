@@ -803,9 +803,16 @@ async fn statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .purls(Query::default(), Paginated::default(), &ctx.db)
         .await?;
 
-    assert_eq!(1, results.items.len());
+    // OSV ingestion now also creates a versioned PURL for the fixed version (hyper@0.14.10)
+    assert_eq!(2, results.items.len());
 
-    let uuid = results.items[0].head.uuid;
+    let uuid = results
+        .items
+        .iter()
+        .find(|p| p.head.purl.version.as_deref() == Some("0.14.1"))
+        .expect("hyper@0.14.1 must exist after explicit ingestion")
+        .head
+        .uuid;
 
     let results = service
         .purl_by_uuid(&uuid, Default::default(), &ctx.db)
@@ -1158,7 +1165,9 @@ async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), a
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn product_status_cross_domain_version(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test()).with_default_patterns();
+    // No recommend patterns — this test verifies CPE-context status entries,
+    // not recommendation pattern filtering.
+    let service = PurlService::new(PaginationCache::for_test());
     ctx.ingest_dataset(Dataset::DS1).await?;
 
     // Given keycloak-core@18.0.6 — its version (18.x) exceeds the Quarkus product
