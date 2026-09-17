@@ -226,16 +226,28 @@ inline check when the gate is conditional, shared across code paths, or needed i
 ### Tier 3: Capability sets (informational)
 
 Some categories of features have multiple options that can be independently enabled — for example,
-which importers are configured, or which document formats are supported. These are exposed as named
+which importers are available, or which document formats are supported. These are exposed as named
 sets: each category lists which options within it are active.
-
-The canonical example is importers. At startup the importer configuration table is queried; each
-importer type that has at least one enabled configuration entry appears in the set:
 
 ```rust
 /// Active capabilities by category.
 pub type Capabilities = HashMap<String, Vec<String>>;
 ```
+
+Capability sets reflect the intersection of what is *implemented* (compiled into the binary) and what
+is *enabled* (not masked out by operator configuration). A capability appears in the set only when both
+conditions are met:
+
+- The code for that capability is compiled in (not excluded by a Cargo feature)
+- The capability is not disabled by the operator via environment variables or CLI arguments
+
+The canonical example is importers. The set of *implemented* importer types is known at compile time —
+each compiled-in importer type registers itself. By default all implemented types are available. The
+operator can narrow this set via configuration (e.g., environment variables or CLI arguments that mask
+out specific types). The `capabilities.importers` array contains the resulting active set.
+
+This means the capability set is resolved at startup from the compiled-in types and the operator's
+configuration, following the same lifecycle as tier 2 configuration gates.
 
 These are advisory — they inform the UI which sections to show but do not block API calls. Endpoints
 for data-dependent features remain available and return empty results when no data has been ingested.
@@ -286,9 +298,10 @@ Cargo feature (compile-time)
 ```
 
 A feature disabled at any tier is unavailable. A Cargo feature disabled at build time means the feature
-never appears in `features` and its options never appear in `capabilities`. A Cargo feature enabled but
-not configured at runtime means it is absent from `features`. A feature that is active but has no
-configured importers appears in `features` but has no entry in `capabilities.importers`.
+never appears in `features` and its types never appear in `capabilities`. A Cargo feature enabled but
+not configured at runtime means it is absent from `features`. An importer type that is compiled in but
+masked out by operator configuration does not appear in `capabilities.importers` — and importers of that
+type configured in the database will not run.
 
 ### What is NOT a feature gate
 
@@ -329,8 +342,10 @@ Existing features are migrated incrementally:
    when `validators_config.is_some()`. No endpoint guard needed (validators run during ingestion), but
    presence in `features` makes the state discoverable.
 
-4. **Importers** — query the importer table at startup and populate `capabilities.importers` with the
-   active types. No endpoint guards — the set is informational for the UI.
+4. **Importers** — register all compiled-in importer types, apply operator configuration to determine
+   the active set, and populate `capabilities.importers`. Importers that are configured in the database
+   but whose type is not in the active capability set are silently skipped — they will not run. No
+   endpoint guards — the set is informational for the UI.
 
 ## Alternatives considered
 
