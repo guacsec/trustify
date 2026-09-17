@@ -516,7 +516,7 @@ pub struct PurlStatus {
     #[schema(required)]
     pub context: Option<StatusContext>,
     pub version_range: Option<VersionRange>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub fixed_versions: Vec<String>,
 }
 
