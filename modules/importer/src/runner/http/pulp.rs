@@ -40,9 +40,30 @@ struct ManifestEntry {
     size: u64,
 }
 
+/// Returns `true` when `filename` is safe to use as a URL path component.
+///
+/// Rejects empty strings, absolute paths, and any path segment equal to `..`
+/// to prevent path traversal when constructing download URLs.
+fn is_safe_filename(filename: &str) -> bool {
+    !filename.is_empty()
+        && !filename.starts_with('/')
+        && !filename.split('/').any(|seg| seg == "..")
+}
+
+/// Returns `true` when `digest` is a valid lowercase-or-uppercase 64-character hex string.
+fn is_valid_sha256(digest: &str) -> bool {
+    digest.len() == 64 && digest.chars().all(|c| c.is_ascii_hexdigit())
+}
+
 /// Parses the text body of a `PULP_MANIFEST` CSV into a list of entries.
 ///
-/// Each non-empty line must be of the form `filename,sha256hex,size_bytes`.
+/// The Pulp manifest format is a simple three-column, unquoted CSV
+/// (`filename,sha256hex,size_bytes`). Quoted fields and commas inside
+/// filenames are not part of the Pulp spec, so a plain `splitn` is correct;
+/// a Pulp-generated filename never contains a comma.
+///
+/// Each non-empty line is validated for a non-empty safe filename, a 64-char
+/// hex SHA-256, and a parseable non-negative size.
 fn parse_manifest(content: &str) -> Result<Vec<ManifestEntry>, Error> {
     let mut entries = Vec::new();
     for (i, raw) in content.lines().enumerate() {
@@ -59,13 +80,24 @@ fn parse_manifest(content: &str) -> Result<Vec<ManifestEntry>, Error> {
         }
         let filename = parts[0].trim().to_string();
         let sha256 = parts[1].trim().to_string();
-        let size = parts[2]
-            .trim()
-            .parse::<u64>()
-            .map_err(|_| Error::ManifestParse {
+        let size_str = parts[2].trim();
+
+        if !is_safe_filename(&filename) {
+            return Err(Error::ManifestParse {
                 line: i + 1,
                 content: line.to_string(),
-            })?;
+            });
+        }
+        if !is_valid_sha256(&sha256) {
+            return Err(Error::ManifestParse {
+                line: i + 1,
+                content: line.to_string(),
+            });
+        }
+        let size = size_str.parse::<u64>().map_err(|_| Error::ManifestParse {
+            line: i + 1,
+            content: line.to_string(),
+        })?;
         entries.push(ManifestEntry {
             filename,
             sha256,
@@ -196,22 +228,24 @@ mod test {
     /// with correct filename, sha256, and size values.
     #[test]
     fn parse_manifest_produces_expected_entries() {
-        // Given
-        let body = "\
-Packages/foo.json,abc123,1024\n\
-Packages/bar.xml,def456,2048\n\
-README,000000,5\n";
+        // Given — use valid 64-char hex digests
+        let sha1 = "a".repeat(64);
+        let sha2 = "b".repeat(64);
+        let sha3 = "0".repeat(64);
+        let body = format!(
+            "Packages/foo.json,{sha1},1024\nPackages/bar.xml,{sha2},2048\nREADME,{sha3},5\n"
+        );
 
         // When
-        let entries = parse_manifest(body).expect("valid manifest should parse");
+        let entries = parse_manifest(&body).expect("valid manifest should parse");
 
         // Then
         assert_eq!(entries.len(), 3);
         assert_eq!(entries[0].filename, "Packages/foo.json");
-        assert_eq!(entries[0].sha256, "abc123");
+        assert_eq!(entries[0].sha256, sha1);
         assert_eq!(entries[0].size, 1024);
         assert_eq!(entries[1].filename, "Packages/bar.xml");
-        assert_eq!(entries[1].sha256, "def456");
+        assert_eq!(entries[1].sha256, sha2);
         assert_eq!(entries[1].size, 2048);
         assert_eq!(entries[2].filename, "README");
         assert_eq!(entries[2].size, 5);
@@ -222,16 +256,44 @@ README,000000,5\n";
     #[test]
     fn parse_manifest_malformed_line_returns_error() {
         // Given: second line is malformed
-        let body = "good.json,abc,100\nbad_line\n";
+        let body = format!("good.json,{},100\nbad_line\n", "a".repeat(64));
 
         // When
-        let result = parse_manifest(body);
+        let result = parse_manifest(&body);
 
         // Then
         assert!(
             matches!(result, Err(Error::ManifestParse { line: 2, .. })),
             "expected ManifestParse error for line 2, got: {result:?}"
         );
+    }
+
+    /// Verifies that path traversal filenames (`..` segments or absolute paths) are rejected.
+    #[test]
+    fn parse_manifest_rejects_path_traversal() {
+        let sha256 = "a".repeat(64);
+        for bad in &["../../etc/passwd", "/etc/passwd", "sub/../secret"] {
+            let body = format!("{bad},{sha256},100");
+            assert!(
+                matches!(parse_manifest(&body), Err(Error::ManifestParse { .. })),
+                "expected rejection of filename {bad:?}"
+            );
+        }
+    }
+
+    /// Verifies that an invalid SHA-256 digest (wrong length or non-hex) is rejected.
+    #[test]
+    fn parse_manifest_rejects_invalid_sha256() {
+        for bad_digest in &[
+            "abc123",
+            "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        ] {
+            let body = format!("file.json,{bad_digest},100");
+            assert!(
+                matches!(parse_manifest(&body), Err(Error::ManifestParse { .. })),
+                "expected rejection of digest {bad_digest:?}"
+            );
+        }
     }
 
     /// Verifies that a regex pattern `.*\.json$` selects only JSON filenames, and that
