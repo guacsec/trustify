@@ -1,7 +1,7 @@
 use crate::runner::http::discovery::{DiscoveredFile, DiscoveryStrategy};
 use bytes::Bytes;
 use regex::Regex;
-use std::{future::Future, sync::Arc};
+use std::{future::Future, str::FromStr, sync::Arc};
 use url::Url;
 use walker_common::fetcher::{self, Fetcher};
 
@@ -23,9 +23,9 @@ pub enum Error {
         /// Raw text of the offending line.
         content: String,
     },
-    /// A supplied glob pattern could not be compiled to a regular expression.
-    #[error("invalid glob pattern '{pattern}': {source}")]
-    InvalidGlob {
+    /// A supplied regex pattern could not be compiled.
+    #[error("invalid pattern '{pattern}': {source}")]
+    InvalidPattern {
         pattern: String,
         #[source]
         source: regex::Error,
@@ -38,28 +38,6 @@ struct ManifestEntry {
     filename: String,
     sha256: String,
     size: u64,
-}
-
-/// Compiles a glob pattern (supporting `*` and `?` wildcards) into a [`Regex`] that
-/// matches against filenames; path separators are not crossed by wildcards.
-fn compile_glob(pattern: &str) -> Result<Regex, Error> {
-    let mut re = String::from("^");
-    for c in pattern.chars() {
-        match c {
-            '*' => re.push_str("[^/]*"),
-            '?' => re.push_str("[^/]"),
-            '.' | '+' | '(' | ')' | '[' | ']' | '{' | '}' | '^' | '$' | '|' | '\\' => {
-                re.push('\\');
-                re.push(c);
-            }
-            other => re.push(other),
-        }
-    }
-    re.push('$');
-    Regex::new(&re).map_err(|e| Error::InvalidGlob {
-        pattern: pattern.to_owned(),
-        source: e,
-    })
 }
 
 /// Parses the text body of a `PULP_MANIFEST` CSV into a list of entries.
@@ -122,7 +100,7 @@ fn file_url(base: &Url, filename: &str) -> Url {
     url
 }
 
-/// Returns `true` when `filename` matches at least one compiled glob in `patterns`,
+/// Returns `true` when `filename` matches at least one compiled regex in `patterns`,
 /// or when `patterns` is empty (include-all semantics).
 ///
 /// Matching is performed against the basename (last path segment) of `filename`,
@@ -138,21 +116,27 @@ fn matches_patterns(filename: &str, patterns: &[Regex]) -> bool {
 /// Discovery strategy that reads a Pulp repository's `PULP_MANIFEST` index.
 ///
 /// Fetches `{source}/PULP_MANIFEST`, parses each CSV line into a [`DiscoveredFile`]
-/// with SHA-256 and size integrity metadata, and applies optional glob-style
-/// `only_patterns` filtering before returning the list to the shared retrieval layer.
+/// with SHA-256 and size integrity metadata, and applies optional regex `only_patterns`
+/// filtering (same semantics as the existing walker `Filter`) before returning the list
+/// to the shared retrieval layer.
 pub struct PulpManifest {
     fetcher: Arc<Fetcher>,
     only_patterns: Vec<Regex>,
 }
 
 impl PulpManifest {
-    /// Creates a new `PulpManifest` strategy, compiling `only_patterns` as glob patterns.
+    /// Creates a new `PulpManifest` strategy, compiling `only_patterns` as regular expressions.
     ///
     /// Returns an error if any pattern is invalid. Empty `only_patterns` includes all files.
     pub fn new(fetcher: Fetcher, only_patterns: Vec<String>) -> Result<Self, Error> {
         let compiled = only_patterns
             .into_iter()
-            .map(|p| compile_glob(&p))
+            .map(|p| {
+                Regex::from_str(&p).map_err(|e| Error::InvalidPattern {
+                    pattern: p,
+                    source: e,
+                })
+            })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             fetcher: Arc::new(fetcher),
@@ -250,15 +234,15 @@ README,000000,5\n";
         );
     }
 
-    /// Verifies that `*.json` selects only JSON filenames, and that empty patterns
-    /// include all files.
+    /// Verifies that a regex pattern `.*\.json$` selects only JSON filenames, and that
+    /// empty patterns include all files — matching the existing walker `Filter` semantics.
     #[test]
-    fn only_patterns_filters_by_glob() {
+    fn only_patterns_filters_by_regex() {
         // Given
-        let json_re = compile_glob("*.json").expect("valid glob");
+        let json_re = Regex::from_str(r".*\.json$").expect("valid regex");
         let filenames = ["Packages/foo.json", "Packages/bar.xml", "README"];
 
-        // When: *.json pattern applied
+        // When: .*\.json$ pattern applied
         let matched: Vec<_> = filenames
             .iter()
             .filter(|f| matches_patterns(f, std::slice::from_ref(&json_re)))
