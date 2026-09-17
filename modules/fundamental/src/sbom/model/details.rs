@@ -640,7 +640,7 @@ pub struct SbomStatus {
     pub packages: Vec<SbomPackage>,
     pub scores: Vec<ScoredVector>,
     /// Versions that fix this vulnerability, extracted from "fixed" advisory entries
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub fixed_versions: Vec<String>,
 }
 
