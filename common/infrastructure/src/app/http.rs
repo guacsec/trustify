@@ -455,10 +455,11 @@ where
                 content_security_policy: value.csp,
                 // HSTS must never be advertised by a plain HTTP listener, and
                 // remains opt-in even when TLS is configured.
-                strict_transport_security: value
-                    .tls_enabled
-                    .then_some(value.hsts)
-                    .unwrap_or_default(),
+                strict_transport_security: if value.tls_enabled {
+                    value.hsts
+                } else {
+                    String::new()
+                },
             })
         });
 
