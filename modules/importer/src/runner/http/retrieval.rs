@@ -35,10 +35,10 @@ pub fn verify_integrity(data: &[u8], file: &DiscoveredFile) -> Result<(), Error>
 
     if let Some(ref expected_sha256) = file.sha256 {
         let actual_hex = sha256_hex(data);
-        if *expected_sha256 != actual_hex {
+        if !expected_sha256.eq_ignore_ascii_case(&actual_hex) {
             return Err(Error::DigestMismatch {
                 url: file.url.to_string(),
-                expected: expected_sha256.clone(),
+                expected: expected_sha256.to_lowercase(),
                 actual: actual_hex,
             });
         }
@@ -128,6 +128,20 @@ mod test {
         let file = DiscoveredFile {
             url: "http://example.com/f".parse().expect("static URL is valid"),
             sha256: Some(expected),
+            size: None,
+        };
+        assert!(verify_integrity(data, &file).is_ok());
+    }
+
+    /// Verifies that `verify_integrity` passes when the expected SHA-256 digest
+    /// is provided in uppercase, confirming case-insensitive comparison.
+    #[test]
+    fn integrity_passes_uppercase_sha256() {
+        let data = b"hello world";
+        let expected_upper = sha256_hex(data).to_uppercase();
+        let file = DiscoveredFile {
+            url: "http://example.com/f".parse().expect("static URL is valid"),
+            sha256: Some(expected_upper),
             size: None,
         };
         assert!(verify_integrity(data, &file).is_ok());
