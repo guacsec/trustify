@@ -298,6 +298,7 @@ fn parse(s: &str, ct: &ColumnType) -> Result<SimpleExpr, Error> {
     Ok(match ct {
         ColumnType::Uuid => SimpleExpr::Value(SeaValue::from(s.parse::<Uuid>().map_err(err)?)),
         ColumnType::Integer => SimpleExpr::Value(SeaValue::from(s.parse::<i32>().map_err(err)?)),
+        ColumnType::Boolean => SimpleExpr::Value(SeaValue::from(s.parse::<bool>().map_err(err)?)),
         ColumnType::Decimal(_) | ColumnType::Float | ColumnType::Double => {
             SimpleExpr::Value(SeaValue::from(s.parse::<f64>().map_err(err)?))
         }
