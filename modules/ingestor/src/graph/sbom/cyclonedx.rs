@@ -581,7 +581,7 @@ impl ComponentCreator {
     /// Record a license's extended details (name, text, URL) in `licensing_infos`, so that
     /// license expressions referring to it can be expanded later on.
     ///
-    /// Only licenses carrying a BOM-internal identifier are recorded: a plain SPDX `id` is
+    /// Licenses with a BOM-internal identifier or a name are recorded: a plain SPDX `id` is
     /// already self-describing and needs no mapping.
     fn add_licensing_info(&mut self, license: &License) {
         let Some(license_id) = license.bom_ref.as_ref().or(license.name.as_ref()) else {
