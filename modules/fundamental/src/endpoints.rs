@@ -1,7 +1,10 @@
 use actix_web::web;
 use regex::Regex;
 use std::sync::Arc;
-use trustify_common::db::{self, pagination_cache::PaginationCache};
+use trustify_common::{
+    db::{self, pagination_cache::PaginationCache},
+    feature::CapabilityFilter,
+};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_ingestor::common;
 use trustify_module_ingestor::graph::Graph;
@@ -55,9 +58,11 @@ pub fn configure(
     cache: PaginationCache,
     graph: Graph,
     validators: Vec<Arc<dyn Validator>>,
+    format_filter: CapabilityFilter,
 ) {
-    let ingestor_service =
-        IngestorService::new(graph, storage, Some(analysis)).with_validators(validators);
+    let ingestor_service = IngestorService::new(graph, storage, Some(analysis))
+        .with_validators(validators)
+        .with_format_filter(format_filter);
     svc.app_data(web::Data::new(ingestor_service.clone()));
 
     advisory::endpoints::configure(

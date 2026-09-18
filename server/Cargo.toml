@@ -33,6 +33,7 @@ log = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
+strum = { workspace = true }
 serde_yml = { workspace = true }
 tokio = { workspace = true }
 url = { workspace = true }

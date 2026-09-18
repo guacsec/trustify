@@ -179,8 +179,11 @@ pub struct Progress {
     serde::Deserialize,
     ToSchema,
     schemars::JsonSchema,
+    strum::IntoStaticStr,
+    strum::VariantNames,
 )]
 #[serde(rename_all = "camelCase")]
+#[strum(serialize_all = "camelCase")]
 pub enum ImporterConfiguration {
     Sbom(SbomImporter),
     Csaf(CsafImporter),

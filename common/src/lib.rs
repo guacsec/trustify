@@ -7,6 +7,7 @@ pub mod decompress;
 pub mod endpoints;
 pub mod env;
 pub mod error;
+pub mod feature;
 pub mod fmt;
 pub mod hashing;
 pub mod id;
