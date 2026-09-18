@@ -187,6 +187,11 @@ impl PurlService {
         }
     }
 
+    /// Returns the configured recommend patterns.
+    pub fn recommend_patterns(&self) -> &[Regex] {
+        &self.recommend_patterns
+    }
+
     /// Sets the maximum total package count allowed for a recommendation report request.
     pub fn with_report_package_limit(self, limit: u64) -> Self {
         Self {

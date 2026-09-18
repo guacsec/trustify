@@ -112,7 +112,8 @@ mod v2 {
         tag = "purl",
         request_body = RecommendRequest,
         responses(
-            (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse)
+            (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse),
+            (status = 503, description = "Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured"),
         )
     )]
     #[post("/v2/purl/recommend")]
@@ -123,6 +124,14 @@ mod v2 {
         request: web::Json<RecommendRequest>,
         _: Require<ReadAdvisory>,
     ) -> Result<impl Responder, Error> {
+        if purl_service.recommend_patterns().is_empty() {
+            return Ok(HttpResponse::ServiceUnavailable().json(serde_json::json!({
+                "status": 503,
+                "code": "FEATURE_UNCONFIGURED",
+                "message": "This endpoint is disabled until the required regex pattern TRUSTD_RECOMMEND_PATTERNS is configured on the server."
+            })));
+        }
+
         let tx = db.begin().await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
@@ -140,7 +149,8 @@ mod v3 {
         tag = "purl",
         request_body = RecommendRequest,
         responses(
-            (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse)
+            (status = 200, description = "Get recommendations and remediations for provided purls", body = RecommendResponse),
+            (status = 503, description = "Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured"),
         )
     )]
     #[post("/v3/purl/recommend")]
@@ -150,6 +160,14 @@ mod v3 {
         request: web::Json<RecommendRequest>,
         _: Require<ReadAdvisory>,
     ) -> Result<impl Responder, Error> {
+        if purl_service.recommend_patterns().is_empty() {
+            return Ok(HttpResponse::ServiceUnavailable().json(serde_json::json!({
+                "status": 503,
+                "code": "FEATURE_UNCONFIGURED",
+                "message": "This endpoint is disabled until the required regex pattern TRUSTD_RECOMMEND_PATTERNS is configured on the server."
+            })));
+        }
+
         let tx = db.begin().await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
