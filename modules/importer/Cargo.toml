@@ -38,6 +38,7 @@ sea-orm = { workspace = true, features = ["sea-query-binder", "sqlx-postgres", "
 sea-query = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
 serde_yml = { workspace = true }
 sha2 = { workspace = true }
 tempfile = { workspace = true }

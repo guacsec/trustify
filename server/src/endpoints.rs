@@ -6,28 +6,19 @@ use actix_web::{
 use build_info::BuildInfo;
 use std::sync::Arc;
 use trustify_auth::authenticator::Authenticator;
-use trustify_common::middleware::ReadOnlyState;
+use trustify_common::{
+    feature::{ActiveFeatures, Capabilities, Feature},
+    middleware::ReadOnlyState,
+};
 use utoipa_actix_web::service_config::ServiceConfig;
 
-/// Whether exploit intelligence is configured on this instance.
-#[derive(Clone, Copy, Debug)]
-pub struct ExploitIntelligenceState(pub bool);
-
-pub fn configure(
-    svc: &mut ServiceConfig,
-    auth: Option<Arc<Authenticator>>,
-    read_only: bool,
-    exploit_intelligence: bool,
-) {
+pub fn configure(svc: &mut ServiceConfig, auth: Option<Arc<Authenticator>>, read_only: bool) {
     let mut scope = utoipa_actix_web::scope("/.well-known/trustify");
 
     if let Some(auth) = auth {
         scope = scope.app_data(web::Data::from(auth));
     }
     scope = scope.app_data(web::Data::new(ReadOnlyState(read_only)));
-    scope = scope.app_data(web::Data::new(ExploitIntelligenceState(
-        exploit_intelligence,
-    )));
 
     svc.service(scope.service(info));
 }
@@ -37,7 +28,11 @@ pub fn configure(
 struct Info<'a> {
     version: &'a str,
     read_only: bool,
+    /// Deprecated — use the `features` array instead.
     exploit_intelligence: bool,
+    features: Vec<String>,
+    #[schema(value_type = HashMap<String, Vec<String>>)]
+    capabilities: Capabilities,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = serde_json::Object)]
     build: Option<&'a BuildInfo>,
@@ -55,7 +50,8 @@ pub async fn info(
     req: HttpRequest,
     auth: Option<web::Data<Authenticator>>,
     read_only: ReadOnlyState,
-    ei: web::Data<ExploitIntelligenceState>,
+    features: web::Data<ActiveFeatures>,
+    capabilities: web::Data<Capabilities>,
 ) -> HttpResponse {
     let details = match auth {
         // authentication is disabled, enable details
@@ -79,7 +75,9 @@ pub async fn info(
     HttpResponse::Ok().json(Info {
         version: env!("CARGO_PKG_VERSION"),
         read_only: *read_only,
-        exploit_intelligence: ei.0,
+        exploit_intelligence: features.contains(&Feature::ExploitIntelligence),
+        features: features.as_sorted_vec(),
+        capabilities: capabilities.get_ref().clone(),
         build: details.then(build_info),
     })
 }
