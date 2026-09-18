@@ -2,6 +2,7 @@ use actix_web::{App, web};
 use trustify_auth::authorizer::Authorizer;
 use trustify_common::{
     db::{self, pagination_cache::PaginationCache},
+    feature::{ActiveFeatures, CapabilityFilter, Feature},
     middleware::StdMiddleware,
 };
 use regex::Regex;
@@ -90,15 +91,21 @@ impl<'a> CallerBuilder<'a> {
         let cache = self.cache;
         let storage = self.ctx.storage.clone();
 
+        let mut features = ActiveFeatures::default();
+        if !config.recommend_patterns.is_empty() {
+            features.insert(Feature::Recommendations);
+        }
+
         Ok(actix_web::test::init_service(
             App::new()
                 .std_middleware()
                 .into_utoipa_app()
                 .app_data(web::PayloadConfig::default().limit(5 * 1024 * 1024))
                 .app_data(web::Data::new(self.authorizer))
+                .app_data(web::Data::new(features))
                 .configure(|svc| {
                     svc.service(utoipa_actix_web::scope("/api").configure(|svc| {
-                        configure(svc, config, db_rw, db_ro.clone(), storage, analysis.clone(), cache, graph, Vec::new());
+                        configure(svc, config, db_rw, db_ro.clone(), storage, analysis.clone(), cache, graph, Vec::new(), CapabilityFilter::default());
                         trustify_module_analysis::endpoints::configure(svc, db_ro, analysis);
                     }));
                 })

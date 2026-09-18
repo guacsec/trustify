@@ -1,6 +1,7 @@
 use super::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
+use strum::VariantNames;
 
 #[derive(
     Clone,
@@ -37,6 +38,15 @@ impl Format {
     /// Whether this is a concrete (fully-specified) format, not a category or unknown.
     pub fn is_concrete(&self) -> bool {
         !matches!(self, Format::Unknown | Format::Advisory | Format::SBOM)
+    }
+
+    /// The variant names of all concrete (non-abstract) formats.
+    pub fn concrete_variants() -> Vec<&'static str> {
+        Self::VARIANTS
+            .iter()
+            .copied()
+            .filter(|name| Self::from_str(name).is_ok_and(|f| f.is_concrete()))
+            .collect()
     }
 
     /// Check whether this format satisfies a given hint.

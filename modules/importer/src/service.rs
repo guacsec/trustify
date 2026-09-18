@@ -16,6 +16,7 @@ use trustify_common::{
         query::{Error as QueryError, Filtering, Query},
     },
     error::ErrorInformation,
+    feature::CapabilityFilter,
     model::{PaginatedResults, Pagination, Revisioned},
 };
 use trustify_entity::{importer, importer_report, labels};
@@ -37,6 +38,8 @@ pub enum Error {
     Json(#[from] serde_json::Error),
     #[error(transparent)]
     Query(#[from] QueryError),
+    #[error(transparent)]
+    CapabilityDisabled(#[from] trustify_common::feature::CapabilityDisabled),
     #[error(transparent)]
     Label(#[from] labels::Error),
     #[error(transparent)]
@@ -98,6 +101,7 @@ impl ResponseError for Error {
                 message: self.to_string(),
                 details: None,
             }),
+            Self::CapabilityDisabled(err) => err.error_response(),
             Self::Limit(err) => err.error_response(),
             _ => HttpResponse::InternalServerError().json(ErrorInformation {
                 error: "Internal".into(),
@@ -128,12 +132,17 @@ where
 pub struct ImporterService {
     db: ReadWrite,
     cache: PaginationCache,
+    importer_filter: CapabilityFilter,
 }
 
 impl ImporterService {
     /// Creates a new importer service backed by the given read-write connection.
-    pub fn new(db: ReadWrite, cache: PaginationCache) -> Self {
-        Self { db, cache }
+    pub fn new(db: ReadWrite, cache: PaginationCache, importer_filter: CapabilityFilter) -> Self {
+        Self {
+            db,
+            cache,
+            importer_filter,
+        }
     }
 
     pub async fn list(&self) -> Result<Vec<Importer>, Error> {
@@ -152,6 +161,9 @@ impl ImporterService {
         name: String,
         mut configuration: ImporterConfiguration,
     ) -> Result<(), Error> {
+        let type_name: &str = (&configuration).into();
+        self.importer_filter.try_enabled(type_name)?;
+
         configuration.labels.validate_mut()?;
 
         let entity = importer::ActiveModel {
