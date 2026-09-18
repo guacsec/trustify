@@ -21,11 +21,26 @@ paths:
                 - version
                 - readOnly
                 - exploitIntelligence
+                - features
+                - capabilities
                 properties:
                   build:
                     type: object
+                  capabilities:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+                    propertyNames:
+                      type: string
                   exploitIntelligence:
                     type: boolean
+                    description: Deprecated — use the `features` array instead.
+                  features:
+                    type: array
+                    items:
+                      type: string
                   readOnly:
                     type: boolean
                   version:

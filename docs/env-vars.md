@@ -35,6 +35,10 @@
 | `OPENAI_API_BASE`                        | To set the base URL path for API requests                                           | `https://api.openapi.com/v1`            |
 | `OPENAI_MODEL`                           | OpenAI model                                                                        | `gpt-4o`                                |
 | `TRUSTD_DEVMODE_ADDITIONAL_CLIENTS`      | Additional allowed development OAuth clients                                        |                                         |
+| `TRUSTD_DISABLE_FORMATS`                 | Disable these document formats (comma-separated); use `*` to disable all            |                                         |
+| `TRUSTD_DISABLE_IMPORTERS`               | Disable these importer types (comma-separated); use `*` to disable all              |                                         |
+| `TRUSTD_ENABLE_FORMATS`                  | Enable only these document formats (comma-separated); conflicts with `TRUSTD_DISABLE_FORMATS` |                                |
+| `TRUSTD_ENABLE_IMPORTERS`                | Enable only these importer types (comma-separated); conflicts with `TRUSTD_DISABLE_IMPORTERS` |                                |
 | `TRUSTD_DB_HOST`                         | Database address                                                                    | `localhost`                             |
 | `TRUSTD_DB_MAX_CONN`                     | Database max connections                                                            | `75`                                    |
 | `TRUSTD_DB_MIN_CONN`                     | Database min connections                                                            | `25`                                    |

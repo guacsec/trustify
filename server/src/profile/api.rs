@@ -20,6 +20,39 @@ fn parse_recommend_pattern(s: &str) -> Result<Regex, String> {
     }
     Ok(re)
 }
+
+fn parse_format_name(s: &str) -> Result<String, String> {
+    if s == "*" {
+        return Ok(s.into());
+    }
+    let concrete = trustify_module_ingestor::service::Format::concrete_variants();
+    if concrete.contains(&s) {
+        Ok(s.into())
+    } else {
+        Err(format!(
+            "unknown format '{s}'; valid: {}",
+            concrete.join(", ")
+        ))
+    }
+}
+
+fn parse_importer_name(s: &str) -> Result<String, String> {
+    use strum::VariantNames;
+    if s == "*" {
+        return Ok(s.into());
+    }
+    let variants = trustify_module_importer::model::ImporterConfiguration::VARIANTS;
+    if variants.contains(&s) {
+        Ok(s.into())
+    } else {
+        Err(format!(
+            "unknown importer '{s}'; valid: {}",
+            variants.join(", ")
+        ))
+    }
+}
+
+use strum::VariantNames;
 use tokio::sync::oneshot;
 use trustify_auth::{
     auth::AuthConfigArguments,
@@ -35,6 +68,7 @@ use trustify_common::{
         change::ChangeBroadcaster,
         pagination_cache::{PaginationCache, PaginationConfig},
     },
+    feature::{ActiveFeatures, Capabilities, CapabilityFilter, Feature},
     middleware::ReadOnlyState,
     model::BinaryByteSize,
 };
@@ -135,6 +169,48 @@ pub struct Run {
     /// before. See ADR 00020.
     #[arg(long, env = "TRUSTD_VALIDATORS_CONFIG")]
     pub validators_config: Option<PathBuf>,
+
+    /// Enable only these document formats (comma-separated). Switches to
+    /// allowlist mode — all unlisted formats are rejected. Use `*` for all.
+    #[arg(
+        long,
+        env = "TRUSTD_ENABLE_FORMATS",
+        value_delimiter = ',',
+        value_parser = parse_format_name,
+        conflicts_with = "disable_format"
+    )]
+    pub enable_format: Vec<String>,
+
+    /// Disable these document formats (comma-separated). Formats listed here
+    /// are rejected during ingestion. Use `*` to disable all.
+    #[arg(
+        long,
+        env = "TRUSTD_DISABLE_FORMATS",
+        value_delimiter = ',',
+        value_parser = parse_format_name
+    )]
+    pub disable_format: Vec<String>,
+
+    /// Enable only these importer types (comma-separated). Switches to
+    /// allowlist mode — all unlisted types are rejected. Use `*` for all.
+    #[arg(
+        long,
+        env = "TRUSTD_ENABLE_IMPORTERS",
+        value_delimiter = ',',
+        value_parser = parse_importer_name,
+        conflicts_with = "disable_importer"
+    )]
+    pub enable_importer: Vec<String>,
+
+    /// Disable these importer types (comma-separated). Types listed here
+    /// cannot be created. Use `*` to disable all.
+    #[arg(
+        long,
+        env = "TRUSTD_DISABLE_IMPORTERS",
+        value_delimiter = ',',
+        value_parser = parse_importer_name
+    )]
+    pub disable_importer: Vec<String>,
 
     // flattened commands must go last
     //
@@ -399,7 +475,11 @@ struct InitData {
     broadcaster: ChangeBroadcaster,
     read_only: bool,
     ei_config: Option<ExploitIntelligenceConfig>,
+    features: ActiveFeatures,
+    capabilities: Capabilities,
     validators: Vec<Arc<dyn Validator>>,
+    format_filter: CapabilityFilter,
+    importer_filter: CapabilityFilter,
 }
 
 /// Groups all module configurations.
@@ -531,6 +611,44 @@ impl InitData {
             }
         }
 
+        let mut features = ActiveFeatures::default();
+        if ei_config.is_some() {
+            features.insert(Feature::ExploitIntelligence);
+        }
+        if !config.fundamental.recommend_patterns.is_empty() {
+            features.insert(Feature::Recommendations);
+        }
+        if !validators.is_empty() {
+            features.insert(Feature::SemanticValidation);
+        }
+
+        let format_filter = CapabilityFilter::new(
+            "format",
+            &trustify_module_ingestor::service::Format::concrete_variants(),
+            &run.enable_format,
+            &run.disable_format,
+        );
+        let importer_filter = CapabilityFilter::new(
+            "importer",
+            trustify_module_importer::model::ImporterConfiguration::VARIANTS,
+            &run.enable_importer,
+            &run.disable_importer,
+        );
+
+        let capabilities = Capabilities::from([
+            (
+                "formats".into(),
+                format_filter
+                    .as_sorted_vec(&trustify_module_ingestor::service::Format::concrete_variants()),
+            ),
+            (
+                "importers".into(),
+                importer_filter.as_sorted_vec(
+                    trustify_module_importer::model::ImporterConfiguration::VARIANTS,
+                ),
+            ),
+        ]);
+
         let broadcaster = ChangeBroadcaster::new(
             &db_rw,
             *run.notification.change_log_retention,
@@ -557,7 +675,11 @@ impl InitData {
             ui,
             read_only: run.read_only,
             ei_config,
+            features,
+            capabilities,
             validators,
+            format_filter,
+            importer_filter,
         })
     }
 
@@ -595,7 +717,11 @@ impl InitData {
                             read_only: self.read_only,
                             ei_service: ei_service.clone(),
                             graph: graph.clone(),
+                            features: self.features.clone(),
+                            capabilities: self.capabilities.clone(),
                             validators: self.validators.clone(),
+                            format_filter: self.format_filter.clone(),
+                            importer_filter: self.importer_filter.clone(),
                         },
                     );
                 })
@@ -683,7 +809,11 @@ pub(crate) struct Config {
     pub(crate) read_only: bool,
     pub(crate) ei_service: ExploitIntelligenceService,
     pub(crate) graph: Graph,
+    pub(crate) features: ActiveFeatures,
+    pub(crate) capabilities: Capabilities,
     pub(crate) validators: Vec<Arc<dyn Validator>>,
+    pub(crate) format_filter: CapabilityFilter,
+    pub(crate) importer_filter: CapabilityFilter,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
@@ -704,21 +834,26 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         read_only,
         ei_service,
         graph,
+        features,
+        capabilities,
         validators,
+        format_filter,
+        importer_filter,
     } = config;
 
     let limit = ByteSize::gb(1).as_u64() as usize;
 
     svc.app_data(web::Data::new(ReadOnlyState(read_only)));
+    svc.app_data(web::Data::new(features));
+    svc.app_data(web::Data::new(capabilities));
     svc.app_data(web::PayloadConfig::default().limit(limit));
     svc.app_data(graph.clone());
 
-    let ei_enabled = ei_service.runtime().is_some();
     // Notification endpoint lives outside the `/api` scope because it uses
     // QueryTokenInjector middleware — browsers' WebSocket API does not support
     // custom headers, so the auth token is passed via query string instead.
     svc.configure(|svc| {
-        endpoints::configure(svc, auth.clone(), read_only, ei_enabled);
+        endpoints::configure(svc, auth.clone(), read_only);
         trustify_module_notification::endpoints::configure(svc, broadcaster, auth.clone());
     });
 
@@ -726,7 +861,12 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         utoipa_actix_web::scope("/api")
             .map(|scope| scope.wrap(new_auth(auth)))
             .configure(|svc| {
-                trustify_module_importer::endpoints::configure(svc, db_rw.clone(), cache.clone());
+                trustify_module_importer::endpoints::configure(
+                    svc,
+                    db_rw.clone(),
+                    cache.clone(),
+                    importer_filter,
+                );
                 trustify_module_ingestor::endpoints::configure(
                     svc,
                     ingestor,
@@ -734,6 +874,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     storage.clone(),
                     Some(analysis.clone()),
                     validators.clone(),
+                    format_filter.clone(),
                 );
                 trustify_module_fundamental::endpoints::configure(
                     svc,
@@ -745,6 +886,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     cache,
                     graph,
                     validators,
+                    format_filter,
                 );
                 trustify_module_exploit_intelligence::endpoints::configure(
                     svc,
@@ -843,7 +985,11 @@ mod test {
                             ei_service: ExploitIntelligenceService::new(None)
                                 .expect("disabled EI service"),
                             graph: Graph::new(),
+                            features: ActiveFeatures::default(),
+                            capabilities: Capabilities::default(),
                             validators: Vec::new(),
+                            format_filter: CapabilityFilter::default(),
+                            importer_filter: CapabilityFilter::default(),
                         },
                     );
                 })
@@ -930,7 +1076,11 @@ mod test {
                     read_only,
                     ei_service,
                     graph,
+                    features: ActiveFeatures::default(),
+                    capabilities: Capabilities::default(),
                     validators: Vec::new(),
+                    format_filter: CapabilityFilter::default(),
+                    importer_filter: CapabilityFilter::default(),
                 },
             );
         })
@@ -1137,6 +1287,8 @@ mod test {
             ),
             read_only: false,
             ei_config: None,
+            features: ActiveFeatures::default(),
+            capabilities: Capabilities::default(),
             broadcaster: ChangeBroadcaster::new(
                 &db::ReadWrite::new(ctx.db.clone()),
                 Duration::from_secs(86400),
@@ -1148,6 +1300,8 @@ mod test {
             embedded_oidc: None,
             ui: Default::default(),
             validators: Vec::new(),
+            format_filter: CapabilityFilter::default(),
+            importer_filter: CapabilityFilter::default(),
         };
         let graph = Graph::new();
 
@@ -1207,7 +1361,11 @@ mod test {
                     ei_service,
                     graph,
                     broadcaster,
+                    features: [Feature::ExploitIntelligence].into_iter().collect(),
+                    capabilities: Capabilities::default(),
                     validators: Vec::new(),
+                    format_filter: CapabilityFilter::default(),
+                    importer_filter: CapabilityFilter::default(),
                 },
             );
         })
@@ -1217,6 +1375,13 @@ mod test {
         let req = TestRequest::get().uri("/.well-known/trustify").to_request();
         let resp: serde_json::Value = app.call_and_read_body_json(req).await;
         assert_eq!(resp["exploitIntelligence"], serde_json::json!(true));
+        assert!(
+            resp["features"]
+                .as_array()
+                .expect("features should be array")
+                .iter()
+                .any(|v| v == "exploitIntelligence")
+        );
 
         Ok(())
     }

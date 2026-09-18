@@ -17,7 +17,10 @@ use time::OffsetDateTime;
 use tokio::{task::LocalSet, time::MissedTickBehavior};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
-use trustify_common::db::{ReadWrite, pagination_cache::PaginationCache};
+use trustify_common::{
+    db::{ReadWrite, pagination_cache::PaginationCache},
+    feature::CapabilityFilter,
+};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
@@ -84,7 +87,11 @@ impl Server {
         let meter = global::meter("importer::Server");
         let running_importers = meter.u64_gauge("running_importers").build();
 
-        let service = ImporterService::new(self.db.clone(), self.cache.clone());
+        let service = ImporterService::new(
+            self.db.clone(),
+            self.cache.clone(),
+            CapabilityFilter::default(),
+        );
         let runner = ImportRunner {
             db: self.db.clone(),
             storage: self.storage.clone(),
