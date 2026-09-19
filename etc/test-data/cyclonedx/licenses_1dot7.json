@@ -1,0 +1,108 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "version": 1,
+  "metadata": {
+    "timestamp": "1970-01-01T13:30:00Z",
+    "component": {
+      "name": "licenses",
+      "type": "application"
+    },
+    "authors": [
+      {
+        "name": "Some Author"
+      }
+    ],
+    "supplier": {
+      "name": "Some Supplier"
+    }
+  },
+  "components": [
+    {
+      "name": "plain-text-license",
+      "version": "1",
+      "bom-ref": "plain",
+      "purl": "pkg:rpm/redhat/plain@0.0.0?arch=src",
+      "type": "library",
+      "licenses": [
+        {
+          "license": {
+            "bom-ref": "LicenseRef-acme",
+            "name": "Acme Proprietary License",
+            "url": "https://acme.example/license",
+            "text": {
+              "contentType": "text/plain",
+              "content": "Permission is granted to do absolutely nothing with this software."
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "base64-license",
+      "version": "1",
+      "bom-ref": "base64",
+      "purl": "pkg:rpm/redhat/base64@0.0.0?arch=src",
+      "type": "library",
+      "licenses": [
+        {
+          "license": {
+            "bom-ref": "LicenseRef-encoded",
+            "name": "Encoded License",
+            "text": {
+              "contentType": "text/plain",
+              "encoding": "base64",
+              "content": "VGhpcyBsaWNlbnNlIHRleHQgYXJyaXZlZCBiYXNlNjQtZW5jb2RlZC4="
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "named-only-license",
+      "version": "1",
+      "bom-ref": "named",
+      "purl": "pkg:rpm/redhat/named@0.0.0?arch=src",
+      "type": "library",
+      "licenses": [
+        {
+          "license": {
+            "name": "Named Without Bom Ref"
+          }
+        }
+      ]
+    },
+    {
+      "name": "spdx-id-license",
+      "version": "1",
+      "bom-ref": "spdx",
+      "purl": "pkg:rpm/redhat/spdx@0.0.0?arch=src",
+      "type": "library",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "plain",
+      "dependsOn": []
+    },
+    {
+      "ref": "base64",
+      "dependsOn": []
+    },
+    {
+      "ref": "named",
+      "dependsOn": []
+    },
+    {
+      "ref": "spdx",
+      "dependsOn": []
+    }
+  ]
+}
