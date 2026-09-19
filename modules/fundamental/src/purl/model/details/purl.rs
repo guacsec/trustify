@@ -139,6 +139,7 @@ impl PurlDetails {
                 JoinType::LeftJoin,
                 sbom_package_license::Relation::License.def(),
             )
+            .order_by_asc(sbom_package_license::Column::LicenseType)
             .into_model::<PurlLicenseResult>()
             .all(tx)
             .await?

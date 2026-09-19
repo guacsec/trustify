@@ -13,7 +13,7 @@ use crate::{
 use ::cpe::uri::OwnedUri;
 use sea_orm::{
     ConnectionTrait, DbBackend, DbErr, EntityTrait, FromQueryResult, JoinType, ModelTrait,
-    QueryFilter, QueryResult, QuerySelect, RelationTrait, Statement,
+    QueryFilter, QueryOrder, QueryResult, QuerySelect, RelationTrait, Statement,
 };
 use sea_query::{Asterisk, Expr, Func, PgFunc, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -167,6 +167,8 @@ impl SbomDetails {
                 JoinType::Join,
                 advisory_vulnerability::Relation::Vulnerability.def(),
             )
+            .order_by_asc(sbom_package::Column::NodeId)
+            .order_by_asc(vulnerability::Column::Id)
             .into_model::<IdSet>()
             .all(tx)
             .instrument(info_span!("fetch IDs"))
@@ -409,7 +411,6 @@ impl SbomDetails {
                 Expr::col((purl_status::Entity, purl_status::Column::VulnerabilityId))
                     .eq(PgFunc::any(vulnerability_ids)),
             )
-            .distinct()
             .into_model::<FixVersionEntry>()
             .all(tx)
             .instrument(info_span!("fetch fix versions"))
