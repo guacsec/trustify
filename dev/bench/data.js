@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789800104961,
+  "lastUpdate": 1789806800619,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22092,6 +22092,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": true,
+          "id": "cb6f1391dcc004b196b370199f5b4a4e55ceb9b0",
+          "message": "fix(importer): harden PulpManifest URL construction and encoding\n\n- Replace set_path string manipulation with path_segments_mut().extend()\n  to prevent two hazards: double-encoding of percent signs in existing\n  base-URL paths, and percent-encoded dot traversal (%2e%2e being\n  interpreted as '..' by the WHATWG URL parser)\n- Switch from_utf8_lossy to std::str::from_utf8 + ManifestEncoding error\n  so non-UTF-8 manifest bodies surface a distinct, actionable error\n- Store only_patterns as Arc<[Regex]> to avoid cloning all compiled\n  patterns on every discover() call\n- Replace Vec::with_capacity + loop with filter+map+collect to keep\n  allocation proportional to matched entries, not total manifest size\n- Add file_url_constructs_correctly test covering %2e%2e opaqueness\n\nImplements TC-6230\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-09-19T07:47:08Z",
+          "tree_id": "577469d3cbb32a01e1b0b55d83f9c66ceb07e257",
+          "url": "https://github.com/guacsec/trustify/commit/cb6f1391dcc004b196b370199f5b4a4e55ceb9b0"
+        },
+        "date": 1789806798742,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
