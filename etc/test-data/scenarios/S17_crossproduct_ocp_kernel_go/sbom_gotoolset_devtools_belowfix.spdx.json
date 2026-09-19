@@ -1,0 +1,67 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "s17-ocp-kernel-go",
+  "documentNamespace": "https://trust-breaker/S17_crossproduct_ocp_kernel_go/gotoolset_devtools_belowfix",
+  "creationInfo": {
+    "created": "2026-09-02T00:00:00Z",
+    "creators": [
+      "Tool: trust-breaker-0.1"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-root"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-root",
+      "name": "s17-ocp-kernel-go",
+      "versionInfo": "1",
+      "downloadLocation": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-os",
+      "name": "devtools",
+      "versionInfo": "2023",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:redhat:devtools:2023:*:*:*:*:*:el7:*"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-pkg",
+      "name": "go-toolset-1.19-golang",
+      "versionInfo": "1.19.4-1.el7_9",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/go-toolset-1.19-golang@1.19.4-1.el7_9?arch=x86_64&epoch=0"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-root"
+    },
+    {
+      "spdxElementId": "SPDXRef-root",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-os"
+    },
+    {
+      "spdxElementId": "SPDXRef-root",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-pkg"
+    }
+  ]
+}

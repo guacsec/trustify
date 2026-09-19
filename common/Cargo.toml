@@ -10,6 +10,9 @@ rust-version.workspace = true
 actix-web = { workspace = true }
 anyhow = { workspace = true }
 async-compression = { workspace = true, features = ["gzip", "lzma", "tokio"] }
+aws-config = { workspace = true }
+aws-credential-types = { workspace = true }
+aws-sigv4 = { workspace = true }
 bytes = { workspace = true }
 bytesize = { workspace = true, features = ["serde"] }
 chrono = { workspace = true }
@@ -50,6 +53,7 @@ thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+url = { workspace = true }
 urlencoding = { workspace = true }
 utoipa = { workspace = true, features = ["url"] }
 uuid = { workspace = true, features = ["v5", "v7", "serde"] }

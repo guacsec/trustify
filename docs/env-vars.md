@@ -13,9 +13,14 @@
 | `CLIENT_TLS_CA_CERTIFICATES`             | Additional certificates which will be added as trust anchors                        |                                         |
 | `CLIENT_TLS_INSECURE`                    | Make the TLS client insecure, disabling all validation                              | `false`                                 |
 | `HTTP_SERVER_BIND_ADDR`                  | Address to listen on                                                                | `::1`                                   |
+| `HTTP_SERVER_CORS_ALLOWED_ORIGINS`       | Comma-separated list of origins allowed for cross-origin requests; empty means same-origin only |                                         |
+| `HTTP_SERVER_CORS_PERMISSIVE`            | Allow any CORS origin, method, and header; development only and unsafe for production | `false`                                 |
 | `HTTP_SERVER_DISABLE_LOG`                | Disable the request log                                                             | `false`                                 |
 | `HTTP_SERVER_JSON_LIMIT`                 | JSON request limit                                                                  | `2 MiB`                                 |
 | `HTTP_SERVER_REQUEST_LIMIT`              | Overall request limit                                                               | `256 KiB`                               |
+| `HTTP_SERVER_SECURITY_HEADERS_DISABLED`  | Disable the default security response headers; disabling weakens defense-in-depth protections | `false`                                 |
+| `HTTP_SERVER_CSP`                        | Content-Security-Policy header value; empty omits CSP                              | `frame-ancestors 'none'`               |
+| `HTTP_SERVER_HSTS`                       | Strict-Transport-Security value; opt-in, only applied when TLS is enabled, and honored over HTTPS |                                         |
 | `HTTP_SERVER_TLS_CERTIFICATE_FILE`       | Path to the TLS certificate in PEM format                                           |                                         |
 | `HTTP_SERVER_TLS_CIPHERS`                | TLS 1.2 cipher list in OpenSSL format (custom profile only)                         |                                         |
 | `HTTP_SERVER_TLS_CIPHERSUITES`           | TLS 1.3 ciphersuites in OpenSSL format (custom profile only)                        |                                         |
@@ -43,9 +48,11 @@
 | `TRUSTD_DB_MAX_LIFETIME`                 | Database max lifetime (humantime)                                                   | `7200s`                                 |
 | `TRUSTD_DB_IDLE_TIMEOUT`                 | Database idle timeout (humantime)                                                   | `600s`                                  |
 | `TRUSTD_DB_NAME`                         | Database name                                                                       | `trustify`                              |
-| `TRUSTD_DB_PASSWORD`                     | Database password                                                                   | `trustify`                              |
+| `TRUSTD_DB_PASSWORD`                     | Database password (ignored when IAM authentication is enabled)                      | `trustify`                              |
 | `TRUSTD_DB_PORT`                         | Database port                                                                       | `5432`                                  |
 | `TRUSTD_DB_USER`                         | Database username                                                                   | `postgres`                              |
+| `TRUSTD_DB_IAM_AUTH`                     | Authenticate with an AWS RDS/Aurora IAM token instead of a password                 | `false`                                 |
+| `TRUSTD_DB_IAM_REGION`                   | AWS region of the RDS/Aurora instance (required when `TRUSTD_DB_IAM_AUTH=true`)     |                                         |
 | `TRUSTD_PAGINATION_TOTAL_CACHE_TTL`      | TTL for cached pagination total counts (humantime)                                  | `60s`                                   |
 | `TRUSTD_ISSUER_URL`                      | Issuer URL for `--devmode`                                                          | `http://localhost:8090/realms/trustify` |
 | `TRUSTD_MAX_CACHE_SIZE`                  | Maximum size of the graph cache.                                                    | `200 MiB`                               |
@@ -58,6 +65,7 @@
 | `TRUSTD_SLOW_SQL_THRESHOLD`              | Override threshold for slow SQL statements (humantime)                              | `1m`                                    |
 | `TRUSTD_STORAGE_FS_PATH`                 | Path for storage file system strategy                                               | `./.trustify/storage`                   |
 | `TRUSTD_STORAGE_STRATEGY`                | Specifies the storage strategy to use                                               | `File system`                           |
+| `TRUSTD_VALIDATORS_CONFIG`               | Path to a semantic validators configuration file (YAML); unset disables validation  |                                         |
 | `UI_CLIENT_ID`                           | Client ID used by the UI                                                            | `frontend`                              |
 | `UI_ISSUER_URL`                          | Issuer URL used by the UI                                                           | `http://localhost:8090/realms/trustify` |
 | `UI_LOAD_USER`                           | Whether to load user info                                                           | `true`                                  |

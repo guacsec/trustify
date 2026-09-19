@@ -3,9 +3,23 @@ use crate::embedded_oidc;
 
 use crate::{endpoints, profile::spawn_db_check, sample_data};
 use actix_web::web;
+use anyhow::Context;
 use bytesize::ByteSize;
 use futures::FutureExt;
-use std::{env, process::ExitCode, sync::Arc};
+use regex::Regex;
+use std::{env, path::PathBuf, process::ExitCode, sync::Arc};
+
+/// Clap value parser for `TRUSTD_RECOMMEND_PATTERNS`: compiles the regex and validates it has exactly one capture group.
+fn parse_recommend_pattern(s: &str) -> Result<Regex, String> {
+    let re = Regex::new(s).map_err(|e| format!("invalid regex pattern {s:?}: {e}"))?;
+    if re.captures_len() != 2 {
+        return Err(format!(
+            "pattern {s:?} must have exactly 1 capture group, found {}",
+            re.captures_len() - 1
+        ));
+    }
+    Ok(re)
+}
 use tokio::sync::oneshot;
 use trustify_auth::{
     auth::AuthConfigArguments,
@@ -39,7 +53,10 @@ use trustify_module_exploit_intelligence::{
     runner::worker::start_worker,
     service::{ExploitIntelligenceConfig, ExploitIntelligenceService},
 };
-use trustify_module_ingestor::graph::Graph;
+use trustify_module_ingestor::{
+    graph::Graph,
+    service::validation::{self, Validator, ValidatorsConfig},
+};
 use trustify_module_notification::config::NotificationConfig;
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 use trustify_module_ui::{UI, endpoints::UiResources};
@@ -84,6 +101,18 @@ pub struct Run {
     #[arg(long, env = "TRUSTD_MAX_GROUP_NAME_LENGTH", default_value_t = 255)]
     pub max_group_name_length: usize,
 
+    /// Comma-separated regex patterns for identifying vendor-rebuilt PURL versions in recommendations.
+    /// Each pattern must have exactly one capture group extracting the upstream base version.
+    /// Example: `^(.+)\.redhat-[0-9]+$,^(.+)\.SP[0-9]+-redhat-[0-9]+$`
+    /// When absent or empty, the recommendation endpoint returns no results.
+    #[arg(
+        long,
+        env = "TRUSTD_RECOMMEND_PATTERNS",
+        value_delimiter = ',',
+        value_parser = parse_recommend_pattern
+    )]
+    pub recommend_patterns: Vec<Regex>,
+
     /// The size limit of documents in a dataset, uncompressed.
     #[arg(
         long,
@@ -99,6 +128,13 @@ pub struct Run {
         default_value_t = default::scan_limit()
     )]
     pub scan_limit: BinaryByteSize,
+
+    /// Path to a semantic validators configuration file (YAML).
+    ///
+    /// When unset (the default), no validators run and ingestion behaves as
+    /// before. See ADR 00020.
+    #[arg(long, env = "TRUSTD_VALIDATORS_CONFIG")]
+    pub validators_config: Option<PathBuf>,
 
     // flattened commands must go last
     //
@@ -363,6 +399,7 @@ struct InitData {
     broadcaster: ChangeBroadcaster,
     read_only: bool,
     ei_config: Option<ExploitIntelligenceConfig>,
+    validators: Vec<Arc<dyn Validator>>,
 }
 
 /// Groups all module configurations.
@@ -426,7 +463,7 @@ impl InitData {
             trustify_db::Database(&db).migrate().await?;
         }
 
-        let ro_config = run.database_ro.to_database_config(&run.database);
+        let ro_config = run.database_ro.to_database_config(&run.database)?;
         let db_ro = db::ReadOnly::new(db::Database::new(&ro_config).await?);
         let db_rw = db::ReadWrite::new(db.clone());
 
@@ -458,6 +495,8 @@ impl InitData {
                 sbom_upload_limit: run.sbom_upload_limit.into(),
                 advisory_upload_limit: run.advisory_upload_limit.into(),
                 max_group_name_length: run.max_group_name_length,
+                recommend_patterns: run.recommend_patterns,
+                ..Default::default()
             },
             ingestor: trustify_module_ingestor::endpoints::Config {
                 dataset_entry_limit: run.dataset_entry_limit.into(),
@@ -468,6 +507,29 @@ impl InitData {
         };
 
         let ei_config = run.exploit_intelligence.into_config().await?;
+
+        // Build the semantic validator set (ADR 00020). With no config file,
+        // this is empty and ingestion behaves exactly as before.
+        let validators = match &run.validators_config {
+            Some(path) => {
+                let raw = tokio::fs::read_to_string(path)
+                    .await
+                    .with_context(|| format!("reading validators config {}", path.display()))?;
+                let config: ValidatorsConfig = serde_yml::from_str(&raw)
+                    .with_context(|| format!("parsing validators config {}", path.display()))?;
+                validation::build(&config)?
+            }
+            None => Vec::new(),
+        };
+
+        if validators.is_empty() {
+            log::info!("Semantic validation disabled (no validators configured)");
+        } else {
+            log::info!("Semantic validators engaged ({}):", validators.len());
+            for validator in &validators {
+                log::info!("  - {validator:?}");
+            }
+        }
 
         let broadcaster = ChangeBroadcaster::new(
             &db_rw,
@@ -495,6 +557,7 @@ impl InitData {
             ui,
             read_only: run.read_only,
             ei_config,
+            validators,
         })
     }
 
@@ -532,6 +595,7 @@ impl InitData {
                             read_only: self.read_only,
                             ei_service: ei_service.clone(),
                             graph: graph.clone(),
+                            validators: self.validators.clone(),
                         },
                     );
                 })
@@ -619,6 +683,7 @@ pub(crate) struct Config {
     pub(crate) read_only: bool,
     pub(crate) ei_service: ExploitIntelligenceService,
     pub(crate) graph: Graph,
+    pub(crate) validators: Vec<Arc<dyn Validator>>,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
@@ -639,6 +704,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         read_only,
         ei_service,
         graph,
+        validators,
     } = config;
 
     let limit = ByteSize::gb(1).as_u64() as usize;
@@ -667,6 +733,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     db_rw.clone(),
                     storage.clone(),
                     Some(analysis.clone()),
+                    validators.clone(),
                 );
                 trustify_module_fundamental::endpoints::configure(
                     svc,
@@ -677,6 +744,7 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
                     analysis.clone(),
                     cache,
                     graph,
+                    validators,
                 );
                 trustify_module_exploit_intelligence::endpoints::configure(
                     svc,
@@ -775,6 +843,7 @@ mod test {
                             ei_service: ExploitIntelligenceService::new(None)
                                 .expect("disabled EI service"),
                             graph: Graph::new(),
+                            validators: Vec::new(),
                         },
                     );
                 })
@@ -861,6 +930,7 @@ mod test {
                     read_only,
                     ei_service,
                     graph,
+                    validators: Vec::new(),
                 },
             );
         })
@@ -1077,6 +1147,7 @@ mod test {
             #[cfg(feature = "garage-door")]
             embedded_oidc: None,
             ui: Default::default(),
+            validators: Vec::new(),
         };
         let graph = Graph::new();
 
@@ -1136,6 +1207,7 @@ mod test {
                     ei_service,
                     graph,
                     broadcaster,
+                    validators: Vec::new(),
                 },
             );
         })

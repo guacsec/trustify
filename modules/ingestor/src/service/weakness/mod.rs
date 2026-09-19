@@ -144,6 +144,7 @@ impl CweCatalogLoader {
             id: digests.sha512.encode_hex(),
             document_id: Some("CWE".to_string()),
             warnings: vec![],
+            validation: Vec::new(),
         })
     }
 }

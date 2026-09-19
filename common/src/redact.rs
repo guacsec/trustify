@@ -20,7 +20,7 @@ mod test {
     #[derive(Debug)]
     struct Config {
         #[allow(dead_code)]
-        url: reqwest::Url,
+        url: url::Url,
         #[allow(dead_code)]
         password: String,
     }
@@ -40,7 +40,7 @@ mod test {
     #[test]
     fn redacts_password_from_parsed_url() {
         let config = Config {
-            url: reqwest::Url::parse("postgres://user:secret@host/db").unwrap(),
+            url: url::Url::parse("postgres://user:secret@host/db").unwrap(),
             password: "secret".into(),
         };
         let output = format!("{:?}", HideString(&config, &config.password));

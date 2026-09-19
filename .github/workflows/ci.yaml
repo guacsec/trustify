@@ -74,7 +74,7 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
         run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
 
-  ci:
+  test:
     runs-on: ubuntu-24.04
 
     steps:
@@ -149,6 +149,21 @@ jobs:
           cd docs/book
           npm ci
           make all
+
+  ci:
+    runs-on: ubuntu-slim
+    needs:
+      - supply-chain
+      - check
+      - test
+    if: always()
+    steps:
+      - name: Success
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failure
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1
 
   container:
     needs:

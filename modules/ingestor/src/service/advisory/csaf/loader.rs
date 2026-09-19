@@ -102,6 +102,7 @@ impl<'g> CsafLoader<'g> {
                 id: found.advisory.id.to_string(),
                 document_id: Some(advisory_id),
                 warnings: warnings.into(),
+                validation: Vec::new(),
             });
         }
 
@@ -133,6 +134,7 @@ impl<'g> CsafLoader<'g> {
             id: advisory.advisory.id.to_string(),
             document_id: Some(advisory_id),
             warnings: warnings.into(),
+            validation: Vec::new(),
         })
     }
 
@@ -206,9 +208,15 @@ impl<'g> CsafLoader<'g> {
                 .clone(),
         );
 
-        creator.add_all(&product_status.fixed, "fixed");
-        creator.add_all(&product_status.known_not_affected, "not_affected");
-        creator.add_all(&product_status.known_affected, "affected");
+        creator
+            .add_all(&product_status.fixed, "fixed")
+            .map_err(Error::Generic)?;
+        creator
+            .add_all(&product_status.known_not_affected, "not_affected")
+            .map_err(Error::Generic)?;
+        creator
+            .add_all(&product_status.known_affected, "affected")
+            .map_err(Error::Generic)?;
 
         let product_id_mapping = creator.create(self.graph, connection).await?;
 

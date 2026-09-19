@@ -18,7 +18,6 @@ clap = { workspace = true, features = ["derive", "env", "string"] }
 futures = { workspace = true }
 http = { workspace = true }
 log = { workspace = true }
-mime = { workspace = true }
 openssl = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry-otlp = { workspace = true, features = ["grpc-tonic"] }

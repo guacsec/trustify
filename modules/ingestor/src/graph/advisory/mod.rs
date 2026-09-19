@@ -25,6 +25,7 @@ pub mod advisory_vulnerability;
 pub mod cpe_status;
 pub mod product_status;
 pub mod purl_status;
+pub mod vers;
 pub mod version;
 
 #[derive(Clone, Default)]

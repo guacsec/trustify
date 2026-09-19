@@ -84,6 +84,7 @@ impl<'g> CyclonedxLoader<'g> {
             id: ctx.sbom.sbom_id.to_string(),
             document_id,
             warnings: warnings.into(),
+            validation: Vec::new(),
         })
     }
 }

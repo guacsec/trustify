@@ -1,3 +1,4 @@
+use super::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
@@ -42,7 +43,9 @@ impl Format {
     pub fn matches_hint(&self, hint: Format) -> bool {
         match hint {
             Format::Unknown => true,
-            Format::Advisory => matches!(self, Format::CSAF | Format::CVE | Format::OSV),
+            Format::Advisory => {
+                matches!(self, Format::CSAF | Format::CVE | Format::OSV | Format::NVD)
+            }
             Format::SBOM => matches!(
                 self,
                 Format::SPDX
@@ -52,6 +55,20 @@ impl Format {
             ),
             concrete => *self == concrete,
         }
+    }
+
+    /// Validate that this format is allowed for an endpoint whose default
+    /// category is `endpoint_default`.
+    pub fn ensure_allowed_for(self, endpoint_default: Format) -> Result<Self, Error> {
+        if self == Format::Unknown {
+            return Ok(endpoint_default);
+        }
+        if self.matches_hint(endpoint_default) || self == endpoint_default {
+            return Ok(self);
+        }
+        Err(Error::UnsupportedFormat(format!(
+            "format '{self}' is not allowed on this endpoint"
+        )))
     }
 }
 
