@@ -83,7 +83,7 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
 
     // check info
 
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::new(PaginationCache::for_test()).with_default_patterns();
     let purls = service
         .purls(
             Default::default(),
@@ -195,6 +195,11 @@ async fn delete_check_vulns(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
             },
+            fixed_versions: vec![
+                "1.76.0-4.redhat_00001.1.el7eap".to_string(),
+                "1.76.0-4.redhat_00001.1.el8eap".to_string(),
+                "1.76.0-4.redhat_00001.1.el9eap".to_string(),
+            ],
         }]
     );
 

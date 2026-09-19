@@ -1116,7 +1116,7 @@ async fn version_range_boundary_semantics(ctx: &TrustifyContext) -> Result<(), a
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::new(PaginationCache::for_test()).with_default_patterns();
     ctx.ingest_dataset(Dataset::DS3).await?;
 
     // gnutls version from the ubi8 SBOM — affected (below fix 3.6.16-8.el8_9.3)
@@ -1159,6 +1159,8 @@ async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), a
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn product_status_cross_domain_version(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // No recommend patterns — this test verifies CPE-context status entries,
+    // not recommendation pattern filtering.
     let service = PurlService::new(PaginationCache::for_test());
     ctx.ingest_dataset(Dataset::DS1).await?;
 

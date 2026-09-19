@@ -131,6 +131,7 @@ mod v2 {
                 "message": "This endpoint is disabled until the required regex pattern TRUSTD_RECOMMEND_PATTERNS is configured on the server."
             })));
         }
+
         let tx = db.begin().await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
@@ -166,6 +167,7 @@ mod v3 {
                 "message": "This endpoint is disabled until the required regex pattern TRUSTD_RECOMMEND_PATTERNS is configured on the server."
             })));
         }
+
         let tx = db.begin().await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
@@ -196,12 +198,12 @@ mod v3 {
         let total = purl_service
             .count_sbom_packages(&request.sbom_ids, &tx)
             .await?;
-        if total > purl_service.report_package_limit() {
+        if total > purl_service.report_package_limit {
             return Ok(HttpResponse::PayloadTooLarge().json(serde_json::json!({
                 "error": "package_limit_exceeded",
                 "message": format!(
                     "Total packages ({total}) exceeds maximum ({}).",
-                    purl_service.report_package_limit()
+                    purl_service.report_package_limit
                 )
             })));
         }
