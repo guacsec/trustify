@@ -1,10 +1,10 @@
 {
   "devDependencies": {
-    "@antora/cli": "3.1.15",
-    "@antora/site-generator": "3.1.15"
+    "@antora/cli": "3.2.0",
+    "@antora/site-generator": "3.2.0"
   },
   "dependencies": {
-    "antora": "^3.1.15"
+    "antora": "^3.2.0"
   },
   "overrides": {
     "js-yaml": "^4.2.0",
