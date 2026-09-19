@@ -323,6 +323,7 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
 struct FixVersionEntry {
     advisory_id: Uuid,
     vulnerability_id: String,
+    base_purl_id: Uuid,
     high_version: Option<String>,
 }
 
@@ -368,6 +369,7 @@ impl PurlAdvisory {
                 .select_only()
                 .column_as(purl_status::Column::AdvisoryId, "advisory_id")
                 .column_as(purl_status::Column::VulnerabilityId, "vulnerability_id")
+                .column_as(purl_status::Column::BasePurlId, "base_purl_id")
                 .column_as(version_range::Column::HighVersion, "high_version")
                 .join(JoinType::Join, purl_status::Relation::Status.def())
                 .join(JoinType::Join, purl_status::Relation::VersionRange.def())
@@ -380,19 +382,23 @@ impl PurlAdvisory {
                     Expr::col((purl_status::Entity, purl_status::Column::VulnerabilityId))
                         .eq(PgFunc::any(vulnerability_ids)),
                 )
-                .distinct()
                 .into_model::<FixVersionEntry>()
                 .all(tx)
                 .await?;
 
-            let mut map: HashMap<(Uuid, String), Vec<String>> = HashMap::new();
+            // Key by (advisory_id, vulnerability_id, base_purl_id) so that fix versions
+            // from one PURL are never mixed into another PURL's response. An advisory that
+            // affects both `foo` and `bar` produces separate purl_status rows for each;
+            // without base_purl_id in the key the map entry for the shared (advisory, vuln)
+            // pair would be overwritten, returning wrong fix versions.
+            let mut map: HashMap<(Uuid, String, Uuid), Vec<String>> = HashMap::new();
             for entry in fix_version_entries {
                 if let Some(version) = entry.high_version {
                     if version.starts_with("sha256:") {
                         continue;
                     }
                     let versions = map
-                        .entry((entry.advisory_id, entry.vulnerability_id))
+                        .entry((entry.advisory_id, entry.vulnerability_id, entry.base_purl_id))
                         .or_default();
                     if !versions.contains(&version) {
                         versions.push(version);
@@ -426,7 +432,7 @@ impl PurlAdvisory {
 
             if let Some(advisory) = advisory {
                 let fv = fix_versions_map
-                    .get(&(status.advisory_id, status.vulnerability_id.clone()))
+                    .get(&(status.advisory_id, status.vulnerability_id.clone(), status.base_purl_id))
                     .cloned()
                     .unwrap_or_default();
 
@@ -452,13 +458,23 @@ impl PurlAdvisory {
         }
 
         for product_status in product_statuses {
-            let fv = fix_versions_map
-                .get(&(
-                    product_status.advisory.id,
-                    product_status.vulnerability.id.clone(),
-                ))
-                .cloned()
-                .unwrap_or_default();
+            // Product statuses are CPE-based and have no base_purl_id; collect all fix
+            // versions for this (advisory, vulnerability) across every base PURL in the map.
+            let fv: Vec<String> = {
+                let mut all = Vec::new();
+                for ((adv_id, vuln_id, _), versions) in &fix_versions_map {
+                    if *adv_id == product_status.advisory.id
+                        && *vuln_id == product_status.vulnerability.id
+                    {
+                        for v in versions {
+                            if !all.contains(v) {
+                                all.push(v.clone());
+                            }
+                        }
+                    }
+                }
+                all
+            };
 
             let purl_status = PurlStatus::new(
                 &product_status.vulnerability,
