@@ -2,7 +2,7 @@ pub mod context;
 pub(crate) mod progress;
 
 use crate::{
-    model::{Importer, State},
+    model::{Importer, State, auth::CredentialConfig},
     runner::{
         ImportRunner,
         common::heartbeat::Heart,
@@ -24,6 +24,7 @@ use trustify_module_storage::service::dispatch::DispatchBackend;
 /// Run the importer loop.
 ///
 /// When `read_only` is true, the loop stays alive but no imports are started.
+#[allow(clippy::too_many_arguments)]
 pub async fn importer(
     db: ReadWrite,
     cache: PaginationCache,
@@ -32,6 +33,7 @@ pub async fn importer(
     analysis: Option<AnalysisService>,
     concurrency: usize,
     read_only: bool,
+    credential_config: CredentialConfig,
 ) -> anyhow::Result<()> {
     Server {
         db,
@@ -41,6 +43,7 @@ pub async fn importer(
         analysis,
         concurrency,
         read_only,
+        credential_config,
     }
     .run()
     .await
@@ -70,6 +73,7 @@ struct Server {
     analysis: Option<AnalysisService>,
     concurrency: usize,
     read_only: bool,
+    credential_config: CredentialConfig,
 }
 
 impl Server {
@@ -90,6 +94,7 @@ impl Server {
             storage: self.storage.clone(),
             working_dir: self.working_dir.clone(),
             analysis: self.analysis.clone(),
+            credential_config: self.credential_config.clone(),
         };
         let mut interval = tokio::time::interval(Duration::from_secs(1));
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);

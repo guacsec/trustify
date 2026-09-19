@@ -16,7 +16,7 @@ pub mod report;
 pub mod sbom;
 
 use crate::{
-    model::ImporterConfiguration,
+    model::{ImporterConfiguration, auth::CredentialConfig},
     runner::{context::RunContext, report::ScannerError},
     server::RunOutput,
 };
@@ -33,6 +33,7 @@ pub struct ImportRunner {
     pub storage: DispatchBackend,
     pub working_dir: Option<PathBuf>,
     pub analysis: Option<AnalysisService>,
+    pub credential_config: CredentialConfig,
 }
 
 impl ImportRunner {
@@ -71,7 +72,8 @@ impl ImportRunner {
                 self.run_once_kev_catalog(context, kev, continuation).await
             }
             ImporterConfiguration::Quay(quay) => {
-                self.run_once_quay(context, quay, continuation).await
+                self.run_once_quay(context, quay, continuation, self.credential_config.clone())
+                    .await
             }
         }
     }

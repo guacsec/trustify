@@ -8,7 +8,10 @@ use tar::Builder;
 use tokio::fs;
 use trustify_common::{db::ReadWrite, model::BinaryByteSize};
 use trustify_module_importer::{
-    model::{CommonImporter, CsafImporter, CveImporter, ImporterConfiguration, SbomImporter},
+    model::{
+        CommonImporter, CsafImporter, CveImporter, ImporterConfiguration, SbomImporter,
+        auth::CredentialConfig,
+    },
     runner::{
         ImportRunner,
         context::RunContext,
@@ -136,6 +139,7 @@ impl GenerateDump {
             working_dir: self.working_dir.as_ref().map(|wd| wd.join("wd")),
             // The xtask doesn't need the analysis graph
             analysis: None,
+            credential_config: CredentialConfig::default(),
         };
 
         // ingest documents

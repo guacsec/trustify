@@ -8810,6 +8810,7 @@ dependencies = [
  "actix-http",
  "actix-web",
  "anyhow",
+ "base64 0.22.1",
  "bytes",
  "bytesize",
  "chrono",

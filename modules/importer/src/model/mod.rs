@@ -1,3 +1,4 @@
+pub mod auth;
 mod clearly_defined_curation;
 
 mod clearly_defined;
