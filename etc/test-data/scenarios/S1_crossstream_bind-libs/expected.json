@@ -1,0 +1,54 @@
+{
+  "advisories": [
+    "cve/CVE-2022-0396.json",
+    "cve/CVE-2023-5517.json",
+    "cve/CVE-2024-4076.json",
+    "vex/CVE-2022-0396.json",
+    "vex/CVE-2023-5517.json",
+    "vex/CVE-2024-4076.json"
+  ],
+  "sboms": {
+    "sbom_bind-libs_el8.10": {
+      "correct": {
+        "CVE-2022-0396": "not_affected",
+        "CVE-2023-5517": "not_affected",
+        "CVE-2024-4076": "not_affected"
+      }
+    },
+    "sbom_bind-libs_el8.10_describing-cpe": {
+      "correct": {
+        "CVE-2022-0396": "not_affected",
+        "CVE-2023-5517": "not_affected",
+        "CVE-2024-4076": "not_affected"
+      }
+    },
+    "sbom_bind-libs_el9.0_below-fix": {
+      "correct": {
+        "CVE-2022-0396": "affected",
+        "CVE-2023-5517": "not_affected",
+        "CVE-2024-4076": "affected"
+      }
+    },
+    "sbom_bind-libs_el9.0_at-fix": {
+      "correct": {
+        "CVE-2022-0396": "affected",
+        "CVE-2023-5517": "not_affected",
+        "CVE-2024-4076": "not_affected"
+      }
+    },
+    "sbom_bind-libs_el9.0_above-fix": {
+      "correct": {
+        "CVE-2022-0396": "affected",
+        "CVE-2023-5517": "not_affected",
+        "CVE-2024-4076": "not_affected"
+      }
+    },
+    "sbom_bind-libs_el10": {
+      "correct": {
+        "CVE-2022-0396": "not_affected",
+        "CVE-2023-5517": "affected",
+        "CVE-2024-4076": "affected"
+      }
+    }
+  }
+}

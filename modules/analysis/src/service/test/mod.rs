@@ -311,7 +311,7 @@ async fn test_quarkus_analysis_service(ctx: &TrustifyContext) -> Result<(), anyh
                             version: "3.2.12.Final-redhat-00002",
                             cpes: &["cpe:/a:redhat:quarkus:3.2:*:el8:*",],
                             purls: &[
-                                "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.12.Final-redhat-00002?repository_url=https://maven.repository.redhat.com/ga/&type=pom"
+                                "pkg:maven/com.redhat.quarkus.platform/quarkus-bom@3.2.12.Final-redhat-00002?repository_url=https:%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom"
                             ],
                         },
                         Node {
@@ -344,7 +344,7 @@ async fn test_status_service(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     let analysis_status = service.status(&ctx.db, false).await?;
     assert_eq!(analysis_status.sbom_count, 1);
     assert_eq!(analysis_status.graph_count, 1);
-    assert_eq!(analysis_status.graph_memory, 2224);
+    assert_eq!(analysis_status.graph_memory, 2152);
     assert!(analysis_status.details.is_none());
 
     service.clear_all_graphs()?;
@@ -511,12 +511,12 @@ async fn test_simple_by_name_deps_service(ctx: &TrustifyContext) -> Result<(), a
     assert_eq!(analysis_graph.total, Some(1));
 
     assert_eq!(
-        analysis_graph.items[0].purl,
-        vec![Purl::from_str("pkg:rpm/redhat/A@0.0.0?arch=src")?]
+        &*analysis_graph.items[0].purl,
+        [Purl::from_str("pkg:rpm/redhat/A@0.0.0?arch=src")?]
     );
     assert_eq!(
-        analysis_graph.items[0].cpe,
-        vec![Cpe::from_str("cpe:/a:redhat:simple:1::el9")?]
+        &*analysis_graph.items[0].cpe,
+        [Cpe::from_str("cpe:/a:redhat:simple:1::el9")?]
     );
 
     Ok(())
@@ -545,8 +545,8 @@ async fn test_simple_by_purl_deps_service(ctx: &TrustifyContext) -> Result<(), a
         .await?;
 
     assert_eq!(
-        analysis_graph.items[0].purl,
-        vec![Purl::from_str("pkg:rpm/redhat/AA@0.0.0?arch=src")?]
+        &*analysis_graph.items[0].purl,
+        [Purl::from_str("pkg:rpm/redhat/AA@0.0.0?arch=src")?]
     );
 
     assert_eq!(analysis_graph.total, Some(1));
@@ -738,9 +738,8 @@ async fn resolve_sbom_cdx_external_node_sbom(ctx: &TrustifyContext) -> Result<()
         resolve_external_sbom("urn:cdx:a4f16b62-fea9-42c1-8365-d72d3cef37d1/2#a", &ctx.db).await?;
     assert!(get_external_sbom.is_some());
     if let Some(ResolvedSbom {
-        sbom_id: _,
         node_id: external_node_id,
-        cpe_ids: _,
+        ..
     }) = get_external_sbom
     {
         assert_eq!(external_node_id, "a");
@@ -762,9 +761,8 @@ async fn resolve_sbom_spdx_external_node_sbom(ctx: &TrustifyContext) -> Result<(
     let get_external_sbom = resolve_external_sbom("DocumentRef-ext-b:SPDXRef-A", &ctx.db).await?;
     assert!(get_external_sbom.is_some());
     if let Some(ResolvedSbom {
-        sbom_id: _,
         node_id: external_node_id,
-        cpe_ids: _,
+        ..
     }) = get_external_sbom
     {
         assert_eq!(external_node_id, "SPDXRef-A");
@@ -801,7 +799,7 @@ async fn resolve_sbom_spdx_rh_variant_external_node_sbom(
     if let Some(ResolvedSbom {
         sbom_id: external_sbom_id,
         node_id: external_node_id,
-        cpe_ids: _,
+        ..
     }) = get_external_sbom
     {
         assert_eq!(external_node_id, "SPDXRef-SRPM".to_string());
@@ -847,7 +845,7 @@ async fn resolve_sbom_cdx_rh_variant_external_node_sbom(
     if let Some(ResolvedSbom {
         sbom_id: external_sbom_id,
         node_id: external_node_id,
-        cpe_ids: _,
+        ..
     }) = get_external_sbom
     {
         assert_eq!(

@@ -20,9 +20,11 @@ use trustify_module_ingestor::graph::{
     Outcome,
     advisory::{
         AdvisoryContext, AdvisoryInformation,
+        advisory_vulnerability::AdvisoryVulnerabilityContext,
         version::{VersionInfo, VersionSpec},
     },
     cvss::{ScoreCreator, ScoreInformation},
+    error::Error as GraphError,
 };
 use trustify_test_context::TrustifyContext;
 
@@ -30,7 +32,7 @@ pub async fn ingest_sample_advisory<'a>(
     ctx: &'a TrustifyContext,
     id: &'a str,
     title: &'a str,
-) -> Result<AdvisoryContext<'a>, trustify_module_ingestor::graph::error::Error> {
+) -> Result<AdvisoryContext<'a>, GraphError> {
     ctx.graph
         .ingest_advisory(
             title,
@@ -101,8 +103,8 @@ async fn single_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     let advisory = ingest_sample_advisory(ctx, "RHSA-1", "RHSA-1").await?;
 
-    let advisory_vuln: trustify_module_ingestor::graph::advisory::advisory_vulnerability::AdvisoryVulnerabilityContext<'_> = advisory
-        .link_to_vulnerability("CVE-123", None,&ctx.db)
+    let advisory_vuln: AdvisoryVulnerabilityContext<'_> = advisory
+        .link_to_vulnerability("CVE-123", None, &ctx.db)
         .await?;
     let mut creator = ScoreCreator::new(advisory_vuln.advisory.advisory.id);
     creator.add(ScoreInformation {

@@ -74,6 +74,18 @@
         {
           "type": "object",
           "properties": {
+            "nvd": {
+              "$ref": "#/$defs/NvdImporter"
+            }
+          },
+          "required": [
+            "nvd"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "clearlyDefined": {
               "$ref": "#/$defs/ClearlyDefinedImporter"
             }
@@ -104,6 +116,18 @@
           },
           "required": [
             "cwe"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kev": {
+              "$ref": "#/$defs/KevImporter"
+            }
+          },
+          "required": [
+            "kev"
           ],
           "additionalProperties": false
         },
@@ -376,6 +400,60 @@
         "period"
       ]
     },
+    "NvdImporter": {
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "description": "A flag to disable the importer, without deleting it.",
+          "type": "boolean",
+          "default": false
+        },
+        "period": {
+          "description": "The period the importer should be run.",
+          "$ref": "#/$defs/HumantimeSerde"
+        },
+        "description": {
+          "description": "A description for users.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Labels which will be applied to the ingested documents.",
+          "$ref": "#/$defs/Labels"
+        },
+        "source": {
+          "description": "The base URL of the GitHub repository publishing NVD data as per-year\nrelease assets (`CVE-<year>.json.xz` + `.meta`), in the NVD-API JSON\nschema. The latest release is always used.",
+          "type": "string",
+          "default": "https://github.com/fkie-cad/nvd-json-data-feeds"
+        },
+        "years": {
+          "description": "An explicit set of feed years to import. When non-empty, exactly these\nyears are imported and `start_year` is ignored.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0,
+            "maximum": 65535
+          }
+        },
+        "startYear": {
+          "description": "The first feed year to import when `years` is empty; all years from\nhere through the current year are imported. Defaults to 1999, the\nfirst year with NVD data.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535
+        }
+      },
+      "required": [
+        "period"
+      ]
+    },
     "ClearlyDefinedImporter": {
       "type": "object",
       "properties": {
@@ -496,6 +574,48 @@
         "source": {
           "type": "string",
           "default": "https://cwe.mitre.org/data/xml/cwec_latest.xml.zip"
+        }
+      },
+      "required": [
+        "period"
+      ]
+    },
+    "KevImporter": {
+      "description": "Importer configuration for known-exploited-vulnerability catalogs\n(e.g. CISA KEV).",
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "description": "A flag to disable the importer, without deleting it.",
+          "type": "boolean",
+          "default": false
+        },
+        "period": {
+          "description": "The period the importer should be run.",
+          "$ref": "#/$defs/HumantimeSerde"
+        },
+        "description": {
+          "description": "A description for users.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Labels which will be applied to the ingested documents.",
+          "$ref": "#/$defs/Labels"
+        },
+        "source": {
+          "description": "URL of the catalog document to import.",
+          "type": "string",
+          "default": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+        },
+        "catalog": {
+          "description": "Catalog source identifier under which the imported entries are stored\n(and replaced on each run). Defaults to \"cisa-kev\".",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "required": [

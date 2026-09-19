@@ -1,6 +1,7 @@
-use cvss::version::VersionV3;
-use cvss::{Cvss, v2_0, v3, v4_0};
+use crate::graph::vulnerability::BaseScore;
+use cvss::{Cvss, v2_0, v3, v4_0, version::VersionV3};
 use sea_orm::{ColumnTrait, ConnectionTrait, DbErr, EntityTrait, QueryFilter, Set};
+use std::str::FromStr;
 use trustify_entity::advisory_vulnerability_score::{self, ScoreType, Severity};
 use uuid::Uuid;
 
@@ -43,8 +44,16 @@ impl From<ScoreInformation> for advisory_vulnerability_score::ActiveModel {
 
 impl From<(String, v2_0::CvssV2)> for ScoreInformation {
     fn from((vulnerability_id, cvss): (String, v2_0::CvssV2)) -> Self {
-        // Use calculated_base_score() to compute the actual score from metrics
-        let base_score = cvss.calculated_base_score().unwrap_or(0.0);
+        // Prefer the score computed from the vector string over the CNA-provided base_score,
+        // which is only used as a fallback when the vector cannot be parsed or scored.
+        let base_score = cvss
+            .calculated_base_score()
+            .or_else(|| {
+                v2_0::CvssV2::from_str(&cvss.vector_string)
+                    .ok()
+                    .and_then(|p| p.calculated_base_score())
+            })
+            .unwrap_or(cvss.base_score);
 
         Self {
             vulnerability_id,
@@ -58,12 +67,18 @@ impl From<(String, v2_0::CvssV2)> for ScoreInformation {
 
 impl From<(String, v3::CvssV3)> for ScoreInformation {
     fn from((vulnerability_id, cvss): (String, v3::CvssV3)) -> Self {
-        // Use calculated_base_score() to compute the actual score from metrics
-        let base_score = cvss.calculated_base_score().unwrap_or(0.0);
+        let base_score = cvss
+            .calculated_base_score()
+            .or_else(|| {
+                v3::CvssV3::from_str(&cvss.vector_string)
+                    .ok()
+                    .and_then(|p| p.calculated_base_score())
+            })
+            .unwrap_or(cvss.base_score);
         let score_type = match cvss.version {
             Some(VersionV3::V3_0) => ScoreType::V3_0,
             Some(VersionV3::V3_1) => ScoreType::V3_1,
-            None => ScoreType::V3_0, // Default to V3_0 if version is not specified
+            None => ScoreType::V3_0,
         };
         Self {
             vulnerability_id,
@@ -77,14 +92,20 @@ impl From<(String, v3::CvssV3)> for ScoreInformation {
 
 impl From<(String, v4_0::CvssV4)> for ScoreInformation {
     fn from((vulnerability_id, cvss): (String, v4_0::CvssV4)) -> Self {
-        // Use calculated_base_score() to compute the actual score from metrics
-        let base_score = cvss.calculated_base_score().unwrap_or(0.0);
+        let full_score = cvss
+            .calculated_full_score()
+            .or_else(|| {
+                v4_0::CvssV4::from_str(&cvss.vector_string)
+                    .ok()
+                    .and_then(|p| p.calculated_full_score())
+            })
+            .unwrap_or(cvss.base_score);
         Self {
             vulnerability_id,
             r#type: ScoreType::V4_0,
             vector: cvss.vector_string,
-            score: base_score as f32,
-            severity: (base_score, ScoreType::V4_0).into(),
+            score: full_score as f32,
+            severity: (full_score, ScoreType::V4_0).into(),
         }
     }
 }
@@ -100,12 +121,34 @@ impl From<(String, Cvss)> for ScoreInformation {
     }
 }
 
+/// Picks the "best" base score: highest CVSS version first, then highest numeric score.
+pub fn best_base_score(scores: &[ScoreInformation]) -> Option<BaseScore> {
+    scores
+        .iter()
+        .max_by(|a, b| {
+            a.r#type.cmp(&b.r#type).then(
+                a.score
+                    .partial_cmp(&b.score)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
+        })
+        .map(|s| BaseScore {
+            r#type: s.r#type,
+            score: (s.score as f64 * 10.0).round() / 10.0,
+            severity: s.severity,
+        })
+}
+
 impl ScoreCreator {
     pub fn new(advisory_id: Uuid) -> Self {
         Self {
             advisory_id,
             scores: Vec::new(),
         }
+    }
+
+    pub fn scores(&self) -> &[ScoreInformation] {
+        &self.scores
     }
 
     pub fn add(&mut self, model: impl Into<ScoreInformation>) {
@@ -236,6 +279,73 @@ mod test {
         .expect("valid minimal CvssV4 JSON");
         let info: ScoreInformation = ("CVE-2021-0000".to_string(), cvss).into();
         assert_eq!(info.severity, Severity::None);
+    }
+
+    /// Verifies that CVSS v4.0 with E:P (ProofOfConcept) produces score 9.3, not 10.0.
+    #[test]
+    fn score_information_from_v4_exploit_maturity_proof_of_concept() {
+        // Given a CVSS v4.0 vector with all-high metrics and E:P
+        let cvss = v4_0::CvssV4::from_str(
+            "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/E:P",
+        )
+        .expect("valid CVSS v4 vector");
+
+        // When converting to ScoreInformation
+        let info: ScoreInformation = ("CVE-2026-18236".to_string(), cvss).into();
+
+        // Then the score includes the E:P threat metric (CVSS-BT = 9.3)
+        assert_eq!(info.r#type, ScoreType::V4_0);
+        assert_eq!(info.score, 9.3_f32);
+        assert_eq!(info.severity, Severity::Critical);
+    }
+
+    /// Verifies that CVSS v4.0 without an E metric still produces 10.0 (no regression).
+    #[test]
+    fn score_information_from_v4_no_exploit_maturity() {
+        // Given a CVSS v4.0 vector with all-high metrics and no E metric
+        let cvss = v4_0::CvssV4::from_str(
+            "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H",
+        )
+        .expect("valid CVSS v4 vector");
+
+        // When converting to ScoreInformation
+        let info: ScoreInformation = ("CVE-2024-99999".to_string(), cvss).into();
+
+        // Then the score defaults E to Attacked, giving 10.0 (unchanged behavior)
+        assert_eq!(info.score, 10.0_f32);
+    }
+
+    /// Verifies that CVSS v4.0 with E:U (Unreported) lowers the score below 10.0.
+    #[test]
+    fn score_information_from_v4_exploit_maturity_unreported() {
+        // Given a CVSS v4.0 vector with all-high metrics and E:U
+        let cvss = v4_0::CvssV4::from_str(
+            "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/E:U",
+        )
+        .expect("valid CVSS v4 vector");
+
+        // When converting to ScoreInformation
+        let info: ScoreInformation = ("CVE-2024-99998".to_string(), cvss).into();
+
+        // Then the score is lower than 10.0 (E:U → EQ5=2, lookup (0,0,0,1,2,0) → 9.1)
+        assert_eq!(info.score, 9.1_f32);
+    }
+
+    /// Verifies that CVSS v4.0 with E:A (Attacked) produces the maximum score of 10.0.
+    #[test]
+    fn score_information_from_v4_exploit_maturity_attacked() {
+        // Given a CVSS v4.0 vector with all-high metrics and E:A
+        let cvss = v4_0::CvssV4::from_str(
+            "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/E:A",
+        )
+        .expect("valid CVSS v4 vector");
+
+        // When converting to ScoreInformation
+        let info: ScoreInformation = ("CVE-2024-99997".to_string(), cvss).into();
+
+        // Then the score is 10.0 (E:A → EQ5=0, lookup (0,0,0,1,0,0) → 10.0)
+        assert_eq!(info.score, 10.0_f32);
+        assert_eq!(info.severity, Severity::Critical);
     }
 
     #[test]

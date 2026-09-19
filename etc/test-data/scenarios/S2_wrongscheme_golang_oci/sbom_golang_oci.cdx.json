@@ -1,0 +1,11 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:02020000-0000-4000-8000-0202golangoci", "version": 1,
+  "metadata": { "component": { "bom-ref": "root-s2", "type": "application", "name": "s2-wrongscheme-target", "version": "1" } },
+  "components": [
+    { "bom-ref": "pkg-golang-oci", "type": "container", "name": "golang", "version": "1.25",
+      "purl": "pkg:oci/golang@1.25?repository_url=docker.io/golang&tag=1.25" }
+  ],
+  "dependencies": [ { "ref": "root-s2", "dependsOn": ["pkg-golang-oci"] } ]
+}

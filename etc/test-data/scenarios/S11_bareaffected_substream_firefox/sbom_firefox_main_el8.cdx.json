@@ -1,0 +1,14 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:11110000-0000-4000-8000-1111mainel80", "version": 1,
+  "metadata": {
+    "component": { "bom-ref": "root-main8", "type": "operating-system", "name": "rhel", "version": "8.10",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos" }
+  },
+  "components": [
+    { "bom-ref": "pkg-ff", "type": "application", "name": "firefox", "version": "115.15.0-1.el8",
+      "purl": "pkg:rpm/redhat/firefox@115.15.0-1.el8?arch=x86_64&epoch=0&distro=rhel-8.10&upstream=firefox-115.15.0-1.el8.src.rpm" }
+  ],
+  "dependencies": [ { "ref": "root-main8", "dependsOn": ["pkg-ff"] } ]
+}

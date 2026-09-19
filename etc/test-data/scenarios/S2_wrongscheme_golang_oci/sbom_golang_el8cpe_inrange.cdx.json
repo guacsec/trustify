@@ -1,0 +1,7 @@
+{ "$schema":"http://cyclonedx.org/schema/bom-1.6.schema.json","bomFormat":"CycloneDX","specVersion":"1.6",
+  "serialNumber":"urn:uuid:02020000-0000-4000-8000-0202el8cpego","version":1,
+  "metadata":{"component":{"bom-ref":"root-el8","type":"operating-system","name":"rhel","version":"8.10",
+    "cpe":"cpe:/o:redhat:enterprise_linux:8::baseos"}},
+  "components":[{"bom-ref":"c1","type":"library","name":"golang","version":"3.5.0",
+    "purl":"pkg:rpm/redhat/golang@3.5.0?arch=x86_64&epoch=0"}],
+  "dependencies":[{"ref":"root-el8","dependsOn":["c1"]}] }

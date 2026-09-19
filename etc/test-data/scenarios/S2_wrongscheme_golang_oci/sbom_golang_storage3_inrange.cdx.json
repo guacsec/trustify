@@ -1,0 +1,7 @@
+{ "$schema":"http://cyclonedx.org/schema/bom-1.6.schema.json","bomFormat":"CycloneDX","specVersion":"1.6",
+  "serialNumber":"urn:uuid:02020000-0000-4000-8000-0202storage3in","version":1,
+  "metadata":{"component":{"bom-ref":"root-stor3","type":"operating-system","name":"redhat-storage","version":"3",
+    "cpe":"cpe:/a:redhat:storage:3"}},
+  "components":[{"bom-ref":"c1","type":"library","name":"golang","version":"3.5.0",
+    "purl":"pkg:rpm/redhat/golang@3.5.0?arch=x86_64&epoch=0"}],
+  "dependencies":[{"ref":"root-stor3","dependsOn":["c1"]}] }

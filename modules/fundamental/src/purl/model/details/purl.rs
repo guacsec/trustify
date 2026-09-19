@@ -12,11 +12,13 @@ use crate::{
     vulnerability::model::VulnerabilityHead,
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, LoaderTrait, ModelTrait,
-    QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait, Select,
-    SelectColumns,
+    ColumnTrait, Condition, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, LoaderTrait,
+    ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
+    Select, SelectColumns,
 };
-use sea_query::{Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr};
+use sea_query::{
+    Alias, Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, SimpleExpr, UnionType,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, hash_map::Entry};
 use trustify_common::{
@@ -28,8 +30,8 @@ use trustify_common::{
 use trustify_entity::{
     advisory, advisory_vulnerability_score, base_purl, cpe, license, organization, product,
     product_status, product_version, product_version_range, purl_status, qualified_purl, sbom,
-    sbom_license_expanded, sbom_node, sbom_node_purl_ref, sbom_package_license, status,
-    version_range, versioned_purl, vulnerability,
+    sbom_describing_cpe, sbom_license_expanded, sbom_node, sbom_node_purl_ref,
+    sbom_package_license, status, version_range, versioned_purl, vulnerability,
 };
 use trustify_module_ingestor::common::{Deprecation, DeprecationForExt};
 use utoipa::ToSchema;
@@ -84,6 +86,8 @@ impl PurlDetails {
                 .ok_or(Error::Data("underlying package missing".to_string()))?
         };
 
+        let (allowed_cpe_ids, sbom_has_cpes) = cpe_context_subqueries(qualified_package.id);
+
         let purl_statuses = purl_status::Entity::find()
             .filter(purl_status::Column::BasePurlId.eq(package.id))
             .left_join(version_range::Entity)
@@ -93,6 +97,12 @@ impl PurlDetails {
                     .arg(Expr::value(package_version.version.clone()))
                     .arg(Expr::col((version_range::Entity, Asterisk))),
             ))
+            .filter(
+                Condition::any()
+                    .add(purl_status::Column::ContextCpeId.is_null())
+                    .add(purl_status::Column::ContextCpeId.in_subquery(allowed_cpe_ids))
+                    .add(Expr::exists(sbom_has_cpes).not()),
+            )
             .distinct_on([ColumnRef::TableColumn(
                 purl_status::Entity.into_iden(),
                 purl_status::Column::Id.into_iden(),
@@ -152,6 +162,83 @@ impl PurlDetails {
     }
 }
 
+/// Build the two subqueries needed for CPE context filtering:
+/// 1. `allowed_cpe_ids` — CPE IDs from the describing CPEs of SBOMs
+///    containing the given PURL, plus generalized (major-version-only)
+///    variants.
+/// 2. `sbom_has_cpes` — EXISTS subquery that checks whether any SBOM
+///    containing the PURL has describing CPEs at all.
+///
+/// The returned pair is used in a three-way filter:
+///   context_cpe_id IS NULL
+///   OR context_cpe_id IN (allowed_cpe_ids)
+///   OR NOT EXISTS (sbom_has_cpes)
+fn cpe_context_subqueries(
+    qualified_purl_id: Uuid,
+) -> (sea_query::SelectStatement, sea_query::SelectStatement) {
+    let sbom_ids = sbom_node_purl_ref::Entity::find()
+        .select_only()
+        .column(sbom_node_purl_ref::Column::SbomId)
+        .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(qualified_purl_id))
+        .into_query();
+
+    let c = Alias::new("c");
+    let sc = Alias::new("sc");
+    let sdc = Alias::new("sdc");
+    let generalized_cpe_ids = sea_query::Query::select()
+        .expr(Expr::col((c.clone(), cpe::Column::Id)))
+        .from_as(cpe::Entity, c.clone())
+        .join_as(
+            JoinType::InnerJoin,
+            cpe::Entity,
+            sc.clone(),
+            Condition::all()
+                .add(
+                    Expr::col((c.clone(), cpe::Column::Vendor))
+                        .equals((sc.clone(), cpe::Column::Vendor)),
+                )
+                .add(
+                    Expr::col((c.clone(), cpe::Column::Product))
+                        .equals((sc.clone(), cpe::Column::Product)),
+                )
+                .add(
+                    Expr::col((c.clone(), cpe::Column::Version)).eq(SimpleExpr::FunctionCall(
+                        Func::cust(Alias::new("split_part"))
+                            .arg(Expr::col((sc.clone(), cpe::Column::Version)))
+                            .arg(Expr::value("."))
+                            .arg(Expr::value(1i32)),
+                    )),
+                ),
+        )
+        .join_as(
+            JoinType::InnerJoin,
+            sbom_describing_cpe::Entity,
+            sdc.clone(),
+            Expr::col((sdc.clone(), sbom_describing_cpe::Column::CpeId))
+                .equals((sc.clone(), cpe::Column::Id)),
+        )
+        .and_where(
+            Expr::col((sdc.clone(), sbom_describing_cpe::Column::SbomId))
+                .in_subquery(sbom_ids.clone()),
+        )
+        .to_owned();
+
+    let mut allowed_cpe_ids = sbom_describing_cpe::Entity::find()
+        .select_only()
+        .column(sbom_describing_cpe::Column::CpeId)
+        .filter(sbom_describing_cpe::Column::SbomId.in_subquery(sbom_ids.clone()))
+        .into_query();
+    allowed_cpe_ids.union(UnionType::Distinct, generalized_cpe_ids);
+
+    let sbom_has_cpes = sea_query::Query::select()
+        .expr(Expr::value(1i32))
+        .from(sbom_describing_cpe::Entity)
+        .and_where(sbom_describing_cpe::Column::SbomId.in_subquery(sbom_ids))
+        .to_owned();
+
+    (allowed_cpe_ids, sbom_has_cpes)
+}
+
 async fn get_product_statuses_for_purl<C: ConnectionTrait>(
     tx: &C,
     qualified_package_id: Uuid,
@@ -167,6 +254,12 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
         .select_only()
         .column(sbom::Column::SbomId)
         .into_query();
+
+    // CPE context filtering — only return product statuses whose
+    // context CPE matches the describing CPEs of SBOMs containing this
+    // PURL.  Mirrors the purl_status CPE context filter in
+    // PurlDetails::from_entity.
+    let (allowed_cpe_ids, sbom_has_cpes) = cpe_context_subqueries(qualified_package_id);
 
     // Main query to get product statuses
     let product_statuses_query = product_status::Entity::find()
@@ -188,6 +281,17 @@ async fn get_product_statuses_for_purl<C: ConnectionTrait>(
             product_status::Relation::Vulnerability.def(),
         )
         .filter(product_version::Column::SbomId.in_subquery(sbom_ids_query))
+        // NOTE: no version_matches filter here. The version_range in
+        // product_status refers to the *product* version (e.g. Quarkus
+        // 2.x), not the *package* version (e.g. keycloak-core 18.0.6).
+        // Product applicability is validated through the product_version
+        // → SBOM join chain above.
+        .filter(
+            Condition::any()
+                .add(product_status::Column::ContextCpeId.is_null())
+                .add(product_status::Column::ContextCpeId.in_subquery(allowed_cpe_ids))
+                .add(Expr::exists(sbom_has_cpes).not()),
+        )
         .filter(Expr::col(product_status::Column::Package).eq(purl_name).or(
             namespace_name.map_or(Expr::value(false), |ns| {
                 Expr::col(product_status::Column::Package).eq(format!("{ns}/{purl_name}"))

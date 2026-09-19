@@ -19,6 +19,79 @@
 - Use `?` operator for error propagation, not `.unwrap()`
 - All CI checks are run via `cargo xtask precommit` (see [Pre-commit Workflow](#pre-commit-workflow))
 
+### Import Nesting
+
+Merge multiple `use` statements from the same crate into a single `use` block with nested
+paths. This reduces visual clutter and groups related imports.
+
+```rust
+// Good — single nested use block
+use sea_orm::{error::DbErr, ConnectionTrait, TransactionTrait};
+
+// Avoid — separate use statements from the same crate
+use sea_orm::error::DbErr;
+use sea_orm::{ConnectionTrait, TransactionTrait};
+```
+
+This is a manual convention — `rustfmt`'s `imports_granularity = "Crate"` option is not
+available on the stable channel. Reviewers should flag un-nested imports during code review.
+
+### Import Style — Absolute Paths
+
+Fully-qualified paths with 4+ segments are enforced by the `clippy::absolute_paths` lint
+(configured in `.clippy.toml` with `absolute-paths-max-segments = 3`). Paths exceeding the
+threshold must be replaced with `use` imports:
+
+```rust
+// Good — imported
+use crate::graph::db_context::parse_status;
+parse_status(value)?;
+
+// Lint error — 4+ segment absolute path
+crate::graph::db_context::parse_status(value)?;
+```
+
+3-segment paths (e.g. `std::fmt::Result`, `entity::advisory_vulnerability::Model`) are not
+flagged by the lint and are acceptable.
+
+### Import Style — Qualified Names for Common Types
+
+Common or ambiguous names should stay qualified with a 2-segment path, even when there is
+no conflict in the current file. This keeps the code self-documenting and avoids confusion
+when reviewing:
+
+```rust
+// Good — qualified with module prefix
+let model: advisory_vulnerability::Model = ...;
+let result: std::fmt::Result = ...;
+let value = serde_json::from_value(...);
+
+// Avoid — bare name is ambiguous across modules
+let model: Model = ...;
+```
+
+Names that benefit from qualification include `Model`, `Entity`, `Column`, `ActiveModel`,
+`Relation`, `from_value`, `info`, and similar names that appear in many modules. This is a
+reviewer convention, not lint-enforced.
+
+### Import Style — Prefer `use` Over Inline Qualified Paths
+
+Always bring items into scope with a `use` import. Only keep inline qualification when the
+bare name would conflict with or be confused for another name already in scope (see
+[Qualified Names for Common Types](#import-style--qualified-names-for-common-types)).
+
+```rust
+// Good — imported
+use std::env::VarError;
+fn foo() -> Result<(), VarError> { ... }
+
+// Avoid — inline qualification when there is no conflict
+fn foo() -> Result<(), std::env::VarError> { ... }
+```
+
+This is a reviewer convention; the clippy `absolute_paths` lint only enforces 4+ segment
+paths (see [Absolute Paths](#import-style--absolute-paths)).
+
 ## Naming Conventions
 
 - Structs: PascalCase (`SbomService`, `AdvisoryService`, `SbomSummary`)
@@ -86,6 +159,26 @@ Named `m<7-digit-number>_<description>.rs` (e.g., `m0002030_create_ai.rs`). SQL 
 - `From<DbErr>` is implemented manually (not via `#[from]`) to handle `RecordNotFound` → `NotFound` conversion
 - Use `?` with automatic `From` conversions throughout service and endpoint code
 - Endpoints return `actix_web::Result<impl Responder>`
+- Internal library functions (non-endpoint, non-`main`) must return typed errors using
+  `thiserror`-derived enums, not `anyhow::Result`. Use named variants with `#[source]` on
+  wrapped causes so callers can match on specific error cases and error chains remain
+  inspectable. `anyhow` is appropriate only at application boundaries (CLI entry points,
+  `main`, test helpers) where structured matching is not needed.
+
+```rust
+// Good — typed error in library code
+use std::io::Error;
+
+#[derive(Debug, thiserror::Error)]
+enum ResolveError {
+    #[error("failed to read file '{path}': {source}")]
+    FileRead { path: String, #[source] source: Error },
+}
+fn resolve(path: &str) -> Result<String, ResolveError> { ... }
+
+// Avoid — anyhow in library code hides error structure from callers
+fn resolve(path: &str) -> anyhow::Result<String> { ... }
+```
 
 ## Testing Conventions
 
@@ -130,6 +223,22 @@ Any files modified by steps 1–2 (e.g., `openapi.yaml`, JSON schema files) must
 - Member crates reference workspace dependencies via `dependency.workspace = true`
 - Edition 2024 with resolver 3
 - Key crate choices: `actix-web` (HTTP), `sea-orm` (ORM), `utoipa` (OpenAPI), `tokio` (async), `serde` (serialization), `anyhow`/`thiserror` (errors), `clap` (CLI)
+
+## CLI Argument Patterns
+
+- Use `value_parser` to parse CLI arguments directly into their target type rather than accepting `String` and converting later. This moves validation to parse time and produces clear clap error messages on startup.
+
+  ```rust
+  // Good — parse and validate at arg-parse time
+  #[arg(long, env = "TRUSTD_FOO", value_parser = parse_foo)]
+  pub foo: Vec<MyType>,
+
+  fn parse_foo(s: &str) -> Result<MyType, String> { ... }
+
+  // Avoid — accept String, convert/validate later in business logic
+  #[arg(long, env = "TRUSTD_FOO", value_delimiter = ',')]
+  pub foo: Vec<String>,
+  ```
 
 ## Endpoint Patterns
 
@@ -195,6 +304,35 @@ let base_purl_map: HashMap<PurlKey, BasePurl> = base_purls.into_iter().map(|b| (
 
 This also applies to SeaORM `.all()` calls (which already return `Vec<Model>`) and `push()` calls
 where the collection type is already known.
+
+#### Turbofish on collection constructors
+
+Prefer plain constructors (`HashMap::new()`, `Vec::new()`) over turbofish-annotated ones
+(`HashMap::<K, V>::new()`) when the compiler can infer the type from context — for example,
+from the function's return type or from a subsequent assignment.
+
+The turbofish is acceptable when the compiler cannot infer the type. Common cases:
+
+- **`.entry().or_default()`** — the compiler needs the value type to resolve `Default::default()`
+- **Type coercion** — the turbofish drives `&String` → `&str` coercion that inference alone
+  would not produce
+- **Generic function parameters** — e.g., `impl IntoIterator<Item = impl AsRef<str>>` does
+  not constrain the concrete collection type
+- **Assertion macros** — `assert_eq!` does not propagate type constraints between its arguments
+
+```rust
+// Good — compiler infers HashSet<&str> from the insert call
+let mut names = HashSet::new();
+names.insert("alice");
+
+// Good — turbofish needed because .or_default() requires type resolution
+let mut map = BTreeMap::<String, Vec<Item>>::new();
+map.entry(key).or_default().push(item);
+
+// Good — turbofish drives &String → &str coercion
+let mut packages = HashSet::<&str>::new();
+packages.insert(&some_string); // &String coerced to &str
+```
 
 ### Iterator ownership
 

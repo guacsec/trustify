@@ -1,4 +1,4 @@
-FROM registry.access.redhat.com/ubi9/ubi:latest as builder
+FROM registry.access.redhat.com/ubi10/ubi:latest as builder
 
 ARG tag
 

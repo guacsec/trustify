@@ -1,0 +1,36 @@
+name: prepare-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - alpha
+          - beta
+          - rc
+          - patch
+          - minor
+      version-override:
+        description: "Full version override (e.g., 0.6.0-alpha.1). Takes precedence over bump type."
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: prepare-release-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    if: github.repository_owner == 'guacsec'
+    permissions:
+      contents: write
+      pull-requests: write
+    secrets: inherit
+    uses: guacsec/trustify-release-tools/.github/workflows/prepare-release.yaml@main
+    with:
+      bump: ${{ inputs.bump }}
+      version-override: ${{ inputs.version-override }}

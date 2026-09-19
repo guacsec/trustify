@@ -38,11 +38,7 @@ fn create(enabled: bool) -> anyhow::Result<Option<Server>> {
                     ignore_localhost_port: true,
                 },
                 RedirectUrl::Exact {
-                    url: "http://localhost/openapi/oauth2-redirect.html".into(),
-                    ignore_localhost_port: true,
-                },
-                RedirectUrl::Exact {
-                    url: "http://localhost/rapidoc/oauth-receiver.html".into(),
+                    url: "http://localhost/swagger-ui/oauth2-redirect.html".into(),
                     ignore_localhost_port: true,
                 },
             ],

@@ -4,6 +4,8 @@
 
 APPROVED
 
+* 2026-07-06: Added PATCH endpoint for partial assignment updates, API version is now v3
+
 ## Context
 
 In order to better organize SBOMs, we do want to group them. The idea is to start out with a simple "folder style"
@@ -365,6 +367,42 @@ Create a new endpoint to assign an SBOM to groups.
 * 401 - if the user was not authenticated
 * 403 - if the user was authenticated but not authorized
 * 412 - if the `IfMatch` header was present, but its value didn't match the stored revision
+
+### PATCH `/api/v3/group/sbom-assignment`
+
+Partially update SBOM group assignments. Unlike PUT (which replaces all assignments),
+this endpoint adds and/or removes specific group assignments while preserving the rest.
+
+Uses cartesian product semantics: each SBOM in `sbom_ids` gets all `add` groups added
+and all `remove` groups removed.
+
+#### Request
+
+| part | name | type                     | description                 |
+|------|------|--------------------------|-----------------------------|
+| body | -    | `PatchAssignmentRequest` | Groups to add and/or remove |
+
+```rust
+#[derive(Serialize, Deserialize)]
+struct PatchAssignmentRequest {
+    /// The IDs of the SBOMs to update.
+    sbom_ids: Vec<String>,
+    /// Group IDs to add to each SBOM's assignments.
+    #[serde(default)]
+    add: Vec<String>,
+    /// Group IDs to remove from each SBOM's assignments.
+    #[serde(default)]
+    remove: Vec<String>,
+}
+```
+
+#### Response
+
+* 204 - if the SBOM assignments were successfully updated
+* 400 - if the request could not be understood, or one or more group IDs do not exist
+* 401 - if the user was not authenticated
+* 403 - if the user was authenticated but not authorized
+* 404 - if one or more SBOM IDs do not exist
 
 ### GET `/api/v2/sbom`
 

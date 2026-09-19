@@ -1,0 +1,12 @@
+{
+  "advisories": [
+    "vex/CVE-2021-37136.json"
+  ],
+  "sboms": {
+    "sbom_netty_rhsso7": {
+      "correct": {
+        "CVE-2021-37136": "affected"
+      }
+    }
+  }
+}

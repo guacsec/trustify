@@ -1,0 +1,49 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "s7-cpeonly-target",
+  "documentNamespace": "https://trust-breaker/s7/cpeonly",
+  "creationInfo": {
+    "created": "2026-08-21T00:00:00Z",
+    "creators": [
+      "Tool: trust-breaker-0.1"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-root-s7"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-root-s7",
+      "name": "s7-cpeonly-target",
+      "versionInfo": "1",
+      "downloadLocation": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-os-hummingbird-1",
+      "name": "hummingbird",
+      "versionInfo": "1",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe23Type",
+          "referenceLocator": "cpe:2.3:a:redhat:hummingbird:1:*:*:*:*:*:*:*"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-root-s7"
+    },
+    {
+      "spdxElementId": "SPDXRef-root-s7",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-os-hummingbird-1"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:5a7e1100-0000-4000-8000-5a7e111be810",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-s4",
+      "type": "application",
+      "name": "s4-wrongproduct-target",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "os-el8",
+      "type": "operating-system",
+      "name": "rhel",
+      "version": "8.10",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos"
+    },
+    {
+      "bom-ref": "pkg-chardet",
+      "type": "library",
+      "name": "python3-chardet",
+      "version": "3.0.4-7.el8",
+      "purl": "pkg:rpm/redhat/python3-chardet@3.0.4-7.el8?arch=noarch&distro=rhel-8.10&upstream=python-chardet-3.0.4-7.el8.src.rpm"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-s4",
+      "dependsOn": [
+        "os-el8",
+        "pkg-chardet"
+      ]
+    }
+  ]
+}

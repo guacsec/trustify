@@ -1,4 +1,4 @@
-use serde_cyclonedx::cyclonedx::v_1_6::HashAlg;
+use serde_cyclonedx::cyclonedx::v_1_6::{Hash, HashAlg};
 use spdx_rs::models::Algorithm;
 use std::borrow::Cow;
 
@@ -13,8 +13,8 @@ impl Checksum {
     pub const NONE: [Self; 0] = [];
 }
 
-impl From<serde_cyclonedx::cyclonedx::v_1_6::Hash> for Checksum {
-    fn from(value: serde_cyclonedx::cyclonedx::v_1_6::Hash) -> Self {
+impl From<Hash> for Checksum {
+    fn from(value: Hash) -> Self {
         Self {
             r#type: match value.alg {
                 HashAlg::Md5 => "MD5",

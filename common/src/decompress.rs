@@ -1,5 +1,6 @@
 use actix_web::http::header;
 use anyhow::anyhow;
+use async_compression::tokio::bufread::{GzipDecoder, LzmaDecoder};
 use bytes::Bytes;
 use std::{io::Read, path::Path, pin::Pin};
 use tokio::{
@@ -109,8 +110,8 @@ pub async fn decompress_async_read(
     let source = BufReader::new(source);
 
     Ok(match path.extension().and_then(|ext| ext.to_str()) {
-        Some("xz") => Box::pin(async_compression::tokio::bufread::LzmaDecoder::new(source)),
-        Some("gz") => Box::pin(async_compression::tokio::bufread::GzipDecoder::new(source)),
+        Some("xz") => Box::pin(LzmaDecoder::new(source)),
+        Some("gz") => Box::pin(GzipDecoder::new(source)),
         // Anything else could be .sql, .tar, or an unsupported compression format.
         // In that case, the following code would fail to understand the compressed content.
         None | Some(_) => Box::pin(source),

@@ -12,8 +12,8 @@ use trustify_common::{
     db::{
         DatabaseErrors, ReadWrite,
         limiter::{LimitedResult, LimiterTrait},
-        pagination_cache::PaginationCache,
-        query::{Filtering, Query},
+        pagination_cache::{LimitError, PaginationCache},
+        query::{Error as QueryError, Filtering, Query},
     },
     error::ErrorInformation,
     model::{PaginatedResults, Pagination, Revisioned},
@@ -36,11 +36,11 @@ pub enum Error {
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]
-    Query(#[from] trustify_common::db::query::Error),
+    Query(#[from] QueryError),
     #[error(transparent)]
     Label(#[from] labels::Error),
     #[error(transparent)]
-    Limit(#[from] trustify_common::db::pagination_cache::LimitError),
+    Limit(#[from] LimitError),
 }
 
 impl From<sea_orm::DbErr> for Error {

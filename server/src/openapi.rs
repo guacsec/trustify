@@ -1,7 +1,10 @@
 use crate::profile::api::{Config, ModuleConfig, configure, default_openapi_info};
 use actix_web::App;
-use trustify_common::db::{self, pagination_cache::PaginationCache};
+use std::time::Duration;
+use trustify_common::db::{self, change::ChangeBroadcaster, pagination_cache::PaginationCache};
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
+use trustify_module_exploit_intelligence::service::ExploitIntelligenceService;
+use trustify_module_ingestor::graph::Graph;
 use trustify_module_storage::service::fs::FileSystemBackend;
 use utoipa_actix_web::AppExt;
 
@@ -11,7 +14,14 @@ pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
     let db_rw = db::ReadWrite::new(db.clone());
     let db_ro = db::ReadOnly::new(db.clone());
     let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());
+    let broadcaster = ChangeBroadcaster::new(
+        &db_rw,
+        Duration::from_secs(86400),
+        Duration::from_secs(30),
+        Duration::from_secs(300),
+    )?;
 
+    let ei_service = ExploitIntelligenceService::new(None)?;
     let (_, mut openapi) = App::new()
         .into_utoipa_app()
         .configure(|svc| {
@@ -25,7 +35,11 @@ pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
                     storage: storage.into(),
                     auth: None,
                     analysis,
+                    broadcaster,
                     read_only: false,
+                    ei_service,
+                    graph: Graph::new(),
+                    validators: Vec::new(),
                 },
             );
         })

@@ -57,7 +57,7 @@ async fn reingest(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                     .map(|purl| purl.head.purl.to_string())
                     .collect())
                 .collect::<Vec<Vec<_>>>(),
-            vec![vec!["pkg:maven/com.redhat.quarkus.platform/quarkus-bom@2.13.8.Final-redhat-00004?repository_url=https://maven.repository.redhat.com/ga/&type=pom".to_string()]]
+            vec![vec!["pkg:maven/com.redhat.quarkus.platform/quarkus-bom@2.13.8.Final-redhat-00004?repository_url=https:%2F%2Fmaven.repository.redhat.com%2Fga%2F&type=pom".to_string()]]
         );
 
         // get product

@@ -1,0 +1,12 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX", "specVersion": "1.6",
+  "serialNumber": "urn:uuid:06060000-0000-4000-8000-0606rpmxecos", "version": 1,
+  "metadata": { "component": { "bom-ref": "root-s6-rpm", "type": "application", "name": "s6-rpm-crossecosystem", "version": "1" } },
+  "components": [
+    { "bom-ref": "os-el8", "type": "operating-system", "name": "rhel", "version": "8.10", "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos" },
+    { "bom-ref": "pkg-py3-urllib3", "type": "library", "name": "python3-urllib3", "version": "1.24.2-5.el8",
+      "purl": "pkg:rpm/redhat/python3-urllib3@1.24.2-5.el8?arch=noarch&distro=rhel-8.10&upstream=python-urllib3-1.24.2-5.el8.src.rpm" }
+  ],
+  "dependencies": [ { "ref": "root-s6-rpm", "dependsOn": ["os-el8","pkg-py3-urllib3"] } ]
+}

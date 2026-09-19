@@ -194,7 +194,7 @@ pub enum ScannerError {
     Normal {
         #[source]
         err: anyhow::Error,
-        output: RunOutput,
+        output: Box<RunOutput>,
     },
 }
 
@@ -207,7 +207,7 @@ impl SplitScannerError for Result<RunOutput, ScannerError> {
     fn split(self) -> anyhow::Result<(RunOutput, anyhow::Result<()>)> {
         match self {
             Ok(output) => Ok((output, Ok(()))),
-            Err(ScannerError::Normal { err, output }) => Ok((output, Err(err))),
+            Err(ScannerError::Normal { err, output }) => Ok((*output, Err(err))),
             Err(ScannerError::Critical(err)) => Err(err),
         }
     }

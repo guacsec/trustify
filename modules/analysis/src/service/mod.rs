@@ -29,10 +29,10 @@ use petgraph::{
     visit::{VisitMap, Visitable},
 };
 use sea_orm::{
-    ColumnTrait, EntityOrSelect, EntityTrait, FromQueryResult, PaginatorTrait, QueryFilter,
-    QueryOrder, QuerySelect, RelationTrait, prelude::ConnectionTrait,
+    ColumnTrait, DatabaseBackend, EntityOrSelect, EntityTrait, FromQueryResult, PaginatorTrait,
+    QueryFilter, QueryOrder, QuerySelect, RelationTrait, Statement, prelude::ConnectionTrait,
 };
-use sea_query::{Expr, JoinType};
+use sea_query::JoinType;
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
@@ -57,7 +57,7 @@ use trustify_entity::{
     relationship::Relationship,
     sbom,
     sbom_external_node::{self, DiscriminatorType, ExternalType},
-    sbom_node_checksum, source_document,
+    source_document,
 };
 use uuid::Uuid;
 
@@ -94,11 +94,34 @@ pub struct AnalysisService {
     concurrency: usize,
 }
 
+/// A cross-SBOM link resolved by checksum or document-reference matching.
+///
+/// Represents a target SBOM (and entry-point node within it) that was
+/// found to reference the same component as the node being analysed.
+/// Used by both the descendant path (SPDX/CycloneDX external
+/// references) and the ancestor path (Red Hat product→component
+/// checksum matching).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct ResolvedSbom {
+    /// The SBOM that contains the external reference.
     pub sbom_id: Uuid,
+    /// The `external_node_ref` value from `sbom_external_node` — this
+    /// is the identifier the referencing SBOM uses to point at the
+    /// component (e.g. a pURL, SPDX ref, or checksum-based ref).
     pub node_id: String,
+    /// CPE IDs that describe the referencing SBOM, aggregated from
+    /// `sbom_describing_cpe`.
     pub cpe_ids: Vec<Uuid>,
+    /// The internal `sbom_external_node.node_id` within the ancestor
+    /// SBOM's in-memory graph.
+    ///
+    /// When populated (the RH ancestor path fills this from SQL), the
+    /// collector can look up the node directly in the graph and skip
+    /// the extra `sbom_external_node` query that would otherwise be
+    /// needed to map `node_id` (the external ref) back to the graph
+    /// node.  `None` for SPDX/CycloneDX paths, which resolve via a
+    /// different mechanism.
+    pub graph_node_id: Option<String>,
 }
 
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
@@ -160,6 +183,7 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
                     sbom_id: entity.sbom_id,
                     node_id: sbom_external_node.external_node_ref,
                     cpe_ids: vec![],
+                    graph_node_id: None,
                 }))
         }
         ExternalType::CycloneDx => {
@@ -187,6 +211,7 @@ async fn resolve_external_sbom<C: ConnectionTrait>(
                     sbom_id: entity.sbom_id,
                     node_id: sbom_external_node.external_node_ref,
                     cpe_ids: vec![],
+                    graph_node_id: None,
                 }))
         }
         ExternalType::RedHatProductComponent => {
@@ -210,26 +235,31 @@ async fn resolve_rh_external_sbom_descendants<C: ConnectionTrait>(
     sbom_external_node_ref: String,
     connection: &C,
 ) -> Result<Option<ResolvedSbom>, Error> {
-    // find checksum value for the node
+    // Single self-join query: find nodes in other SBOMs that share
+    // the same checksum value as the given node.
+    #[derive(Debug, FromQueryResult)]
+    struct ChecksumMatch {
+        matched_sbom_id: Uuid,
+        matched_node_id: String,
+    }
 
-    let Some(entity) = sbom_node_checksum::Entity::find()
-        .filter(sbom_node_checksum::Column::NodeId.eq(sbom_external_node_ref.clone()))
-        .filter(sbom_node_checksum::Column::SbomId.eq(sbom_external_sbom_id))
-        .one(connection)
-        .await?
-    else {
-        log::debug!("Unable to find checksum");
-        return Ok(None);
-    };
-
-    log::debug!("Checksum: {} / {}", entity.value, entity.sbom_id);
-
-    // now find if there are any other nodes with the same checksums
-    let matches = sbom_node_checksum::Entity::find()
-        .filter(sbom_node_checksum::Column::Value.eq(entity.value.to_string()))
-        .filter(sbom_node_checksum::Column::SbomId.ne(entity.sbom_id))
-        .all(connection)
-        .await?;
+    let matches = ChecksumMatch::find_by_statement(Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        r#"
+        SELECT matched.sbom_id AS matched_sbom_id,
+               matched.node_id AS matched_node_id
+        FROM sbom_node_checksum self_chk
+        JOIN sbom_node_checksum matched
+          ON matched.value = self_chk.value
+         AND matched.type = self_chk.type
+         AND matched.sbom_id != self_chk.sbom_id
+        WHERE self_chk.sbom_id = $1
+          AND self_chk.node_id = $2
+        "#,
+        [sbom_external_sbom_id.into(), sbom_external_node_ref.into()],
+    ))
+    .all(connection)
+    .await?;
 
     log::debug!("Found {} nodes by checksum", matches.len());
 
@@ -239,67 +269,163 @@ async fn resolve_rh_external_sbom_descendants<C: ConnectionTrait>(
         // which has not defined a bom-ref - we can 'sniff' this because such nodes always
         // are ingested with a uuid node-id.
         .find(|model| {
-            if Uuid::parse_str(&model.node_id).is_err() {
+            if Uuid::parse_str(&model.matched_node_id).is_err() {
                 // failed to parse, we keep it
                 true
             } else {
-                log::debug!("Dropping suspected top-level node ID: {}", model.node_id);
+                log::debug!(
+                    "Dropping suspected top-level node ID: {}",
+                    model.matched_node_id
+                );
                 false
             }
         })
-        .map(|matched_model| ResolvedSbom {
-            sbom_id: matched_model.sbom_id,
-            node_id: matched_model.node_id,
+        .map(|matched| ResolvedSbom {
+            sbom_id: matched.matched_sbom_id,
+            node_id: matched.matched_node_id,
             cpe_ids: vec![],
+            graph_node_id: None,
         }))
 }
 
-/// Result row from a checksum lookup with aggregated CPE IDs.
+/// A single row returned by `resolve_rh_external_sbom_ancestors`.
+///
+/// Maps directly to the SQL SELECT list: one row per ancestor SBOM
+/// that references the queried node through a shared checksum, with
+/// CPE IDs aggregated via `array_agg`.
 #[derive(Debug, FromQueryResult)]
 struct ChecksumWithCpes {
+    /// `sbom_external_node.sbom_id` — the ancestor (product) SBOM.
     sbom_id: Uuid,
+    /// `sbom_external_node.external_node_ref` — the ref the ancestor
+    /// SBOM uses to point at the component.
     node_id: String,
+    /// Aggregated `sbom_describing_cpe.cpe_id` values for the
+    /// ancestor SBOM (empty array when none exist).
     cpe_ids: Vec<Uuid>,
+    /// `sbom_external_node.node_id` — the graph-internal node ID
+    /// within the ancestor SBOM, used to skip a follow-up query.
+    graph_node_id: Option<String>,
 }
 
-/// Resolves external SBOM ancestors by checksum matching, including their describing CPEs.
+/// Extended version of [`ChecksumWithCpes`] used by the batch query.
 ///
-/// Uses `array_agg` to collect CPE IDs per `(sbom_id, node_id)` directly in the database
-/// rather than expanding rows per CPE and grouping in Rust.
+/// Includes `input_node_id` so results from a multi-node query can be
+/// partitioned back into per-node cache entries.
+#[derive(Debug, FromQueryResult)]
+struct BatchChecksumWithCpes {
+    /// The `node_id` value from the input array that produced this
+    /// row (i.e. `snc_self.node_id`).
+    input_node_id: String,
+    /// `sbom_external_node.sbom_id` — the ancestor (product) SBOM.
+    sbom_id: Uuid,
+    /// `sbom_external_node.external_node_ref` — the ref the ancestor
+    /// SBOM uses to point at the component.
+    node_id: String,
+    /// Aggregated `sbom_describing_cpe.cpe_id` values for the
+    /// ancestor SBOM (empty array when none exist).
+    cpe_ids: Vec<Uuid>,
+    /// `sbom_external_node.node_id` — the graph-internal node ID
+    /// within the ancestor SBOM, used to skip a follow-up query.
+    graph_node_id: Option<String>,
+}
+
+/// Find ancestor (product) SBOMs that reference a given component node.
+///
+/// # Background — Red Hat product→component model
+///
+/// Red Hat product SBOMs reference component SBOMs indirectly: the
+/// product SBOM contains an `sbom_external_node` row whose
+/// `external_node_ref` is a package identifier (pURL / SPDX ref).
+/// That identifier is linked to the component SBOM through a shared
+/// checksum stored in `sbom_node_checksum`.
+///
+/// At ingest time, these cross-SBOM links are materialized into the
+/// `sbom_ancestor` table (see migration `m0002130_sbom_ancestor`).
+/// This function reads those pre-computed links at query time rather
+/// than re-discovering them through expensive runtime checksum scans.
+///
+/// # Parameters
+///
+/// * `sbom_external_sbom_id` — the SBOM that contains the component
+///   node we are analysing (the "child" / component SBOM).
+/// * `sbom_external_node_ref` — the `node_id` of the specific node
+///   within that SBOM (e.g. `SPDXRef-SRPM`, a pURL, etc.).
+///
+/// # Query walkthrough
+///
+/// ```text
+///   sbom_ancestor          "which product SBOMs are ancestors of $1?"
+///       │
+///       ▼
+///   sbom_external_node     "what external-node entries exist in those
+///       │                   ancestor SBOMs?"
+///       ▼
+///   sbom_node_checksum     "does the external_node_ref in the ancestor
+///   (snc_ref + snc_self)    share a checksum with node $2 in SBOM $1?"
+///       │
+///       ▼
+///   sbom_describing_cpe    "what CPEs describe the ancestor SBOM?"
+/// ```
+///
+/// The result is one row per matching ancestor, carrying:
+/// - the ancestor SBOM ID and its external_node_ref (for the caller),
+/// - aggregated CPE IDs from `sbom_describing_cpe`,
+/// - the graph-internal `node_id` from `sbom_external_node` so the
+///   collector can look the node up in the in-memory graph without a
+///   follow-up DB query.
+///
+/// # Caching
+///
+/// This function is called once per unique `(sbom_id, node_id)` pair
+/// thanks to [`AncestorCache`], which coalesces concurrent requests
+/// and caches results across the entire request.
 #[instrument(skip(connection), err(level=tracing::Level::INFO))]
 async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
     sbom_external_sbom_id: Uuid,
     sbom_external_node_ref: String,
     connection: &C,
 ) -> Result<Vec<ResolvedSbom>, Error> {
-    let Some(entity) = sbom_node_checksum::Entity::find()
-        .filter(sbom_node_checksum::Column::NodeId.eq(sbom_external_node_ref.clone()))
-        .filter(sbom_node_checksum::Column::SbomId.eq(sbom_external_sbom_id))
-        .one(connection)
-        .await?
-    else {
-        return Ok(vec![]);
-    };
-
-    let rows = sbom_node_checksum::Entity::find()
-        .select_only()
-        .column(sbom_node_checksum::Column::SbomId)
-        .column(sbom_node_checksum::Column::NodeId)
-        .column_as(
-            Expr::cust(r#"COALESCE(array_agg("sbom_describing_cpe"."cpe_id") FILTER (WHERE "sbom_describing_cpe"."cpe_id" IS NOT NULL), ARRAY[]::uuid[])"#),
-            "cpe_ids",
-        )
-        .join(
-            JoinType::LeftJoin,
-            sbom_node_checksum::Relation::DescribingCpe.def(),
-        )
-        .filter(sbom_node_checksum::Column::Value.eq(entity.value.to_string()))
-        .filter(sbom_node_checksum::Column::SbomId.ne(entity.sbom_id))
-        .group_by(sbom_node_checksum::Column::SbomId)
-        .group_by(sbom_node_checksum::Column::NodeId)
-        .into_model::<ChecksumWithCpes>()
-        .all(connection)
-        .await?;
+    let rows = ChecksumWithCpes::find_by_statement(Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        r#"
+        SELECT sen.sbom_id,
+               sen.external_node_ref AS node_id,
+               COALESCE(
+                   array_agg(sdc.cpe_id)
+                       FILTER (WHERE sdc.cpe_id IS NOT NULL),
+                   ARRAY[]::uuid[]
+               ) AS cpe_ids,
+               -- The graph-internal node_id from sbom_external_node.
+               -- This lets the collector skip the follow-up
+               -- sbom_external_node lookup when walking ancestors.
+               sen.node_id AS graph_node_id
+        FROM sbom_ancestor sa
+        -- Find external-node entries in each ancestor SBOM.
+        JOIN sbom_external_node sen
+          ON sen.sbom_id = sa.ancestor_sbom_id
+        -- Look up the checksum the ancestor recorded for its
+        -- external_node_ref (the package it points at).
+        JOIN sbom_node_checksum snc_ref
+          ON snc_ref.sbom_id = sen.sbom_id
+         AND snc_ref.node_id = sen.external_node_ref
+        -- Match that checksum against the node we are analysing.
+        -- This is the join that proves "ancestor's external ref
+        -- points at the same artefact as node $2 in SBOM $1".
+        JOIN sbom_node_checksum snc_self
+          ON snc_self.sbom_id = $1
+         AND snc_self.node_id = $2
+         AND snc_self.value = snc_ref.value
+        -- Optionally pick up CPEs that describe the ancestor SBOM.
+        LEFT JOIN sbom_describing_cpe sdc
+          ON sdc.sbom_id = sen.sbom_id
+        WHERE sa.sbom_id = $1
+        GROUP BY sen.sbom_id, sen.external_node_ref, sen.node_id
+        "#,
+        [sbom_external_sbom_id.into(), sbom_external_node_ref.into()],
+    ))
+    .all(connection)
+    .await?;
 
     Ok(rows
         .into_iter()
@@ -307,8 +433,87 @@ async fn resolve_rh_external_sbom_ancestors<C: ConnectionTrait>(
             sbom_id: r.sbom_id,
             node_id: r.node_id,
             cpe_ids: r.cpe_ids,
+            graph_node_id: r.graph_node_id,
         })
         .collect())
+}
+
+/// Batch variant of [`resolve_rh_external_sbom_ancestors`].
+///
+/// Resolves ancestor SBOMs for **multiple** node IDs within a single
+/// component SBOM in one SQL query, instead of issuing one query per
+/// node.  The query is identical to the single-node version except
+/// that the `snc_self.node_id = $2` equality is replaced with
+/// `snc_self.node_id = ANY($2)`, and the `snc_self.node_id` column
+/// is included in the SELECT list (as `input_node_id`) and GROUP BY
+/// so the caller can partition results per input node.
+///
+/// Returns a map from each input `node_id` to its resolved ancestors.
+/// Node IDs with no ancestors are mapped to an empty `Vec`.
+#[instrument(
+    skip(node_refs, connection),
+    fields(node_count = node_refs.len()),
+    err(level = tracing::Level::INFO)
+)]
+async fn resolve_rh_external_sbom_ancestors_batch<C: ConnectionTrait>(
+    sbom_id: Uuid,
+    node_refs: &[String],
+    connection: &C,
+) -> Result<HashMap<String, Vec<ResolvedSbom>>, Error> {
+    if node_refs.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let rows = BatchChecksumWithCpes::find_by_statement(Statement::from_sql_and_values(
+        DatabaseBackend::Postgres,
+        r#"
+            SELECT snc_self.node_id AS input_node_id,
+                   sen.sbom_id,
+                   sen.external_node_ref AS node_id,
+                   COALESCE(
+                       array_agg(sdc.cpe_id)
+                           FILTER (WHERE sdc.cpe_id IS NOT NULL),
+                       ARRAY[]::uuid[]
+                   ) AS cpe_ids,
+                   sen.node_id AS graph_node_id
+            FROM sbom_ancestor sa
+            JOIN sbom_external_node sen
+              ON sen.sbom_id = sa.ancestor_sbom_id
+            JOIN sbom_node_checksum snc_ref
+              ON snc_ref.sbom_id = sen.sbom_id
+             AND snc_ref.node_id = sen.external_node_ref
+            JOIN sbom_node_checksum snc_self
+              ON snc_self.sbom_id = $1
+             AND snc_self.node_id = ANY($2)
+             AND snc_self.value = snc_ref.value
+            LEFT JOIN sbom_describing_cpe sdc
+              ON sdc.sbom_id = sen.sbom_id
+            WHERE sa.sbom_id = $1
+            GROUP BY snc_self.node_id,
+                     sen.sbom_id,
+                     sen.external_node_ref,
+                     sen.node_id
+            "#,
+        [sbom_id.into(), node_refs.to_vec().into()],
+    ))
+    .all(connection)
+    .await?;
+
+    let mut result = HashMap::<String, Vec<ResolvedSbom>>::with_capacity(node_refs.len());
+
+    for r in rows {
+        result
+            .entry(r.input_node_id)
+            .or_default()
+            .push(ResolvedSbom {
+                sbom_id: r.sbom_id,
+                node_id: r.node_id,
+                cpe_ids: r.cpe_ids,
+                graph_node_id: r.graph_node_id,
+            });
+    }
+
+    Ok(result)
 }
 
 impl AnalysisService {
@@ -528,10 +733,21 @@ impl AnalysisService {
         graphs: &[(Uuid, Arc<PackageGraph>)],
         connection: &C,
     ) -> Result<Vec<Node>, Error> {
-        let relationships = options.relationships;
+        let relationships = Arc::new(options.relationships);
         log::debug!("relations: {:?}", relationships);
 
         let loader = &GraphLoader::new(self.clone());
+        let ancestor_cache = AncestorCache::default();
+        let external_sbom_cache = ExternalSbomCache::default();
+
+        // Batch-prefetch ancestor results for all PackageNodes in
+        // the initial set of graphs.  This replaces N individual
+        // SQL queries (one per node) with one batched query per SBOM,
+        // dramatically reducing DB round-trips for the first level
+        // of ancestor resolution.
+        for (sbom_id, graph) in graphs {
+            ancestor_cache.prefetch(*sbom_id, graph, connection).await?;
+        }
 
         self.collect_graph(
             query,
@@ -539,7 +755,9 @@ impl AnalysisService {
             self.concurrency,
             |graph, node_index, node| {
                 let graph_cache = self.inner.graph_cache.clone();
-                let relationships = relationships.clone();
+                let relationships = Arc::clone(&relationships);
+                let ancestor_cache = ancestor_cache.clone();
+                let external_sbom_cache = external_sbom_cache.clone();
                 async move {
                     log::trace!(
                         "Discovered node - sbom: {}, node: {}",
@@ -559,6 +777,8 @@ impl AnalysisService {
                         connection,
                         self.concurrency,
                         loader,
+                        ancestor_cache.clone(),
+                        external_sbom_cache.clone(),
                     )
                     .collect();
 
@@ -574,6 +794,8 @@ impl AnalysisService {
                         connection,
                         self.concurrency,
                         loader,
+                        ancestor_cache,
+                        external_sbom_cache,
                     )
                     .collect();
 
@@ -704,40 +926,9 @@ impl AnalysisService {
                 })
             }
             GraphQuery::Query(query) => graph.node_weight(i).is_some_and(|node| {
-                let purls: Vec<_> = match node {
-                    graph::Node::Package(p) => {
-                        p.purl
-                            .iter()
-                            .map(|p| {
-                                let mut v: serde_json::Value = p.into();
-                                // if any translations are applied to
-                                // the DB query, they must be added to
-                                // this context as well
-                                v["type"] = v["ty"].clone();
-                                Value::Json(v)
-                            })
-                            .collect()
-                    }
-                    _ => vec![],
-                };
-                let cpes: Vec<_> = match node {
-                    graph::Node::Package(p) => p
-                        .cpe
-                        .iter()
-                        .map(|cpe| {
-                            Value::Json(json!({
-                                "part": cpe.part(),
-                                "vendor": cpe.vendor(),
-                                "product": cpe.product(),
-                                "version": cpe.version(),
-                                "update": cpe.update(),
-                                "edition": cpe.edition(),
-                                "language": cpe.language(),
-                            }))
-                        })
-                        .collect(),
-                    _ => vec![],
-                };
+                let q = &query.q;
+                let needs_nested_purl = q.contains("purl:");
+                let needs_nested_cpe = q.contains("cpe:");
                 let sbom_id = node.sbom_id.to_string();
                 let mut context = ValueContext::from([
                     ("sbom_id", &*sbom_id),
@@ -747,10 +938,38 @@ impl AnalysisService {
                 match node {
                     graph::Node::Package(package) => {
                         context.put("version", &*package.version);
-                        context.put_hidden("cpe", &package.cpe);
-                        context.put_hidden("cpe", cpes);
                         context.put_hidden("purl", &package.purl);
-                        context.put_hidden("purl", purls);
+                        context.put_hidden("cpe", &package.cpe);
+                        if needs_nested_purl {
+                            let purls: Vec<_> = package
+                                .purl
+                                .iter()
+                                .map(|p| {
+                                    let mut v: serde_json::Value = p.into();
+                                    v["type"] = v["ty"].clone();
+                                    Value::Json(v)
+                                })
+                                .collect();
+                            context.put_hidden("purl", purls);
+                        }
+                        if needs_nested_cpe {
+                            let cpes: Vec<_> = package
+                                .cpe
+                                .iter()
+                                .map(|cpe| {
+                                    Value::Json(json!({
+                                        "part": cpe.part(),
+                                        "vendor": cpe.vendor(),
+                                        "product": cpe.product(),
+                                        "version": cpe.version(),
+                                        "update": cpe.update(),
+                                        "edition": cpe.edition(),
+                                        "language": cpe.language(),
+                                    }))
+                                })
+                                .collect();
+                            context.put_hidden("cpe", cpes);
+                        }
                     }
                     graph::Node::External(external) => {
                         context.put(

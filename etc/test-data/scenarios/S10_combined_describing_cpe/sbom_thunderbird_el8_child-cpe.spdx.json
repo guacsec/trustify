@@ -1,0 +1,67 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "eus-target-app",
+  "documentNamespace": "https://trust-breaker/s10/tb-child-cpe",
+  "creationInfo": {
+    "created": "2026-08-21T00:00:00Z",
+    "creators": [
+      "Tool: trust-breaker-0.1"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-root-eus-b"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-root-eus-b",
+      "name": "eus-target-app",
+      "versionInfo": "1",
+      "downloadLocation": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-os-el8",
+      "name": "rhel-os",
+      "versionInfo": "8.10",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe22Type",
+          "referenceLocator": "cpe:/o:redhat:enterprise_linux:8::baseos"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-pkg-tb",
+      "name": "thunderbird",
+      "versionInfo": "115.10.1-1.el8",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:rpm/redhat/thunderbird@115.10.1-1.el8?arch=x86_64&epoch=0&distro=rhel-8.10&upstream=thunderbird-115.10.1-1.el8.src.rpm"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-root-eus-b"
+    },
+    {
+      "spdxElementId": "SPDXRef-root-eus-b",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-os-el8"
+    },
+    {
+      "spdxElementId": "SPDXRef-root-eus-b",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-pkg-tb"
+    }
+  ]
+}

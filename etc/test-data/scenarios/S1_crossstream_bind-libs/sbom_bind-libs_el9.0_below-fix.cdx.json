@@ -1,0 +1,41 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:s1-el9-below",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-s1-el9-below",
+      "type": "application",
+      "name": "s1-el9-below",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "os",
+      "type": "operating-system",
+      "name": "rhel",
+      "version": "9.0",
+      "cpe": "cpe:/o:redhat:enterprise_linux:9::baseos"
+    },
+    {
+      "bom-ref": "pkg-bind-libs",
+      "type": "library",
+      "publisher": "Red Hat, Inc.",
+      "name": "bind-libs",
+      "version": "32:9.16.23-1.el9_0.6",
+      "purl": "pkg:rpm/redhat/bind-libs@9.16.23-1.el9_0.6?arch=x86_64&epoch=32&distro=rhel-9.0&upstream=bind-9.16.23-1.el9_0.6.src.rpm"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-s1-el9-below",
+      "dependsOn": [
+        "os",
+        "pkg-bind-libs"
+      ]
+    }
+  ]
+}

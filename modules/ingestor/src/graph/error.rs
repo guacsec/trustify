@@ -22,6 +22,11 @@ pub enum Error {
     #[error("Invalid status {0}")]
     InvalidStatus(String),
 
+    /// A full-sync replacement was asked to write an empty set, which would
+    /// delete everything the source had contributed.
+    #[error("refusing to replace all entries of exploit source {0:?} with an empty set")]
+    EmptyExploitSet(String),
+
     #[error(transparent)]
     Label(#[from] labels::Error),
 

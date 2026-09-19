@@ -22,7 +22,6 @@ trustify-query-derive = { workspace = true }
 actix-http = { workspace = true }
 actix-web = { workspace = true }
 anyhow = { workspace = true }
-async-trait = { workspace = true }
 cpe = { workspace = true }
 csv = { workspace = true }
 flate2 ={ workspace = true }
@@ -45,6 +44,7 @@ time = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-futures = { workspace = true, features = ["futures-03"] }
+urlencoding = { workspace = true }
 utoipa = { workspace = true, features = ["actix_extras", "uuid", "time"] }
 utoipa-actix-web = { workspace = true }
 uuid = { workspace = true }
@@ -55,7 +55,6 @@ lenient_semver = { workspace = true }
 [dev-dependencies]
 actix-http = { workspace = true }
 bytes = { workspace = true }
-bytesize = { workspace = true }
 chrono = { workspace = true }
 criterion = { workspace = true, features = ["html_reports", "async_tokio"] }
 csaf = { workspace = true }
@@ -79,18 +78,17 @@ sanitize-filename = { workspace = true }
 semver = { workspace = true }
 serde-cyclonedx = { workspace = true }
 serde_json = { workspace = true }
-serde_yml = { workspace = true }
 sha2 = { workspace = true }
-spdx-rs = { workspace = true }
 strum = { workspace = true }
 tar = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
-tokio-util = { workspace = true }
 tracing = { workspace = true, features = ["std"]}
 tracing-core =  { workspace = true }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
+trustify-db = { workspace = true }
+trustify-migration = { workspace = true }
 trustify-test-context = { workspace = true }
 urlencoding = { workspace = true }
 walkdir = { workspace = true }

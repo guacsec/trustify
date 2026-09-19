@@ -12,11 +12,25 @@ on:
     branches:
       - main
       - release/**
+      - feature/**
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
+
+  supply-chain:
+    name: Supply chain audit
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
 
   check:
     name: Check
@@ -37,14 +51,16 @@ jobs:
               vcpkg install openssl:x64-windows-static-md
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ci
 
       - name: Cache Theseus Postgresql Installation
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.theseus/postgresql
           key: ${{ runner.os }}-theseus-postgresql-${{ hashFiles('**/Cargo.lock') }}
@@ -53,54 +69,24 @@ jobs:
         if: matrix.install != ''
         run: ${{ matrix.install }}
 
-      - name: Check
-        env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
-        run: cargo check
       - name: Clippy
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
         run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used
 
-  ci:
-    needs:
-      - check
+  test:
     runs-on: ubuntu-24.04
 
     steps:
-      - run: df -h
-      - name: Maximize build space
-        run: |
-          env | sort
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/az
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /opt/hostedtoolcache/go
-          sudo rm -rf /usr/local/share/powershell
-          sudo rm -rf /usr/lib/jvm
-          sudo rm -rf /usr/share/swift
-          sudo rm -rf /usr/local/.ghcup
-          sudo rm -rf /usr/local/julia*
-          sudo rm -rf /usr/local/share/chromium
-          sudo rm -rf /opt/microsoft /opt/google
-          sudo docker image prune --all --force
-          sudo rm -Rf ${JAVA_HOME_8_X64}
-          sudo rm -Rf ${JAVA_HOME_11_X64}
-          sudo rm -Rf ${JAVA_HOME_17_X64}
-          sudo rm -Rf ${JAVA_HOME_21_X64}
-          sudo rm -Rf ${JAVA_HOME_25_X64}
-          sudo rm -Rf ${RUBY_PATH}
-          sudo rm -Rf ${SWIFT_PATH}
-          sudo rm -Rf ${GRADLE_HOME}
-      - run: df -h
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/maximize-build-space
 
-      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ci
       - uses: dorny/paths-filter@v4
         id: filter
         with:
@@ -109,7 +95,7 @@ jobs:
               - '!**/*.md'
 
       - name: Cache Theseus Postgresql Installation
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.theseus/postgresql
           key: ${{ runner.os }}-theseus-postgresql-${{ hashFiles('**/Cargo.lock') }}
@@ -126,15 +112,23 @@ jobs:
           sudo mkdir /mnt/trustify
           sudo chmod a+rwx /mnt/trustify
 
+      - uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1 # v2
+        with:
+          tool: cargo-nextest
+
       - name: Test
         if: steps.filter.outputs.non_md_changes == 'true'
-        run: cargo test --all-features
+        run: cargo nextest run --all-features -E 'not test(=m0002010::performance)' --profile ci
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
           RUST_LOG: info,sqlx=error,sea_orm=error
           TRUSTIFY_S3_AWS_REGION: eu-west-1
           TRUSTIFY_S3_AWS_BUCKET: guacsec-migration-dumps
           TMPDIR: /mnt/trustify
+
+      - name: Doc tests
+        if: steps.filter.outputs.non_md_changes == 'true'
+        run: cargo test --doc --all-features
 
       - name: Export and Validate Generated Openapi Spec
         run: |
@@ -155,3 +149,108 @@ jobs:
           cd docs/book
           npm ci
           make all
+
+  ci:
+    runs-on: ubuntu-slim
+    needs:
+      - supply-chain
+      - check
+      - test
+    if: always()
+    steps:
+      - name: Success
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+      - name: Failure
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1
+
+  container:
+    needs:
+      - check
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/maximize-build-space
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: container
+
+      - name: Build binaries
+        run: cargo build --bin trustd --bin xtask --no-default-features --release
+
+      - name: Stage binaries for container build
+        run: |
+          VERSION=ci
+          TARGET=x86_64-unknown-linux-gnu
+
+          for bin in trustd xtask; do
+            DIR="${bin}-${VERSION}-${TARGET}"
+            mkdir -p "download/${bin}-${TARGET}"
+            mkdir -p "pack/${DIR}"
+            cp "target/release/${bin}" "pack/${DIR}/${bin}"
+            cp LICENSE "pack/${DIR}/"
+            tar -C pack -czvf "download/${bin}-${TARGET}/${DIR}.tar.gz" "${DIR}"
+          done
+
+      - name: Build and smoke test containers
+        uses: ./.github/actions/build-container
+        with:
+          image_tag: ci
+          platforms: linux/amd64
+          build_gensbom: 'false'
+
+      - name: Scan trustd container for vulnerabilities
+        uses: anchore/scan-action@v7
+        id: scan-trustd
+        with:
+          image: docker-archive:trustd.tar
+          fail-build: false
+          severity-cutoff: high
+          output-format: sarif
+          output-file: trustd-grype.sarif
+
+      - name: Print trustd vulnerabilities
+        if: always() && steps.scan-trustd.outcome == 'success'
+        run: |
+          jq -r '
+            .runs[].results[] |
+            "\(.level // "warning") \(.locations[0].physicalLocation.artifactLocation.uri // "unknown")  \(.message.text)"
+          ' trustd-grype.sarif | sort | head -100
+
+      - name: Scan xtask container for vulnerabilities
+        uses: anchore/scan-action@v7
+        id: scan-xtask
+        with:
+          image: docker-archive:xtask.tar
+          fail-build: false
+          severity-cutoff: high
+          output-format: sarif
+          output-file: xtask-grype.sarif
+
+      - name: Print xtask vulnerabilities
+        if: always() && steps.scan-xtask.outcome == 'success'
+        run: |
+          jq -r '
+            .runs[].results[] |
+            "\(.level // "warning") \(.locations[0].physicalLocation.artifactLocation.uri // "unknown")  \(.message.text)"
+          ' xtask-grype.sarif | sort | head -100
+
+      - name: Upload trustd scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trustd-grype.sarif
+          category: grype-trustd
+
+      - name: Upload xtask scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: xtask-grype.sarif
+          category: grype-xtask

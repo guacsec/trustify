@@ -1,0 +1,12 @@
+{
+  "advisories": [
+    "vex/CVE-2024-6602.json"
+  ],
+  "sboms": {
+    "sbom_thunderbird_el8": {
+      "correct": {
+        "CVE-2024-6602": "not_affected"
+      }
+    }
+  }
+}

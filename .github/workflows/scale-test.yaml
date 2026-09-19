@@ -48,7 +48,7 @@ jobs:
           sudo rm -Rf ${RUBY_PATH}
           df -h
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           repository: "guacsec/trustify-scale-test-runs"
 

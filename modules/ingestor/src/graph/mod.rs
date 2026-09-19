@@ -1,8 +1,10 @@
 pub mod advisory;
 pub mod cpe;
+pub mod cpe_status_creator;
 pub mod cvss;
 pub mod db_context;
 pub mod error;
+pub mod exploit;
 pub mod organization;
 pub mod product;
 pub mod purl;

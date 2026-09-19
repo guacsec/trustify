@@ -1,0 +1,16 @@
+{
+  "advisories": [
+    "cve/CVE-2026-12151.json",
+    "cve/CVE-2026-16730.json",
+    "cve/CVE-2026-33815.json"
+  ],
+  "sboms": {
+    "sbom_cpeonly_hummingbird": {
+      "correct": {
+        "CVE-2026-12151": "affected",
+        "CVE-2026-16730": "affected",
+        "CVE-2026-33815": "affected"
+      }
+    }
+  }
+}

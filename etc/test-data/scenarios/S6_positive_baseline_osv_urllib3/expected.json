@@ -1,0 +1,22 @@
+{
+  "advisories": [
+    "osv/GHSA-g4mx-q9vg-27p4.json"
+  ],
+  "sboms": {
+    "sbom_urllib3_affected": {
+      "correct": {
+        "CVE-2023-45803": "affected"
+      }
+    },
+    "sbom_urllib3_patched": {
+      "correct": {
+        "CVE-2023-45803": "not_affected"
+      }
+    },
+    "sbom_python3-urllib3_rpm_el8": {
+      "correct": {
+        "CVE-2023-45803": "not_affected"
+      }
+    }
+  }
+}

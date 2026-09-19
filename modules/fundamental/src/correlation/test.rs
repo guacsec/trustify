@@ -1,0 +1,1294 @@
+use actix_web::test::TestRequest;
+use rstest::rstest;
+use serde_json::json;
+use test_context::test_context;
+use trustify_test_context::{TrustifyContext, call::CallService};
+
+use crate::{
+    purl::model::details::purl::PurlDetails, sbom::model::details::SbomAdvisory, test::caller,
+    vulnerability::model::AnalysisResponseV3,
+};
+
+// ---------------------------------------------------------------------------
+// Assertion helpers
+// ---------------------------------------------------------------------------
+
+/// Collect all vulnerability identifiers from a `GET /sbom/{id}/advisory` response.
+fn advisory_cves(advisories: &[SbomAdvisory]) -> Vec<&str> {
+    advisories
+        .iter()
+        .flat_map(|adv| {
+            adv.status
+                .iter()
+                .map(|s| s.vulnerability.identifier.as_str())
+        })
+        .collect()
+}
+
+fn assert_advisory_has_cve(advisories: &[SbomAdvisory], cve: &str) {
+    let cves = advisory_cves(advisories);
+    assert!(
+        cves.contains(&cve),
+        "Expected /sbom/advisory to contain {cve}, but got: {cves:?}"
+    );
+}
+
+fn assert_advisory_no_cve(advisories: &[SbomAdvisory], cve: &str) {
+    let cves = advisory_cves(advisories);
+    assert!(
+        !cves.contains(&cve),
+        "Expected /sbom/advisory NOT to contain {cve}, but it was present"
+    );
+}
+
+/// Collect all vulnerability identifiers from a `POST /vulnerability/analyze` response for a given PURL.
+fn analyze_cves<'a>(response: &'a AnalysisResponseV3, purl: &str) -> Vec<&'a str> {
+    response
+        .get(purl)
+        .map(|r| {
+            r.details
+                .iter()
+                .map(|d| d.head.identifier.as_str())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn assert_analyze_has_cve(response: &AnalysisResponseV3, purl: &str, cve: &str) {
+    let cves = analyze_cves(response, purl);
+    assert!(
+        cves.contains(&cve),
+        "Expected /vulnerability/analyze[{purl}] to contain {cve}, but got: {cves:?}"
+    );
+}
+
+fn assert_analyze_no_cve(response: &AnalysisResponseV3, purl: &str, cve: &str) {
+    let cves = analyze_cves(response, purl);
+    assert!(
+        !cves.contains(&cve),
+        "Expected /vulnerability/analyze[{purl}] NOT to contain {cve}, but it was present"
+    );
+}
+
+/// Collect vulnerability identifiers with status `"affected"` from a `GET /purl/{key}` response.
+fn purl_affected_cves(details: &PurlDetails) -> Vec<&str> {
+    details
+        .advisories
+        .iter()
+        .flat_map(|adv| {
+            adv.status
+                .iter()
+                .filter(|s| s.status == "affected")
+                .map(|s| s.vulnerability.identifier.as_str())
+        })
+        .collect()
+}
+
+fn assert_purl_has_cve(details: &PurlDetails, cve: &str) {
+    let cves = purl_affected_cves(details);
+    assert!(
+        cves.contains(&cve),
+        "Expected /purl to show {cve} as affected, but got: {cves:?}"
+    );
+}
+
+fn assert_purl_no_cve(details: &PurlDetails, cve: &str) {
+    let cves = purl_affected_cves(details);
+    assert!(
+        !cves.contains(&cve),
+        "Expected /purl NOT to show {cve} as affected, but it was present"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Request helpers
+// ---------------------------------------------------------------------------
+
+/// Query `GET /api/v3/sbom/{id}/advisory` and deserialize the response.
+async fn get_sbom_advisories(app: &impl CallService, sbom_id: &str) -> Vec<SbomAdvisory> {
+    app.call_and_read_body_json(
+        TestRequest::get()
+            .uri(&format!("/api/v3/sbom/urn:uuid:{sbom_id}/advisory"))
+            .to_request(),
+    )
+    .await
+}
+
+/// Query `POST /api/v3/vulnerability/analyze` with the given PURLs and deserialize the response.
+async fn post_analyze(app: &impl CallService, purls: &[&str]) -> AnalysisResponseV3 {
+    app.call_and_read_body_json(
+        TestRequest::post()
+            .uri("/api/v3/vulnerability/analyze")
+            .set_json(json!({"purls": purls}))
+            .to_request(),
+    )
+    .await
+}
+
+/// Query `GET /api/v3/purl/{key}` with the URL-encoded PURL and deserialize the response.
+async fn get_purl_details(app: &impl CallService, purl: &str) -> PurlDetails {
+    app.call_and_read_body_json(
+        TestRequest::get()
+            .uri(&format!("/api/v3/purl/{}", urlencoding::encode(purl)))
+            .to_request(),
+    )
+    .await
+}
+
+// ---------------------------------------------------------------------------
+// Scenario helpers
+// ---------------------------------------------------------------------------
+
+/// Resolve an advisory file path, preferring the `.xz`-compressed variant when it exists on disk.
+fn resolve_advisory_path(relative: &str) -> String {
+    let workspace: std::path::PathBuf = env!("CARGO_WORKSPACE_ROOT").into();
+    let base = workspace.join("etc/test-data").join(relative);
+    let xz = format!("{}.xz", base.display());
+    if std::path::Path::new(&xz).exists() {
+        format!("{relative}.xz")
+    } else {
+        relative.to_string()
+    }
+}
+
+/// Ingest all advisories listed in a scenario's expected.json.
+async fn ingest_scenario_advisories(
+    ctx: &TrustifyContext,
+    scenario: &str,
+    advisories: &[&str],
+) -> anyhow::Result<()> {
+    let paths: Vec<String> = advisories
+        .iter()
+        .map(|a| resolve_advisory_path(&format!("scenarios/{scenario}/{a}")))
+        .collect();
+    for path in &paths {
+        ctx.ingest_document(path).await?;
+    }
+    Ok(())
+}
+
+// ===========================================================================
+// S1: Cross-stream bind-libs (TC-5640)
+//
+// el8 RPM matched to el9/el10 fix ranges by name — cross-major stream false
+// positive. The RPM version comparator ignores dist tags (.el8 vs .el9),
+// so an el8 build sorts below el9/el10 fix builds and matches their ranges.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5640: cross-stream RPM version matching not yet fixed"]
+#[test_log::test(actix_web::test)]
+async fn s1_crossstream_bind_libs(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S1_crossstream_bind-libs",
+        &[
+            "cve/CVE-2022-0396.json",
+            "cve/CVE-2023-5517.json",
+            "cve/CVE-2024-4076.json",
+            "vex/CVE-2022-0396.json",
+            "vex/CVE-2023-5517.json",
+            "vex/CVE-2024-4076.json",
+        ],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // --- el8.10: past the el8 fix for all 3 CVEs → not_affected ---
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S1_crossstream_bind-libs/sbom_bind-libs_el8.10.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2022-0396");
+        assert_advisory_no_cve(&adv, "CVE-2023-5517");
+        assert_advisory_no_cve(&adv, "CVE-2024-4076");
+    }
+
+    // --- el8.10 with describing-CPE: same result, CPE filter engaged ---
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S1_crossstream_bind-libs/sbom_bind-libs_el8.10_describing-cpe.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2022-0396");
+        assert_advisory_no_cve(&adv, "CVE-2023-5517");
+        assert_advisory_no_cve(&adv, "CVE-2024-4076");
+    }
+
+    // --- el9 below-fix: affected for CVE-2022-0396 + CVE-2024-4076 ---
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S1_crossstream_bind-libs/sbom_bind-libs_el9.0_below-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2022-0396");
+        assert_advisory_no_cve(&adv, "CVE-2023-5517");
+        assert_advisory_has_cve(&adv, "CVE-2024-4076");
+    }
+
+    // --- el9 at-fix: CVE-2022-0396 still affected, others not ---
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S1_crossstream_bind-libs/sbom_bind-libs_el9.0_at-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2022-0396");
+        assert_advisory_no_cve(&adv, "CVE-2023-5517");
+        assert_advisory_no_cve(&adv, "CVE-2024-4076");
+    }
+
+    // --- el9 above-fix: same as at-fix ---
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S1_crossstream_bind-libs/sbom_bind-libs_el9.0_above-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2022-0396");
+        assert_advisory_no_cve(&adv, "CVE-2023-5517");
+        assert_advisory_no_cve(&adv, "CVE-2024-4076");
+    }
+
+    // --- el10: affected for CVE-2023-5517 + CVE-2024-4076 ---
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S1_crossstream_bind-libs/sbom_bind-libs_el10.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2022-0396");
+        assert_advisory_has_cve(&adv, "CVE-2023-5517");
+        assert_advisory_has_cve(&adv, "CVE-2024-4076");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S2: Wrong-scheme golang/OCI (TC-5170)
+//
+// RPM version range applied to non-RPM PURL types (OCI, golang). The
+// product_status path matches by package name without checking the PURL type.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5170: product_status version scheme not checked"]
+#[test_log::test(actix_web::test)]
+async fn s2_wrongscheme_golang_oci(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S2_wrongscheme_golang_oci",
+        &["vex/CVE-2023-44487_golang_barename.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // storage3 in-range → affected (correct match)
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S2_wrongscheme_golang_oci/sbom_golang_storage3_inrange.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2023-44487");
+    }
+
+    // RPM golang (wrong product context) → not_affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S2_wrongscheme_golang_oci/sbom_golang_rpm.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-44487");
+    }
+
+    // RPM golang in-range → not_affected (wrong product)
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S2_wrongscheme_golang_oci/sbom_golang_rpm_inrange.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-44487");
+    }
+
+    // OCI golang → not_affected (wrong type entirely)
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S2_wrongscheme_golang_oci/sbom_golang_oci.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-44487");
+    }
+
+    // el8cpe in-range → not_affected (wrong product CPE)
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S2_wrongscheme_golang_oci/sbom_golang_el8cpe_inrange.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-44487");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S3: Wrong-product curl/hummingbird (TC-5171)
+//
+// RHEL-8 curl matched to hummingbird (different product) advisories by name.
+// CPE context not checked on the product_status path.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5171: product_status CPE context not checked"]
+#[test_log::test(actix_web::test)]
+async fn s3_wrongproduct_hummingbird_curl(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S3_wrongproduct_hummingbird_curl",
+        &[
+            "cve/CVE-2024-2398.json",
+            "cve/CVE-2025-10148.json",
+            "cve/CVE-2025-10966.json",
+            "cve/CVE-2025-13034.json",
+            "vex/CVE-2024-2398.json",
+            "vex/CVE-2025-10148.json",
+            "vex/CVE-2025-10966.json",
+            "vex/CVE-2025-13034.json",
+        ],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // el8 curl (past fix) → only CVE-2025-13034 affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S3_wrongproduct_hummingbird_curl/sbom_curl_el8.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2024-2398");
+        assert_advisory_no_cve(&adv, "CVE-2025-10148");
+        assert_advisory_no_cve(&adv, "CVE-2025-10966");
+        assert_advisory_has_cve(&adv, "CVE-2025-13034");
+    }
+
+    // el8 curl below-fix → CVE-2024-2398 + CVE-2025-13034 affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S3_wrongproduct_hummingbird_curl/sbom_curl_el8_below-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2024-2398");
+        assert_advisory_no_cve(&adv, "CVE-2025-10148");
+        assert_advisory_no_cve(&adv, "CVE-2025-10966");
+        assert_advisory_has_cve(&adv, "CVE-2025-13034");
+    }
+
+    // el8 curl with el8 CPE → same as el8
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S3_wrongproduct_hummingbird_curl/sbom_curl_el8_el8cpe.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2024-2398");
+        assert_advisory_no_cve(&adv, "CVE-2025-10148");
+        assert_advisory_no_cve(&adv, "CVE-2025-10966");
+        assert_advisory_has_cve(&adv, "CVE-2025-13034");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S4: Wrong-product chardet/satellite (TC-5171)
+//
+// RHEL-8 python3-chardet matched to Red Hat Satellite advisories by name.
+// Satellite is a different product; el8-OS chardet is absent from the
+// vulnerability entirely → whole-CVE false positive.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5171: product_status CPE context not checked"]
+#[test_log::test(actix_web::test)]
+async fn s4_wrongproduct_satellite_chardet(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S4_wrongproduct_satellite_chardet",
+        &[
+            "cve/CVE-2018-11751.json",
+            "cve/CVE-2018-3258.json",
+            "cve/CVE-2019-0231.json",
+            "vex/CVE-2018-11751.json",
+            "vex/CVE-2018-3258.json",
+            "vex/CVE-2019-0231.json",
+        ],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // el8 chardet → none affected (el8-OS absent from Satellite advisories)
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S4_wrongproduct_satellite_chardet/sbom_python3-chardet_el8.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2018-11751");
+        assert_advisory_no_cve(&adv, "CVE-2018-3258");
+        assert_advisory_no_cve(&adv, "CVE-2019-0231");
+    }
+
+    // el8 chardet with el8 CPE → same
+    {
+        let sbom = ctx
+            .ingest_document(
+                &format!("scenarios/S4_wrongproduct_satellite_chardet/sbom_python3-chardet_el8_el8cpe.{fmt}.json"),
+            )
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2018-11751");
+        assert_advisory_no_cve(&adv, "CVE-2018-3258");
+        assert_advisory_no_cve(&adv, "CVE-2019-0231");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S5: At-fix openssl (TC-5641)
+//
+// Patched RPM still reported affected because the product_status path in
+// /sbom/{id}/advisory skips version_matches — it matches by name only.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5641: product_status path skips version_matches on /sbom/advisory"]
+#[test_log::test(actix_web::test)]
+async fn s5_at_fix_openssl(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S5_positive_baseline_openssl_el8",
+        &[
+            "cve/CVE-2022-4304.json",
+            "cve/CVE-2023-0215.json",
+            "vex/CVE-2022-4304.json",
+            "vex/CVE-2023-0215.json",
+        ],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // below-fix → affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S5_positive_baseline_openssl_el8/sbom_openssl_el8_below-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2022-4304");
+        assert_advisory_has_cve(&adv, "CVE-2023-0215");
+    }
+
+    // at-fix → not_affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S5_positive_baseline_openssl_el8/sbom_openssl_el8_at-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2022-4304");
+        assert_advisory_no_cve(&adv, "CVE-2023-0215");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S6: OSV baseline urllib3 (regression guard)
+//
+// Correct OSV/ecosystem path — the standard semver matching works. This test
+// should always pass; if it breaks, the basic correlation pipeline is wrong.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[test_log::test(actix_web::test)]
+async fn s6_osv_baseline_urllib3(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S6_positive_baseline_osv_urllib3",
+        &["osv/GHSA-g4mx-q9vg-27p4.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // affected version → affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S6_positive_baseline_osv_urllib3/sbom_urllib3_affected.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2023-45803");
+
+        let purl = "pkg:pypi/urllib3@1.26.17";
+        let analyze = post_analyze(&app, &[purl]).await;
+        assert_analyze_has_cve(&analyze, purl, "CVE-2023-45803");
+
+        let purl_details = get_purl_details(&app, purl).await;
+        assert_purl_has_cve(&purl_details, "CVE-2023-45803");
+    }
+
+    // patched version → not_affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S6_positive_baseline_osv_urllib3/sbom_urllib3_patched.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-45803");
+
+        let purl = "pkg:pypi/urllib3@1.26.18";
+        let analyze = post_analyze(&app, &[purl]).await;
+        assert_analyze_no_cve(&analyze, purl, "CVE-2023-45803");
+
+        let purl_details = get_purl_details(&app, purl).await;
+        assert_purl_no_cve(&purl_details, "CVE-2023-45803");
+    }
+
+    // RPM variant → not_affected (different ecosystem)
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S6_positive_baseline_osv_urllib3/sbom_python3-urllib3_rpm_el8.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-45803");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S7: CPE-only hummingbird node (TC-5630)
+//
+// An SBOM component with a CPE but no PURL. The list count includes CVEs
+// matched via CPE identity, but the detail endpoint drops them because it
+// requires a qualified_purl_id.
+//
+// Only /sbom/{id}/advisory is tested — /vulnerability/analyze and /purl/{key}
+// require a PURL, which this CPE-only node does not have.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[test_log::test(actix_web::test)]
+async fn s7_cpe_only_hummingbird(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S7_cpeonly_node_hummingbird",
+        &[
+            "cve/CVE-2026-12151.json",
+            "cve/CVE-2026-16730.json",
+            "cve/CVE-2026-33815.json",
+        ],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    let sbom = ctx
+        .ingest_document(&format!(
+            "scenarios/S7_cpeonly_node_hummingbird/sbom_cpeonly_hummingbird.{fmt}.json"
+        ))
+        .await?;
+    let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+
+    assert_advisory_has_cve(&adv, "CVE-2026-12151");
+    assert_advisory_has_cve(&adv, "CVE-2026-16730");
+    assert_advisory_has_cve(&adv, "CVE-2026-33815");
+
+    Ok(())
+}
+
+// ===========================================================================
+// S8: Epoch mismatch openjdk (TC-5733)
+//
+// rpmver_cmp ignores RPM epoch. When the SBOM PURL omits ?epoch= but the
+// advisory carries it, the token comparison misaligns and produces a wrong
+// verdict. Both with-epoch and no-epoch should yield the same result.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[test_log::test(actix_web::test)]
+async fn s8_epoch_mismatch_openjdk(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S8_epoch_mismatch_openjdk",
+        &[
+            "cve/CVE-2026-41254.json",
+            "cve/CVE-2026-46968.json",
+            "cve/CVE-2026-47010.json",
+            "vex/CVE-2026-41254.json",
+            "vex/CVE-2026-46968.json",
+            "vex/CVE-2026-47010.json",
+        ],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    let cves = ["CVE-2026-41254", "CVE-2026-46968", "CVE-2026-47010"];
+
+    // no-epoch SBOM → affected for all 3
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S8_epoch_mismatch_openjdk/sbom_openjdk_no-epoch.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        for cve in &cves {
+            assert_advisory_has_cve(&adv, cve);
+        }
+    }
+
+    // with-epoch SBOM → same verdict: affected for all 3
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S8_epoch_mismatch_openjdk/sbom_openjdk_with-epoch.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        for cve in &cves {
+            assert_advisory_has_cve(&adv, cve);
+        }
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S9: Sub-stream openssl el8 (TC-5640)
+//
+// el8.2 sub-stream RPM mis-compared to el8.10 fix ranges. Same root cause
+// as S1 but within the same major stream (8.2 vs 8.10).
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5640: sub-stream cross-matching within same RHEL major"]
+#[test_log::test(actix_web::test)]
+async fn s9_substream_openssl(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S9_substream_openssl_el8",
+        &["cve/CVE-2023-0286.json", "vex/CVE-2023-0286.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // below-fix → affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S9_substream_openssl_el8/sbom_openssl_el8.2_below-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2023-0286");
+    }
+
+    // patched → not_affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S9_substream_openssl_el8/sbom_openssl_el8.2_patched.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-0286");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S10: Describing-CPE baseline (regression guard)
+//
+// CPE-context filter engages when the describing CPE is on the root node.
+// The child-CPE variant tests whether the filter also works when the CPE is
+// on a child/OS component.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5750/TC-5730: CPE-context filter and known_not_affected not fully working"]
+#[test_log::test(actix_web::test)]
+async fn s10_describing_cpe_baseline(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S10_combined_describing_cpe",
+        &[
+            "cve/CVE-2022-4304.json",
+            "cve/CVE-2023-45803.json",
+            "cve/CVE-2024-4076.json",
+            "vex/CVE-2022-4304.json",
+            "vex/CVE-2024-4076.json",
+            "vex/CVE-2024-6602.json",
+            "osv/GHSA-g4mx-q9vg-27p4.json",
+        ],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // combined el8 SBOM: openssl + urllib3
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S10_combined_describing_cpe/sbom_combined_el8.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2022-4304");
+        assert_advisory_has_cve(&adv, "CVE-2023-45803");
+        assert_advisory_no_cve(&adv, "CVE-2024-4076");
+    }
+
+    // thunderbird root-CPE → CVE-2024-6602 not_affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S10_combined_describing_cpe/sbom_thunderbird_el8_root-cpe.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2024-6602");
+    }
+
+    // thunderbird child-CPE → same: CVE-2024-6602 not_affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S10_combined_describing_cpe/sbom_thunderbird_el8_child-cpe.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2024-6602");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S11: Bare known_affected firefox (TC-5732)
+//
+// A CSAF known_affected entry without a version creates no matchable row.
+// Combined with the describing-CPE filter, sub-stream fixed rows are
+// excluded, leaving nothing → false negative.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5732: version-less known_affected produces no matchable row"]
+#[test_log::test(actix_web::test)]
+async fn s11_bare_known_affected_firefox(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S11_bareaffected_substream_firefox",
+        &["vex/CVE-2023-6135.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // main el8 firefox → affected (genuinely vulnerable)
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S11_bareaffected_substream_firefox/sbom_firefox_main_el8.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2023-6135");
+    }
+
+    // EUS 8.8 patched → not_affected
+    {
+        let sbom = ctx
+            .ingest_document(
+                &format!("scenarios/S11_bareaffected_substream_firefox/sbom_firefox_eus8.8_patched.{fmt}.json"),
+            )
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-6135");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S12: known_not_affected ignored thunderbird (TC-5730)
+//
+// Trustify's correlation never honours CSAF known_not_affected. The queries
+// only read status='affected'; there is no suppression step. A package the
+// vendor explicitly declared not vulnerable is still reported affected.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5730: known_not_affected is never honored"]
+#[test_log::test(actix_web::test)]
+async fn s12_not_affected_ignored_thunderbird(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S12_notaffected_ignored_thunderbird",
+        &["vex/CVE-2024-6602.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    let sbom = ctx
+        .ingest_document(&format!(
+            "scenarios/S12_notaffected_ignored_thunderbird/sbom_thunderbird_el8.{fmt}.json"
+        ))
+        .await?;
+    let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+    assert_advisory_no_cve(&adv, "CVE-2024-6602");
+
+    let purl = "pkg:rpm/redhat/thunderbird@115.10.1-1.el8?arch=x86_64&epoch=0&distro=rhel-8.10";
+    let analyze = post_analyze(&app, &[purl]).await;
+    assert_analyze_no_cve(&analyze, purl, "CVE-2024-6602");
+
+    let purl_details = get_purl_details(&app, purl).await;
+    assert_purl_no_cve(&purl_details, "CVE-2024-6602");
+
+    Ok(())
+}
+
+// ===========================================================================
+// S13: Aliasless OSV afire (TC-5731)
+//
+// An OSV advisory whose vulnerability has no CVE alias is ingested but links
+// to zero vulnerabilities and creates no purl_status. The OSV loader gates
+// all correlation on CVE-prefixed aliases.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5731: OSV advisory with no CVE alias is dropped from correlation"]
+#[test_log::test(actix_web::test)]
+async fn s13_aliasless_osv_afire(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S13_aliasless_osv_drop",
+        &["osv/GHSA-3227-r97m-8j95_real-no-cve.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    let sbom = ctx
+        .ingest_document(&format!(
+            "scenarios/S13_aliasless_osv_drop/sbom_afire_affected.{fmt}.json"
+        ))
+        .await?;
+    let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+    assert_advisory_has_cve(&adv, "GHSA-3227-r97m-8j95");
+
+    let purl = "pkg:cargo/afire@1.0.0";
+    let analyze = post_analyze(&app, &[purl]).await;
+    assert_analyze_has_cve(&analyze, purl, "GHSA-3227-r97m-8j95");
+
+    let purl_details = get_purl_details(&app, purl).await;
+    assert_purl_has_cve(&purl_details, "GHSA-3227-r97m-8j95");
+
+    Ok(())
+}
+
+// ===========================================================================
+// S14: Product-status version-filter netty (TC-5750 / TC-5751)
+//
+// product_status must be scoped by CPE-context, not by version-matching the
+// component version vs the product stream version range.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5750: product_status version-filter guard"]
+#[test_log::test(actix_web::test)]
+async fn s14_productstatus_version_filter_netty(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S14_productstatus_versionfilter_netty",
+        &["vex/CVE-2021-37136.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    let sbom = ctx
+        .ingest_document(&format!(
+            "scenarios/S14_productstatus_versionfilter_netty/sbom_netty_rhsso7.{fmt}.json"
+        ))
+        .await?;
+    let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+    assert_advisory_has_cve(&adv, "CVE-2021-37136");
+
+    let purl = "pkg:maven/io.netty/netty-codec-http@4.1.45.Final-redhat-00001?type=jar";
+    let analyze = post_analyze(&app, &[purl]).await;
+    assert_analyze_has_cve(&analyze, purl, "CVE-2021-37136");
+
+    let purl_details = get_purl_details(&app, purl).await;
+    assert_purl_has_cve(&purl_details, "CVE-2021-37136");
+
+    Ok(())
+}
+
+// ===========================================================================
+// S15: RPM version-comparison openssh (TC-5170/TC-5640)
+//
+// Nine SBOMs in three groups (product enterprise_linux:8, package openssh),
+// varying CPE placement, sub-stream and version vs the fix:
+// - A root CPE, el8_8 (covered): version-decided (correct today)
+// - B root CPE, el8_10 (absent from VEX): must not correlate; below leaks via
+//   dist-tag-blind rpmvercmp (TC-5640)
+// - C child CPE, el8_8: product_status skips version_matches; at/above leak (TC-5170)
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5170/TC-5640: product_status path skips version_matches + dist-tag-blind rpmvercmp"]
+#[test_log::test(actix_web::test)]
+async fn s15_versioncmp_rpm_openssh(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S15_versioncmp_rpm_openssh",
+        &["vex/CVE-2023-38408.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // --- Group A: root-CPE el8_8 (covered by VEX) → version-based decision ---
+    // below-fix → affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_8_below-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2023-38408");
+    }
+    // at-fix → not_affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_8_at-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+    // above-fix → not_affected
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_8_above-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+
+    // --- Group B: root-CPE el8_10 (absent from VEX) → TC-5640 cross-stream leak ---
+    // below-fix → should NOT correlate (el8_10 absent from advisory), but does
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_10_below-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+    // at-fix + above-fix also should not correlate
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_10_at-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_rootcpe_el8_10_above-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+
+    // --- Group C: child-CPE el8_8 → TC-5170 product_status skips version_matches ---
+    // below-fix → affected (correct)
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_el8_below-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_has_cve(&adv, "CVE-2023-38408");
+    }
+    // at-fix → should be not_affected (version at fix), but product_status path leaks
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_el8_at-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+    // above-fix → should be not_affected, but product_status path leaks
+    {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S15_versioncmp_rpm_openssh/sbom_openssh_el8_above-fix.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        assert_advisory_no_cve(&adv, "CVE-2023-38408");
+    }
+
+    Ok(())
+}
+
+// ===========================================================================
+// S16: Cross-scheme PURL query golang (TC-5170)
+//
+// CVE-2023-44487 marks `golang` known_affected only under Red Hat Storage 3
+// (cpe:/a:redhat:storage:3), as a bare component. A non-RPM golang PURL (OCI,
+// Maven) must NOT inherit that rpm/Storage-3 status: get_product_statuses_for_purl
+// matches by base name without checking PURL scheme or product context, so the
+// non-RPM packages leak. The positive control (rpm under Storage 3) is a
+// coincidental version match — the storage:3-derived range [3,4) contains
+// golang@3.5.0 only because the majors coincide.
+//
+// NOTE: the advisory here is a small synthetic CSAF (the real CVE-2023-44487
+// CSAF is huge); it carries the correct product_status shape.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5170: get_product_statuses_for_purl matches golang by name only, ignoring PURL scheme/product (Storage 3) context"]
+#[test_log::test(actix_web::test)]
+async fn s16_crossscheme_purlquery_golang(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S16_crossscheme_purlquery_golang",
+        &["vex/CVE-2023-44487.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // (SBOM base name, expected_affected)
+    let cases: &[(&str, bool)] = &[
+        // in-context rpm under Storage 3 → affected (coincidental major match)
+        ("sbom_golang_rpm_storage3", true),
+        // non-RPM golang must NOT inherit the rpm/Storage-3 status
+        ("sbom_golang_oci", false),
+        ("sbom_golang_maven", false),
+    ];
+
+    let mut mismatches = Vec::new();
+    for (base, expected_affected) in cases {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S16_crossscheme_purlquery_golang/{base}.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        let present = advisory_cves(&adv).contains(&"CVE-2023-44487");
+        if present != *expected_affected {
+            mismatches.push(format!(
+                "  {base} ({fmt}): expected affected={expected_affected}, /sbom/advisory present={present}"
+            ));
+        }
+    }
+
+    assert!(
+        mismatches.is_empty(),
+        "S16 CVE-2023-44487 correlation mismatches:\n{}",
+        mismatches.join("\n")
+    );
+
+    Ok(())
+}
+
+// ===========================================================================
+// S17: Cross-product OCP kernel vs Go advisory (TC-5171)
+//
+// CVE-2023-24538 is a Go html/template bug. Its Red Hat CSAF bundles a kernel
+// fix under the OCP CPE (cpe:/a:redhat:openshift:4.13::el9) alongside the real
+// go-toolset fix (cpe:/a:redhat:devtools:2023::el7). A plain RHEL 8 kernel must
+// not match the OCP kernel entry — the CVE isn't a kernel bug and the product
+// CPE is wrong. Child-node CPE escape-hatches (TC-5750); the comparison is also
+// cross-stream el8<el9 (TC-5640). go-toolset below the fix is the positive control.
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[rstest]
+#[ignore = "TC-5171: product_status CPE context not checked (OCP kernel matched to RHEL 8); TC-5640: dist-tag-blind el8<el9; TC-5750: child-node OS CPE not captured"]
+#[test_log::test(actix_web::test)]
+async fn s17_crossproduct_ocp_kernel_go(
+    ctx: &TrustifyContext,
+    #[values("cdx", "spdx")] fmt: &str,
+) -> Result<(), anyhow::Error> {
+    ingest_scenario_advisories(
+        ctx,
+        "S17_crossproduct_ocp_kernel_go",
+        &["vex/CVE-2023-24538.json"],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
+    // (SBOM base name, expected_affected)
+    let cases: &[(&str, bool)] = &[
+        // --- cross-product CPE-context axis: RHEL 8 kernel vs the OCP kernel entry ---
+        // CPE on a child node (escape hatch) — OCP entry must not match
+        ("sbom_kernel_rhel8", false),
+        // CPE on the describing/root node (captured) — filter should engage
+        ("sbom_kernel_rhel8_rootcpe", false),
+        // --- version axis: go-toolset (the affected product) vs fix 1.19.9-1.el7_9 ---
+        ("sbom_gotoolset_devtools_belowfix", true), // below fix → affected
+        ("sbom_gotoolset_devtools_atfix", false),   // at fix → not_affected
+        ("sbom_gotoolset_devtools_abovefix", false), // above fix → not_affected
+    ];
+
+    let mut mismatches = Vec::new();
+    for (base, expected_affected) in cases {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S17_crossproduct_ocp_kernel_go/{base}.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        let present = advisory_cves(&adv).contains(&"CVE-2023-24538");
+        if present != *expected_affected {
+            mismatches.push(format!(
+                "  {base} ({fmt}): expected affected={expected_affected}, /sbom/advisory present={present}"
+            ));
+        }
+    }
+
+    assert!(
+        mismatches.is_empty(),
+        "S17 CVE-2023-24538 correlation mismatches:\n{}",
+        mismatches.join("\n")
+    );
+
+    Ok(())
+}

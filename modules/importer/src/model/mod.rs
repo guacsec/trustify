@@ -4,6 +4,8 @@ mod clearly_defined;
 mod csaf;
 mod cve;
 mod cwe;
+mod kev;
+mod nvd;
 mod osv;
 mod quay;
 mod sbom;
@@ -14,6 +16,8 @@ pub use clearly_defined_curation::*;
 pub use csaf::*;
 pub use cve::*;
 pub use cwe::*;
+pub use kev::*;
+pub use nvd::*;
 pub use osv::*;
 pub use quay::*;
 pub use sbom::*;
@@ -179,9 +183,11 @@ pub enum ImporterConfiguration {
     Csaf(CsafImporter),
     Osv(OsvImporter),
     Cve(CveImporter),
+    Nvd(NvdImporter),
     ClearlyDefined(ClearlyDefinedImporter),
     ClearlyDefinedCuration(ClearlyDefinedCurationImporter),
     Cwe(CweImporter),
+    Kev(KevImporter),
     Quay(QuayImporter),
 }
 
@@ -194,9 +200,11 @@ impl Deref for ImporterConfiguration {
             Self::Csaf(importer) => &importer.common,
             Self::Osv(importer) => &importer.common,
             Self::Cve(importer) => &importer.common,
+            Self::Nvd(importer) => &importer.common,
             Self::ClearlyDefined(importer) => &importer.common,
             Self::ClearlyDefinedCuration(importer) => &importer.common,
             Self::Cwe(importer) => &importer.common,
+            Self::Kev(importer) => &importer.common,
             Self::Quay(importer) => &importer.common,
         }
     }
@@ -209,9 +217,11 @@ impl DerefMut for ImporterConfiguration {
             Self::Csaf(importer) => &mut importer.common,
             Self::Osv(importer) => &mut importer.common,
             Self::Cve(importer) => &mut importer.common,
+            Self::Nvd(importer) => &mut importer.common,
             Self::ClearlyDefined(importer) => &mut importer.common,
             Self::ClearlyDefinedCuration(importer) => &mut importer.common,
             Self::Cwe(importer) => &mut importer.common,
+            Self::Kev(importer) => &mut importer.common,
             Self::Quay(importer) => &mut importer.common,
         }
     }

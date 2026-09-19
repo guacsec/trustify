@@ -1,9 +1,10 @@
 use crate::{
     graph::Graph,
-    service::{Error, IngestorService},
+    service::{Error, IngestorService, validation::Validator},
 };
 use actix_web::{HttpResponse, Responder, post, web};
 use sea_orm::TransactionTrait;
+use std::sync::Arc;
 use trustify_auth::{UploadDataset, authorizer::Require};
 use trustify_common::{db, model::BinaryData};
 use trustify_entity::labels::Labels;
@@ -18,8 +19,10 @@ pub fn configure(
     db: db::ReadWrite,
     storage: impl Into<DispatchBackend>,
     analysis: Option<AnalysisService>,
+    validators: Vec<Arc<dyn Validator>>,
 ) {
-    let ingestor_service = IngestorService::new(Graph::new(), storage, analysis);
+    let ingestor_service =
+        IngestorService::new(Graph::new(), storage, analysis).with_validators(validators);
 
     svc.app_data(web::Data::new(ingestor_service))
         .app_data(web::Data::new(config))

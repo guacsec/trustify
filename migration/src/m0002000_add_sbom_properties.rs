@@ -1,4 +1,6 @@
-use crate::data::{MigrationTraitWithData, SchemaDataManager, sbom::Sbom as SbomDoc};
+use crate::data::{
+    MigrationTraitWithData, SchemaDataManager, sbom::Id as SbomId, sbom::Sbom as SbomDoc,
+};
 use sea_orm::{ActiveModelBehavior, ActiveModelTrait, DatabaseTransaction, Set};
 use sea_orm_migration::prelude::*;
 use trustify_common::advisory::cyclonedx::extract_properties_json;
@@ -68,7 +70,7 @@ impl MigrationTraitWithData for Migration {
         manager
             .process(
                 self,
-                async |sbom: SbomDoc, id: crate::data::sbom::Id, tx: &DatabaseTransaction| {
+                async |sbom: SbomDoc, id: SbomId, tx: &DatabaseTransaction| {
                     let mut model = legacy::ActiveModel::new();
                     model.sbom_id = Set(id.sbom);
                     match sbom {

@@ -78,7 +78,9 @@ impl From<ScoreType> for entity_score::ScoreType {
 }
 
 /// Severity rating derived from a CVSS score value.
-#[derive(Clone, Copy, Serialize, Deserialize, Debug, Eq, PartialEq, strum::VariantArray)]
+#[derive(
+    Clone, Copy, Serialize, Deserialize, Debug, Eq, PartialEq, Ord, PartialOrd, strum::VariantArray,
+)]
 pub enum Severity {
     /// No impact (score = 0.0)
     #[serde(rename = "none")]

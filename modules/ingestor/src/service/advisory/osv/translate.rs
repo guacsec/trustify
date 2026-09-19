@@ -83,7 +83,7 @@ mod test {
     #[case(
         Ecosystem::Maven("http://other/repo".to_string()),
         "groupid:artifactid",
-        Some("pkg:maven/groupid/artifactid?repository_url=http://other/repo")
+        Some("pkg:maven/groupid/artifactid?repository_url=http:%2F%2Fother%2Frepo")
     )]
     #[case(Ecosystem::PyPI, "aiohttp", Some("pkg:pypi/aiohttp"))]
     #[case(Ecosystem::Go, "tailscale.com", Some("pkg:golang/tailscale.com"))]

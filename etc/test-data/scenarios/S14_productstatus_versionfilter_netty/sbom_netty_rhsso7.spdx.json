@@ -1,0 +1,52 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "rh-sso",
+  "documentNamespace": "https://trust-breaker/s14/netty-sso7",
+  "creationInfo": {
+    "created": "2026-08-26T00:00:00Z",
+    "creators": [ "Tool: trust-breaker-0.1" ]
+  },
+  "documentDescribes": [ "SPDXRef-root-sso7" ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-root-sso7",
+      "name": "rh-sso",
+      "versionInfo": "7.6",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "SECURITY",
+          "referenceType": "cpe22Type",
+          "referenceLocator": "cpe:/a:redhat:red_hat_single_sign_on:7"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-pkg-netty",
+      "name": "netty-codec-http",
+      "versionInfo": "4.1.45.Final-redhat-00001",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:maven/io.netty/netty-codec-http@4.1.45.Final-redhat-00001?type=jar"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-root-sso7"
+    },
+    {
+      "spdxElementId": "SPDXRef-root-sso7",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-pkg-netty"
+    }
+  ]
+}

@@ -1,10 +1,10 @@
 use crate::{
     graph::{Graph, Outcome, sbom::cyclonedx},
     model::IngestResult,
-    service::{Error, Warnings},
+    service::{Error, JsonSource, Warnings},
 };
 use sea_orm::{ConnectionTrait, TransactionTrait};
-use serde_cyclonedx::cyclonedx::v_1_6::Component;
+use serde_cyclonedx::cyclonedx::v_1_6::{Component, CycloneDx};
 use std::str::FromStr;
 use tracing::instrument;
 use trustify_common::hashing::Digests;
@@ -19,22 +19,35 @@ impl<'g> CyclonedxLoader<'g> {
         Self { graph }
     }
 
+    /// Load a CycloneDX SBOM from any JSON-compatible source.
     #[instrument(skip_all, err(level=tracing::Level::INFO))]
     pub async fn load(
         &self,
         labels: Labels,
-        buffer: &[u8],
+        source: impl JsonSource,
+        digests: &Digests,
+        tx: &(impl ConnectionTrait + TransactionTrait),
+    ) -> Result<IngestResult, Error> {
+        let cdx: Box<CycloneDx> = source
+            .parse_json()
+            .map_err(|err| Error::UnsupportedFormat(format!("Failed to parse: {err}")))?;
+
+        self.ingest(labels, cdx, digests, tx).await
+    }
+
+    /// Ingest a pre-parsed CycloneDX document.
+    pub(crate) async fn ingest(
+        &self,
+        labels: Labels,
+        cdx: Box<CycloneDx>,
         digests: &Digests,
         tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
         let warnings = Warnings::default();
 
-        let cdx: Box<serde_cyclonedx::cyclonedx::v_1_6::CycloneDx> = serde_json::from_slice(buffer)
-            .map_err(|err| Error::UnsupportedFormat(format!("Failed to parse: {err}")))?;
-
         let labels_updated = extract_labels(cdx.components.as_ref(), labels);
 
-        log::info!(
+        tracing::info!(
             "Storing - version: {:?}, serialNumber: {:?}",
             cdx.version,
             cdx.serial_number,
@@ -71,6 +84,7 @@ impl<'g> CyclonedxLoader<'g> {
             id: ctx.sbom.sbom_id.to_string(),
             document_id,
             warnings: warnings.into(),
+            validation: Vec::new(),
         })
     }
 }

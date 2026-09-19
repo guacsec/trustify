@@ -1,4 +1,5 @@
 use crate::purl::{model::details::purl::StatusContext, service::PurlService};
+use regex::Regex;
 use std::str::FromStr;
 use test_context::test_context;
 use test_log::test;
@@ -26,7 +27,7 @@ async fn ingest_extra_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn types(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    let service = PurlService::new(PaginationCache::for_test());
+    let service = PurlService::new(PaginationCache::for_test()).with_default_patterns();
 
     let log4j = ctx
         .graph
@@ -1101,4 +1102,151 @@ async fn version_range_boundary_semantics(ctx: &TrustifyContext) -> Result<(), a
     );
 
     Ok(())
+}
+
+/// Proves that `version_matches` filtering works on the **product_status** path.
+///
+/// DS3 contains a CSAF advisory for CVE-2024-28834 affecting gnutls on RHEL 8
+/// AppStream, and an ubi8 SPDX SBOM whose product package carries the same CPE.
+/// The shared CPE bridges the product_status join chain:
+///   product_status → context_cpe → product (via cpe_key) → product_version → SBOM
+///
+/// gnutls@3.6.16-6.el8_7 (from the ubi8 SBOM) falls within the advisory's
+/// affected version range, so product_status entries with CPE context must appear.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = PurlService::new(PaginationCache::for_test());
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    // gnutls version from the ubi8 SBOM — affected (below fix 3.6.16-8.el8_9.3)
+    let purl = Purl::from_str("pkg:rpm/redhat/gnutls@3.6.16-6.el8_7?arch=x86_64")?;
+    let details = service
+        .purl_by_purl(&purl, Default::default(), &ctx.db)
+        .await?
+        .expect("gnutls purl must exist after DS3 ingestion");
+
+    // Product_status entries carry StatusContext::Cpe (not ::Purl).
+    let cpe_statuses: Vec<_> = details
+        .advisories
+        .iter()
+        .flat_map(|a| &a.status)
+        .filter(|s| matches!(&s.context, Some(StatusContext::Cpe(_))))
+        .collect();
+
+    // Then exactly 2 CPE-context entries must exist, both for CVE-2024-28834.
+    assert_eq!(
+        cpe_statuses.len(),
+        2,
+        "expected exactly 2 product_status entries with CPE context"
+    );
+
+    for s in &cpe_statuses {
+        assert_eq!(s.vulnerability.identifier, "CVE-2024-28834");
+        assert_eq!(s.status, "affected");
+        assert!(
+            s.version_range.is_some(),
+            "every product_status entry must carry a version_range"
+        );
+    }
+
+    Ok(())
+}
+
+/// Verifies that product_status entries are returned even when the package version
+/// falls outside the product stream version range — the VersionMatches filter must
+/// not compare package versions against CPE-derived product version ranges.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn product_status_cross_domain_version(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let service = PurlService::new(PaginationCache::for_test());
+    ctx.ingest_dataset(Dataset::DS1).await?;
+
+    // Given keycloak-core@18.0.6 — its version (18.x) exceeds the Quarkus product
+    // stream range [2.0.0, 3.0.0) derived from CPE cpe:/a:redhat:quarkus:2.
+    let purl = Purl::from_str(
+        "pkg:maven/org.keycloak/keycloak-core@18.0.6.redhat-00001?repository_url=https://maven.repository.redhat.com/ga/&type=jar",
+    )?;
+    let details = service
+        .purl_by_purl(&purl, Default::default(), &ctx.db)
+        .await?
+        .expect("keycloak-core purl must exist after DS1 ingestion");
+
+    // When filtering for product_status entries with CPE context
+    let cpe_statuses: Vec<_> = details
+        .advisories
+        .iter()
+        .flat_map(|a| &a.status)
+        .filter(|s| matches!(&s.context, Some(StatusContext::Cpe(_))))
+        .collect();
+
+    // Then exactly 8 CPE-context entries must be present, including CVE-2023-1664
+    // despite the cross-domain version mismatch.
+    assert_eq!(
+        cpe_statuses.len(),
+        8,
+        "keycloak-core must have 8 product_status entries with CPE context"
+    );
+
+    let mut cve_ids: Vec<&str> = cpe_statuses
+        .iter()
+        .map(|s| s.vulnerability.identifier.as_str())
+        .collect();
+    cve_ids.sort();
+    assert_eq!(
+        cve_ids,
+        vec![
+            "CVE-2022-45787",
+            "CVE-2023-0481",
+            "CVE-2023-1584",
+            "CVE-2023-1664",
+            "CVE-2023-28867",
+            "CVE-2023-2974",
+            "CVE-2023-44487",
+            "CVE-2023-4853",
+        ]
+    );
+
+    Ok(())
+}
+
+/// Verifies that the redhat pattern's capture group extracts the upstream base version.
+#[test]
+fn test_pattern_extracts_upstream_version() {
+    // Given a vendor rebuild pattern with one capture group
+    let pattern = Regex::new(r"^(.+)\.redhat-[0-9]+$").expect("valid pattern");
+
+    // When matching a vendor version string
+    let caps = pattern
+        .captures("4.3.4.redhat-00008")
+        .expect("pattern must match");
+
+    // Then capture group 1 is the upstream base version
+    let upstream = caps
+        .get(1)
+        .expect("capture group 1 must be present")
+        .as_str();
+    assert_eq!(upstream, "4.3.4");
+}
+
+/// Verifies that an invalid regex pattern is skipped without panicking during server startup.
+#[test]
+fn test_invalid_pattern_skipped() {
+    // This simulates the server's filter_map logic that skips invalid patterns.
+    let raw = "[invalid(";
+    let result = Regex::new(raw);
+    assert!(result.is_err(), "invalid pattern should fail to compile");
+    // Server code logs a warning and skips — no panic here.
+}
+
+/// Verifies that a pattern with no capture group is detected and would be skipped.
+#[test]
+fn test_pattern_no_capture_group_skipped() {
+    // A pattern with zero capture groups has captures_len() == 1.
+    let pattern = Regex::new(r"redhat-[0-9]+$").expect("valid pattern");
+    assert_eq!(
+        pattern.captures_len(),
+        1,
+        "pattern with no groups must have captures_len == 1 so server skips it"
+    );
 }

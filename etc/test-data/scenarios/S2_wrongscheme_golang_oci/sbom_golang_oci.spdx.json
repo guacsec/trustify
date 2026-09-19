@@ -1,0 +1,37 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "s2-wrongscheme-target",
+  "documentNamespace": "https://trust-breaker/s2/golang-oci",
+  "creationInfo": {
+    "created": "2026-08-21T00:00:00Z",
+    "creators": ["Tool: trust-breaker-0.1"]
+  },
+  "documentDescribes": ["SPDXRef-root"],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-root",
+      "name": "s2-wrongscheme-target",
+      "versionInfo": "1",
+      "downloadLocation": "NOASSERTION"
+    },
+    {
+      "SPDXID": "SPDXRef-golang-oci",
+      "name": "golang",
+      "versionInfo": "1.25",
+      "downloadLocation": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:oci/golang@1.25?repository_url=docker.io/golang&tag=1.25"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    { "spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES", "relatedSpdxElement": "SPDXRef-root" },
+    { "spdxElementId": "SPDXRef-root", "relationshipType": "CONTAINS", "relatedSpdxElement": "SPDXRef-golang-oci" }
+  ]
+}

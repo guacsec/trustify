@@ -112,13 +112,14 @@ async fn cdx_ancestor_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ctx.ingest_documents(["cyclonedx/openssl-3.0.7-18.el9_2.cdx_1.6.sbom.json"])
         .await?;
 
-    let parent = "pkg:generic/openssl@3.0.7?checksum=SHA-512:1aea183b0b6650d9d5e7ba87b613bb1692c71720b0e75377b40db336b40bad780f7e8ae8dfb9f60841eeb4381f4b79c4c5043210c96e7cb51f90791b80c8285e&download_url=https://pkgs.devel.redhat.com/repo/openssl/openssl-3.0.7-hobbled.tar.gz/sha512/1aea183b0b6650d9d5e7ba87b613bb1692c71720b0e75377b40db336b40bad780f7e8ae8dfb9f60841eeb4381f4b79c4c5043210c96e7cb51f90791b80c8285e/openssl-3.0.7-hobbled.tar.gz";
+    let parent_query = "pkg:generic/openssl@3.0.7?checksum=SHA-512:1aea183b0b6650d9d5e7ba87b613bb1692c71720b0e75377b40db336b40bad780f7e8ae8dfb9f60841eeb4381f4b79c4c5043210c96e7cb51f90791b80c8285e&download_url=https://pkgs.devel.redhat.com/repo/openssl/openssl-3.0.7-hobbled.tar.gz/sha512/1aea183b0b6650d9d5e7ba87b613bb1692c71720b0e75377b40db336b40bad780f7e8ae8dfb9f60841eeb4381f4b79c4c5043210c96e7cb51f90791b80c8285e/openssl-3.0.7-hobbled.tar.gz";
+    let parent_expected = "pkg:generic/openssl@3.0.7?checksum=SHA-512:1aea183b0b6650d9d5e7ba87b613bb1692c71720b0e75377b40db336b40bad780f7e8ae8dfb9f60841eeb4381f4b79c4c5043210c96e7cb51f90791b80c8285e&download_url=https:%2F%2Fpkgs.devel.redhat.com%2Frepo%2Fopenssl%2Fopenssl-3.0.7-hobbled.tar.gz%2Fsha512%2F1aea183b0b6650d9d5e7ba87b613bb1692c71720b0e75377b40db336b40bad780f7e8ae8dfb9f60841eeb4381f4b79c4c5043210c96e7cb51f90791b80c8285e%2Fopenssl-3.0.7-hobbled.tar.gz";
     let child = "pkg:rpm/redhat/openssl@3.0.7-18.el9_2?arch=src";
 
     // Ensure parent has ancestors that include the child
     let response: Value = app
         .req(Req {
-            what: What::Id(parent),
+            what: What::Id(parent_query),
             descendants: Some(10),
             ..Req::default()
         })
@@ -127,7 +128,7 @@ async fn cdx_ancestor_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     assert!(response.contains_subset(json!({
         "items": [{
-            "purl": [ parent ],
+            "purl": [ parent_expected ],
             "descendants": [{
                 "relationship": "ancestor_of",
                 "purl": [ child ]
@@ -150,7 +151,7 @@ async fn cdx_ancestor_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             "purl": [ child ],
             "ancestors": [{
                 "relationship": "ancestor_of",
-                "purl": [ parent ]
+                "purl": [ parent_expected ]
             }]
         }]
     })));

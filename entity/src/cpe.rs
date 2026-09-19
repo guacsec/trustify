@@ -16,6 +16,10 @@ pub struct Model {
     pub update: Option<String>,
     pub edition: Option<String>,
     pub language: Option<String>,
+    pub sw_edition: Option<String>,
+    pub target_sw: Option<String>,
+    pub target_hw: Option<String>,
+    pub other: Option<String>,
 }
 
 impl_try_into_cpe!(Model);
@@ -64,6 +68,16 @@ impl ActiveModelBehavior for ActiveModel {}
 
 impl Display for Model {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // re-pack the extended 2.3 attributes; `set_edition` unpacks them again.
+        // Bound before the builder so it outlives the borrow.
+        let edition = pack_edition(
+            &self.edition,
+            &self.sw_edition,
+            &self.target_sw,
+            &self.target_hw,
+            &self.other,
+        );
+
         let mut cpe = cpe::uri::Uri::new();
         self.part.as_ref().map(|part| cpe.set_part(part));
         self.vendor.as_ref().map(|vendor| cpe.set_vendor(vendor));
@@ -74,9 +88,7 @@ impl Display for Model {
             .as_ref()
             .map(|version| cpe.set_version(version));
         self.update.as_ref().map(|update| cpe.set_update(update));
-        self.edition
-            .as_ref()
-            .map(|edition| cpe.set_edition(edition));
+        edition.as_ref().map(|edition| cpe.set_edition(edition));
         self.language
             .as_ref()
             .map(|language| cpe.set_language(language));
@@ -122,6 +134,26 @@ impl ActiveModel {
                 Language::Any => Set(Some("*".to_string())),
                 Language::Language(inner) => Set(Some(inner)),
             },
+            sw_edition: match cpe.sw_edition() {
+                Component::Any => Set(Some("*".to_string())),
+                Component::NotApplicable => Set(None),
+                Component::Value(inner) => Set(Some(inner)),
+            },
+            target_sw: match cpe.target_sw() {
+                Component::Any => Set(Some("*".to_string())),
+                Component::NotApplicable => Set(None),
+                Component::Value(inner) => Set(Some(inner)),
+            },
+            target_hw: match cpe.target_hw() {
+                Component::Any => Set(Some("*".to_string())),
+                Component::NotApplicable => Set(None),
+                Component::Value(inner) => Set(Some(inner)),
+            },
+            other: match cpe.other() {
+                Component::Any => Set(Some("*".to_string())),
+                Component::NotApplicable => Set(None),
+                Component::Value(inner) => Set(Some(inner)),
+            },
         }
     }
 }
@@ -142,6 +174,10 @@ pub struct CpeDto {
     pub update: Option<String>,
     pub edition: Option<String>,
     pub language: Option<String>,
+    pub sw_edition: Option<String>,
+    pub target_sw: Option<String>,
+    pub target_hw: Option<String>,
+    pub other: Option<String>,
 }
 
 impl From<Model> for CpeDto {
@@ -157,6 +193,10 @@ impl From<Model> for CpeDto {
             update,
             edition,
             language,
+            sw_edition,
+            target_sw,
+            target_hw,
+            other,
         } = value;
 
         Self {
@@ -167,6 +207,10 @@ impl From<Model> for CpeDto {
             update,
             edition,
             language,
+            sw_edition,
+            target_sw,
+            target_hw,
+            other,
         }
     }
 }
@@ -184,6 +228,10 @@ impl From<Model> for (Uuid, CpeDto) {
             update,
             edition,
             language,
+            sw_edition,
+            target_sw,
+            target_hw,
+            other,
         } = value;
 
         (
@@ -196,6 +244,10 @@ impl From<Model> for (Uuid, CpeDto) {
                 update,
                 edition,
                 language,
+                sw_edition,
+                target_sw,
+                target_hw,
+                other,
             },
         )
     }
@@ -235,10 +287,25 @@ impl TryFrom<CpeDto> for Cpe {
     type Error = CpeError;
 
     fn try_from(value: CpeDto) -> Result<Self, Self::Error> {
+        // Pack the edition together with the extended 2.3 attributes; the URI
+        // builder unpacks a `~`-delimited edition again on `validate`. Bound
+        // before the builder so it outlives the borrow.
+        let edition = pack_edition(
+            &value.edition,
+            &value.sw_edition,
+            &value.target_sw,
+            &value.target_hw,
+            &value.other,
+        );
+
         let mut cpe = Uri::builder();
 
         apply!(cpe, value => part);
-        apply_fix!(cpe, value => vendor, product, version, update, edition);
+        apply_fix!(cpe, value => vendor, product, version, update);
+
+        if let Some(edition) = &edition {
+            cpe.edition(edition);
+        }
 
         // apply the fix for the language field
 
@@ -252,6 +319,48 @@ impl TryFrom<CpeDto> for Cpe {
 
         cpe.validate().map(|cpe| cpe.into())
     }
+}
+
+/// Pack the CPE edition together with the four extended 2.3 attributes into a
+/// single URI edition component.
+///
+/// `"*"` and absent values are treated as ANY (empty in URI syntax). When every
+/// extended attribute is ANY the plain edition is returned (or `None` when it is
+/// ANY too); otherwise the `~edition~sw_edition~target_sw~target_hw~other` packed
+/// form is produced, which the URI parser unpacks back into the attributes.
+fn pack_edition(
+    edition: &Option<String>,
+    sw_edition: &Option<String>,
+    target_sw: &Option<String>,
+    target_hw: &Option<String>,
+    other: &Option<String>,
+) -> Option<String> {
+    let value = |v: &Option<String>| match v.as_deref() {
+        None | Some("*") => None,
+        Some(inner) => Some(inner.to_string()),
+    };
+
+    let edition = value(edition);
+    let sw_edition = value(sw_edition);
+    let target_sw = value(target_sw);
+    let target_hw = value(target_hw);
+    let other = value(other);
+
+    if sw_edition.is_none() && target_sw.is_none() && target_hw.is_none() && other.is_none() {
+        return edition;
+    }
+
+    fn part(v: &Option<String>) -> &str {
+        v.as_deref().unwrap_or_default()
+    }
+    Some(format!(
+        "~{}~{}~{}~{}~{}",
+        part(&edition),
+        part(&sw_edition),
+        part(&target_sw),
+        part(&target_hw),
+        part(&other),
+    ))
 }
 
 #[cfg(test)]
@@ -306,5 +415,29 @@ mod test {
         // including the v5 UUID
 
         assert_eq!(id, cpe.uuid());
+    }
+
+    /// The extended 2.3 attributes (here `target_hw`) must survive the
+    /// model/DTO round-trip via the packed edition component.
+    #[test]
+    fn roundtrip_extended_attributes() {
+        let cpe = Cpe::from_str("cpe:2.3:o:microsoft:windows_10:1607:*:*:en-US:*:*:x64:*")
+            .expect("must parse");
+
+        let model: Model = ActiveModel::from_cpe(cpe)
+            .try_into_model()
+            .expect("must build model");
+
+        // the extended attribute lands in its own column
+        assert_eq!(model.target_hw, Some("x64".to_string()));
+        assert_eq!(model.sw_edition, Some("*".to_string()));
+
+        // and re-packs into the edition on the way back out
+        let dto: CpeDto = model.into();
+        let cpe: Cpe = dto.try_into().expect("must be able to build cpe");
+        assert_eq!(
+            cpe.to_string(),
+            "cpe:/o:microsoft:windows_10:1607:*~*~*~*~x64~*:en-US"
+        );
     }
 }

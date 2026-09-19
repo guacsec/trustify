@@ -100,7 +100,7 @@ const CONTENT_TYPE_GZIP: &str = "application/gzip";
     ),
     responses(
         (status = 200, description = "fetch all unique license id and license info id", body = Vec<LicenseRefMapping>),
-        (status = 400, description = "Invalid UUID format."),
+        (status = 404, description = "The SBOM could not be found"),
     ),
 )]
 #[get("/v3/sbom/{id}/all-license-ids")]
@@ -217,6 +217,13 @@ mod v2 {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Default, serde::Deserialize, IntoParams)]
+pub struct SbomListParams {
+    /// Include advisory severity summary per SBOM
+    #[serde(default)]
+    pub advisories: bool,
+}
+
 mod v3 {
     use super::*;
     use crate::sbom::model::SbomPackageSummary;
@@ -229,17 +236,20 @@ mod v3 {
             Query,
             Paginated,
             GroupFilterQuery,
+            SbomListParams,
         ),
         responses(
             (status = 200, description = "Matching SBOMs", body = PaginatedResults<SbomSummary<SbomPackageSummary>>),
         ),
     )]
     #[get("/v3/sbom")]
+    #[allow(clippy::too_many_arguments)]
     pub async fn all(
         fetch: web::Data<SbomService>,
         db: web::Data<db::ReadOnly>,
         web::Query(search): web::Query<Query>,
         web::Query(paginated): web::Query<Paginated>,
+        web::Query(params): web::Query<SbomListParams>,
         QsQuery(group_filter): QsQuery<GroupFilterQuery>,
         authorizer: web::Data<Authorizer>,
         user: UserInformation,
@@ -247,7 +257,7 @@ mod v3 {
         authorizer.require(&user, Permission::ReadSbom)?;
 
         let tx = db.begin().await?;
-        let mut options = FetchOptions::default();
+        let mut options = FetchOptions::default().advisories(params.advisories);
         if !group_filter.group.is_empty() {
             options = options.groups(group_filter.group);
         }
@@ -357,12 +367,21 @@ pub async fn get(
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Default, serde::Deserialize, IntoParams)]
+pub struct SbomAdvisoryParams {
+    /// When true, include resolved statuses (fixed, not_affected)
+    /// alongside affected.
+    #[serde(default)]
+    pub include_resolved: bool,
+}
+
 /// Get advisories for an SBOM
 #[utoipa::path(
     tag = "sbom",
     operation_id = "getSbomAdvisories",
     params(
         ("id" = Id, Path),
+        SbomAdvisoryParams,
     ),
     responses(
         (status = 200, description = "Matching SBOM", body = Vec<SbomAdvisory>),
@@ -374,12 +393,21 @@ pub async fn get_sbom_advisories(
     fetcher: web::Data<SbomService>,
     db: web::Data<db::ReadOnly>,
     id: web::Path<String>,
+    web::Query(SbomAdvisoryParams { include_resolved }): web::Query<SbomAdvisoryParams>,
     _: Require<GetSbomAdvisories>,
 ) -> Result<impl Responder, Error> {
     let id = Id::from_str(&id).map_err(Error::IdKey)?;
     let tx = db.begin().await?;
 
-    let statuses: Vec<String> = vec!["affected".to_string()];
+    let statuses: Vec<String> = if include_resolved {
+        vec![
+            "affected".to_string(),
+            "fixed".to_string(),
+            "not_affected".to_string(),
+        ]
+    } else {
+        vec!["affected".to_string()]
+    };
     match fetcher.fetch_sbom_details(id, statuses, &tx).await? {
         Some(v) => Ok(HttpResponse::Ok().json(v.advisories)),
         None => Ok(HttpResponse::NotFound().finish()),
@@ -693,6 +721,9 @@ pub async fn upload(
     bytes: web::Bytes,
     _: Require<CreateSbom>,
 ) -> Result<impl Responder, Error> {
+    let format = format
+        .ensure_allowed_for(default_format())
+        .map_err(Error::Ingestor)?;
     let bytes = decompress_async(bytes, content_type.map(|ct| ct.0), config.upload_limit).await??;
 
     let tx = db.begin().await?;

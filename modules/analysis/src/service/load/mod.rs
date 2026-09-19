@@ -73,7 +73,7 @@ pub struct Node {
 
 #[derive(Debug, Default)]
 struct Context {
-    strings: HashMap<String, Arc<String>>,
+    strings: HashMap<String, Arc<str>>,
 }
 
 impl Context {
@@ -81,16 +81,11 @@ impl Context {
         Self::default()
     }
 
-    pub fn intern(&mut self, s: String) -> Arc<String> {
-        if self.strings.contains_key(&s)
-            && let Some(s) = self.strings.get(&s)
-        {
-            return s.clone();
-        }
-
-        let a = Arc::new(s.clone());
-        self.strings.insert(s, a.clone());
-        a
+    pub fn intern(&mut self, s: String) -> Arc<str> {
+        self.strings
+            .entry(s)
+            .or_insert_with_key(|k| Arc::from(k.as_str()))
+            .clone()
     }
 }
 

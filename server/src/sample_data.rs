@@ -4,7 +4,8 @@ use trustify_common::db::{ReadWrite, pagination_cache::PaginationCache};
 use trustify_module_importer::model::{
     ClearlyDefinedImporter, ClearlyDefinedPackageType, CveImporter, CweImporter,
     DEFAULT_SOURCE_CLEARLY_DEFINED_CURATION, DEFAULT_SOURCE_CVEPROJECT, DEFAULT_SOURCE_CWE_CATALOG,
-    DEFAULT_SOURCE_QUAY, QuayImporter,
+    DEFAULT_SOURCE_KEV_CATALOG, DEFAULT_SOURCE_NVD, DEFAULT_SOURCE_QUAY, KevImporter, NvdImporter,
+    QuayImporter,
 };
 use trustify_module_importer::{
     model::{
@@ -82,6 +83,30 @@ async fn add_cve(
     .await
 }
 
+async fn add_nvd(
+    importer: &ImporterService,
+    name: &str,
+    start_year: Option<u16>,
+    description: &str,
+) -> anyhow::Result<()> {
+    add(
+        importer,
+        name,
+        ImporterConfiguration::Nvd(NvdImporter {
+            common: CommonImporter {
+                disabled: true,
+                period: Duration::from_secs(300),
+                description: Some(description.into()),
+                labels: Default::default(),
+            },
+            source: DEFAULT_SOURCE_NVD.into(),
+            years: HashSet::default(),
+            start_year,
+        }),
+    )
+    .await
+}
+
 async fn add_clearly_defined_curations(
     importer: &ImporterService,
     name: &str,
@@ -141,6 +166,25 @@ async fn add_cwe(importer: &ImporterService, name: &str, description: &str) -> a
                 labels: Default::default(),
             },
             source: DEFAULT_SOURCE_CWE_CATALOG.into(),
+        }),
+    )
+    .await
+}
+
+async fn add_kev(importer: &ImporterService, name: &str, description: &str) -> anyhow::Result<()> {
+    add(
+        importer,
+        name,
+        ImporterConfiguration::Kev(KevImporter {
+            common: CommonImporter {
+                disabled: true,
+                // once a day is plenty
+                period: Duration::from_secs(60 * 60 * 24),
+                description: Some(description.into()),
+                labels: Default::default(),
+            },
+            source: DEFAULT_SOURCE_KEV_CATALOG.into(),
+            catalog: None,
         }),
     )
     .await
@@ -236,6 +280,13 @@ pub async fn sample_data(
 
     add_cwe(&importer, "cwe", "Common Weakness Enumeration").await?;
 
+    add_kev(
+        &importer,
+        "kev",
+        "CISA Known Exploited Vulnerabilities Catalog",
+    )
+    .await?;
+
     add_quay(
         &importer,
         "quay",
@@ -250,6 +301,14 @@ pub async fn sample_data(
         "cve-from-2024",
         Some(2024),
         "CVE List V5 (starting 2024)",
+    )
+    .await?;
+
+    add_nvd(
+        &importer,
+        "nvd-from-2024",
+        Some(2024),
+        "NVD CVE feeds (starting 2024)",
     )
     .await?;
 
@@ -359,7 +418,7 @@ mod test {
             ImporterService::new(ReadWrite::new(ctx.db.clone()), PaginationCache::for_test());
         let result = service.list().await?;
 
-        assert_eq!(result.len(), 16);
+        assert_eq!(result.len(), 18);
 
         Ok(())
     }

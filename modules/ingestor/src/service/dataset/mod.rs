@@ -3,7 +3,7 @@
 use crate::{
     graph::Graph,
     model::IngestResult,
-    service::{Error, Format, Warnings},
+    service::{DocumentDetector, Error, Format, Warnings},
 };
 use anyhow::anyhow;
 use bytes::Bytes;
@@ -50,7 +50,7 @@ impl<'g> DatasetLoader<'g> {
         for i in 0..zip.len() {
             let mut file = zip.by_index(i)?;
 
-            log::debug!("archive entry: {}", file.name());
+            tracing::debug!("archive entry: {}", file.name());
 
             if !file.is_file() {
                 continue;
@@ -71,7 +71,7 @@ impl<'g> DatasetLoader<'g> {
             {
                 let full_name = name.display().to_string();
 
-                log::debug!(
+                tracing::debug!(
                     "Processing entry - loader: {loader}, path: {_path:?}, name: {file_name}"
                 );
                 match Format::from_str(loader) {
@@ -110,22 +110,14 @@ impl<'g> DatasetLoader<'g> {
                             .await
                             .map_err(|err| Error::Storage(anyhow!("{err}")))?;
 
-                        // We need to box it, to work around async recursion limits
-                        let result = Box::pin({
-                            async move {
-                                format
-                                    .load(
-                                        self.graph,
-                                        labels,
-                                        None,
-                                        &Digests::digest(&data),
-                                        &data,
-                                        tx,
-                                    )
+                        let result = match DocumentDetector::detect_as(&data, format) {
+                            Ok(detector) => {
+                                detector
+                                    .load(self.graph, labels, None, &Digests::digest(&data), tx)
                                     .await
                             }
-                        })
-                        .await;
+                            Err(err) => Err(err),
+                        };
 
                         match result {
                             Ok(result) => {

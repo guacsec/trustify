@@ -5,8 +5,48 @@ use serde_json::json;
 use test_context::test_context;
 use test_log::test;
 use trustify_common::db::pagination_cache::PaginationCache;
+use trustify_common::id::Id;
 use trustify_module_fundamental::vulnerability::service::VulnerabilityService;
+use trustify_module_ingestor::service::Format;
 use trustify_test_context::{Dataset, TrustifyContext, subset::ContainsSubset};
+
+/// Reverse of the SBOM-page CPE match: a vulnerability's details must backlink
+/// the SBOMs that match it via a package CPE (not just via PURL / product_status).
+/// Guards the asymmetry where an SBOM showed the vulnerability but the
+/// vulnerability page listed no related SBOMs.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn vuln_related_sboms_via_cpe(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Firmware SBOM carries busybox 1.19.4 (package CPE); the NVD advisory marks
+    // busybox affected in [1.0.0, 2.0.0), which includes 1.19.4 via semver range.
+    let sbom = ctx.ingest_document("spdx/cpe23-firmware.json").await?;
+    ctx.ingest_document_as("nvd/CVE-2099-2000.json", Format::NVD, ("source", "nvd"))
+        .await?;
+
+    let Id::Uuid(sbom_uuid) = Id::parse_uuid(sbom.id)? else {
+        panic!("expected a UUID sbom id");
+    };
+
+    let service = VulnerabilityService::new(PaginationCache::for_test());
+    let details = service
+        .fetch_vulnerability("CVE-2099-2000", Default::default(), false, &ctx.db)
+        .await?
+        .expect("vulnerability must exist");
+
+    let sbom_ids: Vec<_> = details
+        .advisories
+        .iter()
+        .flat_map(|a| a.sboms.iter())
+        .map(|s| s.head.id)
+        .collect();
+
+    assert!(
+        sbom_ids.contains(&sbom_uuid),
+        "firmware SBOM must be backlinked from CVE-2099-2000 via the CPE match, got {sbom_ids:?}"
+    );
+
+    Ok(())
+}
 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
@@ -16,7 +56,11 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = VulnerabilityService::new(PaginationCache::for_test());
 
     let result = service
-        .analyze_purls_v3(["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"], &ctx.db)
+        .analyze_purls_v3(
+            ["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"],
+            &ctx.db,
+            false,
+        )
         .await?;
 
     log::debug!("{:#?}", result);
@@ -61,7 +105,7 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .filter(|status| status.purl_status.status == "affected")
         .collect();
 
-    assert_eq!(status_entries.len(), 2);
+    assert_eq!(status_entries.len(), 4);
     let json = serde_json::to_value(status_entries).expect("must serialize");
     assert!(
         json.contains_subset(json!([{
@@ -80,7 +124,6 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             },
             "scores": [{"type": "3.1", "value": 5.3, "severity": "medium", "vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N"}],
             "status": "affected",
-            "context": null,
             "version_range": {
                 "version_scheme_id": "rpm",
                 "high_version": "3.7.6-23.el9_3.4",
@@ -102,7 +145,6 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
             },
             "scores": [{"type": "3.1", "value": 5.3, "severity": "medium", "vector": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N"}],
             "status": "affected",
-            "context": null,
             "version_range": {
                 "version_scheme_id": "rpm",
                 "high_version": "3.8.3-4.el9_4",
@@ -113,6 +155,74 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     );
 
     // done
+
+    Ok(())
+}
+
+/// Proves that `version_matches` filtering works on the purl_status path:
+/// a version ABOVE the advisory's affected range must not be reported as affected.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn version_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ctx.ingest_dataset(Dataset::DS3).await?;
+
+    let service = VulnerabilityService::new(PaginationCache::for_test());
+
+    // Version BELOW the fix threshold — known affected by CVE-2024-28834
+    // (3.7.6-23.el9 < 3.7.6-23.el9_3.4, the fix version)
+    let affected_result = service
+        .analyze_purls_v3(
+            ["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"],
+            &ctx.db,
+            false,
+        )
+        .await?;
+
+    let affected_entry = &affected_result["pkg:rpm/redhat/gnutls@3.7.6-23.el9?arch=aarch64"];
+    let affected_count = affected_entry
+        .details
+        .iter()
+        .flat_map(|d| &d.purl_statuses)
+        .filter(|s| {
+            s.purl_status.status == "affected"
+                && s.purl_status.vulnerability.identifier == "CVE-2024-28834"
+        })
+        .count();
+    assert!(
+        affected_count > 0,
+        "affected version must have 'affected' statuses for CVE-2024-28834"
+    );
+
+    // Version ABOVE the fix threshold — not affected
+    // (3.8.3-5.el9 > 3.8.3-4.el9_4, the highest fix range, so version_matches returns false)
+    let fixed_result = service
+        .analyze_purls_v3(
+            ["pkg:rpm/redhat/gnutls@3.8.3-5.el9?arch=aarch64"],
+            &ctx.db,
+            false,
+        )
+        .await?;
+
+    let fixed_entry = fixed_result.get("pkg:rpm/redhat/gnutls@3.8.3-5.el9?arch=aarch64");
+    let fixed_affected_count = fixed_entry
+        .map(|entry| {
+            entry
+                .details
+                .iter()
+                .flat_map(|d| &d.purl_statuses)
+                .filter(|s| {
+                    s.purl_status.status == "affected"
+                        && s.purl_status.vulnerability.identifier == "CVE-2024-28834"
+                })
+                .count()
+        })
+        .unwrap_or(0);
+
+    assert_eq!(
+        fixed_affected_count, 0,
+        "fixed version must not have 'affected' statuses for CVE-2024-28834 \
+         (version_matches should filter them out)"
+    );
 
     Ok(())
 }

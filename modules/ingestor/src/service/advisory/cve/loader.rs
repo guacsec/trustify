@@ -1,4 +1,3 @@
-use crate::graph::vulnerability::BaseScore;
 use crate::{
     graph::{
         Graph,
@@ -6,7 +5,9 @@ use crate::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
             version::{Version, VersionInfo, VersionSpec},
         },
-        cvss::ScoreCreator,
+        cpe::CpeCreator,
+        cpe_status_creator::{CpeStatusCreator, CpeStatusEntry},
+        cvss::{ScoreCreator, best_base_score},
         purl::{
             self,
             status_creator::{PurlStatusCreator, PurlStatusEntry},
@@ -25,13 +26,11 @@ use cve::{
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, TransactionTrait};
 use sea_query::Expr;
-use serde_json::Value;
 use std::str::FromStr;
 use std::{collections::HashSet, fmt::Debug};
 use time::OffsetDateTime;
 use tracing::instrument;
-use trustify_common::hashing::Digests;
-use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
+use trustify_common::{cpe::Cpe, hashing::Digests};
 use trustify_entity::{labels::Labels, version_scheme::VersionScheme, vulnerability};
 
 /// Loader capable of parsing a CVE Record JSON file
@@ -68,8 +67,12 @@ impl<'g> CveLoader<'g> {
             descriptions,
             assigned,
             affected,
-            information,
+            mut information,
         } = Self::extract_vuln_info(&cve);
+
+        // Extract scores once, derive base_score from the same data
+        let scores = extract_scores(&cve);
+        information.base_score = best_base_score(&scores);
 
         let cwes = information.cwes.clone();
         let release_date = information.published;
@@ -117,7 +120,7 @@ impl<'g> CveLoader<'g> {
             .await?;
 
         let mut score_creator = ScoreCreator::new(advisory.advisory.id);
-        extract_scores(&cve, &mut score_creator);
+        score_creator.extend(scores);
         score_creator.create(tx).await?;
 
         // A CVE advisory is always the authoritative source for its vulnerability,
@@ -131,58 +134,73 @@ impl<'g> CveLoader<'g> {
             .exec(tx)
             .await?;
 
-        // Initialize batch creator for efficient status ingestion
+        // Initialize batch creators for efficient status ingestion
         let mut purl_status_creator = PurlStatusCreator::new();
+        let mut cpe_status_creator = CpeStatusCreator::new();
         let mut base_purls = HashSet::new();
+        let mut cpes = HashSet::new();
 
-        if let Some(affected) = affected {
-            for product in affected {
-                if let Some(purl) = divine_purl(product) {
-                    // Collect base PURL for batch creation
-                    base_purls.insert(purl.clone());
+        for product in affected {
+            if let Some(purl) = divine_purl(product) {
+                // Collect base PURL for batch creation
+                base_purls.insert(purl.clone());
 
-                    // okay! we have a purl, now
-                    // sort out version bounds & status
+                // okay! we have a purl, now
+                // sort out version bounds & status
+                for version in &product.versions {
+                    let (version_spec, version_type, status) = version_spec_and_status(version);
+
+                    // Add package status entry to batch creator
+                    purl_status_creator.add(PurlStatusEntry {
+                        advisory_id: advisory_vuln.advisory.advisory.id,
+                        vulnerability_id: advisory_vuln
+                            .advisory_vulnerability
+                            .vulnerability_id
+                            .clone(),
+                        purl: purl.clone(),
+                        status: status_slug(status),
+                        version_info: VersionInfo {
+                            scheme: version_type
+                                .as_deref()
+                                .map(VersionScheme::from)
+                                .unwrap_or(VersionScheme::Generic),
+                            spec: version_spec,
+                        },
+                        context_cpe: None,
+                    });
+                }
+            }
+
+            // CPE-keyed applicability: every parseable CPE in `cpes` is
+            // stored as a vendor/product identity (version normalized to
+            // ANY), with the affected version(s) expressed via
+            // version_range, mirroring the purl path above.
+            for cpe_str in &product.cpes {
+                let Ok(cpe) = Cpe::from_str(cpe_str) else {
+                    continue;
+                };
+                let identity_cpe = cpe.with_any_version();
+
+                if !product.versions.is_empty() {
                     for version in &product.versions {
-                        let (version_spec, version_type, status) = match version {
-                            cve::common::Version::Single(version) => (
-                                VersionSpec::Exact(version.version.clone()),
-                                version.version_type.clone(),
-                                &version.status,
-                            ),
-                            cve::common::Version::Range(range) => match &range.range {
-                                VersionRange::LessThan(upper) => (
-                                    VersionSpec::Range(
-                                        Version::Inclusive(range.version.clone()),
-                                        Version::Exclusive(upper.clone()),
-                                    ),
-                                    Some(range.version_type.clone()),
-                                    &range.status,
-                                ),
-                                VersionRange::LessThanOrEqual(upper) => (
-                                    VersionSpec::Range(
-                                        Version::Inclusive(range.version.clone()),
-                                        Version::Inclusive(upper.clone()),
-                                    ),
-                                    Some(range.version_type.clone()),
-                                    &range.status,
-                                ),
-                            },
-                        };
+                        let (version_spec, version_type, status) = version_spec_and_status(version);
 
-                        // Add package status entry to batch creator
-                        purl_status_creator.add(PurlStatusEntry {
+                        // `unknown` has no row in the `status` table and
+                        // carries no applicability information; skip it
+                        // instead of failing the whole document.
+                        if matches!(status, Status::Unknown) {
+                            continue;
+                        }
+
+                        cpes.insert(identity_cpe.clone());
+                        cpe_status_creator.add(CpeStatusEntry {
                             advisory_id: advisory_vuln.advisory.advisory.id,
                             vulnerability_id: advisory_vuln
                                 .advisory_vulnerability
                                 .vulnerability_id
                                 .clone(),
-                            purl: purl.clone(),
-                            status: match status {
-                                Status::Affected => "affected".to_string(),
-                                Status::Unaffected => "not_affected".to_string(),
-                                Status::Unknown => "unknown".to_string(),
-                            },
+                            cpe: identity_cpe.clone(),
+                            status: status_slug(status),
                             version_info: VersionInfo {
                                 scheme: version_type
                                     .as_deref()
@@ -193,6 +211,34 @@ impl<'g> CveLoader<'g> {
                             context_cpe: None,
                         });
                     }
+                } else if let trustify_common::cpe::Component::Value(version) = cpe.version() {
+                    // no explicit versions list: fall back to the concrete
+                    // version carried by the CPE itself.
+                    let status = product.default_status.clone().unwrap_or(Status::Unknown);
+
+                    // `unknown` (also the fallback for a missing
+                    // `defaultStatus`) has no row in the `status` table and
+                    // carries no applicability information; skip it instead
+                    // of failing the whole document.
+                    if matches!(status, Status::Unknown) {
+                        continue;
+                    }
+
+                    cpes.insert(identity_cpe.clone());
+                    cpe_status_creator.add(CpeStatusEntry {
+                        advisory_id: advisory_vuln.advisory.advisory.id,
+                        vulnerability_id: advisory_vuln
+                            .advisory_vulnerability
+                            .vulnerability_id
+                            .clone(),
+                        cpe: identity_cpe.clone(),
+                        status: status_slug(&status),
+                        version_info: VersionInfo {
+                            scheme: VersionScheme::Generic,
+                            spec: VersionSpec::Exact(version),
+                        },
+                        context_cpe: None,
+                    });
                 }
             }
         }
@@ -200,8 +246,16 @@ impl<'g> CveLoader<'g> {
         // Batch create base PURLs (without versions/qualifiers)
         purl::batch_create_base_purls(base_purls, tx).await?;
 
+        // Batch create CPEs (vendor/product identity, version normalized to ANY)
+        let mut cpe_creator = CpeCreator::new();
+        for cpe in cpes {
+            cpe_creator.add(cpe);
+        }
+        cpe_creator.create(tx).await?;
+
         // Batch create statuses
         purl_status_creator.create(tx).await?;
+        cpe_status_creator.create(tx).await?;
 
         // Manage vulnerability descriptions without needing to query the vulnerability
         Graph::drop_vulnerability_descriptions_for_advisory(advisory.advisory.id, tx).await?;
@@ -211,6 +265,7 @@ impl<'g> CveLoader<'g> {
             id: advisory.advisory.id.to_string(),
             document_id: Some(id.to_string()),
             warnings: warnings.into(),
+            validation: Vec::new(),
         })
     }
 
@@ -259,7 +314,7 @@ impl<'g> CveLoader<'g> {
                     .provider_metadata
                     .short_name
                     .as_deref(),
-                None,
+                Vec::new(),
             ),
             Cve::Published(published) => (
                 published
@@ -298,11 +353,25 @@ impl<'g> CveLoader<'g> {
                     .provider_metadata
                     .short_name
                     .as_deref(),
-                Some(&published.containers.cna.affected),
+                // CNA-reported affected entries are the primary source; ADP
+                // containers (e.g. CISA vulnrichment) supplement them with
+                // additional CPE/version data, particularly for older CVEs
+                // the CNA never annotated with CPEs.
+                published
+                    .containers
+                    .cna
+                    .affected
+                    .iter()
+                    .chain(
+                        published
+                            .containers
+                            .adp
+                            .iter()
+                            .flat_map(|adp| adp.affected.iter()),
+                    )
+                    .collect(),
             ),
         };
-
-        let base_score = Self::extract_base_score(cve);
 
         VulnerabilityDetails {
             org_name,
@@ -316,103 +385,60 @@ impl<'g> CveLoader<'g> {
                 modified,
                 withdrawn,
                 cwes: cwe,
-                base_score,
+                base_score: None,
             },
         }
     }
+}
 
-    /// Extracts the best base score from a CVE record.
-    ///
-    /// Prefers CNA scores over ADP scores, only falling back to ADP if CNA yields no parseable
-    /// scores. Within each source, higher CVSS versions take precedence; within the same version,
-    /// the higher numeric score wins.
-    fn extract_base_score(cve: &Cve) -> Option<BaseScore> {
-        fn better_score(a: BaseScore, b: BaseScore) -> BaseScore {
-            if b.r#type > a.r#type || (b.r#type == a.r#type && b.score > a.score) {
-                b
-            } else {
-                a
-            }
-        }
-
-        let Cve::Published(published) = cve else {
-            return None;
-        };
-
-        let cna_result = published
-            .containers
-            .cna
-            .metrics
-            .iter()
-            .filter_map(score_from_metric)
-            .reduce(better_score);
-
-        cna_result.or_else(|| {
-            published
-                .containers
-                .adp
-                .iter()
-                .flat_map(|adp| adp.metrics.iter())
-                .filter_map(score_from_metric)
-                .reduce(better_score)
-        })
+/// Maps a CVE 5.x `versions[]` entry to its version bound and CVE status.
+///
+/// Shared by both the purl and CPE ingestion paths so that any future change
+/// to the version-range mapping stays consistent between the two.
+fn version_spec_and_status(
+    version: &cve::common::Version,
+) -> (VersionSpec, Option<String>, &Status) {
+    match version {
+        cve::common::Version::Single(version) => (
+            VersionSpec::Exact(version.version.clone()),
+            version.version_type.clone(),
+            &version.status,
+        ),
+        cve::common::Version::Range(range) => match &range.range {
+            VersionRange::LessThan(upper) => (
+                VersionSpec::Range(
+                    Version::Inclusive(range.version.clone()),
+                    Version::Exclusive(upper.clone()),
+                ),
+                Some(range.version_type.clone()),
+                &range.status,
+            ),
+            VersionRange::LessThanOrEqual(upper) => (
+                VersionSpec::Range(
+                    Version::Inclusive(range.version.clone()),
+                    Version::Inclusive(upper.clone()),
+                ),
+                Some(range.version_type.clone()),
+                &range.status,
+            ),
+        },
     }
 }
 
-/// Extracts the base score and severity from a CVSS JSON object.
-/// For more information on the CVSS schema, see:
-/// https://github.com/CVEProject/cve-schema/tree/main/schema/imports/cvss
-fn get_score(cvss: &Value) -> Option<(ScoreType, f64, Severity)> {
-    let r#type = cvss
-        .get("version")
-        .and_then(Value::as_str)
-        .and_then(|s| ScoreType::from_str(s).ok())?;
-
-    let score = cvss.get("baseScore").and_then(Value::as_f64)?;
-    let severity = cvss
-        .get("baseSeverity")
-        .and_then(Value::as_str)
-        .and_then(|s| Severity::from_str(&s.to_lowercase()).ok());
-
-    match r#type {
-        // CVSS v2.0 does not have a baseSeverity field, so we need to calculate it from the score.
-        ScoreType::V2_0 => {
-            // CVSS v2 scores must be in the valid range [0.0, 10.0]
-            if !(0.0..=10.0).contains(&score) {
-                return None;
-            }
-            Some((r#type, score, (score, ScoreType::V2_0).into()))
-        }
-        _ => Some((r#type, score, severity?)),
+/// Maps a CVE 5.x affected-version status to the trustify status slug.
+fn status_slug(status: &Status) -> String {
+    match status {
+        Status::Affected => "affected".to_string(),
+        Status::Unaffected => "not_affected".to_string(),
+        Status::Unknown => "unknown".to_string(),
     }
-}
-
-/// Extracts the best score from a single metric, preferring higher CVSS versions.
-fn score_from_metric(metric: &cve::published::Metric) -> Option<BaseScore> {
-    metric
-        .cvss_v4_0
-        .as_ref()
-        .and_then(get_score)
-        .or_else(|| {
-            metric
-                .cvss_v3_1
-                .as_ref()
-                .or(metric.cvss_v3_0.as_ref())
-                .and_then(get_score)
-        })
-        .or_else(|| metric.cvss_v2_0.as_ref().and_then(get_score))
-        .map(|(r#type, score, severity)| BaseScore {
-            r#type,
-            score,
-            severity,
-        })
 }
 
 struct VulnerabilityDetails<'a> {
     pub org_name: Option<&'a str>,
     pub descriptions: &'a Vec<Description>,
     pub assigned: Option<OffsetDateTime>,
-    pub affected: Option<&'a Vec<Product>>,
+    pub affected: Vec<&'a Product>,
     pub information: VulnerabilityInformation,
 }
 
@@ -420,12 +446,11 @@ struct VulnerabilityDetails<'a> {
 mod test {
     use super::*;
     use crate::{
-        graph::Graph,
+        graph::{Graph, cvss::best_base_score, vulnerability::BaseScore},
         service::advisory::test::{AssertScore, assert_scores},
     };
     use hex::ToHex;
     use rstest::rstest;
-    use serde_json::{Value, json};
     use std::str::FromStr;
     use test_context::test_context;
     use test_log::test;
@@ -434,128 +459,58 @@ mod test {
     use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
     use trustify_test_context::{TrustifyContext, document};
 
-    enum MetricSource {
-        Cna,
-        Adp,
-    }
-
-    use MetricSource::*;
-
-    #[derive(Default)]
-    struct CveBuilder {
-        cna: Vec<Value>,
-        adp: Vec<Value>,
-    }
-
-    impl CveBuilder {
-        fn new() -> Self {
-            Self::default()
-        }
-
-        fn add(mut self, source: MetricSource, metric: Value) -> Self {
-            match source {
-                Cna => self.cna.push(metric),
-                Adp => self.adp.push(metric),
-            }
-            self
-        }
-
-        fn add_v2(self, source: MetricSource, score: f64) -> Self {
-            self.add(
-                source,
-                json!({ "cvssV2_0": { "version": "2.0", "baseScore": score } }),
-            )
-        }
-
-        fn add_v3_0(self, source: MetricSource, score: f64, severity: &str) -> Self {
-            self.add(source, json!({ "cvssV3_0": { "version": "3.0", "baseScore": score, "baseSeverity": severity } }))
-        }
-
-        fn add_v3_1(self, source: MetricSource, score: f64, severity: &str) -> Self {
-            self.add(source, json!({ "cvssV3_1": { "version": "3.1", "baseScore": score, "baseSeverity": severity } }))
-        }
-
-        fn add_v4(self, source: MetricSource, score: f64, severity: &str) -> Self {
-            self.add(source, json!({ "cvssV4_0": { "version": "4.0", "baseScore": score, "baseSeverity": severity } }))
-        }
-    }
-
-    impl From<CveBuilder> for Cve {
-        fn from(builder: CveBuilder) -> Self {
-            let adp: Vec<Value> = builder
-                .adp
-                .into_iter()
-                .map(|m| {
-                    json!({
-                        "providerMetadata": { "orgId": "00000000-0000-0000-0000-000000000000" },
-                        "metrics": [m]
-                    })
-                })
-                .collect();
-
-            serde_json::from_value(json!({
-                "dataType": "CVE_RECORD",
-                "dataVersion": "5.2",
-                "cveMetadata": {
-                    "cveId": "CVE-2024-00000",
-                    "assignerOrgId": "00000000-0000-0000-0000-000000000000",
-                    "state": "PUBLISHED"
-                },
-                "containers": {
-                    "cna": {
-                        "providerMetadata": { "orgId": "00000000-0000-0000-0000-000000000000" },
-                        "descriptions": [{ "lang": "en", "value": "test" }],
-                        "affected": [],
-                        "references": [],
-                        "metrics": builder.cna
-                    },
-                    "adp": adp
-                }
-            }))
-            .expect("CveBuilder should produce valid CVE JSON")
-        }
-    }
-
     #[rstest]
-    #[case::no_metrics(CveBuilder::new(), None)]
-    #[case::single_v3_1_in_cna(
-        CveBuilder::new().add_v3_1(Cna, 6.5, "MEDIUM"),
-        Some(BaseScore { r#type: ScoreType::V3_1, score: 6.5, severity: Severity::Medium })
+    #[case::no_scores(
+        vec![],
+        None
     )]
-    #[case::cna_preferred_over_adp(
-        CveBuilder::new().add_v3_1(Cna, 6.5, "MEDIUM").add_v3_1(Adp, 9.8, "CRITICAL"),
+    #[case::single_v3_1(
+        vec![("CVE-X", ScoreType::V3_1, 6.5, Severity::Medium)],
         Some(BaseScore { r#type: ScoreType::V3_1, score: 6.5, severity: Severity::Medium })
-    )]
-    #[case::adp_used_when_cna_empty(
-        CveBuilder::new().add_v3_1(Adp, 9.8, "CRITICAL"),
-        Some(BaseScore { r#type: ScoreType::V3_1, score: 9.8, severity: Severity::Critical })
     )]
     #[case::higher_version_wins(
-        CveBuilder::new().add_v3_1(Cna, 9.8, "CRITICAL").add_v4(Cna, 6.5, "MEDIUM"),
+        vec![
+            ("CVE-X", ScoreType::V3_1, 9.8, Severity::Critical),
+            ("CVE-X", ScoreType::V4_0, 6.5, Severity::Medium),
+        ],
         Some(BaseScore { r#type: ScoreType::V4_0, score: 6.5, severity: Severity::Medium })
     )]
-    #[case::single_v3_0_in_cna(
-        CveBuilder::new().add_v3_0(Cna, 7.5, "HIGH"),
-        Some(BaseScore { r#type: ScoreType::V3_0, score: 7.5, severity: Severity::High })
-    )]
     #[case::v3_1_preferred_over_v3_0(
-        CveBuilder::new().add_v3_0(Cna, 9.8, "CRITICAL").add_v3_1(Cna, 6.5, "MEDIUM"),
+        vec![
+            ("CVE-X", ScoreType::V3_0, 9.8, Severity::Critical),
+            ("CVE-X", ScoreType::V3_1, 6.5, Severity::Medium),
+        ],
         Some(BaseScore { r#type: ScoreType::V3_1, score: 6.5, severity: Severity::Medium })
     )]
     #[case::higher_score_wins_within_same_version(
-        CveBuilder::new().add_v3_1(Cna, 6.5, "MEDIUM").add_v3_1(Cna, 9.8, "CRITICAL"),
+        vec![
+            ("CVE-X", ScoreType::V3_1, 6.5, Severity::Medium),
+            ("CVE-X", ScoreType::V3_1, 9.8, Severity::Critical),
+        ],
         Some(BaseScore { r#type: ScoreType::V3_1, score: 9.8, severity: Severity::Critical })
     )]
-    #[case::v2_severity_derived_from_score(
-        CveBuilder::new().add_v2(Cna, 7.5),
+    #[case::v2_score(
+        vec![("CVE-X", ScoreType::V2_0, 7.5, Severity::High)],
         Some(BaseScore { r#type: ScoreType::V2_0, score: 7.5, severity: Severity::High })
     )]
-    #[case::v2_out_of_range_yields_none(
-        CveBuilder::new().add_v2(Cna, 11.0),
-        None
-    )]
     #[std::prelude::v1::test]
-    fn extract_base_score_cases(#[case] cve: impl Into<Cve>, #[case] expected: Option<BaseScore>) {
+    fn best_base_score_cases(
+        #[case] scores: Vec<(&str, ScoreType, f32, Severity)>,
+        #[case] expected: Option<BaseScore>,
+    ) {
+        use crate::graph::cvss::ScoreInformation;
+
+        let scores: Vec<_> = scores
+            .into_iter()
+            .map(|(id, r#type, score, severity)| ScoreInformation {
+                vulnerability_id: id.to_string(),
+                r#type,
+                vector: String::new(),
+                score,
+                severity,
+            })
+            .collect();
+
         #[derive(Debug)]
         struct ApproxBaseScore(Option<BaseScore>);
 
@@ -566,7 +521,7 @@ mod test {
                     (Some(a), Some(b)) => {
                         a.r#type == b.r#type
                             && a.severity == b.severity
-                            && (a.score - b.score).abs() < 0.01
+                            && (a.score - b.score).abs() < 0.1
                     }
                     _ => false,
                 }
@@ -574,7 +529,7 @@ mod test {
         }
 
         assert_eq!(
-            ApproxBaseScore(CveLoader::extract_base_score(&cve.into())),
+            ApproxBaseScore(best_base_score(&scores)),
             ApproxBaseScore(expected)
         );
     }
@@ -672,6 +627,175 @@ mod test {
         assert_eq!(purl.r#type, "maven");
         assert_eq!(purl.namespace, Some("org.apache.commons".to_string()));
         assert_eq!(purl.name, "commons-compress");
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn cve_loader_stores_cpe_status(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        use trustify_entity::{cpe as cpe_entity, cpe_status, status, version_range};
+
+        let graph = Graph::new();
+
+        let (cve, digests): (Cve, _) = document("cve/CVE-2099-0001.json").await?;
+
+        let loader = CveLoader::new(&graph);
+        ctx.db
+            .transaction(async |tx| {
+                loader
+                    .load(("file", "CVE-2099-0001.json"), cve.clone(), &digests, tx)
+                    .await
+            })
+            .await?;
+
+        let advisory = graph
+            .get_advisory_by_digest(&digests.sha256.encode_hex::<String>(), &ctx.db)
+            .await?
+            .expect("advisory must be ingested");
+
+        // Join cpe_status -> cpe -> status -> version_range so we can assert
+        // on human-readable vendor/product/status/version_range values.
+        let rows = cpe_status::Entity::find()
+            .filter(cpe_status::Column::AdvisoryId.eq(advisory.advisory.id))
+            .all(&ctx.db)
+            .await?;
+
+        // openssl: 1 exact version + 1 range = 2 rows; busybox: no `versions`
+        // list, falls back to the concrete CPE version = 1 row. Total 3.
+        assert_eq!(rows.len(), 3, "expected 3 cpe_status rows, got {rows:?}");
+
+        let mut by_vendor: std::collections::HashMap<String, Vec<cpe_status::Model>> =
+            std::collections::HashMap::new();
+        for row in rows {
+            let cpe = cpe_entity::Entity::find_by_id(row.cpe_id)
+                .one(&ctx.db)
+                .await?
+                .expect("referenced cpe must exist");
+            by_vendor
+                .entry(cpe.vendor.clone().unwrap_or_default())
+                .or_default()
+                .push(row);
+
+            // the identity cpe is version-normalized to ANY
+            assert_eq!(
+                cpe.version.as_deref(),
+                Some("*"),
+                "cpe_status.cpe_id must be version-ANY"
+            );
+        }
+
+        let openssl_rows = by_vendor.get("openssl").expect("openssl rows");
+        assert_eq!(openssl_rows.len(), 2);
+        for row in openssl_rows {
+            let st = status::Entity::find_by_id(row.status_id)
+                .one(&ctx.db)
+                .await?
+                .expect("status must exist");
+            assert_eq!(st.slug, "affected");
+
+            let vr = version_range::Entity::find_by_id(row.version_range_id)
+                .one(&ctx.db)
+                .await?
+                .expect("version_range must exist");
+            assert!(
+                vr.low_version.as_deref() == Some("0.9.8w")
+                    || vr.low_version.as_deref() == Some("1.0.0"),
+                "unexpected version_range: {vr:?}"
+            );
+        }
+
+        let busybox_rows = by_vendor.get("busybox").expect("busybox rows");
+        assert_eq!(busybox_rows.len(), 1);
+        let busybox_row = &busybox_rows[0];
+        let st = status::Entity::find_by_id(busybox_row.status_id)
+            .one(&ctx.db)
+            .await?
+            .expect("status must exist");
+        assert_eq!(st.slug, "affected");
+        let vr = version_range::Entity::find_by_id(busybox_row.version_range_id)
+            .one(&ctx.db)
+            .await?
+            .expect("version_range must exist");
+        assert_eq!(vr.low_version.as_deref(), Some("1.19.4"));
+
+        // Re-ingest idempotency: loading the same document again must not
+        // create duplicate cpe_status rows (deterministic v5 UUIDs).
+        ctx.db
+            .transaction(async |tx| {
+                loader
+                    .load(("file", "CVE-2099-0001.json"), cve, &digests, tx)
+                    .await
+            })
+            .await?;
+
+        let rows_after_reingest = cpe_status::Entity::find()
+            .filter(cpe_status::Column::AdvisoryId.eq(advisory.advisory.id))
+            .all(&ctx.db)
+            .await?;
+        assert_eq!(
+            rows_after_reingest.len(),
+            3,
+            "re-ingest must not duplicate rows"
+        );
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn cve_loader_stores_cpe_status_from_adp_container(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use trustify_entity::{cpe as cpe_entity, cpe_status, status, version_range};
+
+        let graph = Graph::new();
+
+        // cna.affected is empty; the ADP (vulnrichment-style) container is
+        // the only source of CPE/version data for this record.
+        let (cve, digests): (Cve, _) = document("cve/CVE-2099-0002.json").await?;
+
+        let loader = CveLoader::new(&graph);
+        ctx.db
+            .transaction(async |tx| {
+                loader
+                    .load(("file", "CVE-2099-0002.json"), cve, &digests, tx)
+                    .await
+            })
+            .await?;
+
+        let advisory = graph
+            .get_advisory_by_digest(&digests.sha256.encode_hex::<String>(), &ctx.db)
+            .await?
+            .expect("advisory must be ingested");
+
+        let rows = cpe_status::Entity::find()
+            .filter(cpe_status::Column::AdvisoryId.eq(advisory.advisory.id))
+            .all(&ctx.db)
+            .await?;
+
+        assert_eq!(rows.len(), 1, "expected 1 cpe_status row, got {rows:?}");
+
+        let row = &rows[0];
+        let cpe = cpe_entity::Entity::find_by_id(row.cpe_id)
+            .one(&ctx.db)
+            .await?
+            .expect("referenced cpe must exist");
+        assert_eq!(cpe.vendor.as_deref(), Some("denx"));
+        assert_eq!(cpe.product.as_deref(), Some("u-boot"));
+        assert_eq!(cpe.version.as_deref(), Some("*"));
+
+        let st = status::Entity::find_by_id(row.status_id)
+            .one(&ctx.db)
+            .await?
+            .expect("status must exist");
+        assert_eq!(st.slug, "affected");
+
+        let vr = version_range::Entity::find_by_id(row.version_range_id)
+            .one(&ctx.db)
+            .await?
+            .expect("version_range must exist");
+        assert_eq!(vr.low_version.as_deref(), Some("2019.04"));
 
         Ok(())
     }

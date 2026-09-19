@@ -1,6 +1,6 @@
 //! Structures to work with users and identities.
 
-use crate::authenticator::error::AuthorizationError;
+use crate::authenticator::error::{AuthenticationError, AuthorizationError};
 
 /// Details of an authenticated user.
 ///
@@ -101,9 +101,7 @@ impl actix_web::FromRequest for UserDetails {
                 log::debug!("Anonymous user, returning failure");
                 core::future::ready(Err(AuthorizationError::Failed.into()))
             }
-            None => core::future::ready(Err(
-                crate::authenticator::error::AuthenticationError::Failed.into(),
-            )),
+            None => core::future::ready(Err(AuthenticationError::Failed.into())),
         }
     }
 }

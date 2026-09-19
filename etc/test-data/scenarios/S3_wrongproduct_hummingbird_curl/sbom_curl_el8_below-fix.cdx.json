@@ -1,0 +1,40 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:c021e100-0000-4000-8000-c021e1positive",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-s3-pos",
+      "type": "application",
+      "name": "s3-positive-target",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "os-el8",
+      "type": "operating-system",
+      "name": "rhel",
+      "version": "8.10",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos"
+    },
+    {
+      "bom-ref": "pkg-curl",
+      "type": "library",
+      "name": "curl",
+      "version": "7.61.1-34.el8_10.1",
+      "purl": "pkg:rpm/redhat/curl@7.61.1-34.el8_10.1?arch=x86_64&distro=rhel-8.10&upstream=curl-7.61.1-34.el8_10.1.src.rpm"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-s3-pos",
+      "dependsOn": [
+        "os-el8",
+        "pkg-curl"
+      ]
+    }
+  ]
+}

@@ -95,7 +95,7 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
     assert!(ubi_details.is_some());
     let ubi_details = ubi_details.unwrap();
     let ubi_advisories = ubi_details.advisories;
-    assert_eq!(ubi_advisories.len(), 1);
+    assert_eq!(ubi_advisories.len(), 3);
     assert!(
         ubi_advisories
             .iter()

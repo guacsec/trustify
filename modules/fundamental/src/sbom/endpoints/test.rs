@@ -5,7 +5,10 @@ use crate::{
     },
     purl::model::summary::purl::PurlSummary,
     sbom::model::{SbomPackage, SbomSummary},
-    test::{caller, label::Api},
+    test::{
+        caller, label::Api, label::update_labels as do_update_labels,
+        label::update_labels_not_found as do_update_labels_not_found,
+    },
 };
 use actix_http::StatusCode;
 use actix_web::{
@@ -17,7 +20,12 @@ use flate2::bufread::GzDecoder;
 use futures::future::join_all;
 use rstest::rstest;
 use serde_json::{Value, json};
-use std::{collections::HashMap, io::Read, str::FromStr};
+use std::{
+    collections::HashMap,
+    io::Read,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use test_context::test_context;
 use test_log::test;
 use trustify_common::{id::Id, model::PaginatedResults};
@@ -442,12 +450,12 @@ async fn fetch_unique_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
 
-    // badly formatted Id
+    // badly formatted Id -> 404 (not 400: the resource simply does not exist)
     let req = TestRequest::get()
         .uri("/api/v3/sbom/sha123:1234/all-license-ids")
         .to_request();
     let response = app.call_service(req).await;
-    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
 
     // Test license IDs are case-insensitive https://spdx.github.io/spdx-spec/v3.0.1/annexes/spdx-license-expressions/#case-sensitivity
     // because, so far, the test ingested `Apache-2.0` licenses but the next SBOM contains
@@ -1117,6 +1125,34 @@ async fn get_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(sbom["id"], format!("urn:uuid:{id}"));
     assert_eq!(sbom["number_of_packages"], 1053);
 
+    // Non-existent UUID -> 404
+    let req = TestRequest::get()
+        .uri("/api/v3/sbom/urn:uuid:00000000-0000-0000-0000-000000000000")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Non-existent hash -> 404
+    let req = TestRequest::get()
+        .uri("/api/v3/sbom/sha256:0000000000000000000000000000000000000000000000000000000000000000")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Invalid identifier (no prefix) -> 404 (not 400)
+    let req = TestRequest::get()
+        .uri("/api/v3/sbom/not-an-id")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Unsupported prefix -> 404 (not 400)
+    let req = TestRequest::get()
+        .uri("/api/v3/sbom/sha123:abcd")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
     Ok(())
 }
 
@@ -1181,7 +1217,7 @@ async fn filter_packages(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    crate::test::label::update_labels(
+    do_update_labels(
         ctx,
         Api::Sbom,
         "quarkus-bom-2.13.8.Final-redhat-00004.json",
@@ -1194,12 +1230,7 @@ async fn update_labels(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn update_labels_not_found(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    crate::test::label::update_labels_not_found(
-        ctx,
-        Api::Sbom,
-        "quarkus-bom-2.13.8.Final-redhat-00004.json",
-    )
-    .await
+    do_update_labels_not_found(ctx, Api::Sbom, "quarkus-bom-2.13.8.Final-redhat-00004.json").await
 }
 
 /// Test deleting an sbom
@@ -1448,6 +1479,86 @@ async fn get_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+/// VEX reconciliation via the SBOM advisory endpoint: the quarkus BOM contains
+/// quarkus-vertx-http which cve-2023-0044 marks as affected. A backport VEX
+/// declares the BOM's specific version as known_not_affected. Without
+/// include_resolved only the affected status is visible; with it, both surface.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_advisories_vex_reconciliation(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let id = ctx
+        .ingest_documents([
+            "quarkus-bom-2.13.8.Final-redhat-00004.json",
+            "csaf/cve-2023-0044.json",
+            "csaf/vex-cve-2023-0044-backport.json",
+        ])
+        .await?[0]
+        .id
+        .to_string();
+
+    let app = caller(ctx).await?;
+
+    // Default: only affected statuses
+    let default_result: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!("/api/v3/sbom/urn:uuid:{id}/advisory"))
+                .to_request(),
+        )
+        .await;
+    let default_statuses: Vec<&str> = default_result[0]["status"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|s| s["status"].as_str())
+        .collect();
+    assert!(
+        default_statuses.iter().all(|s| *s == "affected"),
+        "Default should only return affected, got: {default_statuses:?}"
+    );
+
+    // With include_resolved=true: backport VEX not_affected status also appears
+    let resolved_result: Value = app
+        .call_and_read_body_json(
+            TestRequest::get()
+                .uri(&format!(
+                    "/api/v3/sbom/urn:uuid:{id}/advisory?include_resolved=true"
+                ))
+                .to_request(),
+        )
+        .await;
+    let resolved_statuses: Vec<&str> = resolved_result
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|adv| {
+            adv["status"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|s| s["status"].as_str())
+        })
+        .collect();
+    assert!(
+        !resolved_statuses.is_empty(),
+        "include_resolved should return statuses"
+    );
+    assert!(
+        resolved_statuses
+            .iter()
+            .all(|s| matches!(*s, "affected" | "fixed" | "not_affected")),
+        "include_resolved returned an unexpected status, got: {resolved_statuses:?}"
+    );
+    assert!(
+        resolved_statuses
+            .iter()
+            .any(|s| *s == "fixed" || *s == "not_affected"),
+        "include_resolved should include fixed or not_affected statuses, got: {resolved_statuses:?}"
+    );
+
+    Ok(())
+}
+
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn get_advisories_with_deprecated_filtering(
@@ -1682,6 +1793,36 @@ async fn query_sboms_by_array_values(ctx: &TrustifyContext) -> Result<(), anyhow
     query(2, "authors>ZZZ").await;
     query(2, "organization").await;
     query(1, "tool: syft").await;
+
+    Ok(())
+}
+
+/// Verifies that suppliers are correctly extracted for SBOMs using DESCRIBES and DESCRIBED_BY
+/// relationships without a documentDescribes fallback.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn spdx_describes_suppliers(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given SBOMs with DESCRIBES-only and DESCRIBED_BY-only relationships
+    ctx.ingest_documents([
+        "spdx/license-ref-overlap.json",
+        "spdx/described-by-supplier.json",
+    ])
+    .await?;
+
+    let query = async |expected_count, q| {
+        let app = caller(ctx).await.unwrap();
+        let uri = format!("/api/v3/sbom?total=true&q={}", encode(q));
+        let req = TestRequest::get().uri(&uri).to_request();
+        let response: Value = app.call_and_read_body_json(req).await;
+        tracing::debug!(test = "", "{response:#?}");
+        assert_eq!(expected_count, response["total"], "for {q}");
+    };
+
+    // Then suppliers from DESCRIBES relationships are populated
+    query(1, "suppliers=Organization: Test").await;
+
+    // Then suppliers from DESCRIBED_BY relationships are populated
+    query(1, "suppliers=Organization: Test Supplier").await;
 
     Ok(())
 }
@@ -2157,16 +2298,25 @@ async fn packages_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
 
-    // Invalid identifier (no prefix) -> 400
+    // Invalid identifier (no prefix) -> 404
     let req = TestRequest::get()
         .uri("/api/v3/sbom/not-an-id/packages")
         .to_request();
     let response = app.call_service(req).await;
-    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
 
-    // Unsupported prefix -> 400
+    // Unsupported prefix -> 404
     let req = TestRequest::get()
         .uri("/api/v3/sbom/sha123:abcd/packages")
+        .to_request();
+    let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Bad query parameter -> 400 (query errors remain bad requests)
+    let req = TestRequest::get()
+        .uri(&format!(
+            "/api/v3/sbom/urn:uuid:{id}/packages?sort=nonexistent_column:asc"
+        ))
         .to_request();
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::BAD_REQUEST, response.status());
@@ -2212,19 +2362,172 @@ async fn related_by_hash(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let response = app.call_service(req).await;
     assert_eq!(StatusCode::NOT_FOUND, response.status());
 
-    // Invalid identifier (no prefix) -> 400
+    // Invalid identifier (no prefix) -> 404
     let req = TestRequest::get()
         .uri("/api/v3/sbom/not-an-id/related")
         .to_request();
     let response = app.call_service(req).await;
-    assert_eq!(StatusCode::BAD_REQUEST, response.status());
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
 
-    // Unsupported prefix -> 400
+    // Unsupported prefix -> 404
     let req = TestRequest::get()
         .uri("/api/v3/sbom/sha123:abcd/related")
         .to_request();
     let response = app.call_service(req).await;
+    assert_eq!(StatusCode::NOT_FOUND, response.status());
+
+    // Bad query parameter -> 400 (query errors remain bad requests)
+    let req = TestRequest::get()
+        .uri(&format!(
+            "/api/v3/sbom/urn:uuid:{id}/related?sort=nonexistent_column:asc"
+        ))
+        .to_request();
+    let response = app.call_service(req).await;
     assert_eq!(StatusCode::BAD_REQUEST, response.status());
+
+    Ok(())
+}
+
+fn ds6_docs() -> Result<Vec<PathBuf>, anyhow::Error> {
+    let ds6_dir = trustify_test_context::absolute("../datasets/ds6")?;
+    anyhow::ensure!(
+        ds6_dir.exists(),
+        "DS6 dataset not found at {ds6_dir:?}. Run 'make ds6' in etc/datasets/"
+    );
+    let mut docs = Vec::new();
+    for entry in walkdir::WalkDir::new(&ds6_dir) {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+            docs.push(entry.into_path());
+        }
+    }
+    Ok(docs)
+}
+
+/// Verify the optional `?advisories=true` enrichment on the SBOM list endpoint.
+///
+/// The `expected` array contains the expected `advisories` value for each SBOM,
+/// sorted alphabetically by SBOM name.
+#[test_context(TrustifyContext)]
+#[rstest]
+// Without ?advisories param, the field should be absent from the response
+#[case::without_param(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json"],
+    false,
+    "",
+    json!([null]),
+)]
+// With ?advisories=true but no matching advisory data, the field is present but empty
+#[case::no_advisory_data(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json"],
+    true,
+    "",
+    json!([{}]),
+)]
+// CSAF advisory with CVSS 5.3 produces a medium severity count
+#[case::medium_severity(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json"],
+    true,
+    "",
+    json!([{"medium": 1}]),
+)]
+// CVE without CVSS scores maps to unknown severity
+#[case::unknown_severity(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "cve/CVE-2024-26308.json"],
+    true,
+    "",
+    json!([{"unknown": 1}]),
+)]
+// Multiple CVSS versions (v2 low + v3.1 medium) should pick the highest severity
+#[case::multi_score_highest_wins(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044-multi-score.json"],
+    true,
+    "",
+    json!([{"medium": 1}]),
+)]
+// Multiple severities from different advisories for the same SBOM
+#[case::multiple_severities(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json", "cve/CVE-2024-26308.json"],
+    true,
+    "",
+    json!([{"medium": 1, "unknown": 1}]),
+)]
+// Multiple SBOMs: only one matches the advisory (sorted by name: quarkus, zookeeper)
+#[case::multiple_sboms_one_match(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "zookeeper-3.9.2-cyclonedx.json", "csaf/cve-2023-0044.json"],
+    true,
+    "",
+    json!([{"medium": 1}, {}]),
+)]
+// Multiple SBOMs: both match different advisories with different severities
+#[case::multiple_sboms_both_match(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "zookeeper-3.9.2-cyclonedx.json", "csaf/cve-2023-0044.json", "csaf/cve-2099-0001.json"],
+    true,
+    "",
+    json!([{"medium": 1}, {"high": 1}]),
+)]
+// Two advisories for the same CVE should deduplicate to a single count
+#[case::dedup_same_cve_across_advisories(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json", "csaf/advisory-dedup/cve-2023-0044-second-advisory.json"],
+    true,
+    "",
+    json!([{"medium": 1}]),
+)]
+// An advisory without CVSS scores should not mask a real score from another advisory
+#[case::unknown_does_not_mask_real_score(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/cve-2023-0044.json", "csaf/advisory-dedup/cve-2023-0044-no-score.json"],
+    true,
+    "",
+    json!([{"medium": 1}]),
+)]
+// PURLs overlap but CPE contexts don't (quarkus:2.13 vs quarkus:3.2) — should exclude
+#[case::purl_cpe_context_mismatch(
+    &["quarkus-bom-2.13.8.Final-redhat-00004.json", "csaf/rhsa-2024-2705.json"],
+    true,
+    "",
+    json!([{}]),
+)]
+// DS6 dataset: full UI e2e test data validates exact severity counts for quarkus-bom
+#[case::ds6_quarkus_severity(
+    ds6_docs().expect("DS6 dataset required"),
+    true,
+    "quarkus-bom",
+    json!([{"high": 2, "medium": 13, "low": 1}]),
+)]
+#[test_log::test(actix_web::test)]
+async fn list_sboms_advisory_summary(
+    ctx: &TrustifyContext,
+    #[case] docs: impl IntoIterator<Item = impl AsRef<Path>>,
+    #[case] advisories_param: bool,
+    #[case] q: &str,
+    #[case] expected: Value,
+) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ctx.ingest_documents(docs).await?;
+
+    let advisories_query = if advisories_param {
+        "&advisories=true"
+    } else {
+        ""
+    };
+    let q_param = if q.is_empty() {
+        String::new()
+    } else {
+        format!("&q={}", encode(q))
+    };
+    let uri = format!("/api/v3/sbom?sort=name{advisories_query}{q_param}");
+    let response: Value = app
+        .call_and_read_body_json(TestRequest::get().uri(&uri).to_request())
+        .await;
+
+    let items = response["items"]
+        .as_array()
+        .expect("items should be an array");
+    let actual = items
+        .iter()
+        .map(|i| i["advisories"].clone())
+        .collect::<Vec<_>>();
+    assert_eq!(Value::Array(actual), expected);
 
     Ok(())
 }

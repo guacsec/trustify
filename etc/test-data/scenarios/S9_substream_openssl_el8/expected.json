@@ -1,0 +1,18 @@
+{
+  "advisories": [
+    "cve/CVE-2023-0286.json",
+    "vex/CVE-2023-0286.json"
+  ],
+  "sboms": {
+    "sbom_openssl_el8.2_below-fix": {
+      "correct": {
+        "CVE-2023-0286": "affected"
+      }
+    },
+    "sbom_openssl_el8.2_patched": {
+      "correct": {
+        "CVE-2023-0286": "not_affected"
+      }
+    }
+  }
+}

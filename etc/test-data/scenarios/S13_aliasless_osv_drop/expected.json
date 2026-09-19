@@ -1,0 +1,12 @@
+{
+  "advisories": [
+    "osv/GHSA-3227-r97m-8j95_real-no-cve.json"
+  ],
+  "sboms": {
+    "sbom_afire_affected": {
+      "correct": {
+        "GHSA-3227-r97m-8j95": "affected"
+      }
+    }
+  }
+}

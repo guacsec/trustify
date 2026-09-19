@@ -1,0 +1,38 @@
+{
+  "advisories": [
+    "cve/CVE-2024-2398.json",
+    "cve/CVE-2025-10148.json",
+    "cve/CVE-2025-10966.json",
+    "cve/CVE-2025-13034.json",
+    "vex/CVE-2024-2398.json",
+    "vex/CVE-2025-10148.json",
+    "vex/CVE-2025-10966.json",
+    "vex/CVE-2025-13034.json"
+  ],
+  "sboms": {
+    "sbom_curl_el8": {
+      "correct": {
+        "CVE-2024-2398": "not_affected",
+        "CVE-2025-10148": "not_affected",
+        "CVE-2025-10966": "not_affected",
+        "CVE-2025-13034": "affected"
+      }
+    },
+    "sbom_curl_el8_below-fix": {
+      "correct": {
+        "CVE-2024-2398": "affected",
+        "CVE-2025-10148": "not_affected",
+        "CVE-2025-10966": "not_affected",
+        "CVE-2025-13034": "affected"
+      }
+    },
+    "sbom_curl_el8_el8cpe": {
+      "correct": {
+        "CVE-2024-2398": "not_affected",
+        "CVE-2025-10148": "not_affected",
+        "CVE-2025-10966": "not_affected",
+        "CVE-2025-13034": "affected"
+      }
+    }
+  }
+}

@@ -9,13 +9,25 @@ use trustify_auth::authenticator::Authenticator;
 use trustify_common::middleware::ReadOnlyState;
 use utoipa_actix_web::service_config::ServiceConfig;
 
-pub fn configure(svc: &mut ServiceConfig, auth: Option<Arc<Authenticator>>, read_only: bool) {
+/// Whether exploit intelligence is configured on this instance.
+#[derive(Clone, Copy, Debug)]
+pub struct ExploitIntelligenceState(pub bool);
+
+pub fn configure(
+    svc: &mut ServiceConfig,
+    auth: Option<Arc<Authenticator>>,
+    read_only: bool,
+    exploit_intelligence: bool,
+) {
     let mut scope = utoipa_actix_web::scope("/.well-known/trustify");
 
     if let Some(auth) = auth {
         scope = scope.app_data(web::Data::from(auth));
     }
     scope = scope.app_data(web::Data::new(ReadOnlyState(read_only)));
+    scope = scope.app_data(web::Data::new(ExploitIntelligenceState(
+        exploit_intelligence,
+    )));
 
     svc.service(scope.service(info));
 }
@@ -25,6 +37,7 @@ pub fn configure(svc: &mut ServiceConfig, auth: Option<Arc<Authenticator>>, read
 struct Info<'a> {
     version: &'a str,
     read_only: bool,
+    exploit_intelligence: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = serde_json::Object)]
     build: Option<&'a BuildInfo>,
@@ -42,6 +55,7 @@ pub async fn info(
     req: HttpRequest,
     auth: Option<web::Data<Authenticator>>,
     read_only: ReadOnlyState,
+    ei: web::Data<ExploitIntelligenceState>,
 ) -> HttpResponse {
     let details = match auth {
         // authentication is disabled, enable details
@@ -65,6 +79,7 @@ pub async fn info(
     HttpResponse::Ok().json(Info {
         version: env!("CARGO_PKG_VERSION"),
         read_only: *read_only,
+        exploit_intelligence: ei.0,
         build: details.then(build_info),
     })
 }

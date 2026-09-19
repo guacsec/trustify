@@ -49,7 +49,7 @@ impl PurlCreator {
                 .or_insert_with(|| versioned_purl::ActiveModel {
                     id: Set(version),
                     base_purl_id: Set(package),
-                    version: Set(purl.version.unwrap_or_default()),
+                    version: Set(purl.effective_version()),
                 });
 
             qualifieds

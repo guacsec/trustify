@@ -1,0 +1,18 @@
+{
+  "spdxVersion": "SPDX-2.3", "dataLicense": "CC0-1.0", "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "rhel", "documentNamespace": "https://trust-breaker/s2/golang-el8cpe-inrange",
+  "creationInfo": { "created": "2026-08-24T00:00:00Z", "creators": ["Tool: trust-breaker-0.1"] },
+  "documentDescribes": ["SPDXRef-root-el8"],
+  "packages": [
+    { "SPDXID": "SPDXRef-root-el8", "name": "rhel", "versionInfo": "8.10", "downloadLocation": "NOASSERTION",
+      "externalRefs": [ { "referenceCategory": "SECURITY", "referenceType": "cpe22Type",
+                          "referenceLocator": "cpe:/o:redhat:enterprise_linux:8::baseos" } ] },
+    { "SPDXID": "SPDXRef-golang", "name": "golang", "versionInfo": "3.5.0", "downloadLocation": "NOASSERTION",
+      "externalRefs": [ { "referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl",
+                          "referenceLocator": "pkg:rpm/redhat/golang@3.5.0?arch=x86_64&epoch=0" } ] }
+  ],
+  "relationships": [
+    { "spdxElementId": "SPDXRef-DOCUMENT", "relationshipType": "DESCRIBES", "relatedSpdxElement": "SPDXRef-root-el8" },
+    { "spdxElementId": "SPDXRef-root-el8", "relationshipType": "CONTAINS", "relatedSpdxElement": "SPDXRef-golang" }
+  ]
+}

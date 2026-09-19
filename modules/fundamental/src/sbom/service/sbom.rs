@@ -4,11 +4,11 @@ use crate::{
     common::license_filtering::{LICENSE, license_text_coalesce},
     purl::model::summary::purl::PurlSummary,
     sbom::model::{
-        ModelCatcher, SbomExternalPackageReference, SbomModel, SbomNodeReference, SbomPackage,
-        SbomPackageRelation, SbomPackageSummary, SbomSummary, Which, details::SbomDetails,
+        AffectedSeverity, ModelCatcher, SbomAdvisorySummary, SbomExternalPackageReference,
+        SbomModel, SbomNodeReference, SbomPackage, SbomPackageRelation, SbomPackageSummary,
+        SbomSummary, Which, details::SbomDetails, raw_sql,
     },
 };
-use futures_util::{StreamExt, TryStreamExt, stream};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromJsonQueryResult, FromQueryResult,
     IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
@@ -47,6 +47,7 @@ use trustify_entity::{
 pub struct FetchOptions {
     labels: Labels,
     groups: Option<Vec<Uuid>>,
+    pub advisories: bool,
 }
 
 impl FetchOptions {
@@ -62,6 +63,12 @@ impl FetchOptions {
                 .filter_map(|s| Uuid::parse_str(s.as_ref()).ok())
                 .collect(),
         );
+        self
+    }
+
+    /// Include advisory severity summary counts in the response.
+    pub fn advisories(mut self, advisories: bool) -> Self {
+        self.advisories = advisories;
         self
     }
 }
@@ -192,6 +199,10 @@ impl SbomService {
     }
 
     /// fetch all SBOMs
+    #[instrument(
+        skip(self, connection),
+        err(level=tracing::Level::INFO)
+    )]
     pub async fn fetch_sboms<C, P>(
         &self,
         search: Query,
@@ -270,14 +281,14 @@ impl SbomService {
         }
 
         let limiter = query
-            .find_also_linked(sbom::SbomNodeLink)
+            .join(JoinType::InnerJoin, sbom::Relation::SbomNode.def())
+            .select_also(sbom_node::Entity)
             .find_also_related(source_document::Entity)
             .filtering_with(
                 search,
                 Columns::from_entity::<sbom::Entity>()
                     .add_columns(sbom_node::Entity)
                     .add_columns(source_document::Entity)
-                    .alias("sbom_node", "r0")
                     .translator(|f, op, v| match f.split_once(':') {
                         Some(("label", key)) => Some(format!("labels:{key}{op}{v}")),
                         _ => match f {
@@ -296,15 +307,13 @@ impl SbomService {
         } = limiter.fetch().await?;
         let total = total.requested(paginated.total()).await?;
 
-        let items = stream::iter(
-            sboms
-                .into_iter()
-                .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?))),
-        )
-        .then(|row| async { SbomSummary::from_entity(row, self, connection).await })
-        .try_collect()
-        .instrument(info_span!("from_entity"))
-        .await?;
+        let filtered: Vec<_> = sboms
+            .into_iter()
+            .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?)))
+            .collect();
+
+        let items =
+            SbomSummary::from_entities(filtered, self, options.advisories, connection).await?;
 
         Ok(PaginatedResults { total, items })
     }
@@ -560,6 +569,135 @@ impl SbomService {
         .map(|r| r.map_all(|rel| rel.package))
     }
 
+    /// Count packages for multiple SBOMs in a single query.
+    #[instrument(skip(self, db), err(level=tracing::Level::INFO))]
+    pub async fn batch_package_counts<C: ConnectionTrait>(
+        &self,
+        sbom_ids: &[Uuid],
+        db: &C,
+    ) -> Result<HashMap<Uuid, u64>, Error> {
+        if sbom_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let counts: Vec<(Uuid, i64)> = sbom_package::Entity::find()
+            .select_only()
+            .column(sbom_package::Column::SbomId)
+            .column_as(sbom_package::Column::NodeId.count(), "count")
+            .filter(sbom_package::Column::SbomId.is_in(sbom_ids.to_vec()))
+            .group_by(sbom_package::Column::SbomId)
+            .into_tuple()
+            .all(db)
+            .await?;
+        Ok(counts.into_iter().map(|(id, c)| (id, c as u64)).collect())
+    }
+
+    /// Fetch describing packages for multiple SBOMs in a single batch query.
+    #[instrument(skip(self, db), err(level=tracing::Level::INFO))]
+    pub async fn batch_describes_packages<C, P>(
+        &self,
+        sbom_ids: &[Uuid],
+        db: &C,
+    ) -> Result<HashMap<Uuid, Vec<P>>, Error>
+    where
+        C: ConnectionTrait,
+        P: IntoPackage,
+    {
+        if sbom_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let mut query = package_relates_to_package::Entity::find()
+            .filter(package_relates_to_package::Column::SbomId.is_in(sbom_ids.to_vec()))
+            .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Describes))
+            .select_only()
+            .select_column(package_relates_to_package::Column::SbomId)
+            .select_column_as(sbom_node::Column::NodeId, "id")
+            .select_column_as(sbom_node::Column::Name, "name")
+            .select_column_as(sbom_package::Column::Group, "group")
+            .select_column_as(sbom_package::Column::Version, "version")
+            // join the right side (the described node) → package
+            .join(
+                JoinType::Join,
+                package_relates_to_package::Relation::Right.def(),
+            )
+            .join(JoinType::Join, sbom_node::Relation::Package.def())
+            .join(JoinType::Join, sbom_node::Relation::Sbom.def());
+
+        query = P::build_query(query);
+
+        // All selected columns must appear in GROUP BY. For SbomPackage,
+        // P::build_query already adds most of these (duplicates are harmless);
+        // for SbomPackageSummary (no-op build_query), these are essential.
+        query = query
+            .group_by(package_relates_to_package::Column::SbomId)
+            .group_by(sbom_node::Column::NodeId)
+            .group_by(sbom_node::Column::Name)
+            .group_by(sbom_package::Column::Group)
+            .group_by(sbom_package::Column::Version);
+
+        #[derive(FromQueryResult)]
+        struct BatchRow<R: FromQueryResult> {
+            sbom_id: Uuid,
+            #[sea_orm(nested)]
+            package: R,
+        }
+
+        let rows: Vec<BatchRow<P::Row>> = query.into_model().all(db).await?;
+
+        let mut result: HashMap<Uuid, Vec<P>> = HashMap::new();
+        for row in rows {
+            result
+                .entry(row.sbom_id)
+                .or_default()
+                .push(P::from_row(row.package));
+        }
+        Ok(result)
+    }
+
+    /// Count affected vulnerabilities grouped by severity for multiple SBOMs
+    /// in a single batch query, combining both PURL and CPE matching paths.
+    #[instrument(skip(self, db), err(level=tracing::Level::INFO))]
+    pub async fn batch_advisory_severity_counts<C: ConnectionTrait>(
+        &self,
+        sbom_ids: &[Uuid],
+        db: &C,
+    ) -> Result<HashMap<Uuid, SbomAdvisorySummary>, Error> {
+        if sbom_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let stmt = Statement::from_sql_and_values(
+            db.get_database_backend(),
+            raw_sql::batch_severity_counts_sql(),
+            vec![sbom_ids.to_vec().into()],
+        );
+
+        let rows = db.query_all(stmt).await?;
+
+        let mut result: HashMap<Uuid, SbomAdvisorySummary> = HashMap::new();
+        for row in rows {
+            let sbom_id: Uuid = row.try_get("", "sbom_id")?;
+            let severity_str: String = row.try_get("", "severity")?;
+            let count: i64 = row.try_get("", "count")?;
+
+            let severity = match severity_str.as_str() {
+                "none" => AffectedSeverity::None,
+                "low" => AffectedSeverity::Low,
+                "medium" => AffectedSeverity::Medium,
+                "high" => AffectedSeverity::High,
+                "critical" => AffectedSeverity::Critical,
+                _ => AffectedSeverity::Unknown,
+            };
+
+            result
+                .entry(sbom_id)
+                .or_default()
+                .insert(severity, count as u64);
+        }
+
+        Ok(result)
+    }
+
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn count_related_sboms<C: ConnectionTrait>(
         &self,
@@ -681,16 +819,12 @@ impl SbomService {
         } = limiter.fetch().await?;
         let total = total.requested(paginated.total()).await?;
 
-        // collect results
+        let filtered: Vec<_> = sboms
+            .into_iter()
+            .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?)))
+            .collect();
 
-        let items = stream::iter(
-            sboms
-                .into_iter()
-                .filter_map(|(sbom, node, source_document)| Some((sbom, node?, source_document?))),
-        )
-        .then(|row| async { SbomSummary::from_entity(row, self, connection).await })
-        .try_collect()
-        .await?;
+        let items = SbomSummary::from_entities(filtered, self, false, connection).await?;
 
         Ok(PaginatedResults { items, total })
     }
@@ -1046,7 +1180,7 @@ pub struct LicenseBasicInfo {
 #[derive(Debug)]
 pub struct QueryCatcher {
     pub advisory: Arc<advisory::Model>,
-    pub qualified_purl: Arc<qualified_purl::Model>,
+    pub qualified_purl: Option<Arc<qualified_purl::Model>>,
     pub sbom_package: Arc<sbom_package::Model>,
     pub sbom_node: Arc<sbom_node::Model>,
     pub advisory_vulnerability: Arc<advisory_vulnerability::Model>,
@@ -1074,11 +1208,12 @@ impl FromQueryResult for QueryCatcher {
                 "",
                 vulnerability::Entity,
             )?),
-            qualified_purl: Arc::new(Self::from_query_result_multi_model(
+            qualified_purl: Self::from_query_result_multi_model_optional(
                 res,
                 "",
                 qualified_purl::Entity,
-            )?),
+            )?
+            .map(Arc::new),
             sbom_package: Arc::new(Self::from_query_result_multi_model(
                 res,
                 "",

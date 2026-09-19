@@ -22,7 +22,6 @@ cve = { workspace = true }
 cvss = { workspace = true }
 hex = { workspace = true }
 humantime = { workspace = true }
-jsn = { workspace = true }
 jsonpath-rust = { workspace = true }
 lenient_semver = { workspace = true }
 log = { workspace = true }
@@ -32,6 +31,7 @@ parking_lot = { workspace = true }
 quick-xml = { workspace = true }
 roxmltree = { workspace = true }
 sbom-walker = { workspace = true }
+scheck = { workspace = true }
 sea-orm = { workspace = true }
 sea-query = { workspace = true }
 semver = { workspace = true }
@@ -49,6 +49,7 @@ tracing = { workspace = true }
 utoipa = { workspace = true }
 utoipa-actix-web = { workspace = true }
 uuid = { workspace = true, features = ["v7"] }
+vers-rs = { workspace = true }
 zip = { workspace = true }
 
 [dev-dependencies]
@@ -56,9 +57,16 @@ trustify-auth = { workspace = true }
 trustify-test-context = { workspace = true }
 
 actix-http = { workspace = true }
-rand = { workspace = true }
+criterion = { workspace = true }
 rstest = { workspace = true }
 serde_yml = { workspace = true }
+tempfile = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
+tokio = { workspace = true, features = ["full"] }
 zip = { workspace = true }
+
+[[bench]]
+name = "detect"
+path = "benches/detect.rs"
+harness = false

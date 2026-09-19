@@ -1,0 +1,49 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:10100000-0000-4000-8000-1010combined",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-s10",
+      "type": "operating-system",
+      "name": "rhel",
+      "version": "8.10",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg-openssl",
+      "type": "library",
+      "name": "openssl",
+      "version": "1:1.1.1k-7.el8",
+      "purl": "pkg:rpm/redhat/openssl@1.1.1k-7.el8?arch=x86_64&epoch=1&distro=rhel-8.10&upstream=openssl-1.1.1k-7.el8.src.rpm"
+    },
+    {
+      "bom-ref": "pkg-urllib3",
+      "type": "library",
+      "name": "urllib3",
+      "version": "1.26.17",
+      "purl": "pkg:pypi/urllib3@1.26.17"
+    },
+    {
+      "bom-ref": "pkg-bind-libs",
+      "type": "library",
+      "name": "bind-libs",
+      "version": "32:9.11.36-16.el8_10.8",
+      "purl": "pkg:rpm/redhat/bind-libs@9.11.36-16.el8_10.8?arch=x86_64&epoch=32&distro=rhel-8.10&upstream=bind-9.11.36-16.el8_10.8.src.rpm"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-s10",
+      "dependsOn": [
+        "pkg-openssl",
+        "pkg-urllib3",
+        "pkg-bind-libs"
+      ]
+    }
+  ]
+}

@@ -28,6 +28,8 @@ impl Precommit {
                 "clippy::unwrap_used",
                 "-D",
                 "clippy::expect_used",
+                "-W",
+                "clippy::absolute_paths",
             ])
             .status()
             .map_err(|_| anyhow!("cargo clippy failed"))?

@@ -64,12 +64,12 @@ async fn spdx_variant_of(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?;
 
     let parents = [
-        "pkg:oci/ubi9-container@sha256:d4c5d9c980678267b81c3c197a4a0dd206382111c912875a6cdffc6ca319b769?arch=aarch64&repository_url=registry.redhat.io/ubi9&tag=9.2-755.1697625012",
-        "pkg:oci/ubi9-container@sha256:204383c3d96c0e6c7154c91d07764f92035738dd67aa8896679f7feb73f66bfd?arch=x86_64&repository_url=registry.redhat.io/ubi9&tag=9.2-755.1697625012",
-        "pkg:oci/ubi9-container@sha256:721ca837c80c8b98752010a17ffccbdf17a0d260ddd916b7097f04187f6aa3a8?arch=s390x&repository_url=registry.redhat.io/ubi9&tag=9.2-755.1697625012",
-        "pkg:oci/ubi9-container@sha256:9a6092cdd8e7f4361ea3f508ae6d6d3d9dbb9458a921ab09e4cc006c0a7f0a61?arch=ppc64le&repository_url=registry.redhat.io/ubi9&tag=9.2-755.1697625012",
+        "pkg:oci/ubi9-container@sha256:d4c5d9c980678267b81c3c197a4a0dd206382111c912875a6cdffc6ca319b769?arch=aarch64&repository_url=registry.redhat.io%2Fubi9&tag=9.2-755.1697625012",
+        "pkg:oci/ubi9-container@sha256:204383c3d96c0e6c7154c91d07764f92035738dd67aa8896679f7feb73f66bfd?arch=x86_64&repository_url=registry.redhat.io%2Fubi9&tag=9.2-755.1697625012",
+        "pkg:oci/ubi9-container@sha256:721ca837c80c8b98752010a17ffccbdf17a0d260ddd916b7097f04187f6aa3a8?arch=s390x&repository_url=registry.redhat.io%2Fubi9&tag=9.2-755.1697625012",
+        "pkg:oci/ubi9-container@sha256:9a6092cdd8e7f4361ea3f508ae6d6d3d9dbb9458a921ab09e4cc006c0a7f0a61?arch=ppc64le&repository_url=registry.redhat.io%2Fubi9&tag=9.2-755.1697625012",
     ];
-    let child = "pkg:oci/ubi9-container@sha256:2f168398c538b287fd705519b83cd5b604dc277ef3d9f479c28a2adb4d830a49?repository_url=registry.redhat.io/ubi9&tag=9.2-755.1697625012";
+    let child = "pkg:oci/ubi9-container@sha256:2f168398c538b287fd705519b83cd5b604dc277ef3d9f479c28a2adb4d830a49?repository_url=registry.redhat.io%2Fubi9&tag=9.2-755.1697625012";
 
     // Ensure variant relationships
     for parent in parents {
