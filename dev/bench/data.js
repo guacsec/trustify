@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789739409248,
+  "lastUpdate": 1789800104961,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22063,6 +22063,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "5a5fd154fe75a446d374f8d16087c0f6fbca7158",
+          "message": "fix(clippy): simplify HSTS conditional",
+          "timestamp": "2026-09-19T06:07:10Z",
+          "tree_id": "487462f8a0c56ecb3df6a3293721f2ec766af2ad",
+          "url": "https://github.com/guacsec/trustify/commit/5a5fd154fe75a446d374f8d16087c0f6fbca7158"
+        },
+        "date": 1789800103201,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 6,
             "unit": "s"
           }
         ]
