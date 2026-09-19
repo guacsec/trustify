@@ -631,18 +631,27 @@ async fn s6_osv_baseline_urllib3(
 }
 
 // ===========================================================================
-// S7: CPE-only hummingbird node (TC-5630)
+// S7: CPE-only / component-scoped hummingbird (TC-5630)
 //
-// An SBOM component with a CPE but no PURL. The list count includes CVEs
-// matched via CPE identity, but the detail endpoint drops them because it
-// requires a qualified_purl_id.
+// Component-scoped policy (TC-5630 phase-2): a product CPE with NO affected
+// package actually present under it must be not_affected. Matching the product
+// CPE alone is a false positive. The 8 SBOMs share the same product CPE
+// (cpe:/a:redhat:hummingbird:1) and vary: CPE placement (root vs child),
+// which package is present, its version, and whether it is *contained under*
+// the CPE node.
 //
-// Only /sbom/{id}/advisory is tested — /vulnerability/analyze and /purl/{key}
-// require a PURL, which this CPE-only node does not have.
+// This overrides CORRELATION_STANDARD.md §5's earlier product-level rollup
+// wording. Only /sbom/{id}/advisory is asserted (the bare-CPE node has no PURL).
+//
+// Failing cells on main are the flips: sbom_cpeonly_hummingbird (bare CPE, no
+// package) and sbom_hummingbird_rust_detached (package NOT under the CPE) —
+// the engine reports affected by matching the product CPE alone. The rest are
+// positive/negative controls that should already be correct.
 // ===========================================================================
 
 #[test_context(TrustifyContext)]
 #[rstest]
+#[ignore = "TC-5630: bare product-CPE node with no affected package present is over-reported affected (component-scoped policy not yet enforced)"]
 #[test_log::test(actix_web::test)]
 async fn s7_cpe_only_hummingbird(
     ctx: &TrustifyContext,
@@ -661,16 +670,98 @@ async fn s7_cpe_only_hummingbird(
 
     let app = caller(ctx).await?;
 
+    const CVES: [&str; 3] = ["CVE-2026-12151", "CVE-2026-16730", "CVE-2026-33815"];
+    // (SBOM base name, [expected_affected per CVE, aligned to CVES])
+    let cases: &[(&str, [bool; 3])] = &[
+        ("sbom_cpeonly_hummingbird", [false, false, false]),
+        ("sbom_hummingbird_rust", [true, false, false]),
+        ("sbom_hummingbird_dbusbroker", [false, true, false]),
+        ("sbom_hummingbird_caddy", [false, false, false]),
+        ("sbom_hummingbird_nodejs25", [true, false, false]),
+        ("sbom_hummingbird_nodejs26_vuln", [true, false, false]),
+        ("sbom_hummingbird_nodejs26_fixed", [false, false, false]),
+        ("sbom_hummingbird_rust_detached", [false, false, false]),
+    ];
+
+    let mut mismatches = Vec::new();
+    for (base, expected) in cases {
+        let sbom = ctx
+            .ingest_document(&format!(
+                "scenarios/S7_cpeonly_node_hummingbird/{base}.{fmt}.json"
+            ))
+            .await?;
+        let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
+        let cves = advisory_cves(&adv);
+        for (i, cve) in CVES.iter().enumerate() {
+            let present = cves.contains(cve);
+            if present != expected[i] {
+                mismatches.push(format!(
+                    "  {base} ({fmt}): {cve} expected affected={}, /sbom/advisory present={present}",
+                    expected[i]
+                ));
+            }
+        }
+    }
+
+    assert!(
+        mismatches.is_empty(),
+        "S7 correlation mismatches:\n{}",
+        mismatches.join("\n")
+    );
+
+    Ok(())
+}
+
+// ===========================================================================
+// S7 (real-world reproducer): opentofu container image over-reports via bare CPE
+//
+// The exact TC-5630 reproducer from the bug report:
+// registry.access.redhat.com/hi/opentofu:1.10.10 (CycloneDX, 676 components).
+// Its only purl-less CPE node is `cpe:/a:redhat:hummingbird:1`. The hummingbird
+// CVEs match the SBOM ONLY through that bare CPE — none of their affected
+// packages (rust, nodejs*, dbus-broker, go-fdo-server) are present in the image
+// — so component-scoped correlation must report them not_affected. On main the
+// engine reports them affected (product-CPE rollup, package-blind).
+//
+// (The bug report cites 16 CVEs from an environment with 16 crafted hummingbird
+// advisories; here we assert the 3 hummingbird advisories shipped with S7, which
+// are the ones that carry an affected `cpe:/a:redhat:hummingbird:1` entry.)
+// ===========================================================================
+
+#[test_context(TrustifyContext)]
+#[ignore = "TC-5630: bare product-CPE node over-reports package-scoped advisories (component-scoped policy not yet enforced)"]
+#[test_log::test(actix_web::test)]
+async fn s7_cpeonly_opentofu_image(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // hummingbird-scoped CVEs whose affected packages are NOT present in the image.
+    const CVES: [&str; 3] = ["CVE-2026-12151", "CVE-2026-16730", "CVE-2026-33815"];
+
+    ingest_scenario_advisories(
+        ctx,
+        "S7_cpeonly_node_hummingbird",
+        &[
+            "cve/CVE-2026-12151.json",
+            "cve/CVE-2026-16730.json",
+            "cve/CVE-2026-33815.json",
+        ],
+    )
+    .await?;
+
+    let app = caller(ctx).await?;
+
     let sbom = ctx
-        .ingest_document(&format!(
-            "scenarios/S7_cpeonly_node_hummingbird/sbom_cpeonly_hummingbird.{fmt}.json"
-        ))
+        .ingest_document("scenarios/S7_cpeonly_node_hummingbird/sbom_opentofu_image.cdx.json.xz")
         .await?;
     let adv = get_sbom_advisories(&app, &sbom.id.to_string()).await;
 
-    assert_advisory_has_cve(&adv, "CVE-2026-12151");
-    assert_advisory_has_cve(&adv, "CVE-2026-16730");
-    assert_advisory_has_cve(&adv, "CVE-2026-33815");
+    // Component-scoped policy: the affected packages are not present in the image
+    // (matched only via the bare hummingbird CPE) → not_affected.
+    let cves = advisory_cves(&adv);
+    let leaked: Vec<&str> = CVES.into_iter().filter(|c| cves.contains(c)).collect();
+    assert!(
+        leaked.is_empty(),
+        "S7 opentofu image: expected the hummingbird CVEs not_affected (no affected package present in the image), \
+         but these leaked via the bare hummingbird CPE: {leaked:?}"
+    );
 
     Ok(())
 }

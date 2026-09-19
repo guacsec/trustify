@@ -7,9 +7,65 @@
   "sboms": {
     "sbom_cpeonly_hummingbird": {
       "correct": {
+        "CVE-2026-12151": "not_affected",
+        "CVE-2026-16730": "not_affected",
+        "CVE-2026-33815": "not_affected"
+      }
+    },
+    "sbom_hummingbird_rust": {
+      "correct": {
         "CVE-2026-12151": "affected",
+        "CVE-2026-16730": "not_affected",
+        "CVE-2026-33815": "not_affected"
+      }
+    },
+    "sbom_hummingbird_dbusbroker": {
+      "correct": {
+        "CVE-2026-12151": "not_affected",
         "CVE-2026-16730": "affected",
-        "CVE-2026-33815": "affected"
+        "CVE-2026-33815": "not_affected"
+      }
+    },
+    "sbom_hummingbird_caddy": {
+      "correct": {
+        "CVE-2026-12151": "not_affected",
+        "CVE-2026-16730": "not_affected",
+        "CVE-2026-33815": "not_affected"
+      }
+    },
+    "sbom_hummingbird_nodejs26_vuln": {
+      "correct": {
+        "CVE-2026-12151": "affected",
+        "CVE-2026-16730": "not_affected",
+        "CVE-2026-33815": "not_affected"
+      }
+    },
+    "sbom_hummingbird_nodejs26_fixed": {
+      "correct": {
+        "CVE-2026-12151": "not_affected",
+        "CVE-2026-16730": "not_affected",
+        "CVE-2026-33815": "not_affected"
+      }
+    },
+    "sbom_hummingbird_nodejs25": {
+      "correct": {
+        "CVE-2026-12151": "affected",
+        "CVE-2026-16730": "not_affected",
+        "CVE-2026-33815": "not_affected"
+      }
+    },
+    "sbom_hummingbird_rust_detached": {
+      "correct": {
+        "CVE-2026-12151": "not_affected",
+        "CVE-2026-16730": "not_affected",
+        "CVE-2026-33815": "not_affected"
+      }
+    },
+    "sbom_opentofu_image": {
+      "correct": {
+        "CVE-2026-12151": "not_affected",
+        "CVE-2026-16730": "not_affected",
+        "CVE-2026-33815": "not_affected"
       }
     }
   }
