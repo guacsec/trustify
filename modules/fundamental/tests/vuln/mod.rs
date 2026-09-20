@@ -48,6 +48,53 @@ async fn vuln_related_sboms_via_cpe(ctx: &TrustifyContext) -> Result<(), anyhow:
     Ok(())
 }
 
+async fn backlinked_context_sboms(
+    ctx: &TrustifyContext,
+    advisory: &str,
+) -> Result<Vec<String>, anyhow::Error> {
+    ctx.ingest_document("cyclonedx/issues/cpe_context_backlink/sbom.json")
+        .await?;
+    ctx.ingest_document(advisory).await?;
+
+    let details = VulnerabilityService::new(PaginationCache::for_test())
+        .fetch_vulnerability("CVE-2024-99999", Default::default(), false, &ctx.db)
+        .await?
+        .expect("vulnerability must exist");
+
+    Ok(details
+        .advisories
+        .iter()
+        .flat_map(|advisory| advisory.sboms.iter())
+        .map(|sbom| sbom.head.name.clone())
+        .collect())
+}
+
+/// A matching product CPE context must remain visible on vulnerability backlinks.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn vuln_backlink_cpe_context_match(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let sboms =
+        backlinked_context_sboms(ctx, "csaf/issues/cpe_context_backlink/advisory-match.json")
+            .await?;
+
+    assert_eq!(sboms, ["widgetos"]);
+    Ok(())
+}
+
+/// A product status scoped to another product major must not backlink the SBOM.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn vuln_backlink_cpe_context_mismatch(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let sboms = backlinked_context_sboms(
+        ctx,
+        "csaf/issues/cpe_context_backlink/advisory-mismatch.json",
+    )
+    .await?;
+
+    assert!(sboms.is_empty(), "unexpected related SBOMs: {sboms:?}");
+    Ok(())
+}
+
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
 async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
