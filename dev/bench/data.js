@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789993971328,
+  "lastUpdate": 1789995019459,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22208,6 +22208,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "203e0b49ba1addafa82c081b2f620a801b6a88de",
+          "message": "fix(corr): scope SBOM backlinks by CPE context\n\nPrevent vulnerability backlinks from associating purl statuses with SBOMs\nfrom unrelated product streams.\n\nPorted from release/0.4.z commit 2656630b.",
+          "timestamp": "2026-09-21T12:10:56Z",
+          "tree_id": "4df2adb5c86b346d656c4e06e01c4087f919058d",
+          "url": "https://github.com/guacsec/trustify/commit/203e0b49ba1addafa82c081b2f620a801b6a88de"
+        },
+        "date": 1789995017114,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
             "unit": "s"
           }
         ]
