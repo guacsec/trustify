@@ -119,7 +119,7 @@ impl PurlDetails {
         )
         .await?;
 
-        let licenses: Vec<LicenseInfo> = sbom_node_purl_ref::Entity::find()
+        let mut license_results = sbom_node_purl_ref::Entity::find()
             .distinct()
             .select_only()
             .column_as(license_text_coalesce(), "license_name")
@@ -139,10 +139,11 @@ impl PurlDetails {
                 JoinType::LeftJoin,
                 sbom_package_license::Relation::License.def(),
             )
-            .order_by_asc(sbom_package_license::Column::LicenseType)
             .into_model::<PurlLicenseResult>()
             .all(tx)
-            .await?
+            .await?;
+        license_results.sort_unstable_by_key(|r| r.license_type);
+        let licenses: Vec<LicenseInfo> = license_results
             .iter()
             .map(|purl_license_result| {
                 LicenseInfo::from(LicenseBasicInfo {
