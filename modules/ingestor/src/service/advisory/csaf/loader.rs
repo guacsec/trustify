@@ -18,7 +18,6 @@ use csaf::{
     Csaf,
     vulnerability::{ProductStatus, Remediation, Vulnerability},
 };
-use hex::ToHex;
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use semver::Version;
 use std::{fmt::Debug, str::FromStr};
