@@ -1,3 +1,4 @@
+use csaf::vulnerability::RemediationCategory as CsafRemediationCategory;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -127,24 +128,14 @@ impl RemediationCategory {
     }
 }
 
-impl From<&csaf::vulnerability::RemediationCategory> for RemediationCategory {
-    fn from(value: &csaf::vulnerability::RemediationCategory) -> Self {
+impl From<&CsafRemediationCategory> for RemediationCategory {
+    fn from(value: &CsafRemediationCategory) -> Self {
         match value {
-            csaf::vulnerability::RemediationCategory::Mitigation => RemediationCategory::Mitigation,
-            csaf::vulnerability::RemediationCategory::NoFixPlanned => {
-                RemediationCategory::NoFixPlanned
-            }
-            csaf::vulnerability::RemediationCategory::NoneAvailable => {
-                RemediationCategory::NoneAvailable
-            }
-            csaf::vulnerability::RemediationCategory::VendorFix => RemediationCategory::VendorFix,
-            csaf::vulnerability::RemediationCategory::Workaround => RemediationCategory::Workaround,
-            // voteblake/csaf-rs doesn't support CSAF 2.1 which adds will_not_fix
-            #[allow(unreachable_patterns)]
-            handle => todo!(
-                "Unexpected csaf::vulnerability::RemediationCategory found {:?}",
-                handle
-            ),
+            CsafRemediationCategory::Mitigation => RemediationCategory::Mitigation,
+            CsafRemediationCategory::NoFixPlanned => RemediationCategory::NoFixPlanned,
+            CsafRemediationCategory::NoneAvailable => RemediationCategory::NoneAvailable,
+            CsafRemediationCategory::VendorFix => RemediationCategory::VendorFix,
+            CsafRemediationCategory::Workaround => RemediationCategory::Workaround,
         }
     }
 }
