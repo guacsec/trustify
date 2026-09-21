@@ -1,5 +1,5 @@
 use crate::{Error, common::LicenseRefMapping, source_document::model::SourceDocument};
-use sea_orm::{ConnectionTrait, DbBackend, FromQueryResult, PaginatorTrait, Statement};
+use sea_orm::{ConnectionTrait, DbBackend, FromQueryResult, Statement};
 use spdx_expression;
 use std::collections::BTreeMap;
 use tracing::instrument;
@@ -21,9 +21,15 @@ pub async fn fetch_labels<C: ConnectionTrait>(
     limit: u64,
     connection: &C,
 ) -> Result<Vec<serde_json::Value>, Error> {
+    // SAFETY: `limit` is parsed as a numeric query parameter, so interpolation cannot add SQL syntax.
+    let limit_clause = if limit == 0 {
+        String::new()
+    } else {
+        format!("LIMIT {limit}")
+    };
     let sql = format!(
         r#"
-SELECT DISTINCT ON (kv.key, kv.value)
+SELECT
     kv.key,
     CASE
         WHEN kv.value IS NULL OR kv.value = '' THEN NULL
@@ -36,8 +42,10 @@ WHERE
         WHEN kv.value IS NULL THEN kv.key
         ELSE kv.key || '=' || kv.value
     END ILIKE $1 ESCAPE '\'
+GROUP BY kv.key, kv.value
 ORDER BY
     kv.key, kv.value
+{limit_clause}
 "#,
         table = match r#type {
             DocumentType::Advisory => "advisory",
@@ -52,11 +60,7 @@ ORDER BY
     );
 
     let selector = serde_json::Value::find_by_statement(statement);
-    let labels: Vec<serde_json::Value> = if limit == 0 {
-        selector.all(connection).await?
-    } else {
-        selector.paginate(connection, limit).fetch().await?
-    };
+    let labels: Vec<serde_json::Value> = selector.all(connection).await?;
 
     Ok(labels)
 }
