@@ -14,14 +14,13 @@ use crate::{
         advisory::csaf::{RemediationCreator, StatusCreator, extract_scores, util::gen_identifier},
     },
 };
-use csaf::{
-    Csaf,
-    vulnerability::{ProductStatus, Remediation, Vulnerability},
+use csaf::schema::csaf2_0::schema::{
+    CommonSecurityAdvisoryFramework as Csaf, ProductStatus, Remediation, Vulnerability,
 };
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use semver::Version;
 use std::{fmt::Debug, str::FromStr};
-use time::OffsetDateTime;
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 use tracing::instrument;
 use trustify_common::hashing::Digests;
 use trustify_entity::labels::Labels;
@@ -32,22 +31,26 @@ impl<'a> From<Information<'a>> for AdvisoryInformation {
     fn from(value: Information<'a>) -> Self {
         let value = value.0;
         Self {
-            id: value.document.tracking.id.clone(),
+            id: value.document.tracking.id.to_string(),
             // TODO: consider failing if the version doesn't parse
             version: parse_csaf_version(value),
-            title: Some(value.document.title.clone()),
-            issuer: Some(value.document.publisher.name.clone()),
-            published: OffsetDateTime::from_unix_timestamp(
-                value.document.tracking.initial_release_date.timestamp(),
-            )
-            .ok(),
-            modified: OffsetDateTime::from_unix_timestamp(
-                value.document.tracking.current_release_date.timestamp(),
-            )
-            .ok(),
+            title: Some(value.document.title.to_string()),
+            issuer: Some(value.document.publisher.name.to_string()),
+            published: parse_date(&value.document.tracking.initial_release_date),
+            modified: parse_date(&value.document.tracking.current_release_date),
             withdrawn: None,
         }
     }
+}
+
+/// Parse a CSAF timestamp, discarding an unparsable one.
+///
+/// CSAF carries timestamps as plain strings, so an invalid value is skipped rather than
+/// failing the whole document.
+fn parse_date(date: &str) -> Option<OffsetDateTime> {
+    OffsetDateTime::parse(date, &Rfc3339)
+        .inspect_err(|err| tracing::debug!("ignoring invalid date '{date}': {err}"))
+        .ok()
 }
 
 /// Parse a CSAF tracking version.
@@ -56,9 +59,9 @@ impl<'a> From<Information<'a>> for AdvisoryInformation {
 /// this as a major version.
 fn parse_csaf_version(csaf: &Csaf) -> Option<Version> {
     // TODO: consider checking individual tracking records too
-    let version = &csaf.document.tracking.version;
+    let version = csaf.document.tracking.version.as_str();
     if version.contains('.') {
-        csaf.document.tracking.version.parse().ok()
+        version.parse().ok()
     } else {
         u64::from_str(version)
             .map(|major| Version {
@@ -113,15 +116,15 @@ impl<'g> CsafLoader<'g> {
 
         // Batch create all vulnerabilities first
         let mut vuln_creator = VulnerabilityCreator::new();
-        for vuln in csaf.vulnerabilities.iter().flatten() {
+        for vuln in &csaf.vulnerabilities {
             if let Some(cve_id) = &vuln.cve {
-                vuln_creator.add(cve_id, ());
+                vuln_creator.add(cve_id.as_str(), ());
             }
         }
         vuln_creator.create(tx).await?;
 
         // Then process each vulnerability for linking and product status
-        for vuln in csaf.vulnerabilities.iter().flatten() {
+        for vuln in &csaf.vulnerabilities {
             self.ingest_vulnerability(&csaf, &advisory, vuln, tx)
                 .await?;
         }
@@ -141,8 +144,8 @@ impl<'g> CsafLoader<'g> {
 
     #[instrument(skip_all,
         fields(
-            csaf=csaf.document.tracking.id,
-            cve=vulnerability.cve
+            csaf=csaf.document.tracking.id.as_str(),
+            cve=?vulnerability.cve
         )
     )]
     async fn ingest_vulnerability<C: ConnectionTrait>(
@@ -159,19 +162,18 @@ impl<'g> CsafLoader<'g> {
         // Vulnerability already created in batch, just link it
         let advisory_vulnerability = advisory
             .link_to_vulnerability(
-                cve_id,
+                cve_id.as_str(),
                 Some(AdvisoryVulnerabilityInformation {
-                    title: vulnerability.title.clone(),
+                    title: vulnerability.title.as_ref().map(|title| title.to_string()),
                     summary: None,
                     description: None,
                     reserved_date: None,
-                    discovery_date: vulnerability.discovery_date.and_then(|date| {
-                        OffsetDateTime::from_unix_timestamp(date.timestamp()).ok()
-                    }),
-                    release_date: vulnerability.release_date.and_then(|date| {
-                        OffsetDateTime::from_unix_timestamp(date.timestamp()).ok()
-                    }),
-                    cwes: vulnerability.cwe.as_ref().map(|cwe| vec![cwe.id.clone()]),
+                    discovery_date: vulnerability.discovery_date.as_deref().and_then(parse_date),
+                    release_date: vulnerability.release_date.as_deref().and_then(parse_date),
+                    cwes: vulnerability
+                        .cwe
+                        .as_ref()
+                        .map(|cwe| vec![cwe.id.to_string()]),
                 }),
                 connection,
             )
@@ -197,7 +199,7 @@ impl<'g> CsafLoader<'g> {
         csaf: &Csaf,
         advisory_vulnerability: &AdvisoryVulnerabilityContext<'_>,
         product_status: &ProductStatus,
-        remediations: &Option<Vec<Remediation>>,
+        remediations: &[Remediation],
         connection: &C,
     ) -> Result<(), Error> {
         let mut creator = StatusCreator::new(
@@ -221,22 +223,20 @@ impl<'g> CsafLoader<'g> {
 
         let product_id_mapping = creator.create(self.graph, connection).await?;
 
-        if let Some(remediations) = remediations {
-            let mut remediation_creator = RemediationCreator::new(
-                advisory_vulnerability.advisory_vulnerability.advisory_id,
-                advisory_vulnerability
-                    .advisory_vulnerability
-                    .vulnerability_id
-                    .clone(),
-                product_id_mapping,
-            );
+        let mut remediation_creator = RemediationCreator::new(
+            advisory_vulnerability.advisory_vulnerability.advisory_id,
+            advisory_vulnerability
+                .advisory_vulnerability
+                .vulnerability_id
+                .clone(),
+            product_id_mapping,
+        );
 
-            for remediation in remediations {
-                remediation_creator.add(remediation);
-            }
-
-            remediation_creator.create(connection).await?;
+        for remediation in remediations {
+            remediation_creator.add(remediation);
         }
+
+        remediation_creator.create(connection).await?;
 
         Ok(())
     }

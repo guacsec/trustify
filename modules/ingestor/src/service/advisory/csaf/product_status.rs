@@ -1,10 +1,10 @@
-use super::util::branch_purl;
+use super::util::{branch_purl, parse_cpe, parse_purl};
 use crate::graph::advisory::{
     vers::parse_vers,
     version::{Version, VersionInfo, VersionSpec},
 };
 use cpe::cpe::Cpe;
-use csaf::definitions::{Branch, BranchCategory, FullProductName};
+use csaf::schema::csaf2_0::schema::{Branch, CategoryOfTheBranch, FullProductNameT};
 use trustify_common::purl::Purl;
 use trustify_entity::version_scheme::VersionScheme;
 
@@ -23,36 +23,37 @@ pub struct ProductStatus {
 impl ProductStatus {
     pub fn update_from_branch(&mut self, branch: &Branch) -> Result<(), anyhow::Error> {
         match branch.category {
-            BranchCategory::ProductName => {
-                self.product = branch.name.clone();
+            CategoryOfTheBranch::ProductName => {
+                self.product = branch.name.to_string();
                 self.set_version(branch.product.clone());
             }
-            BranchCategory::Vendor => {
-                self.vendor = Some(branch.name.clone());
+            CategoryOfTheBranch::Vendor => {
+                self.vendor = Some(branch.name.to_string());
             }
-            BranchCategory::ProductVersion => {
+            CategoryOfTheBranch::ProductVersion => {
                 match branch.product.clone() {
                     Some(full_name) => match full_name.product_identification_helper {
-                        Some(id_helper) => match id_helper.purl {
-                            Some(purl) => self.purls.push(purl.into()),
-                            None => self.packages.push(branch.name.clone()),
-                        },
-                        None => self.packages.push(full_name.product_id.0),
+                        Some(id_helper) => {
+                            match id_helper.purl.as_deref().and_then(|purl| parse_purl(purl)) {
+                                Some(purl) => self.purls.push(purl.into()),
+                                None => self.packages.push(branch.name.to_string()),
+                            }
+                        }
+                        None => self.packages.push(full_name.product_id.to_string()),
                     },
-                    None => self.packages.push(branch.name.clone()),
+                    None => self.packages.push(branch.name.to_string()),
                 };
             }
-            BranchCategory::ProductVersionRange => {
+            CategoryOfTheBranch::ProductVersionRange => {
                 let version_infos = parse_vers(&branch.name)?;
                 self.vers_specs.extend(version_infos);
                 if let Some(purl) = branch_purl(branch) {
-                    self.purls.push(Purl::from(purl.clone()));
+                    self.purls.push(Purl::from(purl));
                 }
             }
             _ => {
                 if let Some(purl) = branch_purl(branch) {
-                    let purl = Purl::from(purl.clone());
-                    self.purls.push(purl);
+                    self.purls.push(Purl::from(purl));
                 }
             }
         }
@@ -60,10 +61,12 @@ impl ProductStatus {
     }
 
     /// Parse cpe or purl from product identifier helper
-    pub fn set_version(&mut self, full_name: Option<FullProductName>) {
+    pub fn set_version(&mut self, full_name: Option<FullProductNameT>) {
         self.version = full_name.and_then(|full_name| {
             full_name.product_identification_helper.and_then(|id| {
                 id.cpe
+                    .as_deref()
+                    .and_then(|cpe| parse_cpe(cpe))
                     .map(|cpe| {
                         // We have a CPE in product identifier helper
                         self.cpe = Some(cpe.clone().into());
@@ -101,13 +104,16 @@ impl ProductStatus {
                         }
                     })
                     .or_else(|| {
-                        id.purl.and_then(|purl| {
-                            // If we have purl, use an exact version
-                            purl.version().map(|version| VersionInfo {
-                                spec: VersionSpec::Exact(version.to_string()),
-                                scheme: VersionScheme::Semver,
+                        id.purl
+                            .as_deref()
+                            .and_then(|purl| parse_purl(purl))
+                            .and_then(|purl| {
+                                // If we have purl, use an exact version
+                                purl.version().map(|version| VersionInfo {
+                                    spec: VersionSpec::Exact(version.to_string()),
+                                    scheme: VersionScheme::Semver,
+                                })
                             })
-                        })
                     })
             })
         });
