@@ -96,11 +96,11 @@ impl<E: Endpoint> Args for EndpointServerConfig<E> {
 
 impl<E: Endpoint> CommandFactory for EndpointServerConfig<E> {
     fn command() -> Command {
-        todo!()
+        Self::augment_args(Command::new("endpoint"))
     }
 
     fn command_for_update() -> Command {
-        todo!()
+        Self::augment_args_for_update(Command::new("endpoint"))
     }
 }
 

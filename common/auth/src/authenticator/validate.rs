@@ -40,9 +40,8 @@ fn validate_token_exp<'max_age>(
     max_age: impl Into<Option<&'max_age Duration>>,
 ) -> Result<(), openid::error::Error> {
     let now = Utc::now();
-    // Now should never be less than the time this code was written!
     if now.timestamp() < 1504758600 {
-        panic!("chrono::Utc::now() can never be before this was written!")
+        return Err(Validation::Expired(Expiry::NotUnix(now.timestamp())).into());
     }
     let exp = claims.exp;
     if exp <= now.timestamp() {

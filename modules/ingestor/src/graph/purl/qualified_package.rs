@@ -1,7 +1,6 @@
 //! Support for a *fully-qualified* package.
 
-use crate::graph::{error::Error, purl::package_version::PackageVersionContext, sbom::SbomContext};
-use sea_orm::ConnectionTrait;
+use crate::graph::purl::package_version::PackageVersionContext;
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Formatter},
@@ -57,28 +56,5 @@ impl<'g> QualifiedPackageContext<'g> {
             package_version: package_version.clone(),
             qualified_package,
         }
-    }
-    pub async fn sboms_containing<C: ConnectionTrait>(
-        &self,
-        _connection: &C,
-    ) -> Result<Vec<SbomContext>, Error> {
-        /*
-        Ok(entity::sbom::Entity::find()
-            .join(
-                JoinType::Join,
-                entity::sbom_contains_package::Relation::Sbom.def().rev(),
-            )
-            .filter(
-                entity::sbom_contains_package::Column::QualifiedPackageId
-                    .eq(self.qualified_package.id),
-            )
-            .all(&self.package_version.package.fetch.connection(tx))
-            .await?
-            .drain(0..)
-            .map(|sbom| (&self.package_version.package.fetch, sbom).into())
-            .collect())
-
-         */
-        todo!()
     }
 }

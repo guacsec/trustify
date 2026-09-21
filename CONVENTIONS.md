@@ -16,6 +16,7 @@
 - Follow `rustfmt` defaults — run `cargo fmt --check` before committing
 - Clippy is enforced with strict flags (see the exact invocation in [Pre-commit Workflow](#pre-commit-workflow))
 - `unwrap()` and `expect()` are forbidden in production code; they are allowed in tests (configured in `.clippy.toml`)
+- `todo!()`, `panic!()`, and `unimplemented!()` are forbidden in production code; `panic!()` is allowed in tests (configured in `.clippy.toml`)
 - Use `?` operator for error propagation, not `.unwrap()`
 - All CI checks are run via `cargo xtask precommit` (see [Pre-commit Workflow](#pre-commit-workflow))
 
@@ -211,7 +212,7 @@ This command performs the following steps in order:
 
 1. **Regenerates JSON schemas** (`cargo xtask generate-schemas`) — updates schema files derived from Rust model types
 2. **Regenerates `openapi.yaml`** (`cargo xtask openapi`) — rebuilds the OpenAPI spec from `#[utoipa::path(...)]` annotations
-3. **Runs clippy** (`cargo clippy --all-targets --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used`)
+3. **Runs clippy** (`cargo clippy --all-targets --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::todo -D clippy::unimplemented`)
 4. **Runs `cargo fmt`** — applies standard Rust formatting
 5. **Runs `cargo check`** (`--all-targets --all-features`) — verifies the project compiles cleanly
 

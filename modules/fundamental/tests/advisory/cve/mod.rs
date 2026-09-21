@@ -1,5 +1,6 @@
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::expect_used)]
+#![allow(clippy::panic)]
 
 mod delete;
 mod parallel;
