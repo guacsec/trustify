@@ -37,7 +37,8 @@ async fn test_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(89, sp.len());
     assert_eq!(96, spl.len());
     assert_eq!(96, license_result.sbom_package_license.len());
-    assert_eq!(0, license_result.extracted_licensing_infos.len());
+    // the four distinct named (non-SPDX) licenses in the fixture
+    assert_eq!(4, license_result.extracted_licensing_infos.len());
 
     Ok(())
 }
@@ -217,7 +218,8 @@ async fn test_license_export_cyclonedx(ctx: &TrustifyContext) -> Result<(), anyh
         license_result.sbom_package_license.clone(),
         license_result.extracted_licensing_infos.clone(),
     );
-    assert_eq!(0, license_result.extracted_licensing_infos.len());
+    // the four distinct named (non-SPDX) licenses in the fixture
+    assert_eq!(4, license_result.extracted_licensing_infos.len());
     assert_eq!(96, license_result.sbom_package_license.len());
 
     let compressed_data = exporter

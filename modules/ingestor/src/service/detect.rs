@@ -274,9 +274,9 @@ fn detect_format(value: &serde_json::Value, hint: Format) -> Result<Format, Erro
         && let Some(ver) = value.get("specVersion").and_then(|v| v.as_str())
     {
         return match ver {
-            "1.3" | "1.4" | "1.5" | "1.6" => Ok(Format::CycloneDX),
+            "1.3" | "1.4" | "1.5" | "1.6" | "1.7" => Ok(Format::CycloneDX),
             other => Err(Error::UnsupportedFormat(format!(
-                "CycloneDX version {other} is unsupported; try 1.3, 1.4, 1.5, 1.6"
+                "CycloneDX version {other} is unsupported; try 1.3, 1.4, 1.5, 1.6, 1.7"
             ))),
         };
     }
@@ -442,6 +442,15 @@ mod test {
     #[test(tokio::test)]
     async fn detect_cyclonedx_1dot6() -> Result<(), anyhow::Error> {
         let bytes = document_bytes("cyclonedx/simple_1dot6.json").await?;
+        let detector = DocumentDetector::detect(&bytes)?;
+        assert_eq!(detector.format(), Format::CycloneDX);
+        Ok(())
+    }
+
+    /// Verifies that a CycloneDX 1.7 document is detected as `CycloneDX`.
+    #[test(tokio::test)]
+    async fn detect_cyclonedx_1dot7() -> Result<(), anyhow::Error> {
+        let bytes = document_bytes("cyclonedx/simple_1dot7.json").await?;
         let detector = DocumentDetector::detect(&bytes)?;
         assert_eq!(detector.format(), Format::CycloneDX);
         Ok(())

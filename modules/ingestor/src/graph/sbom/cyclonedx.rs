@@ -5,9 +5,9 @@ use crate::{
         purl::creator::PurlCreator,
         sbom::{
             CryptographicAssetCreator, CycloneDx as CycloneDxProcessor, LicenseCreator,
-            LicenseInfo, MachineLearningModelCreator, NodeInfoParam, PackageCreator,
-            PackageLicensenInfo, PackageReference, References, RelationshipCreator, SbomContext,
-            SbomInformation, populate_expanded_license,
+            LicenseInfo, LicensingInfo, LicensingInfoCreator, MachineLearningModelCreator,
+            NodeInfoParam, PackageCreator, PackageLicensenInfo, PackageReference, References,
+            RelationshipCreator, SbomContext, SbomInformation, populate_expanded_license,
             processor::{
                 InitContext, PostContext, Processor, RedHatProductComponentRelationships,
                 RunProcessors,
@@ -17,13 +17,15 @@ use crate::{
     },
     service::Error,
 };
+use base64::{Engine, prelude::BASE64_STANDARD};
 use sbom_walker::{
     model::sbom::serde_cyclonedx::Sbom,
     report::{ReportSink, check},
 };
 use sea_orm::ConnectionTrait;
 use serde_cyclonedx::cyclonedx::v_1_6::{
-    Component, ComponentEvidenceIdentity, CycloneDx, LicenseChoiceUrl, OrganizationalContact,
+    Attachment, Component, ComponentEvidenceIdentity, CycloneDx, License, LicenseChoiceUrl,
+    OrganizationalContact,
 };
 use std::{borrow::Cow, collections::HashMap, str::FromStr};
 use time::{OffsetDateTime, format_description::well_known::Iso8601};
@@ -49,6 +51,24 @@ fn from_contact(contact: &OrganizationalContact) -> Option<String> {
         (Some(name), None) => Some(name.to_string()),
         (None, Some(email)) => Some(email.to_string()),
         (None, None) => None,
+    }
+}
+
+/// Extract the textual content of a license attachment, decoding it if necessary.
+///
+/// `base64` is the only encoding CycloneDX defines; anything else is taken verbatim.
+fn license_text(text: &Attachment) -> Option<String> {
+    match text.encoding.as_deref() {
+        Some("base64") => match BASE64_STANDARD.decode(&text.content) {
+            Ok(decoded) => String::from_utf8(decoded)
+                .inspect_err(|err| log::info!("Skipping non-UTF-8 license text: {err}"))
+                .ok(),
+            Err(err) => {
+                log::info!("Skipping license text which failed to base64-decode: {err}");
+                None
+            }
+        },
+        _ => Some(text.content.clone()),
     }
 }
 
@@ -323,6 +343,7 @@ struct ComponentCreator {
     cpes: CpeCreator,
     purls: PurlCreator,
     licenses: LicenseCreator,
+    licensing_infos: LicensingInfoCreator,
     packages: PackageCreator,
     files: FileCreator,
     models: MachineLearningModelCreator,
@@ -339,6 +360,7 @@ impl ComponentCreator {
             cpes: CpeCreator::new(),
             purls: PurlCreator::new(),
             licenses: LicenseCreator::new(),
+            licensing_infos: LicensingInfoCreator::new(),
             packages: PackageCreator::with_capacity(sbom_id, capacity),
             files: FileCreator::new(sbom_id),
             models: MachineLearningModelCreator::new(sbom_id),
@@ -525,6 +547,8 @@ impl ComponentCreator {
             match licenses {
                 LicenseChoiceUrl::Variant0(licenses) => {
                     'l: for license in licenses {
+                        self.add_licensing_info(&license.license);
+
                         let license = if let Some(id) = license.license.id.clone() {
                             id
                         } else if let Some(name) = license.license.name.clone() {
@@ -554,6 +578,29 @@ impl ComponentCreator {
         license_uuid
     }
 
+    /// Record a license's extended details (name, text, URL) in `licensing_infos`, so that
+    /// license expressions referring to it can be expanded later on.
+    ///
+    /// Licenses with a BOM-internal identifier or a name are recorded: a plain SPDX `id` is
+    /// already self-describing and needs no mapping.
+    fn add_licensing_info(&mut self, license: &License) {
+        let Some(license_id) = license.bom_ref.as_ref().or(license.name.as_ref()) else {
+            return;
+        };
+
+        self.licensing_infos.add(&LicensingInfo::with_sbom_id(
+            self.sbom_id,
+            license.name.clone().unwrap_or_else(|| license_id.clone()),
+            license_id.clone(),
+            license
+                .text
+                .as_ref()
+                .and_then(license_text)
+                .unwrap_or_default(),
+            license.url.clone(),
+        ));
+    }
+
     fn post_process(&mut self, processors: &mut [Box<dyn Processor>]) {
         PostContext {
             cpes: &self.cpes,
@@ -581,6 +628,7 @@ impl ComponentCreator {
     // concurrent SBOM ingestions. All SBOM loaders must use the same
     // table insertion order.
     async fn create(self, db: &impl ConnectionTrait) -> Result<(), Error> {
+        self.licensing_infos.create(db).await?;
         self.licenses.create(db).await?;
         self.purls.create(db).await?;
         self.cpes.create(db).await?;
