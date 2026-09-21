@@ -95,17 +95,6 @@ impl<'g> CsafLoader<'g> {
         let advisory_id = gen_identifier(&csaf);
         let labels = labels.into().add("type", "csaf");
 
-        let sha256 = digests.sha256.encode_hex::<String>();
-        if let Some(found) = self.graph.get_advisory_by_digest(&sha256, tx).await? {
-            // we already have the exact same document.
-            return Ok(IngestResult {
-                id: found.advisory.id.to_string(),
-                document_id: Some(advisory_id),
-                warnings: warnings.into(),
-                validation: Vec::new(),
-            });
-        }
-
         let advisory = self
             .graph
             .ingest_advisory(&advisory_id, labels, digests, Information(&csaf), tx)
