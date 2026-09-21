@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789995637208,
+  "lastUpdate": 1789998909425,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22266,6 +22266,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": false,
+          "id": "e610cb1feab8b53c51ec487a60c197b09a64d896",
+          "message": "chore(deps): upgrade csaf-walker family to 0.18.1 and packageurl to 0.7.1\n\nBumps csaf-walker, sbom-walker and walker-common from 0.17.0 to 0.18.1,\nand packageurl from 0.7 to 0.7.1. No source changes were required.\n\nNote: csaf-walker 0.18.1 depends on the renamed `csaf-rs` crate (0.5.1),\nwhile trustify still depends on `csaf` 0.5.0 via the scm-rs git patch, so\nboth now appear in the tree.\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>\nAssisted-by: Claude Code",
+          "timestamp": "2026-09-21T13:12:40Z",
+          "tree_id": "a3fd569fe65771dfd4b279b89f457e5ec787c0ed",
+          "url": "https://github.com/guacsec/trustify/commit/e610cb1feab8b53c51ec487a60c197b09a64d896"
+        },
+        "date": 1789998906758,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
