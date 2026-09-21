@@ -237,7 +237,7 @@ Both mechanisms — the `RequireFeature<T>` extractor and the `features.require(
 identical responses. Use the extractor when the entire endpoint depends on a single feature. Use the
 inline check when the gate is conditional, shared across code paths, or needed inside service logic.
 
-### Tier 3: Capability sets (informational)
+### Tier 3: Capability sets
 
 Some categories of features have multiple options that can be independently enabled — for example,
 which importers are available, or which document formats are supported. These are exposed as named
@@ -263,8 +263,9 @@ out specific types). The `capabilities.importers` array contains the resulting a
 This means the capability set is resolved at startup from the compiled-in types and the operator's
 configuration, following the same lifecycle as tier 2 configuration gates.
 
-These are advisory — they inform the UI which sections to show but do not block API calls. Endpoints
-for data-dependent features remain available and return empty results when no data has been ingested.
+Disabled capabilities are enforced at the API level: ingesting a disabled document format is rejected,
+and creating an importer of a disabled type fails. The `/.well-known/trustify` response exposes the
+active sets so the UI can adapt its presentation accordingly.
 
 ### Discovery: `/.well-known/trustify`
 
@@ -307,7 +308,7 @@ Cargo feature (compile-time)
   └─ Is the subsystem compiled into the binary?
       └─ Configuration gate (startup-time)
           └─ Is the feature configured on this instance?
-              └─ Capability set (informational)
+              └─ Capability set (enforced per category)
                   └─ Which options within the category are active?
 ```
 
@@ -323,6 +324,10 @@ type configured in the database will not run.
 * **Configuration limits** (`TRUSTD_SBOM_UPLOAD_LIMIT`, `TRUSTD_MAX_GROUP_NAME_LENGTH`) — tuning
   parameters for always-present features.
 * **Infrastructure** (database, storage, auth) — prerequisites, not optional features.
+* **Multi-tenancy and per-user access control.** Feature gates are instance-wide: a capability is
+  either available to all authenticated users or unavailable entirely. Per-tenant or per-user
+  restrictions on which features are accessible (e.g., tenant A can use recommendations but tenant B
+  cannot) are an access-control concern, not a feature-gate concern, and are out of scope for this ADR.
 
 ### Adding a new feature gate
 
@@ -359,7 +364,7 @@ Existing features are migrated incrementally:
 4. **Importers** — register all compiled-in importer types, apply operator configuration to determine
    the active set, and populate `capabilities.importers`. Importers that are configured in the database
    but whose type is not in the active capability set are silently skipped — they will not run. No
-   endpoint guards — the set is informational for the UI.
+   creating an importer of a disabled type is rejected at the API level.
 
 ## Alternatives considered
 
@@ -405,7 +410,7 @@ of possible features, which changes across versions.
 ## Consequences
 
 * A three-tier gating model is established: compile-time (Cargo features for large subsystems),
-  configuration-time (`features` array), and informational (`capabilities` map). Each tier serves a
+  configuration-time (`features` array), and capability sets (`capabilities` map). Each tier serves a
   distinct purpose and composes with the others.
 
 * Cargo features are reserved for coarse-grained subsystems with significant dependency impact. Each
@@ -421,7 +426,9 @@ of possible features, which changes across versions.
   for endpoint-level guards, and an inline `features.require(Feature::Foo)?` call for checks inside
   handler or service logic. Both produce the same 503 `FeatureDisabled` error response.
 
-* Capability set entries (like importers) are advisory — they inform the UI but do not block API calls.
+* Capability sets are enforced at the API level — disabled formats are rejected during ingestion and
+  disabled importer types cannot be created. The `/.well-known/trustify` response exposes the active
+  sets so the UI can adapt its presentation.
 
 * Operators can query a single endpoint to see the full capability profile of an instance. The UI reads
   `features` and `capabilities` on startup and conditionally renders controls, replacing per-feature
