@@ -451,7 +451,9 @@ pub async fn delete(
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
 
-    let id = Id::from_str(&id)?;
+    let Ok(id) = Id::from_str(&id) else {
+        return Ok(HttpResponse::NoContent().finish());
+    };
     if let Some((v, _, _)) = service.fetch_sbom(id, &tx).await?
         && let digests = service.delete_sboms(vec![v.sbom_id], &tx).await?
         && !digests.is_empty()

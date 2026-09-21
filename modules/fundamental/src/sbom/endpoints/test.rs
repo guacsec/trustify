@@ -1273,6 +1273,17 @@ async fn delete_sbom(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert!(response.into_body().try_into_bytes().unwrap().is_empty());
 
+    // Invalid/nonsensical ID should return 204.
+    let response = app
+        .call_service(
+            TestRequest::delete()
+                .uri("/api/v3/sbom/blabla")
+                .to_request(),
+        )
+        .await;
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
     Ok(())
 }
 
