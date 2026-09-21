@@ -56,7 +56,15 @@ impl<'g> SpdxLoader<'g> {
             )
             .await?
         {
-            Outcome::Existed(sbom) => sbom,
+            Outcome::Existed(sbom) => {
+                return Ok(IngestResult {
+                    id: sbom.sbom.sbom_id.to_string(),
+                    document_id: Some(document_id),
+                    duplicate: true,
+                    warnings: warnings.into(),
+                    validation: Vec::new(),
+                });
+            }
             Outcome::Added(sbom) => {
                 sbom.ingest_spdx(spdx, &warnings, tx).await?;
                 sbom
@@ -67,6 +75,7 @@ impl<'g> SpdxLoader<'g> {
             id: sbom.sbom.sbom_id.to_string(),
             document_id: Some(document_id),
             warnings: warnings.into(),
+            duplicate: false,
             validation: Vec::new(),
         })
     }

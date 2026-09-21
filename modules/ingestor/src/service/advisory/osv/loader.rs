@@ -1,6 +1,6 @@
 use crate::{
     graph::{
-        Graph,
+        Graph, Outcome,
         advisory::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
             advisory_vulnerability::AdvisoryVulnerabilityContext,
@@ -75,10 +75,22 @@ impl<'g> OsvLoader<'g> {
             modified: Some(osv.modified.into_time()),
             withdrawn: osv.withdrawn.map(ChronoExt::into_time),
         };
-        let advisory = self
+        let advisory = match self
             .graph
             .ingest_advisory(&osv.id, labels, digests, information, tx)
-            .await?;
+            .await?
+        {
+            Outcome::Existed(advisory) => {
+                return Ok(IngestResult {
+                    id: advisory.advisory.id.to_string(),
+                    document_id: Some(osv.id),
+                    duplicate: true,
+                    warnings: warnings.into(),
+                    validation: Vec::new(),
+                });
+            }
+            Outcome::Added(advisory) => advisory,
+        };
 
         if let Some(withdrawn) = osv.withdrawn {
             advisory.set_withdrawn_at(withdrawn.into_time(), tx).await?;
@@ -320,6 +332,7 @@ impl<'g> OsvLoader<'g> {
             id: advisory.advisory.id.to_string(),
             document_id: Some(osv.id),
             warnings: warnings.into(),
+            duplicate: false,
             validation: Vec::new(),
         })
     }

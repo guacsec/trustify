@@ -5697,6 +5697,9 @@ components:
           - string
           - 'null'
           description: The ID declared by the document
+        duplicate:
+          type: boolean
+          description: True when the document already existed; no new data was ingested.
         id:
           $ref: '#/components/schemas/Id'
           description: The internal ID of the document

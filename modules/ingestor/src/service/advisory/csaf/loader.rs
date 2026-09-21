@@ -1,6 +1,6 @@
 use crate::{
     graph::{
-        Graph,
+        Graph, Outcome,
         advisory::{
             AdvisoryContext, AdvisoryInformation, AdvisoryVulnerabilityInformation,
             advisory_vulnerability::AdvisoryVulnerabilityContext,
@@ -94,10 +94,22 @@ impl<'g> CsafLoader<'g> {
         let advisory_id = gen_identifier(&csaf);
         let labels = labels.into().add("type", "csaf");
 
-        let advisory = self
+        let advisory = match self
             .graph
             .ingest_advisory(&advisory_id, labels, digests, Information(&csaf), tx)
-            .await?;
+            .await?
+        {
+            Outcome::Existed(advisory) => {
+                return Ok(IngestResult {
+                    id: advisory.advisory.id.to_string(),
+                    document_id: Some(advisory_id),
+                    duplicate: true,
+                    warnings: warnings.into(),
+                    validation: Vec::new(),
+                });
+            }
+            Outcome::Added(advisory) => advisory,
+        };
 
         // Batch create all vulnerabilities first
         let mut vuln_creator = VulnerabilityCreator::new();
@@ -122,6 +134,7 @@ impl<'g> CsafLoader<'g> {
             id: advisory.advisory.id.to_string(),
             document_id: Some(advisory_id),
             warnings: warnings.into(),
+            duplicate: false,
             validation: Vec::new(),
         })
     }

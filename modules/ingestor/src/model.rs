@@ -9,6 +9,9 @@ pub struct IngestResult {
     pub id: String,
     /// The ID declared by the document
     pub document_id: Option<String>,
+    /// True when the document already existed; no new data was ingested.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub duplicate: bool,
     /// Warnings that occurred during the import process
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub warnings: Vec<String>,

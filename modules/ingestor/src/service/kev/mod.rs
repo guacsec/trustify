@@ -89,6 +89,7 @@ impl KevLoader {
             // for catalog documents. Same approach as the CWE catalog loader.
             id: digests.sha512.encode_hex(),
             document_id: Some(format!("{source}/{}", catalog.catalog_version)),
+            duplicate: false,
             warnings: dropped.into_warnings(),
             validation: Vec::new(),
         })

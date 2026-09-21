@@ -1,6 +1,6 @@
 use crate::{
     graph::{
-        Graph,
+        Graph, Outcome,
         advisory::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
             version::{Version, VersionInfo, VersionSpec},
@@ -97,10 +97,22 @@ impl<'g> CveLoader<'g> {
         let entries = Self::build_descriptions(descriptions);
         let english_description = Self::find_best_description_for_title(descriptions);
 
-        let advisory = self
+        let advisory = match self
             .graph
             .ingest_advisory(id, labels, digests, advisory_info, tx)
-            .await?;
+            .await?
+        {
+            Outcome::Existed(advisory) => {
+                return Ok(IngestResult {
+                    id: advisory.advisory.id.to_string(),
+                    document_id: Some(id.to_string()),
+                    duplicate: true,
+                    warnings: warnings.into(),
+                    validation: Vec::new(),
+                });
+            }
+            Outcome::Added(advisory) => advisory,
+        };
 
         // Link the advisory to the backing vulnerability
         let advisory_vuln = advisory
@@ -265,6 +277,7 @@ impl<'g> CveLoader<'g> {
             id: advisory.advisory.id.to_string(),
             document_id: Some(id.to_string()),
             warnings: warnings.into(),
+            duplicate: false,
             validation: Vec::new(),
         })
     }
