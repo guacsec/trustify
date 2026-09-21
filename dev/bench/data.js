@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789995019459,
+  "lastUpdate": 1789995637208,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22237,6 +22237,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "gilles@redhat.com",
+            "name": "gildub",
+            "username": "gildub"
+          },
+          "committer": {
+            "email": "gilles@redhat.com",
+            "name": "Gilles Dubreuil",
+            "username": "gildub"
+          },
+          "distinct": true,
+          "id": "696116c4fdb56354c0b365af23975223abd26aa4",
+          "message": "fix(create_doc): NVD, CVE no-op mutation before dedup, fix ClearlyDefined",
+          "timestamp": "2026-09-21T12:20:00Z",
+          "tree_id": "6c4bd6f48f31a532aa5e683fa6e4eaeeee5e7e2a",
+          "url": "https://github.com/guacsec/trustify/commit/696116c4fdb56354c0b365af23975223abd26aa4"
+        },
+        "date": 1789995635376,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
