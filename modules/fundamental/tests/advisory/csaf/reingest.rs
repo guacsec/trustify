@@ -392,10 +392,11 @@ async fn change_ps_list_vulns_all(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 ),
                 labels: Labels::from_iter([("source", "TrustifyContext"), ("type", "csaf")])
             },
+            // el9eap is "known_affected" in r1 — only el7eap and el8eap have "fixed" status
+            // in this advisory revision.
             fixed_versions: vec![
                 "1.76.0-4.redhat_00001.1.el7eap".to_string(),
                 "1.76.0-4.redhat_00001.1.el8eap".to_string(),
-                "1.76.0-4.redhat_00001.1.el9eap".to_string(),
             ],
         }]
     );
