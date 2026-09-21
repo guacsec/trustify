@@ -35,7 +35,7 @@ pub const CONTEXT_CPE_FILTER_SQL: &str = r#"
 
 /// Returns SQL that counts affected vulnerabilities grouped by severity for
 /// multiple SBOMs in a single query. Combines PURL-based matching (via
-/// `purl_status` + `version_matches()`), name-keyed CPE matching (via
+/// `purl_status` + `version_matches()`), product-CPE-scoped name matching (via
 /// `product_status` + package name matching), and package-level CPE-identity
 /// matching (via `cpe_status` + `version_matches()`, mirroring
 /// [`cpe_advisory_info_sql`] so SBOM-list severity counts agree with the
@@ -126,7 +126,7 @@ pub fn batch_severity_counts_sql() -> &'static str {
         )
     ),
 
-    -- CPE product_status matches by name
+    -- CPE product_status matches by name, scoped to the advisory's product CPE
     cpe_matches_name AS (
         SELECT DISTINCT
             sp.sbom_id,
@@ -138,11 +138,7 @@ pub fn batch_severity_counts_sql() -> &'static str {
         JOIN advisory ON ps.advisory_id = advisory.id
         WHERE status.slug = 'affected'
           AND advisory.deprecated = false
-          AND (
-              ps.context_cpe_id IS NULL
-              OR ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
-              OR sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)
-          )
+          AND ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
     ),
 
     -- CPE product_status matches by namespace/name
@@ -158,11 +154,7 @@ pub fn batch_severity_counts_sql() -> &'static str {
         WHERE sp.namespace IS NOT NULL
           AND status.slug = 'affected'
           AND advisory.deprecated = false
-          AND (
-              ps.context_cpe_id IS NULL
-              OR ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
-              OR sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)
-          )
+          AND ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
     ),
 
     -- Package-level CPEs harvested from SBOMs (e.g. SPDX cpe23Type refs),
@@ -372,7 +364,7 @@ pub fn product_advisory_info_sql() -> String {
         ),
 
         -- Split OR condition into UNION to enable index usage
-        -- Match 1: Simple name equality (most common case)
+        -- Match 1: Simple name equality, scoped to the advisory's product CPE
         product_status_matches_name AS (
             SELECT DISTINCT
                 ps.id as product_status_id,
@@ -385,9 +377,7 @@ pub fn product_advisory_info_sql() -> String {
                 sp.node_id
             FROM product_status ps
             JOIN sbom_purls sp ON ps.package = sp.name
-            WHERE (ps.context_cpe_id IS NULL
-                   OR ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
-                   OR NOT EXISTS (SELECT 1 FROM filtered_cpes LIMIT 1))
+            WHERE ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
         ),
 
         -- Match 2: Namespace/name concatenation (handles scoped packages like npm, maven)
@@ -404,9 +394,7 @@ pub fn product_advisory_info_sql() -> String {
             FROM product_status ps
             JOIN sbom_purls sp ON ps.package = CONCAT(sp.namespace, '/', sp.name)
             WHERE sp.namespace IS NOT NULL
-              AND (ps.context_cpe_id IS NULL
-                   OR ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
-                   OR NOT EXISTS (SELECT 1 FROM filtered_cpes LIMIT 1))
+              AND ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
         ),
 
         -- Union the two match types to eliminate OR in JOIN
