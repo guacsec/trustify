@@ -835,6 +835,53 @@ async fn sbom_details_purlless_cpe_node_consistency(
     Ok(())
 }
 
+/// Product CPEs attached to an OS component must scope product-status matches
+/// just like CPEs attached to the SBOM's describing node.
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+#[instrument]
+async fn child_os_cpe_scopes_product_status_matches(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    let sbom = SbomService::new(PaginationCache::for_test());
+
+    ctx.ingest_document("scenarios/S17_crossproduct_ocp_kernel_go/vex/CVE-2023-24538.json.xz")
+        .await?;
+
+    let result = ctx
+        .ingest_document("scenarios/S17_crossproduct_ocp_kernel_go/sbom_kernel_rhel8.cdx.json")
+        .await?;
+
+    let sbom_id = Id::parse_uuid(result.id)?;
+    let Id::Uuid(sbom_uuid) = sbom_id else {
+        panic!("expected a UUID sbom id");
+    };
+
+    let details = sbom
+        .fetch_sbom_details(Id::Uuid(sbom_uuid), vec!["affected".to_string()], &ctx.db)
+        .await?
+        .expect("SBOM details must be found");
+    assert!(
+        !details
+            .advisories
+            .iter()
+            .any(|advisory| advisory.head.document_id == "CVE-2023-24538")
+    );
+
+    let counts = sbom
+        .batch_advisory_severity_counts(&[sbom_uuid], &ctx.db)
+        .await?;
+    assert_eq!(
+        0,
+        counts
+            .get(&sbom_uuid)
+            .map(|counts| counts.values().sum::<u64>())
+            .unwrap_or_default()
+    );
+
+    Ok(())
+}
+
 /// Constructs a `ScoredVector` from its parts, deriving the severity from the type and value.
 fn sv(r#type: ScoreType, value: f64, vector: impl Into<String>) -> ScoredVector {
     ScoredVector {

@@ -599,6 +599,12 @@ impl SbomContext {
              AND (prtp.right_node_id = spcr.node_id OR prtp.left_node_id = spcr.node_id)
             WHERE prtp.sbom_id = $1
               AND prtp.relationship = 13
+            UNION
+            SELECT DISTINCT spcr.sbom_id, spcr.cpe_id
+            FROM sbom_node_cpe_ref spcr
+            JOIN cpe ON cpe.id = spcr.cpe_id
+            WHERE spcr.sbom_id = $1
+              AND cpe.part = 'o'
             ON CONFLICT DO NOTHING
             "#,
             [self.sbom.sbom_id.into()],

@@ -138,7 +138,10 @@ pub fn batch_severity_counts_sql() -> &'static str {
         JOIN advisory ON ps.advisory_id = advisory.id
         WHERE status.slug = 'affected'
           AND advisory.deprecated = false
-          AND ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
+          AND (
+              ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
+              OR sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)
+          )
     ),
 
     -- CPE product_status matches by namespace/name
@@ -154,7 +157,10 @@ pub fn batch_severity_counts_sql() -> &'static str {
         WHERE sp.namespace IS NOT NULL
           AND status.slug = 'affected'
           AND advisory.deprecated = false
-          AND ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
+          AND (
+              ps.context_cpe_id IN (SELECT cpe_id FROM sbom_allowed_cpes sac WHERE sac.sbom_id = sp.sbom_id)
+              OR sp.sbom_id NOT IN (SELECT sbom_id FROM sbom_has_cpes)
+          )
     ),
 
     -- Package-level CPEs harvested from SBOMs (e.g. SPDX cpe23Type refs),
@@ -377,7 +383,10 @@ pub fn product_advisory_info_sql() -> String {
                 sp.node_id
             FROM product_status ps
             JOIN sbom_purls sp ON ps.package = sp.name
-            WHERE ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
+            WHERE (
+                ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
+                OR NOT EXISTS (SELECT 1 FROM filtered_cpes LIMIT 1)
+            )
         ),
 
         -- Match 2: Namespace/name concatenation (handles scoped packages like npm, maven)
@@ -394,7 +403,10 @@ pub fn product_advisory_info_sql() -> String {
             FROM product_status ps
             JOIN sbom_purls sp ON ps.package = CONCAT(sp.namespace, '/', sp.name)
             WHERE sp.namespace IS NOT NULL
-              AND ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
+              AND (
+                  ps.context_cpe_id IN (SELECT id FROM allowed_cpe_ids)
+                  OR NOT EXISTS (SELECT 1 FROM filtered_cpes LIMIT 1)
+              )
         ),
 
         -- Union the two match types to eliminate OR in JOIN
