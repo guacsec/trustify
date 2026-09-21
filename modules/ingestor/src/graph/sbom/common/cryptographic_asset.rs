@@ -7,7 +7,7 @@ use crate::{
 use anyhow::anyhow;
 use sea_orm::{ActiveValue::Set, ConnectionTrait, DbErr, EntityTrait};
 use sea_query::OnConflict;
-use serde_cyclonedx::cyclonedx::v_1_6::Component;
+use serde_cyclonedx::cyclonedx::v_1_7::Component;
 use serde_json::Value;
 use trustify_common::db::chunk::EntityChunkedIter;
 use trustify_entity::sbom_crypto::{self, CryptoAssetType};

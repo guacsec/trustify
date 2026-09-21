@@ -1,4 +1,4 @@
-use serde_cyclonedx::cyclonedx::v_1_6::{Hash, HashAlg};
+use serde_cyclonedx::cyclonedx::v_1_7::{Hash, HashAlg};
 use spdx_rs::models::Algorithm;
 use std::borrow::Cow;
 
@@ -29,6 +29,8 @@ impl From<Hash> for Checksum {
                 HashAlg::Blake2B384 => "BLAKE2b-384",
                 HashAlg::Blake2B512 => "BLAKE2b-512",
                 HashAlg::Blake3 => "BLAKE3",
+                HashAlg::Streebog256 => "Streebog-256",
+                HashAlg::Streebog512 => "Streebog-512",
             }
             .into(),
             value: value.content,
