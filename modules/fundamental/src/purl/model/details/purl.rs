@@ -399,7 +399,11 @@ impl PurlAdvisory {
                         continue;
                     }
                     let versions = map
-                        .entry((entry.advisory_id, entry.vulnerability_id, entry.base_purl_id))
+                        .entry((
+                            entry.advisory_id,
+                            entry.vulnerability_id,
+                            entry.base_purl_id,
+                        ))
                         .or_default();
                     if !versions.contains(&version) {
                         versions.push(version);
@@ -433,7 +437,11 @@ impl PurlAdvisory {
 
             if let Some(advisory) = advisory {
                 let fv = fix_versions_map
-                    .get(&(status.advisory_id, status.vulnerability_id.clone(), status.base_purl_id))
+                    .get(&(
+                        status.advisory_id,
+                        status.vulnerability_id.clone(),
+                        status.base_purl_id,
+                    ))
                     .cloned()
                     .unwrap_or_default();
 
