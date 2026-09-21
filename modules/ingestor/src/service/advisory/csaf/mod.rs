@@ -1,6 +1,7 @@
 pub mod loader;
 mod product_status;
 pub mod util;
+pub mod value;
 
 mod creator;
 pub use creator::*;
