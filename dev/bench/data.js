@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789806800619,
+  "lastUpdate": 1789978161186,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22116,6 +22116,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/cb6f1391dcc004b196b370199f5b4a4e55ceb9b0"
         },
         "date": 1789806798742,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": false,
+          "id": "8889d3dc5a7858f576a682b531bbee2744180ba0",
+          "message": "refactor(importer): introduce EnvSource trait for injectable env lookup\n\nAdd trustify_common::env::EnvSource trait with impls for:\n- () — delegates to std::env::var (production)\n- &[(&str, &str)] and &[(&str, &str); N] — slice lookup (tests)\n\nReplace raw Fn closure parameter in CredentialSource::resolve() with\nimpl EnvSource. Eliminates set_var/remove_var from tests entirely.\n\nCo-Authored-By: Claude Sonnet 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-21T07:27:41Z",
+          "tree_id": "d4aa5c2cb7e007c29f32e612c0439a84664b352e",
+          "url": "https://github.com/guacsec/trustify/commit/8889d3dc5a7858f576a682b531bbee2744180ba0"
+        },
+        "date": 1789978159101,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
