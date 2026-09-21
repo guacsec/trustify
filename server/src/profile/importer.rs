@@ -7,10 +7,27 @@ use trustify_common::{
         self,
         pagination_cache::{PaginationCache, PaginationConfig},
     },
+    feature::CapabilityFilter,
 };
 use trustify_infrastructure::{Infrastructure, InfrastructureConfig, InitContext};
 use trustify_module_importer::{model::auth::CredentialConfig, server::importer};
 use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
+
+fn parse_importer_name(s: &str) -> Result<String, String> {
+    use strum::VariantNames;
+    if s == "*" {
+        return Ok(s.into());
+    }
+    let variants = trustify_module_importer::model::ImporterConfiguration::VARIANTS;
+    if variants.contains(&s) {
+        Ok(s.into())
+    } else {
+        Err(format!(
+            "unknown importer '{s}'; valid: {}",
+            variants.join(", ")
+        ))
+    }
+}
 
 /// Run the importer server
 #[derive(clap::Args, Debug)]
@@ -40,6 +57,27 @@ pub struct Run {
     #[arg(long, env = "IMPORTER_ENV_PREFIXES", value_delimiter = ',')]
     pub env_prefixes: Vec<String>,
 
+    /// Enable only these importer types (comma-separated). Switches to
+    /// allowlist mode — all unlisted types are rejected. Use `*` for all.
+    #[arg(
+        long,
+        env = "TRUSTD_ENABLE_IMPORTERS",
+        value_delimiter = ',',
+        value_parser = parse_importer_name,
+        conflicts_with = "disable_importer"
+    )]
+    pub enable_importer: Vec<String>,
+
+    /// Disable these importer types (comma-separated). Types listed here
+    /// cannot be created. Use `*` to disable all.
+    #[arg(
+        long,
+        env = "TRUSTD_DISABLE_IMPORTERS",
+        value_delimiter = ',',
+        value_parser = parse_importer_name
+    )]
+    pub disable_importer: Vec<String>,
+
     // flattened commands must go last
     //
     /// Pagination configuration
@@ -68,6 +106,7 @@ struct InitData {
     concurrency: usize,
     read_only: bool,
     credential_config: CredentialConfig,
+    importer_filter: CapabilityFilter,
 }
 
 impl Run {
@@ -97,6 +136,14 @@ impl InitData {
 
         let storage = run.storage.into_storage(false).await?;
 
+        use strum::VariantNames;
+        let importer_filter = CapabilityFilter::new(
+            "importer",
+            trustify_module_importer::model::ImporterConfiguration::VARIANTS,
+            &run.enable_importer,
+            &run.disable_importer,
+        );
+
         Ok(InitData {
             db,
             cache: run.pagination.into_cache(),
@@ -108,6 +155,7 @@ impl InitData {
                 allowed_prefixes: run.env_prefixes,
                 allowed_paths: run.allowed_credential_paths,
             },
+            importer_filter,
         })
     }
 
@@ -125,6 +173,7 @@ impl InitData {
                 self.concurrency,
                 self.read_only,
                 self.credential_config,
+                self.importer_filter,
             )
             .await
         }

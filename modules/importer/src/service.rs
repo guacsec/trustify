@@ -161,8 +161,7 @@ impl ImporterService {
         name: String,
         mut configuration: ImporterConfiguration,
     ) -> Result<(), Error> {
-        let type_name: &str = (&configuration).into();
-        self.importer_filter.try_enabled(type_name)?;
+        self.importer_filter.try_enabled((&configuration).into())?;
 
         configuration.labels.validate_mut()?;
 
@@ -233,6 +232,12 @@ impl ImporterService {
         let mut configuration =
             f(current.value.data.configuration).map_err(PatchError::Transform)?;
 
+        // check capability filter
+
+        self.importer_filter
+            .try_enabled((&configuration).into())
+            .map_err(|err| PatchError::Common(err.into()))?;
+
         // validate
 
         configuration
@@ -264,6 +269,7 @@ impl ImporterService {
         expected_revision: Option<&str>,
         mut configuration: ImporterConfiguration,
     ) -> Result<(), Error> {
+        self.importer_filter.try_enabled((&configuration).into())?;
         configuration.labels.validate_mut()?;
 
         self.update(
