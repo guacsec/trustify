@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790012976816,
+  "lastUpdate": 1790018467495,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22324,6 +22324,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": true,
+          "id": "7974355afea1c320223e9e00d6a9775df575eb28",
+          "message": "fix(sbom): scope fix_versions lookup by base_purl_id to prevent cross-package contamination\n\nThe fix_versions_map in sbom/model/details.rs was keyed by (advisory_id,\nvulnerability_id) only. An advisory that affects both package foo and package\nbar produced two purl_status rows with different base_purl_ids; without\nbase_purl_id in the key both packages ended up sharing the same map entry,\ncausing fix versions from bar to appear on foo's SBOM advisory status.\n\nChanges:\n- Add base_purl_id to IdSet and select it from the initial SeaORM query\n  (base_purl is already joined)\n- Add base_purl_id to FixVersionEntry (sbom variant) and select it in the\n  fix_versions query\n- Change fix_versions_map from BTreeMap<(Uuid, String), Vec<String>> to\n  BTreeMap<(Uuid, String, Uuid), Vec<String>>\n- Add base_purl_id: Option<Uuid> to QueryCatcher; populate it from IdSet in\n  the SeaORM path and from the raw SQL result (None for CPE product-status rows)\n- Update from_models signature and fix_versions lookup to use the 3-tuple key\n- Add ORDER BY high_version to the fix_versions query for deterministic ordering\n\npurl/model/details/purl.rs and vulnerability/service/mod.rs already used the\ncorrect 3-tuple key from earlier in this PR.\n\nImplements TC-6303\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-09-21T18:36:49Z",
+          "tree_id": "61feec00de2a1a39a2a2ebd62d9902944f59ed1d",
+          "url": "https://github.com/guacsec/trustify/commit/7974355afea1c320223e9e00d6a9775df575eb28"
+        },
+        "date": 1790018465982,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
