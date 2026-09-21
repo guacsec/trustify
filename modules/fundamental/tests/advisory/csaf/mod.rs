@@ -5,9 +5,9 @@ mod parallel;
 mod reingest;
 mod timeout;
 
-use csaf::Csaf;
-use csaf::definitions::ProductIdT;
-use csaf::document::Revision;
+use csaf::schema::csaf2_0::schema::{
+    CommonSecurityAdvisoryFramework as Csaf, ProductIdT, Revision,
+};
 use trustify_module_ingestor::model::IngestResult;
 use trustify_test_context::{TrustifyContext, document_bytes};
 
@@ -42,17 +42,22 @@ where
 /// Uptick the tracking information according to the spec, adding a new revision record,
 /// incrementing the main tracking version.
 fn uptick_tracking(csaf: &mut Csaf) {
-    let current = &csaf.document.tracking.version;
+    let current = csaf.document.tracking.version.as_str();
 
     let next = uptick_version(current).expect("unable to increment version");
 
-    csaf.document.tracking.version = next.clone();
+    csaf.document.tracking.version = next.parse().expect("next version must be valid");
     csaf.document.tracking.revision_history.push(Revision {
-        date: Default::default(),
+        date: "1970-01-01T00:00:00Z".to_string(),
         legacy_version: None,
-        number: next,
-        summary: "Updated for test".to_string(),
+        number: next.parse().expect("next version must be valid"),
+        summary: "Updated for test".parse().expect("summary must be valid"),
     });
+}
+
+/// Build a product ID, which is known to be valid.
+fn product_id(id: &str) -> ProductIdT {
+    id.parse().expect("product id must be valid")
 }
 
 /// Uptick the version by one.
@@ -83,14 +88,10 @@ async fn prepare_ps_state_change(
     twice(
         ctx,
         |mut csaf| {
-            let vulns = csaf
+            let v = csaf
                 .vulnerabilities
-                .as_mut()
-                .expect("test data has vulnerabilities");
-
-            let v = vulns
                 .iter_mut()
-                .find(|v| v.cve.as_deref() == Some(CVE))
+                .find(|v| v.cve.as_ref().map(|cve| cve.as_str()) == Some(CVE))
                 .expect("test data has a specific CVE");
 
             let ps = v
@@ -103,26 +104,28 @@ async fn prepare_ps_state_change(
             ps.fixed
                 .as_mut()
                 .expect(r#"test data has "fixed" entries"#)
-                .retain(|ps| ps.0 != PRODUCT);
+                .0
+                .retain(|ps| ps.as_str() != PRODUCT);
             ps.known_affected
                 .as_mut()
                 .expect(r#"test data has "known affected" entries"#)
-                .push(ProductIdT(PRODUCT.into()));
+                .0
+                .push(product_id(PRODUCT));
 
             csaf
         },
         |mut csaf| {
             uptick_tracking(&mut csaf);
-            csaf.document.tracking.current_release_date += chrono::Duration::days(1);
+            let next_release_date =
+                chrono::DateTime::parse_from_rfc3339(&csaf.document.tracking.current_release_date)
+                    .expect("test data has a valid release date")
+                    + chrono::Duration::days(1);
+            csaf.document.tracking.current_release_date = next_release_date.to_rfc3339();
 
-            let vulns = csaf
+            let v = csaf
                 .vulnerabilities
-                .as_mut()
-                .expect("test data has vulnerabilities");
-
-            let v = vulns
                 .iter_mut()
-                .find(|v| v.cve.as_deref() == Some(CVE))
+                .find(|v| v.cve.as_ref().map(|cve| cve.as_str()) == Some(CVE))
                 .expect("test data has a specific CVE");
 
             let ps = v
@@ -135,11 +138,13 @@ async fn prepare_ps_state_change(
             ps.known_affected
                 .as_mut()
                 .expect(r#"test data has "known affected" entries"#)
-                .retain(|ps| ps.0 != PRODUCT);
+                .0
+                .retain(|ps| ps.as_str() != PRODUCT);
             ps.fixed
                 .as_mut()
                 .expect(r#"test data has "fixed" entries"#)
-                .push(ProductIdT(PRODUCT.into()));
+                .0
+                .push(product_id(PRODUCT));
 
             csaf
         },

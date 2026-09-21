@@ -16,7 +16,9 @@ use crate::{
         advisory::csaf::{product_status::ProductStatus, util::ResolveProductIdCache},
     },
 };
-use csaf::{Csaf, definitions::ProductIdT, vulnerability::Remediation};
+use csaf::schema::csaf2_0::schema::{
+    CommonSecurityAdvisoryFramework as Csaf, ProductsT, Remediation,
+};
 use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
@@ -30,6 +32,7 @@ use trustify_entity::{
     version_range,
     version_scheme::VersionScheme,
 };
+use url::Url;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Default)]
@@ -40,7 +43,11 @@ pub struct ProductIdStatusMapping {
 
 /// Check if the CSAF document is published by Red Hat.
 fn is_redhat(csaf: &Csaf) -> bool {
-    csaf.document.publisher.namespace.host_str() == Some("www.redhat.com")
+    Url::parse(&csaf.document.publisher.namespace)
+        .ok()
+        .as_ref()
+        .and_then(Url::host_str)
+        == Some("www.redhat.com")
 }
 
 #[derive(Debug)]
@@ -72,28 +79,25 @@ impl<'a> StatusCreator<'a> {
 
     pub fn add_all(
         &mut self,
-        ps: &Option<Vec<ProductIdT>>,
+        ps: &Option<ProductsT>,
         status: &'static str,
     ) -> Result<(), anyhow::Error> {
-        for r in ps.iter().flatten() {
+        for r in ps.iter().flat_map(|ps| &ps.0) {
             let mut product = ProductStatus {
                 status,
                 ..Default::default()
             };
             let mut product_ids = vec![];
-            match self.cache.get_relationship(&r.0) {
+            match self.cache.get_relationship(r) {
                 Some(rel) => {
-                    let inner_id: &ProductIdT = &rel.product_reference;
-                    let context = &rel.relates_to_product_reference;
-
                     // Find all products
-                    product_ids.push(&context.0);
+                    product_ids.push(rel.relates_to_product_reference.as_str());
                     // Find all components/packages within
-                    product_ids.push(&inner_id.0);
+                    product_ids.push(rel.product_reference.as_str());
                 }
                 None => {
                     // If there's no relationship, find only products
-                    product_ids.push(&r.0);
+                    product_ids.push(r.as_str());
                 }
             };
             for product_id in product_ids {
@@ -107,7 +111,7 @@ impl<'a> StatusCreator<'a> {
             }
 
             self.product_id_to_product
-                .insert(r.0.clone(), product.clone());
+                .insert(r.to_string(), product.clone());
             self.products.insert(product);
         }
         Ok(())
@@ -459,15 +463,15 @@ impl<'a> RemediationCreator<'a> {
                 advisory_id: Set(self.advisory_id),
                 vulnerability_id: Set(self.vulnerability_id.clone()),
                 category: Set((&rem.category).into()),
-                details: Set(Some(rem.details.clone())),
-                url: Set(rem.url.as_ref().map(|u| u.to_string())),
+                details: Set(Some(rem.details.to_string())),
+                url: Set(rem.url.clone()),
                 data: Set(serde_json::to_value(rem)?),
             };
             remediation_models.push(remediation_model);
 
             if let Some(product_ids) = &rem.product_ids {
-                for product_id in product_ids {
-                    if let Some(mapping) = self.product_id_mapping.get(&product_id.0) {
+                for product_id in &product_ids.0 {
+                    if let Some(mapping) = self.product_id_mapping.get(product_id.as_str()) {
                         for purl_status_id in &mapping.purl_status_ids {
                             remediation_purl_status_models.push(
                                 remediation_purl_status::ActiveModel {
@@ -522,7 +526,7 @@ impl<'a> RemediationCreator<'a> {
         result = Uuid::new_v5(&result, category.remediation_category_key().as_bytes());
         result = Uuid::new_v5(&result, rem.details.as_bytes());
         if let Some(url) = &rem.url {
-            result = Uuid::new_v5(&result, url.as_str().as_bytes());
+            result = Uuid::new_v5(&result, url.as_bytes());
         }
         result
     }

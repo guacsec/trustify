@@ -1,4 +1,4 @@
-use csaf::vulnerability::RemediationCategory as CsafRemediationCategory;
+use csaf::schema::csaf2_0::schema::CategoryOfTheRemediation;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -128,14 +128,14 @@ impl RemediationCategory {
     }
 }
 
-impl From<&CsafRemediationCategory> for RemediationCategory {
-    fn from(value: &CsafRemediationCategory) -> Self {
+impl From<&CategoryOfTheRemediation> for RemediationCategory {
+    fn from(value: &CategoryOfTheRemediation) -> Self {
         match value {
-            CsafRemediationCategory::Mitigation => RemediationCategory::Mitigation,
-            CsafRemediationCategory::NoFixPlanned => RemediationCategory::NoFixPlanned,
-            CsafRemediationCategory::NoneAvailable => RemediationCategory::NoneAvailable,
-            CsafRemediationCategory::VendorFix => RemediationCategory::VendorFix,
-            CsafRemediationCategory::Workaround => RemediationCategory::Workaround,
+            CategoryOfTheRemediation::Mitigation => RemediationCategory::Mitigation,
+            CategoryOfTheRemediation::NoFixPlanned => RemediationCategory::NoFixPlanned,
+            CategoryOfTheRemediation::NoneAvailable => RemediationCategory::NoneAvailable,
+            CategoryOfTheRemediation::VendorFix => RemediationCategory::VendorFix,
+            CategoryOfTheRemediation::Workaround => RemediationCategory::Workaround,
         }
     }
 }

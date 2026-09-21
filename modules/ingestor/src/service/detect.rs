@@ -16,7 +16,7 @@ use crate::{
         weakness::CweCatalogLoader,
     },
 };
-use csaf::Csaf;
+use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use cve::Cve;
 use osv::schema::Vulnerability;
 use quick_xml::{Reader, events::Event};
