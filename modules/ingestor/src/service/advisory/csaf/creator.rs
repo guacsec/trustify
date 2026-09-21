@@ -1,3 +1,4 @@
+use super::value::OnInvalidData;
 use crate::{
     graph::{
         Graph,
@@ -19,6 +20,7 @@ use crate::{
 use csaf::schema::csaf2_0::schema::{
     CommonSecurityAdvisoryFramework as Csaf, ProductsT, Remediation,
 };
+use sbom_walker::report::ReportSink;
 use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
@@ -81,7 +83,9 @@ impl<'a> StatusCreator<'a> {
         &mut self,
         ps: &Option<ProductsT>,
         status: &'static str,
-    ) -> Result<(), anyhow::Error> {
+        on_invalid: OnInvalidData,
+        report: &dyn ReportSink,
+    ) -> Result<(), Error> {
         for r in ps.iter().flat_map(|ps| &ps.0) {
             let mut product = ProductStatus {
                 status,
@@ -104,8 +108,8 @@ impl<'a> StatusCreator<'a> {
                 product = self.cache.trace_product(product_id).iter().try_fold(
                     product,
                     |mut product, branch| {
-                        product.update_from_branch(branch)?;
-                        Ok::<_, anyhow::Error>(product)
+                        product.update_from_branch(branch, on_invalid, report)?;
+                        Ok::<_, Error>(product)
                     },
                 )?;
             }
