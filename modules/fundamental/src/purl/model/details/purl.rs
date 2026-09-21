@@ -384,6 +384,7 @@ impl PurlAdvisory {
                     Expr::col((purl_status::Entity, purl_status::Column::VulnerabilityId))
                         .eq(PgFunc::any(vulnerability_ids)),
                 )
+                .order_by_asc(version_range::Column::HighVersion)
                 .into_model::<FixVersionEntry>()
                 .all(tx)
                 .await?;
