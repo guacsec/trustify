@@ -89,11 +89,6 @@ impl<'g> CveLoader<'g> {
             withdrawn: information.withdrawn,
         };
 
-        // Batch create vulnerability (single entry for CVE, but using creator for consistency)
-        let mut vuln_creator = VulnerabilityCreator::new();
-        vuln_creator.add(id, information.clone());
-        vuln_creator.create(tx).await?;
-
         let entries = Self::build_descriptions(descriptions);
         let english_description = Self::find_best_description_for_title(descriptions);
 
@@ -113,6 +108,11 @@ impl<'g> CveLoader<'g> {
             }
             Outcome::Added(advisory) => advisory,
         };
+
+        // Batch create vulnerability (single entry for CVE, but using creator for consistency)
+        let mut vuln_creator = VulnerabilityCreator::new();
+        vuln_creator.add(id, information.clone());
+        vuln_creator.create(tx).await?;
 
         // Link the advisory to the backing vulnerability
         let advisory_vuln = advisory

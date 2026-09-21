@@ -56,7 +56,15 @@ impl<'g> ClearlyDefinedLoader<'g> {
                 )
                 .await?
             {
-                Outcome::Existed(sbom) => sbom,
+                Outcome::Existed(sbom) => {
+                    return Ok(IngestResult {
+                        id: sbom.sbom.sbom_id.to_string(),
+                        document_id: sbom.sbom.document_id,
+                        duplicate: true,
+                        warnings: vec![],
+                        validation: Vec::new(),
+                    });
+                }
                 Outcome::Added(sbom) => {
                     if let Some(license) = license {
                         sbom.ingest_purl_license_assertion(license, tx).await?;

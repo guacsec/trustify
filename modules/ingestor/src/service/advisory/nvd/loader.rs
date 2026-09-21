@@ -1,6 +1,6 @@
 use crate::{
     graph::{
-        Graph,
+        Graph, Outcome,
         advisory::{
             AdvisoryInformation, AdvisoryVulnerabilityInformation,
             version::{Version, VersionInfo, VersionSpec},
@@ -74,6 +74,33 @@ impl<'g> NvdLoader<'g> {
         let scores = extract_scores(&id, &cve.metrics);
         let base_score = best_base_score(&scores);
 
+        let advisory_info = AdvisoryInformation {
+            id: id.clone(),
+            title: title.clone(),
+            version: None,
+            issuer: Some(NVD_ISSUER.to_string()),
+            published,
+            modified,
+            withdrawn: None,
+        };
+
+        let advisory = match self
+            .graph
+            .ingest_advisory(&id, labels, digests, advisory_info, tx)
+            .await?
+        {
+            Outcome::Existed(advisory) => {
+                return Ok(IngestResult {
+                    id: advisory.advisory.id.to_string(),
+                    document_id: Some(id),
+                    duplicate: true,
+                    warnings: warnings.into(),
+                    validation: Vec::new(),
+                });
+            }
+            Outcome::Added(advisory) => advisory,
+        };
+
         // Upsert the vulnerability. NVD does not claim to be the authoritative
         // advisory for a CVE, so we deliberately do not touch
         // `authoritative_advisory_id` (that is owned by the CVE-List path).
@@ -91,21 +118,6 @@ impl<'g> NvdLoader<'g> {
             },
         );
         vuln_creator.create(tx).await?;
-
-        let advisory_info = AdvisoryInformation {
-            id: id.clone(),
-            title: title.clone(),
-            version: None,
-            issuer: Some(NVD_ISSUER.to_string()),
-            published,
-            modified,
-            withdrawn: None,
-        };
-
-        let advisory = self
-            .graph
-            .ingest_advisory(&id, labels, digests, advisory_info, tx)
-            .await?;
 
         let advisory_vuln = advisory
             .link_to_vulnerability(

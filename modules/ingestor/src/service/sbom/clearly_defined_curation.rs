@@ -30,7 +30,15 @@ impl<'g> ClearlyDefinedCurationLoader<'g> {
             .ingest_sbom(labels, digests, Some(curation.document_id()), &curation, tx)
             .await?
         {
-            Outcome::Existed(sbom) => sbom,
+            Outcome::Existed(sbom) => {
+                return Ok(IngestResult {
+                    id: sbom.sbom.sbom_id.to_string(),
+                    document_id: sbom.sbom.document_id,
+                    duplicate: true,
+                    warnings: vec![],
+                    validation: Vec::new(),
+                });
+            }
             Outcome::Added(sbom) => {
                 sbom.ingest_clearly_defined_curation(curation, tx)
                     .await
