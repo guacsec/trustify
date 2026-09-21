@@ -1181,6 +1181,8 @@ pub struct LicenseBasicInfo {
 pub struct QueryCatcher {
     pub advisory: Arc<advisory::Model>,
     pub qualified_purl: Option<Arc<qualified_purl::Model>>,
+    /// The base PURL ID for the matched purl_status row. None for CPE-based product status rows.
+    pub base_purl_id: Option<Uuid>,
     pub sbom_package: Arc<sbom_package::Model>,
     pub sbom_node: Arc<sbom_node::Model>,
     pub advisory_vulnerability: Arc<advisory_vulnerability::Model>,
@@ -1214,6 +1216,9 @@ impl FromQueryResult for QueryCatcher {
                 qualified_purl::Entity,
             )?
             .map(Arc::new),
+            base_purl_id: res
+                .try_get::<Option<Uuid>>("", "base_purl_id")
+                .unwrap_or(None),
             sbom_package: Arc::new(Self::from_query_result_multi_model(
                 res,
                 "",
