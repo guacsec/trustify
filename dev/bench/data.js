@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789984014514,
+  "lastUpdate": 1789993971328,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22179,6 +22179,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "0037b4b20e6a861f45fb2454a0b5858ace62702a",
+          "message": "build(deps): bump Antora and js-yaml in docs book",
+          "timestamp": "2026-09-21T11:49:23Z",
+          "tree_id": "e8e87d70e81131b4345874f2ca17c898823eceaf",
+          "url": "https://github.com/guacsec/trustify/commit/0037b4b20e6a861f45fb2454a0b5858ace62702a"
+        },
+        "date": 1789993969660,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 6,
             "unit": "s"
           }
         ]
