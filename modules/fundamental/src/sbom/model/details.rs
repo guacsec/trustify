@@ -13,7 +13,7 @@ use crate::{
 use ::cpe::uri::OwnedUri;
 use sea_orm::{
     ConnectionTrait, DbBackend, DbErr, EntityTrait, FromQueryResult, JoinType, ModelTrait,
-    QueryFilter, QueryResult, QuerySelect, RelationTrait, Statement,
+    QueryFilter, QueryOrder, QueryResult, QuerySelect, RelationTrait, Statement,
 };
 use sea_query::{Asterisk, Expr, Func, PgFunc, SimpleExpr};
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,7 @@ use uuid::Uuid;
 struct IdSet {
     advisory_id: Uuid,
     qualified_purl_id: Option<Uuid>,
+    base_purl_id: Option<Uuid>,
     sbom_id: Uuid,
     sbom_node_id: String,
     advisory_vulnerability_advisory_id: Uuid,
@@ -51,6 +52,7 @@ impl FromQueryResult for IdSet {
         Ok(Self {
             advisory_id: res.try_get("", "advisory_id")?,
             qualified_purl_id: res.try_get::<Option<Uuid>>("", "qualified_purl_id")?,
+            base_purl_id: res.try_get::<Option<Uuid>>("", "base_purl_id")?,
             sbom_id: res.try_get("", "sbom_id")?,
             sbom_node_id: res.try_get("", "node_id")?,
             advisory_vulnerability_advisory_id: res.try_get("", "av_advisory_id")?,
@@ -68,6 +70,7 @@ impl FromQueryResult for IdSet {
 struct FixVersionEntry {
     advisory_id: Uuid,
     vulnerability_id: String,
+    base_purl_id: Uuid,
     high_version: Option<String>,
 }
 
@@ -106,6 +109,7 @@ impl SbomDetails {
             )
             .column_as(vulnerability::Column::Id, "vulnerability_id")
             .column_as(qualified_purl::Column::Id, "qualified_purl_id")
+            .column_as(base_purl::Column::Id, "base_purl_id")
             .column_as(sbom_package::Column::SbomId, "sbom_id")
             .column_as(sbom_package::Column::NodeId, "node_id")
             .column_as(status::Column::Id, "status_id")
@@ -397,6 +401,7 @@ impl SbomDetails {
             .select_only()
             .column_as(purl_status::Column::AdvisoryId, "advisory_id")
             .column_as(purl_status::Column::VulnerabilityId, "vulnerability_id")
+            .column_as(purl_status::Column::BasePurlId, "base_purl_id")
             .column_as(version_range::Column::HighVersion, "high_version")
             .join(JoinType::Join, purl_status::Relation::Status.def())
             .join(JoinType::Join, purl_status::Relation::VersionRange.def())
@@ -409,6 +414,7 @@ impl SbomDetails {
                 Expr::col((purl_status::Entity, purl_status::Column::VulnerabilityId))
                     .eq(PgFunc::any(vulnerability_ids)),
             )
+            .order_by_asc(version_range::Column::HighVersion)
             .into_model::<FixVersionEntry>()
             .all(tx)
             .instrument(info_span!("fetch fix versions"))
@@ -418,7 +424,9 @@ impl SbomDetails {
             fix_version_entries.len()
         );
 
-        let mut fix_versions_map: BTreeMap<(Uuid, String), Vec<String>> = BTreeMap::new();
+        // Key by (advisory_id, vulnerability_id, base_purl_id) to avoid mixing fix versions
+        // from different packages that share the same advisory and vulnerability.
+        let mut fix_versions_map: BTreeMap<(Uuid, String, Uuid), Vec<String>> = BTreeMap::new();
         for entry in fix_version_entries {
             if let Some(version) = entry.high_version {
                 // Skip container image digests — only keep actual version strings
@@ -426,7 +434,11 @@ impl SbomDetails {
                     continue;
                 }
                 let versions = fix_versions_map
-                    .entry((entry.advisory_id, entry.vulnerability_id))
+                    .entry((
+                        entry.advisory_id,
+                        entry.vulnerability_id,
+                        entry.base_purl_id,
+                    ))
                     .or_default();
                 if !versions.contains(&version) {
                     versions.push(version);
@@ -498,6 +510,7 @@ impl SbomDetails {
             relevant_advisory_info.push(QueryCatcher {
                 advisory: Arc::clone(advisory),
                 qualified_purl: qualified_purl.clone(),
+                base_purl_id: id_set.base_purl_id,
                 sbom_package: Arc::clone(sbom_package),
                 sbom_node: Arc::clone(sbom_node),
                 advisory_vulnerability: Arc::clone(advisory_vulnerability),
@@ -532,7 +545,7 @@ impl SbomAdvisory {
     pub async fn from_models<C: ConnectionTrait>(
         statuses: Vec<QueryCatcher>,
         scores_map: &BTreeMap<(Uuid, String), Vec<advisory_vulnerability_score::Model>>,
-        fix_versions_map: &BTreeMap<(Uuid, String), Vec<String>>,
+        fix_versions_map: &BTreeMap<(Uuid, String, Uuid), Vec<String>>,
         tx: &C,
     ) -> Result<Vec<Self>, Error> {
         let mut advisories = BTreeMap::new();
@@ -582,7 +595,11 @@ impl SbomAdvisory {
                         .cloned()
                         .unwrap_or_default(),
                     fix_versions_map
-                        .get(&(each.advisory.id, each.vulnerability.id.clone()))
+                        .get(&(
+                            each.advisory.id,
+                            each.vulnerability.id.clone(),
+                            each.base_purl_id.unwrap_or(Uuid::nil()),
+                        ))
                         .cloned()
                         .unwrap_or_default(),
                 )?;
