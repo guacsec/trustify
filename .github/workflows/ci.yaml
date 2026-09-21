@@ -145,6 +145,11 @@ jobs:
               exit 1
           fi
       - name: Check the docs
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build the docs
         run: |
           cd docs/book
           npm ci

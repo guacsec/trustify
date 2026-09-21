@@ -1,13 +1,16 @@
 {
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {
-    "@antora/cli": "3.1.15",
-    "@antora/site-generator": "3.1.15"
+    "@antora/cli": "3.2.0",
+    "@antora/site-generator": "3.2.0"
   },
   "dependencies": {
-    "antora": "^3.1.15"
+    "antora": "^3.2.0"
   },
   "overrides": {
-    "js-yaml": "^4.2.0",
+    "js-yaml": "~5.4.0",
     "brace-expansion": "^1.1.16"
   }
 }
