@@ -141,6 +141,63 @@ async fn parse_cyclonedx_1dot6(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
     .await
 }
 
+/// Verifies that a CycloneDX 1.7 SBOM ingests and exposes its packages, authors,
+/// and suppliers the same way a 1.6 SBOM does (1.7-only fields are ignored by the
+/// current `v_1_6` deserialization path).
+#[test_context(TrustifyContext)]
+#[test(tokio::test)]
+async fn parse_cyclonedx_1dot7(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given a minimal CycloneDX 1.7 SBOM
+    test_with_cyclonedx(
+        ctx,
+        "cyclonedx/simple_1dot7.json",
+        async move |WithContext { service, sbom, .. }| {
+            // When fetching the packages the SBOM describes
+            let described = service
+                .describes_packages::<_, _, SbomPackage>(
+                    sbom.sbom.sbom_id,
+                    Paginated::default(),
+                    &ctx.db,
+                )
+                .await?;
+
+            // Then the top-level component and package/author/supplier data match
+            assert_eq!(1, described.items.len());
+
+            let package = &described.items[0];
+
+            assert_eq!(package.name, "simple");
+            assert_eq!(package.version, None);
+            assert_eq!(0, package.purl.len());
+
+            assert!(package.cpe.is_empty());
+
+            let packages = service
+                .fetch_sbom_packages(
+                    sbom.sbom.sbom_id,
+                    Default::default(),
+                    Paginated {
+                        offset: 0,
+                        limit: 1,
+                        total: true,
+                    },
+                    &ctx.db,
+                )
+                .await?;
+
+            log::debug!("{packages:?}");
+
+            assert_eq!(Some(9), packages.total);
+
+            assert_eq!(sbom.sbom.authors, vec!["Some Author".to_string()]);
+            assert_eq!(sbom.sbom.suppliers, vec!["Some Supplier".to_string()]);
+
+            Ok(())
+        },
+    )
+    .await
+}
+
 #[instrument(skip(ctx, f))]
 pub async fn test_with_cyclonedx<F>(ctx: &TrustifyContext, sbom: &str, f: F) -> anyhow::Result<()>
 where
