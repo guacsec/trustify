@@ -8,6 +8,7 @@
 //! See ADR 00020 for the design and rationale.
 
 pub mod config;
+pub mod csaf;
 pub mod scheck;
 
 pub use config::{Backend, ValidatorConfig, ValidatorsConfig, build};
@@ -32,6 +33,8 @@ use std::fmt::Debug;
     serde::Deserialize,
     utoipa::ToSchema,
 )]
+// Renamed in OpenAPI to avoid collision with the CVSS `Severity` schema.
+#[schema(as = ValidationSeverity)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
     Info,

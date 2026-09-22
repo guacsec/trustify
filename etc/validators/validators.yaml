@@ -11,7 +11,20 @@
 # validation is disabled and ingestion behaves as before.
 
 validators:
-  # CSAF advisories: record findings only, never block ingestion.
+  # CSAF advisories: official spec validation via csaf-rs.
+  # Profiles: basic (schema + mandatory), extended (+ recommended),
+  # full (+ informative). CSAF 2.1 also supports: mandatory,
+  # recommended, informative, schema, external-request-free,
+  # consistent-revision-history, consistent-date-times, ssvc.
+  - name: csaf-spec
+    backend: csaf
+    formats: [csaf]
+    profile: basic
+    mode: report
+    threshold: error
+    on_error: continue
+
+  # CSAF advisories: additional scheck-based structural checks.
   - name: csaf-mandatory
     backend: scheck
     formats: [csaf]
