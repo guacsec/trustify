@@ -18,6 +18,7 @@ use crate::{
     },
     runner::{
         context::RunContext,
+        progress::{Progress, ProgressInstance},
         report::{Phase, ReportBuilder, ScannerError},
     },
     server::RunOutput,
@@ -26,8 +27,7 @@ use base64::{Engine as _, engine::general_purpose};
 use error::Error as HttpError;
 use parking_lot::Mutex;
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderName, HeaderValue};
-use std::sync::Arc;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 use tracing::instrument;
 use trustify_module_ingestor::{
     graph::Graph,
@@ -55,9 +55,6 @@ impl super::ImportRunner {
             IngestorService::new(Graph::new(), self.storage.clone(), self.analysis.clone());
         let report = Arc::new(Mutex::new(ReportBuilder::new()));
 
-        // progress reporting
-        let _progress = context.progress(format!("Import HTTP: {}", http.source));
-
         // Build a reqwest client, adding authentication headers when configured.
         let fetcher = build_fetcher(&http, &self.credential_config).await?;
 
@@ -77,6 +74,10 @@ impl super::ImportRunner {
             .labels
             .clone()
             .add("source", http.source.clone());
+
+        // Start progress now that we know the file count from discovery.
+        let progress = context.progress(format!("Import HTTP: {}", http.source));
+        let mut progress = progress.start(files.len());
 
         // Inline retrieval loop — avoids requiring Send on the ingestor future.
         for file in files {
@@ -130,7 +131,9 @@ impl super::ImportRunner {
                     .lock()
                     .add_error(Phase::Upload, &url_str, err.to_string()),
             }
+            progress.tick().await;
         }
+        progress.finish().await;
 
         let report = match Arc::try_unwrap(report) {
             Ok(report) => report.into_inner(),
