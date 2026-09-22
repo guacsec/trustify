@@ -487,10 +487,18 @@ pub async fn delete_many(
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
 
-    let ids = body
-        .into_iter()
-        .filter_map(|x| Uuid::try_parse(&x).ok())
-        .collect();
+    let mut ids: Vec<Uuid> = Vec::new();
+    for s in body {
+        match Id::from_str(&s) {
+            Ok(Id::Uuid(uuid)) => ids.push(uuid),
+            Ok(digest_id) => {
+                if let Some((v, _, _)) = service.fetch_sbom(digest_id, &tx).await? {
+                    ids.push(v.sbom_id);
+                }
+            }
+            Err(_) => {}
+        }
+    }
 
     let digests = service.delete_sboms(ids, &tx).await?;
 
