@@ -81,7 +81,6 @@ mod m0002340_backfill_rpm_epoch;
 mod m0002350_drop_purl_status_gist_index;
 mod m0002360_pythonver_cmp_parallel_restricted;
 mod m0002370_importer_quay_auth;
-
 mod m0002380_expand_sbom_describing_cpes;
 
 pub trait MigratorExt: Send {
