@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790018467495,
+  "lastUpdate": 1790061184001,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22353,6 +22353,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "5f576d1a3ec55b4eca7f52ecf081af8df9c19ded",
+          "message": "chore(lint): deny todo!, panic!, and unimplemented! in production code\n\nAdd clippy::todo, clippy::panic, and clippy::unimplemented as denied lints\nin precommit, CI, and .clippy.toml (panic allowed in tests). Fix existing\nviolations: replace panic with error return in auth validation, implement\nCommandFactory methods in endpoint config, remove dead sboms_containing\nmethod, and allow panic in integration test crate root.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-09-22T06:39:35Z",
+          "tree_id": "89121959bca8b5ada21fb23a46567619dcc65248",
+          "url": "https://github.com/guacsec/trustify/commit/5f576d1a3ec55b4eca7f52ecf081af8df9c19ded"
+        },
+        "date": 1790061181813,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
