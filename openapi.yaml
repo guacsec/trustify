@@ -5461,7 +5461,7 @@ components:
           - 'null'
           description: Identifier of the rule that produced the finding, when available.
         severity:
-          $ref: '#/components/schemas/Severity'
+          $ref: '#/components/schemas/ValidationSeverity'
           description: The severity of this finding.
     Format:
       type: string
@@ -7746,6 +7746,17 @@ components:
         validator:
           type: string
           description: The [`Validator::name`] that produced this report.
+    ValidationSeverity:
+      type: string
+      description: |-
+        Severity of a single validation finding.
+
+        Ordered from least to most severe, so `>=` comparisons express a threshold.
+      enum:
+      - info
+      - warning
+      - error
+      - fatal
     VersionRange:
       oneOf:
       - type: object

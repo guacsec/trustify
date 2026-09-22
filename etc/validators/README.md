@@ -37,6 +37,8 @@ RUST_LOG=trustify_module_ingestor=debug
 
 Each validator declares:
 
+- `backend` — `scheck` (assertion-based rules) or `csaf` (official CSAF spec
+  validator via `csaf-rs`).
 - `formats` — which documents it applies to. Concrete formats (`csaf`, `spdx`,
   `cyclonedx`, `osv`, `cve`) or categories (`sbom` = SPDX + CycloneDX,
   `advisory` = CSAF + CVE + OSV).
@@ -46,11 +48,18 @@ Each validator declares:
   < `error` < `fatal`); default `error`.
 - `on_error` — in `verify` mode, what to do if the validator itself fails to
   run: `block` (treat as a failed gate) or `continue`.
-- `phase` — optional scheck phase to activate; omit to run all patterns.
+- `phase` — optional scheck phase to activate; omit to run all patterns
+  (scheck backend only).
+- `profile` — CSAF validation profile / preset (csaf backend only). For CSAF
+  2.0: `basic`, `extended`, `full`. CSAF 2.1 adds: `mandatory`, `recommended`,
+  `informative`, `schema`, `external-request-free`,
+  `consistent-revision-history`, `consistent-date-times`, `ssvc`. Defaults to
+  `basic`.
 
-In the provided config, `csaf-mandatory` and `cyclonedx-min` run in `report`
-mode (observability only) while `spdx-min` runs in `verify` mode and will
-reject non-conforming SPDX documents.
+In the provided config, `csaf-spec` runs official CSAF specification tests
+in `report` mode. `csaf-mandatory` and `cyclonedx-min` run scheck-based
+checks in `report` mode (observability only) while `spdx-min` runs in
+`verify` mode and will reject non-conforming SPDX documents.
 
 On startup, `trustd` logs the set of engaged validators (name, mode, and
 applicable formats), or a note that validation is disabled when none are

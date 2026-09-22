@@ -9171,6 +9171,7 @@ dependencies = [
  "cpe",
  "criterion",
  "csaf",
+ "csaf-rs",
  "cve",
  "cvss-rs 0.4.0",
  "hex",
