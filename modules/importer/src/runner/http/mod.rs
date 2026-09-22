@@ -183,8 +183,9 @@ async fn build_fetcher(
                     let t = token
                         .resolve(credential_config, ())
                         .map_err(|e| ScannerError::Critical(e.into()))?;
-                    let value = reqwest::header::HeaderValue::from_str(&format!("Bearer {t}"))
-                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    let value =
+                        reqwest::header::HeaderValue::from_str(&format!("Bearer {}", t.trim()))
+                            .map_err(|e| ScannerError::Critical(e.into()))?;
                     headers.insert(reqwest::header::AUTHORIZATION, value);
                 }
                 AuthMethod::ApiKey {
@@ -196,7 +197,7 @@ async fn build_fetcher(
                         .map_err(|e| ScannerError::Critical(e.into()))?;
                     let name = reqwest::header::HeaderName::from_bytes(header.as_bytes())
                         .map_err(|e| ScannerError::Critical(e.into()))?;
-                    let value = reqwest::header::HeaderValue::from_str(&v)
+                    let value = reqwest::header::HeaderValue::from_str(v.trim())
                         .map_err(|e| ScannerError::Critical(e.into()))?;
                     headers.insert(name, value);
                 }
@@ -486,6 +487,88 @@ mod test {
             .await?;
 
         // Then the run succeeds (warning is a tracing event, not an error)
+        assert_eq!(output.report.number_of_items, 0);
+        assert!(output.report.messages.is_empty());
+
+        Ok(())
+    }
+
+    /// Verifies that a Bearer token with a trailing newline (as produced by most editors
+    /// when saving credential files) is trimmed before `HeaderValue::from_str`, so the
+    /// run does not crash with `InvalidHeaderValue`.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_once_http_bearer_token_with_trailing_newline_is_trimmed(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use crate::model::auth::{AuthConfig, AuthMethod, CredentialSource};
+        use wiremock::matchers::header;
+
+        // Given a mock server expecting the header without the trailing newline
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/PULP_MANIFEST"))
+            .and(header("authorization", "Bearer mytoken"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(""))
+            .mount(&server)
+            .await;
+
+        // And an importer whose Bearer token has a trailing newline
+        let mut imp = importer(server.uri());
+        imp.auth = Some(AuthConfig {
+            method: AuthMethod::Bearer {
+                token: CredentialSource::Inline("mytoken\n".into()),
+            },
+        });
+
+        // When run_once_http is called
+        let output = runner(ctx)
+            .run_once_http((), imp, serde_json::Value::Null)
+            .await?;
+
+        // Then the trimmed token is sent and the run succeeds
+        assert_eq!(output.report.number_of_items, 0);
+        assert!(output.report.messages.is_empty());
+
+        Ok(())
+    }
+
+    /// Verifies that an API-key value with a trailing newline is trimmed before
+    /// `HeaderValue::from_str`, so the run does not crash with `InvalidHeaderValue`.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_once_http_api_key_with_trailing_newline_is_trimmed(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use crate::model::auth::{AuthConfig, AuthMethod, CredentialSource};
+        use wiremock::matchers::header;
+
+        // Given a mock server expecting the header without the trailing newline
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/PULP_MANIFEST"))
+            .and(header("x-api-key", "secretvalue"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(""))
+            .mount(&server)
+            .await;
+
+        // And an importer whose API-key value has a trailing newline
+        let mut imp = importer(server.uri());
+        imp.auth = Some(AuthConfig {
+            method: AuthMethod::ApiKey {
+                header: "x-api-key".into(),
+                value: CredentialSource::Inline("secretvalue\n".into()),
+            },
+        });
+
+        // When run_once_http is called
+        let output = runner(ctx)
+            .run_once_http((), imp, serde_json::Value::Null)
+            .await?;
+
+        // Then the trimmed value is sent and the run succeeds
         assert_eq!(output.report.number_of_items, 0);
         assert!(output.report.messages.is_empty());
 
