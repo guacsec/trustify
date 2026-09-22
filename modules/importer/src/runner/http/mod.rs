@@ -12,7 +12,10 @@ pub use pulp::PulpManifest;
 pub use retrieval::{retrieve_files, sha256_hex, verify_integrity};
 
 use crate::{
-    model::{HttpDiscovery, HttpImporter, auth::AuthMethod},
+    model::{
+        HttpDiscovery, HttpImporter,
+        auth::{AuthMethod, CredentialConfig},
+    },
     runner::{
         context::RunContext,
         report::{Phase, ReportBuilder, ScannerError},
@@ -77,6 +80,9 @@ impl super::ImportRunner {
 
         // Inline retrieval loop — avoids requiring Send on the ingestor future.
         for file in files {
+            if context.is_canceled().await {
+                break;
+            }
             let url_str = file.url.to_string();
 
             let data = match fetcher.fetch::<bytes::Bytes>(file.url.as_str()).await {
@@ -149,7 +155,7 @@ impl super::ImportRunner {
 /// `fetch_retries` is set alongside `auth` so operators are aware.
 async fn build_fetcher(
     http: &HttpImporter,
-    credential_config: &crate::model::auth::CredentialConfig,
+    credential_config: &CredentialConfig,
 ) -> Result<Fetcher, ScannerError> {
     match &http.auth {
         None => {
@@ -217,9 +223,10 @@ async fn build_fetcher(
 mod test {
     use crate::{
         model::{CommonImporter, HttpDiscovery, HttpImporter, auth::CredentialConfig},
-        runner::ImportRunner,
+        runner::{ImportRunner, context::RunContext},
     };
     use sha2::{Digest as _, Sha256};
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
     use test_context::test_context;
     use test_log::test;
@@ -451,6 +458,66 @@ mod test {
 
         assert_eq!(output.report.number_of_items, 0);
         assert!(output.report.messages.is_empty());
+
+        Ok(())
+    }
+
+    /// A [`RunContext`] that cancels after the first `is_canceled` check returns
+    /// `false`. Used to test that `run_once_http` stops the file loop early.
+    struct CancelAfterFirst {
+        calls: AtomicUsize,
+    }
+
+    impl std::fmt::Debug for CancelAfterFirst {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("CancelAfterFirst").finish()
+        }
+    }
+
+    impl RunContext for CancelAfterFirst {
+        fn name(&self) -> &str {
+            "cancel-after-first"
+        }
+
+        async fn is_canceled(&self) -> bool {
+            self.calls.fetch_add(1, Ordering::Relaxed) > 0
+        }
+    }
+
+    /// Verifies that cancellation during a multi-file HTTP import stops the file
+    /// loop: after `is_canceled` returns `true`, no subsequent files are fetched
+    /// or ingested.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_once_http_cancellation_stops_file_loop(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        // Given a Pulp server with two files and a context that cancels after
+        // the first iteration
+        let server = pulp_server().await;
+        let source = server.uri();
+
+        let context = CancelAfterFirst {
+            calls: AtomicUsize::new(0),
+        };
+
+        // When run_once_http is called with the cancelling context
+        let output = runner(ctx)
+            .run_once_http(context, importer(source), serde_json::Value::Null)
+            .await?;
+
+        // Then only the first file is ingested; the second file (bad.json) is
+        // never fetched so no integrity error is recorded.
+        assert_eq!(
+            output.report.number_of_items, 1,
+            "expected 1 item ingested before cancellation, got {}",
+            output.report.number_of_items,
+        );
+        assert!(
+            output.report.messages.is_empty(),
+            "expected no errors (bad.json should not have been fetched), got {:?}",
+            output.report.messages,
+        );
 
         Ok(())
     }
