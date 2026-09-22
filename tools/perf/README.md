@@ -89,6 +89,47 @@ make test-readonly SCENARIO_FILE=etc/scenarios/main/full-20260412.json5
 
 Run `make clean` to remove all generated reports and cached files.
 
+## CI Workflows and Dashboards
+
+The repository provides two CI entry points. Both use the repeatable stack from
+[`trustify-scale-test-runs`](https://github.com/guacsec/trustify-scale-test-runs):
+the PostgreSQL/storage snapshot `20260317T023702Z` is restored, migrations are
+applied, the local OIDC client is configured, and the matching scenario is run
+with `uv`:
+
+| Workflow | Trigger | Dashboard |
+|----------|---------|-----------|
+| `perf-test.yaml` | Comment `/perf-test` on a pull request | [PR perf tests](https://guacsec.github.io/perf/pr/) |
+| `loadtest.yaml` | Nightly schedule or manual dispatch | [Daily load tests](https://guacsec.github.io/perf/daily/) |
+
+The combined dashboard is available at
+[`/perf/`](https://guacsec.github.io/perf/). PR runs are stored under
+`gh-pages/perf/pr/runs/`; scheduled runs use `gh-pages/perf/daily/runs/`.
+
+Each run also writes a `metadata.json` file containing the snapshot, scenario,
+branch, commit, workflow URL, and, for PR runs, the pull request URL. This
+metadata is displayed in individual reports and used for source links in the
+dashboard.
+
+## Custom Report Generation
+
+`locust_report.py` turns Locust CSV output into self-contained HTML without
+external dependencies. It supports both individual reports and a multi-run
+dashboard:
+
+```bash
+python3 locust_report.py report results -o report.html \
+  --title "Trustify load test" --target http://localhost:8080
+
+python3 locust_report.py index runs -o site \
+  --title "Trustify load test dashboard" --prune
+```
+
+The index command recursively discovers `*_stats.csv` files, reads optional
+`metadata.json` files beside each run, compares each run with its predecessor,
+and caches parsed summaries. Use `--force` to rebuild all reports or
+`--index-only` to update only the dashboard page.
+
 ## Run (uv run)
 
 For full control, invoke `uv run locust` directly. `uv run` handles

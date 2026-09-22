@@ -1,0 +1,197 @@
+# .github/workflows/loadtest.yaml
+#
+# Runs the Locust load test, stores the raw CSVs on the `gh-pages` branch and
+# rebuilds the dashboard there. GitHub Pages serves that branch.
+#
+# gh-pages layout (the branch is both the data store and the site):
+#   perf/index.html                              dashboard chooser
+#   perf/daily/runs/<run>/results_*.csv.gz       raw daily output
+#   perf/daily/index.html                        daily dashboard
+#   perf/daily/reports/<run>.html                daily per-run reports
+#   perf/daily/.locust-report-cache.json         daily parsed summaries
+#
+# One-time setup:
+#   git switch --orphan gh-pages && git commit --allow-empty -m "init" && git push origin gh-pages
+#   Settings -> Pages -> Deploy from a branch -> gh-pages / (root)
+
+name: Load test
+
+on:
+  schedule:
+    - cron: "0 2 * * *"          # nightly, 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      run_test:
+        description: "Run the load test (untick to only rebuild the site)"
+        type: boolean
+        default: true
+      rebuild:
+        description: "Site rebuild mode"
+        type: choice
+        options: [incremental, index-only, force]
+        default: incremental
+  push:
+    branches: [main]
+    paths: ["tools/perf/locust_report.py"]   # template changed -> the cache invalidates itself
+
+permissions:
+  contents: write
+
+jobs:
+  loadtest:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      run_dir: ${{ steps.meta.outputs.run_dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: echo "run_dir=$(date -u +%Y-%m-%dT%H-%M-%S)_${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # Keep startup in sync with .github/workflows/perf-test.yaml.
+      - uses: ./.github/actions/maximize-build-space
+
+      - uses: actions/checkout@v4
+        with:
+          repository: guacsec/trustify-scale-test-runs
+          path: scale
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+
+      - name: Build scale stack
+        env:
+          SCALE_REV: main
+        run: |
+          docker compose -f scale/compose.yaml build \
+            --build-arg rev="$SCALE_REV" \
+            trustify-migrate trustify
+
+      - name: Start scale stack
+        run: docker compose -f scale/compose.yaml up -d --wait trustify
+
+      - name: Run Locust
+        working-directory: tools/perf
+        env:
+          ISSUER_URL: http://localhost:8090/realms/trustify
+          CLIENT_ID: walker
+          CLIENT_SECRET: ${{ secrets.CLIENT_DUMMY_SECRET }} # dummy local-test credential
+          TOOLS_PERF_SCENARIO_FILE: etc/scenarios/main/full-20260317T023702Z.json5
+          TOOLS_PERF_WAIT_TIME_FROM: "0"
+          TOOLS_PERF_WAIT_TIME_TO: "0"
+        run: |
+          mkdir -p out
+          jq -n \
+            --arg kind daily \
+            --arg dataset scale-20260317T023702Z \
+            --arg scenario "$TOOLS_PERF_SCENARIO_FILE" \
+            --arg branch "$GITHUB_REF_NAME" \
+            --arg commit "$GITHUB_SHA" \
+            --arg commit_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$GITHUB_SHA" \
+            --arg run_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{kind: $kind, dataset: $dataset, scenario: $scenario, branch: $branch, commit: $commit, commit_url: $commit_url, run_url: $run_url}' \
+            > out/metadata.json
+          uv run locust \
+            --host http://localhost:8080 \
+            -u 10 -r 2 -t 10m \
+            --headless \
+            --html=out/report.html \
+            --csv=out/results \
+            --csv-full-history \
+            --exit-code-on-error 0
+
+      - name: Collect scale logs
+        if: always()
+        run: docker compose -f scale/compose.yaml logs > containers.log || true
+
+      - name: Stop scale stack
+        if: always()
+        run: docker compose -f scale/compose.yaml down
+
+      - name: Upload trustd logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scale-${{ steps.meta.outputs.run_dir }}
+          path: containers.log
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: locust-${{ steps.meta.outputs.run_dir }}
+          path: tools/perf/out/
+          retention-days: 14
+
+  publish:
+    needs: loadtest
+    # also runs when loadtest was skipped (push / manual rebuild)
+    if: always() && (needs.loadtest.result == 'success' || needs.loadtest.result == 'skipped')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-gh-pages       # one writer at a time; queued, never cancelled
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: src
+
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: pages
+
+      - name: Add this run
+        if: needs.loadtest.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: locust-${{ needs.loadtest.outputs.run_dir }}
+          path: pages/perf/daily/runs/${{ needs.loadtest.outputs.run_dir }}
+
+      - name: Compress new run
+        if: needs.loadtest.result == 'success'
+        run: gzip -9 pages/perf/daily/runs/${{ needs.loadtest.outputs.run_dir }}/*.csv
+
+      - name: Build site
+        working-directory: pages
+        env:
+          MODE: ${{ inputs.rebuild || 'incremental' }}
+        run: |
+          case "$MODE" in
+            force)      FLAGS="--force" ;;
+            index-only) FLAGS="--index-only" ;;
+            *)          FLAGS="" ;;
+          esac
+          python3 ../src/tools/perf/locust_report.py index daily/runs -o daily $FLAGS --prune \
+            --title "Trustify load tests" --target "trustify (scale snapshot, CI)"
+
+      - name: Build perf dashboard index
+        working-directory: pages
+        run: |
+          mkdir -p perf
+          cat > perf/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en"><head><meta charset="utf-8"><title>Trustify perf tests</title></head>
+          <body><h1>Trustify perf tests</h1>
+          <ul><li><a href="daily/">Daily load tests</a></li>
+          <li><a href="pr/">Pull request perf tests</a></li></ul>
+          </body></html>
+          EOF
+
+      - name: Commit and push
+        working-directory: pages
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "nothing to publish"; exit 0; }
+          git commit -m "load test: ${{ needs.loadtest.outputs.run_dir || format('rebuild ({0})', inputs.rebuild || 'script change') }}"
+          for attempt in 1 2 3; do
+            echo "push attempt $attempt"
+            git push && exit 0
+            git pull --rebase
+            sleep 5
+          done
+          exit 1
