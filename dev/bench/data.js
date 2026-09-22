@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790084059675,
+  "lastUpdate": 1790093595810,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22411,6 +22411,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "78046ce305f8bd99f105cf003455d1ff4db56be8",
+          "message": "fix(migration): normalize version function parallel safety\n\nMark side effect free version comp funcs PARALLEL SAFE while\nkeeping Python version functions PARALLEL RESTRICTED because\npythonver_cmp uses a PL/pgSQL exception block.",
+          "timestamp": "2026-09-22T15:29:26Z",
+          "tree_id": "db983963b3e80399ba71e288492f2606352276f4",
+          "url": "https://github.com/guacsec/trustify/commit/78046ce305f8bd99f105cf003455d1ff4db56be8"
+        },
+        "date": 1790093593295,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
             "unit": "s"
           }
         ]
