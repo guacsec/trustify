@@ -143,7 +143,8 @@ impl super::ImportRunner {
 /// With auth, default headers are installed on the underlying [`reqwest::Client`];
 /// `fetch_retries` is not honoured in this path because [`walker_common::fetcher::Fetcher`]
 /// does not expose a public constructor that accepts both a pre-built client and custom
-/// retry settings — the default of 5 retries applies instead.
+/// retry settings — the default of 5 retries applies instead. A warning is logged when
+/// `fetch_retries` is set alongside `auth` so operators are aware.
 async fn build_fetcher(
     http: &HttpImporter,
     credential_config: &crate::model::auth::CredentialConfig,
@@ -156,6 +157,14 @@ async fn build_fetcher(
                 .map_err(ScannerError::Critical)
         }
         Some(auth) => {
+            if http.fetch_retries.is_some() {
+                tracing::warn!(
+                    "fetch_retries is configured but cannot be applied to authenticated HTTP \
+                     imports: walker_common::Fetcher does not expose a constructor accepting \
+                     both a pre-built client and custom retry settings; \
+                     the fetcher default (5 retries) will be used"
+                );
+            }
             let mut headers = reqwest::header::HeaderMap::new();
             match &auth.method {
                 AuthMethod::Basic { username, password } => {
@@ -438,6 +447,45 @@ mod test {
             .run_once_http((), imp, serde_json::Value::Null)
             .await?;
 
+        assert_eq!(output.report.number_of_items, 0);
+        assert!(output.report.messages.is_empty());
+
+        Ok(())
+    }
+
+    /// Verifies that `run_once_http` completes successfully when both `auth` and
+    /// `fetch_retries` are configured. The warning about fetch_retries being ignored
+    /// is emitted as a tracing event; run with `RUST_LOG=warn` to observe it.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_once_http_warns_when_fetch_retries_set_with_auth(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use crate::model::auth::{AuthConfig, AuthMethod, CredentialSource};
+
+        // Given an importer with both auth and fetch_retries configured
+        let server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/PULP_MANIFEST"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(""))
+            .mount(&server)
+            .await;
+
+        let mut imp = importer(server.uri());
+        imp.fetch_retries = Some(1);
+        imp.auth = Some(AuthConfig {
+            method: AuthMethod::Bearer {
+                token: CredentialSource::Inline("tok".into()),
+            },
+        });
+
+        // When run_once_http is called
+        let output = runner(ctx)
+            .run_once_http((), imp, serde_json::Value::Null)
+            .await?;
+
+        // Then the run succeeds (warning is a tracing event, not an error)
         assert_eq!(output.report.number_of_items, 0);
         assert!(output.report.messages.is_empty());
 
