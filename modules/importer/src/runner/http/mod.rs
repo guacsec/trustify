@@ -166,9 +166,8 @@ async fn build_fetcher(
                         .resolve(credential_config, ())
                         .map_err(|e| ScannerError::Critical(e.into()))?;
                     let encoded = general_purpose::STANDARD.encode(format!("{u}:{p}"));
-                    let value =
-                        reqwest::header::HeaderValue::from_str(&format!("Basic {encoded}"))
-                            .map_err(|e| ScannerError::Critical(e.into()))?;
+                    let value = reqwest::header::HeaderValue::from_str(&format!("Basic {encoded}"))
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
                     headers.insert(reqwest::header::AUTHORIZATION, value);
                 }
                 AuthMethod::Bearer { token } => {
