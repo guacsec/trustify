@@ -142,6 +142,10 @@ jobs:
       - name: Run perf tests
         working-directory: tools/perf
         env:
+          ISSUER_URL: http://localhost:8090/realms/trustify
+          CLIENT_ID: walker
+          # Dummy Keycloak client secret used only by the local test realm.
+          CLIENT_SECRET: ${{ secrets.CLIENT_DUMMY_SECRET }} # notsecret
           TOOLS_PERF_SCENARIO_FILE: etc/scenarios/main/full-20260412.json5
           TOOLS_PERF_WAIT_TIME_FROM: "0"
           TOOLS_PERF_WAIT_TIME_TO: "0"
