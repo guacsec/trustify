@@ -1012,6 +1012,27 @@ paths:
           description: The user did not provide valid authentication credentials
         '403':
           description: The user lacks the required permission
+  /api/v3/correlation/sbom/{id}:
+    get:
+      tags:
+      - correlation
+      summary: Get correlation verdicts for an SBOM.
+      operationId: getSbomCorrelation
+      parameters:
+      - name: id
+        in: path
+        description: SBOM ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Correlation verdicts for the SBOM
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrelationResult'
   /api/v3/dataset:
     post:
       tags:
@@ -4695,6 +4716,14 @@ components:
         status:
           $ref: '#/components/schemas/ExploitIntelligenceJobStatus'
           description: Current lifecycle status of the job.
+    AssertionStatus:
+      type: string
+      enum:
+      - affected
+      - fixed
+      - not_affected
+      - under_investigation
+      - recommended
     AuthConfig:
       type: object
       description: |-
@@ -4972,6 +5001,32 @@ components:
         period:
           type: string
           description: The period the importer should be run.
+    ComponentRef:
+      type: object
+      description: A component may have multiple PURLs, CPEs, and digests.
+      required:
+      - node_id
+      - name
+      - purls
+      - cpes
+      - digests
+      properties:
+        cpes:
+          type: array
+          items:
+            type: string
+        digests:
+          type: array
+          items:
+            $ref: '#/components/schemas/DigestRef'
+        name:
+          type: string
+        node_id:
+          type: string
+        purls:
+          type: array
+          items:
+            type: string
     ComponentResult:
       type: object
       description: Per-component analysis result within an analysis job.
@@ -5020,6 +5075,20 @@ components:
         updated:
           type: string
           description: Timestamp when the component record was last updated.
+    CorrelationResult:
+      type: object
+      description: Top-level correlation result for an SBOM.
+      required:
+      - sbom_id
+      - verdicts
+      properties:
+        sbom_id:
+          type: string
+          format: uuid
+        verdicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerdictSummary'
     Cpe:
       type: string
       format: uri
@@ -5135,6 +5204,17 @@ components:
         properties:
           source:
             type: string
+    DigestRef:
+      type: object
+      description: A checksum on a component.
+      required:
+      - algorithm
+      - value
+      properties:
+        algorithm:
+          type: string
+        value:
+          type: string
     ErrorInformation:
       type: object
       required:
@@ -5151,6 +5231,39 @@ components:
         message:
           type: string
           description: A human-readable error message
+    EvidenceDetail:
+      type: object
+      description: One piece of evidence from the correlation_evidence table.
+      required:
+      - id
+      - match_dimension
+      - assertion_status
+      - confidence
+      - extractor
+      - advisory_id
+      - advisory_identifier
+      - created_at
+      properties:
+        advisory_id:
+          type: string
+          format: uuid
+        advisory_identifier:
+          type: string
+        assertion_status:
+          $ref: '#/components/schemas/AssertionStatus'
+        confidence:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+        extractor:
+          type: string
+        id:
+          type: string
+          format: uuid
+        match_dimension:
+          $ref: '#/components/schemas/MatchDimension'
     Exploit:
       type: object
       description: |-
@@ -5797,6 +5910,12 @@ components:
       properties:
         license:
           type: string
+    MatchDimension:
+      type: string
+      enum:
+      - digest
+      - purl
+      - cpe
     Message:
       type: object
       required:
@@ -7746,6 +7865,34 @@ components:
         validator:
           type: string
           description: The [`Validator::name`] that produced this report.
+    VerdictStatus:
+      type: string
+      description: Resolved verdict status.
+      enum:
+      - affected
+      - fixed
+      - not_affected
+      - under_investigation
+      - none
+    VerdictSummary:
+      type: object
+      description: Resolved determination per (component, vulnerability) pair.
+      required:
+      - component
+      - vulnerability
+      - status
+      - evidence
+      properties:
+        component:
+          $ref: '#/components/schemas/ComponentRef'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceDetail'
+        status:
+          $ref: '#/components/schemas/VerdictStatus'
+        vulnerability:
+          $ref: '#/components/schemas/VulnerabilityRef'
     VersionRange:
       oneOf:
       - type: object
@@ -8030,6 +8177,25 @@ components:
           - 'null'
           format: date-time
           description: The date (in RFC3339 format) of when the vulnerability was last withdrawn, if any.
+    VulnerabilityRef:
+      type: object
+      description: Reference to an advisory's vulnerability assertion.
+      required:
+      - id
+      - advisory_id
+      - advisory_identifier
+      properties:
+        advisory_id:
+          type: string
+          format: uuid
+        advisory_identifier:
+          type: string
+        id:
+          type: string
+        title:
+          type:
+          - string
+          - 'null'
     VulnerabilitySbomStatus:
       allOf:
       - $ref: '#/components/schemas/SbomHead'

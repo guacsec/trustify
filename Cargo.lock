@@ -8994,6 +8994,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "trustify-module-correlation"
+version = "0.6.0-rc.1"
+dependencies = [
+ "actix-http",
+ "actix-web",
+ "anyhow",
+ "rstest",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "test-context",
+ "test-log",
+ "thiserror 2.0.20",
+ "time",
+ "tokio",
+ "tracing",
+ "trustify-auth",
+ "trustify-common",
+ "trustify-entity",
+ "trustify-test-context",
+ "utoipa",
+ "utoipa-actix-web",
+ "uuid",
+]
+
+[[package]]
 name = "trustify-module-exploit-intelligence"
 version = "0.6.0-rc.1"
 dependencies = [
@@ -9359,6 +9385,7 @@ dependencies = [
  "trustify-db",
  "trustify-infrastructure",
  "trustify-module-analysis",
+ "trustify-module-correlation",
  "trustify-module-exploit-intelligence",
  "trustify-module-fundamental",
  "trustify-module-importer",

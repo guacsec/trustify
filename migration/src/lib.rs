@@ -81,6 +81,7 @@ mod m0002340_backfill_rpm_epoch;
 mod m0002350_drop_purl_status_gist_index;
 mod m0002360_pythonver_cmp_parallel_restricted;
 mod m0002370_importer_quay_auth;
+mod m0002380_create_correlation_evidence;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -175,6 +176,7 @@ impl MigratorExt for Migrator {
             .normal(m0002350_drop_purl_status_gist_index::Migration)
             .normal(m0002360_pythonver_cmp_parallel_restricted::Migration)
             .normal(m0002370_importer_quay_auth::Migration)
+            .normal(m0002380_create_correlation_evidence::Migration)
     }
 }
 
