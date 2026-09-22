@@ -1089,11 +1089,27 @@ async fn recommend_report_empty_result(ctx: &TrustifyContext) -> Result<(), anyh
     Ok(())
 }
 
-/// Verifies that when no recommendation patterns are configured, the report endpoint
-/// returns 503 (feature disabled) via the RequireFeature guard.
+/// Verifies that when no recommendation patterns are configured, the report still returns
+/// one per-SBOM entry with zero counts rather than an empty sboms list.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn recommend_report_no_patterns(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given an SBOM with a package
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-no-patterns",
+            "00000000-0000-0000-0000-000000000007",
+            &[(
+                "jakarta.el-api",
+                "3.0.3",
+                "pkg:maven/jakarta.el/jakarta.el-api@3.0.3",
+            )],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When requesting a report with no recommendation patterns configured
     let app = caller_with(
         ctx,
         Config {
@@ -1103,20 +1119,19 @@ async fn recommend_report_no_patterns(ctx: &TrustifyContext) -> Result<(), anyho
         PaginationCache::for_test(),
     )
     .await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
 
-    let resp = app
-        .call_service(
-            TestRequest::post()
-                .uri("/api/v3/recommend/report")
-                .set_json(json!({ "sbomIds": ["00000000-0000-0000-0000-000000000001"] }))
-                .to_request(),
-        )
-        .await;
-
+    // Then the sboms list has one entry with zero counts (not an empty list)
+    let sboms = report["sboms"].as_array().unwrap();
     assert_eq!(
-        resp.status(),
-        actix_web::http::StatusCode::SERVICE_UNAVAILABLE
+        sboms.len(),
+        1,
+        "expected one SBOM entry even with no patterns"
     );
+    assert_eq!(sboms[0]["addressable_packages"], 0);
+    assert_eq!(sboms[0]["vulnerability_count"], 0);
+    assert_eq!(report["packages"].as_array().unwrap().len(), 0);
+    assert_eq!(report["impact_summary"]["sboms_with_recommendations"], 0);
 
     Ok(())
 }
