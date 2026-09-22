@@ -22,7 +22,9 @@ use crate::{
 use base64::{Engine as _, engine::general_purpose};
 use error::Error as HttpError;
 use parking_lot::Mutex;
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderName, HeaderValue};
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::instrument;
 use trustify_module_ingestor::{
     graph::Graph,
@@ -165,7 +167,7 @@ async fn build_fetcher(
                      the fetcher default (5 retries) will be used"
                 );
             }
-            let mut headers = reqwest::header::HeaderMap::new();
+            let mut headers = HeaderMap::new();
             match &auth.method {
                 AuthMethod::Basic { username, password } => {
                     let u = username
@@ -175,18 +177,17 @@ async fn build_fetcher(
                         .resolve(credential_config, ())
                         .map_err(|e| ScannerError::Critical(e.into()))?;
                     let encoded = general_purpose::STANDARD.encode(format!("{u}:{p}"));
-                    let value = reqwest::header::HeaderValue::from_str(&format!("Basic {encoded}"))
+                    let value = HeaderValue::from_str(&format!("Basic {encoded}"))
                         .map_err(|e| ScannerError::Critical(e.into()))?;
-                    headers.insert(reqwest::header::AUTHORIZATION, value);
+                    headers.insert(AUTHORIZATION, value);
                 }
                 AuthMethod::Bearer { token } => {
                     let t = token
                         .resolve(credential_config, ())
                         .map_err(|e| ScannerError::Critical(e.into()))?;
-                    let value =
-                        reqwest::header::HeaderValue::from_str(&format!("Bearer {}", t.trim()))
-                            .map_err(|e| ScannerError::Critical(e.into()))?;
-                    headers.insert(reqwest::header::AUTHORIZATION, value);
+                    let value = HeaderValue::from_str(&format!("Bearer {}", t.trim()))
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    headers.insert(AUTHORIZATION, value);
                 }
                 AuthMethod::ApiKey {
                     header,
@@ -195,15 +196,15 @@ async fn build_fetcher(
                     let v = cred
                         .resolve(credential_config, ())
                         .map_err(|e| ScannerError::Critical(e.into()))?;
-                    let name = reqwest::header::HeaderName::from_bytes(header.as_bytes())
+                    let name = HeaderName::from_bytes(header.as_bytes())
                         .map_err(|e| ScannerError::Critical(e.into()))?;
-                    let value = reqwest::header::HeaderValue::from_str(v.trim())
+                    let value = HeaderValue::from_str(v.trim())
                         .map_err(|e| ScannerError::Critical(e.into()))?;
                     headers.insert(name, value);
                 }
             }
             let client = reqwest::ClientBuilder::new()
-                .timeout(std::time::Duration::from_secs(30))
+                .timeout(Duration::from_secs(30))
                 .default_headers(headers)
                 .build()
                 .map_err(|e| ScannerError::Critical(e.into()))?;
