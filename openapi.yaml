@@ -5541,6 +5541,57 @@ components:
           - string
           - 'null'
           description: The ID of the group's parent.
+    HttpDiscovery:
+      oneOf:
+      - type: object
+        required:
+        - type
+        properties:
+          type:
+            type: string
+            enum:
+            - pulp
+      description: Pluggable file-discovery strategy for the HTTP importer.
+    HttpImporter:
+      allOf:
+      - $ref: '#/components/schemas/CommonImporter'
+      - type: object
+        required:
+        - source
+        - discovery
+        properties:
+          auth:
+            oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/AuthConfig'
+              description: Optional authentication configuration for accessing the source.
+          discovery:
+            $ref: '#/components/schemas/HttpDiscovery'
+            description: File-discovery strategy used to enumerate files in the source.
+          fetchRetries:
+            type:
+            - integer
+            - 'null'
+            description: |-
+              Number of fetch retries for individual file downloads.
+              Defaults to the fetcher's built-in retry count when absent.
+            minimum: 0
+          onlyPatterns:
+            type: array
+            items:
+              type: string
+            description: |-
+              Optional list of regex patterns restricting which discovered files are
+              imported. An empty list imports all discovered files.
+          source:
+            type: string
+            description: Base URL of the HTTP repository to import documents from.
+      description: |-
+        Configuration for the HTTP-based importer.
+
+        Fetches documents from an HTTP repository, using a pluggable
+        discovery strategy to enumerate files and an optional credential
+        for authenticated sources.
     Id:
       type: string
       description: |-
@@ -5621,6 +5672,12 @@ components:
         properties:
           quay:
             $ref: '#/components/schemas/QuayImporter'
+      - type: object
+        required:
+        - http
+        properties:
+          http:
+            $ref: '#/components/schemas/HttpImporter'
     ImporterData:
       type: object
       required:

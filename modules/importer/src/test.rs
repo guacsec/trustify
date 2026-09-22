@@ -1,7 +1,8 @@
 #![cfg(test)]
 
 use super::model::{
-    CommonImporter, Importer, ImporterConfiguration, ImporterData, SbomImporter, State,
+    CommonImporter, HttpDiscovery, HttpImporter, Importer, ImporterConfiguration, ImporterData,
+    SbomImporter, State,
 };
 use actix_http::{Request, body::BoxBody};
 use actix_web::{
@@ -407,4 +408,84 @@ async fn read_only(ctx: &mut ReadOnly<TrustifyContext>) {
 
     let resp = actix::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+}
+
+/// Returns a minimal [`ImporterConfiguration::Http`] pointing at `source`.
+fn mock_http_configuration(source: impl Into<String>) -> ImporterConfiguration {
+    ImporterConfiguration::Http(HttpImporter {
+        common: CommonImporter {
+            disabled: false,
+            period: Duration::from_secs(30),
+            description: None,
+            labels: Default::default(),
+        },
+        source: source.into(),
+        discovery: HttpDiscovery::Pulp,
+        auth: None,
+        only_patterns: vec![],
+        fetch_retries: None,
+    })
+}
+
+/// Verifies the full CRUD lifecycle for an `Http`-variant importer via the
+/// REST API: create, list, get, update, and delete.
+#[test_context(TrustifyContext, skip_teardown)]
+#[test(actix_web::test)]
+async fn http_importer_round_trip(ctx: TrustifyContext) {
+    let app = app(&ctx).await;
+
+    // create
+    let req = actix::TestRequest::post()
+        .uri("/api/v3/importer/http-test")
+        .set_json(mock_http_configuration("http://example.com/repo"))
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::CREATED);
+
+    // list — must contain the new importer
+    let req = actix::TestRequest::get()
+        .uri("/api/v3/importer")
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let result: Vec<Importer> = actix::read_body_json(resp).await;
+    assert_eq!(result.len(), 1);
+    assert_eq!(
+        result[0].data.configuration,
+        mock_http_configuration("http://example.com/repo")
+    );
+
+    // update source URL
+    let req = actix::TestRequest::put()
+        .uri("/api/v3/importer/http-test")
+        .set_json(mock_http_configuration("http://example.com/repo2"))
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+    // get — source must reflect the update
+    let req = actix::TestRequest::get()
+        .uri("/api/v3/importer/http-test")
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::OK);
+    let result: Importer = actix::read_body_json(resp).await;
+    assert_eq!(
+        result.data.configuration,
+        mock_http_configuration("http://example.com/repo2")
+    );
+
+    // delete
+    let req = actix::TestRequest::delete()
+        .uri("/api/v3/importer/http-test")
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::NO_CONTENT);
+
+    // get after delete — must be 404
+    let req = actix::TestRequest::get()
+        .uri("/api/v3/importer/http-test")
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 }
