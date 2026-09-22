@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790061184001,
+  "lastUpdate": 1790084059675,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22377,6 +22377,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/5f576d1a3ec55b4eca7f52ecf081af8df9c19ded"
         },
         "date": 1790061181813,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "c57ff3da29b597fc0a124e50b6caf1a31bae172d",
+          "message": "chore(ci): fix /perf-test missing local oidc so we can perf test this PR",
+          "timestamp": "2026-09-22T12:53:48Z",
+          "tree_id": "0342bf6960ef6f79cd46dbee8451b96824ba0984",
+          "url": "https://github.com/guacsec/trustify/commit/c57ff3da29b597fc0a124e50b6caf1a31bae172d"
+        },
+        "date": 1790084057830,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
