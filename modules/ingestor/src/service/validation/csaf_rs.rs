@@ -133,23 +133,24 @@ impl Validator for CsafValidator {
             ValidatorError::Backend(anyhow!("failed to detect CSAF version: {err}"))
         })?;
 
-        let result = match vd.version.as_str() {
+        let profile = self.profile.clone();
+
+        let result = tokio::task::spawn_blocking(move || match vd.version.as_str() {
             "2.0" => {
                 use csaf_validator::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework;
                 let doc = RawDocument::<CommonSecurityAdvisoryFramework>::new(vd.data);
-                validate_by_preset(&doc, &vd.version, &self.profile)
+                Ok(validate_by_preset(&doc, &vd.version, &profile))
             }
             "2.1" => {
                 use csaf_validator::schema::csaf2_1::schema::CommonSecurityAdvisoryFramework;
                 let doc = RawDocument::<CommonSecurityAdvisoryFramework>::new(vd.data);
-                validate_by_preset(&doc, &vd.version, &self.profile)
+                Ok(validate_by_preset(&doc, &vd.version, &profile))
             }
-            other => {
-                return Err(ValidatorError::Backend(anyhow!(
-                    "unsupported CSAF version: {other}"
-                )));
-            }
-        };
+            other => Err(anyhow!("unsupported CSAF version: {other}")),
+        })
+        .await
+        .map_err(|err| ValidatorError::Backend(anyhow!("blocking task failed: {err}")))?
+        .map_err(ValidatorError::Backend)?;
 
         let findings = map_test_results(&result.test_results);
 
