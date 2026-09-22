@@ -182,7 +182,8 @@ async fn build_fetcher(
                     let p = password
                         .resolve(credential_config, ())
                         .map_err(|e| ScannerError::Critical(e.into()))?;
-                    let encoded = general_purpose::STANDARD.encode(format!("{u}:{p}"));
+                    let encoded =
+                        general_purpose::STANDARD.encode(format!("{}:{}", u.trim(), p.trim()));
                     let value = HeaderValue::from_str(&format!("Basic {encoded}"))
                         .map_err(|e| ScannerError::Critical(e.into()))?;
                     headers.insert(AUTHORIZATION, value);
@@ -383,6 +384,51 @@ mod test {
             .run_once_http((), imp, serde_json::Value::Null)
             .await?;
 
+        assert_eq!(output.report.number_of_items, 0);
+        assert!(output.report.messages.is_empty());
+
+        Ok(())
+    }
+
+    /// Verifies that Basic auth username and password with trailing newlines (as produced
+    /// by most editors when saving credential files) are trimmed before base64 encoding,
+    /// so the correct `Authorization: Basic` header is sent.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_once_http_basic_auth_trailing_newline_is_trimmed(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use crate::model::auth::{AuthConfig, AuthMethod, CredentialSource};
+        use base64::{Engine as _, engine::general_purpose};
+        use wiremock::matchers::header;
+
+        // Given a mock server expecting the header encoded from trimmed credentials
+        let server = MockServer::start().await;
+
+        let expected = format!("Basic {}", general_purpose::STANDARD.encode("user:pass"));
+
+        Mock::given(method("GET"))
+            .and(path("/PULP_MANIFEST"))
+            .and(header("authorization", expected.as_str()))
+            .respond_with(ResponseTemplate::new(200).set_body_string(""))
+            .mount(&server)
+            .await;
+
+        // And an importer whose username and password have trailing newlines
+        let mut imp = importer(server.uri());
+        imp.auth = Some(AuthConfig {
+            method: AuthMethod::Basic {
+                username: CredentialSource::Inline("user\n".into()),
+                password: CredentialSource::Inline("pass\n".into()),
+            },
+        });
+
+        // When run_once_http is called
+        let output = runner(ctx)
+            .run_once_http((), imp, serde_json::Value::Null)
+            .await?;
+
+        // Then the trimmed credentials are encoded and the run succeeds
         assert_eq!(output.report.number_of_items, 0);
         assert!(output.report.messages.is_empty());
 
