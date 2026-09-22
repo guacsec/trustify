@@ -64,7 +64,7 @@ impl super::ImportRunner {
                 .map_err(|e| ScannerError::Critical(e.into()))?
                 .discover(&source_url)
                 .await
-                .map_err(|e| ScannerError::Critical(e))?,
+                .map_err(ScannerError::Critical)?,
         };
 
         let labels = http
@@ -137,72 +137,70 @@ impl super::ImportRunner {
     }
 }
 
-/// Build a [`Fetcher`] with optional authentication headers.
+/// Build a [`Fetcher`] for the given importer configuration.
 ///
-/// When no auth is configured, uses [`FetcherOptions`] to set the retry count.
-/// When auth headers are present, the headers are installed as reqwest default
-/// headers; the retry count comes from [`FetcherOptions::default`].
+/// Without auth, `fetch_retries` is applied via [`FetcherOptions`].
+/// With auth, default headers are installed on the underlying [`reqwest::Client`];
+/// `fetch_retries` is not honoured in this path because [`walker_common::fetcher::Fetcher`]
+/// does not expose a public constructor that accepts both a pre-built client and custom
+/// retry settings — the default of 5 retries applies instead.
 async fn build_fetcher(
     http: &HttpImporter,
     credential_config: &crate::model::auth::CredentialConfig,
 ) -> Result<Fetcher, ScannerError> {
-    let retries = http.fetch_retries.unwrap_or(3);
-
-    if http.auth.is_none() {
-        // No auth — use FetcherOptions to control retries.
-        let fetcher = Fetcher::new(FetcherOptions::new().retries(retries))
-            .await
-            .map_err(|e| ScannerError::Critical(e))?;
-        return Ok(fetcher);
-    }
-
-    // Build default headers from the auth configuration.
-    let mut headers = reqwest::header::HeaderMap::new();
-
-    if let Some(ref auth) = http.auth {
-        match &auth.method {
-            AuthMethod::Basic { username, password } => {
-                let u = username
-                    .resolve(credential_config, ())
-                    .map_err(|e| ScannerError::Critical(e.into()))?;
-                let p = password
-                    .resolve(credential_config, ())
-                    .map_err(|e| ScannerError::Critical(e.into()))?;
-                let encoded = general_purpose::STANDARD.encode(format!("{u}:{p}"));
-                let value = reqwest::header::HeaderValue::from_str(&format!("Basic {encoded}"))
-                    .map_err(|e| ScannerError::Critical(e.into()))?;
-                headers.insert(reqwest::header::AUTHORIZATION, value);
+    match &http.auth {
+        None => {
+            let retries = http.fetch_retries.unwrap_or(3);
+            Fetcher::new(FetcherOptions::new().retries(retries))
+                .await
+                .map_err(ScannerError::Critical)
+        }
+        Some(auth) => {
+            let mut headers = reqwest::header::HeaderMap::new();
+            match &auth.method {
+                AuthMethod::Basic { username, password } => {
+                    let u = username
+                        .resolve(credential_config, ())
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    let p = password
+                        .resolve(credential_config, ())
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    let encoded = general_purpose::STANDARD.encode(format!("{u}:{p}"));
+                    let value =
+                        reqwest::header::HeaderValue::from_str(&format!("Basic {encoded}"))
+                            .map_err(|e| ScannerError::Critical(e.into()))?;
+                    headers.insert(reqwest::header::AUTHORIZATION, value);
+                }
+                AuthMethod::Bearer { token } => {
+                    let t = token
+                        .resolve(credential_config, ())
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    let value = reqwest::header::HeaderValue::from_str(&format!("Bearer {t}"))
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    headers.insert(reqwest::header::AUTHORIZATION, value);
+                }
+                AuthMethod::ApiKey {
+                    header,
+                    value: cred,
+                } => {
+                    let v = cred
+                        .resolve(credential_config, ())
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    let name = reqwest::header::HeaderName::from_bytes(header.as_bytes())
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    let value = reqwest::header::HeaderValue::from_str(&v)
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    headers.insert(name, value);
+                }
             }
-            AuthMethod::Bearer { token } => {
-                let t = token
-                    .resolve(credential_config, ())
-                    .map_err(|e| ScannerError::Critical(e.into()))?;
-                let value = reqwest::header::HeaderValue::from_str(&format!("Bearer {t}"))
-                    .map_err(|e| ScannerError::Critical(e.into()))?;
-                headers.insert(reqwest::header::AUTHORIZATION, value);
-            }
-            AuthMethod::ApiKey {
-                header,
-                value: cred,
-            } => {
-                let v = cred
-                    .resolve(credential_config, ())
-                    .map_err(|e| ScannerError::Critical(e.into()))?;
-                let name = reqwest::header::HeaderName::from_bytes(header.as_bytes())
-                    .map_err(|e| ScannerError::Critical(e.into()))?;
-                let value = reqwest::header::HeaderValue::from_str(&v)
-                    .map_err(|e| ScannerError::Critical(e.into()))?;
-                headers.insert(name, value);
-            }
+            let client = reqwest::ClientBuilder::new()
+                .timeout(std::time::Duration::from_secs(30))
+                .default_headers(headers)
+                .build()
+                .map_err(|e| ScannerError::Critical(e.into()))?;
+            Ok(Fetcher::from(client))
         }
     }
-
-    let client = reqwest::ClientBuilder::new()
-        .default_headers(headers)
-        .build()
-        .map_err(|e| ScannerError::Critical(e.into()))?;
-
-    Ok(Fetcher::from(client))
 }
 
 #[cfg(test)]
