@@ -24,7 +24,6 @@ pub struct CsafValidator {
     name: String,
     /// The validation profile (preset) to run: `basic`, `extended`, `full`, etc.
     profile: String,
-    formats: Vec<Format>,
     mode: ValidationMode,
     threshold: Severity,
     on_error: OnError,
@@ -38,7 +37,6 @@ impl CsafValidator {
                 .profile
                 .clone()
                 .unwrap_or_else(|| "basic".to_string()),
-            formats: config.formats.clone(),
             mode: config.mode,
             threshold: config.threshold,
             on_error: config.on_error,
@@ -51,7 +49,6 @@ impl fmt::Debug for CsafValidator {
         f.debug_struct("CsafValidator")
             .field("name", &self.name)
             .field("profile", &self.profile)
-            .field("formats", &self.formats)
             .field("mode", &self.mode)
             .field("threshold", &self.threshold)
             .field("on_error", &self.on_error)
@@ -120,9 +117,7 @@ impl Validator for CsafValidator {
     }
 
     fn applies_to(&self, format: Format) -> bool {
-        self.formats
-            .iter()
-            .any(|configured| format.matches_hint(*configured))
+        format == Format::CSAF
     }
 
     async fn validate(
@@ -281,7 +276,7 @@ mod tests {
     }
 
     #[test]
-    fn applies_to_advisory_category() {
+    fn does_not_apply_to_non_csaf() {
         let config = ValidatorConfig {
             name: "test".into(),
             backend: Backend::Csaf,
@@ -295,7 +290,9 @@ mod tests {
         };
         let v = CsafValidator::new(&config);
         assert!(v.applies_to(Format::CSAF));
-        assert!(v.applies_to(Format::CVE));
+        assert!(!v.applies_to(Format::CVE));
+        assert!(!v.applies_to(Format::OSV));
+        assert!(!v.applies_to(Format::NVD));
     }
 
     #[test]
