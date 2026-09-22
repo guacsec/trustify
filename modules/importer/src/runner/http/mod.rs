@@ -147,19 +147,21 @@ impl super::ImportRunner {
 
 /// Build a [`Fetcher`] for the given importer configuration.
 ///
-/// Without auth, `fetch_retries` is applied via [`FetcherOptions`].
-/// With auth, default headers are installed on the underlying [`reqwest::Client`];
-/// `fetch_retries` is not honoured in this path because [`walker_common::fetcher::Fetcher`]
-/// does not expose a public constructor that accepts both a pre-built client and custom
-/// retry settings — the default of 5 retries applies instead. A warning is logged when
-/// `fetch_retries` is set alongside `auth` so operators are aware.
+/// Both paths default to 5 retries (the [`FetcherOptions`] default) when `fetch_retries`
+/// is not configured. Without auth, the configured `fetch_retries` value is applied via
+/// [`FetcherOptions`]. With auth, default headers are installed on the underlying
+/// [`reqwest::Client`] via `reqwest::ClientBuilder::default_headers`; `fetch_retries`
+/// cannot be honoured in this path because [`walker_common::fetcher::Fetcher`] does not
+/// expose a public constructor that accepts both a pre-built client and custom retry
+/// settings. A warning is logged when `fetch_retries` is explicitly set alongside `auth`
+/// so operators are aware that the configured value is not applied.
 async fn build_fetcher(
     http: &HttpImporter,
     credential_config: &CredentialConfig,
 ) -> Result<Fetcher, ScannerError> {
     match &http.auth {
         None => {
-            let retries = http.fetch_retries.unwrap_or(3);
+            let retries = http.fetch_retries.unwrap_or(5);
             Fetcher::new(FetcherOptions::new().retries(retries))
                 .await
                 .map_err(ScannerError::Critical)
@@ -170,7 +172,7 @@ async fn build_fetcher(
                     "fetch_retries is configured but cannot be applied to authenticated HTTP \
                      imports: walker_common::Fetcher does not expose a constructor accepting \
                      both a pre-built client and custom retry settings; \
-                     the fetcher default (5 retries) will be used"
+                     the configured value is ignored and the Fetcher default (5 retries) is used"
                 );
             }
             let mut headers = HeaderMap::new();
@@ -569,8 +571,10 @@ mod test {
     }
 
     /// Verifies that `run_once_http` completes successfully when both `auth` and
-    /// `fetch_retries` are configured. The warning about fetch_retries being ignored
-    /// is emitted as a tracing event; run with `RUST_LOG=warn` to observe it.
+    /// `fetch_retries` are configured. Both auth and non-auth paths default to 5 retries
+    /// (`FetcherOptions` default) when `fetch_retries` is absent. When `fetch_retries`
+    /// is explicitly set alongside `auth`, a warning is emitted because the configured
+    /// value cannot be applied; run with `RUST_LOG=warn` to observe it.
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn run_once_http_warns_when_fetch_retries_set_with_auth(
