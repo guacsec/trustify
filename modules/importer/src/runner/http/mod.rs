@@ -155,6 +155,11 @@ impl super::ImportRunner {
 /// expose a public constructor that accepts both a pre-built client and custom retry
 /// settings. A warning is logged when `fetch_retries` is explicitly set alongside `auth`
 /// so operators are aware that the configured value is not applied.
+///
+/// The authenticated client uses a custom redirect policy that stops cross-origin redirects
+/// (different scheme, host, or port) to prevent credential leakage: `reqwest` strips
+/// standard headers (`Authorization`) on cross-host redirects per RFC 9110, but does not
+/// strip custom headers such as `x-api-key`. Same-origin redirects continue to be followed.
 async fn build_fetcher(
     http: &HttpImporter,
     credential_config: &CredentialConfig,
@@ -212,9 +217,28 @@ async fn build_fetcher(
                     headers.insert(name, value);
                 }
             }
+            // Restrict redirect following to same-origin hops only (scheme + host + port).
+            // Auth headers are set as client-wide defaults via `default_headers`, which
+            // reqwest attaches to every request including redirects. Standard headers
+            // (Authorization) are stripped on cross-host redirects per RFC 9110, but
+            // custom headers (e.g. x-api-key) are not. Stopping cross-origin redirects
+            // prevents credential leakage to unintended destinations such as CDN servers.
+            let redirect_policy = reqwest::redirect::Policy::custom(|attempt| {
+                let same_origin = attempt.previous().last().is_some_and(|prev| {
+                    attempt.url().scheme() == prev.scheme()
+                        && attempt.url().host_str() == prev.host_str()
+                        && attempt.url().port_or_known_default() == prev.port_or_known_default()
+                });
+                if same_origin {
+                    attempt.follow()
+                } else {
+                    attempt.stop()
+                }
+            });
             let client = reqwest::ClientBuilder::new()
                 .timeout(Duration::from_secs(30))
                 .default_headers(headers)
+                .redirect(redirect_policy)
                 .build()
                 .map_err(|e| ScannerError::Critical(e.into()))?;
             Ok(Fetcher::from(client))
@@ -690,6 +714,77 @@ mod test {
         assert_eq!(output.report.number_of_items, 0);
         assert!(output.report.messages.is_empty());
 
+        Ok(())
+    }
+
+    /// Verifies that the API-key header is NOT forwarded when the source server issues
+    /// a cross-host redirect. The authenticated client uses a custom redirect policy
+    /// that stops cross-host hops, preventing credential leakage to CDN servers.
+    ///
+    /// The `expect(0)` assertion on the CDN mock verifies that any request carrying the
+    /// API-key header never reaches the CDN. If the header were leaked, the mock would
+    /// match once, violating the expectation and causing a panic when the server is dropped.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_once_http_api_key_not_forwarded_on_cross_host_redirect(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use crate::model::auth::{AuthConfig, AuthMethod, CredentialSource};
+        use wiremock::matchers::header;
+
+        // Given a CDN server (different host) that must never receive the API-key header.
+        let cdn_server = MockServer::start().await;
+        // This mock matches only if x-api-key is present — expect it to match 0 times.
+        Mock::given(method("GET"))
+            .and(header("x-api-key", "secret"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(0)
+            .named("cdn-with-api-key")
+            .mount(&cdn_server)
+            .await;
+        // Safe fallback: handle any other GET to the CDN gracefully.
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"{}"))
+            .mount(&cdn_server)
+            .await;
+
+        // And a Pulp source server that redirects file downloads to the CDN.
+        let server = MockServer::start().await;
+        let cdn_file_url = format!("{}/file.json", cdn_server.uri());
+
+        Mock::given(method("GET"))
+            .and(path("/PULP_MANIFEST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(format!("file.json,{sha},0\n", sha = "a".repeat(64),)),
+            )
+            .mount(&server)
+            .await;
+
+        // The file download redirects to the CDN (cross-host redirect).
+        Mock::given(method("GET"))
+            .and(path("/file.json"))
+            .respond_with(
+                ResponseTemplate::new(302).insert_header("location", cdn_file_url.as_str()),
+            )
+            .mount(&server)
+            .await;
+
+        let mut imp = importer(server.uri());
+        imp.auth = Some(AuthConfig {
+            method: AuthMethod::ApiKey {
+                header: "x-api-key".into(),
+                value: CredentialSource::Inline("secret".into()),
+            },
+        });
+
+        // When run_once_http is called (the result is not the focus — credential leakage is)
+        let _ = runner(ctx)
+            .run_once_http((), imp, serde_json::Value::Null)
+            .await;
+
+        // Then cdn_server drops here and wiremock verifies the expect(0) mock matched
+        // exactly 0 times — the API-key header never reached the CDN.
         Ok(())
     }
 }
