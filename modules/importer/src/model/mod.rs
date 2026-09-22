@@ -1,5 +1,6 @@
 pub mod auth;
 mod clearly_defined_curation;
+mod http;
 
 mod clearly_defined;
 mod csaf;
@@ -17,6 +18,7 @@ pub use clearly_defined_curation::*;
 pub use csaf::*;
 pub use cve::*;
 pub use cwe::*;
+pub use http::*;
 pub use kev::*;
 pub use nvd::*;
 pub use osv::*;
@@ -190,6 +192,7 @@ pub enum ImporterConfiguration {
     Cwe(CweImporter),
     Kev(KevImporter),
     Quay(QuayImporter),
+    Http(HttpImporter),
 }
 
 impl Deref for ImporterConfiguration {
@@ -207,6 +210,7 @@ impl Deref for ImporterConfiguration {
             Self::Cwe(importer) => &importer.common,
             Self::Kev(importer) => &importer.common,
             Self::Quay(importer) => &importer.common,
+            Self::Http(importer) => &importer.common,
         }
     }
 }
@@ -224,6 +228,7 @@ impl DerefMut for ImporterConfiguration {
             Self::Cwe(importer) => &mut importer.common,
             Self::Kev(importer) => &mut importer.common,
             Self::Quay(importer) => &mut importer.common,
+            Self::Http(importer) => &mut importer.common,
         }
     }
 }

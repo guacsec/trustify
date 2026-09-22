@@ -121,6 +121,18 @@
         "quay"
       ],
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "http": {
+          "$ref": "#/$defs/HttpImporter"
+        }
+      },
+      "required": [
+        "http"
+      ],
+      "additionalProperties": false
     }
   ],
   "$defs": {
@@ -808,6 +820,91 @@
           ]
         }
       ]
+    },
+    "HttpImporter": {
+      "description": "Configuration for the HTTP-based importer.\n\nFetches documents from an HTTP repository, using a pluggable\ndiscovery strategy to enumerate files and an optional credential\nfor authenticated sources.",
+      "type": "object",
+      "properties": {
+        "disabled": {
+          "description": "A flag to disable the importer, without deleting it.",
+          "type": "boolean",
+          "default": false
+        },
+        "period": {
+          "description": "The period the importer should be run.",
+          "$ref": "#/$defs/HumantimeSerde"
+        },
+        "description": {
+          "description": "A description for users.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Labels which will be applied to the ingested documents.",
+          "$ref": "#/$defs/Labels"
+        },
+        "source": {
+          "description": "Base URL of the HTTP repository to import documents from.",
+          "type": "string"
+        },
+        "discovery": {
+          "description": "File-discovery strategy used to enumerate files in the source.",
+          "$ref": "#/$defs/HttpDiscovery"
+        },
+        "auth": {
+          "description": "Optional authentication configuration for accessing the source.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "onlyPatterns": {
+          "description": "Optional list of regex patterns restricting which discovered files are\nimported. An empty list imports all discovered files.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fetchRetries": {
+          "description": "Number of fetch retries for individual file downloads.\nDefaults to the fetcher's built-in retry count when absent.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "period",
+        "source",
+        "discovery"
+      ]
+    },
+    "HttpDiscovery": {
+      "description": "Pluggable file-discovery strategy for the HTTP importer.",
+      "oneOf": [
+        {
+          "description": "Discover files using the Pulp repository `PULP_MANIFEST` index.",
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "pulp"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        }
+      ]
+>>>>>>> 584a7522 (feat(importer): activate HTTP/Pulp importer end-to-end (TC-6231))
     }
   }
 }

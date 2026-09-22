@@ -75,6 +75,9 @@ impl ImportRunner {
                 self.run_once_quay(context, quay, continuation, self.credential_config.clone())
                     .await
             }
+            ImporterConfiguration::Http(http) => {
+                self.run_once_http(context, http, continuation).await
+            }
         }
     }
 
