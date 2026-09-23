@@ -19,6 +19,7 @@ base64 = { workspace = true }
 bytes = { workspace = true }
 cpe = { workspace = true }
 csaf = { workspace = true }
+csaf-validator = { workspace = true }
 cve = { workspace = true }
 cvss = { workspace = true }
 hex = { workspace = true }

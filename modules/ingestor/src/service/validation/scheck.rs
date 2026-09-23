@@ -199,6 +199,7 @@ mod tests {
             formats,
             rules: Vec::new(),
             phase: None,
+            profile: None,
             mode,
             threshold: Severity::Error,
             on_error: OnError::Block,
