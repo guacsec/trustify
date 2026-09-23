@@ -904,7 +904,6 @@
           ]
         }
       ]
->>>>>>> 584a7522 (feat(importer): activate HTTP/Pulp importer end-to-end (TC-6231))
     }
   }
 }
