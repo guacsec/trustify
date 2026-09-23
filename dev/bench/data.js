@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790145784237,
+  "lastUpdate": 1790154516702,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22527,6 +22527,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "50f15e91fcd2036d11c81f456837dbad6360e63f",
+          "message": "chore(perf): we want publish artifacts to go to trustify scale test runs",
+          "timestamp": "2026-09-23T10:59:07+02:00",
+          "tree_id": "74303dee26e5f237e8b6796e36becd103f7bb958",
+          "url": "https://github.com/guacsec/trustify/commit/50f15e91fcd2036d11c81f456837dbad6360e63f"
+        },
+        "date": 1790154514476,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
             "unit": "s"
           }
         ]
