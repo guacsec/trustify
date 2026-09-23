@@ -6,10 +6,7 @@ use trustify_module_ingestor::service::IngestorService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 use utoipa::{IntoParams, ToSchema};
 
-use crate::{
-    advisory, exploit, license, organization, product, purl, sbom, sbom_group, vulnerability,
-    weakness,
-};
+use crate::{exploit, license, organization, product, purl, sbom};
 use regex::Regex;
 
 #[derive(Clone, Debug)]
