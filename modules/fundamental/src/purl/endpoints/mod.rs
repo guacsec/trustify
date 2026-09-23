@@ -30,7 +30,7 @@ pub fn configure(
     db: db::ReadOnly,
     cache: PaginationCache,
 ) {
-    let purl_service = PurlService::new(cache);
+    let purl_service = PurlService::new(cache).with_default_patterns();
 
     config
         .app_data(web::Data::new(db))
