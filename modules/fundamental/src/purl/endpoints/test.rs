@@ -347,7 +347,7 @@ async fn get_recommendations(ctx: &TrustifyContext) -> Result<(), anyhow::Error>
     .await?;
 
     // When requesting recommendations for a duplicated PURL
-    let app = caller(ctx).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(
         &app,
         &[
@@ -404,7 +404,7 @@ async fn get_recommendations_no_version(ctx: &TrustifyContext) -> Result<(), any
         .await?;
 
     // When requesting recommendations for a PURL without a version
-    let app = caller(ctx).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:maven/jakarta.el/jakarta.el-api"]).await;
 
     log::info!("{recommendations:#?}");
@@ -440,7 +440,7 @@ async fn get_recommendations_dedup(ctx: &TrustifyContext) -> Result<(), anyhow::
     .await?;
 
     // When requesting recommendations
-    let app = caller(ctx).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:cargo/hyper@0.14.1"]).await;
 
     log::info!("{recommendations:#?}");
@@ -499,7 +499,7 @@ async fn get_recommendations_other_status(ctx: &TrustifyContext) -> Result<(), a
     }
 
     // When requesting recommendations
-    let app = caller(ctx).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:cargo/hyper@0.14.1"]).await;
 
     log::info!("{recommendations:#?}");
@@ -539,7 +539,7 @@ async fn get_recommendations_no_match(
     ctx.ingest_documents(["cve/CVE-2022-45787.json"]).await?;
 
     // When requesting recommendations for a non-matching PURL
-    let app = caller(ctx).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &[purl]).await;
 
     // Then the response matches the expected empty result
@@ -561,7 +561,7 @@ async fn get_recommendations_no_namespace(ctx: &TrustifyContext) -> Result<(), a
         .await?;
 
     // When requesting recommendations
-    let app = caller(ctx).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:cargo/serde@1.0.0"]).await;
 
     // Then the recommendation returns the Red Hat package
@@ -586,7 +586,7 @@ async fn get_recommendations_mixed(ctx: &TrustifyContext) -> Result<(), anyhow::
     ctx.ingest_documents(["cve/CVE-2022-45787.json"]).await?;
 
     // When requesting recommendations for a mix of known, unknown, and versionless PURLs
-    let app = caller(ctx).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(
         &app,
         &[
@@ -633,7 +633,7 @@ async fn get_recommendations_fallback_package_str(
     .await?;
 
     // When requesting recommendations
-    let app = caller(ctx).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:cargo/tokio@1.0.0"]).await;
 
     // Then the versioned PURL is returned as the package string
@@ -697,7 +697,7 @@ async fn get_recommendations_fixed_status(ctx: &TrustifyContext) -> Result<(), a
     }
 
     // When requesting recommendations
-    let app = caller(ctx).await?;
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
     let recommendations = recommend(&app, &["pkg:cargo/hyper@0.14.1"]).await;
 
     // Then the vulnerability status is reported as "Fixed"
