@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790139259809,
+  "lastUpdate": 1790145784237,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22493,6 +22493,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/4ded57a7a9a435015ea7c1f0cf8751c662c5d42e"
         },
         "date": 1790139257841,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "913bf4780c43e47caf654f51ed064ae74c42b799",
+          "message": "chore(perf): update timeout on perf test workflows",
+          "timestamp": "2026-09-23T08:24:17+02:00",
+          "tree_id": "ca0d07b1e3160ff88d35ebb27e67eaa3a98528dd",
+          "url": "https://github.com/guacsec/trustify/commit/913bf4780c43e47caf654f51ed064ae74c42b799"
+        },
+        "date": 1790145781464,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
