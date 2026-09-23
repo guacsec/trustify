@@ -196,6 +196,11 @@ postgresql_commands = { version = "0.20.0", default-features = false, features =
 #walker-common = { path = "../csaf-walker/common" }
 #walker-extras = { path = "../csaf-walker/extras" }
 
+# required for CycloneDX 1.7 support, which is not part of a release yet
+csaf-walker = { git = "https://github.com/rhredhat/csaf-walker.git", rev = "9ad8958ee" }
+sbom-walker = { git = "https://github.com/rhredhat/csaf-walker.git", rev = "9ad8958ee" }
+walker-common = { git = "https://github.com/rhredhat/csaf-walker.git", rev = "9ad8958ee" }
+
 #garage-door = { git = "https://github.com/ctron/garage-door", rev = "c02fdbbb95d4482d97497dfb62c41dede023b2ea" }
 #garage-door = { path = "../garage-door" }
 #oxide-auth = { git = "https://github.com/ctron/oxide-auth", rev = "cd0c79c48a702ea6bb0b05e95e9eddcba8f6c77f" }
@@ -209,3 +214,6 @@ csaf = { git = "https://github.com/scm-rs/csaf-rs", branch = "main" }
 
 # required due to https://github.com/doubleopen-project/spdx-rs/pull/35
 spdx-rs = { git = "https://github.com/ctron/spdx-rs", branch = "feature/add_alias_2" }
+
+# required for the CycloneDX 1.7 bindings, which are not part of a release yet
+serde-cyclonedx = { git = "https://github.com/think-ahead-technologies/sbom-rs.git", rev = "04994cb" }

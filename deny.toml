@@ -70,6 +70,9 @@ allow-git = [
     "https://github.com/scm-rs/csaf-rs",
     "https://github.com/ctron/spdx-rs",
     "https://github.com/guacsec/trustify-ui.git",
+    # temporary: CycloneDX 1.7 support, until released to crates.io
+    "https://github.com/think-ahead-technologies/sbom-rs.git",
+    "https://github.com/rhredhat/csaf-walker.git",
 ]
 
 [sources.allow-org]

@@ -1,5 +1,5 @@
 use crate::model::ExtractPackage;
-use serde_cyclonedx::cyclonedx::v_1_6::{Component, ComponentEvidenceIdentity, CycloneDx};
+use serde_cyclonedx::cyclonedx::v_1_7::{Component, ComponentEvidenceIdentity, CycloneDx};
 use std::collections::BTreeMap;
 use trustify_common::purl::Purl;
 
