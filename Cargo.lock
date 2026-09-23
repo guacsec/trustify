@@ -8930,6 +8930,7 @@ dependencies = [
  "humantime",
  "log",
  "rand 0.10.3",
+ "regex",
  "rstest",
  "serde",
  "serde_json",
