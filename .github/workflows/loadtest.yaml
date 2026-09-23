@@ -41,7 +41,7 @@ jobs:
   loadtest:
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_test)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     outputs:
       run_dir: ${{ steps.meta.outputs.run_dir }}
     steps:
