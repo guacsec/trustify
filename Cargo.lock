@@ -10716,8 +10716,3 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "csaf"
-version = "0.5.0"
-source = "git+https://github.com/scm-rs/csaf-rs?branch=main#3b95cd16d78de713a94eb136856b62bcb74617be"
