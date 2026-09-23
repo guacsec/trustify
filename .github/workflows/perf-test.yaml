@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
   issues: write
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   dispatch:
@@ -67,5 +67,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
-            -f body="🛠️ Perf test queued in [trustify-scale-test-runs](https://github.com/guacsec/trustify-scale-test-runs/actions/workflows/trustify-perf.yaml). The report will appear on the [PR perf dashboard](https://guacsec.github.io/trustify-scale-test-runs/perf/pr/)."
+          if ! gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+            -f body="🛠️ Perf test queued in [trustify-scale-test-runs](https://github.com/guacsec/trustify-scale-test-runs/actions/workflows/trustify-perf.yaml). The report will appear on the [PR perf dashboard](https://guacsec.github.io/trustify-scale-test-runs/perf/pr/)."; then
+            echo "::warning::Perf test was dispatched, but GitHub refused the PR acknowledgement comment."
+          fi
