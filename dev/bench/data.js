@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790156984845,
+  "lastUpdate": 1790160704373,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22614,6 +22614,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "mrrajan",
+            "username": "mrrajan"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "5260b20ba9d3cfcb2b5fdccdd1b4615690efabe8",
+          "message": "test(correlation): update S7 to component-scoped CPE-only policy (TC-5630)\n\nFlip S7 from product-CPE rollup to the component-scoped policy: a product CPE\nwith no affected package present must be not_affected. Grows to 8 synthetic\nSBOMs (8x3 truth table) and adds the real bug reproducer\nregistry.access.redhat.com/hi/opentofu (676 components) which over-reports the\nhummingbird CVEs via the bare CPE. Flips a passing test to #[ignore] (TC-5630).\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-09-23T10:02:30Z",
+          "tree_id": "305aeaba2ea9df6c18a7ca2af3f6350cfc501efe",
+          "url": "https://github.com/guacsec/trustify/commit/5260b20ba9d3cfcb2b5fdccdd1b4615690efabe8"
+        },
+        "date": 1790160701685,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
             "unit": "s"
           }
         ]
