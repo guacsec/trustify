@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790154516702,
+  "lastUpdate": 1790156421022,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22556,6 +22556,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "mrrajan",
+            "username": "mrrajan"
+          },
+          "committer": {
+            "email": "86094767+mrrajan@users.noreply.github.com",
+            "name": "Rajan Ravi",
+            "username": "mrrajan"
+          },
+          "distinct": true,
+          "id": "c811dcbf05b5042454ba71479b6274c9157109e1",
+          "message": "test(correlation): add S18 RHEL 8 curl not-affected override scenario (TC-5171/TC-5730)\n\nel8 curl known_not_affected is overridden by the el9 fix matching by name via\nthe child-node escape hatch (CPE context not checked). Adds a lean el9\nwithin-substream version sanity (below/at/above on .el9_0.5). #[ignore] pending\nTC-5171/TC-5730.\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-09-23T08:56:53Z",
+          "tree_id": "95654083b5ac72b312dfec44610f9cd189616450",
+          "url": "https://github.com/guacsec/trustify/commit/c811dcbf05b5042454ba71479b6274c9157109e1"
+        },
+        "date": 1790156418493,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
