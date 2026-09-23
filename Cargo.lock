@@ -8926,7 +8926,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "clap",
- "csaf",
+ "csaf-rs",
  "cve",
  "futures",
  "futures-util",
