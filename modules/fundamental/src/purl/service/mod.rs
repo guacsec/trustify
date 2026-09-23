@@ -123,7 +123,6 @@ impl InputPurl {
 pub struct PurlService {
     cache: PaginationCache,
     recommend_patterns: Vec<Regex>,
-    pub(crate) report_package_limit: u64,
 }
 
 impl PurlService {
@@ -131,7 +130,6 @@ impl PurlService {
         Self {
             cache,
             recommend_patterns: vec![],
-            report_package_limit: 10_000,
         }
     }
 
@@ -152,14 +150,6 @@ impl PurlService {
     /// Returns the configured recommend patterns.
     pub fn recommend_patterns(&self) -> &[Regex] {
         &self.recommend_patterns
-    }
-
-    /// Sets the maximum total package count allowed for a recommendation report request.
-    pub fn with_report_package_limit(self, limit: u64) -> Self {
-        Self {
-            report_package_limit: limit,
-            ..self
-        }
     }
 
     /// Default recommend patterns for vendor rebuilds.
