@@ -103,7 +103,14 @@ impl CredentialSource {
                 if paths.is_empty() {
                     return Err(AuthError::FileDisabled);
                 }
-                if !paths.iter().any(|p| path.starts_with(p.as_str())) {
+                // Require the path to equal an allowed entry exactly, or be
+                // a proper sub-path of one (i.e. the prefix ends at a '/').
+                // A bare `starts_with` check would allow "/run/secrets.evil"
+                // to bypass an allowlist entry of "/run/secrets".
+                if !paths
+                    .iter()
+                    .any(|p| path == p.as_str() || path.starts_with(&format!("{}/", p)))
+                {
                     return Err(AuthError::FileNotAllowed {
                         path: path.clone(),
                         allowed_paths: paths.to_vec(),

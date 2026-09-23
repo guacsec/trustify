@@ -1,12 +1,5 @@
-use crate::runner::{
-    http::{discovery::DiscoveredFile, error::Error},
-    report::{Phase, ReportBuilder},
-};
-use bytes::Bytes;
-use parking_lot::Mutex;
+use crate::runner::http::{discovery::DiscoveredFile, error::Error};
 use sha2::{Digest as _, Sha256};
-use std::{future::Future, sync::Arc};
-use walker_common::fetcher::Fetcher;
 
 /// Compute the lowercase hex SHA-256 digest of `data`.
 pub fn sha256_hex(data: &[u8]) -> String {
@@ -47,78 +40,85 @@ pub fn verify_integrity(data: &[u8], file: &DiscoveredFile) -> Result<(), Error>
     Ok(())
 }
 
-/// Fetch, integrity-verify, and process every file in `files`.
-///
-/// For each file the shared retrieval layer:
-/// 1. Downloads the file via `fetcher` (with its configured retries and
-///    exponential back-off).
-/// 2. Verifies SHA-256 and/or size when the [`DiscoveredFile`] provides them.
-/// 3. On success, calls `on_file(bytes, file)` so the caller can delegate to
-///    the ingestor with the appropriate labels, format hint, and credentials
-///    without coupling this layer to the importer configuration.
-///
-/// Any fetch or integrity error is recorded in `report` and the file is
-/// skipped; processing continues for the remaining files. Errors returned by
-/// `on_file` (e.g. ingestion failures) are similarly recorded and do not abort
-/// the loop.
-pub async fn retrieve_files<F, Fut>(
-    fetcher: &Fetcher,
-    files: Vec<DiscoveredFile>,
-    on_file: F,
-    report: Arc<Mutex<ReportBuilder>>,
-) where
-    F: Fn(Bytes, DiscoveredFile) -> Fut + Send + Sync,
-    Fut: Future<Output = anyhow::Result<()>> + Send,
-{
-    for file in files {
-        let url_str = file.url.to_string();
-
-        let data: Bytes = match fetcher.fetch(file.url.as_str()).await {
-            Ok(b) => b,
-            Err(err) => {
-                report.lock().add_error(
-                    Phase::Retrieval,
-                    &url_str,
-                    Error::Fetch {
-                        url: url_str.clone(),
-                        source: err,
-                    }
-                    .to_string(),
-                );
-                continue;
-            }
-        };
-
-        if let Err(err) = verify_integrity(&data, &file) {
-            report
-                .lock()
-                .add_error(Phase::Validation, &url_str, err.to_string());
-            continue;
-        }
-
-        match on_file(data, file).await {
-            Ok(()) => report.lock().tick(),
-            Err(err) => report
-                .lock()
-                .add_error(Phase::Upload, &url_str, err.to_string()),
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::runner::http::discovery::DiscoveredFile;
-    use parking_lot::Mutex;
-    use std::sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
+    use crate::runner::{
+        http::discovery::DiscoveredFile,
+        report::{Phase, ReportBuilder},
     };
-    use walker_common::fetcher::FetcherOptions;
+    use bytes::Bytes;
+    use parking_lot::Mutex;
+    use std::{
+        future::Future,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+    };
+    use walker_common::fetcher::{Fetcher, FetcherOptions};
     use wiremock::{
         Mock, MockServer, ResponseTemplate,
         matchers::{method, path},
     };
+
+    /// Fetch, integrity-verify, and process every file in `files`.
+    ///
+    /// For each file the shared retrieval layer:
+    /// 1. Downloads the file via `fetcher` (with its configured retries and
+    ///    exponential back-off).
+    /// 2. Verifies SHA-256 and/or size when the [`DiscoveredFile`] provides them.
+    /// 3. On success, calls `on_file(bytes, file)` so the caller can delegate to
+    ///    the ingestor with the appropriate labels, format hint, and credentials
+    ///    without coupling this layer to the importer configuration.
+    ///
+    /// Any fetch or integrity error is recorded in `report` and the file is
+    /// skipped; processing continues for the remaining files. Errors returned by
+    /// `on_file` (e.g. ingestion failures) are similarly recorded and do not abort
+    /// the loop.
+    async fn retrieve_files<F, Fut>(
+        fetcher: &Fetcher,
+        files: Vec<DiscoveredFile>,
+        on_file: F,
+        report: Arc<Mutex<ReportBuilder>>,
+    ) where
+        F: Fn(Bytes, DiscoveredFile) -> Fut + Send + Sync,
+        Fut: Future<Output = anyhow::Result<()>> + Send,
+    {
+        for file in files {
+            let url_str = file.url.to_string();
+
+            let data: Bytes = match fetcher.fetch(file.url.as_str()).await {
+                Ok(b) => b,
+                Err(err) => {
+                    report.lock().add_error(
+                        Phase::Retrieval,
+                        &url_str,
+                        Error::Fetch {
+                            url: url_str.clone(),
+                            source: err,
+                        }
+                        .to_string(),
+                    );
+                    continue;
+                }
+            };
+
+            if let Err(err) = verify_integrity(&data, &file) {
+                report
+                    .lock()
+                    .add_error(Phase::Validation, &url_str, err.to_string());
+                continue;
+            }
+
+            match on_file(data, file).await {
+                Ok(()) => report.lock().tick(),
+                Err(err) => report
+                    .lock()
+                    .add_error(Phase::Upload, &url_str, err.to_string()),
+            }
+        }
+    }
 
     /// Verifies that `verify_integrity` passes when the SHA-256 digest matches.
     #[test]

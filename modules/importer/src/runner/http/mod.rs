@@ -9,7 +9,7 @@ mod retrieval;
 
 pub use discovery::{DiscoveredFile, DiscoveryStrategy};
 pub use pulp::PulpManifest;
-pub use retrieval::{retrieve_files, sha256_hex, verify_integrity};
+pub use retrieval::{sha256_hex, verify_integrity};
 
 use crate::{
     model::{
@@ -235,7 +235,10 @@ async fn build_fetcher(
                 if same_origin {
                     attempt.follow()
                 } else {
-                    attempt.stop()
+                    attempt.error(
+                        "cross-origin redirect blocked: auth headers would be forwarded \
+                         to an unintended host",
+                    )
                 }
             });
             let client = reqwest::ClientBuilder::new()
