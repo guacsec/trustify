@@ -173,7 +173,6 @@ impl PurlService {
         }
     }
 
-
     pub fn with_default_patterns(self) -> Self {
         Self {
             recommend_patterns: Self::default_recommend_patterns(),
@@ -195,7 +194,6 @@ impl PurlService {
             ..self
         }
     }
-
 
     /// Returns the configured recommend patterns.
     pub fn recommend_patterns(&self) -> &[Regex] {
