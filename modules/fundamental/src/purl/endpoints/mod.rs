@@ -169,5 +169,4 @@ mod v3 {
 
         Ok(HttpResponse::Ok().json(response))
     }
-
 }

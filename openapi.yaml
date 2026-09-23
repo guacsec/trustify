@@ -2832,6 +2832,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendResponse'
+        '503':
+          description: Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured
   /api/v3/purl/{key}:
     get:
       tags:
