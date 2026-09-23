@@ -170,40 +170,4 @@ mod v3 {
         Ok(HttpResponse::Ok().json(response))
     }
 
-    #[utoipa::path(
-        operation_id = "recommendReport",
-        tag = "purl",
-        request_body = RecommendReportRequest,
-        responses(
-            (status = 200, description = "Aggregated recommendation report for the requested SBOMs", body = RecommendReportResponse),
-            (status = 413, description = "Total package count across requested SBOMs exceeds the configured limit"),
-        )
-    )]
-    #[post("/v3/purl/recommend/report")]
-    /// Generate an aggregated vendor recommendation report for a set of SBOMs.
-    pub async fn recommend_report(
-        purl_service: web::Data<PurlService>,
-        db: web::Data<db::ReadOnly>,
-        request: web::Json<RecommendReportRequest>,
-        _: Require<ReadAdvisory>,
-        _: Require<ReadSbom>,
-    ) -> Result<impl Responder, Error> {
-        let tx = db.begin().await?;
-        let total = purl_service
-            .count_sbom_packages(&request.sbom_ids, &tx)
-            .await?;
-        if total > purl_service.report_package_limit {
-            return Ok(HttpResponse::PayloadTooLarge().json(serde_json::json!({
-                "error": "package_limit_exceeded",
-                "message": format!(
-                    "Total packages ({total}) exceeds maximum ({}).",
-                    purl_service.report_package_limit
-                )
-            })));
-        }
-        let report = purl_service
-            .report_for_sboms(&request.sbom_ids, &tx)
-            .await?;
-        Ok(HttpResponse::Ok().json(report))
-    }
 }
