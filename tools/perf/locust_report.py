@@ -868,6 +868,19 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderInde
 
 def build_index(runs: list[dict], title: str, target: str | None, threshold_pct: float,
                 threshold_ms: float) -> str:
+    if not runs:
+        meta = f'<p class="meta">Target <b>{esc(target)}</b></p>' if target else ""
+        return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{esc(title)}</title>
+<style>{CSS}{INDEX_CSS}</style></head>
+<body><main>
+<h1>{esc(title)}</h1>
+{meta}
+<p class="empty">No load test runs have been published yet.</p>
+</main></body></html>"""
+
     latest = runs[-1]
     prev = runs[-2] if len(runs) > 1 else None
     all_keys = sorted({k for r in runs for k in r["rows"]},
@@ -1097,7 +1110,7 @@ def cmd_index(args):
 
     found = discover_runs(args.paths)
     if not found:
-        sys.exit("error: no <prefix>_stats.csv files found")
+        print("warning: no <prefix>_stats.csv files found; writing an empty index", file=sys.stderr)
 
     # summaries: only re-parse runs whose CSVs changed
     summaries, parsed = [], 0
