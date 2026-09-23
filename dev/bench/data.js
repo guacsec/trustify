@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790094150617,
+  "lastUpdate": 1790139259809,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22464,6 +22464,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/388b656b10dbbc7dd6173535a6b58fad3a4c2c57"
         },
         "date": 1790094149003,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "4ded57a7a9a435015ea7c1f0cf8751c662c5d42e",
+          "message": "feat(perf): publish Locust dashboards with run metadata\n\nAlign the scheduled load-test startup with the working perf-test workflow,\npublish daily and PR Locust results to separate gh-pages dashboards, and\ninclude dataset, scenario, commit, workflow, and PR metadata in reports.",
+          "timestamp": "2026-09-23T06:36:17+02:00",
+          "tree_id": "844ed0d9c9d12be1a62a6cf29001ff5a6dadc6c7",
+          "url": "https://github.com/guacsec/trustify/commit/4ded57a7a9a435015ea7c1f0cf8751c662c5d42e"
+        },
+        "date": 1790139257841,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
