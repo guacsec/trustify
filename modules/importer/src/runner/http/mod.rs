@@ -235,10 +235,12 @@ async fn build_fetcher(
                 if same_origin {
                     attempt.follow()
                 } else {
-                    attempt.error(
-                        "cross-origin redirect blocked: auth headers would be forwarded \
-                         to an unintended host",
-                    )
+                    // Stop the redirect without an error so the Fetcher receives the
+                    // 3xx response body directly (typically empty) rather than an
+                    // error that triggers retries.  The credential never reaches the
+                    // redirect target; the subsequent integrity check on the empty
+                    // body records the failure in the run report.
+                    attempt.stop()
                 }
             });
             let client = reqwest::ClientBuilder::new()
