@@ -883,9 +883,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-http-client"
-version = "1.2.0"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "635d23afda0a6ab48d666c4d447c4873e8d1e83518a2be2093122397e50b838e"
+checksum = "7bd25384a4e437aa8d8f339afad4b69e786b936a7cb10db668a7aaf66717b1a8"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-runtime-api",
@@ -963,9 +963,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-runtime-api"
-version = "1.14.0"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b98f2e1fd67ec06618f9c291e5e495a468e60519e44c9c1979cd0521f3affdb"
+checksum = "3fbf162725183ec0df77a9dc82ce22d9ba0b6ea7f376e8ec4f6b695727c70698"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-runtime-api-macros",
@@ -1003,9 +1003,9 @@ dependencies = [
 
 [[package]]
 name = "aws-smithy-types"
-version = "1.6.1"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6dc683efb34b9e755675b37fedbe0103141e5b6df7bdc9eb6967756a8c167d8"
+checksum = "16ecf7989e381d0cbb7ca06104140d940bf38d8eb9004bd3a12d23df03e3d363"
 dependencies = [
  "base64-simd",
  "bytes",
@@ -5033,9 +5033,9 @@ dependencies = [
 
 [[package]]
 name = "ossl"
-version = "1.5.2"
+version = "1.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f34df8ca6a2920b0fae969ced913c714b41f23b655a434a45c6a9843a75c019"
+checksum = "4fa44e30f9538a8ff3c06349a4206f62f3e68c8d47aaeec0d6d63b1e044fd537"
 dependencies = [
  "bindgen",
  "cfg-if",
@@ -8322,7 +8322,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-auth"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -8355,7 +8355,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-cli"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -8374,7 +8374,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-common"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -8435,7 +8435,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-db"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -8452,7 +8452,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-entity"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "cpe",
@@ -8479,7 +8479,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-infrastructure"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-cors",
  "actix-tls",
@@ -8514,7 +8514,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-migration"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8549,7 +8549,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-analysis"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -8598,7 +8598,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-exploit-intelligence"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -8633,7 +8633,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-fundamental"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -8713,7 +8713,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-importer"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -8772,7 +8772,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-ingestor"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -8826,7 +8826,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-storage"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -8858,7 +8858,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-ui"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-web",
  "actix-web-static-files",
@@ -8880,7 +8880,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-user"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -8902,14 +8902,14 @@ dependencies = [
 
 [[package]]
 name = "trustify-query"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "utoipa",
 ]
 
 [[package]]
 name = "trustify-query-derive"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "quote",
  "syn 2.0.119",
@@ -8917,7 +8917,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-server"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -8958,7 +8958,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-test-context"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9008,7 +9008,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-trustd"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -9030,7 +9030,7 @@ dependencies = [
 [[package]]
 name = "trustify-ui"
 version = "0.1.0"
-source = "git+https://github.com/guacsec/trustify-ui.git?branch=publish%2Frelease%2F0.6.z#696c175d7af5d4aa913cf17889028ed96078671c"
+source = "git+https://github.com/guacsec/trustify-ui.git?branch=publish%2Frelease%2F0.6.z#a03f0ac628873a14a5315a86d973e3ca6d0117cc"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -9926,7 +9926,7 @@ checksum = "66fee0b777b0f5ac1c69bb06d361268faafa61cd4682ae064a171c16c433e9e4"
 
 [[package]]
 name = "xtask"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anyhow",
  "bytes",
