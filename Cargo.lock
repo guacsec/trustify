@@ -2051,21 +2051,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "csaf"
-version = "0.5.0"
-source = "git+https://github.com/scm-rs/csaf-rs?branch=main#3b95cd16d78de713a94eb136856b62bcb74617be"
-dependencies = [
- "chrono",
- "cpe",
- "packageurl 0.7.1",
- "serde",
- "serde_json",
- "serde_with",
- "tempfile",
- "url",
-]
-
-[[package]]
 name = "csaf-rs"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9038,7 +9023,7 @@ dependencies = [
  "chrono",
  "cpe",
  "criterion",
- "csaf",
+ "csaf-rs",
  "csv",
  "cve",
  "flate2",
@@ -10731,3 +10716,8 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
+
+[[patch.unused]]
+name = "csaf"
+version = "0.5.0"
+source = "git+https://github.com/scm-rs/csaf-rs?branch=main#3b95cd16d78de713a94eb136856b62bcb74617be"

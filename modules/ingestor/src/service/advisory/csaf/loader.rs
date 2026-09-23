@@ -244,7 +244,7 @@ impl<'g> CsafLoader<'g> {
     }
 }
 
-fn parse_date(s: &str) -> chrono::DateTime<chrono::FixedOffset> {
+pub fn parse_date(s: &str) -> chrono::DateTime<chrono::FixedOffset> {
     chrono::DateTime::parse_from_rfc3339(s).unwrap()
 }
 
