@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790156421022,
+  "lastUpdate": 1790156984845,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22585,6 +22585,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "1f95a0e12ebe9058fb1a5f4ef984a4ac30e52bd3",
+          "message": "chore(perf): adjust perms on perf-test.yaml",
+          "timestamp": "2026-09-23T11:33:28+02:00",
+          "tree_id": "23f037930a6df8e52911e786c192555a0d6b0b91",
+          "url": "https://github.com/guacsec/trustify/commit/1f95a0e12ebe9058fb1a5f4ef984a4ac30e52bd3"
+        },
+        "date": 1790156982306,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
