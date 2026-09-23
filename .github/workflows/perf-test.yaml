@@ -1,311 +1,71 @@
-name: perf-test
+name: perf-test-dispatch
 
 on:
   issue_comment:
     types: [created]
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
 jobs:
-  perf-test:
+  dispatch:
     if: github.event.comment.body == '/perf-test' && github.event.issue.pull_request != null
-    outputs:
-      run_dir: ${{ steps.pr.outputs.run_dir }}
-      pr_sha: ${{ steps.pr.outputs.sha }}
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: read
-    runs-on: ubuntu-24.04
-    timeout-minutes: 180
-
+    runs-on: ubuntu-latest
     steps:
-
-      - name: Check if Commenter is a Collaborator
+      - name: Check commenter permission
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENTER: ${{ github.event.comment.user.login }}
-          REPO: ${{ github.repository }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          PERMISSIONS=$(gh api repos/$REPO/collaborators/$COMMENTER/permission --jq '.permission')
-          echo "User Permission: $PERMISSIONS"
+          permission=$(gh api "repos/$REPOSITORY/collaborators/$COMMENTER/permission" --jq '.permission')
+          echo "Commenter permission: $permission"
+          case "$permission" in
+            admin|write|maintain) ;;
+            *) echo "Only repository collaborators with write access can start a perf test."; exit 1 ;;
+          esac
 
-          if [[ "$PERMISSIONS" != "admin" && "$PERMISSIONS" != "write" && "$PERMISSIONS" != "maintain" ]]; then
-            echo "❌ User does not have permission to trigger this action."
-            exit 1
-          fi
-
-      - name: Acknowledge Command
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          COMMENT_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
-          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
-            -f body="🛠️ Perf test has started! Follow the progress here: [Workflow Run]($COMMENT_URL)"
-
-      - name: Maximize build space
-        run: |
-          df -h
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force
-          sudo rm -Rf ${JAVA_HOME_8_X64}
-          sudo rm -Rf ${JAVA_HOME_11_X64}
-          sudo rm -Rf ${JAVA_HOME_17_X64}
-          sudo rm -Rf ${RUBY_PATH}
-          df -h
-
-      - name: Get PR head ref
+      - name: Read pull request head
         id: pr
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
         run: |
-          PR_JSON=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.issue.number }})
-          HEAD_SHA=$(echo "$PR_JSON" | jq -r '.head.sha')
-          HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
-          echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
-          RUN_DIR="pr_${{ github.event.issue.number }}_$(date -u +%Y-%m-%dT%H-%M-%S)_${HEAD_SHA:0:7}"
-          echo "run_dir=$RUN_DIR" >> "$GITHUB_OUTPUT"
+          pr=$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")
+          {
+            echo "repository=$(jq -r '.head.repo.full_name' <<< "$pr")"
+            echo "sha=$(jq -r '.head.sha' <<< "$pr")"
+            echo "ref=$(jq -r '.head.ref' <<< "$pr")"
+          } >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.pr.outputs.sha }}
-
-      - uses: actions/checkout@v7
-        with:
-          repository: guacsec/trustify-scale-test-runs
-          path: scale
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
-
-      - name: Build scale stack
+      - name: Dispatch perf test to scale-test-runs
         env:
-          SCALE_REV: pr/${{ github.event.issue.number }}
-        run: |
-          docker compose -f scale/compose.yaml build \
-            --build-arg rev="$SCALE_REV" \
-            trustify-migrate trustify
-
-      - name: Start scale stack
-        run: docker compose -f scale/compose.yaml up -d --wait trustify
-
-      - name: Run perf tests
-        working-directory: tools/perf
-        env:
-          ISSUER_URL: http://localhost:8090/realms/trustify
-          CLIENT_ID: walker
-          # Dummy Keycloak client secret used only by the local test realm.
-          CLIENT_SECRET: ${{ secrets.CLIENT_DUMMY_SECRET }} # notsecret
-          TOOLS_PERF_SCENARIO_FILE: etc/scenarios/main/full-20260317T023702Z.json5
-          TOOLS_PERF_WAIT_TIME_FROM: "0"
-          TOOLS_PERF_WAIT_TIME_TO: "0"
-          PERF_PR_NUMBER: ${{ github.event.issue.number }}
-          PERF_PR_URL: https://github.com/${{ github.repository }}/pull/${{ github.event.issue.number }}
-          PERF_PR_BRANCH: ${{ steps.pr.outputs.ref }}
-          PERF_PR_COMMIT: ${{ steps.pr.outputs.sha }}
-          PERF_PR_COMMIT_URL: https://github.com/${{ github.repository }}/commit/${{ steps.pr.outputs.sha }}
-          PERF_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          SOURCE_REPOSITORY: ${{ steps.pr.outputs.repository }}
+          SOURCE_SHA: ${{ steps.pr.outputs.sha }}
+          SOURCE_REF: ${{ steps.pr.outputs.ref }}
+          PR_NUMBER: ${{ github.event.issue.number }}
         run: |
           jq -n \
-            --arg kind pull-request \
-            --arg pr "$PERF_PR_NUMBER" \
-            --arg pr_url "$PERF_PR_URL" \
-            --arg branch "$PERF_PR_BRANCH" \
-            --arg commit "$PERF_PR_COMMIT" \
-            --arg commit_url "$PERF_PR_COMMIT_URL" \
-            --arg dataset scale-20260317T023702Z \
-            --arg scenario "$TOOLS_PERF_SCENARIO_FILE" \
-            --arg run_url "$PERF_RUN_URL" \
-            '{kind: $kind, pr: $pr, pr_url: $pr_url, branch: $branch, commit: $commit, commit_url: $commit_url, dataset: $dataset, scenario: $scenario, run_url: $run_url}' \
-            > metadata.json
-          uv run locust \
-            --host http://localhost:8080 \
-            -u 10 -r 2 -t 10m \
-            --headless \
-            --html=report.html \
-            --csv=results \
-            --csv-full-history
+            --arg ref main \
+            --arg mode pr \
+            --arg source_repository "$SOURCE_REPOSITORY" \
+            --arg source_sha "$SOURCE_SHA" \
+            --arg source_ref "$SOURCE_REF" \
+            --arg pr_number "$PR_NUMBER" \
+            '{ref: $ref, inputs: {mode: $mode, source_repository: $source_repository, source_sha: $source_sha, source_ref: $source_ref, pr_number: $pr_number}}' \
+            | gh api --method POST \
+                repos/guacsec/trustify-scale-test-runs/actions/workflows/trustify-perf.yaml/dispatches \
+                --input -
 
-      - name: Collect scale logs
-        if: always()
-        run: docker compose -f scale/compose.yaml logs > containers.log || true
-
-      - name: Stop scale stack
-        if: always()
-        run: docker compose -f scale/compose.yaml down
-
-      - name: Upload perf data
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: perf-${{ steps.pr.outputs.run_dir }}
-          path: |
-            tools/perf/results_*.csv
-            tools/perf/metadata.json
-          if-no-files-found: error
-
-      - name: Upload scale logs
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: logs
-          path: containers.log
-          if-no-files-found: error
-
-      - name: Upload perf report
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: report
-          path: |
-            tools/perf/report.html
-            tools/perf/results_*.csv
-          if-no-files-found: warn
-
-      - name: Post comment
-        if: always()
+      - name: Acknowledge command
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.issue.number }}
         run: |
-          ARTIFACT_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
-          if [ -f tools/perf/results_stats.csv ]; then
-            # Build a markdown table from the CSV stats
-            STATS_TABLE=$(python3 -c "
-          import csv, io, sys
-          with open('tools/perf/results_stats.csv') as f:
-              reader = csv.reader(f)
-              rows = list(reader)
-          if not rows:
-              sys.exit(0)
-          header = rows[0]
-          # Select useful columns: Type, Name, # Requests, # Failures,
-          # Median, Average, Min, Max, Avg size, RPS
-          cols = [0, 1, 2, 3, 5, 6, 7, 8, 9, 10]
-          hdr = [header[c] for c in cols]
-          print('| ' + ' | '.join(hdr) + ' |')
-          print('| ' + ' | '.join(['---'] * len(hdr)) + ' |')
-          for row in rows[1:]:
-              vals = [row[c] if c < len(row) else '' for c in cols]
-              print('| ' + ' | '.join(vals) + ' |')
-          ")
-          else
-            STATS_TABLE="No stats CSV produced."
-          fi
-
-          COMMENT_BODY=$(cat <<__EOF__
-          <details><summary>Perf Test Report (Locust)</summary>
-
-          $STATS_TABLE
-
-          </details>
-
-          📄 **[Full Report]($ARTIFACT_URL)** (Go to "Artifacts" and download **report**)
-
-          📊 **[Historical dashboard](https://guacsec.github.io/perf/pr/)**
-
-          __EOF__
-          )
-          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
-            -f body="$COMMENT_BODY"
-
-  publish:
-    needs: perf-test
-    if: needs.perf-test.result == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-    concurrency:
-      group: publish-gh-pages
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.perf-test.outputs.pr_sha }}
-          path: src
-          persist-credentials: false
-
-      - uses: actions/checkout@v7
-        with:
-          ref: gh-pages
-          path: pages
-          persist-credentials: false
-
-      - name: Add this run
-        uses: actions/download-artifact@v7
-        with:
-          name: perf-${{ needs.perf-test.outputs.run_dir }}
-          path: pages/perf/pr/runs/${{ needs.perf-test.outputs.run_dir }}
-
-      - name: Compress run
-        run: gzip -9 pages/perf/pr/runs/${{ needs.perf-test.outputs.run_dir }}/*.csv
-
-      - name: Build dashboard
-        working-directory: pages
-        run: |
-          python3 ../src/tools/perf/locust_report.py index pr/runs -o pr --prune \
-            --title "Trustify PR perf tests" --target "trustify (scale snapshot)"
-
-      - name: Build perf dashboard index
-        working-directory: pages
-        run: |
-          mkdir -p perf
-          cat > perf/index.html <<'EOF'
-          <!doctype html>
-          <html lang="en"><head><meta charset="utf-8"><title>Trustify perf tests</title></head>
-          <body><h1>Trustify perf tests</h1>
-          <ul><li><a href="daily/">Daily load tests</a></li>
-          <li><a href="pr/">Pull request perf tests</a></li></ul>
-          </body></html>
-          EOF
-
-      - name: Find generated report
-        id: report
-        working-directory: pages
-        env:
-          RUN_DIR: ${{ needs.perf-test.outputs.run_dir }}
-        run: |
-          REPORT_FILE=$(python3 - "$RUN_DIR" <<'PY'
-          import sys
-          from pathlib import Path
-
-          run_dir = sys.argv[1]
-          reports = sorted(Path("perf/pr/reports").glob(f"{run_dir}*.html"))
-          if len(reports) != 1:
-              raise SystemExit(f"expected one report for {run_dir}, found {len(reports)}")
-          print(reports[0].name)
-          PY
-          )
-          echo "file=$REPORT_FILE" >> "$GITHUB_OUTPUT"
-
-      - name: Commit and push
-        working-directory: pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --quiet && { echo "nothing to publish"; exit 0; }
-          git commit -m "perf test: ${{ needs.perf-test.outputs.run_dir }}"
-          for attempt in 1 2 3; do
-            echo "push attempt $attempt"
-            git push && exit 0
-            git pull --rebase
-            sleep 5
-          done
-          exit 1
-
-      - name: Post gh-pages report link
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPORT_URL: https://guacsec.github.io/perf/pr/reports/${{ steps.report.outputs.file }}
-        run: |
-          gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
-            -f body="📈 **[Perf report]($REPORT_URL)** · [PR perf dashboard](https://guacsec.github.io/perf/pr/)"
+          gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+            -f body="🛠️ Perf test queued in [trustify-scale-test-runs](https://github.com/guacsec/trustify-scale-test-runs/actions/workflows/trustify-perf.yaml). The report will appear on the [PR perf dashboard](https://guacsec.github.io/trustify-scale-test-runs/perf/pr/)."

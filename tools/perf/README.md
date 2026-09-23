@@ -91,25 +91,32 @@ Run `make clean` to remove all generated reports and cached files.
 
 ## CI Workflows and Dashboards
 
-The repository provides two CI entry points. Both use the repeatable stack from
+CI runs use the repeatable stack from
 [`trustify-scale-test-runs`](https://github.com/guacsec/trustify-scale-test-runs):
 the PostgreSQL/storage snapshot `20260317T023702Z` is restored, migrations are
-applied, the local OIDC client is configured, and the matching scenario is run
-with `uv`:
+applied, the local OIDC client is configured, and this directory's Locust
+scenarios are run with `uv`.
 
-| Workflow | Trigger | Dashboard |
-|----------|---------|-----------|
-| `perf-test.yaml` | Comment `/perf-test` on a pull request | [PR perf tests](https://guacsec.github.io/perf/pr/) |
-| `loadtest.yaml` | Nightly schedule or manual dispatch | [Daily load tests](https://guacsec.github.io/perf/daily/) |
+| Test | Trigger and owner | Dashboard |
+|------|-------------------|-----------|
+| PR performance test | Comment `/perf-test` on a pull request in `trustify`. The Trustify workflow checks the commenter and dispatches the PR head SHA to `trustify-scale-test-runs`. | [PR perf tests](https://guacsec.github.io/trustify-scale-test-runs/perf/pr/) |
+| Daily load test | Nightly schedule, or manual `daily` dispatch in `trustify-scale-test-runs`. | [Daily load tests](https://guacsec.github.io/trustify-scale-test-runs/perf/daily/) |
 
-The combined dashboard is available at
-[`/perf/`](https://guacsec.github.io/perf/). PR runs are stored under
-`gh-pages/perf/pr/runs/`; scheduled runs use `gh-pages/perf/daily/runs/`.
+The combined dashboard is at
+[trustify-scale-test-runs/perf](https://guacsec.github.io/trustify-scale-test-runs/perf/).
+The runner and Pages deployment are handled by
+`.github/workflows/trustify-perf.yaml` in the scale-test-runs repository. It
+stores raw runs and generated reports under `publish/perf/pr/` and
+`publish/perf/daily/`, commits them to that repository's `main` branch, and
+deploys the `publish/` site to GitHub Pages.
 
-Each run also writes a `metadata.json` file containing the snapshot, scenario,
-branch, commit, workflow URL, and, for PR runs, the pull request URL. This
-metadata is displayed in individual reports and used for source links in the
-dashboard.
+To trigger `/perf-test`, the `trustify` repository needs a `GH_PAT` Actions
+secret that can dispatch workflows in `trustify-scale-test-runs`. The command
+is restricted to commenters with write, maintain, or admin permission.
+
+Each run includes a `metadata.json` file with the snapshot, scenario, branch,
+commit, workflow URL, and (for PR runs) pull request URL. Individual reports
+show this metadata and link back to the source run.
 
 ## Custom Report Generation
 
