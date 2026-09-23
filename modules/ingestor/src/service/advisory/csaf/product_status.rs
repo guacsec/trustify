@@ -1,11 +1,15 @@
+use std::str::FromStr;
+
 use super::util::branch_purl;
 use crate::graph::advisory::{
     vers::parse_vers,
     version::{Version, VersionInfo, VersionSpec},
 };
-use cpe::cpe::Cpe;
-use csaf::definitions::{Branch, BranchCategory, FullProductName};
-use trustify_common::purl::Purl;
+use csaf_rs::schema::csaf2_0::schema::{
+    Branch, CategoryOfTheBranch as BranchCategory, FullProductNameT as FullProductName,
+};
+use packageurl::PackageUrl;
+use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::version_scheme::VersionScheme;
 
 #[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
@@ -24,22 +28,22 @@ impl ProductStatus {
     pub fn update_from_branch(&mut self, branch: &Branch) -> Result<(), anyhow::Error> {
         match branch.category {
             BranchCategory::ProductName => {
-                self.product = branch.name.clone();
+                self.product = branch.name.to_string();
                 self.set_version(branch.product.clone());
             }
             BranchCategory::Vendor => {
-                self.vendor = Some(branch.name.clone());
+                self.vendor = Some(branch.name.to_string());
             }
             BranchCategory::ProductVersion => {
                 match branch.product.clone() {
                     Some(full_name) => match full_name.product_identification_helper {
                         Some(id_helper) => match id_helper.purl {
-                            Some(purl) => self.purls.push(purl.into()),
-                            None => self.packages.push(branch.name.clone()),
+                            Some(purl) => self.purls.push(Purl::from_str(purl.as_str()).unwrap()),
+                            None => self.packages.push(branch.name.to_string()),
                         },
-                        None => self.packages.push(full_name.product_id.0),
+                        None => self.packages.push(full_name.product_id.to_string()),
                     },
-                    None => self.packages.push(branch.name.clone()),
+                    None => self.packages.push(branch.name.to_string()),
                 };
             }
             BranchCategory::ProductVersionRange => {
@@ -65,8 +69,9 @@ impl ProductStatus {
             full_name.product_identification_helper.and_then(|id| {
                 id.cpe
                     .map(|cpe| {
+                        let cpe = Cpe::from_str(cpe.as_str()).unwrap();
                         // We have a CPE in product identifier helper
-                        self.cpe = Some(cpe.clone().into());
+                        self.cpe = Some(cpe.clone());
                         let version = cpe.version().to_string();
                         if version != "*" {
                             // Lenient semver parsing so we can get "product streams", e.g.
@@ -102,6 +107,8 @@ impl ProductStatus {
                     })
                     .or_else(|| {
                         id.purl.and_then(|purl| {
+                            let purl = PackageUrl::from_str(purl.as_str()).unwrap();
+
                             // If we have purl, use an exact version
                             purl.version().map(|version| VersionInfo {
                                 spec: VersionSpec::Exact(version.to_string()),
