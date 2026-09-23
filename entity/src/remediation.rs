@@ -1,4 +1,4 @@
-use csaf::vulnerability::RemediationCategory as CsafRemediationCategory;
+use csaf_rs::schema::csaf2_0::schema::CategoryOfTheRemediation as CsafRemediationCategory;
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

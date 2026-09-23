@@ -8867,7 +8867,7 @@ name = "trustify-entity"
 version = "0.6.0-rc.1"
 dependencies = [
  "cpe",
- "csaf",
+ "csaf-rs",
  "cvss",
  "cvss-rs 0.4.0",
  "deepsize",
