@@ -61,7 +61,7 @@ chrono = { version = "0.4.35", default-features = false }
 clap = "4"
 cpe = "0.1.5"
 criterion = "0.8.2"
-csaf = { package = "csaf-rs", version = "0.5.1" }
+csaf-rs = "0.5.1"
 csaf-walker = { version = "0.18.1", default-features = false }
 csv = "1.3.0"
 cve = "0.5.0"
