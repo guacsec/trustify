@@ -618,7 +618,7 @@ impl InitData {
         if !config.fundamental.recommend_patterns.is_empty() {
             features.insert(Feature::Recommendations);
         }
-        if !validators.is_empty() {
+        if run.validators_config.is_some() {
             features.insert(Feature::SemanticValidation);
         }
 
