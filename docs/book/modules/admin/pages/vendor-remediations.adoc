@@ -22,22 +22,22 @@ Set the `TRUSTD_RECOMMEND_PATTERNS` environment variable on the `trustd` server 
 
 [source,bash]
 ----
-TRUSTD_RECOMMEND_PATTERNS="redhat-[0-9]+$,rhlw-[0-9]+$"
+TRUSTD_RECOMMEND_PATTERNS="^(.+)[.-]redhat-[0-9]+$,^(.+)[.-]rhlw-[0-9]+$"
 ----
 
-The value is a comma-separated list of regex patterns. Each pattern must contain exactly one capture group that extracts the upstream base version from the vendor version string.
+The value is a comma-separated list of regex patterns. Each pattern must contain exactly one capture group (parentheses) that extracts the upstream base version from the vendor version string. The `[.-]` separator matches either a dot or a hyphen between the base version and the vendor suffix.
 
 .Example patterns
 [cols="1,2,2"]
 |===
 | Pattern | Matches | Capture group extracts
 
-| `redhat-[0-9]+$` | `5.3.18.redhat-00010` | `5.3.18`
-| `rhlw-[0-9]+$` | `5.3.18.rhlw-00003` | `5.3.18`
-| `atlassian-[0-9]+$` | `3.2.1.atlassian-2` | `3.2.1`
+| `^(.+)[.-]redhat-[0-9]+$` | `5.3.18.redhat-00010` | `5.3.18`
+| `^(.+)[.-]rhlw-[0-9]+$` | `5.3.18.rhlw-00001` | `5.3.18`
+| `^(.+)[.-]atlassian-[0-9]+$` | `3.2.1.atlassian-2` | `3.2.1`
 |===
 
-When `TRUSTD_RECOMMEND_PATTERNS` is absent or empty, the recommendation endpoints return no results.
+When `TRUSTD_RECOMMEND_PATTERNS` is absent or empty, the recommendation endpoints return HTTP 503 with error code `FEATURE_UNCONFIGURED`. At least one pattern must be configured to enable recommendations.
 
 === Helm chart
 
@@ -46,7 +46,7 @@ Set `recommendPatterns` in your Helm values:
 [source,yaml]
 ----
 server:
-  recommendPatterns: "redhat-[0-9]+$,rhlw-[0-9]+$"
+  recommendPatterns: "^(.+)[.-]redhat-[0-9]+$,^(.+)[.-]rhlw-[0-9]+$"
 ----
 
 === Operator CRD
@@ -56,7 +56,7 @@ Set `spec.recommendPatterns` in the TrustyProfileAnalyzer custom resource:
 [source,yaml]
 ----
 spec:
-  recommendPatterns: "redhat-[0-9]+$,rhlw-[0-9]+$"
+  recommendPatterns: "^(.+)[.-]redhat-[0-9]+$,^(.+)[.-]rhlw-[0-9]+$"
 ----
 
 == Remediation Report
