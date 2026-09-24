@@ -1,0 +1,176 @@
+////
+Module Type: ASSEMBLY
+////
+
+= Vendor Remediation Recommendations
+
+Trustify can identify vendor-specific package builds that replace an open-source dependency with a trusted or patched version. These _recommendations_ are surfaced in SBOM package and vulnerability views, and in a dedicated Remediation Report.
+
+== How recommendations work
+
+Recommendations are resolved at query time by matching a package's version string against one or more configured regex patterns. When a version matches, Trustify finds all packages with the same group/artifact but at the matched version, returns their vulnerability statuses, and surfaces them as recommended alternatives.
+
+This is a heuristic approach. The pattern captures an upstream base version (the regex capture group) used to locate the corresponding vendor build. No recommendation data is pre-computed during ingestion.
+
+Additionally, OSV advisory data populates a `fixed_versions` field on each package status entry. These advisory-backed fix versions serve as a complementary signal alongside pattern-matched recommendations and can be filtered with the `has_fix_versions` query parameter.
+
+== Operator configuration
+
+=== Configuring recommendation patterns
+
+Set the `TRUSTD_RECOMMEND_PATTERNS` environment variable on the `trustd` server to enable recommendations.
+
+[source,bash]
+----
+TRUSTD_RECOMMEND_PATTERNS="redhat-[0-9]+$,rhlw-[0-9]+$"
+----
+
+The value is a comma-separated list of regex patterns. Each pattern must contain exactly one capture group that extracts the upstream base version from the vendor version string.
+
+.Example patterns
+[cols="1,2,2"]
+|===
+| Pattern | Matches | Capture group extracts
+
+| `redhat-[0-9]+$` | `5.3.18.redhat-00010` | `5.3.18`
+| `rhlw-[0-9]+$` | `5.3.18.rhlw-00003` | `5.3.18`
+| `atlassian-[0-9]+$` | `3.2.1.atlassian-2` | `3.2.1`
+|===
+
+When `TRUSTD_RECOMMEND_PATTERNS` is absent or empty, the recommendation endpoints return no results.
+
+=== Helm chart
+
+Set `recommendPatterns` in your Helm values:
+
+[source,yaml]
+----
+server:
+  recommendPatterns: "redhat-[0-9]+$,rhlw-[0-9]+$"
+----
+
+=== Operator CRD
+
+Set `spec.recommendPatterns` in the TrustyProfileAnalyzer custom resource:
+
+[source,yaml]
+----
+spec:
+  recommendPatterns: "redhat-[0-9]+$,rhlw-[0-9]+$"
+----
+
+== Remediation Report
+
+The Remediation Report lets you select one or more SBOMs and view a summary of which packages have vendor remediations available, grouped by package with associated CVEs.
+
+=== Generating a report
+
+. Navigate to the *SBOMs* list page.
+. Select one or more SBOMs using the checkboxes.
+. Click *Generate Remediation Report* in the toolbar.
++
+The button is disabled if the total package count across selected SBOMs exceeds the server-side limit. Select fewer SBOMs and try again.
+. The Remediation Report page loads with:
+** An impact summary: number of addressable SBOMs, addressable packages, and a coverage progress bar.
+** A *SBOMs with remediations* table listing each selected SBOM and its remediation count.
+** A *Packages with remediations* table listing each package, its current version, recommended version, impacted SBOMs, and CVEs addressed.
+
+=== Filtering the report
+
+In the *Packages with remediations* table:
+
+* Use the *SBOM* filter (multi-select) to narrow results to specific SBOMs.
+* Use the *CVE* filter (text search) to find packages related to a specific vulnerability.
+
+=== Exporting to CSV
+
+Click *Export CSV* to download a file with the following columns:
+
+[cols="1,2"]
+|===
+| Column | Description
+
+| Package | Package PURL
+| Current Version | Version present in the SBOM
+| Recommended Version | Vendor-recommended replacement version
+| Found in SBOMs | Comma-separated list of SBOM names
+| Vulnerabilities Addressed | CVEs resolved by the recommended version
+|===
+
+When you navigate away from a loaded report before exporting, a confirmation dialog warns that the report will not be saved.
+
+== API reference
+
+=== POST /v3/recommend/report
+
+Generates a remediation report for one or more SBOMs.
+
+.Request body
+[source,json]
+----
+{
+  "sbom_ids": [
+    "urn:uuid:01a066df-3895-7de1-9ac8-d5f651a5e773",
+    "urn:uuid:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+  ]
+}
+----
+
+.Response (200 OK)
+[source,json]
+----
+{
+  "sboms": [
+    {
+      "id": "urn:uuid:01a066df-3895-7de1-9ac8-d5f651a5e773",
+      "name": "Help-Im-Vulnerable",
+      "remediation_count": 10
+    }
+  ],
+  "packages": [
+    {
+      "purl": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.2",
+      "recommended_version": "6.0.3.rhlw-00001",
+      "sbom_ids": ["urn:uuid:01a066df-3895-7de1-9ac8-d5f651a5e773"],
+      "vulnerabilities": ["CVE-2022-40152"]
+    }
+  ]
+}
+----
+
+.Error: package count exceeded (400)
+[source,json]
+----
+{
+  "error": "package_limit_exceeded",
+  "message": "The selected SBOMs contain more packages than the allowed limit."
+}
+----
+
+=== POST /v2/purl/recommend and POST /v3/purl/recommend
+
+These endpoints apply the configured `TRUSTD_RECOMMEND_PATTERNS` to a list of package PURLs and return vendor-specific recommended alternatives with their vulnerability statuses.
+
+[IMPORTANT]
+====
+This is a heuristic endpoint. Recommendations are derived by pattern-matching version strings; they are not guaranteed to be complete or authoritative. For advisory-backed remediation guidance, use `POST /v3/vulnerability/analyze` which includes CSAF remediation data.
+====
+
+Each entry in the response `PurlStatus` includes a `fixed_versions` field — an array of fix versions extracted from OSV advisory data. This field is empty when no OSV advisory fix is known.
+
+.PurlStatus fixed_versions example
+[source,json]
+----
+{
+  "package": "pkg:maven/com.fasterxml.woodstox/woodstox-core@6.0.2",
+  "vulnerabilities": [
+    {
+      "id": "CVE-2022-40152",
+      "status": "affected",
+      "fixed_versions": ["6.4.0", "5.4.0"]
+    }
+  ]
+}
+----
+
+Use the `has_fix_versions=true` query parameter on package and vulnerability listing endpoints to filter for packages or vulnerabilities that have at least one known fix version in OSV advisory data.
