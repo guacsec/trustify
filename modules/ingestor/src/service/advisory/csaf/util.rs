@@ -1,28 +1,47 @@
-use csaf::{
-    Csaf,
-    definitions::{Branch, BranchesT},
-    product_tree::{ProductTree, Relationship},
+use super::value::{self, OnInvalidData};
+use crate::service::Error;
+use csaf::schema::csaf2_0::schema::{
+    Branch, BranchesT, CommonSecurityAdvisoryFramework as Csaf, ProductTree, Relationship,
 };
 use packageurl::PackageUrl;
+use sbom_walker::report::ReportSink;
 use std::collections::HashMap;
 
-pub fn branch_purl(branch: &Branch) -> Option<&PackageUrl<'static>> {
-    branch.product.as_ref().and_then(|name| {
-        name.product_identification_helper
-            .iter()
-            .flat_map(|pih| pih.purl.as_ref())
-            .next()
-    })
+/// Extract and parse the purl of a branch, if it has one.
+pub fn branch_purl(
+    branch: &Branch,
+    on_invalid: OnInvalidData,
+    report: &dyn ReportSink,
+) -> Result<Option<PackageUrl<'static>>, Error> {
+    let Some(purl) = branch
+        .product
+        .as_ref()
+        .and_then(|name| name.product_identification_helper.as_ref())
+        .and_then(|helper| helper.purl.as_deref())
+    else {
+        return Ok(None);
+    };
+
+    on_invalid.validate(value::purl(purl), report)
 }
 
+/// Extract and parse the CPE of a branch, if it has one.
 #[allow(dead_code)]
-pub fn branch_cpe(branch: &Branch) -> Option<&cpe::uri::OwnedUri> {
-    branch.product.as_ref().and_then(|name| {
-        name.product_identification_helper
-            .iter()
-            .flat_map(|pih| pih.cpe.as_ref())
-            .next()
-    })
+pub fn branch_cpe(
+    branch: &Branch,
+    on_invalid: OnInvalidData,
+    report: &dyn ReportSink,
+) -> Result<Option<cpe::uri::OwnedUri>, Error> {
+    let Some(cpe) = branch
+        .product
+        .as_ref()
+        .and_then(|name| name.product_identification_helper.as_ref())
+        .and_then(|helper| helper.cpe.as_deref())
+    else {
+        return Ok(None);
+    };
+
+    on_invalid.validate(value::cpe(cpe), report)
 }
 
 /// Walk the product tree, calling the closure for every branch found.
@@ -81,7 +100,7 @@ impl<'a> ResolveProductIdCache<'a> {
         walk_product_tree_branches(&csaf.product_tree, |parents, branch| {
             if let Some(full_name) = &branch.product {
                 let backtrace = parents.iter().copied().chain(Some(branch)).collect();
-                cache.insert(&full_name.product_id.0, backtrace);
+                cache.insert(full_name.product_id.as_str(), backtrace);
             }
         });
 
@@ -91,8 +110,7 @@ impl<'a> ResolveProductIdCache<'a> {
             .product_tree
             .iter()
             .flat_map(|pt| &pt.relationships)
-            .flatten()
-            .map(|rel| (rel.full_product_name.product_id.0.as_str(), rel))
+            .map(|rel| (rel.full_product_name.product_id.as_str(), rel))
             .collect();
 
         // done
@@ -117,7 +135,11 @@ impl<'a> ResolveProductIdCache<'a> {
     }
 }
 
-pub fn gen_identifier(csaf: &Csaf) -> String {
+pub fn gen_identifier(
+    csaf: &Csaf,
+    on_invalid: OnInvalidData,
+    report: &dyn ReportSink,
+) -> Result<String, Error> {
     // From the spec:
     // > The combination of `/document/publisher/namespace` and `/document/tracking/id` identifies a CSAF document globally unique.
 
@@ -134,5 +156,14 @@ pub fn gen_identifier(csaf: &Csaf) -> String {
         }
     }
 
-    format!("{}#{file_name}", csaf.document.publisher.namespace)
+    // The namespace is a URL. Normalize it through `Url` so that identifiers stay stable:
+    // CSAF carries it as a plain string, whereas it used to be a parsed `Url`, whose
+    // `Display` adds a trailing slash to an empty path.
+    let raw = &csaf.document.publisher.namespace;
+    let namespace = match on_invalid.validate(value::url(raw), report)? {
+        Some(namespace) => namespace.to_string(),
+        None => raw.clone(),
+    };
+
+    Ok(format!("{namespace}#{file_name}"))
 }

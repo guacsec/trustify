@@ -1,5 +1,6 @@
 use super::Document;
 use bytes::Bytes;
+use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use sea_orm::{FromQueryResult, QuerySelect, prelude::*};
 use trustify_entity::advisory;
 use trustify_module_storage::service::StorageBackend;
@@ -13,7 +14,7 @@ pub struct Id {
 #[allow(clippy::large_enum_variant)]
 pub enum Advisory {
     Cve(cve::Cve),
-    Csaf(csaf::Csaf),
+    Csaf(Csaf),
     Osv(osv::schema::Vulnerability),
     Other(Bytes),
 }

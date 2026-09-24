@@ -11,43 +11,42 @@ use crate::{
     model::IngestResult,
     service::{
         Error, Warnings,
-        advisory::csaf::{RemediationCreator, StatusCreator, extract_scores, util::gen_identifier},
+        advisory::csaf::{
+            RemediationCreator, StatusCreator, extract_scores,
+            util::gen_identifier,
+            value::{self, OnInvalidData},
+        },
     },
 };
-use csaf::{
-    Csaf,
-    vulnerability::{ProductStatus, Remediation, Vulnerability},
+use csaf::schema::csaf2_0::schema::{
+    CommonSecurityAdvisoryFramework as Csaf, ProductStatus, Remediation, Vulnerability,
 };
+use sbom_walker::report::ReportSink;
 use sea_orm::{ConnectionTrait, TransactionTrait};
 use semver::Version;
 use std::{fmt::Debug, str::FromStr};
-use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::hashing::Digests;
 use trustify_entity::labels::Labels;
 
-struct Information<'a>(&'a Csaf);
+/// Collect the advisory information from a CSAF document.
+fn advisory_information(
+    csaf: &Csaf,
+    on_invalid: OnInvalidData,
+    report: &dyn ReportSink,
+) -> Result<AdvisoryInformation, Error> {
+    let tracking = &csaf.document.tracking;
 
-impl<'a> From<Information<'a>> for AdvisoryInformation {
-    fn from(value: Information<'a>) -> Self {
-        let value = value.0;
-        Self {
-            id: value.document.tracking.id.clone(),
-            // TODO: consider failing if the version doesn't parse
-            version: parse_csaf_version(value),
-            title: Some(value.document.title.clone()),
-            issuer: Some(value.document.publisher.name.clone()),
-            published: OffsetDateTime::from_unix_timestamp(
-                value.document.tracking.initial_release_date.timestamp(),
-            )
-            .ok(),
-            modified: OffsetDateTime::from_unix_timestamp(
-                value.document.tracking.current_release_date.timestamp(),
-            )
-            .ok(),
-            withdrawn: None,
-        }
-    }
+    Ok(AdvisoryInformation {
+        id: tracking.id.to_string(),
+        // TODO: consider failing if the version doesn't parse
+        version: parse_csaf_version(csaf),
+        title: Some(csaf.document.title.to_string()),
+        issuer: Some(csaf.document.publisher.name.to_string()),
+        published: on_invalid.validate(value::date(&tracking.initial_release_date), report)?,
+        modified: on_invalid.validate(value::date(&tracking.current_release_date), report)?,
+        withdrawn: None,
+    })
 }
 
 /// Parse a CSAF tracking version.
@@ -56,9 +55,9 @@ impl<'a> From<Information<'a>> for AdvisoryInformation {
 /// this as a major version.
 fn parse_csaf_version(csaf: &Csaf) -> Option<Version> {
     // TODO: consider checking individual tracking records too
-    let version = &csaf.document.tracking.version;
+    let version = csaf.document.tracking.version.as_str();
     if version.contains('.') {
-        csaf.document.tracking.version.parse().ok()
+        version.parse().ok()
     } else {
         u64::from_str(version)
             .map(|major| Version {
@@ -74,11 +73,18 @@ fn parse_csaf_version(csaf: &Csaf) -> Option<Version> {
 
 pub struct CsafLoader<'g> {
     graph: &'g Graph,
+    /// What to do when the document carries a value we cannot parse.
+    on_invalid: OnInvalidData,
 }
 
 impl<'g> CsafLoader<'g> {
     pub fn new(graph: &'g Graph) -> Self {
-        Self { graph }
+        Self {
+            graph,
+            // Only `Reject` is supported for now. Once the policy becomes an ingest
+            // option, it will be passed in here instead.
+            on_invalid: OnInvalidData::Reject,
+        }
     }
 
     #[instrument(skip(self, csaf, tx), err(level=tracing::Level::INFO))]
@@ -90,13 +96,16 @@ impl<'g> CsafLoader<'g> {
         tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<IngestResult, Error> {
         let warnings = Warnings::new();
+        let report = &warnings;
 
-        let advisory_id = gen_identifier(&csaf);
+        let advisory_id = gen_identifier(&csaf, self.on_invalid, report)?;
         let labels = labels.into().add("type", "csaf");
+
+        let information = advisory_information(&csaf, self.on_invalid, report)?;
 
         let advisory = match self
             .graph
-            .ingest_advisory(&advisory_id, labels, digests, Information(&csaf), tx)
+            .ingest_advisory(&advisory_id, labels, digests, information, tx)
             .await?
         {
             Outcome::Existed(advisory) => {
@@ -113,16 +122,16 @@ impl<'g> CsafLoader<'g> {
 
         // Batch create all vulnerabilities first
         let mut vuln_creator = VulnerabilityCreator::new();
-        for vuln in csaf.vulnerabilities.iter().flatten() {
+        for vuln in &csaf.vulnerabilities {
             if let Some(cve_id) = &vuln.cve {
-                vuln_creator.add(cve_id, ());
+                vuln_creator.add(cve_id.as_str(), ());
             }
         }
         vuln_creator.create(tx).await?;
 
         // Then process each vulnerability for linking and product status
-        for vuln in csaf.vulnerabilities.iter().flatten() {
-            self.ingest_vulnerability(&csaf, &advisory, vuln, tx)
+        for vuln in &csaf.vulnerabilities {
+            self.ingest_vulnerability(&csaf, &advisory, vuln, report, tx)
                 .await?;
         }
 
@@ -141,8 +150,8 @@ impl<'g> CsafLoader<'g> {
 
     #[instrument(skip_all,
         fields(
-            csaf=csaf.document.tracking.id,
-            cve=vulnerability.cve
+            csaf=csaf.document.tracking.id.as_str(),
+            cve=?vulnerability.cve
         )
     )]
     async fn ingest_vulnerability<C: ConnectionTrait>(
@@ -150,6 +159,7 @@ impl<'g> CsafLoader<'g> {
         csaf: &Csaf,
         advisory: &AdvisoryContext<'_>,
         vulnerability: &Vulnerability,
+        report: &dyn ReportSink,
         connection: &C,
     ) -> Result<(), Error> {
         let Some(cve_id) = &vulnerability.cve else {
@@ -157,21 +167,29 @@ impl<'g> CsafLoader<'g> {
         };
 
         // Vulnerability already created in batch, just link it
+        let discovery_date = match vulnerability.discovery_date.as_deref() {
+            Some(date) => self.on_invalid.validate(value::date(date), report)?,
+            None => None,
+        };
+        let release_date = match vulnerability.release_date.as_deref() {
+            Some(date) => self.on_invalid.validate(value::date(date), report)?,
+            None => None,
+        };
+
         let advisory_vulnerability = advisory
             .link_to_vulnerability(
-                cve_id,
+                cve_id.as_str(),
                 Some(AdvisoryVulnerabilityInformation {
-                    title: vulnerability.title.clone(),
+                    title: vulnerability.title.as_ref().map(|title| title.to_string()),
                     summary: None,
                     description: None,
                     reserved_date: None,
-                    discovery_date: vulnerability.discovery_date.and_then(|date| {
-                        OffsetDateTime::from_unix_timestamp(date.timestamp()).ok()
-                    }),
-                    release_date: vulnerability.release_date.and_then(|date| {
-                        OffsetDateTime::from_unix_timestamp(date.timestamp()).ok()
-                    }),
-                    cwes: vulnerability.cwe.as_ref().map(|cwe| vec![cwe.id.clone()]),
+                    discovery_date,
+                    release_date,
+                    cwes: vulnerability
+                        .cwe
+                        .as_ref()
+                        .map(|cwe| vec![cwe.id.to_string()]),
                 }),
                 connection,
             )
@@ -183,6 +201,7 @@ impl<'g> CsafLoader<'g> {
                 &advisory_vulnerability,
                 product_status,
                 &vulnerability.remediations,
+                report,
                 connection,
             )
             .await?;
@@ -197,7 +216,8 @@ impl<'g> CsafLoader<'g> {
         csaf: &Csaf,
         advisory_vulnerability: &AdvisoryVulnerabilityContext<'_>,
         product_status: &ProductStatus,
-        remediations: &Option<Vec<Remediation>>,
+        remediations: &[Remediation],
+        report: &dyn ReportSink,
         connection: &C,
     ) -> Result<(), Error> {
         let mut creator = StatusCreator::new(
@@ -209,34 +229,36 @@ impl<'g> CsafLoader<'g> {
                 .clone(),
         );
 
-        creator
-            .add_all(&product_status.fixed, "fixed")
-            .map_err(Error::Generic)?;
-        creator
-            .add_all(&product_status.known_not_affected, "not_affected")
-            .map_err(Error::Generic)?;
-        creator
-            .add_all(&product_status.known_affected, "affected")
-            .map_err(Error::Generic)?;
+        creator.add_all(&product_status.fixed, "fixed", self.on_invalid, report)?;
+        creator.add_all(
+            &product_status.known_not_affected,
+            "not_affected",
+            self.on_invalid,
+            report,
+        )?;
+        creator.add_all(
+            &product_status.known_affected,
+            "affected",
+            self.on_invalid,
+            report,
+        )?;
 
         let product_id_mapping = creator.create(self.graph, connection).await?;
 
-        if let Some(remediations) = remediations {
-            let mut remediation_creator = RemediationCreator::new(
-                advisory_vulnerability.advisory_vulnerability.advisory_id,
-                advisory_vulnerability
-                    .advisory_vulnerability
-                    .vulnerability_id
-                    .clone(),
-                product_id_mapping,
-            );
+        let mut remediation_creator = RemediationCreator::new(
+            advisory_vulnerability.advisory_vulnerability.advisory_id,
+            advisory_vulnerability
+                .advisory_vulnerability
+                .vulnerability_id
+                .clone(),
+            product_id_mapping,
+        );
 
-            for remediation in remediations {
-                remediation_creator.add(remediation);
-            }
-
-            remediation_creator.create(connection).await?;
+        for remediation in remediations {
+            remediation_creator.add(remediation);
         }
+
+        remediation_creator.create(connection).await?;
 
         Ok(())
     }
@@ -250,10 +272,11 @@ mod test {
         service::advisory::test::{AssertScore, assert_scores},
     };
     use hex::ToHex;
+    use rstest::rstest;
     use test_context::test_context;
     use test_log::test;
     use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
-    use trustify_test_context::{TrustifyContext, document};
+    use trustify_test_context::{TrustifyContext, document, document_bytes};
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
@@ -559,6 +582,87 @@ mod test {
             purl_status_links.len(),
             "Expected vendor_fix remediation to be linked to 16 purl statuses"
         );
+
+        Ok(())
+    }
+
+    /// Ingest a fixture with the value at `pointer` replaced by an invalid one.
+    ///
+    /// The patch is applied to the raw JSON so that the value still has to survive
+    /// csaf-rs' own schema validation, proving it reaches trustify's parsing.
+    async fn load_patched(
+        ctx: &TrustifyContext,
+        fixture: &str,
+        pointer: &str,
+        replacement: &str,
+    ) -> Result<IngestResult, Error> {
+        let data = document_bytes(fixture).await.expect("fixture loads");
+
+        let mut doc: serde_json::Value = serde_json::from_slice(&data)?;
+        *doc.pointer_mut(pointer)
+            .expect("fixture has the patched value") = replacement.into();
+
+        let data = serde_json::to_vec(&doc)?;
+        let digests = Digests::digest(&data);
+        let csaf: Csaf = serde_json::from_slice(&data)?;
+
+        CsafLoader::new(&Graph::new())
+            .load(("source", "test"), csaf, &digests, &ctx.db)
+            .await
+    }
+
+    /// A value trustify cannot parse rejects the document, rather than being skipped.
+    ///
+    /// Each replacement satisfies the CSAF schema — so csaf-rs accepts it and it reaches
+    /// our own parsing — while being invalid for the type it represents:
+    ///
+    /// * `pkg:cargo/ns/name@1.0` is not a valid purl, because `cargo` prohibits a namespace.
+    ///   This is the case that previously got recorded silently as a *package name*.
+    /// * `cpe:/a:vendor:product:1:2:3:4` is not a valid CPE, because `4` is not a language tag.
+    /// * dates and the publisher namespace are plain strings in CSAF, so anything reaches us.
+    #[test_context(TrustifyContext)]
+    #[rstest]
+    #[case::purl(
+        "csaf/rhsa-2024_3666.json",
+        "/product_tree/branches/0/branches/1/branches/0/product/product_identification_helper/purl",
+        "pkg:cargo/ns/name@1.0",
+        "invalid purl"
+    )]
+    #[case::cpe(
+        "csaf/cve-2023-0044.json",
+        "/product_tree/branches/0/branches/0/product/product_identification_helper/cpe",
+        "cpe:/a:vendor:product:1:2:3:4",
+        "invalid cpe"
+    )]
+    #[case::date(
+        "csaf/cve-2023-0044.json",
+        "/document/tracking/initial_release_date",
+        "not-a-date",
+        "invalid date"
+    )]
+    #[case::namespace(
+        "csaf/cve-2023-0044.json",
+        "/document/publisher/namespace",
+        "not a url",
+        "invalid url"
+    )]
+    #[test_log::test(tokio::test)]
+    async fn reject_invalid_value(
+        ctx: &TrustifyContext,
+        #[case] fixture: &str,
+        #[case] pointer: &str,
+        #[case] replacement: &str,
+        #[case] expected: &str,
+    ) -> Result<(), anyhow::Error> {
+        let err = load_patched(ctx, fixture, pointer, replacement)
+            .await
+            .expect_err("must reject an invalid value");
+
+        assert!(
+            matches!(&err, Error::InvalidContent(_)),
+            "expected InvalidContent, got {err:?}"
+        );
+        assert!(err.to_string().contains(expected), "got {err}");
 
         Ok(())
     }

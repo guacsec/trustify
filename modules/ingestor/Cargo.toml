@@ -18,7 +18,7 @@ anyhow = { workspace = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
 cpe = { workspace = true }
-csaf = { workspace = true }
+csaf-rs = { workspace = true }
 cve = { workspace = true }
 cvss = { workspace = true }
 hex = { workspace = true }
@@ -49,6 +49,7 @@ tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 utoipa = { workspace = true }
 utoipa-actix-web = { workspace = true }
+url = { workspace = true }
 uuid = { workspace = true, features = ["v7"] }
 vers-rs = { workspace = true }
 zip = { workspace = true }

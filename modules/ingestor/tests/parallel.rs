@@ -2,7 +2,7 @@
 #![recursion_limit = "512"]
 
 use bytes::Bytes;
-use csaf::Csaf;
+use csaf::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use serde_json::Value;
 use spdx_rs::models::SPDX;
 use std::str::FromStr;
@@ -125,7 +125,10 @@ async fn csaf_parallel(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let mut tasks = vec![];
     for _ in 0..NUM {
         let mut next = csaf.clone();
-        next.document.tracking.id = Uuid::new_v4().to_string();
+        next.document.tracking.id = Uuid::new_v4()
+            .to_string()
+            .parse()
+            .expect("tracking id must be valid");
         let next = serde_json::to_vec(&next)?;
 
         let service = ctx.ingestor.clone();
