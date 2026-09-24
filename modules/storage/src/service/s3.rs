@@ -362,18 +362,18 @@ mod test {
                 bucket: Some(bucket),
                 region: Some(
                     std::env::var("TEST_S3_REGION")
-                        .unwrap_or_else(|_| "http://127.0.0.1:9000".to_string()),
+                        .unwrap_or_else(|_| "http://127.0.0.1:9090".to_string()),
                 ),
                 access_key: Some(
                     std::env::var("TEST_S3_ACCESS_KEY")
-                        .unwrap_or_else(|_| "minioadmin".to_string()),
+                        .unwrap_or_else(|_| "test".to_string()),
                 ),
                 secret_key: Some(
                     std::env::var("TEST_S3_SECRET_KEY")
-                        .unwrap_or_else(|_| "minioadmin".to_string()),
+                        .unwrap_or_else(|_| "test".to_string()),
                 ),
                 trust_anchors: vec![],
-                path_style: false,
+                path_style: true,
             },
             compression,
         )
@@ -397,7 +397,7 @@ mod test {
     #[rstest]
     #[case::none(Compression::None)]
     #[case::zstd(Compression::Zstd)]
-    #[cfg_attr(not(feature = "_test-s3"), ignore = "requires minio or s3")]
+    #[cfg_attr(not(feature = "_test-s3"), ignore = "requires s3mock or s3")]
     async fn store_read_and_delete(#[case] compression: Compression) {
         let backend = backend(compression).await;
 
@@ -408,7 +408,7 @@ mod test {
     #[rstest]
     #[case::none(Compression::None)]
     #[case::zstd(Compression::Zstd)]
-    #[cfg_attr(not(feature = "_test-s3"), ignore = "requires minio or s3")]
+    #[cfg_attr(not(feature = "_test-s3"), ignore = "requires s3mock or s3")]
     async fn store_read_and_delete_rng(#[case] compression: Compression) {
         let backend = backend(compression).await;
 
@@ -419,7 +419,7 @@ mod test {
 
     /// Ensure retrieving the information that the file does not exist works.
     #[test(tokio::test)]
-    #[cfg_attr(not(feature = "_test-s3"), ignore = "requires minio or s3")]
+    #[cfg_attr(not(feature = "_test-s3"), ignore = "requires s3mock or s3")]
     async fn read_not_found() {
         let backend = backend(Compression::None).await;
         test_read_not_found(backend).await;

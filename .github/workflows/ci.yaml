@@ -103,9 +103,9 @@ jobs:
       - name: Format
         run: cargo fmt --check
 
-      - name: Start minio
+      - name: Start S3 mock
         run: |
-          docker compose -f etc/deploy/compose/compose-minio.yaml up -d --wait
+          docker compose -f etc/deploy/compose/compose-s3mock.yaml up -d --wait
 
       - name: Create tmp dir
         run: |
