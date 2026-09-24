@@ -21,7 +21,11 @@ use sea_orm::{
     ColumnTrait, Condition, ConnectionTrait, EntityTrait, FromQueryResult, LoaderTrait,
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
 };
-use sea_query::{Asterisk, ColumnType, Expr, Func, JoinType, Order, SimpleExpr, UnionType};
+use sea_query::{
+    Asterisk, ColumnType, Expr, Func,
+    JoinType::{self, InnerJoin},
+    Order, SimpleExpr, UnionType,
+};
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::{
     db::{
@@ -851,7 +855,71 @@ impl PurlService {
                 by_base.entry(vp.base_purl_id).or_default().push(vp);
             }
         }
+
+        // Supplement with exact-version advisory entries (status `not_affected` or `fixed`).
+        // In advisory-only deployments without vendor SBOMs, these purl_status rows are the
+        // only source of vendor-rebuilt version strings. Using a deterministic UUID (v5 of
+        // base_purl_id + version) lets the rest of the pipeline treat them uniformly;
+        // fetch_vulnerability_statuses simply returns no rows for them, which is acceptable.
+        Self::extend_with_advisory_versions(
+            base_purls.iter().map(|bp| bp.id),
+            &mut by_base,
+            connection,
+        )
+        .await?;
+
         Ok(by_base)
+    }
+
+    /// Fetches exact-version `not_affected` and `fixed` purl_status entries and adds any
+    /// version strings not already present in `by_base` as synthetic versioned_purl models.
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    async fn extend_with_advisory_versions<C: ConnectionTrait>(
+        base_purl_ids: impl IntoIterator<Item = Uuid>,
+        by_base: &mut HashMap<Uuid, Vec<versioned_purl::Model>>,
+        connection: &C,
+    ) -> Result<(), Error> {
+        #[derive(FromQueryResult)]
+        struct AdvisoryVersion {
+            base_purl_id: Uuid,
+            version: String,
+        }
+
+        let id_chunks = chunked_with(1, base_purl_ids.into_iter());
+        for chunk in &id_chunks {
+            let chunk: Vec<_> = chunk.collect();
+            let rows: Vec<AdvisoryVersion> = purl_status::Entity::find()
+                .select_only()
+                .column_as(purl_status::Column::BasePurlId, "base_purl_id")
+                .column_as(version_range::Column::HighVersion, "version")
+                .join(InnerJoin, purl_status::Relation::Status.def())
+                .join(InnerJoin, purl_status::Relation::VersionRange.def())
+                .filter(status::Column::Slug.is_in(["not_affected", "fixed"]))
+                .filter(purl_status::Column::BasePurlId.is_in(chunk))
+                .filter(version_range::Column::HighVersion.is_not_null())
+                .filter(
+                    Expr::col(version_range::Column::LowVersion)
+                        .eq(Expr::col(version_range::Column::HighVersion)),
+                )
+                .into_model::<AdvisoryVersion>()
+                .all(connection)
+                .await?;
+
+            for row in rows {
+                let entry = by_base.entry(row.base_purl_id).or_default();
+                if entry.iter().any(|vp| vp.version == row.version) {
+                    continue;
+                }
+                let id = Uuid::new_v5(&row.base_purl_id, row.version.as_bytes());
+                entry.push(versioned_purl::Model {
+                    id,
+                    base_purl_id: row.base_purl_id,
+                    version: row.version,
+                });
+            }
+        }
+
+        Ok(())
     }
 
     /// Selects the versioned PURL with the highest vendor version matching the input upstream version.
