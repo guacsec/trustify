@@ -2089,9 +2089,9 @@ dependencies = [
 
 [[package]]
 name = "csaf-walker"
-version = "0.18.1"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f3618c7a01265f1a35be39ae54d7ff9e468d6ea1f22fa87502ccb96b401305b"
+checksum = "2d1dab2d259f07f8dd0a0c1adcf867aa85090582b6a4d63d0984d00fb3409953"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2115,6 +2115,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
+ "strum 0.27.2",
  "tempfile",
  "thiserror 2.0.20",
  "time",
@@ -4566,9 +4567,9 @@ dependencies = [
 
 [[package]]
 name = "lzma-rust2"
-version = "0.20.1"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e2a88783b84d2d67ef2791778a9e76bfb68b8017aaf6c9d7d5f2626a478b16c"
+checksum = "fde178a3caf126c440fa15628147772d8ee590a39477d711353fbe2e58a73a5b"
 dependencies = [
  "sha2 0.11.0",
 ]
@@ -6801,9 +6802,9 @@ dependencies = [
 
 [[package]]
 name = "sbom-walker"
-version = "0.18.1"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c62bac7ceba21f0ee9dda7f87d52a04eb5a450902fb155e890c9e34ee7ca1f2"
+checksum = "0a0be16effc22ed85e0f3dddac9d8abc472722dec24e3ba434537a6f4944f5a9"
 dependencies = [
  "anyhow",
  "bytes",
@@ -9867,9 +9868,9 @@ dependencies = [
 
 [[package]]
 name = "walker-common"
-version = "0.18.1"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2c230c3e1e226854d3e7e59f63cfa7e8a5f043db8be7fd35b924bc67a317eb3"
+checksum = "5d2ffa904d2bd1b7a05c261ac65f3e504bc2649f7f9e1b0943acc233a3e6a080"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -9892,7 +9893,7 @@ dependencies = [
  "indicatif",
  "indicatif-log-bridge",
  "log",
- "lzma-rust2 0.20.1",
+ "lzma-rust2 0.21.0",
  "openid 0.24.0",
  "pem 4.0.0",
  "reqwest 0.13.5",
