@@ -53,9 +53,9 @@ jobs:
           path: ~/.theseus/postgresql
           key: ${{ runner.os }}-theseus-postgresql-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Start minio
+      - name: Start S3 mock
         run: |
-          docker compose -f etc/deploy/compose/compose-minio.yaml up -d --wait
+          docker compose -f etc/deploy/compose/compose-s3mock.yaml up -d --wait
 
       - uses: taiki-e/install-action@v2
         with:
