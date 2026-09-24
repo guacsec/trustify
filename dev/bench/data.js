@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790160704373,
+  "lastUpdate": 1790247648340,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22643,6 +22643,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": true,
+          "id": "0f8f6ccdbbdcb27be9aaa28787c395485fbd6235",
+          "message": "feat(importer): adopt FetcherOptions::authentication from walker-common 0.19.0\n\nReplaces the manual reqwest::Client construction (with default_headers and\na custom redirect policy) with FetcherOptions::authentication. This honours\nfetch_retries in the authenticated path and removes the custom cross-origin\nredirect policy, which is no longer needed because auth is applied\nper-request rather than as client-wide headers.\n\nBumps csaf-walker, sbom-walker, and walker-common to 0.19.0 which includes\nthe upstream authentication support (scm-rs/csaf-walker#90).\n\nImplements TC-6450\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-09-24T10:09:16Z",
+          "tree_id": "0448c23969bd1643f80d17f1d656fba5a812a105",
+          "url": "https://github.com/guacsec/trustify/commit/0f8f6ccdbbdcb27be9aaa28787c395485fbd6235"
+        },
+        "date": 1790247645563,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
