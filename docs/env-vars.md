@@ -60,7 +60,7 @@
 | `TRUSTD_MAX_CACHE_SIZE`                  | Maximum size of the graph cache.                                                    | `200 MiB`                               |
 | `TRUSTIFY_LATEST_SBOM_PUBLISHED_CUTOFF_DAYS` | Number of days before now used as a published-date cutoff when finding latest SBOMs [disabled by default] |                                         |
 | `TRUSTD_READ_ONLY`                       | Enable read-only mode, rejecting all mutating API requests                          | `false`                                 |
-| `TRUSTD_RECOMMEND_PATTERNS`              | Comma-separated list of regex patterns (each with one capture group) used to identify vendor-specific package versions as recommendations. The capture group extracts the upstream base version. Example: `redhat-[0-9]+$,rhlw-[0-9]+$`. Absent or empty disables recommendations. | (empty) |
+| `TRUSTD_RECOMMEND_PATTERNS`              | Comma-separated list of regex patterns, each with exactly one capture group that extracts the upstream base version. Example: `^(.+)[.-]redhat-[0-9]+$,^(.+)[.-]rhlw-[0-9]+$`. Absent or empty causes endpoints to return HTTP 503 with `FEATURE_UNCONFIGURED`. | (empty) |
 | `TRUSTD_S3_ACCESS_KEY`                   | S3 access key                                                                       |                                         |
 | `TRUSTD_S3_BUCKET`                       | S3 bucket name                                                                      |                                         |
 | `TRUSTD_S3_REGION`                       | S3 region name                                                                      |                                         |
