@@ -57,7 +57,7 @@ actix-http = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
 criterion = { workspace = true, features = ["html_reports", "async_tokio"] }
-csaf = { workspace = true }
+csaf-rs = { workspace = true }
 csv = { workspace = true }
 cve = { workspace = true }
 flate2 = { workspace = true }
