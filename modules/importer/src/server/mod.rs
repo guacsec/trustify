@@ -17,7 +17,10 @@ use time::OffsetDateTime;
 use tokio::{task::LocalSet, time::MissedTickBehavior};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
-use trustify_common::db::{ReadWrite, pagination_cache::PaginationCache};
+use trustify_common::{
+    db::{ReadWrite, pagination_cache::PaginationCache},
+    feature::CapabilityFilter,
+};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
@@ -34,6 +37,7 @@ pub async fn importer(
     concurrency: usize,
     read_only: bool,
     credential_config: CredentialConfig,
+    importer_filter: CapabilityFilter,
 ) -> anyhow::Result<()> {
     Server {
         db,
@@ -44,6 +48,7 @@ pub async fn importer(
         concurrency,
         read_only,
         credential_config,
+        importer_filter,
     }
     .run()
     .await
@@ -74,6 +79,7 @@ struct Server {
     concurrency: usize,
     read_only: bool,
     credential_config: CredentialConfig,
+    importer_filter: CapabilityFilter,
 }
 
 impl Server {
@@ -88,7 +94,11 @@ impl Server {
         let meter = global::meter("importer::Server");
         let running_importers = meter.u64_gauge("running_importers").build();
 
-        let service = ImporterService::new(self.db.clone(), self.cache.clone());
+        let service = ImporterService::new(
+            self.db.clone(),
+            self.cache.clone(),
+            self.importer_filter.clone(),
+        );
         let runner = ImportRunner {
             db: self.db.clone(),
             storage: self.storage.clone(),
@@ -126,6 +136,11 @@ impl Server {
             runs.extend(
                 importers
                     .into_iter()
+                    .filter(|i| {
+                        self.importer_filter
+                            .try_enabled((&i.data.configuration).into())
+                            .is_ok()
+                    })
                     .filter(|i| i.is_enabled() && i.is_due() && !i.is_running())
                     .take(self.concurrency - count)
                     .map(|importer| {

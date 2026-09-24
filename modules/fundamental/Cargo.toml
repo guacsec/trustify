@@ -11,7 +11,7 @@ long_running = [] # enable long-running tests
 
 [dependencies]
 trustify-auth = { workspace = true }
-trustify-common = { workspace = true}
+trustify-common = { workspace = true }
 trustify-entity = { workspace = true }
 trustify-module-analysis = { workspace = true }
 trustify-module-ingestor = { workspace = true }

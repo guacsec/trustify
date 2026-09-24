@@ -16,6 +16,7 @@ use std::str::FromStr;
 use trustify_auth::{ReadAdvisory, ReadSbom, authorizer::Require};
 use trustify_common::{
     db::{self, pagination_cache::PaginationCache, query::Query},
+    feature::{Recommendations, RequireFeature},
     id::IdError,
     model::{Paginated, PaginatedResults},
     purl::Purl,
@@ -119,19 +120,12 @@ mod v2 {
     #[post("/v2/purl/recommend")]
     #[deprecated = "Use the v3 version of this API"]
     pub async fn recommend(
+        _gate: RequireFeature<Recommendations>,
         purl_service: web::Data<PurlService>,
         db: web::Data<db::ReadOnly>,
         request: web::Json<RecommendRequest>,
         _: Require<ReadAdvisory>,
     ) -> Result<impl Responder, Error> {
-        if purl_service.recommend_patterns().is_empty() {
-            return Ok(HttpResponse::ServiceUnavailable().json(serde_json::json!({
-                "status": 503,
-                "code": "FEATURE_UNCONFIGURED",
-                "message": "This endpoint is disabled until the required regex pattern TRUSTD_RECOMMEND_PATTERNS is configured on the server."
-            })));
-        }
-
         let tx = db.begin().await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 
@@ -155,19 +149,12 @@ mod v3 {
     )]
     #[post("/v3/purl/recommend")]
     pub async fn recommend(
+        _gate: RequireFeature<Recommendations>,
         purl_service: web::Data<PurlService>,
         db: web::Data<db::ReadOnly>,
         request: web::Json<RecommendRequest>,
         _: Require<ReadAdvisory>,
     ) -> Result<impl Responder, Error> {
-        if purl_service.recommend_patterns().is_empty() {
-            return Ok(HttpResponse::ServiceUnavailable().json(serde_json::json!({
-                "status": 503,
-                "code": "FEATURE_UNCONFIGURED",
-                "message": "This endpoint is disabled until the required regex pattern TRUSTD_RECOMMEND_PATTERNS is configured on the server."
-            })));
-        }
-
         let tx = db.begin().await?;
         let recommendations = purl_service.recommend_purls(&request.purls, &tx).await?;
 

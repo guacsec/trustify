@@ -1,4 +1,4 @@
-use trustify_common::db;
+use trustify_common::{db, feature::CapabilityFilter};
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
 use trustify_module_ingestor::endpoints::{Config, configure};
 use trustify_test_context::{
@@ -20,6 +20,7 @@ pub async fn caller_with(
             ctx.storage.clone(),
             Some(analysis),
             Vec::new(),
+            CapabilityFilter::default(),
         )
     })
     .await
