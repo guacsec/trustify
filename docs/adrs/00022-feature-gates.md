@@ -137,8 +137,8 @@ the `permission!` macro does for `Permission` / `Require<Permission>`:
 pub struct ExploitIntelligence;
 
 impl FeatureRequirement for ExploitIntelligence {
-    fn enforce(features: &ActiveFeatures) -> Result<(), FeatureDisabled> {
-        features.require(Feature::ExploitIntelligence)
+    fn feature() -> Feature {
+        Feature::ExploitIntelligence
     }
 }
 
@@ -290,9 +290,9 @@ The well-known endpoint response is extended with `features` and `capabilities`:
 configured. If a feature is absent, it is either not compiled into the binary or not configured.
 Clients check membership: `features.includes("recommendations")`.
 
-**`capabilities`** is a map of category name → array of active options. A category is present only when
-it has at least one active option. Clients check `capabilities.importers` to see which importer types
-are configured.
+**`capabilities`** is a map of category name → array of active options. Categories are always present;
+an empty array means no options are active for that category. Clients check `capabilities.importers`
+to see which importer types are configured.
 
 The existing top-level `exploitIntelligence` field is preserved for backward compatibility but
 deprecated. New features are added exclusively to the `features` array.
