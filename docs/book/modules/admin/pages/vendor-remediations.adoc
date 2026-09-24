@@ -41,22 +41,31 @@ When `TRUSTD_RECOMMEND_PATTERNS` is absent or empty, the recommendation endpoint
 
 === Helm chart
 
-Set `recommendPatterns` in your Helm values:
+Set `modules.server.recommendPatterns` in your Helm values as an array.
+The chart joins the list with commas when setting `TRUSTD_RECOMMEND_PATTERNS`.
+When the array is empty (the default), the env var is not set and the endpoint returns HTTP 503.
 
 [source,yaml]
 ----
-server:
-  recommendPatterns: "^(.+)[.-]redhat-[0-9]+$,^(.+)[.-]rhlw-[0-9]+$"
+modules:
+  server:
+    recommendPatterns:
+      - "^(.+)[.-]redhat-[0-9]+$"
+      - "^(.+)[.-]rhlw-[0-9]+$"
 ----
 
 === Operator CRD
 
-Set `spec.recommendPatterns` in the TrustyProfileAnalyzer custom resource:
+The operator embeds the same Helm chart.
+Set `recommendPatterns` under `modules.server` in your values override.
 
 [source,yaml]
 ----
-spec:
-  recommendPatterns: "^(.+)[.-]redhat-[0-9]+$,^(.+)[.-]rhlw-[0-9]+$"
+modules:
+  server:
+    recommendPatterns:
+      - "^(.+)[.-]redhat-[0-9]+$"
+      - "^(.+)[.-]rhlw-[0-9]+$"
 ----
 
 == Remediation Report
