@@ -1,0 +1,3984 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:49f144b7-ba8d-46f1-84e8-93ceec3ea159",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-05-27T13:46:29Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "group": "SCANOSS",
+          "name": "crypto-finder",
+          "version": "1.26.2"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "a3a34d4c-93ed-43de-8379-c46c568cb7cd",
+      "type": "cryptographic-asset",
+      "name": "AES-256-XTS",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.block-cipher.aes.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "block/blk-crypto.c",
+            "line": 23,
+            "additionalContext": "scanoss:match,.name = \"AES-256-XTS\","
+          },
+          {
+            "location": "fs/crypto/keysetup.c",
+            "line": 19,
+            "additionalContext": "scanoss:match,.friendly_name = \"AES-256-XTS\","
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "block-cipher",
+          "parameterSetIdentifier": "256",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "mode": "xts",
+          "cryptoFunctions": [
+            "encrypt",
+            "decrypt"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.1"
+      }
+    },
+    {
+      "bom-ref": "d2faf234-6f9a-45a9-8ece-a2374ce96260",
+      "type": "cryptographic-asset",
+      "name": "BLAKE2b",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.blake2"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/blake2b.c",
+            "line": 44,
+            "additionalContext": "scanoss:match,blake2b_update(BLAKE2B_CTX(desc), data, len);"
+          },
+          {
+            "location": "include/crypto/blake2b.h",
+            "line": 152,
+            "additionalContext": "scanoss:match,blake2b_update(\u0026ctx, in, inlen);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        }
+      }
+    },
+    {
+      "bom-ref": "bccb4ee1-f326-4b5c-8a61-3dcf1f9fe479",
+      "type": "cryptographic-asset",
+      "name": "BLAKE2s",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.blake2"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.blake2"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/char/random.c",
+            "line": 652,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026input_pool.hash, buf, len);"
+          },
+          {
+            "location": "drivers/net/wireguard/cookie.c",
+            "line": 38,
+            "additionalContext": "scanoss:match,blake2s_init(\u0026blake, NOISE_SYMMETRIC_KEY_LEN);"
+          },
+          {
+            "location": "drivers/net/wireguard/cookie.c",
+            "line": 39,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, label, COOKIE_KEY_LABEL_LEN);"
+          },
+          {
+            "location": "drivers/net/wireguard/cookie.c",
+            "line": 40,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, pubkey, NOISE_PUBLIC_KEY_LEN);"
+          },
+          {
+            "location": "drivers/net/wireguard/cookie.c",
+            "line": 108,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, (u8 *)\u0026ip_hdr(skb)-\u003esaddr,"
+          },
+          {
+            "location": "drivers/net/wireguard/cookie.c",
+            "line": 111,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, (u8 *)\u0026ipv6_hdr(skb)-\u003esaddr,"
+          },
+          {
+            "location": "drivers/net/wireguard/cookie.c",
+            "line": 113,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, (u8 *)\u0026udp_hdr(skb)-\u003esource, sizeof(__be16));"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 40,
+            "additionalContext": "scanoss:match,blake2s_init(\u0026blake, NOISE_HASH_LEN);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 41,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, handshake_init_chaining_key, NOISE_HASH_LEN);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 42,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, identifier_name, sizeof(identifier_name));"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 313,
+            "additionalContext": "scanoss:match,blake2s_init(\u0026blake, BLAKE2S_HASH_SIZE);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 314,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, key, keylen);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 322,
+            "additionalContext": "scanoss:match,blake2s_init(\u0026blake, BLAKE2S_HASH_SIZE);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 323,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, x_key, BLAKE2S_BLOCK_SIZE);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 324,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, in, inlen);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 330,
+            "additionalContext": "scanoss:match,blake2s_init(\u0026blake, BLAKE2S_HASH_SIZE);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 331,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, x_key, BLAKE2S_BLOCK_SIZE);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 332,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, i_hash, BLAKE2S_HASH_SIZE);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 436,
+            "additionalContext": "scanoss:match,blake2s_init(\u0026blake, NOISE_HASH_LEN);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 437,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, hash, NOISE_HASH_LEN);"
+          },
+          {
+            "location": "drivers/net/wireguard/noise.c",
+            "line": 438,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026blake, src, src_len);"
+          },
+          {
+            "location": "include/crypto/blake2s.h",
+            "line": 156,
+            "additionalContext": "scanoss:match,blake2s_update(\u0026ctx, in, inlen);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        }
+      }
+    },
+    {
+      "bom-ref": "55cda99f-6517-4560-9162-0562db0dfb02",
+      "type": "cryptographic-asset",
+      "name": "ChaCha20",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.stream-cipher.chacha20"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/chacha.c",
+            "line": 66,
+            "additionalContext": "scanoss:match,chacha_crypt(\u0026state, walk.dst.virt.addr, walk.src.virt.addr,"
+          },
+          {
+            "location": "include/crypto/chacha.h",
+            "line": 94,
+            "additionalContext": "scanoss:match,chacha_crypt(state, dst, src, bytes, 20);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "stream-cipher",
+          "parameterSetIdentifier": "256",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "encrypt",
+            "decrypt"
+          ]
+        }
+      }
+    },
+    {
+      "bom-ref": "66ed58e7-8218-409c-9cf8-6923f5d28a6c",
+      "type": "cryptographic-asset",
+      "name": "DES",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.block-cipher.des"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.block-cipher.des"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.block-cipher.des"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "arch/sparc/crypto/des_glue.c",
+            "line": 67,
+            "additionalContext": "scanoss:match,return des_set_key(crypto_skcipher_tfm(tfm), key, keylen);"
+          },
+          {
+            "location": "crypto/des_generic.c",
+            "line": 41,
+            "additionalContext": "scanoss:match,des_encrypt(dctx, dst, src);"
+          },
+          {
+            "location": "crypto/des_generic.c",
+            "line": 48,
+            "additionalContext": "scanoss:match,des_decrypt(dctx, dst, src);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "block-cipher",
+          "parameterSetIdentifier": "56",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "encrypt",
+            "decrypt"
+          ]
+        },
+        "oid": "1.3.14.3.2.7"
+      }
+    },
+    {
+      "bom-ref": "91f2ed70-e203-4897-b312-e3ba8683cf0e",
+      "type": "cryptographic-asset",
+      "name": "DH",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.key-agree.dh.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/dh.c",
+            "line": 272,
+            "additionalContext": "scanoss:match,.cra_name = \"dh\","
+          },
+          {
+            "location": "crypto/dh.c",
+            "line": 583,
+            "additionalContext": "scanoss:match,if (strcmp(dh_alg-\u003ebase.cra_name, \"dh\"))"
+          },
+          {
+            "location": "crypto/dh.c",
+            "line": 925,
+            "additionalContext": "scanoss:match,MODULE_ALIAS_CRYPTO(\"dh\");"
+          },
+          {
+            "location": "crypto/testmgr.c",
+            "line": 4575,
+            "additionalContext": "scanoss:match,.alg = \"dh\","
+          },
+          {
+            "location": "drivers/crypto/hisilicon/hpre/hpre_crypto.c",
+            "line": 1696,
+            "additionalContext": "scanoss:match,.cra_name = \"dh\","
+          },
+          {
+            "location": "drivers/crypto/intel/qat/qat_common/qat_asym_algs.c",
+            "line": 1327,
+            "additionalContext": "scanoss:match,.cra_name = \"dh\","
+          },
+          {
+            "location": "net/netfilter/ipvs/ip_vs_dh.c",
+            "line": 244,
+            "additionalContext": "scanoss:match,.name = \"dh\","
+          },
+          {
+            "location": "security/keys/dh.c",
+            "line": 210,
+            "additionalContext": "scanoss:match,tfm = crypto_alloc_kpp(\"dh\", 0, 0);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "key-agree",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "keygen"
+          ]
+        },
+        "oid": "1.2.840.10046.2.1"
+      }
+    },
+    {
+      "bom-ref": "ab59e954-b6c5-4f12-b7dd-86cc96afd0dc",
+      "type": "cryptographic-asset",
+      "name": "DSA",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.signature.dsa.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/dma/idxd/bus.c",
+            "line": 76,
+            "additionalContext": "scanoss:match,.name = \"dsa\","
+          },
+          {
+            "location": "drivers/dma/idxd/cdev.c",
+            "line": 37,
+            "additionalContext": "scanoss:match,{ .name = \"dsa\" },"
+          },
+          {
+            "location": "drivers/dma/idxd/compat.c",
+            "line": 110,
+            "additionalContext": "scanoss:match,.name = \"dsa\","
+          },
+          {
+            "location": "drivers/dma/idxd/init.c",
+            "line": 45,
+            "additionalContext": "scanoss:match,.name_prefix = \"dsa\","
+          },
+          {
+            "location": "drivers/dma/idxd/sysfs.c",
+            "line": 1827,
+            "additionalContext": "scanoss:match,.name = \"dsa\","
+          },
+          {
+            "location": "net/dsa/conduit.c",
+            "line": 76,
+            "additionalContext": "scanoss:match,strscpy(cpu_info-\u003edriver, \"dsa\", sizeof(cpu_info-\u003edriver));"
+          },
+          {
+            "location": "net/dsa/conduit.c",
+            "line": 419,
+            "additionalContext": "scanoss:match,.name = \"dsa\","
+          },
+          {
+            "location": "net/dsa/dsa.c",
+            "line": 1427,
+            "additionalContext": "scanoss:match,if (!strcmp(name, \"dsa\"))"
+          },
+          {
+            "location": "net/dsa/netlink.c",
+            "line": 56,
+            "additionalContext": "scanoss:match,.kind = \"dsa\","
+          },
+          {
+            "location": "net/dsa/port.c",
+            "line": 1820,
+            "additionalContext": "scanoss:match,dn, dsa_port_is_cpu(dp) ? \"CPU\" : \"DSA\", dp-\u003eindex);"
+          },
+          {
+            "location": "net/dsa/port.c",
+            "line": 1839,
+            "additionalContext": "scanoss:match,dn, dsa_port_is_cpu(dp) ? \"CPU\" : \"DSA\", dp-\u003eindex);"
+          },
+          {
+            "location": "net/dsa/port.c",
+            "line": 1868,
+            "additionalContext": "scanoss:match,dsa_port_is_cpu(dp) ? \"CPU\" : \"DSA\", dp-\u003eindex);"
+          },
+          {
+            "location": "net/dsa/trace.c",
+            "line": 35,
+            "additionalContext": "scanoss:match,return \"dsa\";"
+          },
+          {
+            "location": "net/dsa/user.c",
+            "line": 954,
+            "additionalContext": "scanoss:match,strscpy(drvinfo-\u003edriver, \"dsa\", sizeof(drvinfo-\u003edriver));"
+          },
+          {
+            "location": "net/dsa/user.c",
+            "line": 2614,
+            "additionalContext": "scanoss:match,.name = \"dsa\","
+          },
+          {
+            "location": "tools/testing/selftests/vfio/lib/drivers/dsa/dsa.c",
+            "line": 409,
+            "additionalContext": "scanoss:match,.name = \"dsa\","
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "sign",
+            "verify"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.3"
+      }
+    },
+    {
+      "bom-ref": "365c05db-8d87-4a19-aabf-9cc1c26a90f8",
+      "type": "cryptographic-asset",
+      "name": "ECDH",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.key-agree.ecdh.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/ecdh.c",
+            "line": 245,
+            "additionalContext": "scanoss:match,MODULE_ALIAS_CRYPTO(\"ecdh\");"
+          },
+          {
+            "location": "drivers/acpi/ec.c",
+            "line": 2269,
+            "additionalContext": "scanoss:match,.name = \"ec\","
+          },
+          {
+            "location": "drivers/acpi/ec_sys.c",
+            "line": 117,
+            "additionalContext": "scanoss:match,acpi_ec_debugfs_dir = debugfs_create_dir(\"ec\", NULL);"
+          },
+          {
+            "location": "drivers/edac/edac_mc_sysfs.c",
+            "line": 110,
+            "additionalContext": "scanoss:match,[EDAC_EC] = \"EC\","
+          },
+          {
+            "location": "drivers/misc/hmc6352.c",
+            "line": 54,
+            "additionalContext": "scanoss:match,return compass_store(dev, buf, count, \"EC\");"
+          },
+          {
+            "location": "drivers/net/ethernet/marvell/sky2.c",
+            "line": 4756,
+            "additionalContext": "scanoss:match,\"EC\", /* 0xb6 */"
+          },
+          {
+            "location": "drivers/net/wireless/ath/regd_common.h",
+            "line": 339,
+            "additionalContext": "scanoss:match,{CTRY_ECUADOR, FCC1_WORLD, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 10,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_ETSI, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 11,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_SPAIN, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 12,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_FRANCE, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 15,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_ISRAEL, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 19,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_WORLD_WIDE_13, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 20,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_TELEC_NETGEAR, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtw88/regd.c",
+            "line": 95,
+            "additionalContext": "scanoss:match,COUNTRY_REGD_ENT(\"EC\", RTW_REGD_FCC, RTW_REGD_FCC),"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtw89/regd.c",
+            "line": 34,
+            "additionalContext": "scanoss:match,COUNTRY_REGD(\"EC\", RTW89_FCC, RTW89_FCC, RTW89_NA, 0x0),"
+          },
+          {
+            "location": "drivers/scsi/csiostor/csio_hw.c",
+            "line": 361,
+            "additionalContext": "scanoss:match,FIND_VPD_KW(ec, \"EC\");"
+          },
+          {
+            "location": "drivers/scsi/qla2xxx/qla_gs.c",
+            "line": 1681,
+            "additionalContext": "scanoss:match,alen = qla2xxx_get_vpd_field(vha, \"EC\","
+          },
+          {
+            "location": "sound/soc/codecs/88pm860x-codec.c",
+            "line": 594,
+            "additionalContext": "scanoss:match,\"ADCR\", \"EC\","
+          },
+          {
+            "location": "sound/soc/codecs/88pm860x-codec.c",
+            "line": 848,
+            "additionalContext": "scanoss:match,{\"ADCR EC Mux\", \"EC\", \"EC Mux\"},"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "key-agree",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "keygen"
+          ]
+        },
+        "oid": "1.2.840.10045.2.1"
+      }
+    },
+    {
+      "bom-ref": "8fa8930f-b57f-4ebc-a05d-01eab5d1abb5",
+      "type": "cryptographic-asset",
+      "name": "ECDSA",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.signature.ecdsa.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/asymmetric_keys/pkcs7_parser.c",
+            "line": 292,
+            "additionalContext": "scanoss:match,ctx-\u003esinfo-\u003esig-\u003epkey_algo = \"ecdsa\";"
+          },
+          {
+            "location": "crypto/asymmetric_keys/public_key.c",
+            "line": 112,
+            "additionalContext": "scanoss:match,} else if (strncmp(pkey-\u003epkey_algo, \"ecdsa\", 5) == 0) {"
+          },
+          {
+            "location": "crypto/asymmetric_keys/public_key.c",
+            "line": 394,
+            "additionalContext": "scanoss:match,strcmp(sig-\u003epkey_algo, \"ecdsa\") != 0))"
+          },
+          {
+            "location": "crypto/asymmetric_keys/x509_cert_parser.c",
+            "line": 273,
+            "additionalContext": "scanoss:match,ctx-\u003ecert-\u003esig-\u003epkey_algo = \"ecdsa\";"
+          },
+          {
+            "location": "crypto/asymmetric_keys/x509_cert_parser.c",
+            "line": 303,
+            "additionalContext": "scanoss:match,strcmp(ctx-\u003ecert-\u003esig-\u003epkey_algo, \"ecdsa\") == 0) {"
+          },
+          {
+            "location": "crypto/ecdsa-p1363.c",
+            "line": 125,
+            "additionalContext": "scanoss:match,if (strncmp(ecdsa_alg-\u003ebase.cra_name, \"ecdsa\", 5) != 0)"
+          },
+          {
+            "location": "crypto/ecdsa-x962.c",
+            "line": 202,
+            "additionalContext": "scanoss:match,if (strncmp(ecdsa_alg-\u003ebase.cra_name, \"ecdsa\", 5) != 0)"
+          },
+          {
+            "location": "drivers/acpi/ec.c",
+            "line": 2269,
+            "additionalContext": "scanoss:match,.name = \"ec\","
+          },
+          {
+            "location": "drivers/acpi/ec_sys.c",
+            "line": 117,
+            "additionalContext": "scanoss:match,acpi_ec_debugfs_dir = debugfs_create_dir(\"ec\", NULL);"
+          },
+          {
+            "location": "drivers/edac/edac_mc_sysfs.c",
+            "line": 110,
+            "additionalContext": "scanoss:match,[EDAC_EC] = \"EC\","
+          },
+          {
+            "location": "drivers/misc/hmc6352.c",
+            "line": 54,
+            "additionalContext": "scanoss:match,return compass_store(dev, buf, count, \"EC\");"
+          },
+          {
+            "location": "drivers/net/ethernet/marvell/sky2.c",
+            "line": 4756,
+            "additionalContext": "scanoss:match,\"EC\", /* 0xb6 */"
+          },
+          {
+            "location": "drivers/net/wireless/ath/regd_common.h",
+            "line": 339,
+            "additionalContext": "scanoss:match,{CTRY_ECUADOR, FCC1_WORLD, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 10,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_ETSI, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 11,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_SPAIN, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 12,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_FRANCE, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 15,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_ISRAEL, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 19,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_WORLD_WIDE_13, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtlwifi/regd.c",
+            "line": 20,
+            "additionalContext": "scanoss:match,{COUNTRY_CODE_TELEC_NETGEAR, \"EC\"},"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtw88/regd.c",
+            "line": 95,
+            "additionalContext": "scanoss:match,COUNTRY_REGD_ENT(\"EC\", RTW_REGD_FCC, RTW_REGD_FCC),"
+          },
+          {
+            "location": "drivers/net/wireless/realtek/rtw89/regd.c",
+            "line": 34,
+            "additionalContext": "scanoss:match,COUNTRY_REGD(\"EC\", RTW89_FCC, RTW89_FCC, RTW89_NA, 0x0),"
+          },
+          {
+            "location": "drivers/scsi/csiostor/csio_hw.c",
+            "line": 361,
+            "additionalContext": "scanoss:match,FIND_VPD_KW(ec, \"EC\");"
+          },
+          {
+            "location": "drivers/scsi/qla2xxx/qla_gs.c",
+            "line": 1681,
+            "additionalContext": "scanoss:match,alen = qla2xxx_get_vpd_field(vha, \"EC\","
+          },
+          {
+            "location": "sound/soc/codecs/88pm860x-codec.c",
+            "line": 594,
+            "additionalContext": "scanoss:match,\"ADCR\", \"EC\","
+          },
+          {
+            "location": "sound/soc/codecs/88pm860x-codec.c",
+            "line": 848,
+            "additionalContext": "scanoss:match,{\"ADCR EC Mux\", \"EC\", \"EC Mux\"},"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "sign",
+            "verify"
+          ]
+        },
+        "oid": "1.2.840.10045.2.1"
+      }
+    },
+    {
+      "bom-ref": "3019541e-500d-492a-a826-186fc0d01ec8",
+      "type": "cryptographic-asset",
+      "name": "HMAC",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.mac.hmac.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/hmac.c",
+            "line": 217,
+            "additionalContext": "scanoss:match,err = crypto_inst_setname(shash_crypto_instance(inst), \"hmac\","
+          },
+          {
+            "location": "crypto/hmac.c",
+            "line": 555,
+            "additionalContext": "scanoss:match,.name = \"hmac\","
+          },
+          {
+            "location": "crypto/hmac.c",
+            "line": 581,
+            "additionalContext": "scanoss:match,MODULE_ALIAS_CRYPTO(\"hmac\");"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 56,
+            "additionalContext": "scanoss:match,static char *spu2_hash_mode_names[] = { \"CMAC\", \"CBC-MAC\", \"XCBC-MAC\", \"HMAC\","
+          },
+          {
+            "location": "drivers/crypto/ccree/cc_hash.c",
+            "line": 436,
+            "additionalContext": "scanoss:match,dev_dbg(dev, \"===== %s-digest (%d) ====\\n\", is_hmac ? \"hmac\" : \"hash\","
+          },
+          {
+            "location": "drivers/crypto/ccree/cc_hash.c",
+            "line": 572,
+            "additionalContext": "scanoss:match,\"hmac\" : \"hash\", nbytes);"
+          },
+          {
+            "location": "drivers/crypto/ccree/cc_hash.c",
+            "line": 649,
+            "additionalContext": "scanoss:match,dev_dbg(dev, \"===== %s-%s (%d) ====\\n\", is_hmac ? \"hmac\" : \"hash\","
+          },
+          {
+            "location": "drivers/crypto/talitos.c",
+            "line": 3230,
+            "additionalContext": "scanoss:match,if (!strncmp(alg-\u003ecra_name, \"hmac\", 4))"
+          },
+          {
+            "location": "drivers/crypto/talitos.c",
+            "line": 3236,
+            "additionalContext": "scanoss:match,!strncmp(alg-\u003ecra_name, \"hmac\", 4)) {"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "mac",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "tag",
+            "verify"
+          ]
+        },
+        "oid": "1.2.840.113549.2"
+      }
+    },
+    {
+      "bom-ref": "dc2540ce-d29e-419a-a166-e030673ecab5",
+      "type": "cryptographic-asset",
+      "name": "HMAC-md5",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.mac.hmac"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/md5.c",
+            "line": 134,
+            "additionalContext": "scanoss:match,hmac_md5_update(HMAC_MD5_CTX(desc), data, len);"
+          },
+          {
+            "location": "fs/smb/client/cifsencrypt.c",
+            "line": 410,
+            "additionalContext": "scanoss:match,hmac_md5_update(\u0026hmac_ctx, (const u8 *)user, 2 * len);"
+          },
+          {
+            "location": "fs/smb/client/cifsencrypt.c",
+            "line": 423,
+            "additionalContext": "scanoss:match,hmac_md5_update(\u0026hmac_ctx, (const u8 *)domain, 2 * len);"
+          },
+          {
+            "location": "fs/smb/client/cifsencrypt.c",
+            "line": 434,
+            "additionalContext": "scanoss:match,hmac_md5_update(\u0026hmac_ctx, (const u8 *)server, 2 * len);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 101,
+            "additionalContext": "scanoss:match,hmac_md5_update(\u0026ctx, (const u8 *)uniname, UNICODE_LEN(conv_len));"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 118,
+            "additionalContext": "scanoss:match,hmac_md5_update(\u0026ctx, (const u8 *)domain, UNICODE_LEN(conv_len));"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 159,
+            "additionalContext": "scanoss:match,hmac_md5_update(\u0026ctx, cryptkey, CIFS_CRYPTO_KEY_SIZE);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 160,
+            "additionalContext": "scanoss:match,hmac_md5_update(\u0026ctx, (const u8 *)\u0026ntlmv2-\u003eblob_signature, blen);"
+          },
+          {
+            "location": "lib/crypto/md5.c",
+            "line": 290,
+            "additionalContext": "scanoss:match,hmac_md5_update(\u0026ctx, data, data_len);"
+          },
+          {
+            "location": "lib/crypto/md5.c",
+            "line": 302,
+            "additionalContext": "scanoss:match,hmac_md5_update(\u0026ctx, data, data_len);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "mac",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "tag",
+            "verify"
+          ]
+        },
+        "oid": "1.2.840.113549.2.6"
+      }
+    },
+    {
+      "bom-ref": "7a4dd91f-02da-441b-bd1b-8b21eab94b25",
+      "type": "cryptographic-asset",
+      "name": "HMAC-sha1",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.mac.hmac"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha1.c",
+            "line": 138,
+            "additionalContext": "scanoss:match,hmac_sha1_update(HMAC_SHA1_CTX(desc), data, len);"
+          },
+          {
+            "location": "lib/crypto/sha1.c",
+            "line": 317,
+            "additionalContext": "scanoss:match,hmac_sha1_update(\u0026ctx, data, data_len);"
+          },
+          {
+            "location": "lib/crypto/sha1.c",
+            "line": 329,
+            "additionalContext": "scanoss:match,hmac_sha1_update(\u0026ctx, data, data_len);"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 116,
+            "additionalContext": "scanoss:match,hmac_sha1_update(\u0026hmac_ctx, data, dlen);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "mac",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "tag",
+            "verify"
+          ]
+        },
+        "oid": "1.2.840.113549.2.7"
+      }
+    },
+    {
+      "bom-ref": "27972c09-d83e-42fb-a7b1-b70109972943",
+      "type": "cryptographic-asset",
+      "name": "HMAC-sha224",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.mac.hmac"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha256.c",
+            "line": 203,
+            "additionalContext": "scanoss:match,hmac_sha224_update(HMAC_SHA224_CTX(desc), data, len);"
+          },
+          {
+            "location": "lib/crypto/sha256.c",
+            "line": 442,
+            "additionalContext": "scanoss:match,hmac_sha224_update(\u0026ctx, data, data_len);"
+          },
+          {
+            "location": "lib/crypto/sha256.c",
+            "line": 465,
+            "additionalContext": "scanoss:match,hmac_sha224_update(\u0026ctx, data, data_len);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "mac",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "tag",
+            "verify"
+          ]
+        },
+        "oid": "1.2.840.113549.2.8"
+      }
+    },
+    {
+      "bom-ref": "3c0af74e-b73c-4ce9-bd77-f8cee03aa936",
+      "type": "cryptographic-asset",
+      "name": "HMAC-sha256",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.mac.hmac"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha256.c",
+            "line": 270,
+            "additionalContext": "scanoss:match,hmac_sha256_update(HMAC_SHA256_CTX(desc), data, len);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 446,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, (u8 *)\u0026c, sizeof(c));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 447,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, label, strlen(label) + 1);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 448,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, u, SHA256_DIGEST_SIZE);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 449,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, v, SHA256_DIGEST_SIZE);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 450,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, (u8 *)\u0026bits, sizeof(bits));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 718,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, cphash, sizeof(cphash));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 719,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, auth-\u003eour_nonce, sizeof(auth-\u003eour_nonce));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 720,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, auth-\u003etpm_nonce, sizeof(auth-\u003etpm_nonce));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 721,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, \u0026auth-\u003eattrs, 1);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 840,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, rphash, sizeof(rphash));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 841,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, auth-\u003etpm_nonce, sizeof(auth-\u003etpm_nonce));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 842,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, auth-\u003eour_nonce, sizeof(auth-\u003eour_nonce));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 843,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hctx, \u0026auth-\u003eattrs, 1);"
+          },
+          {
+            "location": "fs/smb/client/cifsencrypt.c",
+            "line": 38,
+            "additionalContext": "scanoss:match,hmac_sha256_update(ctx-\u003ehmac, data, len);"
+          },
+          {
+            "location": "fs/smb/client/smb2transport.c",
+            "line": 246,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hmac_ctx, iov[0].iov_base, iov[0].iov_len);"
+          },
+          {
+            "location": "fs/smb/client/smb2transport.c",
+            "line": 283,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hmac_ctx, i, 4);"
+          },
+          {
+            "location": "fs/smb/client/smb2transport.c",
+            "line": 284,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hmac_ctx, label.iov_base, label.iov_len);"
+          },
+          {
+            "location": "fs/smb/client/smb2transport.c",
+            "line": 285,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hmac_ctx, \u0026zero, 1);"
+          },
+          {
+            "location": "fs/smb/client/smb2transport.c",
+            "line": 286,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hmac_ctx, context.iov_base, context.iov_len);"
+          },
+          {
+            "location": "fs/smb/client/smb2transport.c",
+            "line": 290,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hmac_ctx, L256, 4);"
+          },
+          {
+            "location": "fs/smb/client/smb2transport.c",
+            "line": 292,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026hmac_ctx, L128, 4);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 478,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026ctx, iov[i].iov_base, iov[i].iov_len);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 552,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026ctx, i, 4);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 553,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026ctx, label.iov_base, label.iov_len);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 554,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026ctx, \u0026zero, 1);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 555,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026ctx, context.iov_base, context.iov_len);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 560,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026ctx, L256, 4);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 562,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026ctx, L128, 4);"
+          },
+          {
+            "location": "lib/crypto/sha256.c",
+            "line": 453,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026ctx, data, data_len);"
+          },
+          {
+            "location": "lib/crypto/sha256.c",
+            "line": 477,
+            "additionalContext": "scanoss:match,hmac_sha256_update(\u0026ctx, data, data_len);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "mac",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "tag",
+            "verify"
+          ]
+        },
+        "oid": "1.2.840.113549.2.9"
+      }
+    },
+    {
+      "bom-ref": "733f4614-90e1-4f2f-aa42-2322a2d5db80",
+      "type": "cryptographic-asset",
+      "name": "HMAC-sha384",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.mac.hmac"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha512.c",
+            "line": 209,
+            "additionalContext": "scanoss:match,hmac_sha384_update(HMAC_SHA384_CTX(desc), data, len);"
+          },
+          {
+            "location": "lib/crypto/sha512.c",
+            "line": 369,
+            "additionalContext": "scanoss:match,hmac_sha384_update(\u0026ctx, data, data_len);"
+          },
+          {
+            "location": "lib/crypto/sha512.c",
+            "line": 392,
+            "additionalContext": "scanoss:match,hmac_sha384_update(\u0026ctx, data, data_len);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "mac",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "tag",
+            "verify"
+          ]
+        },
+        "oid": "1.2.840.113549.2.10"
+      }
+    },
+    {
+      "bom-ref": "3e124970-531a-4f95-ad30-49a4d12c764f",
+      "type": "cryptographic-asset",
+      "name": "HMAC-sha512",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.mac.hmac"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha512.c",
+            "line": 276,
+            "additionalContext": "scanoss:match,hmac_sha512_update(HMAC_SHA512_CTX(desc), data, len);"
+          },
+          {
+            "location": "fs/crypto/hkdf.c",
+            "line": 85,
+            "additionalContext": "scanoss:match,hmac_sha512_update(\u0026ctx, \u0026okm[i - HKDF_HASHLEN],"
+          },
+          {
+            "location": "fs/crypto/hkdf.c",
+            "line": 87,
+            "additionalContext": "scanoss:match,hmac_sha512_update(\u0026ctx, \"fscrypt\\0\", 8);"
+          },
+          {
+            "location": "fs/crypto/hkdf.c",
+            "line": 88,
+            "additionalContext": "scanoss:match,hmac_sha512_update(\u0026ctx, \u0026context, 1);"
+          },
+          {
+            "location": "fs/crypto/hkdf.c",
+            "line": 89,
+            "additionalContext": "scanoss:match,hmac_sha512_update(\u0026ctx, info, infolen);"
+          },
+          {
+            "location": "fs/crypto/hkdf.c",
+            "line": 90,
+            "additionalContext": "scanoss:match,hmac_sha512_update(\u0026ctx, \u0026counter, 1);"
+          },
+          {
+            "location": "lib/crypto/sha512.c",
+            "line": 380,
+            "additionalContext": "scanoss:match,hmac_sha512_update(\u0026ctx, data, data_len);"
+          },
+          {
+            "location": "lib/crypto/sha512.c",
+            "line": 404,
+            "additionalContext": "scanoss:match,hmac_sha512_update(\u0026ctx, data, data_len);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "mac",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "tag",
+            "verify"
+          ]
+        },
+        "oid": "1.2.840.113549.2.11"
+      }
+    },
+    {
+      "bom-ref": "8b3b1346-acba-4946-ae4f-655326e9ee2a",
+      "type": "cryptographic-asset",
+      "name": "MD4",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.md4"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.md4"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "scripts/mod/sumversion.c",
+            "line": 229,
+            "additionalContext": "scanoss:match,md4_update(md, \u0026c, 1);"
+          },
+          {
+            "location": "scripts/mod/sumversion.c",
+            "line": 401,
+            "additionalContext": "scanoss:match,md4_init(\u0026md);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "128",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "1.2.840.113549.2.4"
+      }
+    },
+    {
+      "bom-ref": "d2572bad-9ffd-4988-92ed-e441e90813c3",
+      "type": "cryptographic-asset",
+      "name": "MD5",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.md5"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.md5"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.md5.generic"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,python.hashlib.algorithm.hash.md5"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/md5.c",
+            "line": 71,
+            "additionalContext": "scanoss:match,md5_init(MD5_CTX(desc));"
+          },
+          {
+            "location": "crypto/md5.c",
+            "line": 78,
+            "additionalContext": "scanoss:match,md5_update(MD5_CTX(desc), data, len);"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 112,
+            "additionalContext": "scanoss:match,name = \"MD5\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 177,
+            "additionalContext": "scanoss:match,name = \"MD5\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 51,
+            "additionalContext": "scanoss:match,\"Reserved\", \"Reserved\", \"MD5\", \"SHA1\", \"SHA224\", \"SHA256\", \"SHA384\","
+          },
+          {
+            "location": "drivers/md/dm-crypt.c",
+            "line": 526,
+            "additionalContext": "scanoss:match,md5_init(\u0026ctx);"
+          },
+          {
+            "location": "drivers/md/dm-crypt.c",
+            "line": 529,
+            "additionalContext": "scanoss:match,md5_update(\u0026ctx, lmk-\u003eseed, LMK_SEED_SIZE);"
+          },
+          {
+            "location": "drivers/md/dm-crypt.c",
+            "line": 532,
+            "additionalContext": "scanoss:match,md5_update(\u0026ctx, data + 16, 16 * 31);"
+          },
+          {
+            "location": "drivers/md/dm-crypt.c",
+            "line": 539,
+            "additionalContext": "scanoss:match,md5_update(\u0026ctx, (u8 *)buf, sizeof(buf));"
+          },
+          {
+            "location": "fs/smb/client/cifsencrypt.c",
+            "line": 34,
+            "additionalContext": "scanoss:match,md5_update(ctx-\u003emd5, data, len);"
+          },
+          {
+            "location": "fs/smb/client/cifsencrypt.c",
+            "line": 139,
+            "additionalContext": "scanoss:match,md5_init(\u0026ctx);"
+          },
+          {
+            "location": "fs/smb/client/cifsencrypt.c",
+            "line": 140,
+            "additionalContext": "scanoss:match,md5_update(\u0026ctx, server-\u003esession_key.response, server-\u003esession_key.len);"
+          },
+          {
+            "location": "include/crypto/md5.h",
+            "line": 164,
+            "additionalContext": "scanoss:match,md5_update(\u0026ctx-\u003ehash_ctx, data, data_len);"
+          },
+          {
+            "location": "lib/crypto/md5.c",
+            "line": 207,
+            "additionalContext": "scanoss:match,md5_init(\u0026ctx);"
+          },
+          {
+            "location": "lib/crypto/md5.c",
+            "line": 208,
+            "additionalContext": "scanoss:match,md5_update(\u0026ctx, data, len);"
+          },
+          {
+            "location": "tools/perf/scripts/python/flamegraph.py",
+            "line": 205,
+            "additionalContext": "scanoss:match,download_md5sum = hashlib.md5(output_str.encode(\"utf-8\")).hexdigest()"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "128",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "1.2.840.113549.2.5"
+      }
+    },
+    {
+      "bom-ref": "b8e7eb73-65ad-434e-837f-ab0c172ac189",
+      "type": "cryptographic-asset",
+      "name": "Poly1305",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.mac.poly1305"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/chacha20poly1305.c",
+            "line": 162,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026desc, walk.addr, n);"
+          },
+          {
+            "location": "crypto/chacha20poly1305.c",
+            "line": 168,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026desc, zp, padlen);"
+          },
+          {
+            "location": "crypto/chacha20poly1305.c",
+            "line": 176,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026desc, walk.addr, n);"
+          },
+          {
+            "location": "crypto/chacha20poly1305.c",
+            "line": 182,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026desc, zp, padlen);"
+          },
+          {
+            "location": "crypto/chacha20poly1305.c",
+            "line": 186,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026desc, tail.u8, sizeof(tail));"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 69,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, ad, ad_len);"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 71,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, pad0, 0x10 - (ad_len \u0026 0xf));"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 75,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, dst, src_len);"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 77,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, pad0, 0x10 - (src_len \u0026 0xf));"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 81,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, (u8 *)b.lens, sizeof(b.lens));"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 146,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, ad, ad_len);"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 148,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, pad0, 0x10 - (ad_len \u0026 0xf));"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 151,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, src, dst_len);"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 153,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, pad0, 0x10 - (dst_len \u0026 0xf));"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 157,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, (u8 *)b.lens, sizeof(b.lens));"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 251,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, ad, ad_len);"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 253,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, pad0, 0x10 - (ad_len \u0026 0xf));"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 265,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, addr, length);"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 295,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, miter.addr,"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 300,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, pad0, 0x10 - (src_len \u0026 0xf));"
+          },
+          {
+            "location": "lib/crypto/chacha20poly1305.c",
+            "line": 304,
+            "additionalContext": "scanoss:match,poly1305_update(\u0026poly1305_state, (u8 *)b.lens, sizeof(b.lens));"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "mac",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "tag",
+            "verify"
+          ]
+        }
+      }
+    },
+    {
+      "bom-ref": "00ecc78e-3967-44ed-a21e-6eb4dacdb5d9",
+      "type": "cryptographic-asset",
+      "name": "SHA-1",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,python.hashlib.algorithm.hash.sha-1"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-1"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-1"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-1.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "Documentation/sphinx/kfigure.py",
+            "line": 537,
+            "additionalContext": "scanoss:match,fname = path.join('%s-%s' % (srclang, sha1(hashobj).hexdigest()))"
+          },
+          {
+            "location": "crypto/sha1.c",
+            "line": 75,
+            "additionalContext": "scanoss:match,sha1_init(SHA1_CTX(desc));"
+          },
+          {
+            "location": "crypto/sha1.c",
+            "line": 82,
+            "additionalContext": "scanoss:match,sha1_update(SHA1_CTX(desc), data, len);"
+          },
+          {
+            "location": "drivers/bus/omap_l3_noc.h",
+            "line": 153,
+            "additionalContext": "scanoss:match,{0xF00, \"SHA1\",},"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 116,
+            "additionalContext": "scanoss:match,name = \"SHA1\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 181,
+            "additionalContext": "scanoss:match,name = \"SHA1\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 51,
+            "additionalContext": "scanoss:match,\"Reserved\", \"Reserved\", \"MD5\", \"SHA1\", \"SHA224\", \"SHA256\", \"SHA384\","
+          },
+          {
+            "location": "drivers/net/ppp/ppp_mppe.c",
+            "line": 118,
+            "additionalContext": "scanoss:match,sha1_init(\u0026ctx);"
+          },
+          {
+            "location": "drivers/net/ppp/ppp_mppe.c",
+            "line": 119,
+            "additionalContext": "scanoss:match,sha1_update(\u0026ctx, state-\u003emaster_key, state-\u003ekeylen);"
+          },
+          {
+            "location": "drivers/net/ppp/ppp_mppe.c",
+            "line": 120,
+            "additionalContext": "scanoss:match,sha1_update(\u0026ctx, sha_pad1, sizeof(sha_pad1));"
+          },
+          {
+            "location": "drivers/net/ppp/ppp_mppe.c",
+            "line": 121,
+            "additionalContext": "scanoss:match,sha1_update(\u0026ctx, state-\u003esession_key, state-\u003ekeylen);"
+          },
+          {
+            "location": "drivers/net/ppp/ppp_mppe.c",
+            "line": 122,
+            "additionalContext": "scanoss:match,sha1_update(\u0026ctx, sha_pad2, sizeof(sha_pad2));"
+          },
+          {
+            "location": "drivers/tee/tee_core.c",
+            "line": 155,
+            "additionalContext": "scanoss:match,sha1_init(\u0026ctx);"
+          },
+          {
+            "location": "drivers/tee/tee_core.c",
+            "line": 156,
+            "additionalContext": "scanoss:match,sha1_update(\u0026ctx, (const u8 *)ns, sizeof(*ns));"
+          },
+          {
+            "location": "drivers/tee/tee_core.c",
+            "line": 157,
+            "additionalContext": "scanoss:match,sha1_update(\u0026ctx, (const u8 *)name, size);"
+          },
+          {
+            "location": "include/crypto/sha1.h",
+            "line": 172,
+            "additionalContext": "scanoss:match,sha1_update(\u0026ctx-\u003esha_ctx, data, data_len);"
+          },
+          {
+            "location": "lib/crypto/sha1.c",
+            "line": 233,
+            "additionalContext": "scanoss:match,sha1_init(\u0026ctx);"
+          },
+          {
+            "location": "lib/crypto/sha1.c",
+            "line": 234,
+            "additionalContext": "scanoss:match,sha1_update(\u0026ctx, data, len);"
+          },
+          {
+            "location": "lib/digsig.c",
+            "line": 229,
+            "additionalContext": "scanoss:match,sha1_init(\u0026ctx);"
+          },
+          {
+            "location": "lib/digsig.c",
+            "line": 230,
+            "additionalContext": "scanoss:match,sha1_update(\u0026ctx, data, datalen);"
+          },
+          {
+            "location": "lib/digsig.c",
+            "line": 231,
+            "additionalContext": "scanoss:match,sha1_update(\u0026ctx, sig, sizeof(*sh));"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 143,
+            "additionalContext": "scanoss:match,sha1_init(\u0026sha_ctx);"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 154,
+            "additionalContext": "scanoss:match,sha1_update(\u0026sha_ctx, data, dlen);"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 205,
+            "additionalContext": "scanoss:match,sha1_init(\u0026sha_ctx);"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 206,
+            "additionalContext": "scanoss:match,sha1_update(\u0026sha_ctx, (const u8 *)\u0026result, sizeof(result));"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 207,
+            "additionalContext": "scanoss:match,sha1_update(\u0026sha_ctx, (const u8 *)\u0026ordinal, sizeof(ordinal));"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 214,
+            "additionalContext": "scanoss:match,sha1_update(\u0026sha_ctx, buffer + dpos, dlen);"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 277,
+            "additionalContext": "scanoss:match,sha1_init(\u0026sha_ctx);"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 278,
+            "additionalContext": "scanoss:match,sha1_update(\u0026sha_ctx, (const u8 *)\u0026result, sizeof(result));"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 279,
+            "additionalContext": "scanoss:match,sha1_update(\u0026sha_ctx, (const u8 *)\u0026ordinal, sizeof(ordinal));"
+          },
+          {
+            "location": "security/keys/trusted-keys/trusted_tpm1.c",
+            "line": 287,
+            "additionalContext": "scanoss:match,sha1_update(\u0026sha_ctx, buffer + dpos, dlen);"
+          },
+          {
+            "location": "tools/testing/selftests/arm64/abi/hwcap.c",
+            "line": 829,
+            "additionalContext": "scanoss:match,.name = \"SHA1\","
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "160",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "1.3.14.3.2.26"
+      }
+    },
+    {
+      "bom-ref": "bb3e3881-c88f-469b-9609-bcb9652f5594",
+      "type": "cryptographic-asset",
+      "name": "SHA-2",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-2"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,python.hashlib.algorithm.hash.sha-2"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-2"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "tools/bpf/bpftool/sign.c",
+            "line": 179,
+            "additionalContext": "scanoss:match,\u0026opts-\u003eexcl_prog_hash_sz, EVP_sha256(), NULL);"
+          },
+          {
+            "location": "tools/testing/selftests/net/rds/test.py",
+            "line": 177,
+            "additionalContext": "scanoss:match,send_data = hashlib.sha256( f'packet {nr_send}'.encode('utf-8')).hexdigest().encode('utf-8')"
+          },
+          {
+            "location": "tools/testing/selftests/net/rds/test.py",
+            "line": 187,
+            "additionalContext": "scanoss:match,hashlib.sha256()).update(f'\u003c{send_data}\u003e'.encode('utf-8'))"
+          },
+          {
+            "location": "tools/testing/selftests/net/rds/test.py",
+            "line": 208,
+            "additionalContext": "scanoss:match,receiver.fileno()), hashlib.sha256()).update("
+          },
+          {
+            "location": "tools/testing/selftests/net/tcp_mmap.c",
+            "line": 211,
+            "additionalContext": "scanoss:match,EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);"
+          },
+          {
+            "location": "tools/testing/selftests/net/tcp_mmap.c",
+            "line": 588,
+            "additionalContext": "scanoss:match,EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);"
+          },
+          {
+            "location": "tools/testing/selftests/sgx/sigstruct.c",
+            "line": 234,
+            "additionalContext": "scanoss:match,if (!EVP_DigestInit_ex(ctx, EVP_sha256(), NULL))"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2"
+      }
+    },
+    {
+      "bom-ref": "c526cb39-fea7-49d2-8939-34cf6baa1f8c",
+      "type": "cryptographic-asset",
+      "name": "SHA-224",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-2"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-2"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha256.c",
+            "line": 80,
+            "additionalContext": "scanoss:match,sha224_init(SHA224_CTX(desc));"
+          },
+          {
+            "location": "crypto/sha256.c",
+            "line": 87,
+            "additionalContext": "scanoss:match,sha224_update(SHA224_CTX(desc), data, len);"
+          },
+          {
+            "location": "lib/crypto/sha256.c",
+            "line": 256,
+            "additionalContext": "scanoss:match,sha224_init(\u0026ctx);"
+          },
+          {
+            "location": "lib/crypto/sha256.c",
+            "line": 257,
+            "additionalContext": "scanoss:match,sha224_update(\u0026ctx, data, len);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "224",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2.4"
+      }
+    },
+    {
+      "bom-ref": "1d1aef66-2604-468f-b8c6-be3ebf1bb370",
+      "type": "cryptographic-asset",
+      "name": "SHA-256",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-2"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-2"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-2.constructor"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "arch/riscv/purgatory/purgatory.c",
+            "line": 26,
+            "additionalContext": "scanoss:match,sha256_init(\u0026sctx);"
+          },
+          {
+            "location": "arch/riscv/purgatory/purgatory.c",
+            "line": 29,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, (uint8_t *)(ptr-\u003estart), ptr-\u003elen);"
+          },
+          {
+            "location": "arch/s390/purgatory/purgatory.c",
+            "line": 21,
+            "additionalContext": "scanoss:match,sha256_init(\u0026sctx);"
+          },
+          {
+            "location": "arch/s390/purgatory/purgatory.c",
+            "line": 25,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, (uint8_t *)(ptr-\u003estart), ptr-\u003elen);"
+          },
+          {
+            "location": "arch/x86/purgatory/purgatory.c",
+            "line": 30,
+            "additionalContext": "scanoss:match,sha256_init(\u0026sctx);"
+          },
+          {
+            "location": "arch/x86/purgatory/purgatory.c",
+            "line": 34,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, (uint8_t *)(ptr-\u003estart), ptr-\u003elen);"
+          },
+          {
+            "location": "crypto/sha256.c",
+            "line": 138,
+            "additionalContext": "scanoss:match,sha256_init(SHA256_CTX(desc));"
+          },
+          {
+            "location": "crypto/sha256.c",
+            "line": 145,
+            "additionalContext": "scanoss:match,sha256_update(SHA256_CTX(desc), data, len);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 477,
+            "additionalContext": "scanoss:match,sha256_init(\u0026sctx);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 479,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, (u8 *)\u0026c, sizeof(c));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 481,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, z, EC_PT_SZ);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 483,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, str, strlen(str)+1);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 484,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, pt_u, EC_PT_SZ);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 485,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, pt_v, EC_PT_SZ);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 688,
+            "additionalContext": "scanoss:match,sha256_init(\u0026sctx);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 690,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, (u8 *)\u0026head-\u003eordinal, sizeof(head-\u003eordinal));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 702,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, auth-\u003ename[i], ret);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 706,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, (u8 *)\u0026h, 4);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 710,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, \u0026buf-\u003edata[offset_s],"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 827,
+            "additionalContext": "scanoss:match,sha256_init(\u0026sctx);"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 829,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, (u8 *)\u0026head-\u003ereturn_code,"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 832,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, (u8 *)\u0026auth-\u003eordinal, sizeof(auth-\u003eordinal));"
+          },
+          {
+            "location": "drivers/char/tpm/tpm2-sessions.c",
+            "line": 833,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, \u0026buf-\u003edata[offset_p], parm_len);"
+          },
+          {
+            "location": "fs/verity/hash_algs.c",
+            "line": 78,
+            "additionalContext": "scanoss:match,sha256_init(\u0026ctx.sha256);"
+          },
+          {
+            "location": "fs/verity/hash_algs.c",
+            "line": 79,
+            "additionalContext": "scanoss:match,sha256_update(\u0026ctx.sha256, padded_salt, padded_salt_size);"
+          },
+          {
+            "location": "fs/verity/hash_algs.c",
+            "line": 117,
+            "additionalContext": "scanoss:match,sha256_update(\u0026ctx.sha256, data, params-\u003eblock_size);"
+          },
+          {
+            "location": "kernel/kexec_file.c",
+            "line": 823,
+            "additionalContext": "scanoss:match,sha256_init(\u0026sctx);"
+          },
+          {
+            "location": "kernel/kexec_file.c",
+            "line": 849,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, ksegment-\u003ekbuf, ksegment-\u003ebufsz);"
+          },
+          {
+            "location": "kernel/kexec_file.c",
+            "line": 861,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, zero_buf, bytes);"
+          },
+          {
+            "location": "lib/crypto/sha256.c",
+            "line": 266,
+            "additionalContext": "scanoss:match,sha256_init(\u0026ctx);"
+          },
+          {
+            "location": "lib/crypto/sha256.c",
+            "line": 267,
+            "additionalContext": "scanoss:match,sha256_update(\u0026ctx, data, len);"
+          },
+          {
+            "location": "security/apparmor/crypto.c",
+            "line": 49,
+            "additionalContext": "scanoss:match,sha256_init(\u0026sctx);"
+          },
+          {
+            "location": "security/apparmor/crypto.c",
+            "line": 50,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, (u8 *)\u0026le32_version, 4);"
+          },
+          {
+            "location": "security/apparmor/crypto.c",
+            "line": 51,
+            "additionalContext": "scanoss:match,sha256_update(\u0026sctx, (u8 *)start, len);"
+          },
+          {
+            "location": "tools/bpf/bpftool/sign.c",
+            "line": 166,
+            "additionalContext": "scanoss:match,if (!CMS_add1_signer(cms, x509, private_key, EVP_sha256(),"
+          },
+          {
+            "location": "tools/bpf/bpftool/sign.c",
+            "line": 179,
+            "additionalContext": "scanoss:match,\u0026opts-\u003eexcl_prog_hash_sz, EVP_sha256(), NULL);"
+          },
+          {
+            "location": "tools/testing/selftests/net/tcp_mmap.c",
+            "line": 211,
+            "additionalContext": "scanoss:match,EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);"
+          },
+          {
+            "location": "tools/testing/selftests/net/tcp_mmap.c",
+            "line": 588,
+            "additionalContext": "scanoss:match,EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);"
+          },
+          {
+            "location": "tools/testing/selftests/sgx/sigstruct.c",
+            "line": 234,
+            "additionalContext": "scanoss:match,if (!EVP_DigestInit_ex(ctx, EVP_sha256(), NULL))"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "256",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2.1"
+      }
+    },
+    {
+      "bom-ref": "b77cbd13-c6a1-4423-9ff3-30dea09d91cf",
+      "type": "cryptographic-asset",
+      "name": "SHA-3",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,python.hashlib.algorithm.hash.sha-3"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,python.hashlib.algorithm.hash.sha-3.taint"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "scripts/crypto/gen-fips-testvecs.py",
+            "line": 36,
+            "additionalContext": "scanoss:match,hashlib.sha3_256(fips_test_data).digest())"
+          },
+          {
+            "location": "scripts/crypto/gen-hash-testvecs.py",
+            "line": 89,
+            "additionalContext": "scanoss:match,return hashlib.new(alg)"
+          },
+          {
+            "location": "scripts/crypto/gen-hash-testvecs.py",
+            "line": 149,
+            "additionalContext": "scanoss:match,ctx = hashlib.new('sha3-256')"
+          },
+          {
+            "location": "scripts/crypto/gen-hash-testvecs.py",
+            "line": 149,
+            "additionalContext": "scanoss:match,ctx = hashlib.new('sha3-256')"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2"
+      }
+    },
+    {
+      "bom-ref": "06e2ba64-f34f-4366-a36b-47498c1485d9",
+      "type": "cryptographic-asset",
+      "name": "SHA-3-224",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-3"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha3.c",
+            "line": 15,
+            "additionalContext": "scanoss:match,sha3_224_init(SHA3_CTX(desc));"
+          },
+          {
+            "location": "lib/crypto/sha3.c",
+            "line": 318,
+            "additionalContext": "scanoss:match,sha3_224_init(\u0026ctx);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "224",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2"
+      }
+    },
+    {
+      "bom-ref": "ff4b1840-d8b0-4d66-8159-f1c9b8e2ba05",
+      "type": "cryptographic-asset",
+      "name": "SHA-3-256",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-3"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha3.c",
+            "line": 21,
+            "additionalContext": "scanoss:match,sha3_256_init(SHA3_CTX(desc));"
+          },
+          {
+            "location": "lib/crypto/sha3.c",
+            "line": 330,
+            "additionalContext": "scanoss:match,sha3_256_init(\u0026ctx);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "256",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2"
+      }
+    },
+    {
+      "bom-ref": "0d9783f2-127b-4d08-8f1e-64b809461b3e",
+      "type": "cryptographic-asset",
+      "name": "SHA-3-384",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-3"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha3.c",
+            "line": 27,
+            "additionalContext": "scanoss:match,sha3_384_init(SHA3_CTX(desc));"
+          },
+          {
+            "location": "lib/crypto/sha3.c",
+            "line": 342,
+            "additionalContext": "scanoss:match,sha3_384_init(\u0026ctx);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "384",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2"
+      }
+    },
+    {
+      "bom-ref": "7cd9b42e-4f0d-4ac6-8474-61433eac584e",
+      "type": "cryptographic-asset",
+      "name": "SHA-3-512",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-3"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha3.c",
+            "line": 33,
+            "additionalContext": "scanoss:match,sha3_512_init(SHA3_CTX(desc));"
+          },
+          {
+            "location": "lib/crypto/sha3.c",
+            "line": 354,
+            "additionalContext": "scanoss:match,sha3_512_init(\u0026ctx);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "512",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2"
+      }
+    },
+    {
+      "bom-ref": "fea5b9bd-4ab8-424b-9a2e-bc339486dc58",
+      "type": "cryptographic-asset",
+      "name": "SHA-384",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-2"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-2"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha512.c",
+            "line": 82,
+            "additionalContext": "scanoss:match,sha384_init(SHA384_CTX(desc));"
+          },
+          {
+            "location": "crypto/sha512.c",
+            "line": 89,
+            "additionalContext": "scanoss:match,sha384_update(SHA384_CTX(desc), data, len);"
+          },
+          {
+            "location": "lib/crypto/sha512.c",
+            "line": 237,
+            "additionalContext": "scanoss:match,sha384_init(\u0026ctx);"
+          },
+          {
+            "location": "lib/crypto/sha512.c",
+            "line": 238,
+            "additionalContext": "scanoss:match,sha384_update(\u0026ctx, data, len);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "384",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2.2"
+      }
+    },
+    {
+      "bom-ref": "57da2492-1035-45fa-9721-a2ee7078582a",
+      "type": "cryptographic-asset",
+      "name": "SHA-512",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-2"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.sha-2"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "crypto/sha512.c",
+            "line": 144,
+            "additionalContext": "scanoss:match,sha512_init(SHA512_CTX(desc));"
+          },
+          {
+            "location": "crypto/sha512.c",
+            "line": 151,
+            "additionalContext": "scanoss:match,sha512_update(SHA512_CTX(desc), data, len);"
+          },
+          {
+            "location": "fs/smb/client/smb2misc.c",
+            "line": 925,
+            "additionalContext": "scanoss:match,sha512_init(\u0026sha_ctx);"
+          },
+          {
+            "location": "fs/smb/client/smb2misc.c",
+            "line": 926,
+            "additionalContext": "scanoss:match,sha512_update(\u0026sha_ctx, ses-\u003epreauth_sha_hash, SMB2_PREAUTH_HASH_SIZE);"
+          },
+          {
+            "location": "fs/smb/client/smb2misc.c",
+            "line": 928,
+            "additionalContext": "scanoss:match,sha512_update(\u0026sha_ctx, iov[i].iov_base, iov[i].iov_len);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 726,
+            "additionalContext": "scanoss:match,sha512_init(\u0026sha_ctx);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 727,
+            "additionalContext": "scanoss:match,sha512_update(\u0026sha_ctx, pi_hash, 64);"
+          },
+          {
+            "location": "fs/smb/server/auth.c",
+            "line": 728,
+            "additionalContext": "scanoss:match,sha512_update(\u0026sha_ctx, all_bytes_msg, msg_size);"
+          },
+          {
+            "location": "fs/verity/hash_algs.c",
+            "line": 83,
+            "additionalContext": "scanoss:match,sha512_init(\u0026ctx.sha512);"
+          },
+          {
+            "location": "fs/verity/hash_algs.c",
+            "line": 84,
+            "additionalContext": "scanoss:match,sha512_update(\u0026ctx.sha512, padded_salt, padded_salt_size);"
+          },
+          {
+            "location": "fs/verity/hash_algs.c",
+            "line": 122,
+            "additionalContext": "scanoss:match,sha512_update(\u0026ctx.sha512, data, params-\u003eblock_size);"
+          },
+          {
+            "location": "lib/crypto/sha512.c",
+            "line": 247,
+            "additionalContext": "scanoss:match,sha512_init(\u0026ctx);"
+          },
+          {
+            "location": "lib/crypto/sha512.c",
+            "line": 248,
+            "additionalContext": "scanoss:match,sha512_update(\u0026ctx, data, len);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "512",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2.3"
+      }
+    },
+    {
+      "bom-ref": "068cfa71-d2ab-4f48-867d-df4d09b6cbbe",
+      "type": "cryptographic-asset",
+      "name": "SHA224",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-2.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 120,
+            "additionalContext": "scanoss:match,name = \"SHA224\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 185,
+            "additionalContext": "scanoss:match,name = \"SHA224\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 51,
+            "additionalContext": "scanoss:match,\"Reserved\", \"Reserved\", \"MD5\", \"SHA1\", \"SHA224\", \"SHA256\", \"SHA384\","
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2"
+      }
+    },
+    {
+      "bom-ref": "f617d737-0150-4258-9a92-a7211b51bd5d",
+      "type": "cryptographic-asset",
+      "name": "SHA256",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-2.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 124,
+            "additionalContext": "scanoss:match,name = \"SHA256\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 189,
+            "additionalContext": "scanoss:match,name = \"SHA256\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 51,
+            "additionalContext": "scanoss:match,\"Reserved\", \"Reserved\", \"MD5\", \"SHA1\", \"SHA224\", \"SHA256\", \"SHA384\","
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2"
+      }
+    },
+    {
+      "bom-ref": "d043e181-77ba-4bfd-b743-6320d05ac8ca",
+      "type": "cryptographic-asset",
+      "name": "SHA3-224",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-3.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 52,
+            "additionalContext": "scanoss:match,\"SHA512\", \"SHA512/224\", \"SHA512/256\", \"SHA3-224\", \"SHA3-256\","
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2.7"
+      }
+    },
+    {
+      "bom-ref": "98cf5ed5-b6a4-4e1e-8e2c-72a7a88b6602",
+      "type": "cryptographic-asset",
+      "name": "SHA3-256",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-3.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 52,
+            "additionalContext": "scanoss:match,\"SHA512\", \"SHA512/224\", \"SHA512/256\", \"SHA3-224\", \"SHA3-256\","
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2.8"
+      }
+    },
+    {
+      "bom-ref": "45da1b72-61b2-4ebd-b5f3-69dbdbd513ff",
+      "type": "cryptographic-asset",
+      "name": "SHA3-384",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-3.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 53,
+            "additionalContext": "scanoss:match,\"SHA3-384\", \"SHA3-512\""
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2.9"
+      }
+    },
+    {
+      "bom-ref": "71c3a0c2-f16e-49bc-9db2-be4e34389a13",
+      "type": "cryptographic-asset",
+      "name": "SHA3-512",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-3.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 53,
+            "additionalContext": "scanoss:match,\"SHA3-384\", \"SHA3-512\""
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2.10"
+      }
+    },
+    {
+      "bom-ref": "814a2af0-8909-4d85-bd27-a16757ae1e2d",
+      "type": "cryptographic-asset",
+      "name": "SHA384",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-2.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 128,
+            "additionalContext": "scanoss:match,name = \"SHA384\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 193,
+            "additionalContext": "scanoss:match,name = \"SHA384\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 51,
+            "additionalContext": "scanoss:match,\"Reserved\", \"Reserved\", \"MD5\", \"SHA1\", \"SHA224\", \"SHA256\", \"SHA384\","
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2"
+      }
+    },
+    {
+      "bom-ref": "1e28788c-d4a3-4a2e-b715-51eb7c3a165f",
+      "type": "cryptographic-asset",
+      "name": "SHA512",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sha-2.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 132,
+            "additionalContext": "scanoss:match,name = \"SHA512\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu.c",
+            "line": 197,
+            "additionalContext": "scanoss:match,name = \"SHA512\";"
+          },
+          {
+            "location": "drivers/crypto/bcm/spu2.c",
+            "line": 52,
+            "additionalContext": "scanoss:match,\"SHA512\", \"SHA512/224\", \"SHA512/256\", \"SHA3-224\", \"SHA3-256\","
+          },
+          {
+            "location": "tools/testing/selftests/arm64/abi/hwcap.c",
+            "line": 843,
+            "additionalContext": "scanoss:match,.name = \"SHA512\","
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2"
+      }
+    },
+    {
+      "bom-ref": "b3fb896a-71b9-4c41-bcbf-a31472c84573",
+      "type": "cryptographic-asset",
+      "name": "SHAKE128",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.shake"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "lib/crypto/sha3.c",
+            "line": 364,
+            "additionalContext": "scanoss:match,shake128_init(\u0026ctx);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "xof",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2.11"
+      }
+    },
+    {
+      "bom-ref": "ec3082f9-5427-4f4a-a463-cdd896691c50",
+      "type": "cryptographic-asset",
+      "name": "SHAKE256",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.nettle.algorithm.hash.shake"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "lib/crypto/sha3.c",
+            "line": 375,
+            "additionalContext": "scanoss:match,shake256_init(\u0026ctx);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "xof",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "2.16.840.1.101.3.4.2.12"
+      }
+    },
+    {
+      "bom-ref": "5c7ffde3-7f36-4c7e-95de-0fa09668d731",
+      "type": "cryptographic-asset",
+      "name": "SM2",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.signature.sm2.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/regulator/tps6586x-regulator.c",
+            "line": 379,
+            "additionalContext": "scanoss:match,{ .name = \"sm2\", .driver_data = (void *)TPS6586X_ID_SM_2 },"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "sign",
+            "verify"
+          ]
+        },
+        "oid": "1.2.156.10197.1.501"
+      }
+    },
+    {
+      "bom-ref": "627b3aa3-96a5-4d7c-a456-1d5740d0dd81",
+      "type": "cryptographic-asset",
+      "name": "SM3",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.hash.sm3.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "arch/arm64/crypto/sm3-ce-glue.c",
+            "line": 50,
+            "additionalContext": "scanoss:match,.base.cra_name = \"sm3\","
+          },
+          {
+            "location": "arch/arm64/crypto/sm3-neon-glue.c",
+            "line": 42,
+            "additionalContext": "scanoss:match,.base.cra_name = \"sm3\","
+          },
+          {
+            "location": "arch/arm64/kernel/cpuinfo.c",
+            "line": 69,
+            "additionalContext": "scanoss:match,[KERNEL_HWCAP_SM3] = \"sm3\","
+          },
+          {
+            "location": "arch/riscv/crypto/sm3-riscv64-glue.c",
+            "line": 70,
+            "additionalContext": "scanoss:match,.cra_name = \"sm3\","
+          },
+          {
+            "location": "arch/riscv/crypto/sm3-riscv64-glue.c",
+            "line": 97,
+            "additionalContext": "scanoss:match,MODULE_ALIAS_CRYPTO(\"sm3\");"
+          },
+          {
+            "location": "arch/x86/crypto/sm3_avx_glue.c",
+            "line": 55,
+            "additionalContext": "scanoss:match,.cra_name = \"sm3\","
+          },
+          {
+            "location": "arch/x86/crypto/sm3_avx_glue.c",
+            "line": 99,
+            "additionalContext": "scanoss:match,MODULE_ALIAS_CRYPTO(\"sm3\");"
+          },
+          {
+            "location": "crypto/asymmetric_keys/pkcs7_parser.c",
+            "line": 246,
+            "additionalContext": "scanoss:match,ctx-\u003esinfo-\u003esig-\u003ehash_algo = \"sm3\";"
+          },
+          {
+            "location": "crypto/sm3_generic.c",
+            "line": 45,
+            "additionalContext": "scanoss:match,.cra_name = \"sm3\","
+          },
+          {
+            "location": "crypto/sm3_generic.c",
+            "line": 71,
+            "additionalContext": "scanoss:match,MODULE_ALIAS_CRYPTO(\"sm3\");"
+          },
+          {
+            "location": "crypto/tcrypt.c",
+            "line": 1674,
+            "additionalContext": "scanoss:match,ret = min(ret, tcrypt_test(\"sm3\"));"
+          },
+          {
+            "location": "crypto/tcrypt.c",
+            "line": 2280,
+            "additionalContext": "scanoss:match,test_hash_speed(\"sm3\", sec, generic_hash_speed_template);"
+          },
+          {
+            "location": "crypto/tcrypt.c",
+            "line": 2371,
+            "additionalContext": "scanoss:match,test_ahash_speed(\"sm3\", sec, generic_hash_speed_template);"
+          },
+          {
+            "location": "crypto/testmgr.c",
+            "line": 5428,
+            "additionalContext": "scanoss:match,.alg = \"sm3\","
+          },
+          {
+            "location": "drivers/crypto/ccree/cc_hash.c",
+            "line": 1745,
+            "additionalContext": "scanoss:match,.name = \"sm3\","
+          },
+          {
+            "location": "drivers/crypto/inside-secure/safexcel_hash.c",
+            "line": 2183,
+            "additionalContext": "scanoss:match,.cra_name = \"sm3\","
+          },
+          {
+            "location": "drivers/crypto/intel/keembay/keembay-ocs-hcu-core.c",
+            "line": 1009,
+            "additionalContext": "scanoss:match,.cra_name = \"sm3\","
+          },
+          {
+            "location": "drivers/crypto/starfive/jh7110-hash.c",
+            "line": 800,
+            "additionalContext": "scanoss:match,.cra_name = \"sm3\","
+          },
+          {
+            "location": "lib/crypto/hash_info.c",
+            "line": 29,
+            "additionalContext": "scanoss:match,[HASH_ALGO_SM3_256] = \"sm3\","
+          },
+          {
+            "location": "net/xfrm/xfrm_algo.c",
+            "line": 347,
+            "additionalContext": "scanoss:match,.compat = \"sm3\","
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "parameterSetIdentifier": "256",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "digest"
+          ]
+        },
+        "oid": "1.2.156.10197.1.401"
+      }
+    },
+    {
+      "bom-ref": "e5743a36-ffdc-43a2-858b-290fdbd46e58",
+      "type": "cryptographic-asset",
+      "name": "digest",
+      "description": "Cryptographic digest",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,python.hashlib.related-crypto-material.digest.digest-output"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "scripts/crypto/gen-hash-testvecs.py",
+            "line": 155,
+            "additionalContext": "scanoss:match,ctx.digest())"
+          },
+          {
+            "location": "scripts/crypto/gen-hash-testvecs.py",
+            "line": 182,
+            "additionalContext": "scanoss:match,hashes += h.digest()"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "related-crypto-material",
+        "relatedCryptoMaterialProperties": {
+          "type": "digest"
+        }
+      }
+    },
+    {
+      "bom-ref": "e420ff3a-5829-4a6c-9826-0e4e27c1822b",
+      "type": "cryptographic-asset",
+      "name": "other",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.crypto.libressl.detect-import"
+              }
+            ]
+          },
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.crypto.openssl.openssl-usage"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "arch/arm/kernel/process.c",
+            "line": 8,
+            "additionalContext": "scanoss:match,#include \u003clinux/export.h\u003e #include \u003clinux/sched.h\u003e #include \u003clinux/sched/debug.h\u003e #include \u003clinux/sched/task.h\u003e #include \u003clinux/sched/task_stack.h\u003e #include \u003clinux/kernel.h\u003e #include \u003clinux/mm.h\u003e #include \u003clinux/stddef.h\u003e #include \u003clinux/unistd.h\u003e #include \u003clinux/user.h\u003e #include \u003clinux/interrupt.h\u003e #include \u003clinux/init.h\u003e #include \u003clinux/elfcore.h\u003e #include \u003clinux/pm.h\u003e #include \u003clinux/tick.h\u003e #include \u003clinux/utsname.h\u003e #include \u003clinux/uaccess.h\u003e #include \u003clinux/random.h\u003e #include \u003clinux/hw_breakpoint.h\u003e #include \u003clinux/leds.h\u003e #include \u003casm/processor.h\u003e #include \u003casm/thread_notify.h\u003e #include \u003casm/stacktrace.h\u003e #include \u003casm/system_misc.h\u003e #include \u003casm/mach/time.h\u003e #include \u003casm/tls.h\u003e"
+          },
+          {
+            "location": "arch/arm/kernel/traps.c",
+            "line": 12,
+            "additionalContext": "scanoss:match,#include \u003clinux/signal.h\u003e #include \u003clinux/personality.h\u003e #include \u003clinux/kallsyms.h\u003e #include \u003clinux/spinlock.h\u003e #include \u003clinux/uaccess.h\u003e #include \u003clinux/hardirq.h\u003e #include \u003clinux/kdebug.h\u003e #include \u003clinux/kprobes.h\u003e #include \u003clinux/module.h\u003e #include \u003clinux/kexec.h\u003e #include \u003clinux/bug.h\u003e #include \u003clinux/delay.h\u003e #include \u003clinux/init.h\u003e #include \u003clinux/sched/signal.h\u003e #include \u003clinux/sched/debug.h\u003e #include \u003clinux/sched/task_stack.h\u003e #include \u003clinux/irq.h\u003e #include \u003clinux/vmalloc.h\u003e #include \u003clinux/atomic.h\u003e #include \u003casm/cacheflush.h\u003e #include \u003casm/exception.h\u003e #include \u003casm/spectre.h\u003e #include \u003casm/unistd.h\u003e #include \u003casm/traps.h\u003e #include \u003casm/ptrace.h\u003e #include \u003casm/unwind.h\u003e #include \u003casm/tls.h\u003e"
+          },
+          {
+            "location": "arch/um/include/shared/skas/stub-data.h",
+            "line": 11,
+            "additionalContext": "scanoss:match,#include \u003clinux/compiler_types.h\u003e #include \u003cas-layout.h\u003e #include \u003csysdep/tls.h\u003e"
+          },
+          {
+            "location": "arch/x86/kernel/ptrace.c",
+            "line": 45,
+            "additionalContext": "scanoss:match,#include \"tls.h\""
+          },
+          {
+            "location": "arch/x86/kernel/tls.c",
+            "line": 17,
+            "additionalContext": "scanoss:match,#include \"tls.h\""
+          },
+          {
+            "location": "arch/x86/um/os-Linux/tls.c",
+            "line": 2,
+            "additionalContext": "scanoss:match,#include \u003cerrno.h\u003e #include \u003clinux/unistd.h\u003e #include \u003csys/ptrace.h\u003e #include \u003csys/syscall.h\u003e #include \u003cunistd.h\u003e #include \u003cos.h\u003e #include \u003csysdep/tls.h\u003e"
+          },
+          {
+            "location": "arch/x86/um/tls_32.c",
+            "line": 6,
+            "additionalContext": "scanoss:match,#include \u003clinux/percpu.h\u003e #include \u003clinux/sched.h\u003e #include \u003clinux/syscalls.h\u003e #include \u003clinux/uaccess.h\u003e #include \u003casm/ptrace-abi.h\u003e #include \u003cos.h\u003e #include \u003cskas.h\u003e #include \u003csysdep/tls.h\u003e"
+          },
+          {
+            "location": "certs/extract-cert.c",
+            "line": 21,
+            "additionalContext": "scanoss:match,#include \u003copenssl/bio.h\u003e"
+          },
+          {
+            "location": "certs/extract-cert.c",
+            "line": 22,
+            "additionalContext": "scanoss:match,#include \u003copenssl/pem.h\u003e"
+          },
+          {
+            "location": "certs/extract-cert.c",
+            "line": 23,
+            "additionalContext": "scanoss:match,#include \u003copenssl/err.h\u003e"
+          },
+          {
+            "location": "drivers/crypto/chelsio/chcr_core.h",
+            "line": 39,
+            "additionalContext": "scanoss:match,#include \u003ccrypto/algapi.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/bonding/bond_main.c",
+            "line": 35,
+            "additionalContext": "scanoss:match,#include \u003clinux/kernel.h\u003e #include \u003clinux/module.h\u003e #include \u003clinux/types.h\u003e #include \u003clinux/fcntl.h\u003e #include \u003clinux/filter.h\u003e #include \u003clinux/interrupt.h\u003e #include \u003clinux/ptrace.h\u003e #include \u003clinux/ioport.h\u003e #include \u003clinux/in.h\u003e #include \u003cnet/ip.h\u003e #include \u003clinux/ip.h\u003e #include \u003clinux/icmp.h\u003e #include \u003clinux/icmpv6.h\u003e #include \u003clinux/tcp.h\u003e #include \u003clinux/udp.h\u003e #include \u003clinux/slab.h\u003e #include \u003clinux/string.h\u003e #include \u003clinux/init.h\u003e #include \u003clinux/timer.h\u003e #include \u003clinux/socket.h\u003e #include \u003clinux/ctype.h\u003e #include \u003clinux/inet.h\u003e #include \u003clinux/bitops.h\u003e #include \u003clinux/io.h\u003e #include \u003casm/dma.h\u003e #include \u003clinux/uaccess.h\u003e #include \u003clinux/errno.h\u003e #include \u003clinux/netdevice.h\u003e #include \u003clinux/inetdevice.h\u003e #include \u003clinux/igmp.h\u003e #include \u003clinux/etherdevice.h\u003e #include \u003clinux/skbuff.h\u003e #include \u003cnet/sock.h\u003e #include \u003clinux/rtnetlink.h\u003e #include \u003clinux/smp.h\u003e #include \u003clinux/if_ether.h\u003e #include \u003cnet/arp.h\u003e #include \u003clinux/mii.h\u003e #include \u003clinux/ethtool.h\u003e #include \u003clinux/if_vlan.h\u003e #include \u003clinux/if_bonding.h\u003e #include \u003clinux/phy.h\u003e #include \u003clinux/jiffies.h\u003e #include \u003clinux/preempt.h\u003e #include \u003cnet/route.h\u003e #include \u003cnet/net_namespace.h\u003e #include \u003cnet/netns/generic.h\u003e #include \u003cnet/pkt_sched.h\u003e #include \u003clinux/rculist.h\u003e #include \u003cnet/flow_dissector.h\u003e #include \u003cnet/xfrm.h\u003e #include \u003cnet/bonding.h\u003e #include \u003cnet/bond_3ad.h\u003e #include \u003cnet/bond_alb.h\u003e #if IS_ENABLED(CONFIG_TLS_DEVICE) #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/chelsio/cxgb4/cxgb4_main.c",
+            "line": 37,
+            "additionalContext": "scanoss:match,#include \u003clinux/bitmap.h\u003e #include \u003clinux/crc32.h\u003e #include \u003clinux/ctype.h\u003e #include \u003clinux/debugfs.h\u003e #include \u003clinux/err.h\u003e #include \u003clinux/etherdevice.h\u003e #include \u003clinux/firmware.h\u003e #include \u003clinux/if.h\u003e #include \u003clinux/if_vlan.h\u003e #include \u003clinux/init.h\u003e #include \u003clinux/log2.h\u003e #include \u003clinux/mdio.h\u003e #include \u003clinux/module.h\u003e #include \u003clinux/moduleparam.h\u003e #include \u003clinux/mutex.h\u003e #include \u003clinux/netdevice.h\u003e #include \u003clinux/pci.h\u003e #include \u003clinux/rtnetlink.h\u003e #include \u003clinux/sched.h\u003e #include \u003clinux/seq_file.h\u003e #include \u003clinux/sockios.h\u003e #include \u003clinux/vmalloc.h\u003e #include \u003clinux/workqueue.h\u003e #include \u003cnet/neighbour.h\u003e #include \u003cnet/netevent.h\u003e #include \u003cnet/addrconf.h\u003e #include \u003cnet/bonding.h\u003e #include \u003clinux/uaccess.h\u003e #include \u003clinux/crash_dump.h\u003e #include \u003cnet/udp_tunnel.h\u003e #include \u003cnet/xfrm.h\u003e #if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE) #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/chelsio/cxgb4/cxgb4_uld.h",
+            "line": 38,
+            "additionalContext": "scanoss:match,#include \u003clinux/cache.h\u003e #include \u003clinux/spinlock.h\u003e #include \u003clinux/skbuff.h\u003e #include \u003clinux/inetdevice.h\u003e #include \u003clinux/atomic.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/chelsio/inline_crypto/chtls/chtls.h",
+            "line": 9,
+            "additionalContext": "scanoss:match,#include \u003ccrypto/aes.h\u003e #include \u003ccrypto/hash.h\u003e #include \u003ccrypto/sha1.h\u003e #include \u003ccrypto/sha2.h\u003e #include \u003ccrypto/authenc.h\u003e #include \u003ccrypto/ctr.h\u003e #include \u003ccrypto/gf128mul.h\u003e #include \u003ccrypto/internal/aead.h\u003e #include \u003ccrypto/null.h\u003e #include \u003ccrypto/internal/skcipher.h\u003e #include \u003ccrypto/aead.h\u003e #include \u003ccrypto/scatterwalk.h\u003e #include \u003ccrypto/internal/hash.h\u003e #include \u003clinux/tls.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/chelsio/inline_crypto/chtls/chtls_cm.c",
+            "line": 8,
+            "additionalContext": "scanoss:match,#include \u003clinux/module.h\u003e #include \u003clinux/list.h\u003e #include \u003clinux/workqueue.h\u003e #include \u003clinux/skbuff.h\u003e #include \u003clinux/timer.h\u003e #include \u003clinux/notifier.h\u003e #include \u003clinux/inetdevice.h\u003e #include \u003clinux/ip.h\u003e #include \u003clinux/tcp.h\u003e #include \u003clinux/sched/signal.h\u003e #include \u003clinux/kallsyms.h\u003e #include \u003clinux/kprobes.h\u003e #include \u003clinux/if_vlan.h\u003e #include \u003clinux/ipv6.h\u003e #include \u003cnet/ipv6.h\u003e #include \u003cnet/transp_v6.h\u003e #include \u003cnet/ip6_route.h\u003e #include \u003cnet/inet_common.h\u003e #include \u003cnet/tcp.h\u003e #include \u003cnet/dst.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/chelsio/inline_crypto/chtls/chtls_hw.c",
+            "line": 8,
+            "additionalContext": "scanoss:match,#include \u003clinux/module.h\u003e #include \u003clinux/list.h\u003e #include \u003clinux/workqueue.h\u003e #include \u003clinux/skbuff.h\u003e #include \u003clinux/timer.h\u003e #include \u003clinux/notifier.h\u003e #include \u003clinux/inetdevice.h\u003e #include \u003clinux/ip.h\u003e #include \u003clinux/tcp.h\u003e #include \u003clinux/tls.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/chelsio/inline_crypto/chtls/chtls_main.c",
+            "line": 7,
+            "additionalContext": "scanoss:match,#include \u003clinux/kernel.h\u003e #include \u003clinux/module.h\u003e #include \u003clinux/skbuff.h\u003e #include \u003clinux/socket.h\u003e #include \u003clinux/hash.h\u003e #include \u003clinux/in.h\u003e #include \u003clinux/net.h\u003e #include \u003clinux/ip.h\u003e #include \u003clinux/tcp.h\u003e #include \u003cnet/ipv6.h\u003e #include \u003cnet/transp_v6.h\u003e #include \u003cnet/tcp.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/fungible/funeth/funeth_ktls.h",
+            "line": 6,
+            "additionalContext": "scanoss:match,#include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/mellanox/mlx5/core/en_accel/ktls.h",
+            "line": 7,
+            "additionalContext": "scanoss:match,#include \u003clinux/debugfs.h\u003e #include \u003clinux/tls.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/mellanox/mlx5/core/en_accel/ktls_txrx.h",
+            "line": 9,
+            "additionalContext": "scanoss:match,#include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/mellanox/mlx5/core/en_accel/ktls_utils.h",
+            "line": 7,
+            "additionalContext": "scanoss:match,#include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/netronome/nfp/crypto/tls.c",
+            "line": 4,
+            "additionalContext": "scanoss:match,#include \u003clinux/bitfield.h\u003e #include \u003clinux/ipv6.h\u003e #include \u003clinux/skbuff.h\u003e #include \u003clinux/string.h\u003e #include \u003cnet/inet6_hashtables.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/net/ethernet/netronome/nfp/nfp_net_common.c",
+            "line": 14,
+            "additionalContext": "scanoss:match,#include \u003clinux/bitfield.h\u003e #include \u003clinux/bpf.h\u003e #include \u003clinux/module.h\u003e #include \u003clinux/kernel.h\u003e #include \u003clinux/init.h\u003e #include \u003clinux/fs.h\u003e #include \u003clinux/netdevice.h\u003e #include \u003clinux/etherdevice.h\u003e #include \u003clinux/interrupt.h\u003e #include \u003clinux/ip.h\u003e #include \u003clinux/ipv6.h\u003e #include \u003clinux/mm.h\u003e #include \u003clinux/overflow.h\u003e #include \u003clinux/page_ref.h\u003e #include \u003clinux/pci.h\u003e #include \u003clinux/pci_regs.h\u003e #include \u003clinux/ethtool.h\u003e #include \u003clinux/log2.h\u003e #include \u003clinux/if_vlan.h\u003e #include \u003clinux/if_bridge.h\u003e #include \u003clinux/random.h\u003e #include \u003clinux/vmalloc.h\u003e #include \u003clinux/ktime.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "drivers/nvme/host/tcp.c",
+            "line": 7,
+            "additionalContext": "scanoss:match,#include \u003clinux/module.h\u003e #include \u003clinux/init.h\u003e #include \u003clinux/slab.h\u003e #include \u003clinux/err.h\u003e #include \u003clinux/crc32.h\u003e #include \u003clinux/nvme-tcp.h\u003e #include \u003clinux/nvme-keyring.h\u003e #include \u003cnet/sock.h\u003e #include \u003cnet/tcp.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "include/net/tls.h",
+            "line": 37,
+            "additionalContext": "scanoss:match,#include \u003clinux/types.h\u003e #include \u003casm/byteorder.h\u003e #include \u003clinux/crypto.h\u003e #include \u003clinux/socket.h\u003e #include \u003clinux/tcp.h\u003e #include \u003clinux/mutex.h\u003e #include \u003clinux/netdevice.h\u003e #include \u003clinux/rcupdate.h\u003e #include \u003cnet/net_namespace.h\u003e #include \u003cnet/tcp.h\u003e #include \u003cnet/strparser.h\u003e #include \u003ccrypto/aead.h\u003e #include \u003cuapi/linux/tls.h\u003e"
+          },
+          {
+            "location": "net/core/filter.c",
+            "line": 20,
+            "additionalContext": "scanoss:match,#include \u003clinux/atomic.h\u003e #include \u003clinux/bpf_verifier.h\u003e #include \u003clinux/module.h\u003e #include \u003clinux/types.h\u003e #include \u003clinux/mm.h\u003e #include \u003clinux/fcntl.h\u003e #include \u003clinux/socket.h\u003e #include \u003clinux/sock_diag.h\u003e #include \u003clinux/in.h\u003e #include \u003clinux/inet.h\u003e #include \u003clinux/netdevice.h\u003e #include \u003clinux/if_packet.h\u003e #include \u003clinux/if_arp.h\u003e #include \u003clinux/gfp.h\u003e #include \u003cnet/inet_common.h\u003e #include \u003cnet/ip.h\u003e #include \u003cnet/protocol.h\u003e #include \u003cnet/netlink.h\u003e #include \u003clinux/skbuff.h\u003e #include \u003clinux/skmsg.h\u003e #include \u003cnet/sock.h\u003e #include \u003cnet/flow_dissector.h\u003e #include \u003clinux/errno.h\u003e #include \u003clinux/timer.h\u003e #include \u003clinux/uaccess.h\u003e #include \u003clinux/unaligned.h\u003e #include \u003clinux/filter.h\u003e #include \u003clinux/ratelimit.h\u003e #include \u003clinux/seccomp.h\u003e #include \u003clinux/if_vlan.h\u003e #include \u003clinux/bpf.h\u003e #include \u003clinux/btf.h\u003e #include \u003cnet/sch_generic.h\u003e #include \u003cnet/cls_cgroup.h\u003e #include \u003cnet/dst_metadata.h\u003e #include \u003cnet/dst.h\u003e #include \u003cnet/sock_reuseport.h\u003e #include \u003cnet/busy_poll.h\u003e #include \u003cnet/tcp.h\u003e #include \u003cnet/xfrm.h\u003e #include \u003cnet/udp.h\u003e #include \u003clinux/bpf_trace.h\u003e #include \u003cnet/xdp_sock.h\u003e #include \u003clinux/inetdevice.h\u003e #include \u003cnet/inet_hashtables.h\u003e #include \u003cnet/inet6_hashtables.h\u003e #include \u003cnet/ip_fib.h\u003e #include \u003cnet/nexthop.h\u003e #include \u003cnet/flow.h\u003e #include \u003cnet/arp.h\u003e #include \u003cnet/ipv6.h\u003e #include \u003cnet/net_namespace.h\u003e #include \u003clinux/seg6_local.h\u003e #include \u003cnet/seg6.h\u003e #include \u003cnet/seg6_local.h\u003e #include \u003cnet/lwtunnel.h\u003e #include \u003cnet/ipv6_stubs.h\u003e #include \u003cnet/bpf_sk_storage.h\u003e #include \u003cnet/transp_v6.h\u003e #include \u003clinux/btf_ids.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/core/skmsg.c",
+            "line": 4,
+            "additionalContext": "scanoss:match,#include \u003clinux/skmsg.h\u003e #include \u003clinux/skbuff.h\u003e #include \u003clinux/scatterlist.h\u003e #include \u003cnet/sock.h\u003e #include \u003cnet/tcp.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/handshake/alert.c",
+            "line": 10,
+            "additionalContext": "scanoss:match,#include \u003clinux/types.h\u003e #include \u003clinux/socket.h\u003e #include \u003clinux/kernel.h\u003e #include \u003clinux/module.h\u003e #include \u003clinux/skbuff.h\u003e #include \u003clinux/inet.h\u003e #include \u003cnet/sock.h\u003e #include \u003cnet/handshake.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/ipv4/tcp_bpf.c",
+            "line": 4,
+            "additionalContext": "scanoss:match,#include \u003clinux/skmsg.h\u003e #include \u003clinux/filter.h\u003e #include \u003clinux/bpf.h\u003e #include \u003clinux/init.h\u003e #include \u003clinux/wait.h\u003e #include \u003clinux/util_macros.h\u003e #include \u003cnet/inet_common.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/tls/tls.h",
+            "line": 38,
+            "additionalContext": "scanoss:match,#include \u003casm/byteorder.h\u003e #include \u003clinux/types.h\u003e #include \u003clinux/skmsg.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/tls/tls_device.c",
+            "line": 32,
+            "additionalContext": "scanoss:match,#include \u003ccrypto/aead.h\u003e #include \u003clinux/highmem.h\u003e #include \u003clinux/module.h\u003e #include \u003clinux/netdevice.h\u003e #include \u003cnet/dst.h\u003e #include \u003cnet/inet_connection_sock.h\u003e #include \u003cnet/tcp.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/tls/tls_device.c",
+            "line": 42,
+            "additionalContext": "scanoss:match,#include \"tls.h\""
+          },
+          {
+            "location": "net/tls/tls_device_fallback.c",
+            "line": 32,
+            "additionalContext": "scanoss:match,#include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/tls/tls_device_fallback.c",
+            "line": 38,
+            "additionalContext": "scanoss:match,#include \"tls.h\""
+          },
+          {
+            "location": "net/tls/tls_main.c",
+            "line": 34,
+            "additionalContext": "scanoss:match,#include \u003clinux/module.h\u003e #include \u003cnet/tcp.h\u003e #include \u003cnet/inet_common.h\u003e #include \u003clinux/highmem.h\u003e #include \u003clinux/netdevice.h\u003e #include \u003clinux/sched/signal.h\u003e #include \u003clinux/inetdevice.h\u003e #include \u003clinux/inet_diag.h\u003e #include \u003cnet/snmp.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/tls/tls_main.c",
+            "line": 48,
+            "additionalContext": "scanoss:match,#include \"tls.h\""
+          },
+          {
+            "location": "net/tls/tls_proc.c",
+            "line": 4,
+            "additionalContext": "scanoss:match,#include \u003clinux/proc_fs.h\u003e #include \u003clinux/seq_file.h\u003e #include \u003cnet/snmp.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/tls/tls_proc.c",
+            "line": 9,
+            "additionalContext": "scanoss:match,#include \"tls.h\""
+          },
+          {
+            "location": "net/tls/tls_strp.c",
+            "line": 4,
+            "additionalContext": "scanoss:match,#include \u003clinux/skbuff.h\u003e #include \u003clinux/skbuff_ref.h\u003e #include \u003clinux/workqueue.h\u003e #include \u003cnet/strparser.h\u003e #include \u003cnet/tcp.h\u003e #include \u003cnet/sock.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/tls/tls_strp.c",
+            "line": 12,
+            "additionalContext": "scanoss:match,#include \"tls.h\""
+          },
+          {
+            "location": "net/tls/tls_sw.c",
+            "line": 38,
+            "additionalContext": "scanoss:match,#include \u003clinux/bug.h\u003e #include \u003clinux/sched/signal.h\u003e #include \u003clinux/module.h\u003e #include \u003clinux/kernel.h\u003e #include \u003clinux/splice.h\u003e #include \u003ccrypto/aead.h\u003e #include \u003cnet/strparser.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/tls/tls_sw.c",
+            "line": 49,
+            "additionalContext": "scanoss:match,#include \"tls.h\""
+          },
+          {
+            "location": "net/tls/tls_toe.c",
+            "line": 34,
+            "additionalContext": "scanoss:match,#include \u003clinux/list.h\u003e #include \u003clinux/rcupdate.h\u003e #include \u003clinux/spinlock.h\u003e #include \u003cnet/inet_connection_sock.h\u003e #include \u003cnet/tls.h\u003e"
+          },
+          {
+            "location": "net/tls/tls_toe.c",
+            "line": 41,
+            "additionalContext": "scanoss:match,#include \"tls.h\""
+          },
+          {
+            "location": "scripts/sign-file.c",
+            "line": 25,
+            "additionalContext": "scanoss:match,#include \u003copenssl/opensslv.h\u003e"
+          },
+          {
+            "location": "scripts/sign-file.c",
+            "line": 26,
+            "additionalContext": "scanoss:match,#include \u003copenssl/bio.h\u003e"
+          },
+          {
+            "location": "scripts/sign-file.c",
+            "line": 27,
+            "additionalContext": "scanoss:match,#include \u003copenssl/evp.h\u003e"
+          },
+          {
+            "location": "scripts/sign-file.c",
+            "line": 28,
+            "additionalContext": "scanoss:match,#include \u003copenssl/pem.h\u003e"
+          },
+          {
+            "location": "scripts/sign-file.c",
+            "line": 29,
+            "additionalContext": "scanoss:match,#include \u003copenssl/err.h\u003e"
+          },
+          {
+            "location": "scripts/sign-file.c",
+            "line": 54,
+            "additionalContext": "scanoss:match,#if defined(LIBRESSL_VERSION_NUMBER) || \\"
+          },
+          {
+            "location": "scripts/sign-file.c",
+            "line": 60,
+            "additionalContext": "scanoss:match,#include \u003copenssl/cms.h\u003e"
+          },
+          {
+            "location": "scripts/sign-file.c",
+            "line": 62,
+            "additionalContext": "scanoss:match,#include \u003copenssl/pkcs7.h\u003e"
+          },
+          {
+            "location": "tools/bpf/bpftool/sign.c",
+            "line": 16,
+            "additionalContext": "scanoss:match,#include \u003copenssl/opensslv.h\u003e"
+          },
+          {
+            "location": "tools/bpf/bpftool/sign.c",
+            "line": 17,
+            "additionalContext": "scanoss:match,#include \u003copenssl/bio.h\u003e"
+          },
+          {
+            "location": "tools/bpf/bpftool/sign.c",
+            "line": 18,
+            "additionalContext": "scanoss:match,#include \u003copenssl/evp.h\u003e"
+          },
+          {
+            "location": "tools/bpf/bpftool/sign.c",
+            "line": 19,
+            "additionalContext": "scanoss:match,#include \u003copenssl/pem.h\u003e"
+          },
+          {
+            "location": "tools/bpf/bpftool/sign.c",
+            "line": 20,
+            "additionalContext": "scanoss:match,#include \u003copenssl/err.h\u003e"
+          },
+          {
+            "location": "tools/bpf/bpftool/sign.c",
+            "line": 21,
+            "additionalContext": "scanoss:match,#include \u003copenssl/cms.h\u003e"
+          },
+          {
+            "location": "tools/testing/selftests/bpf/prog_tests/setget_sockopt.c",
+            "line": 5,
+            "additionalContext": "scanoss:match,#include \u003csched.h\u003e #include \u003clinux/socket.h\u003e #include \u003clinux/tls.h\u003e"
+          },
+          {
+            "location": "tools/testing/selftests/bpf/prog_tests/sockmap_ktls.c",
+            "line": 6,
+            "additionalContext": "scanoss:match,#include \u003cerror.h\u003e #include \u003cnetinet/tcp.h\u003e #include \u003clinux/tls.h\u003e"
+          },
+          {
+            "location": "tools/testing/selftests/bpf/test_sockmap.c",
+            "line": 3,
+            "additionalContext": "scanoss:match,#include \u003cstdio.h\u003e #include \u003cstdlib.h\u003e #include \u003csys/socket.h\u003e #include \u003csys/ioctl.h\u003e #include \u003csys/select.h\u003e #include \u003cnetinet/in.h\u003e #include \u003carpa/inet.h\u003e #include \u003cunistd.h\u003e #include \u003cstring.h\u003e #include \u003cerrno.h\u003e #include \u003cstdbool.h\u003e #include \u003csignal.h\u003e #include \u003cfcntl.h\u003e #include \u003csys/wait.h\u003e #include \u003ctime.h\u003e #include \u003csched.h\u003e #include \u003csys/time.h\u003e #include \u003csys/types.h\u003e #include \u003csys/sendfile.h\u003e #include \u003clinux/netlink.h\u003e #include \u003clinux/socket.h\u003e #include \u003clinux/sock_diag.h\u003e #include \u003clinux/bpf.h\u003e #include \u003clinux/if_link.h\u003e #include \u003clinux/tls.h\u003e"
+          },
+          {
+            "location": "tools/testing/selftests/net/tcp_mmap.c",
+            "line": 69,
+            "additionalContext": "scanoss:match,#include \u003copenssl/pem.h\u003e"
+          },
+          {
+            "location": "tools/testing/selftests/sgx/sigstruct.c",
+            "line": 15,
+            "additionalContext": "scanoss:match,#include \u003copenssl/err.h\u003e"
+          },
+          {
+            "location": "tools/testing/selftests/sgx/sigstruct.c",
+            "line": 16,
+            "additionalContext": "scanoss:match,#include \u003copenssl/pem.h\u003e"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "other",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "other"
+          ]
+        }
+      }
+    },
+    {
+      "bom-ref": "b8be3926-10e7-4613-b2c2-f4a2b9083312",
+      "type": "cryptographic-asset",
+      "name": "private-key",
+      "description": "Cryptographic private-key",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.related-crypto-material.private-key.pem"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "scripts/sign-file.c",
+            "line": 172,
+            "additionalContext": "scanoss:match,private_key = PEM_read_bio_PrivateKey(b, NULL, pem_pw_cb, NULL);"
+          },
+          {
+            "location": "tools/bpf/bpftool/sign.c",
+            "line": 69,
+            "additionalContext": "scanoss:match,private_key = PEM_read_bio_PrivateKey(b, NULL, NULL, NULL);"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "related-crypto-material",
+        "relatedCryptoMaterialProperties": {
+          "type": "private-key"
+        }
+      }
+    },
+    {
+      "bom-ref": "094dff72-800b-4f03-b102-1da89a43ce59",
+      "type": "cryptographic-asset",
+      "name": "rc4",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,c.openssl.algorithm.stream-cipher.rc4.generic"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "drivers/crypto/bcm/util.c",
+            "line": 300,
+            "additionalContext": "scanoss:match,return \"rc4\";"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "stream-cipher",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "cryptoFunctions": [
+            "encrypt",
+            "decrypt"
+          ]
+        },
+        "oid": "1.2.840.113549.3.4"
+      }
+    },
+    {
+      "bom-ref": "90a140cb-ab59-4037-a5bf-b70b68410aaa",
+      "type": "cryptographic-asset",
+      "name": "tag",
+      "description": "Cryptographic tag",
+      "evidence": {
+        "identity": [
+          {
+            "field": "name",
+            "confidence": 1,
+            "methods": [
+              {
+                "technique": "source-code-analysis",
+                "confidence": 1,
+                "value": "scanoss:ruleid,python.hmac.related-crypto-material.digest.digest-output"
+              }
+            ]
+          }
+        ],
+        "occurrences": [
+          {
+            "location": "scripts/crypto/gen-fips-testvecs.py",
+            "line": 33,
+            "additionalContext": "scanoss:match,print_static_u8_array_definition(f'fips_test_hmac_{alg}_value', ctx.digest())"
+          },
+          {
+            "location": "scripts/crypto/gen-hash-testvecs.py",
+            "line": 168,
+            "additionalContext": "scanoss:match,ctx.digest())"
+          }
+        ]
+      },
+      "cryptoProperties": {
+        "assetType": "related-crypto-material",
+        "relatedCryptoMaterialProperties": {
+          "type": "tag"
+        }
+      }
+    }
+  ]
+}

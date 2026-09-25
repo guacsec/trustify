@@ -17,8 +17,9 @@ pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
     db: db::ReadOnly,
     cache: PaginationCache,
+    conforma_policy: Option<String>,
 ) {
-    let service = CryptoService::new(cache);
+    let service = CryptoService::new(cache, conforma_policy);
     config
         .app_data(web::Data::new(db))
         .app_data(web::Data::new(service))
