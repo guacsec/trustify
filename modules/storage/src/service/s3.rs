@@ -365,12 +365,10 @@ mod test {
                         .unwrap_or_else(|_| "http://127.0.0.1:9090".to_string()),
                 ),
                 access_key: Some(
-                    std::env::var("TEST_S3_ACCESS_KEY")
-                        .unwrap_or_else(|_| "test".to_string()),
+                    std::env::var("TEST_S3_ACCESS_KEY").unwrap_or_else(|_| "test".to_string()),
                 ),
                 secret_key: Some(
-                    std::env::var("TEST_S3_SECRET_KEY")
-                        .unwrap_or_else(|_| "test".to_string()),
+                    std::env::var("TEST_S3_SECRET_KEY").unwrap_or_else(|_| "test".to_string()),
                 ),
                 trust_anchors: vec![],
                 path_style: true,
