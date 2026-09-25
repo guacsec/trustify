@@ -5,25 +5,31 @@ use csaf_rs::schema::csaf2_0::schema::{
 use packageurl::PackageUrl;
 use std::{collections::HashMap, str::FromStr};
 
-pub fn branch_purl(branch: &Branch) -> Option<PackageUrl<'static>> {
-    branch.product.as_ref().and_then(|name| {
+pub fn branch_purl(branch: &Branch) -> anyhow::Result<Option<PackageUrl<'static>>> {
+    let purl = if let Some(purl) = branch.product.as_ref().and_then(|name| {
         name.product_identification_helper
-            .iter()
-            .flat_map(|pih| pih.purl.as_ref())
-            .map(|purl| PackageUrl::from_str(purl.as_str()).unwrap())
-            .next()
-    })
+            .as_ref()
+            .and_then(|pih| pih.purl.as_ref())
+    }) {
+        Some(PackageUrl::from_str(purl.as_str())?)
+    } else {
+        None
+    };
+    Ok(purl)
 }
 
 #[allow(dead_code)]
-pub fn branch_cpe(branch: &Branch) -> Option<cpe::uri::OwnedUri> {
-    branch.product.as_ref().and_then(|name| {
+pub fn branch_cpe(branch: &Branch) -> anyhow::Result<Option<cpe::uri::OwnedUri>> {
+    let cpe = if let Some(cpe) = branch.product.as_ref().and_then(|name| {
         name.product_identification_helper
-            .iter()
-            .flat_map(|pih| pih.cpe.as_ref())
-            .map(|cpe| cpe::uri::OwnedUri::from_str(cpe.as_str()).unwrap())
-            .next()
-    })
+            .as_ref()
+            .and_then(|pih| pih.cpe.as_ref())
+    }) {
+        Some(cpe::uri::OwnedUri::from_str(cpe.as_str())?)
+    } else {
+        None
+    };
+    Ok(cpe)
 }
 
 /// Walk the product tree, calling the closure for every branch found.

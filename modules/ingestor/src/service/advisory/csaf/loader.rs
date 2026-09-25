@@ -36,14 +36,12 @@ impl<'a> From<Information<'a>> for AdvisoryInformation {
             version: parse_csaf_version(value),
             title: Some(value.document.title.to_string()),
             issuer: Some(value.document.publisher.name.to_string()),
-            published: OffsetDateTime::from_unix_timestamp(
-                parse_date(&value.document.tracking.initial_release_date).timestamp(),
-            )
-            .ok(),
-            modified: OffsetDateTime::from_unix_timestamp(
-                parse_date(&value.document.tracking.current_release_date).timestamp(),
-            )
-            .ok(),
+            published: parse_date(&value.document.tracking.initial_release_date)
+                .ok()
+                .and_then(|date| OffsetDateTime::from_unix_timestamp(date.timestamp()).ok()),
+            modified: parse_date(&value.document.tracking.current_release_date)
+                .ok()
+                .and_then(|date| OffsetDateTime::from_unix_timestamp(date.timestamp()).ok()),
             withdrawn: None,
         }
     }
@@ -155,6 +153,17 @@ impl<'g> CsafLoader<'g> {
             return Ok(());
         };
 
+        let discovery_date = if let Some(date) = vulnerability.discovery_date.as_ref() {
+            OffsetDateTime::from_unix_timestamp(parse_date(date)?.timestamp()).ok()
+        } else {
+            None
+        };
+        let release_date = if let Some(date) = vulnerability.release_date.as_ref() {
+            OffsetDateTime::from_unix_timestamp(parse_date(date)?.timestamp()).ok()
+        } else {
+            None
+        };
+
         // Vulnerability already created in batch, just link it
         let advisory_vulnerability = advisory
             .link_to_vulnerability(
@@ -164,12 +173,8 @@ impl<'g> CsafLoader<'g> {
                     summary: None,
                     description: None,
                     reserved_date: None,
-                    discovery_date: vulnerability.discovery_date.as_ref().and_then(|date| {
-                        OffsetDateTime::from_unix_timestamp(parse_date(date).timestamp()).ok()
-                    }),
-                    release_date: vulnerability.release_date.as_ref().and_then(|date| {
-                        OffsetDateTime::from_unix_timestamp(parse_date(date).timestamp()).ok()
-                    }),
+                    discovery_date,
+                    release_date,
                     cwes: vulnerability
                         .cwe
                         .as_ref()
@@ -209,7 +214,7 @@ impl<'g> CsafLoader<'g> {
                 .advisory_vulnerability
                 .vulnerability_id
                 .clone(),
-        );
+        )?;
 
         creator
             .add_all(&product_status.fixed, "fixed")
@@ -244,8 +249,8 @@ impl<'g> CsafLoader<'g> {
     }
 }
 
-pub fn parse_date(s: &str) -> chrono::DateTime<chrono::FixedOffset> {
-    chrono::DateTime::parse_from_rfc3339(s).unwrap()
+pub fn parse_date(s: &str) -> Result<chrono::DateTime<chrono::FixedOffset>, Error> {
+    chrono::DateTime::parse_from_rfc3339(s).map_err(|e| Error::InvalidContent(e.into()))
 }
 
 #[cfg(test)]

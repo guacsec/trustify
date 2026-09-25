@@ -41,9 +41,10 @@ pub struct ProductIdStatusMapping {
 }
 
 /// Check if the CSAF document is published by Red Hat.
-fn is_redhat(csaf: &Csaf) -> bool {
-    let namespace = url::Url::from_str(csaf.document.publisher.namespace.as_str()).unwrap();
-    namespace.host_str() == Some("www.redhat.com")
+fn is_redhat(csaf: &Csaf) -> Result<bool, Error> {
+    let namespace = url::Url::from_str(csaf.document.publisher.namespace.as_str())
+        .map_err(|e| Error::InvalidContent(e.into()))?;
+    Ok(namespace.host_str() == Some("www.redhat.com"))
 }
 
 #[derive(Debug)]
@@ -59,18 +60,22 @@ pub struct StatusCreator<'a> {
 }
 
 impl<'a> StatusCreator<'a> {
-    pub fn new(csaf: &'a Csaf, advisory_id: Uuid, vulnerability_identifier: String) -> Self {
+    pub fn new(
+        csaf: &'a Csaf,
+        advisory_id: Uuid,
+        vulnerability_identifier: String,
+    ) -> Result<Self, Error> {
         let cache = ResolveProductIdCache::new(csaf);
-        Self {
+        Ok(Self {
             cache,
             advisory_id,
             vulnerability_id: vulnerability_identifier,
-            is_redhat: is_redhat(csaf),
+            is_redhat: is_redhat(csaf)?,
             entries: HashSet::new(),
             products: HashSet::new(),
             product_id_to_product: HashMap::new(),
             product_to_purl_statuses: HashMap::new(),
-        }
+        })
     }
 
     pub fn add_all(
