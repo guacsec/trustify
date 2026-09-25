@@ -9031,6 +9031,7 @@ dependencies = [
  "osv",
  "packageurl 0.7.1",
  "regex",
+ "reqwest 0.13.5",
  "roxmltree",
  "rstest",
  "sanitize-filename",

@@ -1,3 +1,4 @@
+pub mod conforma;
 pub mod policy;
 
 use crate::{
@@ -32,11 +33,15 @@ use uuid::Uuid;
 
 pub struct CryptoService {
     cache: PaginationCache,
+    conforma: Option<conforma::ConformaClient>,
 }
 
 impl CryptoService {
-    pub fn new(cache: PaginationCache) -> Self {
-        Self { cache }
+    pub fn new(cache: PaginationCache, policy_url: Option<String>) -> Self {
+        Self {
+            cache,
+            conforma: policy_url.map(conforma::ConformaClient::new),
+        }
     }
 
     /// List crypto assets with optional filtering by asset type and SBOM.
@@ -253,6 +258,10 @@ impl CryptoService {
         sbom_id: Option<Uuid>,
         connection: &C,
     ) -> Result<PolicyEvaluationResponse, Error> {
+        let conforma = self.conforma.as_ref().ok_or_else(|| {
+            Error::Internal("CONFORMA_POLICY is not configured".into())
+        })?;
+
         let mut query = sbom_crypto::Entity::find()
             .filter(sbom_crypto::Column::AssetType.eq(CryptoAssetType::Algorithm));
 
@@ -263,12 +272,49 @@ impl CryptoService {
         let items = query.all(connection).await?;
         let nodes = items.load_one(sbom_node::Entity, connection).await?;
 
+        let algo_input: Vec<serde_json::Value> = items
+            .iter()
+            .zip(nodes.iter())
+            .filter_map(|(crypto, node)| {
+                let node = node.as_ref()?;
+                Some(serde_json::json!({
+                    "node_id": crypto.node_id,
+                    "sbom_id": crypto.sbom_id,
+                    "name": node.name,
+                    "oid": crypto.oid,
+                    "properties": crypto.properties,
+                }))
+            })
+            .collect();
+
+        let report = conforma
+            .evaluate(serde_json::json!({ "algorithms": algo_input }))
+            .await?;
+
+        let violation_ids: HashSet<&str> = report
+            .violations
+            .iter()
+            .filter_map(|v| v.node_id.as_deref())
+            .collect();
+
+        let warning_ids: HashSet<&str> = report
+            .warnings
+            .iter()
+            .filter_map(|w| w.node_id.as_deref())
+            .collect();
+
         let results: Vec<AlgorithmPolicyResult> = items
             .into_iter()
             .zip(nodes)
             .filter_map(|(crypto, node)| {
                 let node = node?;
-                let verdict = evaluate_algorithm(&node.name, &crypto.properties);
+                let verdict = if violation_ids.contains(crypto.node_id.as_str()) {
+                    PolicyVerdict::NonCompliant
+                } else if warning_ids.contains(crypto.node_id.as_str()) {
+                    PolicyVerdict::Warning
+                } else {
+                    PolicyVerdict::Compliant
+                };
                 Some(AlgorithmPolicyResult {
                     sbom_id: crypto.sbom_id,
                     node_id: crypto.node_id,

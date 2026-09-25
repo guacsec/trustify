@@ -136,6 +136,13 @@ pub struct Run {
     #[arg(long, env = "TRUSTD_VALIDATORS_CONFIG")]
     pub validators_config: Option<PathBuf>,
 
+    /// Absolute path to a local Conforma policy YAML file (EnterpriseContractPolicy spec).
+    /// Example: `/etc/trustify/conforma/policy.yaml`
+    /// In the future this will be replaced by a dynamically generated file built from
+    /// the user's chosen policy. Required for `POST /api/v3/crypto/policy/evaluate`.
+    #[arg(long, env = "CONFORMA_POLICY")]
+    pub conforma_policy: Option<String>,
+
     // flattened commands must go last
     //
     /// Analysis configuration
@@ -496,6 +503,7 @@ impl InitData {
                 advisory_upload_limit: run.advisory_upload_limit.into(),
                 max_group_name_length: run.max_group_name_length,
                 recommend_patterns: run.recommend_patterns,
+                conforma_policy: run.conforma_policy,
                 ..Default::default()
             },
             ingestor: trustify_module_ingestor::endpoints::Config {

@@ -1,6 +1,6 @@
 use crate::{
     crypto::model::{
-        CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationRequest, PolicyEvaluationResponse,
+        CryptoAlgorithmSummary,CryptoSummary, PolicyEvaluationRequest, PolicyEvaluationResponse
     },
     crypto::service::policy::PolicyVerdict,
     test::caller,
@@ -252,7 +252,9 @@ async fn list_sbom_crypto_filtered(ctx: &TrustifyContext) -> Result<(), anyhow::
 /// Verifies policy evaluation across all SBOMs.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn evaluate_policy(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+async fn evaluate_policy_requires_conforma(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // When CONFORMA_POLICY is not configured (test default), the endpoint must
+    // return 500 rather than silently falling back to a hardcoded policy.
     let app = caller(ctx).await?;
     ingest_cbom(&app).await;
 
@@ -260,13 +262,12 @@ async fn evaluate_policy(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .uri("/api/v3/crypto/policy/evaluate")
         .set_json(PolicyEvaluationRequest { sbom_id: None })
         .to_request();
-    let response: PolicyEvaluationResponse = app.call_and_read_body_json(request).await;
+    let response = app.call_service(request).await;
 
-    assert!(response.summary.total > 0, "expected algorithms from CBOM");
     assert_eq!(
-        response.summary.total,
-        response.summary.compliant + response.summary.warning + response.summary.non_compliant,
-        "summary counts should add up to total"
+        response.status(),
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "evaluate_policy must fail with 500 when CONFORMA_POLICY is not set"
     );
 
     // SHA1 in keycloak-cbom should be NonCompliant
