@@ -10,8 +10,8 @@ use trustify_module_storage::service::dispatch::DispatchBackend;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
-    advisory, exploit, license, organization, product, purl, sbom, sbom_group, vulnerability,
-    weakness,
+    advisory, crypto, exploit, license, organization, product, purl, sbom, sbom_group,
+    vulnerability, weakness,
 };
 
 #[derive(Clone, Debug)]
@@ -67,6 +67,7 @@ pub fn configure(
         config.advisory_upload_limit,
         cache.clone(),
     );
+    crypto::endpoints::configure(svc, db_ro.clone(), cache.clone());
     exploit::endpoints::configure(svc, db_ro.clone(), cache.clone());
     license::endpoints::configure(svc, db_ro.clone());
     organization::endpoints::configure(svc, db_ro.clone(), cache.clone());

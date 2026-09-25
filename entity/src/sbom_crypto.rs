@@ -26,6 +26,7 @@ pub struct Model {
     serde::Deserialize,
     strum::EnumString,
     strum::Display,
+    utoipa::ToSchema,
 )]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "crypto_asset_type")]
 #[serde(rename_all = "kebab-case")]
