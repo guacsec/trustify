@@ -18,7 +18,8 @@ you are in the `tools/perf/` directory.
 
 ```bash
 make help                    # list all targets
-make test                    # v3 tests, 10 users, 5 min
+make test                    # daily dashboard endpoint set, 10 users, 5 min
+make test-v3                 # all v3 endpoint groups
 make test-readonly           # read-only v3 tests (safe for prod)
 make test-sbom               # v3 SBOM endpoint only
 make ui                      # launch interactive web UI
@@ -39,10 +40,20 @@ Format: `reports/<target>_u<users>_<duration>_<timestamp>.html`
 
 | Target | Description |
 |--------|-------------|
-| `make test` | All v3 tests (default) |
+| `make test` | Daily dashboard v3 endpoint set (default) |
+| `make test-daily` | Same as `make test` |
+| `make test-v3` | All v3 endpoint groups |
 | `make test-readonly` | Read-only v3 tests (safe for prod / read replicas) |
 | `make test-v2` | All v2 tests |
 | `make test-all` | v2 + v3 together |
+
+`make test` selects the endpoint groups represented in the daily dashboard:
+advisory, analysis, group, importer, advisory-label reads, license, pURL,
+SBOM, and vulnerability. It uses the daily workflow's pinned scenario file so
+scenario-based detail and recommendation tasks are enabled. Use `make test-v3`
+for the additional product, organization, weakness, miscellaneous, and website
+workloads. Label mutation tasks remain excluded because the perf client lacks
+update permission.
 
 ### Per-endpoint targets
 
@@ -85,7 +96,7 @@ make test-readonly SCENARIO_FILE=etc/scenarios/main/full-20260412.json5
 | `USERS` | `10` | Concurrent users |
 | `SPAWN_RATE` | `2` | Users spawned per second |
 | `DURATION` | `5m` | Test duration |
-| `SCENARIO_FILE` | (unset) | Path to JSON5 scenario file |
+| `SCENARIO_FILE` | `etc/scenarios/main/full-20260317T023702Z.json5` | Path to JSON5 scenario file |
 
 Run `make clean` to remove all generated reports and cached files.
 
@@ -432,8 +443,11 @@ def list_advisory_by_severity(self) -> None:
 ```
 
 The `name` parameter controls how the endpoint appears in reports. Use the
-raw URL for static queries, or a descriptive name with truncated IDs for
-parameterized ones (e.g. `f"get_sbom[{key[:16]}...]"`).
+stable route path for each request: retain query strings when they distinguish
+benchmark cases, and use `{parameter}` placeholders for dynamic path or query
+values. Locust reports the HTTP method separately, so don't include task names,
+IDs, or batch sizes in `name`. For example, name a component lookup
+`/api/v3/analysis/component/{component}` rather than `get_analysis_component[...]`.
 
 ### Adding a scenario-dependent task
 

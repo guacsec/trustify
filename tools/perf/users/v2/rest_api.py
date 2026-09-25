@@ -417,7 +417,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         uid = SCENARIO.get_advisory
         with self.client.get(
             f"/api/v2/advisory/urn:uuid:{uid}",
-            name=f"v2/get_advisory[{uid[:12]}...]",
+            name="/api/v2/advisory/urn:uuid:{advisory_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -431,7 +431,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         uid = SCENARIO.download_advisory
         with self.client.get(
             f"/api/v2/advisory/urn:uuid:{uid}/download",
-            name=f"v2/download_advisory[{uid[:12]}...]",
+            name="/api/v2/advisory/urn:uuid:{advisory_id}/download",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -445,7 +445,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         key = SCENARIO.get_sbom
         with self.client.get(
             f"/api/v2/sbom/{quote(key, safe='')}",
-            name=f"v2/get_sbom[{key[:16]}...]",
+            name="/api/v2/sbom/{sbom_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -459,7 +459,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         key = SCENARIO.get_sbom_advisories
         with self.client.get(
             f"/api/v2/sbom/{quote(key, safe='')}/advisory",
-            name=f"v2/get_sbom_advisories[{key[:16]}...]",
+            name="/api/v2/sbom/{sbom_id}/advisory",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -473,7 +473,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         uid = SCENARIO.get_sbom_advisories_by_uuid
         with self.client.get(
             f"/api/v2/sbom/urn%3Auuid%3A{uid}/advisory",
-            name=f"v2/get_sbom_advisories_by_uuid[{uid[:12]}...]",
+            name="/api/v2/sbom/{sbom_id}/advisory",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -487,7 +487,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         key = SCENARIO.get_sbom_packages
         with self.client.get(
             f"/api/v2/sbom/{quote(key, safe='')}/packages",
-            name=f"v2/get_sbom_packages[{key[:16]}...]",
+            name="/api/v2/sbom/{sbom_id}/packages",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -501,7 +501,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         key = SCENARIO.get_sbom_related
         with self.client.get(
             f"/api/v2/sbom/{quote(key, safe='')}/related",
-            name=f"v2/get_sbom_related[{key[:16]}...]",
+            name="/api/v2/sbom/{sbom_id}/related",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -515,7 +515,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         key = SCENARIO.sbom_license_ids
         with self.client.get(
             f"/api/v2/sbom/{quote(key, safe='')}/all-license-ids",
-            name=f"v2/get_sbom_license_ids[{key[:16]}...]",
+            name="/api/v2/sbom/{sbom_id}/all-license-ids",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -529,7 +529,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         key = SCENARIO.download_sbom
         with self.client.get(
             f"/api/v2/sbom/{quote(key, safe='')}/download",
-            name=f"v2/download_sbom[{key[:16]}...]",
+            name="/api/v2/sbom/{sbom_id}/download",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -543,7 +543,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         sid = SCENARIO.get_sbom_license_export
         with self.client.get(
             f"/api/v2/sbom/{quote(sid, safe='')}/license-export",
-            name=f"v2/get_sbom_license_export[{sid[:16]}...]",
+            name="/api/v2/sbom/{sbom_id}/license-export",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -557,7 +557,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         purl = SCENARIO.sbom_by_package
         with self.client.get(
             f"/api/v2/sbom/by-package?purl={quote(purl, safe='')}",
-            name=f"v2/sbom_by_package[{purl[:20]}...]",
+            name="/api/v2/sbom/by-package?purl={purl}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -572,7 +572,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         with self.client.get(
             "/api/v2/sbom/count-by-package",
             json=[{"purl": purl}],
-            name=f"v2/count_sbom_by_package[{purl[:20]}...]",
+            name="/api/v2/sbom/count-by-package",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -586,7 +586,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         vid = SCENARIO.get_vulnerability
         with self.client.get(
             f"/api/v2/vulnerability/{quote(vid, safe='')}",
-            name=f"v2/get_vulnerability[{vid[:16]}...]",
+            name="/api/v2/vulnerability/{vulnerability_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -600,7 +600,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         vid = SCENARIO.get_vulnerability
         with self.client.get(
             f"/api/v2/vulnerability/{quote(vid, safe='')}?scores=true",
-            name=f"v2/get_vulnerability_scores[{vid[:16]}...]",
+            name="/api/v2/vulnerability/{vulnerability_id}?scores=true",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -615,7 +615,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         with self.client.post(
             "/api/v2/vulnerability/analyze",
             json={"purls": [purl]},
-            name=f"v2/post_vulnerability_analyze[{purl[:20]}...]",
+            name="/api/v2/vulnerability/analyze",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -629,7 +629,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         pid = SCENARIO.get_purl_details
         with self.client.get(
             f"/api/v2/purl/{quote(pid, safe='')}",
-            name=f"v2/get_purl_details[{pid[:16]}...]",
+            name="/api/v2/purl/{purl_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -643,7 +643,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         key = SCENARIO.get_base_purl
         with self.client.get(
             f"/api/v2/purl/base/{quote(key, safe='')}",
-            name=f"v2/get_base_purl[{key[:20]}...]",
+            name="/api/v2/purl/base/{purl}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -658,7 +658,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         with self.client.post(
             "/api/v2/purl/recommend",
             json={"purls": batch},
-            name=f"v2/get_recommendations[batch={len(batch)}]",
+            name="/api/v2/purl/recommend",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -672,7 +672,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         pid = SCENARIO.get_product
         with self.client.get(
             f"/api/v2/product/{quote(pid, safe='')}",
-            name=f"v2/get_product[{pid[:16]}...]",
+            name="/api/v2/product/{product_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -686,7 +686,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         oid = SCENARIO.get_organization
         with self.client.get(
             f"/api/v2/organization/{quote(oid, safe='')}",
-            name=f"v2/get_organization[{oid[:16]}...]",
+            name="/api/v2/organization/{organization_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -700,7 +700,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         name = SCENARIO.get_importer
         with self.client.get(
             f"/api/v2/importer/{quote(name, safe='')}",
-            name=f"v2/get_importer[{name}]",
+            name="/api/v2/importer/{name}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -714,7 +714,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         name = SCENARIO.get_importer
         with self.client.get(
             f"/api/v2/importer/{quote(name, safe='')}/report",
-            name=f"v2/get_importer_report[{name}]",
+            name="/api/v2/importer/{name}/report",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -728,7 +728,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         lid = SCENARIO.get_spdx_license
         with self.client.get(
             f"/api/v2/license/spdx/license/{quote(lid, safe='')}",
-            name=f"v2/get_spdx_license[{lid}]",
+            name="/api/v2/license/spdx/license/{license_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -742,7 +742,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         wid = SCENARIO.get_weakness
         with self.client.get(
             f"/api/v2/weakness/{quote(wid, safe='')}",
-            name=f"v2/get_weakness[{wid}]",
+            name="/api/v2/weakness/{weakness_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -756,7 +756,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         gid = SCENARIO.get_sbom_group
         with self.client.get(
             f"/api/v2/group/sbom/{quote(gid, safe='')}",
-            name=f"v2/get_sbom_group[{gid[:16]}...]",
+            name="/api/v2/group/sbom/{group_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -770,7 +770,7 @@ class RestAPIUserV2(AuthenticatedHttpUser):
         gid = SCENARIO.get_sbom_group
         with self.client.get(
             f"/api/v2/group/sbom-assignment/{quote(gid, safe='')}",
-            name=f"v2/get_sbom_group_assignments[{gid[:16]}...]",
+            name="/api/v2/group/sbom-assignment/{group_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

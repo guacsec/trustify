@@ -53,7 +53,7 @@ class GroupUserV3(AuthenticatedHttpUser):
         gid = SCENARIO.get_sbom_group
         with self.client.get(
             f"/api/v3/group/sbom/{quote(gid, safe='')}",
-            name=f"get_sbom_group[{gid[:16]}...]",
+            name="/api/v3/group/sbom/{group_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -67,7 +67,7 @@ class GroupUserV3(AuthenticatedHttpUser):
         gid = SCENARIO.get_sbom_group
         with self.client.get(
             f"/api/v3/group/sbom-assignment/{quote(gid, safe='')}",
-            name=f"get_sbom_group_assignments[{gid[:16]}...]",
+            name="/api/v3/group/sbom-assignment/{group_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

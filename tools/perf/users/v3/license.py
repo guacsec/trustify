@@ -100,7 +100,7 @@ class LicenseUserV3(AuthenticatedHttpUser):
         lid = SCENARIO.get_spdx_license
         with self.client.get(
             f"/api/v3/license/spdx/license/{quote(lid, safe='')}",
-            name=f"get_spdx_license[{lid}]",
+            name="/api/v3/license/spdx/license/{license_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

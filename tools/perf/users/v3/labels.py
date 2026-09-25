@@ -29,8 +29,8 @@ class AdvisoryLabelUserV3(AuthenticatedHttpUser):
     def _find_random_advisory(self) -> str | None:
         """Fetch a random advisory UUID from the list endpoint."""
         with self.client.get(
-            "/api/v3/advisory?limit=1",
-            name="find_random_advisory",
+            "/api/v3/advisory?limit=1&total=true",
+            name="/api/v3/advisory?limit=1&total=true",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -49,7 +49,7 @@ class AdvisoryLabelUserV3(AuthenticatedHttpUser):
         offset = random.randint(0, max(total - 1, 0))  # noqa: S311
         with self.client.get(
             f"/api/v3/advisory?offset={offset}&limit=1",
-            name="find_random_advisory",
+            name="/api/v3/advisory?offset={offset}&limit=1",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -70,11 +70,15 @@ class AdvisoryLabelUserV3(AuthenticatedHttpUser):
     def list_advisory_labels(self) -> None:
         self.client.get(
             "/api/v3/advisory-labels?filter_text=type&limit=1000",
-            name="list_advisory_labels",
+            name="/api/v3/advisory-labels?filter_text=type&limit=1000",
         )
 
-    @tag("v3", "advisory", "labels", "mutate")
-    @task(3)
+    @tag("v3", "advisory", "labels", "readonly")
+    @task
+    def find_random_advisory(self) -> None:
+        self._find_random_advisory()
+
+    # Disabled: the performance-test client has no advisory update permission.
     def put_and_patch_advisory_labels(self) -> None:
         uid = self._find_random_advisory()
         if not uid:
@@ -88,7 +92,7 @@ class AdvisoryLabelUserV3(AuthenticatedHttpUser):
         self.client.put(
             f"/api/v3/advisory/urn:uuid:{uid}/label",
             json=put_body,
-            name="put_advisory_labels",
+            name="/api/v3/advisory/urn:uuid:{advisory_id}/label",
         )
 
         patch_body = {
@@ -99,7 +103,7 @@ class AdvisoryLabelUserV3(AuthenticatedHttpUser):
         self.client.patch(
             f"/api/v3/advisory/urn:uuid:{uid}/label",
             json=patch_body,
-            name="patch_advisory_labels",
+            name="/api/v3/advisory/urn:uuid:{advisory_id}/label",
         )
 
 
@@ -119,7 +123,7 @@ class SBOMLabelUserV3(AuthenticatedHttpUser):
         self.client.put(
             f"/api/v3/sbom/{quote(key, safe='')}/label",
             json=body,
-            name="put_sbom_labels",
+            name="/api/v3/sbom/{sbom_id}/label",
         )
 
     @tag("v3", "sbom", "labels", "mutate")
@@ -132,5 +136,5 @@ class SBOMLabelUserV3(AuthenticatedHttpUser):
         self.client.patch(
             f"/api/v3/sbom/{quote(key, safe='')}/label",
             json=body,
-            name="patch_sbom_labels",
+            name="/api/v3/sbom/{sbom_id}/label",
         )
