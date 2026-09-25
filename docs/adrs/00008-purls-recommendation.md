@@ -48,7 +48,7 @@ For each purl that's returned, the call to [purl service `versioned_purl_by_uuid
 
 ## Open items
 
-* ~~Provide a way to return different patterns of recommended purls, so users can adapt this functionality to their versioning scheme.~~ Resolved: the `TRUSTD_RECOMMEND_PATTERNS` environment variable (or `--recommend-patterns` CLI flag) accepts a comma-separated list of regex patterns. Absent or empty causes endpoints to return HTTP 503 with `FEATURE_UNCONFIGURED`; there is no built-in default pattern.
+* ~~Provide a way to return different patterns of recommended purls, so users can adapt this functionality to their versioning scheme.~~ Resolved: the `TRUSTD_RECOMMEND_PATTERNS` environment variable (or `--recommend-patterns` CLI flag) accepts a comma-separated list of regex patterns. Absent or empty causes the `/v2/purl/recommend` and `/v3/purl/recommend` endpoints to return HTTP 503 with `FEATURE_UNCONFIGURED`; there is no built-in default pattern.
 * ~~Expose fix versions from OSV advisory data alongside pattern-matched recommendations.~~ Resolved: `fixed_versions: Vec<String>` added to `PurlStatus` response (v2 and v3); `has_fix_versions` filter added to package/vulnerability listing endpoints. See TC-6303.
 * Implement function(s) that will optimize the performance of the endpoint. For example, return advisories for a list of purls instead of doing it one by one in the loop.
 * ~~Ingest remediation information from advisories and use them to provide more data to results of this endpoint (requires a separate ADR).~~ Resolved: see [ADR 00011](00011-csaf-remediation.md) for CSAF remediation ingestion and API exposure.
