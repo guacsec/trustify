@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790332418454,
+  "lastUpdate": 1790342186690,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22696,6 +22696,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/ec6ad5188f3c78ba229791339566fd86ef040d1e"
         },
         "date": 1790332415884,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": false,
+          "id": "7a482c8ada2ac5e7acf1e299c7d56eda3419f69f",
+          "message": "fix(docs): correct Helm/Operator values format for recommendPatterns (TC-6007)\n\nThe field is an array under modules.server.recommendPatterns, not a flat\nstring. The chart joins the list with commas at deploy time.\n\nCo-Authored-By: Claude Sonnet 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-09-25T12:25:18Z",
+          "tree_id": "30447b84bac35a26e5ca56b7dc7f23290e729346",
+          "url": "https://github.com/guacsec/trustify/commit/7a482c8ada2ac5e7acf1e299c7d56eda3419f69f"
+        },
+        "date": 1790342184139,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
