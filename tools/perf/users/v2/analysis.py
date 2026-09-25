@@ -42,7 +42,7 @@ class AnalysisUserV2(AuthenticatedHttpUser):
         key = random.choice(SCENARIO.get_analysis_component)  # noqa: S311
         with self.client.get(
             f"/api/v2/analysis/component/{quote(key, safe='')}",
-            name=f"v2/get_analysis_component[{key[:20]}]",
+            name="/api/v2/analysis/component/{component}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -56,7 +56,7 @@ class AnalysisUserV2(AuthenticatedHttpUser):
         sid = SCENARIO.render_sbom_graph
         with self.client.get(
             f"/api/v2/analysis/sbom/{quote(sid, safe='')}/render.dot",
-            name=f"v2/render_sbom_graph_dot[{sid[:16]}...]",
+            name="/api/v2/analysis/sbom/{sbom_id}/render.dot",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

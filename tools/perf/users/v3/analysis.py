@@ -41,7 +41,7 @@ class AnalysisUserV3(AuthenticatedHttpUser):
     def analysis_by_cpe(self) -> None:
         self.client.get(
             f"/api/v3/analysis/latest/component/{quote(_HARDCODED_CPE, safe='')}",
-            name="analysis_by_cpe",
+            name="/api/v3/analysis/latest/component/{cpe}",
         )
 
     @tag("v3", "analysis", "detail", "readonly")
@@ -53,7 +53,7 @@ class AnalysisUserV3(AuthenticatedHttpUser):
         key = next(self._component_cycle)
         with self.client.get(
             f"/api/v3/analysis/component/{quote(key, safe='')}",
-            name=f"get_analysis_component[{key[:20]}]",
+            name="/api/v3/analysis/component/{component}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -67,7 +67,7 @@ class AnalysisUserV3(AuthenticatedHttpUser):
         sid = SCENARIO.render_sbom_graph
         with self.client.get(
             f"/api/v3/analysis/sbom/{quote(sid, safe='')}/render.dot",
-            name=f"render_sbom_graph_dot[{sid[:16]}...]",
+            name="/api/v3/analysis/sbom/{sbom_id}/render.dot",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

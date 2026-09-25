@@ -37,7 +37,7 @@ class ImporterUserV3(AuthenticatedHttpUser):
         name = SCENARIO.get_importer
         with self.client.get(
             f"/api/v3/importer/{quote(name, safe='')}",
-            name=f"get_importer[{name}]",
+            name="/api/v3/importer/{name}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -51,7 +51,7 @@ class ImporterUserV3(AuthenticatedHttpUser):
         name = SCENARIO.get_importer
         with self.client.get(
             f"/api/v3/importer/{quote(name, safe='')}/report",
-            name=f"get_importer_report[{name}]",
+            name="/api/v3/importer/{name}/report",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

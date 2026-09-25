@@ -33,10 +33,14 @@ class MiscUserV3(AuthenticatedHttpUser):
             "SPDXID": "SPDXRef-DOCUMENT",
             "name": "locust-test",
             "documentNamespace": "https://example.com/locust",
+            "creationInfo": {
+                "creators": ["Tool: Trustify Locust"],
+                "created": "2024-01-01T00:00:00Z",
+            },
             "packages": [],
         }
         self.client.post(
             "/api/v3/ui/extract-sbom-purls",
             json=payload,
-            name="post_extract_sbom_purls",
+            name="/api/v3/ui/extract-sbom-purls",
         )

@@ -67,10 +67,9 @@ if TOOLS_PERF_API_VERSION in ("v3", "all"):
     from users.v3.analysis import AnalysisUserV3  # noqa: F401
     from users.v3.group import GroupUserV3  # noqa: F401
     from users.v3.importer import ImporterUserV3  # noqa: F401
-    from users.v3.labels import (  # noqa: F401
-        AdvisoryLabelUserV3,
-        SBOMLabelUserV3,
-    )
+    # The label mutation workloads require update permissions not granted to
+    # the performance-test client. Keep the read-only advisory label workload.
+    from users.v3.labels import AdvisoryLabelUserV3  # noqa: F401
     from users.v3.license import LicenseUserV3  # noqa: F401
     from users.v3.misc import MiscUserV3  # noqa: F401
     from users.v3.organization import OrganizationUserV3  # noqa: F401
