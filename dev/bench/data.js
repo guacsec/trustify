@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790247648340,
+  "lastUpdate": 1790332418454,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22667,6 +22667,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/0f8f6ccdbbdcb27be9aaa28787c395485fbd6235"
         },
         "date": 1790247645563,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": false,
+          "id": "ec6ad5188f3c78ba229791339566fd86ef040d1e",
+          "message": "chore(clippy): fix clippy warning",
+          "timestamp": "2026-09-25T09:40:55Z",
+          "tree_id": "953190f0ee79ed5a4b1191b2910d3864d7f6477e",
+          "url": "https://github.com/guacsec/trustify/commit/ec6ad5188f3c78ba229791339566fd86ef040d1e"
+        },
+        "date": 1790332415884,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
