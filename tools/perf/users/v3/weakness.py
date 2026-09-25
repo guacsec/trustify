@@ -53,7 +53,7 @@ class WeaknessUserV3(AuthenticatedHttpUser):
         wid = SCENARIO.get_weakness
         with self.client.get(
             f"/api/v3/weakness/{quote(wid, safe='')}",
-            name=f"get_weakness[{wid}]",
+            name="/api/v3/weakness/{weakness_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

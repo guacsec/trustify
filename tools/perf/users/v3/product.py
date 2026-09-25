@@ -57,7 +57,7 @@ class ProductUserV3(AuthenticatedHttpUser):
         pid = SCENARIO.get_product
         with self.client.get(
             f"/api/v3/product/{quote(pid, safe='')}",
-            name=f"get_product[{pid[:16]}...]",
+            name="/api/v3/product/{product_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

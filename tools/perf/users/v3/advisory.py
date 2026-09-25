@@ -103,7 +103,7 @@ class AdvisoryUserV3(AuthenticatedHttpUser):
         uid = SCENARIO.get_advisory
         with self.client.get(
             f"/api/v3/advisory/urn:uuid:{uid}",
-            name=f"get_advisory[{uid[:12]}...]",
+            name="/api/v3/advisory/urn:uuid:{advisory_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -117,7 +117,7 @@ class AdvisoryUserV3(AuthenticatedHttpUser):
         uid = SCENARIO.download_advisory
         with self.client.get(
             f"/api/v3/advisory/urn:uuid:{uid}/download",
-            name=f"download_advisory[{uid[:12]}...]",
+            name="/api/v3/advisory/urn:uuid:{advisory_id}/download",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

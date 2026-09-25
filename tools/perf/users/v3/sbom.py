@@ -116,7 +116,7 @@ class SBOMUserV3(AuthenticatedHttpUser):
         key = SCENARIO.get_sbom
         with self.client.get(
             f"/api/v3/sbom/{quote(key, safe='')}",
-            name=f"get_sbom[{key[:16]}...]",
+            name="/api/v3/sbom/{sbom_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -130,7 +130,7 @@ class SBOMUserV3(AuthenticatedHttpUser):
         key = SCENARIO.get_sbom_advisories
         with self.client.get(
             f"/api/v3/sbom/{quote(key, safe='')}/advisory",
-            name=f"get_sbom_advisories[{key[:16]}...]",
+            name="/api/v3/sbom/{sbom_id}/advisory",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -144,7 +144,7 @@ class SBOMUserV3(AuthenticatedHttpUser):
         uid = SCENARIO.get_sbom_advisories_by_uuid
         with self.client.get(
             f"/api/v3/sbom/urn%3Auuid%3A{uid}/advisory",
-            name=f"get_sbom_advisories_by_uuid[{uid[:12]}...]",
+            name="/api/v3/sbom/{sbom_id}/advisory",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -158,7 +158,7 @@ class SBOMUserV3(AuthenticatedHttpUser):
         key = SCENARIO.get_sbom_packages
         with self.client.get(
             f"/api/v3/sbom/{quote(key, safe='')}/packages",
-            name=f"get_sbom_packages[{key[:16]}...]",
+            name="/api/v3/sbom/{sbom_id}/packages",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -172,7 +172,7 @@ class SBOMUserV3(AuthenticatedHttpUser):
         key = SCENARIO.get_sbom_related
         with self.client.get(
             f"/api/v3/sbom/{quote(key, safe='')}/related",
-            name=f"get_sbom_related[{key[:16]}...]",
+            name="/api/v3/sbom/{sbom_id}/related",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -186,7 +186,7 @@ class SBOMUserV3(AuthenticatedHttpUser):
         key = SCENARIO.sbom_license_ids
         with self.client.get(
             f"/api/v3/sbom/{quote(key, safe='')}/all-license-ids",
-            name=f"get_sbom_license_ids[{key[:16]}...]",
+            name="/api/v3/sbom/{sbom_id}/all-license-ids",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -200,7 +200,7 @@ class SBOMUserV3(AuthenticatedHttpUser):
         key = SCENARIO.download_sbom
         with self.client.get(
             f"/api/v3/sbom/{quote(key, safe='')}/download",
-            name=f"download_sbom[{key[:16]}...]",
+            name="/api/v3/sbom/{sbom_id}/download",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -214,7 +214,7 @@ class SBOMUserV3(AuthenticatedHttpUser):
         sid = SCENARIO.get_sbom_license_export
         with self.client.get(
             f"/api/v3/sbom/{quote(sid, safe='')}/license-export",
-            name=f"get_sbom_license_export[{sid[:16]}...]",
+            name="/api/v3/sbom/{sbom_id}/license-export",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -228,7 +228,7 @@ class SBOMUserV3(AuthenticatedHttpUser):
         purl = SCENARIO.sbom_by_package
         with self.client.get(
             f"/api/v3/sbom/by-package?purl={quote(purl, safe='')}",
-            name=f"sbom_by_package[{purl[:20]}...]",
+            name="/api/v3/sbom/by-package?purl={purl}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -243,7 +243,7 @@ class SBOMUserV3(AuthenticatedHttpUser):
         with self.client.get(
             "/api/v3/sbom/count-by-package",
             json=[{"purl": purl}],
-            name=f"count_sbom_by_package[{purl[:20]}...]",
+            name="/api/v3/sbom/count-by-package",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

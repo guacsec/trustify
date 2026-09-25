@@ -139,7 +139,7 @@ class PurlUserV3(AuthenticatedHttpUser):
         pid = SCENARIO.get_purl_details
         with self.client.get(
             f"/api/v3/purl/{quote(pid, safe='')}",
-            name=f"get_purl_details[{pid[:16]}...]",
+            name="/api/v3/purl/{purl_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -153,7 +153,7 @@ class PurlUserV3(AuthenticatedHttpUser):
         key = SCENARIO.get_base_purl
         with self.client.get(
             f"/api/v3/purl/base/{quote(key, safe='')}",
-            name=f"get_base_purl[{key[:20]}...]",
+            name="/api/v3/purl/base/{purl}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
@@ -170,7 +170,7 @@ class PurlUserV3(AuthenticatedHttpUser):
         with self.client.post(
             "/api/v3/purl/recommend",
             json={"purls": batch},
-            name=f"get_recommendations[batch={len(batch)}]",
+            name="/api/v3/purl/recommend",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:

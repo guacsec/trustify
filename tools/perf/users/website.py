@@ -19,29 +19,29 @@ class WebsiteUser(AuthenticatedHttpUser):
     @tag("website")
     @task
     def index(self) -> None:
-        self.client.get("/", name="website_index")
+        self.client.get("/", name="/")
 
     @tag("website")
     @task
     def openapi(self) -> None:
-        self.client.get("/openapi/", name="website_openapi")
+        self.client.get("/openapi/", name="/openapi/")
 
     @tag("website")
     @task
     def sboms(self) -> None:
-        self.client.get("/sboms", name="website_sboms")
+        self.client.get("/sboms", name="/sboms")
 
     @tag("website")
     @task
     def packages(self) -> None:
-        self.client.get("/packages", name="website_packages")
+        self.client.get("/packages", name="/packages")
 
     @tag("website")
     @task
     def advisories(self) -> None:
-        self.client.get("/advisories", name="website_advisories")
+        self.client.get("/advisories", name="/advisories")
 
     @tag("website")
     @task
     def importers(self) -> None:
-        self.client.get("/importers", name="website_importers")
+        self.client.get("/importers", name="/importers")

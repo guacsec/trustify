@@ -45,7 +45,7 @@ class OrganizationUserV3(AuthenticatedHttpUser):
         oid = SCENARIO.get_organization
         with self.client.get(
             f"/api/v3/organization/{quote(oid, safe='')}",
-            name=f"get_organization[{oid[:16]}...]",
+            name="/api/v3/organization/{organization_id}",
             catch_response=True,
         ) as resp:
             if resp.status_code != 200:
