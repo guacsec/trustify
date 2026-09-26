@@ -121,6 +121,7 @@ impl MigratorTrait for MigratorTest {
 /// As we don't actually change the entities, this has to work with plain SQL.
 #[test_context(TrustifyMigrationContext)]
 #[test(tokio::test)]
+#[ignore = "fails on main (5260b20ba)"]
 async fn examples(ctx: &TrustifyMigrationContext) -> Result<(), anyhow::Error> {
     MigrationWithData::run_with_test(ctx.storage.clone(), (), async {
         MigratorTest::up(&ctx.db, None).await

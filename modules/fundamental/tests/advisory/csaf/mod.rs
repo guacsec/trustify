@@ -5,9 +5,12 @@ mod parallel;
 mod reingest;
 mod timeout;
 
-use csaf::Csaf;
-use csaf::definitions::ProductIdT;
-use csaf::document::Revision;
+use std::str::FromStr;
+
+use csaf_rs::schema::csaf2_0::schema::{
+    CommonSecurityAdvisoryFramework as Csaf, ProductIdT, ProductsT, Revision, SummaryOfTheRevision,
+    VersionT,
+};
 use trustify_module_ingestor::model::IngestResult;
 use trustify_test_context::{TrustifyContext, document_bytes};
 
@@ -45,13 +48,14 @@ fn uptick_tracking(csaf: &mut Csaf) {
     let current = &csaf.document.tracking.version;
 
     let next = uptick_version(current).expect("unable to increment version");
+    let next = VersionT::from_str(&next).expect("upticked version is valid");
 
     csaf.document.tracking.version = next.clone();
     csaf.document.tracking.revision_history.push(Revision {
         date: Default::default(),
         legacy_version: None,
         number: next,
-        summary: "Updated for test".to_string(),
+        summary: SummaryOfTheRevision::from_str("Updated for test").expect("test summary is valid"),
     });
 }
 
@@ -83,14 +87,12 @@ async fn prepare_ps_state_change(
     twice(
         ctx,
         |mut csaf| {
-            let vulns = csaf
-                .vulnerabilities
-                .as_mut()
-                .expect("test data has vulnerabilities");
+            let vulns = &mut csaf.vulnerabilities;
+            assert!(!vulns.is_empty(), "test data has vulnerabilities");
 
             let v = vulns
                 .iter_mut()
-                .find(|v| v.cve.as_deref() == Some(CVE))
+                .find(|v| v.cve.as_ref().is_some_and(|cve| **cve == CVE))
                 .expect("test data has a specific CVE");
 
             let ps = v
@@ -100,29 +102,39 @@ async fn prepare_ps_state_change(
 
             // remove from fixed to known affected
 
-            ps.fixed
-                .as_mut()
+            let mut fixed = ps
+                .fixed
+                .as_ref()
                 .expect(r#"test data has "fixed" entries"#)
-                .retain(|ps| ps.0 != PRODUCT);
-            ps.known_affected
-                .as_mut()
+                .to_vec();
+            fixed.retain(|ps| ps.as_str() != PRODUCT);
+            ps.fixed = Some(fixed.into());
+
+            let mut known_affected = ps
+                .known_affected
+                .as_ref()
                 .expect(r#"test data has "known affected" entries"#)
-                .push(ProductIdT(PRODUCT.into()));
+                .to_vec();
+            known_affected.push(ProductIdT::from_str(PRODUCT).expect("test product id is valid"));
+            ps.known_affected = Some(ProductsT(known_affected));
 
             csaf
         },
         |mut csaf| {
             uptick_tracking(&mut csaf);
-            csaf.document.tracking.current_release_date += chrono::Duration::days(1);
+            let mut date = trustify_module_ingestor::service::advisory::csaf::loader::parse_date(
+                &csaf.document.tracking.current_release_date,
+            )
+            .expect("test date is valid");
+            date += chrono::Duration::days(1);
+            csaf.document.tracking.current_release_date = date.to_rfc3339();
 
-            let vulns = csaf
-                .vulnerabilities
-                .as_mut()
-                .expect("test data has vulnerabilities");
+            let vulns = &mut csaf.vulnerabilities;
+            assert!(!vulns.is_empty(), "test data has vulnerabilities");
 
             let v = vulns
                 .iter_mut()
-                .find(|v| v.cve.as_deref() == Some(CVE))
+                .find(|v| v.cve.as_ref().is_some_and(|cve| **cve == CVE))
                 .expect("test data has a specific CVE");
 
             let ps = v
@@ -132,14 +144,22 @@ async fn prepare_ps_state_change(
 
             // now back to fixed
 
-            ps.known_affected
-                .as_mut()
+            // ProductT is missing implementation of DerefMut
+            let mut known_affected = ps
+                .known_affected
+                .as_ref()
                 .expect(r#"test data has "known affected" entries"#)
-                .retain(|ps| ps.0 != PRODUCT);
-            ps.fixed
-                .as_mut()
+                .to_vec();
+            known_affected.retain(|ps| ps.as_str() != PRODUCT);
+            ps.known_affected = Some(known_affected.into());
+
+            let mut fixed = ps
+                .fixed
+                .as_ref()
                 .expect(r#"test data has "fixed" entries"#)
-                .push(ProductIdT(PRODUCT.into()));
+                .to_vec();
+            fixed.push(ProductIdT::from_str(PRODUCT).expect("test product id is valid"));
+            ps.fixed = Some(ProductsT(fixed));
 
             csaf
         },

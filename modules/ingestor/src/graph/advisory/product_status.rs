@@ -1,4 +1,5 @@
 use crate::graph::advisory::version::VersionInfo;
+use csaf_rs::schema::csaf2_0::schema::ProductIdT;
 use trustify_common::cpe::Cpe;
 use trustify_entity::{product_status, product_version_range, version_range};
 use uuid::Uuid;
@@ -58,7 +59,7 @@ pub struct ProductStatus {
     pub package: Option<String>,
     pub status: Uuid,
     pub product_version_range_id: Uuid,
-    pub csaf_product_ids: Option<Vec<String>>,
+    pub csaf_product_ids: Option<Vec<ProductIdT>>,
 }
 
 impl ProductStatus {
@@ -75,7 +76,9 @@ impl ProductStatus {
             package: Set(self.package),
             context_cpe_id: Set(self.cpe.as_ref().map(Cpe::uuid)),
             product_version_range_id: Set(self.product_version_range_id),
-            csaf_product_ids: Set(self.csaf_product_ids),
+            csaf_product_ids: Set(self
+                .csaf_product_ids
+                .map(|ids| ids.iter().map(|id| id.to_string()).collect())),
         }
     }
 

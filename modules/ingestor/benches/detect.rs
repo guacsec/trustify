@@ -1,6 +1,7 @@
 #![allow(clippy::expect_used)]
 
 use criterion::{Criterion, criterion_group, criterion_main};
+use csaf_rs::schema::csaf2_0::schema::CommonSecurityAdvisoryFramework as Csaf;
 use serde_cyclonedx::cyclonedx::v_1_6::CycloneDx;
 use std::hint::black_box;
 use trustify_module_ingestor::service::{DocumentDetector, Format};
@@ -15,7 +16,7 @@ fn load_fixture(path: &str) -> Vec<u8> {
 /// Returns the Format if any parse succeeds, None if all fail.
 #[allow(clippy::unwrap_used)]
 fn try_parse_direct(bytes: &[u8]) -> Option<Format> {
-    if serde_json::from_slice::<csaf::Csaf>(bytes).is_ok() {
+    if serde_json::from_slice::<Csaf>(bytes).is_ok() {
         return Some(Format::CSAF);
     }
     if serde_json::from_slice::<cve::Cve>(bytes).is_ok() {

@@ -7,9 +7,11 @@ use trustify_test_context::{TrustifyContext, document};
 use bytes::Bytes;
 use cpe::cpe::Cpe;
 use cpe::uri::OwnedUri;
-use csaf::Csaf;
-use csaf::product_tree::ProductTree;
-use csaf::vulnerability::Vulnerability;
+use csaf_rs::schema::csaf2_0::schema::{
+    BranchesT, CommonPlatformEnumerationRepresentation, CommonSecurityAdvisoryFramework as Csaf,
+    Cve, HelperToIdentifyTheProduct as ProductIdentificationHelper, PackageUrlRepresentation,
+    ProductTree, TitleOfThisDocument, UniqueIdentifierForTheDocument, Vulnerability,
+};
 use packageurl::PackageUrl;
 use std::io::Error;
 use std::rc::Rc;
@@ -17,7 +19,6 @@ use uuid::Uuid;
 
 use std::str::FromStr;
 
-use csaf::definitions::{BranchesT, ProductIdentificationHelper};
 use sea_orm::ConnectionTrait;
 
 pub fn setup_runtime_and_ctx() -> (Runtime, Rc<TrustifyContext>) {
@@ -31,7 +32,11 @@ pub fn setup_runtime_and_ctx() -> (Runtime, Rc<TrustifyContext>) {
 
 pub async fn document_generated_from(path: &str, rev: u64) -> Result<Bytes, Error> {
     let (mut doc, _): (Csaf, _) = document(path).await.expect("load ok");
-    doc.document.tracking.id = format!("{}-{}", doc.document.tracking.id, rev);
+    doc.document.tracking.id = UniqueIdentifierForTheDocument::from_str(&format!(
+        "{}-{rev}",
+        doc.document.tracking.id.as_str(),
+    ))
+    .unwrap();
 
     fn rev_branches(branches: &mut Option<BranchesT>, rev: u64) {
         if let Some(BranchesT(branches)) = branches {
@@ -47,10 +52,16 @@ pub async fn document_generated_from(path: &str, rev: u64) -> Result<Bytes, Erro
     fn rev_product_helper(helper: &mut Option<ProductIdentificationHelper>, rev: u64) {
         if let Some(helper) = helper {
             if let Some(cpe) = &mut helper.cpe {
-                helper.cpe = Some(rev_cpe(cpe, rev))
+                let cpe = OwnedUri::from_str(cpe.as_str()).unwrap();
+                let cpe = rev_cpe(&cpe, rev);
+                helper.cpe = Some(
+                    CommonPlatformEnumerationRepresentation::from_str(&cpe.to_string()).unwrap(),
+                )
             }
             if let Some(purl) = &mut helper.purl {
-                helper.purl = Some(rev_purl(purl.clone(), rev));
+                let purl = PackageUrl::from_str(purl.as_str()).unwrap();
+                let purl = rev_purl(purl, rev);
+                helper.purl = Some(PackageUrlRepresentation::from_str(&purl.to_string()).unwrap());
             }
         }
     }
@@ -74,34 +85,31 @@ pub async fn document_generated_from(path: &str, rev: u64) -> Result<Bytes, Erro
     }
     fn rev_product_tree(product_tree: &mut ProductTree, rev: u64) {
         rev_branches(&mut product_tree.branches, rev);
-        for relationships in product_tree.relationships.iter_mut() {
-            for relationship in relationships.iter_mut() {
-                // rev_product_id(&mut relationship.full_product_name.product_id, rev);
-                rev_product_helper(
-                    &mut relationship.full_product_name.product_identification_helper,
-                    rev,
-                );
-            }
+        for relationship in product_tree.relationships.iter_mut() {
+            // rev_product_id(&mut relationship.full_product_name.product_id, rev);
+            rev_product_helper(
+                &mut relationship.full_product_name.product_identification_helper,
+                rev,
+            );
         }
     }
     fn rev_vulnerability(vulnerability: &mut Vulnerability, rev: u64) {
         for cve in vulnerability.cve.iter_mut() {
-            *cve = format!("{cve}-{rev}");
+            *cve = Cve::from_str(&format!("{}-{rev}", cve.as_str())).unwrap();
         }
     }
 
     for product_tree in doc.product_tree.iter_mut() {
         rev_product_tree(product_tree, rev);
     }
-    for vulnerabilities in doc.vulnerabilities.iter_mut() {
-        for vulnerability in vulnerabilities.iter_mut() {
-            rev_vulnerability(vulnerability, rev);
-        }
+    for vulnerability in doc.vulnerabilities.iter_mut() {
+        rev_vulnerability(vulnerability, rev);
     }
 
     //NOTE: Generating a random title to make the bench pass avoiding `document vanished` error.
     let uuid = Uuid::new_v4();
-    doc.document.title = format!("random_title-{rev}-{uuid}");
+    doc.document.title =
+        TitleOfThisDocument::from_str(&format!("random_title-{rev}-{uuid}")).unwrap();
 
     let data = serde_json::to_vec_pretty(&doc).expect("serialize ok");
     Ok(Bytes::from(data))

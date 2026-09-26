@@ -16,7 +16,9 @@ use crate::{
         advisory::csaf::{product_status::ProductStatus, util::ResolveProductIdCache},
     },
 };
-use csaf::{Csaf, definitions::ProductIdT, vulnerability::Remediation};
+use csaf_rs::schema::csaf2_0::schema::{
+    CommonSecurityAdvisoryFramework as Csaf, ProductIdT, ProductsT, Remediation,
+};
 use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
@@ -39,8 +41,10 @@ pub struct ProductIdStatusMapping {
 }
 
 /// Check if the CSAF document is published by Red Hat.
-fn is_redhat(csaf: &Csaf) -> bool {
-    csaf.document.publisher.namespace.host_str() == Some("www.redhat.com")
+fn is_redhat(csaf: &Csaf) -> Result<bool, Error> {
+    let namespace = url::Url::from_str(csaf.document.publisher.namespace.as_str())
+        .map_err(|e| Error::InvalidContent(e.into()))?;
+    Ok(namespace.host_str() == Some("www.redhat.com"))
 }
 
 #[derive(Debug)]
@@ -51,49 +55,53 @@ pub struct StatusCreator<'a> {
     is_redhat: bool,
     entries: HashSet<PurlStatus>,
     products: HashSet<ProductStatus>,
-    product_id_to_product: HashMap<String, ProductStatus>,
+    product_id_to_product: HashMap<ProductIdT, ProductStatus>,
     product_to_purl_statuses: HashMap<ProductStatus, Vec<PurlStatus>>,
 }
 
 impl<'a> StatusCreator<'a> {
-    pub fn new(csaf: &'a Csaf, advisory_id: Uuid, vulnerability_identifier: String) -> Self {
+    pub fn new(
+        csaf: &'a Csaf,
+        advisory_id: Uuid,
+        vulnerability_identifier: String,
+    ) -> Result<Self, Error> {
         let cache = ResolveProductIdCache::new(csaf);
-        Self {
+        Ok(Self {
             cache,
             advisory_id,
             vulnerability_id: vulnerability_identifier,
-            is_redhat: is_redhat(csaf),
+            is_redhat: is_redhat(csaf)?,
             entries: HashSet::new(),
             products: HashSet::new(),
             product_id_to_product: HashMap::new(),
             product_to_purl_statuses: HashMap::new(),
-        }
+        })
     }
 
     pub fn add_all(
         &mut self,
-        ps: &Option<Vec<ProductIdT>>,
+        ps: &Option<ProductsT>,
         status: &'static str,
     ) -> Result<(), anyhow::Error> {
-        for r in ps.iter().flatten() {
+        for r in ps.iter().flat_map(|p| p.iter()) {
             let mut product = ProductStatus {
                 status,
                 ..Default::default()
             };
             let mut product_ids = vec![];
-            match self.cache.get_relationship(&r.0) {
+            match self.cache.get_relationship(r) {
                 Some(rel) => {
                     let inner_id: &ProductIdT = &rel.product_reference;
                     let context = &rel.relates_to_product_reference;
 
                     // Find all products
-                    product_ids.push(&context.0);
+                    product_ids.push(context);
                     // Find all components/packages within
-                    product_ids.push(&inner_id.0);
+                    product_ids.push(inner_id);
                 }
                 None => {
                     // If there's no relationship, find only products
-                    product_ids.push(&r.0);
+                    product_ids.push(r);
                 }
             };
             for product_id in product_ids {
@@ -107,7 +115,7 @@ impl<'a> StatusCreator<'a> {
             }
 
             self.product_id_to_product
-                .insert(r.0.clone(), product.clone());
+                .insert(r.clone(), product.clone());
             self.products.insert(product);
         }
         Ok(())
@@ -118,7 +126,7 @@ impl<'a> StatusCreator<'a> {
         &mut self,
         graph: &Graph,
         connection: &C,
-    ) -> Result<HashMap<String, ProductIdStatusMapping>, Error> {
+    ) -> Result<HashMap<ProductIdT, ProductIdStatusMapping>, Error> {
         let mut product_status_models = Vec::new();
         let mut purls = PurlCreator::new();
         let mut cpes = CpeCreator::new();
@@ -134,7 +142,7 @@ impl<'a> StatusCreator<'a> {
             HashMap::new();
 
         // Build reverse map: (ProductStatus) -> Vec<csaf_product_id>
-        let mut product_to_csaf_ids: HashMap<ProductStatus, Vec<String>> = HashMap::new();
+        let mut product_to_csaf_ids: HashMap<ProductStatus, Vec<ProductIdT>> = HashMap::new();
         for (csaf_id, product) in &self.product_id_to_product {
             product_to_csaf_ids
                 .entry(product.clone())
@@ -383,7 +391,7 @@ impl<'a> StatusCreator<'a> {
                 .await?;
         }
 
-        let mut result: HashMap<String, ProductIdStatusMapping> = HashMap::new();
+        let mut result: HashMap<ProductIdT, ProductIdStatusMapping> = HashMap::new();
         for (product_id, product) in &self.product_id_to_product {
             if let Some(mapping) = product_to_status_uuids.get(product) {
                 result.insert(product_id.clone(), mapping.clone());
@@ -423,7 +431,7 @@ const REMEDIATION_NAMESPACE: Uuid = Uuid::from_bytes([
 pub struct RemediationCreator<'a> {
     advisory_id: Uuid,
     vulnerability_id: String,
-    product_id_mapping: HashMap<String, ProductIdStatusMapping>,
+    product_id_mapping: HashMap<ProductIdT, ProductIdStatusMapping>,
     remediations: Vec<&'a Remediation>,
 }
 
@@ -431,7 +439,7 @@ impl<'a> RemediationCreator<'a> {
     pub fn new(
         advisory_id: Uuid,
         vulnerability_id: String,
-        product_id_mapping: HashMap<String, ProductIdStatusMapping>,
+        product_id_mapping: HashMap<ProductIdT, ProductIdStatusMapping>,
     ) -> Self {
         Self {
             advisory_id,
@@ -459,15 +467,15 @@ impl<'a> RemediationCreator<'a> {
                 advisory_id: Set(self.advisory_id),
                 vulnerability_id: Set(self.vulnerability_id.clone()),
                 category: Set((&rem.category).into()),
-                details: Set(Some(rem.details.clone())),
+                details: Set(Some(rem.details.to_string())),
                 url: Set(rem.url.as_ref().map(|u| u.to_string())),
                 data: Set(serde_json::to_value(rem)?),
             };
             remediation_models.push(remediation_model);
 
             if let Some(product_ids) = &rem.product_ids {
-                for product_id in product_ids {
-                    if let Some(mapping) = self.product_id_mapping.get(&product_id.0) {
+                for product_id in product_ids.iter() {
+                    if let Some(mapping) = self.product_id_mapping.get(product_id) {
                         for purl_status_id in &mapping.purl_status_ids {
                             remediation_purl_status_models.push(
                                 remediation_purl_status::ActiveModel {

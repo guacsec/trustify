@@ -17,8 +17,11 @@ actix-web = { workspace = true }
 anyhow = { workspace = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
+# TODO: for some reason specifying chrono as workspace dependency does not work
+# chrono = { workpsace = true }
+chrono = { version = "0.4.35", default-features = false }
 cpe = { workspace = true }
-csaf = { workspace = true }
+csaf-rs = { workspace = true }
 cve = { workspace = true }
 cvss = { workspace = true }
 hex = { workspace = true }
@@ -47,6 +50,7 @@ thiserror = { workspace = true }
 time = { workspace = true, features = ["serde-well-known"] }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
+url = { workspace = true }
 utoipa = { workspace = true }
 utoipa-actix-web = { workspace = true }
 uuid = { workspace = true, features = ["v7"] }

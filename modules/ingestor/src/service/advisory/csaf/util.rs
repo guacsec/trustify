@@ -1,28 +1,35 @@
-use csaf::{
-    Csaf,
-    definitions::{Branch, BranchesT},
-    product_tree::{ProductTree, Relationship},
+use csaf_rs::schema::csaf2_0::schema::{
+    Branch, BranchesT, CommonSecurityAdvisoryFramework as Csaf, ProductIdT, ProductTree,
+    Relationship,
 };
 use packageurl::PackageUrl;
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
-pub fn branch_purl(branch: &Branch) -> Option<&PackageUrl<'static>> {
-    branch.product.as_ref().and_then(|name| {
+pub fn branch_purl(branch: &Branch) -> anyhow::Result<Option<PackageUrl<'static>>> {
+    let purl = if let Some(purl) = branch.product.as_ref().and_then(|name| {
         name.product_identification_helper
-            .iter()
-            .flat_map(|pih| pih.purl.as_ref())
-            .next()
-    })
+            .as_ref()
+            .and_then(|pih| pih.purl.as_ref())
+    }) {
+        Some(PackageUrl::from_str(purl.as_str())?)
+    } else {
+        None
+    };
+    Ok(purl)
 }
 
 #[allow(dead_code)]
-pub fn branch_cpe(branch: &Branch) -> Option<&cpe::uri::OwnedUri> {
-    branch.product.as_ref().and_then(|name| {
+pub fn branch_cpe(branch: &Branch) -> anyhow::Result<Option<cpe::uri::OwnedUri>> {
+    let cpe = if let Some(cpe) = branch.product.as_ref().and_then(|name| {
         name.product_identification_helper
-            .iter()
-            .flat_map(|pih| pih.cpe.as_ref())
-            .next()
-    })
+            .as_ref()
+            .and_then(|pih| pih.cpe.as_ref())
+    }) {
+        Some(cpe::uri::OwnedUri::from_str(cpe.as_str())?)
+    } else {
+        None
+    };
+    Ok(cpe)
 }
 
 /// Walk the product tree, calling the closure for every branch found.
@@ -67,21 +74,21 @@ fn walk_product_branches_ref<'a, F>(
 #[derive(Debug)]
 pub struct ResolveProductIdCache<'a> {
     /// A map from the full product name id, to the backtrace of branches
-    full_product_name_to_backtrace: HashMap<&'a str, Vec<&'a Branch>>,
+    full_product_name_to_backtrace: HashMap<&'a ProductIdT, Vec<&'a Branch>>,
     /// Lookup from product IDs to relationships
-    product_id_to_relationship: HashMap<&'a str, &'a Relationship>,
+    product_id_to_relationship: HashMap<&'a ProductIdT, &'a Relationship>,
 }
 
 impl<'a> ResolveProductIdCache<'a> {
     pub fn new(csaf: &'a Csaf) -> Self {
         // branches
 
-        let mut cache = HashMap::<&'a str, Vec<&'a Branch>>::new();
+        let mut cache = HashMap::<&'a ProductIdT, Vec<&'a Branch>>::new();
 
         walk_product_tree_branches(&csaf.product_tree, |parents, branch| {
             if let Some(full_name) = &branch.product {
                 let backtrace = parents.iter().copied().chain(Some(branch)).collect();
-                cache.insert(&full_name.product_id.0, backtrace);
+                cache.insert(&full_name.product_id, backtrace);
             }
         });
 
@@ -91,8 +98,7 @@ impl<'a> ResolveProductIdCache<'a> {
             .product_tree
             .iter()
             .flat_map(|pt| &pt.relationships)
-            .flatten()
-            .map(|rel| (rel.full_product_name.product_id.0.as_str(), rel))
+            .map(|rel| (&rel.full_product_name.product_id, rel))
             .collect();
 
         // done
@@ -104,7 +110,7 @@ impl<'a> ResolveProductIdCache<'a> {
     }
 
     /// Find the backtrace, branches leading to that product ID.
-    pub fn trace_product(&self, product_id: &str) -> &[&'a Branch] {
+    pub fn trace_product(&self, product_id: &ProductIdT) -> &[&'a Branch] {
         self.full_product_name_to_backtrace
             .get(product_id)
             .map(|r| r.as_slice())
@@ -112,7 +118,7 @@ impl<'a> ResolveProductIdCache<'a> {
     }
 
     /// Get the relationship of a product (by ID).
-    pub fn get_relationship(&self, product_id: &str) -> Option<&'a Relationship> {
+    pub fn get_relationship(&self, product_id: &ProductIdT) -> Option<&'a Relationship> {
         self.product_id_to_relationship.get(product_id).copied()
     }
 }
@@ -134,5 +140,5 @@ pub fn gen_identifier(csaf: &Csaf) -> String {
         }
     }
 
-    format!("{}#{file_name}", csaf.document.publisher.namespace)
+    format!("{}/#{file_name}", csaf.document.publisher.namespace)
 }
