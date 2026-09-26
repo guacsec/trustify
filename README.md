@@ -58,6 +58,21 @@ curl -X POST http://localhost:8080/api/v3/dataset --data-binary @ds1.zip \
 
 > **Note:** PM mode requires IPv6 enabled with localhost resolving to `::1`.
 
+## Nightly Builds
+
+A rolling nightly build is published from the latest `main` commit each day by the
+[nightly workflow](.github/workflows/nightly.yaml). Runs are skipped when `main` has not
+changed since the previous nightly or when CI has not passed. A manual run can rebuild
+unchanged `main`, but still requires CI to pass.
+
+- **Binaries:** [Nightly release](https://github.com/guacsec/trustify/releases/tag/nightly)
+- **Container images:** `ghcr.io/guacsec/trustd:nightly`, `ghcr.io/guacsec/xtask:nightly`,
+  and `ghcr.io/guacsec/gensbom:nightly`. Each build also has a date-and-commit-specific tag.
+
+> **Not for production use.** Nightly builds are experimental and unsupported. They may be
+> unstable or include breaking changes, including database migrations that can make existing
+> data incompatible. Use a stable, versioned release for production deployments.
+
 ## Key Concepts
 
 | Term | What it means in Trustify |
@@ -106,4 +121,3 @@ architecture — a single deployable binary backed by PostgreSQL.
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE) for details.
-

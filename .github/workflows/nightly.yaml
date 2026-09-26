@@ -1,0 +1,187 @@
+name: nightly
+
+# Daily experimental build of main.
+#
+# - Skips if main has not moved since the last nightly, or if CI has not passed on it.
+# - Binaries go to one rolling "nightly" pre-release (replaced every day).
+# - Container images get a dated tag plus a moving "nightly" tag.
+#
+# Tags/releases created here use GITHUB_TOKEN, so they do NOT trigger release.yaml.
+
+on:
+  schedule:
+    - cron: "17 2 * * *" # 02:17 UTC daily; off the hour to avoid scheduler congestion
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Build even if main has not changed since the last nightly"
+        type: boolean
+        default: false
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  init:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Decide whether to build
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          proceed=true
+
+          # Skip if the rolling nightly already points at this commit.
+          last=$(gh release view nightly --json targetCommitish -q .targetCommitish 2>/dev/null || true)
+          if [[ "$last" == "$GITHUB_SHA" && "$FORCE" != "true" ]]; then
+            echo "::notice::main unchanged since last nightly ($GITHUB_SHA), skipping"
+            proceed=false
+          fi
+
+          # Only ship commits that passed CI.
+          ok=$(gh run list --workflow ci.yaml --commit "$GITHUB_SHA" --status success --limit 1 --json databaseId -q 'length')
+          if [[ "$ok" == "0" ]]; then
+            echo "::warning::CI has not passed on $GITHUB_SHA, skipping"
+            proceed=false
+          fi
+
+          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+
+      - name: Compute version
+        id: version
+        run: |
+          set -euo pipefail
+          base=$(grep -m1 '^version' Cargo.toml | sed -E 's/.*"(.*)".*/\1/')
+          # e.g. 0.6.0-rc.1.nightly.20260926.7eb2427  (no '+': not allowed in container tags)
+          version="${base}.nightly.$(date -u +%Y%m%d).${GITHUB_SHA::7}"
+          [[ "$base" == *-* ]] || version="${base}-nightly.$(date -u +%Y%m%d).${GITHUB_SHA::7}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Version: $version"
+
+  build:
+    needs: init
+    if: needs.init.outputs.proceed == 'true'
+    uses: ./.github/workflows/build-binary.yaml
+    with:
+      version: ${{ needs.init.outputs.version }}
+
+  publish:
+    needs: [init, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.init.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: ${{ github.workspace }}/download
+
+      - name: Stage release
+        run: |
+          mkdir -p staging
+          cp -pv download/*/* staging/
+
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: "staging/*"
+
+      - uses: ./.github/actions/build-container
+        with:
+          image_tag: ${{ env.VERSION }}
+
+      - name: Tag images as nightly
+        run: |
+          for img in trustd xtask gensbom; do
+            podman tag "$img:$VERSION" "$img:nightly"
+          done
+
+      - name: Push images to ghcr.io
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: trustd
+          tags: ${{ env.VERSION }} nightly
+          registry: ghcr.io/${{ github.repository_owner }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push xtask
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: xtask
+          tags: ${{ env.VERSION }} nightly
+          registry: ghcr.io/${{ github.repository_owner }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push gensbom
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: gensbom
+          tags: ${{ env.VERSION }} nightly
+          registry: ghcr.io/${{ github.repository_owner }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          prev=$(gh release view nightly --json targetCommitish -q .targetCommitish 2>/dev/null || true)
+          {
+            echo "> [!WARNING]"
+            echo "> Experimental nightly build of \`main\` at ${GITHUB_SHA::7}. Not supported; may break data or migrations."
+            echo
+            echo "Version: \`$VERSION\`"
+            echo
+            echo "Images: \`ghcr.io/${{ github.repository_owner }}/trustd:$VERSION\` (also \`:nightly\`)"
+            echo
+            if [[ -n "$prev" ]] && git cat-file -e "$prev" 2>/dev/null; then
+              echo "### Changes since previous nightly (${prev::7})"
+              git log --no-merges --format='- %s (%h)' "$prev..$GITHUB_SHA"
+            fi
+          } > /tmp/notes.md
+
+      - name: Replace rolling nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mapfile -d '' -t release_assets < <(find staging -type f -print0 | sort -z)
+          if ((${#release_assets[@]} == 0)); then
+            echo "::error::No release assets were staged"
+            exit 1
+          fi
+          gh release delete nightly --cleanup-tag --yes 2>/dev/null || true
+          gh release create nightly \
+            --target "$GITHUB_SHA" \
+            --title "Nightly $VERSION" \
+            --notes-file /tmp/notes.md \
+            --prerelease --latest=false \
+            "${release_assets[@]}"
