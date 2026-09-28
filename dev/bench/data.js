@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790412835574,
+  "lastUpdate": 1790608224070,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22817,6 +22817,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "dcacd636acd8c99f03fc9d3bb01f20a456f7128b",
+          "message": "refactor(csaf): drop package rename for csaf-rs dependency\n\nUse csaf-rs as the dependency key directly instead of renaming via\npackage attribute.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-09-28T14:19:39Z",
+          "tree_id": "2fedaf8848fcd95f29b21fc200e3090fb4fc3178",
+          "url": "https://github.com/guacsec/trustify/commit/dcacd636acd8c99f03fc9d3bb01f20a456f7128b"
+        },
+        "date": 1790608221559,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
