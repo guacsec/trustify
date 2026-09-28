@@ -19,8 +19,11 @@ impl Precommit {
         if !Command::new("cargo")
             .args([
                 "clippy",
+                "--workspace",
                 "--all-targets",
                 "--all-features",
+                "--exclude",
+                "trustify-correlation-ui",
                 "--",
                 "-D",
                 "warnings",
@@ -56,7 +59,14 @@ impl Precommit {
 
         println!("Running: cargo check");
         if !Command::new("cargo")
-            .args(["check", "--all-targets", "--all-features"])
+            .args([
+                "check",
+                "--workspace",
+                "--all-targets",
+                "--all-features",
+                "--exclude",
+                "trustify-correlation-ui",
+            ])
             .status()
             .map_err(|_| anyhow!("cargo check failed"))?
             .success()
