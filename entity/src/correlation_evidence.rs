@@ -49,7 +49,17 @@ impl Related<super::advisory::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {}
 
 #[derive(
-    Debug, Copy, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, ToSchema,
+    Debug,
+    Copy,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    EnumIter,
+    DeriveActiveEnum,
+    Serialize,
+    Deserialize,
+    ToSchema,
 )]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "assertion_status")]
 #[serde(rename_all = "snake_case")]

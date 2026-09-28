@@ -3,6 +3,18 @@ use std::{io::Read, pin::Pin, task::Poll};
 use tokio::io::{AsyncRead, ReadBuf};
 use tracing::instrument;
 
+/// Normalize a hash algorithm name for comparison.
+///
+/// Strips non-alphanumeric characters and lowercases, so that
+/// `"SHA-256"`, `"sha256"`, and `"SHA256"` all normalize to `"sha256"`.
+pub fn normalize_algorithm(algorithm: &str) -> String {
+    algorithm
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
 pub struct HashingRead<R> {
     inner: R,
     contexts: Contexts,
@@ -161,6 +173,16 @@ mod test {
         assert_eq!(digest(&SHA256, &data).as_ref(), digests.sha256.as_ref());
         assert_eq!(digest(&SHA384, &data).as_ref(), digests.sha384.as_ref());
         assert_eq!(digest(&SHA512, &data).as_ref(), digests.sha512.as_ref());
+    }
+
+    #[test]
+    fn normalize_algorithm_variants() {
+        use super::normalize_algorithm;
+        assert_eq!(normalize_algorithm("SHA-256"), "sha256");
+        assert_eq!(normalize_algorithm("sha256"), "sha256");
+        assert_eq!(normalize_algorithm("SHA256"), "sha256");
+        assert_eq!(normalize_algorithm("SHA3-512"), "sha3512");
+        assert_eq!(normalize_algorithm("BLAKE2b-256"), "blake2b256");
     }
 
     /// HashingRead should return the correct hash of the data read so far when hash() is called

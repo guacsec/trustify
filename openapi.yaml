@@ -21,11 +21,14 @@ paths:
                 - version
                 - readOnly
                 - exploitIntelligence
+                - frontend
                 properties:
                   build:
                     type: object
                   exploitIntelligence:
                     type: boolean
+                  frontend:
+                    $ref: '#/components/schemas/FrontendInfo'
                   readOnly:
                     type: boolean
                   version:
@@ -5592,6 +5595,28 @@ components:
       - advisory
       - sbom
       - unknown
+    FrontendInfo:
+      type: object
+      description: Frontend configuration exposed via `/.well-known/trustify`.
+      properties:
+        oidc:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/FrontendOidcInfo'
+    FrontendOidcInfo:
+      type: object
+      description: OIDC configuration for frontend clients.
+      required:
+      - issuerUrl
+      - clientId
+      - scope
+      properties:
+        clientId:
+          type: string
+        issuerUrl:
+          type: string
+        scope:
+          type: string
     Group:
       type: object
       required:

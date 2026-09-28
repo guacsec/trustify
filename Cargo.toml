@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "api",
     "cli",
     "common",
     "common/auth",
@@ -23,6 +24,7 @@ members = [
     "server",
     "test-context",
     "trustd",
+    "ui",
     "xtask",
 ]
 
@@ -74,7 +76,8 @@ fixedbitset = "0.5.7"
 flate2 = "1.0.35"
 futures = "0.3.30"
 futures-util = "0.3"
-garage-door = "0.2.0"
+#garage-door = "0.2.0"
+garage-door = { path = "../garage-door" }
 git2 = { version = "0.21.0", features = ["https", "ssh"] }
 hex = "0.4.3"
 hide = "0.1.5"
@@ -163,6 +166,7 @@ which = "8"
 wiremock = "0.6"
 zip = "8"
 
+trustify-api = { path = "api" }
 trustify-auth = { path = "common/auth", features = ["actix", "swagger"] }
 trustify-common = { path = "common" }
 trustify-db = { path = "common/db" }

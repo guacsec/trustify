@@ -1,0 +1,404 @@
+{
+  "document": {
+    "acknowledgments": [
+      {
+        "organization": "CERT@VDE",
+        "summary": "coordination",
+        "urls": [
+          "https://certvde.com"
+        ]
+      },
+      {
+        "names": [
+          "Roby Firnando Yusuf"
+        ],
+        "organization": "Jeonbuk National University",
+        "summary": "Reported by",
+        "urls": [
+          "https://www.jbnu.ac.kr/"
+        ]
+      }
+    ],
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/v1/"
+      }
+    },
+    "lang": "en-US",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "An optional package of the TwinCAT 3 XAR installs the TwinCAT 3 HMI Server on a device. It provides a server configuration page which can be accessed by administrative users only. When such an administrator accesses the server configuration page it is possible to upload arbitrary content into the CUSTOM_CSS field which is then persisted on the device and later returned and rendered with each login and error page.\nPlease note that administrators have the access rights to modify any content on the HMI server, for example, via the server configuration page. Therefore, administrators would have to act maliciously to exploit this vulnerability.",
+        "title": "Summary"
+      },
+      {
+        "category": "description",
+        "text": "On an instance of TwinCAT 3 HMI Server running on a device an authenticated administrator can inject arbitrary content into the custom CSS field which is persisted on the device and later returned via the login page and error page.",
+        "title": "Impact"
+      },
+      {
+        "category": "description",
+        "text": "Administrators must exercise due diligence when configuring the TwinCAT 3 HMI server via the server configuration page. Administrators must be selected from trustworthy personnel.",
+        "title": "General Recommendation"
+      },
+      {
+        "category": "description",
+        "text": "Please update to a recent version of the affected components.",
+        "title": "Remediation"
+      },
+      {
+        "category": "general",
+        "text": "Beckhoff Automation welcomes responsibly coordinated reports of vulnerabilities and Beckhoff will collaborate with reporting parties to fix vulnerabilities or mitigate threats.",
+        "title": "Reporting vulnerabilities"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "Beckhoff is not responsible for any side effects negatively affecting the real-time capabilities of your TwinCAT control application possibly caused by updates. Beckhoff offers updated images with qualified performance for Beckhoff hardware from time to time. TwinCAT System Manager offers tools which can be of assistance to verify real-time performance after update. A backup should be created every time before installing an update. Only administrators or IT experts should perform the backup and update procedure.",
+        "title": "Disclaimer"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "product-securityincident@beckhoff.com",
+      "name": "Beckhoff Automation GmbH & Co. KG",
+      "namespace": "https://www.beckhoff.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "Beckhoff Security Advisory 2025-002: XSS Vulnerability in TwinCAT 3 HMI Server - PDF version",
+        "url": "https://download.beckhoff.com/download/Document/product-security/Advisories/advisory-2025-002.pdf"
+      },
+      {
+        "category": "external",
+        "summary": "Additional information about the latest security advisories is provided here:",
+        "url": "https://www.beckhoff.com/secinfo"
+      },
+      {
+        "category": "external",
+        "summary": "CERT@VDE Security Advisories for Beckhoff Automation GmbH & Co. KG",
+        "url": "https://certvde.com/en/advisories/vendor/beckhoff/"
+      },
+      {
+        "category": "self",
+        "summary": "VDE-2025-106: Beckhoff: XSS Vulnerability in TwinCAT 3 HMI Server - CSAF",
+        "url": "https://beckhoff.csaf-tp.certvde.com/.well-known/csaf/white/2026/vde-2025-106.json"
+      },
+      {
+        "category": "self",
+        "summary": "VDE-2025-106: Beckhoff: XSS Vulnerability in TwinCAT 3 HMI Server - HTML",
+        "url": "https://certvde.com/en/advisories/VDE-2025-106"
+      }
+    ],
+    "title": "Beckhoff: XSS Vulnerability in TwinCAT 3 HMI Server",
+    "tracking": {
+      "aliases": [
+        "VDE-2025-106"
+      ],
+      "current_release_date": "2026-02-12T09:00:00.000Z",
+      "generator": {
+        "date": "2026-02-12T08:54:19.787Z",
+        "engine": {
+          "name": "Secvisogram",
+          "version": "2.5.42"
+        }
+      },
+      "id": "VDE-2025-106",
+      "initial_release_date": "2026-01-26T10:00:00.000Z",
+      "revision_history": [
+        {
+          "date": "2025-12-10T10:00:00.000Z",
+          "number": "1.0.0",
+          "summary": "Initial revision"
+        },
+        {
+          "date": "2026-02-12T09:00:00.000Z",
+          "number": "1.0.1",
+          "summary": "A typo was corrected in the CVE description."
+        }
+      ],
+      "status": "final",
+      "version": "1.0.1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "branches": [
+                  {
+                    "category": "product_version_range",
+                    "name": "vers:npm/<14.4.267",
+                    "product": {
+                      "name": "TwinCAT.HMI.Server tcpkg package <14.4.267",
+                      "product_id": "CSAFPID-51001",
+                      "product_identification_helper": {
+                        "purl": "pkg:tcpkg/beckhoff/TwinCAT.HMI.Server?vers=%3C14.4.267"
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_version",
+                    "name": "vers:npm/14.4.267",
+                    "product": {
+                      "name": "TwinCAT.HMI.Server tcpkg package 14.4.267",
+                      "product_id": "CSAFPID-52001",
+                      "product_identification_helper": {
+                        "hashes": [
+                          {
+                            "file_hashes": [
+                              {
+                                "algorithm": "sha256",
+                                "value": "d62b79b11e2ec822514b5b75fc7733e274b7efc722a3d099e10c4e1184dcf849"
+                              }
+                            ],
+                            "file_name": "twincat.hmi.server.14.4.267.nupkg"
+                          }
+                        ],
+                        "purl": "pkg:tcpkg/beckhoff/TwinCAT.HMI.Server@14.4.267"
+                      }
+                    }
+                  }
+                ],
+                "category": "product_name",
+                "name": "TwinCAT.HMI.Server"
+              },
+              {
+                "branches": [
+                  {
+                    "category": "product_version_range",
+                    "name": "vers:bsd/<14.4.267",
+                    "product": {
+                      "name": "TF2000-HMI-Server OS software package for TwinCAT/BSD <14.4.267",
+                      "product_id": "CSAFPID-51011",
+                      "product_identification_helper": {
+                        "purl": "pkg:bsd/beckhoff/TF2000-HMI-Server?vers=%3C14.4.267"
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_version",
+                    "name": "14.4.267",
+                    "product": {
+                      "name": "TF2000-HMI-Server OS software package for TwinCAT/BSD 14.4.267",
+                      "product_id": "CSAFPID-52011",
+                      "product_identification_helper": {
+                        "hashes": [
+                          {
+                            "file_hashes": [
+                              {
+                                "algorithm": "sha256",
+                                "value": "b1bde82c12d72c509edf40908f9f752a49de1274f712aebf0612f2f1bb870413"
+                              }
+                            ],
+                            "file_name": "TF2000-HMI-Server-14.4.267.0.pkg"
+                          }
+                        ],
+                        "purl": "pkg:bsd/beckhoff/TF2000-HMI-Server@14.4.267"
+                      }
+                    }
+                  }
+                ],
+                "category": "product_name",
+                "name": "TF2000-HMI-Server"
+              },
+              {
+                "branches": [
+                  {
+                    "branches": [
+                      {
+                        "category": "product_version_range",
+                        "name": "vers:deb/<14.4.267",
+                        "product": {
+                          "name": "tf2000-hmi-server OS software package for Beckhoff RT Linux(R) on ARM64 <14.4.267",
+                          "product_id": "CSAFPID-51021",
+                          "product_identification_helper": {
+                            "purl": "pkg:deb/beckhoff/tf2000-hmi-server@14.4.267?arch=arm64&vers=%3C14.4.267"
+                          }
+                        }
+                      },
+                      {
+                        "category": "product_version",
+                        "name": "14.4.267",
+                        "product": {
+                          "name": "tf2000-hmi-server OS software package for Beckhoff RT Linux(R) on ARM64 14.4.267",
+                          "product_id": "CSAFPID-52021",
+                          "product_identification_helper": {
+                            "hashes": [
+                              {
+                                "file_hashes": [
+                                  {
+                                    "algorithm": "sha256",
+                                    "value": "0c8612f70c9f0cdcd8ae36b77622130d633db7a3203e1365e5be5210c131a795"
+                                  }
+                                ],
+                                "file_name": "tf2000-hmi-server-14.4.267.0_arm64.deb"
+                              }
+                            ],
+                            "purl": "pkg:deb/beckhoff/tf2000-hmi-server@14.4.267?arch=arm64"
+                          }
+                        }
+                      }
+                    ],
+                    "category": "architecture",
+                    "name": "arm64"
+                  },
+                  {
+                    "branches": [
+                      {
+                        "category": "product_version_range",
+                        "name": "vers:deb/<14.4.267",
+                        "product": {
+                          "name": "tf2000-hmi-server for Beckhoff RT Linux(R) on AMD64 <14.4.267",
+                          "product_id": "CSAFPID-51031",
+                          "product_identification_helper": {
+                            "purl": "pkg:deb/beckhoff/tf2000-hmi-server@14.4.267?arch=amd64&vers=%3C14.4.267"
+                          }
+                        }
+                      },
+                      {
+                        "category": "product_version",
+                        "name": "14.4.267",
+                        "product": {
+                          "name": "tf2000-hmi-server for Beckhoff RT Linux(R) on AMD64 14.4.267",
+                          "product_id": "CSAFPID-52031",
+                          "product_identification_helper": {
+                            "hashes": [
+                              {
+                                "file_hashes": [
+                                  {
+                                    "algorithm": "sha256",
+                                    "value": "cb9fbc60ed97dffa9f71542b49a95d607c09e241210a69e83d8643e475d4256e"
+                                  }
+                                ],
+                                "file_name": "tf2000-hmi-server-14.4.267.0_amd64.deb"
+                              }
+                            ],
+                            "purl": "pkg:deb/beckhoff/tf2000-hmi-server@14.4.267?arch=amd64"
+                          }
+                        }
+                      }
+                    ],
+                    "category": "architecture",
+                    "name": "amd64"
+                  }
+                ],
+                "category": "product_name",
+                "name": "tf2000-hmi-server"
+              }
+            ],
+            "category": "product_family",
+            "name": "Software"
+          }
+        ],
+        "category": "vendor",
+        "name": "Beckhoff"
+      }
+    ],
+    "product_groups": [
+      {
+        "group_id": "CSAFGID-0001",
+        "product_ids": [
+          "CSAFPID-51001",
+          "CSAFPID-51011",
+          "CSAFPID-51021",
+          "CSAFPID-51031"
+        ],
+        "summary": "Affected products"
+      },
+      {
+        "group_id": "CSAFGID-0002",
+        "product_ids": [
+          "CSAFPID-52001",
+          "CSAFPID-52011",
+          "CSAFPID-52021",
+          "CSAFPID-52031"
+        ],
+        "summary": "Fixed products"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Roby Firnando Yusuf"
+          ],
+          "organization": "Jeonbuk National University",
+          "summary": "Roby Firnando Yusuf reported the vulnerability to Beckhoff"
+        }
+      ],
+      "cve": "CVE-2025-41768",
+      "cwe": {
+        "id": "CWE-79",
+        "name": "Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
+      },
+      "notes": [
+        {
+          "category": "description",
+          "text": "An high privileged remote attacker can inject arbitrary content into the custom CSS field on the affected devices due to improper neutralization of input during web page generation ('Cross-site Scripting').\n\n",
+          "title": "CVE Description"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "CSAFPID-52001",
+          "CSAFPID-52011",
+          "CSAFPID-52021",
+          "CSAFPID-52031"
+        ],
+        "known_affected": [
+          "CSAFPID-51001",
+          "CSAFPID-51011",
+          "CSAFPID-51021",
+          "CSAFPID-51031"
+        ]
+      },
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Please update to a recent version of the affected components.",
+          "group_ids": [
+            "CSAFGID-0001"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "LOW",
+            "environmentalScore": 5.5,
+            "environmentalSeverity": "MEDIUM",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "HIGH",
+            "scope": "CHANGED",
+            "temporalScore": 5.5,
+            "temporalSeverity": "MEDIUM",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:C/C:L/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-51001",
+            "CSAFPID-51011",
+            "CSAFPID-51021",
+            "CSAFPID-51031"
+          ]
+        }
+      ],
+      "title": "CVE-2025-41768"
+    }
+  ]
+}
