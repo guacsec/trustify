@@ -7348,11 +7348,10 @@ components:
             description: Whether the scheme used is 'http' [true] or 'https' [false]
     QueryMatch:
       type: object
-      description: A single match from the query.
+      description: A single match from the query (evidence within a verdict group).
       required:
       - match_type
       - value
-      - vulnerability_id
       - advisory_id
       - advisory_identifier
       - status
@@ -7368,12 +7367,6 @@ components:
           $ref: '#/components/schemas/AssertionStatus'
         value:
           type: string
-        vulnerability_id:
-          type: string
-        vulnerability_title:
-          type:
-          - string
-          - 'null'
     QueryMatchType:
       type: string
       description: The type of identifier that matched.
@@ -7384,17 +7377,37 @@ components:
       - sku
     QueryResult:
       type: object
-      description: Result of a manual identifier query.
+      description: Result of a manual identifier query, grouped by vulnerability with resolved verdicts.
       required:
       - query
+      - verdicts
+      properties:
+        query:
+          type: string
+        verdicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryVerdict'
+    QueryVerdict:
+      type: object
+      description: Resolved verdict for a single vulnerability from an ad-hoc identifier query.
+      required:
+      - vulnerability_id
+      - status
       - matches
       properties:
         matches:
           type: array
           items:
             $ref: '#/components/schemas/QueryMatch'
-        query:
+        status:
+          $ref: '#/components/schemas/VerdictStatus'
+        vulnerability_id:
           type: string
+        vulnerability_title:
+          type:
+          - string
+          - 'null'
     RecommendEntry:
       type: object
       required:
