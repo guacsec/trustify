@@ -132,22 +132,30 @@ impl AssertionStatus {
     }
 }
 
-/// Result of a manual identifier query.
+/// Result of a manual identifier query, grouped by vulnerability with resolved verdicts.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct QueryResult {
     pub query: String,
+    pub verdicts: Vec<QueryVerdict>,
+}
+
+/// Resolved verdict for a single vulnerability from an ad-hoc identifier query.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct QueryVerdict {
+    pub vulnerability_id: String,
+    pub vulnerability_title: Option<String>,
+    pub status: VerdictStatus,
     pub matches: Vec<QueryMatch>,
 }
 
-/// A single match from the query.
+/// A single match from the query (evidence within a verdict group).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct QueryMatch {
     pub match_type: QueryMatchType,
     pub value: String,
-    pub vulnerability_id: String,
-    pub vulnerability_title: Option<String>,
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
     pub status: AssertionStatus,

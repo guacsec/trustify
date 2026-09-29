@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::{error::Error, evidence::load_advisory_hashes_by_values};
 use sea_orm::{ActiveValue::Set, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use std::collections::HashMap;
 use tracing::{Instrument, info_span, instrument};
@@ -63,7 +63,7 @@ impl DigestExtractor {
 
         let unique_values: Vec<&str> = value_map.keys().copied().collect();
 
-        let advisory_hashes = load_advisory_hashes_by_values(unique_values, connection).await?;
+        let advisory_hashes = load_advisory_hashes_by_values(&unique_values, connection).await?;
 
         let mut models = Vec::new();
         for ah in &advisory_hashes {
@@ -185,23 +185,6 @@ impl DigestExtractor {
         tracing::info!(advisory_id = %advisory_id, evidence_count = count, "digest extraction for advisory complete");
         Ok(count)
     }
-}
-
-/// Load advisory_vulnerability_hash rows matching any of the given hash values.
-async fn load_advisory_hashes_by_values<C: ConnectionTrait>(
-    values: Vec<&str>,
-    connection: &C,
-) -> Result<Vec<advisory_vulnerability_hash::Model>, Error> {
-    let mut results = Vec::new();
-    for chunk in values.chunks(5000) {
-        let rows = advisory_vulnerability_hash::Entity::find()
-            .filter(advisory_vulnerability_hash::Column::Value.is_in(chunk.iter().copied()))
-            .all(connection)
-            .instrument(info_span!("loading advisory hashes by value"))
-            .await?;
-        results.extend(rows);
-    }
-    Ok(results)
 }
 
 /// Load sbom_node_checksum rows matching any of the given hash values.

@@ -1,16 +1,17 @@
 use crate::{
     error::Error,
+    evidence::{load_advisory_hashes_by_values, load_product_identifiers_by_values},
     model::{
         ComponentRef, CorrelationResult, DigestRef, EvidenceDetail, QueryMatch, QueryMatchType,
-        QueryResult, VerdictStatus, VerdictSummary, VulnerabilityRef,
+        QueryResult, QueryVerdict, VerdictStatus, VerdictSummary, VulnerabilityRef,
     },
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use std::collections::{BTreeMap, HashMap};
 use tracing::{Instrument, info_span, instrument};
 use trustify_entity::{
-    advisory, advisory_vulnerability_hash, advisory_vulnerability_product_identifier,
-    correlation_evidence, sbom_node, sbom_node_checksum, vulnerability,
+    advisory, correlation_evidence, correlation_evidence::AssertionStatus, sbom_node,
+    sbom_node_checksum, vulnerability,
 };
 use uuid::Uuid;
 
@@ -88,25 +89,8 @@ impl CorrelationService {
                 });
         }
 
-        let advisories = advisory::Entity::find()
-            .filter(advisory::Column::Id.is_in(advisory_ids))
-            .all(connection)
-            .await?;
-
-        let advisory_map: HashMap<Uuid, &str> = advisories
-            .iter()
-            .map(|a| (a.id, a.identifier.as_str()))
-            .collect();
-
-        let vulns = vulnerability::Entity::find()
-            .filter(vulnerability::Column::Id.is_in(vuln_ids))
-            .all(connection)
-            .await?;
-
-        let vuln_titles: HashMap<&str, Option<&str>> = vulns
-            .iter()
-            .map(|v| (v.id.as_str(), v.title.as_deref()))
-            .collect();
+        let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
+        let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
 
         // Group evidence by (node_id, vulnerability_id).
         let mut groups: BTreeMap<(&str, &str), Vec<&correlation_evidence::Model>> = BTreeMap::new();
@@ -124,7 +108,8 @@ impl CorrelationService {
                 .map(|row| {
                     let advisory_identifier = advisory_map
                         .get(&row.advisory_id)
-                        .unwrap_or(&"unknown")
+                        .map(String::as_str)
+                        .unwrap_or("unknown")
                         .to_string();
 
                     EvidenceDetail {
@@ -140,19 +125,16 @@ impl CorrelationService {
                 })
                 .collect();
 
-            let status = resolve_verdict_status(rows);
+            let status = resolve_verdict_status(rows.iter().map(|r| r.status));
 
             let first = rows[0];
             let advisory_identifier = advisory_map
                 .get(&first.advisory_id)
-                .unwrap_or(&"unknown")
+                .map(String::as_str)
+                .unwrap_or("unknown")
                 .to_string();
 
-            let vuln_title = vuln_titles
-                .get(vuln_id)
-                .copied()
-                .flatten()
-                .map(String::from);
+            let vuln_title = vuln_titles.get(*vuln_id).cloned().flatten();
 
             verdicts.push(VerdictSummary {
                 component: ComponentRef {
@@ -179,26 +161,25 @@ impl CorrelationService {
     /// Query for advisory/vulnerability matches by identifier value.
     ///
     /// Searches across digest hashes and product identifiers (model numbers,
-    /// serial numbers, SKUs) for any advisory that references the given value.
+    /// serial numbers, SKUs), groups results by vulnerability, and resolves
+    /// a verdict status for each group using the same logic as SBOM correlation.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     pub async fn query_identifier<C: ConnectionTrait + Send>(
         &self,
         query: &str,
         connection: &C,
     ) -> Result<QueryResult, Error> {
-        let mut matches = Vec::new();
+        let query_slice: &[&str] = &[query];
 
-        let hash_rows = advisory_vulnerability_hash::Entity::find()
-            .filter(advisory_vulnerability_hash::Column::Value.eq(query))
-            .all(connection)
-            .instrument(info_span!("querying digest hashes"))
-            .await?;
+        let hash_rows = load_advisory_hashes_by_values(query_slice, connection).await?;
+        let pid_rows = load_product_identifiers_by_values(query_slice, connection).await?;
 
-        let pid_rows = advisory_vulnerability_product_identifier::Entity::find()
-            .filter(advisory_vulnerability_product_identifier::Column::Value.eq(query))
-            .all(connection)
-            .instrument(info_span!("querying product identifiers"))
-            .await?;
+        if hash_rows.is_empty() && pid_rows.is_empty() {
+            return Ok(QueryResult {
+                query: query.to_string(),
+                verdicts: Vec::new(),
+            });
+        }
 
         let advisory_ids: Vec<Uuid> = hash_rows
             .iter()
@@ -216,83 +197,90 @@ impl CorrelationService {
             .into_iter()
             .collect();
 
-        let advisories = advisory::Entity::find()
-            .filter(advisory::Column::Id.is_in(advisory_ids))
-            .all(connection)
-            .instrument(info_span!("loading advisories"))
-            .await?;
+        let advisory_map = load_advisory_names(&advisory_ids, connection).await?;
+        let vuln_titles = load_vulnerability_titles(&vuln_ids, connection).await?;
 
-        let advisory_map: HashMap<Uuid, &str> = advisories
-            .iter()
-            .map(|a| (a.id, a.identifier.as_str()))
-            .collect();
-
-        let vulns = vulnerability::Entity::find()
-            .filter(vulnerability::Column::Id.is_in(vuln_ids))
-            .all(connection)
-            .instrument(info_span!("loading vulnerabilities"))
-            .await?;
-
-        let vuln_titles: HashMap<&str, Option<&str>> = vulns
-            .iter()
-            .map(|v| (v.id.as_str(), v.title.as_deref()))
-            .collect();
+        // Group matches by vulnerability_id, keeping entity statuses for resolution.
+        let mut groups: BTreeMap<&str, Vec<(AssertionStatus, QueryMatch)>> = BTreeMap::new();
 
         for row in &hash_rows {
-            matches.push(QueryMatch {
-                match_type: QueryMatchType::Digest,
-                value: format!("{}:{}", row.algorithm, row.value),
-                vulnerability_id: row.vulnerability_id.clone(),
-                vulnerability_title: vuln_titles
-                    .get(row.vulnerability_id.as_str())
-                    .copied()
-                    .flatten()
-                    .map(String::from),
-                advisory_id: row.advisory_id,
-                advisory_identifier: advisory_map
-                    .get(&row.advisory_id)
-                    .unwrap_or(&"unknown")
-                    .to_string(),
-                status: row.status.into(),
-            });
+            let advisory_identifier = advisory_map
+                .get(&row.advisory_id)
+                .map(String::as_str)
+                .unwrap_or("unknown")
+                .to_string();
+
+            groups
+                .entry(row.vulnerability_id.as_str())
+                .or_default()
+                .push((
+                    row.status,
+                    QueryMatch {
+                        match_type: QueryMatchType::Digest,
+                        value: format!("{}:{}", row.algorithm, row.value),
+                        advisory_id: row.advisory_id,
+                        advisory_identifier,
+                        status: row.status.into(),
+                    },
+                ));
         }
 
         for row in &pid_rows {
-            matches.push(QueryMatch {
-                match_type: row.identifier_type.into(),
-                value: row.value.clone(),
-                vulnerability_id: row.vulnerability_id.clone(),
-                vulnerability_title: vuln_titles
-                    .get(row.vulnerability_id.as_str())
-                    .copied()
-                    .flatten()
-                    .map(String::from),
-                advisory_id: row.advisory_id,
-                advisory_identifier: advisory_map
-                    .get(&row.advisory_id)
-                    .unwrap_or(&"unknown")
-                    .to_string(),
-                status: row.status.into(),
-            });
+            let advisory_identifier = advisory_map
+                .get(&row.advisory_id)
+                .map(String::as_str)
+                .unwrap_or("unknown")
+                .to_string();
+
+            groups
+                .entry(row.vulnerability_id.as_str())
+                .or_default()
+                .push((
+                    row.status,
+                    QueryMatch {
+                        match_type: row.identifier_type.into(),
+                        value: row.value.clone(),
+                        advisory_id: row.advisory_id,
+                        advisory_identifier,
+                        status: row.status.into(),
+                    },
+                ));
         }
+
+        let verdicts = groups
+            .into_iter()
+            .map(|(vuln_id, items)| {
+                let status = resolve_verdict_status(items.iter().map(|(s, _)| *s));
+                let matches = items.into_iter().map(|(_, m)| m).collect();
+                let vulnerability_title = vuln_titles.get(vuln_id).cloned().flatten();
+
+                QueryVerdict {
+                    vulnerability_id: vuln_id.to_string(),
+                    vulnerability_title,
+                    status,
+                    matches,
+                }
+            })
+            .collect();
 
         Ok(QueryResult {
             query: query.to_string(),
-            matches,
+            verdicts,
         })
     }
 }
 
-fn resolve_verdict_status(evidence: &[&correlation_evidence::Model]) -> VerdictStatus {
-    use trustify_entity::correlation_evidence::AssertionStatus;
-
+/// Resolve a verdict status from a set of assertion statuses.
+///
+/// Priority: Fixed > NotAffected > Affected > UnderInvestigation > None.
+fn resolve_verdict_status(statuses: impl IntoIterator<Item = AssertionStatus>) -> VerdictStatus {
     let mut has_affected = false;
     let mut has_fixed = false;
     let mut has_not_affected = false;
     let mut has_under_investigation = false;
 
-    for row in evidence {
-        match row.status {
+    for status in statuses {
+        match status {
             AssertionStatus::Affected => has_affected = true,
             AssertionStatus::Fixed => has_fixed = true,
             AssertionStatus::NotAffected => has_not_affected = true,
@@ -312,4 +300,35 @@ fn resolve_verdict_status(evidence: &[&correlation_evidence::Model]) -> VerdictS
     } else {
         VerdictStatus::None
     }
+}
+
+/// Load advisory identifiers by ID.
+async fn load_advisory_names<C: ConnectionTrait>(
+    advisory_ids: &[Uuid],
+    connection: &C,
+) -> Result<HashMap<Uuid, String>, Error> {
+    let advisories = advisory::Entity::find()
+        .filter(advisory::Column::Id.is_in(advisory_ids.iter().copied()))
+        .all(connection)
+        .instrument(info_span!("loading advisories"))
+        .await?;
+
+    Ok(advisories
+        .into_iter()
+        .map(|a| (a.id, a.identifier))
+        .collect())
+}
+
+/// Load vulnerability titles by ID.
+async fn load_vulnerability_titles<C: ConnectionTrait>(
+    vuln_ids: &[&str],
+    connection: &C,
+) -> Result<HashMap<String, Option<String>>, Error> {
+    let vulns = vulnerability::Entity::find()
+        .filter(vulnerability::Column::Id.is_in(vuln_ids.iter().copied()))
+        .all(connection)
+        .instrument(info_span!("loading vulnerabilities"))
+        .await?;
+
+    Ok(vulns.into_iter().map(|v| (v.id, v.title)).collect())
 }
