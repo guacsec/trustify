@@ -1,11 +1,15 @@
 mod api;
 mod correlation;
+mod ingest;
 mod model;
+mod query;
 mod sbom_list;
 
 use browser_panic_hook::{CustomBody, IntoPanicHook};
 use correlation::CorrelationView;
+use ingest::IngestPage;
 use patternfly_yew::prelude::*;
+use query::QueryPage;
 use sbom_list::SbomList;
 use trustify_api::FrontendOidcInfo;
 use wasm_bindgen::prelude::*;
@@ -25,6 +29,8 @@ pub enum AppRoute {
     Correlation {
         id: String,
     },
+    Query,
+    Ingest,
 }
 
 pub fn main() -> Result<(), JsValue> {
@@ -160,6 +166,16 @@ fn switch_route(target: AppRoute) -> Html {
                 <CorrelationView sbom_id={id} />
             </AppPage>
         },
+        AppRoute::Query => html! {
+            <AppPage>
+                <QueryPage />
+            </AppPage>
+        },
+        AppRoute::Ingest => html! {
+            <AppPage>
+                <IngestPage />
+            </AppPage>
+        },
     }
 }
 
@@ -176,6 +192,12 @@ fn page(props: &PageProps) -> Html {
                 <NavList>
                     <NavRouterItem<AppRoute> to={AppRoute::SbomList}>
                         { "SBOMs" }
+                    </NavRouterItem<AppRoute>>
+                    <NavRouterItem<AppRoute> to={AppRoute::Query}>
+                        { "Query" }
+                    </NavRouterItem<AppRoute>>
+                    <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
+                        { "Ingest" }
                     </NavRouterItem<AppRoute>>
                 </NavList>
             </Nav>

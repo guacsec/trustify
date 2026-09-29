@@ -1,15 +1,16 @@
 use crate::{
     error::Error,
     model::{
-        ComponentRef, CorrelationResult, DigestRef, EvidenceDetail, VerdictStatus, VerdictSummary,
-        VulnerabilityRef,
+        ComponentRef, CorrelationResult, DigestRef, EvidenceDetail, QueryMatch, QueryMatchType,
+        QueryResult, VerdictStatus, VerdictSummary, VulnerabilityRef,
     },
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use std::collections::{BTreeMap, HashMap};
-use tracing::instrument;
+use tracing::{Instrument, info_span, instrument};
 use trustify_entity::{
-    advisory, correlation_evidence, sbom_node, sbom_node_checksum, vulnerability,
+    advisory, advisory_vulnerability_hash, advisory_vulnerability_product_identifier,
+    correlation_evidence, sbom_node, sbom_node_checksum, vulnerability,
 };
 use uuid::Uuid;
 
@@ -128,8 +129,8 @@ impl CorrelationService {
 
                     EvidenceDetail {
                         id: row.id,
-                        match_dimension: row.match_dimension,
-                        assertion_status: row.status,
+                        match_dimension: row.match_dimension.into(),
+                        assertion_status: row.status.into(),
                         confidence: row.confidence,
                         extractor: row.extractor.clone(),
                         advisory_id: row.advisory_id,
@@ -173,6 +174,112 @@ impl CorrelationService {
         }
 
         Ok(CorrelationResult { sbom_id, verdicts })
+    }
+
+    /// Query for advisory/vulnerability matches by identifier value.
+    ///
+    /// Searches across digest hashes and product identifiers (model numbers,
+    /// serial numbers, SKUs) for any advisory that references the given value.
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    pub async fn query_identifier<C: ConnectionTrait + Send>(
+        &self,
+        query: &str,
+        connection: &C,
+    ) -> Result<QueryResult, Error> {
+        let mut matches = Vec::new();
+
+        let hash_rows = advisory_vulnerability_hash::Entity::find()
+            .filter(advisory_vulnerability_hash::Column::Value.eq(query))
+            .all(connection)
+            .instrument(info_span!("querying digest hashes"))
+            .await?;
+
+        let pid_rows = advisory_vulnerability_product_identifier::Entity::find()
+            .filter(advisory_vulnerability_product_identifier::Column::Value.eq(query))
+            .all(connection)
+            .instrument(info_span!("querying product identifiers"))
+            .await?;
+
+        let advisory_ids: Vec<Uuid> = hash_rows
+            .iter()
+            .map(|r| r.advisory_id)
+            .chain(pid_rows.iter().map(|r| r.advisory_id))
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        let vuln_ids: Vec<&str> = hash_rows
+            .iter()
+            .map(|r| r.vulnerability_id.as_str())
+            .chain(pid_rows.iter().map(|r| r.vulnerability_id.as_str()))
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        let advisories = advisory::Entity::find()
+            .filter(advisory::Column::Id.is_in(advisory_ids))
+            .all(connection)
+            .instrument(info_span!("loading advisories"))
+            .await?;
+
+        let advisory_map: HashMap<Uuid, &str> = advisories
+            .iter()
+            .map(|a| (a.id, a.identifier.as_str()))
+            .collect();
+
+        let vulns = vulnerability::Entity::find()
+            .filter(vulnerability::Column::Id.is_in(vuln_ids))
+            .all(connection)
+            .instrument(info_span!("loading vulnerabilities"))
+            .await?;
+
+        let vuln_titles: HashMap<&str, Option<&str>> = vulns
+            .iter()
+            .map(|v| (v.id.as_str(), v.title.as_deref()))
+            .collect();
+
+        for row in &hash_rows {
+            matches.push(QueryMatch {
+                match_type: QueryMatchType::Digest,
+                value: format!("{}:{}", row.algorithm, row.value),
+                vulnerability_id: row.vulnerability_id.clone(),
+                vulnerability_title: vuln_titles
+                    .get(row.vulnerability_id.as_str())
+                    .copied()
+                    .flatten()
+                    .map(String::from),
+                advisory_id: row.advisory_id,
+                advisory_identifier: advisory_map
+                    .get(&row.advisory_id)
+                    .unwrap_or(&"unknown")
+                    .to_string(),
+                status: row.status.into(),
+            });
+        }
+
+        for row in &pid_rows {
+            matches.push(QueryMatch {
+                match_type: row.identifier_type.into(),
+                value: row.value.clone(),
+                vulnerability_id: row.vulnerability_id.clone(),
+                vulnerability_title: vuln_titles
+                    .get(row.vulnerability_id.as_str())
+                    .copied()
+                    .flatten()
+                    .map(String::from),
+                advisory_id: row.advisory_id,
+                advisory_identifier: advisory_map
+                    .get(&row.advisory_id)
+                    .unwrap_or(&"unknown")
+                    .to_string(),
+                status: row.status.into(),
+            });
+        }
+
+        Ok(QueryResult {
+            query: query.to_string(),
+            matches,
+        })
     }
 }
 

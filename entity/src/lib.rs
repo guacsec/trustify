@@ -1,6 +1,7 @@
 pub mod advisory;
 pub mod advisory_vulnerability;
 pub mod advisory_vulnerability_hash;
+pub mod advisory_vulnerability_product_identifier;
 pub mod advisory_vulnerability_score;
 pub mod base_purl;
 pub mod correlation_evidence;

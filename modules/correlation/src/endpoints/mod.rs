@@ -1,6 +1,12 @@
-use crate::{error::Error, model::CorrelationResult, service::CorrelationService};
+use crate::{
+    error::Error,
+    model::{CorrelationResult, QueryResult},
+    service::CorrelationService,
+};
 use actix_web::{HttpResponse, Responder, get, web};
+use serde::Deserialize;
 use trustify_common::db;
+use utoipa::IntoParams;
 use uuid::Uuid;
 
 #[cfg(test)]
@@ -14,7 +20,8 @@ pub fn configure(
     config
         .app_data(web::Data::new(db_ro))
         .app_data(web::Data::new(service))
-        .service(get_sbom_correlation);
+        .service(get_sbom_correlation)
+        .service(query_correlation);
 }
 
 /// Get correlation verdicts for an SBOM.
@@ -36,5 +43,35 @@ async fn get_sbom_correlation(
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
     let result = service.correlate_sbom(*sbom_id, &tx).await?;
+    Ok(HttpResponse::Ok().json(result))
+}
+
+/// Query parameters for identifier lookup.
+#[derive(Debug, Deserialize, IntoParams)]
+struct IdentifierQuery {
+    /// The identifier value to search for (digest, model number, serial number, SKU).
+    q: String,
+}
+
+/// Query for advisory/vulnerability matches by identifier.
+///
+/// Searches across digest hashes and product identifiers (model numbers,
+/// serial numbers, SKUs) for advisories that reference the given value.
+#[utoipa::path(
+    tag = "correlation",
+    operation_id = "queryCorrelation",
+    params(IdentifierQuery),
+    responses(
+        (status = 200, description = "Matching advisories and vulnerabilities", body = QueryResult),
+    ),
+)]
+#[get("/v3/correlation/query")]
+async fn query_correlation(
+    params: web::Query<IdentifierQuery>,
+    service: web::Data<CorrelationService>,
+    db: web::Data<db::ReadOnly>,
+) -> Result<impl Responder, Error> {
+    let tx = db.begin().await?;
+    let result = service.query_identifier(&params.q, &tx).await?;
     Ok(HttpResponse::Ok().json(result))
 }

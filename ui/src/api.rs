@@ -1,7 +1,10 @@
-use crate::model::{CorrelationResult, PaginatedResults, SbomSummary, WellKnownInfo};
+use crate::model::{
+    CorrelationResult, IngestResult, PaginatedResults, QueryResult, SbomSummary, WellKnownInfo,
+};
 use gloo_net::http::Request;
 use serde::de::DeserializeOwned;
 use std::fmt;
+use trustify_api::ingest::IngestFromUrlRequest;
 
 #[derive(Debug)]
 pub enum ApiError {
@@ -65,6 +68,51 @@ pub async fn fetch_correlation(
 ) -> Result<CorrelationResult, ApiError> {
     let url = format!("/api/v3/correlation/sbom/{sbom_id}");
     fetch_json(&url, token).await
+}
+
+pub async fn query_correlation(query: &str, token: Option<&str>) -> Result<QueryResult, ApiError> {
+    let encoded: String = js_sys::encode_uri_component(query).into();
+    let url = format!("/api/v3/correlation/query?q={encoded}");
+    fetch_json(&url, token).await
+}
+
+async fn post_json<B: serde::Serialize, R: DeserializeOwned>(
+    url: &str,
+    body: &B,
+    token: Option<&str>,
+) -> Result<R, ApiError> {
+    let json = serde_json::to_string(body).map_err(|e| ApiError::Network(e.to_string()))?;
+
+    let mut req = Request::post(url).header("Content-Type", "application/json");
+
+    if let Some(token) = token {
+        req = req.header("Authorization", &format!("Bearer {token}"));
+    }
+
+    let response = req
+        .body(json)
+        .map_err(|e| ApiError::Network(e.to_string()))?
+        .send()
+        .await
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+
+    if !response.ok() {
+        let status = response.status();
+        let message = response.text().await.unwrap_or_default();
+        return Err(ApiError::Http { status, message });
+    }
+
+    response
+        .json::<R>()
+        .await
+        .map_err(|e| ApiError::Deserialize(e.to_string()))
+}
+
+pub async fn ingest_from_url(url: &str, token: Option<&str>) -> Result<IngestResult, ApiError> {
+    let body = IngestFromUrlRequest {
+        url: url.to_string(),
+    };
+    post_json("/api/v3/advisory/from-url", &body, token).await
 }
 
 pub async fn fetch_well_known() -> Result<WellKnownInfo, ApiError> {
