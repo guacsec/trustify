@@ -9185,7 +9185,10 @@ name = "trustify-api"
 version = "0.6.0-rc.1"
 dependencies = [
  "serde",
+ "time",
+ "trustify-entity",
  "utoipa",
+ "uuid",
 ]
 
 [[package]]
@@ -9313,7 +9316,9 @@ dependencies = [
  "patternfly-yew",
  "serde",
  "serde_json",
+ "time",
  "trustify-api",
+ "uuid",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-logger",
@@ -9488,6 +9493,7 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
+ "trustify-api",
  "trustify-auth",
  "trustify-common",
  "trustify-entity",
@@ -9560,6 +9566,7 @@ dependencies = [
  "osv",
  "packageurl 0.7.1",
  "regex",
+ "reqwest 0.13.5",
  "roxmltree",
  "rstest",
  "sanitize-filename",
@@ -9585,6 +9592,7 @@ dependencies = [
  "tracing-futures",
  "tracing-opentelemetry",
  "tracing-subscriber",
+ "trustify-api",
  "trustify-auth",
  "trustify-common",
  "trustify-db",
@@ -9851,6 +9859,7 @@ dependencies = [
  "log",
  "rand 0.10.2",
  "regex",
+ "reqwest 0.13.5",
  "rstest",
  "serde",
  "serde_json",

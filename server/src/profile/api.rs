@@ -501,12 +501,17 @@ impl InitData {
             oidc_load_user: run.ui.load_user.to_string(),
         };
 
+        let http_client = reqwest::Client::builder()
+            .user_agent(format!("trustify/{}", env!("CARGO_PKG_VERSION")))
+            .build()?;
+
         let config = ModuleConfig {
             fundamental: trustify_module_fundamental::endpoints::Config {
                 sbom_upload_limit: run.sbom_upload_limit.into(),
                 advisory_upload_limit: run.advisory_upload_limit.into(),
                 max_group_name_length: run.max_group_name_length,
                 recommend_patterns: run.recommend_patterns,
+                http_client,
                 ..Default::default()
             },
             ingestor: trustify_module_ingestor::endpoints::Config {

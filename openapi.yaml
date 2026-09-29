@@ -379,6 +379,63 @@ paths:
               schema:
                 type: array
                 items: {}
+  /api/v3/advisory/from-url:
+    post:
+      tags:
+      - advisory
+      summary: Download a document from a URL and ingest it as an advisory.
+      operationId: ingestAdvisoryFromUrl
+      parameters:
+      - name: issuer
+        in: query
+        description: Optional issuer if it cannot be determined from advisory contents.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: labels
+        in: query
+        description: |-
+          Optional labels.
+
+          Only use keys with a prefix of `labels.`
+        required: true
+        schema:
+          $ref: '#/components/schemas/Labels'
+      - name: format
+        in: query
+        description: The format of the uploaded document.
+        required: false
+        schema:
+          type: string
+          enum:
+          - osv
+          - csaf
+          - cve
+          - nvd
+          - spdx
+          - cyclonedx
+          - clearlydefinedcuration
+          - clearlydefined
+          - cwecatalog
+          - cisakev
+          - advisory
+          - sbom
+          - unknown
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestFromUrlRequest'
+        required: true
+      responses:
+        '201':
+          description: Document fetched and ingested
+        '400':
+          description: The document could not be parsed as an advisory
+        '502':
+          description: Failed to download the document from the given URL
   /api/v3/advisory/{id}/label:
     put:
       tags:
@@ -1015,6 +1072,29 @@ paths:
           description: The user did not provide valid authentication credentials
         '403':
           description: The user lacks the required permission
+  /api/v3/correlation/query:
+    get:
+      tags:
+      - correlation
+      summary: Query for advisory/vulnerability matches by identifier.
+      description: |-
+        Searches across digest hashes and product identifiers (model numbers,
+        serial numbers, SKUs) for advisories that reference the given value.
+      operationId: queryCorrelation
+      parameters:
+      - name: q
+        in: query
+        description: The identifier value to search for (digest, model number, serial number, SKU).
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Matching advisories and vulnerabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResult'
   /api/v3/correlation/sbom/{id}:
     get:
       tags:
@@ -4721,6 +4801,7 @@ components:
           description: Current lifecycle status of the job.
     AssertionStatus:
       type: string
+      description: Status assertion from an advisory.
       enum:
       - affected
       - fixed
@@ -5236,7 +5317,7 @@ components:
           description: A human-readable error message
     EvidenceDetail:
       type: object
-      description: One piece of evidence from the correlation_evidence table.
+      description: One piece of evidence from the correlation engine.
       required:
       - id
       - match_dimension
@@ -5881,6 +5962,15 @@ components:
           - type: 'null'
           - $ref: '#/components/schemas/Report'
             description: Detailed report information
+    IngestFromUrlRequest:
+      type: object
+      description: Request body for ingesting a document from a remote URL.
+      required:
+      - url
+      properties:
+        url:
+          type: string
+          description: The URL of the document to download and ingest.
     IngestResult:
       type: object
       description: The result of the ingestion process
@@ -5994,6 +6084,7 @@ components:
           type: string
     MatchDimension:
       type: string
+      description: Match dimension describing how a piece of evidence was correlated.
       enum:
       - digest
       - purl
@@ -7255,6 +7346,55 @@ components:
           unencrypted:
             type: boolean
             description: Whether the scheme used is 'http' [true] or 'https' [false]
+    QueryMatch:
+      type: object
+      description: A single match from the query.
+      required:
+      - match_type
+      - value
+      - vulnerability_id
+      - advisory_id
+      - advisory_identifier
+      - status
+      properties:
+        advisory_id:
+          type: string
+          format: uuid
+        advisory_identifier:
+          type: string
+        match_type:
+          $ref: '#/components/schemas/QueryMatchType'
+        status:
+          $ref: '#/components/schemas/AssertionStatus'
+        value:
+          type: string
+        vulnerability_id:
+          type: string
+        vulnerability_title:
+          type:
+          - string
+          - 'null'
+    QueryMatchType:
+      type: string
+      description: The type of identifier that matched.
+      enum:
+      - digest
+      - model_number
+      - serial_number
+      - sku
+    QueryResult:
+      type: object
+      description: Result of a manual identifier query.
+      required:
+      - query
+      - matches
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryMatch'
+        query:
+          type: string
     RecommendEntry:
       type: object
       required:

@@ -57,6 +57,8 @@ pub enum Error {
     CsvIntoInnerError(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error("failed to download from URL: {0}")]
+    Download(String),
     #[error(transparent)]
     Label(#[from] labels::Error),
     #[error(transparent)]
@@ -151,6 +153,9 @@ impl ResponseError for Error {
             }
             Self::Compression(err) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("CompressionError", err))
+            }
+            Self::Download(msg) => {
+                HttpResponse::BadGateway().json(ErrorInformation::new("DownloadFailed", msg))
             }
             Self::Label(err) => {
                 HttpResponse::BadRequest().json(ErrorInformation::new("Label", err))
