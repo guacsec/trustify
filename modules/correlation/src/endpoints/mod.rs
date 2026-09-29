@@ -9,6 +9,14 @@ use trustify_common::db;
 use utoipa::IntoParams;
 use uuid::Uuid;
 
+/// Query parameters for SBOM correlation.
+#[derive(Debug, Default, Deserialize, IntoParams)]
+struct SbomCorrelationParams {
+    /// When true, include components that have no correlation evidence.
+    #[serde(default)]
+    include_unmatched: bool,
+}
+
 #[cfg(test)]
 mod test;
 
@@ -30,6 +38,7 @@ pub fn configure(
     operation_id = "getSbomCorrelation",
     params(
         ("id" = Uuid, Path, description = "SBOM ID"),
+        SbomCorrelationParams,
     ),
     responses(
         (status = 200, description = "Correlation verdicts for the SBOM", body = CorrelationResult),
@@ -38,11 +47,14 @@ pub fn configure(
 #[get("/v3/correlation/sbom/{id}")]
 async fn get_sbom_correlation(
     sbom_id: web::Path<Uuid>,
+    params: web::Query<SbomCorrelationParams>,
     service: web::Data<CorrelationService>,
     db: web::Data<db::ReadOnly>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
-    let result = service.correlate_sbom(*sbom_id, &tx).await?;
+    let result = service
+        .correlate_sbom(*sbom_id, params.include_unmatched, &tx)
+        .await?;
     Ok(HttpResponse::Ok().json(result))
 }
 

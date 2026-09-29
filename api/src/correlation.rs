@@ -8,6 +8,11 @@ use uuid::Uuid;
 pub struct CorrelationResult {
     pub sbom_id: Uuid,
     pub verdicts: Vec<VerdictSummary>,
+    /// Components in the SBOM that have no correlation evidence.
+    ///
+    /// `None` when not requested, `Some(vec)` when `include_unmatched=true`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unmatched_components: Option<Vec<ComponentRef>>,
 }
 
 /// Resolved determination per (component, vulnerability) pair.
