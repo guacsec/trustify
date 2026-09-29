@@ -1,6 +1,6 @@
 use crate::{
     AppRoute, api,
-    model::{CorrelationResult, EvidenceDetail, VerdictStatus, VerdictSummary},
+    model::{ComponentRef, CorrelationResult, EvidenceDetail, VerdictStatus, VerdictSummary},
 };
 use patternfly_yew::prelude::*;
 use wasm_bindgen_futures::spawn_local;
@@ -63,7 +63,10 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
                     <p>{ err.clone() }</p>
                 </Alert>
             } else if let Some(data) = &*result {
-                <CorrelationContent verdicts={data.verdicts.clone()} />
+                <CorrelationContent
+                    verdicts={data.verdicts.clone()}
+                    unmatched_components={data.unmatched_components.clone().unwrap_or_default()}
+                />
             } else {
                 <EmptyState
                     title="No data"
@@ -80,6 +83,7 @@ pub fn correlation_view(props: &CorrelationViewProps) -> Html {
 #[derive(Clone, Debug, PartialEq, Properties)]
 struct CorrelationContentProps {
     verdicts: Vec<VerdictSummary>,
+    unmatched_components: Vec<ComponentRef>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -200,9 +204,54 @@ fn evidence_table(props: &EvidenceTableProps) -> Html {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum UnmatchedColumn {
+    Name,
+    Purls,
+    Cpes,
+    Digests,
+}
+
+#[derive(Clone, PartialEq)]
+struct UnmatchedEntry(ComponentRef);
+
+impl TableEntryRenderer<UnmatchedColumn> for UnmatchedEntry {
+    fn render_cell(&self, context: CellContext<'_, UnmatchedColumn>) -> Cell {
+        match context.column {
+            UnmatchedColumn::Name => html!(&self.0.name).into(),
+            UnmatchedColumn::Purls => render_string_list(&self.0.purls).into(),
+            UnmatchedColumn::Cpes => render_string_list(&self.0.cpes).into(),
+            UnmatchedColumn::Digests => {
+                let items: Vec<String> = self
+                    .0
+                    .digests
+                    .iter()
+                    .map(|d| format!("{}:{}", d.algorithm, d.value))
+                    .collect();
+                render_string_list(&items).into()
+            }
+        }
+    }
+}
+
+fn render_string_list(items: &[String]) -> Html {
+    if items.is_empty() {
+        html!(<i>{ "\u{2014}" }</i>)
+    } else {
+        html! {
+            <ul style="margin:0;padding-left:1em">
+                { for items.iter().map(|s| html!(<li>{ s }</li>)) }
+            </ul>
+        }
+    }
+}
+
 #[function_component(CorrelationContent)]
 fn correlation_content(props: &CorrelationContentProps) -> Html {
-    if props.verdicts.is_empty() {
+    let has_verdicts = !props.verdicts.is_empty();
+    let has_unmatched = !props.unmatched_components.is_empty();
+
+    if !has_verdicts && !has_unmatched {
         return html! {
             <EmptyState
                 title="No verdicts"
@@ -216,16 +265,16 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
 
     let summary = verdict_summary_counts(&props.verdicts);
 
-    let entries = use_memo(props.verdicts.clone(), |verdicts| {
+    let verdict_entries = use_memo(props.verdicts.clone(), |verdicts| {
         verdicts
             .iter()
             .map(|v| VerdictEntry(v.clone()))
             .collect::<Vec<_>>()
     });
 
-    let (entries, onexpand) = use_table_data(MemoizedTableModel::new(entries));
+    let (verdict_entries, onexpand) = use_table_data(MemoizedTableModel::new(verdict_entries));
 
-    let header = html_nested! {
+    let verdict_header = html_nested! {
         <TableHeader<VerdictColumn>>
             <TableColumn<VerdictColumn> label="Component" index={VerdictColumn::Component} />
             <TableColumn<VerdictColumn> label="Vulnerability" index={VerdictColumn::Vulnerability} />
@@ -234,6 +283,26 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
             <TableColumn<VerdictColumn> label="Evidence" index={VerdictColumn::Evidence} />
         </TableHeader<VerdictColumn>>
     };
+
+    let unmatched_entries = use_memo(props.unmatched_components.clone(), |components| {
+        components
+            .iter()
+            .map(|c| UnmatchedEntry(c.clone()))
+            .collect::<Vec<_>>()
+    });
+
+    let (unmatched_entries, _) = use_table_data(MemoizedTableModel::new(unmatched_entries));
+
+    let unmatched_header = html_nested! {
+        <TableHeader<UnmatchedColumn>>
+            <TableColumn<UnmatchedColumn> label="Component" index={UnmatchedColumn::Name} />
+            <TableColumn<UnmatchedColumn> label="PURLs" index={UnmatchedColumn::Purls} />
+            <TableColumn<UnmatchedColumn> label="CPEs" index={UnmatchedColumn::Cpes} />
+            <TableColumn<UnmatchedColumn> label="Digests" index={UnmatchedColumn::Digests} />
+        </TableHeader<UnmatchedColumn>>
+    };
+
+    let unmatched_count = props.unmatched_components.len();
 
     html! {
         <>
@@ -255,16 +324,52 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
                         </CardBody>
                     </Card>
                 })}
+                if has_unmatched {
+                    <Card>
+                        <CardBody>
+                            <Flex space_items={[SpaceItems::Small]}
+                                modifiers={[FlexModifier::Align(Alignment::Center)]}>
+                                <FlexItem>
+                                    <Label label="No Evidence" color={Color::Grey} />
+                                </FlexItem>
+                                <FlexItem>
+                                    <Title level={Level::H3}>
+                                        { unmatched_count.to_string() }
+                                    </Title>
+                                </FlexItem>
+                            </Flex>
+                        </CardBody>
+                    </Card>
+                }
             </Gallery>
 
             <br />
 
-            <Table<VerdictColumn, UseTableData<VerdictColumn, MemoizedTableModel<VerdictEntry>>>
-                mode={TableMode::Expandable}
-                {header}
-                {entries}
-                {onexpand}
-            />
+            if has_verdicts {
+                <Title level={Level::H2}>
+                    { "Correlated components " }
+                    <Badge>{ props.verdicts.len().to_string() }</Badge>
+                </Title>
+                <Table<VerdictColumn, UseTableData<VerdictColumn, MemoizedTableModel<VerdictEntry>>>
+                    mode={TableMode::Expandable}
+                    header={verdict_header}
+                    entries={verdict_entries}
+                    {onexpand}
+                />
+            }
+
+            if has_unmatched {
+                <br />
+                <Title level={Level::H2}>
+                    { "Unmatched components " }
+                    <Badge>{ unmatched_count.to_string() }</Badge>
+                </Title>
+                <Table<UnmatchedColumn, UseTableData<UnmatchedColumn, MemoizedTableModel<UnmatchedEntry>>>
+                    mode={TableMode::Compact}
+                    header={unmatched_header}
+                    entries={unmatched_entries}
+                />
+            }
         </>
     }
 }

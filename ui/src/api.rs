@@ -66,7 +66,7 @@ pub async fn fetch_correlation(
     sbom_id: &str,
     token: Option<&str>,
 ) -> Result<CorrelationResult, ApiError> {
-    let url = format!("/api/v3/correlation/sbom/{sbom_id}");
+    let url = format!("/api/v3/correlation/sbom/{sbom_id}?include_unmatched=true");
     fetch_json(&url, token).await
 }
 
