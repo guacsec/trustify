@@ -134,31 +134,34 @@ impl<'a> StatusCreator<'a> {
                         if let Some(full_name) = &branch.product
                             && let Some(pih) = &full_name.product_identification_helper
                         {
-                            for hc in pih.hashes.iter().flatten() {
+                            for hc in &pih.hashes {
                                 for fh in &hc.file_hashes {
                                     let algo = normalize_algorithm(&fh.algorithm);
-                                    self.hash_entries
-                                        .insert((algo, fh.value.clone(), assertion));
+                                    self.hash_entries.insert((
+                                        algo,
+                                        fh.value.to_string(),
+                                        assertion,
+                                    ));
                                 }
                             }
                             for mn in pih.model_numbers.iter().flatten() {
                                 self.product_identifier_entries.insert((
                                     ProductIdentifierType::ModelNumber,
-                                    mn.clone(),
+                                    mn.to_string(),
                                     assertion,
                                 ));
                             }
                             for sn in pih.serial_numbers.iter().flatten() {
                                 self.product_identifier_entries.insert((
                                     ProductIdentifierType::SerialNumber,
-                                    sn.clone(),
+                                    sn.to_string(),
                                     assertion,
                                 ));
                             }
-                            for sku in pih.skus.iter().flatten() {
+                            for sku in &pih.skus {
                                 self.product_identifier_entries.insert((
                                     ProductIdentifierType::Sku,
-                                    sku.clone(),
+                                    sku.to_string(),
                                     assertion,
                                 ));
                             }
