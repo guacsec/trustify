@@ -38,15 +38,16 @@ use trustify_entity::{
     labels::Labels,
     license, organization, package_relates_to_package, qualified_purl,
     relationship::Relationship,
-    sbom, sbom_ai, sbom_group_assignment, sbom_license_expanded, sbom_node, sbom_node_cpe_ref,
-    sbom_node_purl_ref, sbom_package, sbom_package_license, source_document, status,
-    versioned_purl, vulnerability,
+    sbom, sbom_ai, sbom_crypto, sbom_group_assignment, sbom_license_expanded, sbom_node,
+    sbom_node_cpe_ref, sbom_node_purl_ref, sbom_package, sbom_package_license, source_document,
+    status, versioned_purl, vulnerability,
 };
 
 #[derive(Clone, Debug, Default)]
 pub struct FetchOptions {
     labels: Labels,
     groups: Option<Vec<Uuid>>,
+    crypto: Option<Vec<String>>,
     pub advisories: bool,
 }
 
@@ -63,6 +64,11 @@ impl FetchOptions {
                 .filter_map(|s| Uuid::parse_str(s.as_ref()).ok())
                 .collect(),
         );
+        self
+    }
+
+    pub fn crypto(mut self, names: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.crypto = Some(names.into_iter().map(|s| s.into()).collect());
         self
     }
 
@@ -227,6 +233,19 @@ impl SbomService {
                         .select_only()
                         .column(sbom_group_assignment::Column::SbomId)
                         .filter(sbom_group_assignment::Column::GroupId.is_in(group_ids))
+                        .into_query(),
+                ),
+            );
+        }
+
+        if let Some(crypto_names) = options.crypto {
+            query = query.filter(
+                sbom::Column::SbomId.in_subquery(
+                    sbom_crypto::Entity::find()
+                        .join(JoinType::InnerJoin, sbom_node::Relation::Crypto.def().rev())
+                        .select_only()
+                        .column(sbom_crypto::Column::SbomId)
+                        .filter(sbom_node::Column::Name.is_in(crypto_names))
                         .into_query(),
                 ),
             );

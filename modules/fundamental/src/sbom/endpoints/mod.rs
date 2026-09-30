@@ -173,6 +173,15 @@ struct GroupFilterQuery {
     group: Vec<String>,
 }
 
+#[derive(Clone, Debug, Default, serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+struct CryptoFilterQuery {
+    /// Filter by crypto algorithm name. Only SBOMs containing any of the provided algorithm
+    /// names will be returned. Can be specified multiple times.
+    #[serde(default)]
+    crypto: Vec<String>,
+}
+
 mod v2 {
     #![allow(deprecated)]
     use super::*;
@@ -236,6 +245,7 @@ mod v3 {
             Query,
             Paginated,
             GroupFilterQuery,
+            CryptoFilterQuery,
             SbomListParams,
         ),
         responses(
@@ -251,6 +261,7 @@ mod v3 {
         web::Query(paginated): web::Query<Paginated>,
         web::Query(params): web::Query<SbomListParams>,
         QsQuery(group_filter): QsQuery<GroupFilterQuery>,
+        QsQuery(crypto_filter): QsQuery<CryptoFilterQuery>,
         authorizer: web::Data<Authorizer>,
         user: UserInformation,
     ) -> Result<impl Responder, Error> {
@@ -260,6 +271,9 @@ mod v3 {
         let mut options = FetchOptions::default().advisories(params.advisories);
         if !group_filter.group.is_empty() {
             options = options.groups(group_filter.group);
+        }
+        if !crypto_filter.crypto.is_empty() {
+            options = options.crypto(crypto_filter.crypto);
         }
 
         let result = fetch
