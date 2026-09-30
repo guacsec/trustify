@@ -1136,11 +1136,11 @@ async fn recommend_report_no_patterns(ctx: &TrustifyContext) -> Result<(), anyho
     Ok(())
 }
 
-/// Verifies that vulnerabilities with non-active status (not_affected, fixed) are excluded
-/// from the report's vulnerabilities list, leaving only affected/under_investigation CVEs.
+/// Verifies that only vulnerabilities addressed by the recommended PURL (fixed/not_affected)
+/// appear in the report; affected/under_investigation CVEs are excluded.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn recommend_report_filters_inactive_vuln_statuses(
+async fn recommend_report_filters_to_addressed_vulns(
     ctx: &TrustifyContext,
 ) -> Result<(), anyhow::Error> {
     // Given CVE-2022-45787 has status "not_affected" for jakarta.el-api@3.0.3.redhat-00002
@@ -1176,14 +1176,236 @@ async fn recommend_report_filters_inactive_vuln_statuses(
         "pkg:maven/jakarta.el/jakarta.el-api@3.0.3.redhat-00002"
     );
 
-    // But the not_affected CVE does NOT appear in the vulnerabilities list
+    // And the not_affected CVE DOES appear — it is addressed by the recommendation
     let vulns = packages[0]["vulnerabilities"].as_array().unwrap();
     assert!(
-        !vulns.iter().any(|v| v.as_str() == Some("CVE-2022-45787")),
-        "CVE-2022-45787 (not_affected) should not appear in vulnerabilities, got: {vulns:?}"
+        vulns.iter().any(|v| v.as_str() == Some("CVE-2022-45787")),
+        "CVE-2022-45787 (not_affected) should appear in vulnerabilities, got: {vulns:?}"
     );
 
-    // And per-SBOM vulnerability_count reflects only active-status vulnerabilities
+    // And per-SBOM vulnerability_count reflects addressed vulnerabilities
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+    assert_eq!(report["sboms"][0]["addressable_packages"], 1);
+
+    Ok(())
+}
+
+/// Builds a minimal CSAF VEX advisory JSON with given product and vulnerability statuses.
+///
+/// `tracking_id` must be unique across ingested documents.
+/// `product_name` is the parent product context (e.g., "Test Product 1.0").
+/// `components` is a slice of `(component_name, purl)`.
+/// `vulns` is a slice of `(cve_id, csaf_status, component_indices)` where `csaf_status`
+/// is one of "fixed", "known_affected", "known_not_affected", "under_investigation"
+/// and `component_indices` indexes into the `components` slice.
+fn minimal_csaf_vex(
+    tracking_id: &str,
+    product_name: &str,
+    components: &[(&str, &str)],
+    vulns: &[(&str, &str, &[usize])],
+) -> Value {
+    let component_branches: Vec<Value> = components
+        .iter()
+        .map(|(name, purl)| {
+            json!({
+                "category": "product_version",
+                "name": name,
+                "product": {
+                    "name": name,
+                    "product_id": name,
+                    "product_identification_helper": { "purl": purl }
+                }
+            })
+        })
+        .collect();
+
+    let relationships: Vec<Value> = components
+        .iter()
+        .map(|(name, _)| {
+            json!({
+                "category": "default_component_of",
+                "full_product_name": {
+                    "name": format!("{name} as a component of {product_name}"),
+                    "product_id": format!("{product_name}:{name}")
+                },
+                "product_reference": name,
+                "relates_to_product_reference": product_name
+            })
+        })
+        .collect();
+
+    let vulnerabilities: Vec<Value> = vulns
+        .iter()
+        .map(|(cve, status, indices)| {
+            let product_ids: Vec<String> = indices
+                .iter()
+                .map(|&i| format!("{}:{}", product_name, components[i].0))
+                .collect();
+            let mut product_status = serde_json::Map::new();
+            product_status.insert(status.to_string(), json!(product_ids));
+            json!({
+                "cve": *cve,
+                "product_status": product_status
+            })
+        })
+        .collect();
+
+    json!({
+        "document": {
+            "category": "csaf_vex",
+            "csaf_version": "2.0",
+            "publisher": {
+                "category": "vendor",
+                "name": "Test Vendor",
+                "namespace": "https://test.example.com"
+            },
+            "title": format!("Test VEX {tracking_id}"),
+            "tracking": {
+                "current_release_date": "2024-01-15T00:00:00+00:00",
+                "id": tracking_id,
+                "initial_release_date": "2024-01-15T00:00:00+00:00",
+                "revision_history": [{
+                    "date": "2024-01-15T00:00:00+00:00",
+                    "number": "1",
+                    "summary": "Initial"
+                }],
+                "status": "final",
+                "version": "1"
+            }
+        },
+        "product_tree": {
+            "branches": [{
+                "category": "vendor",
+                "name": "Test Vendor",
+                "branches": [{
+                    "category": "product_name",
+                    "name": product_name,
+                    "product": {
+                        "name": product_name,
+                        "product_id": product_name
+                    }
+                }, {
+                    "category": "product_name",
+                    "name": "Components",
+                    "branches": component_branches
+                }]
+            }],
+            "relationships": relationships
+        },
+        "vulnerabilities": vulnerabilities
+    })
+}
+
+/// Verifies that only addressed CVEs (fixed/not_affected) appear; affected CVEs are excluded.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_mixed_vuln_statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given a VEX advisory where the vendor backport fixes CVE-A but not CVE-B
+    let component = "mylib-1.0.0.redhat-00001";
+    let purl = "pkg:maven/com.example/mylib@1.0.0.redhat-00001";
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-MIXED-STATUS-001",
+        "Test Product 1.0",
+        &[(component, purl)],
+        &[
+            ("CVE-TEST-FIXED", "fixed", &[0]),
+            ("CVE-TEST-AFFECTED", "known_affected", &[0]),
+        ],
+    ))
+    .await?;
+
+    // And an SBOM containing the upstream package
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-mixed-status",
+            "00000000-0000-0000-0000-100000000001",
+            &[("mylib", "1.0.0", "pkg:maven/com.example/mylib@1.0.0")],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When generating the report
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    log::info!("{report:#?}");
+
+    // Then the package appears with only the fixed CVE
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(packages.len(), 1, "expected one addressable package");
+    assert_eq!(
+        packages[0]["recommended_purl"],
+        "pkg:maven/com.example/mylib@1.0.0.redhat-00001"
+    );
+
+    let vulns: Vec<&str> = packages[0]["vulnerabilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    assert!(
+        vulns.contains(&"CVE-TEST-FIXED"),
+        "fixed CVE should appear, got: {vulns:?}"
+    );
+    assert!(
+        !vulns.contains(&"CVE-TEST-AFFECTED"),
+        "affected CVE should not appear, got: {vulns:?}"
+    );
+
+    // And counts reflect addressed vulnerabilities only
+    assert_eq!(report["impact_summary"]["addressable_packages"], 1);
+    assert_eq!(report["sboms"][0]["vulnerability_count"], 1);
+
+    Ok(())
+}
+
+/// Verifies that a package with zero fixed/not_affected CVEs is excluded from the report.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn recommend_report_excludes_unaddressed_package(
+    ctx: &TrustifyContext,
+) -> Result<(), anyhow::Error> {
+    // Given a VEX where the vendor version is affected (not fixed) for the only CVE
+    let component = "badlib-2.0.0.redhat-00001";
+    let purl = "pkg:maven/com.example/badlib@2.0.0.redhat-00001";
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-ALL-AFFECTED-001",
+        "Test Product 2.0",
+        &[(component, purl)],
+        &[("CVE-TEST-STILL-AFFECTED", "known_affected", &[0])],
+    ))
+    .await?;
+
+    // And an SBOM containing the upstream package
+    let sbom_id = Uuid::parse_str(
+        &ctx.ingest_json(minimal_cdx(
+            "sbom-all-affected",
+            "00000000-0000-0000-0000-200000000001",
+            &[("badlib", "2.0.0", "pkg:maven/com.example/badlib@2.0.0")],
+        ))
+        .await?
+        .id,
+    )?;
+
+    // When generating the report
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let report = recommend_report_req(&app, &[sbom_id]).await;
+
+    log::info!("{report:#?}");
+
+    // Then no packages appear — none are addressable
+    let packages = report["packages"].as_array().unwrap();
+    assert_eq!(
+        packages.len(),
+        0,
+        "package with zero addressed CVEs should be excluded"
+    );
+
+    // And counts reflect no addressable packages
+    assert_eq!(report["impact_summary"]["addressable_packages"], 0);
+    assert_eq!(report["sboms"][0]["addressable_packages"], 0);
     assert_eq!(report["sboms"][0]["vulnerability_count"], 0);
 
     Ok(())
