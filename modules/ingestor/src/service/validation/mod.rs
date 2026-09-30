@@ -19,8 +19,6 @@ use sea_orm::prelude::async_trait;
 use std::fmt::Debug;
 
 /// Severity of a single validation finding.
-///
-/// Ordered from least to most severe, so `>=` comparisons express a threshold.
 #[derive(
     Clone,
     Copy,

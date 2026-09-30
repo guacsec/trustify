@@ -8303,10 +8303,7 @@ components:
           description: The [`Validator::name`] that produced this report.
     ValidationSeverity:
       type: string
-      description: |-
-        Severity of a single validation finding.
-
-        Ordered from least to most severe, so `>=` comparisons express a threshold.
+      description: Severity of a single validation finding.
       enum:
       - info
       - warning
