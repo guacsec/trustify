@@ -5,6 +5,7 @@ use gloo_net::http::Request;
 use serde::de::DeserializeOwned;
 use std::fmt;
 use trustify_api::ingest::IngestFromUrlRequest;
+use trustify_client::api::types::AdvisoryDetails;
 
 #[derive(Debug)]
 pub enum ApiError {
@@ -112,7 +113,41 @@ pub async fn ingest_from_url(url: &str, token: Option<&str>) -> Result<IngestRes
     let body = IngestFromUrlRequest {
         url: url.to_string(),
     };
-    post_json("/api/v3/advisory/from-url", &body, token).await
+    post_json("/api/v3/upload/from-url", &body, token).await
+}
+
+pub async fn upload_document(bytes: &[u8], token: Option<&str>) -> Result<IngestResult, ApiError> {
+    let array = js_sys::Uint8Array::from(bytes);
+
+    let mut req =
+        Request::post("/api/v3/upload").header("Content-Type", "application/octet-stream");
+
+    if let Some(token) = token {
+        req = req.header("Authorization", &format!("Bearer {token}"));
+    }
+
+    let response = req
+        .body(array)
+        .map_err(|e| ApiError::Network(e.to_string()))?
+        .send()
+        .await
+        .map_err(|e| ApiError::Network(e.to_string()))?;
+
+    if !response.ok() {
+        let status = response.status();
+        let message = response.text().await.unwrap_or_default();
+        return Err(ApiError::Http { status, message });
+    }
+
+    response
+        .json::<IngestResult>()
+        .await
+        .map_err(|e| ApiError::Deserialize(e.to_string()))
+}
+
+pub async fn fetch_advisory(id: &str, token: Option<&str>) -> Result<AdvisoryDetails, ApiError> {
+    let url = format!("/api/v3/advisory/urn:uuid:{id}");
+    fetch_json(&url, token).await
 }
 
 pub async fn fetch_well_known() -> Result<WellKnownInfo, ApiError> {

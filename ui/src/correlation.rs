@@ -5,6 +5,7 @@ use crate::{
 use patternfly_yew::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use yew_nested_router::components::Link;
 use yew_oauth2::prelude::use_latest_access_token;
 
 #[derive(Clone, Debug, PartialEq, Properties)]
@@ -112,7 +113,12 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
                 </>
             }
             .into(),
-            VerdictColumn::Advisory => html!(&self.0.vulnerability.advisory_identifier).into(),
+            VerdictColumn::Advisory => html! {
+                <Link<AppRoute> to={AppRoute::Advisory { id: self.0.vulnerability.advisory_id.to_string() }}>
+                    { &self.0.vulnerability.advisory_identifier }
+                </Link<AppRoute>>
+            }
+            .into(),
             VerdictColumn::Status => html!(status_label(self.0.status)).into(),
             VerdictColumn::Evidence => {
                 html!(<Badge>{ self.0.evidence.len().to_string() }</Badge>).into()
@@ -140,7 +146,6 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum EvidenceColumn {
-    Dimension,
     Assertion,
     Confidence,
     Extractor,
@@ -154,15 +159,17 @@ struct EvidenceEntry(EvidenceDetail);
 impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
     fn render_cell(&self, context: CellContext<'_, EvidenceColumn>) -> Cell {
         match context.column {
-            EvidenceColumn::Dimension => {
-                html!(<Label label={self.0.match_dimension.label()} />).into()
-            }
             EvidenceColumn::Assertion => html!(self.0.assertion_status.label()).into(),
             EvidenceColumn::Confidence => {
                 html!(format!("{:.0}%", self.0.confidence * 100.0)).into()
             }
             EvidenceColumn::Extractor => html!(&self.0.extractor).into(),
-            EvidenceColumn::Advisory => html!(&self.0.advisory_identifier).into(),
+            EvidenceColumn::Advisory => html! {
+                <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
+                    { &self.0.advisory_identifier }
+                </Link<AppRoute>>
+            }
+            .into(),
             EvidenceColumn::Created => html!(&self.0.created_at).into(),
         }
     }
@@ -186,7 +193,6 @@ fn evidence_table(props: &EvidenceTableProps) -> Html {
 
     let header = html_nested! {
         <TableHeader<EvidenceColumn>>
-            <TableColumn<EvidenceColumn> label="Dimension" index={EvidenceColumn::Dimension} />
             <TableColumn<EvidenceColumn> label="Assertion" index={EvidenceColumn::Assertion} />
             <TableColumn<EvidenceColumn> label="Confidence" index={EvidenceColumn::Confidence} />
             <TableColumn<EvidenceColumn> label="Extractor" index={EvidenceColumn::Extractor} />

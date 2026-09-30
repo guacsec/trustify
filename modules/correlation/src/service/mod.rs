@@ -124,8 +124,7 @@ impl CorrelationService {
                 .push(row);
         }
 
-        let matched_node_ids: HashSet<&str> =
-            groups.keys().map(|(node_id, _)| *node_id).collect();
+        let matched_node_ids: HashSet<&str> = groups.keys().map(|(node_id, _)| *node_id).collect();
 
         let mut verdicts = Vec::with_capacity(groups.len());
         for ((node_id, vuln_id), rows) in &groups {
@@ -140,7 +139,6 @@ impl CorrelationService {
 
                     EvidenceDetail {
                         id: row.id,
-                        match_dimension: row.match_dimension.into(),
                         assertion_status: row.status.into(),
                         confidence: row.confidence,
                         extractor: row.extractor.clone(),
@@ -477,9 +475,7 @@ async fn load_unmatched_components<C: ConnectionTrait>(
         .into_iter()
         .filter(|(pkg, _)| !exclude_node_ids.contains(pkg.node_id.as_str()))
         .map(|(pkg, node)| {
-            let name = node
-                .map(|n| n.name)
-                .unwrap_or_else(|| pkg.node_id.clone());
+            let name = node.map(|n| n.name).unwrap_or_else(|| pkg.node_id.clone());
             build_component_ref(pkg.node_id, name, node_checksums, node_purls, node_cpes)
         })
         .collect();

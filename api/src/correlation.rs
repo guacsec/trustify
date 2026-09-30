@@ -59,7 +59,6 @@ pub struct VulnerabilityRef {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct EvidenceDetail {
     pub id: Uuid,
-    pub match_dimension: MatchDimension,
     pub assertion_status: AssertionStatus,
     pub confidence: f64,
     pub extractor: String,
@@ -89,26 +88,6 @@ impl VerdictStatus {
             Self::NotAffected => "Not Affected",
             Self::UnderInvestigation => "Under Investigation",
             Self::None => "None",
-        }
-    }
-}
-
-/// Match dimension describing how a piece of evidence was correlated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(rename_all = "snake_case")]
-pub enum MatchDimension {
-    Digest,
-    Purl,
-    Cpe,
-}
-
-impl MatchDimension {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Digest => "Digest",
-            Self::Purl => "PURL",
-            Self::Cpe => "CPE",
         }
     }
 }
@@ -193,9 +172,7 @@ mod entity_conversions {
     use super::*;
     use trustify_entity::{
         advisory_vulnerability_product_identifier::ProductIdentifierType,
-        correlation_evidence::{
-            AssertionStatus as EntityAssertionStatus, MatchDimension as EntityMatchDimension,
-        },
+        correlation_evidence::AssertionStatus as EntityAssertionStatus,
     };
 
     impl From<ProductIdentifierType> for QueryMatchType {
@@ -216,16 +193,6 @@ mod entity_conversions {
                 EntityAssertionStatus::NotAffected => Self::NotAffected,
                 EntityAssertionStatus::UnderInvestigation => Self::UnderInvestigation,
                 EntityAssertionStatus::Recommended => Self::Recommended,
-            }
-        }
-    }
-
-    impl From<EntityMatchDimension> for MatchDimension {
-        fn from(value: EntityMatchDimension) -> Self {
-            match value {
-                EntityMatchDimension::Digest => Self::Digest,
-                EntityMatchDimension::Purl => Self::Purl,
-                EntityMatchDimension::Cpe => Self::Cpe,
             }
         }
     }

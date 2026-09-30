@@ -1109,6 +1109,12 @@ paths:
         schema:
           type: string
           format: uuid
+      - name: include_unmatched
+        in: query
+        description: When true, include components that have no correlation evidence.
+        required: false
+        schema:
+          type: boolean
       responses:
         '200':
           description: Correlation verdicts for the SBOM
@@ -4158,6 +4164,123 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorInformation'
+  /api/v3/upload:
+    post:
+      tags:
+      - upload
+      summary: Upload a document with auto-detected format and permission checking.
+      operationId: uploadDocument
+      parameters:
+      - name: issuer
+        in: query
+        description: Optional issuer if it cannot be determined from document contents.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: labels
+        in: query
+        description: |-
+          Optional labels.
+
+          Only use keys with a prefix of `labels.`
+        required: true
+        schema:
+          $ref: '#/components/schemas/Labels'
+      - name: format
+        in: query
+        description: Optional format hint. Defaults to auto-detection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - osv
+          - csaf
+          - cve
+          - nvd
+          - spdx
+          - cyclonedx
+          - clearlydefinedcuration
+          - clearlydefined
+          - cwecatalog
+          - cisakev
+          - advisory
+          - sbom
+          - unknown
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        '201':
+          description: Document ingested successfully
+        '400':
+          description: The file could not be parsed
+        '403':
+          description: Insufficient permissions for this document type
+  /api/v3/upload/from-url:
+    post:
+      tags:
+      - upload
+      summary: Download a document from a URL and ingest it with auto-detected format.
+      operationId: uploadDocumentFromUrl
+      parameters:
+      - name: issuer
+        in: query
+        description: Optional issuer if it cannot be determined from document contents.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: labels
+        in: query
+        description: |-
+          Optional labels.
+
+          Only use keys with a prefix of `labels.`
+        required: true
+        schema:
+          $ref: '#/components/schemas/Labels'
+      - name: format
+        in: query
+        description: Optional format hint. Defaults to auto-detection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - osv
+          - csaf
+          - cve
+          - nvd
+          - spdx
+          - cyclonedx
+          - clearlydefinedcuration
+          - clearlydefined
+          - cwecatalog
+          - cisakev
+          - advisory
+          - sbom
+          - unknown
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestFromUrlRequest'
+        required: true
+      responses:
+        '201':
+          description: Document fetched and ingested
+        '400':
+          description: The document could not be parsed
+        '403':
+          description: Insufficient permissions for this document type
+        '502':
+          description: Failed to download the document from the given URL
   /api/v3/userPreference/{key}:
     get:
       tags:
@@ -5169,6 +5292,16 @@ components:
         sbom_id:
           type: string
           format: uuid
+        unmatched_components:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/ComponentRef'
+          description: |-
+            Components in the SBOM that have no correlation evidence.
+
+            `None` when not requested, `Some(vec)` when `include_unmatched=true`.
         verdicts:
           type: array
           items:
@@ -5320,7 +5453,6 @@ components:
       description: One piece of evidence from the correlation engine.
       required:
       - id
-      - match_dimension
       - assertion_status
       - confidence
       - extractor
@@ -5346,8 +5478,6 @@ components:
         id:
           type: string
           format: uuid
-        match_dimension:
-          $ref: '#/components/schemas/MatchDimension'
     Exploit:
       type: object
       description: |-
@@ -6082,13 +6212,6 @@ components:
       properties:
         license:
           type: string
-    MatchDimension:
-      type: string
-      description: Match dimension describing how a piece of evidence was correlated.
-      enum:
-      - digest
-      - purl
-      - cpe
     Message:
       type: object
       required:

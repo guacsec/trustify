@@ -1,6 +1,7 @@
 use super::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
+use trustify_auth::Permission;
 
 #[derive(
     Clone,
@@ -54,6 +55,20 @@ impl Format {
                     | Format::ClearlyDefinedCuration
             ),
             concrete => *self == concrete,
+        }
+    }
+
+    /// Return the permission required to ingest a document of this format.
+    ///
+    /// Returns `None` for abstract categories (`Advisory`, `SBOM`, `Unknown`)
+    /// since those should be resolved to a concrete format first.
+    pub fn required_permission(&self) -> Option<Permission> {
+        if self.matches_hint(Format::Advisory) {
+            Some(Permission::CreateAdvisory)
+        } else if self.matches_hint(Format::SBOM) {
+            Some(Permission::CreateSbom)
+        } else {
+            None
         }
     }
 

@@ -12,7 +12,6 @@ pub struct Model {
     pub advisory_id: Uuid,
     pub vulnerability_id: String,
     pub status: AssertionStatus,
-    pub match_dimension: MatchDimension,
     pub confidence: f64,
     pub extractor: String,
     pub created_at: TimeDateTimeWithTimeZone,
@@ -74,18 +73,4 @@ pub enum AssertionStatus {
     UnderInvestigation,
     #[sea_orm(string_value = "recommended")]
     Recommended,
-}
-
-#[derive(
-    Debug, Copy, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize, ToSchema,
-)]
-#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "match_dimension")]
-#[serde(rename_all = "snake_case")]
-pub enum MatchDimension {
-    #[sea_orm(string_value = "digest")]
-    Digest,
-    #[sea_orm(string_value = "purl")]
-    Purl,
-    #[sea_orm(string_value = "cpe")]
-    Cpe,
 }
