@@ -2,7 +2,7 @@ use crate::service::CorrelationService;
 use sea_orm::{ActiveModelTrait, Set};
 use test_context::test_context;
 use test_log::test;
-use trustify_entity::correlation_evidence::{self, AssertionStatus, MatchDimension};
+use trustify_entity::correlation_evidence::{self, AssertionStatus};
 use trustify_test_context::TrustifyContext;
 use uuid::Uuid;
 
@@ -34,7 +34,7 @@ async fn evidence_produces_verdict(ctx: &TrustifyContext) -> anyhow::Result<()> 
         advisory_id: Set(advisory_id),
         vulnerability_id: Set("CVE-2023-33201".to_string()),
         status: Set(AssertionStatus::Affected),
-        match_dimension: Set(MatchDimension::Digest),
+
         confidence: Set(0.95),
         extractor: Set("digest".to_string()),
         created_at: Set(time::OffsetDateTime::now_utc()),
@@ -73,7 +73,7 @@ async fn include_unmatched_returns_components_without_evidence(
         advisory_id: Set(advisory_id),
         vulnerability_id: Set("CVE-2023-33201".to_string()),
         status: Set(AssertionStatus::Affected),
-        match_dimension: Set(MatchDimension::Digest),
+
         confidence: Set(0.9),
         extractor: Set("digest".to_string()),
         created_at: Set(time::OffsetDateTime::now_utc()),
@@ -86,7 +86,10 @@ async fn include_unmatched_returns_components_without_evidence(
     assert_eq!(result.verdicts.len(), 1);
     assert_eq!(result.verdicts[0].component.node_id, "SPDXRef-A");
 
-    let unmatched = result.unmatched_components.as_ref().expect("should be Some");
+    let unmatched = result
+        .unmatched_components
+        .as_ref()
+        .expect("should be Some");
     assert!(
         !unmatched.is_empty(),
         "should contain components without evidence"
@@ -111,7 +114,10 @@ async fn include_unmatched_no_evidence_returns_all_components(
     let result = service.correlate_sbom(sbom_id, true, &ctx.db).await?;
 
     assert!(result.verdicts.is_empty());
-    let unmatched = result.unmatched_components.as_ref().expect("should be Some");
+    let unmatched = result
+        .unmatched_components
+        .as_ref()
+        .expect("should be Some");
     assert!(
         !unmatched.is_empty(),
         "should contain all package components"

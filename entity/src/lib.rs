@@ -42,6 +42,7 @@ pub mod sbom_license_expanded;
 pub mod sbom_node;
 pub mod sbom_node_checksum;
 pub mod sbom_node_cpe_ref;
+pub mod sbom_node_product_identifier;
 pub mod sbom_node_purl_ref;
 pub mod sbom_package;
 pub mod sbom_package_license;

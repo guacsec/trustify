@@ -1,10 +1,11 @@
-use crate::api;
+use crate::{AppRoute, api};
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::{
     AssertionStatus, QueryMatch, QueryResult, QueryVerdict, VerdictStatus,
 };
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use yew_nested_router::components::Link;
 use yew_oauth2::prelude::use_latest_access_token;
 
 #[function_component(QueryPage)]
@@ -176,7 +177,12 @@ impl TableEntryRenderer<MatchColumn> for MatchEntry {
         match context.column {
             MatchColumn::MatchType => html!(<Label label={self.0.match_type.label()} />).into(),
             MatchColumn::Value => html!(&self.0.value).into(),
-            MatchColumn::Advisory => html!(&self.0.advisory_identifier).into(),
+            MatchColumn::Advisory => html! {
+                <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
+                    { &self.0.advisory_identifier }
+                </Link<AppRoute>>
+            }
+            .into(),
             MatchColumn::Status => html!(assertion_label(self.0.status)).into(),
         }
     }

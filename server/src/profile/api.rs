@@ -516,6 +516,7 @@ impl InitData {
             },
             ingestor: trustify_module_ingestor::endpoints::Config {
                 dataset_entry_limit: run.dataset_entry_limit.into(),
+                upload_limit: run.sbom_upload_limit.into(),
             },
             ui: trustify_module_ui::endpoints::Config {
                 scan_limit: run.scan_limit.into(),

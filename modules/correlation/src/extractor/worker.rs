@@ -1,4 +1,4 @@
-use crate::extractor::digest::DigestExtractor;
+use crate::extractor::{digest::DigestExtractor, product_identifier::ProductIdentifierExtractor};
 use sea_orm::TransactionTrait;
 use tokio::sync::broadcast;
 use trustify_common::db::{
@@ -52,11 +52,13 @@ async fn handle_change(entry: &ChangeEntry, db: &db::ReadWrite) -> Result<(), cr
         ChangeEntity::Sbom => {
             let tx = db.begin().await?;
             DigestExtractor::extract_for_sbom(entity_id, &tx).await?;
+            ProductIdentifierExtractor::extract_for_sbom(entity_id, &tx).await?;
             tx.commit().await?;
         }
         ChangeEntity::Advisory => {
             let tx = db.begin().await?;
             DigestExtractor::extract_for_advisory(entity_id, &tx).await?;
+            ProductIdentifierExtractor::extract_for_advisory(entity_id, &tx).await?;
             tx.commit().await?;
         }
     }

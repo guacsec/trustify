@@ -4,8 +4,7 @@ use std::collections::HashMap;
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::{db::chunk::EntityChunkedIter, hashing::normalize_algorithm};
 use trustify_entity::{
-    advisory_vulnerability_hash, correlation_evidence,
-    correlation_evidence::{AssertionStatus, MatchDimension},
+    advisory_vulnerability_hash, correlation_evidence, correlation_evidence::AssertionStatus,
     sbom_node_checksum,
 };
 use uuid::Uuid;
@@ -16,18 +15,11 @@ const DIGEST_NAMESPACE: Uuid = Uuid::from_bytes([
 ]);
 
 /// Generates a deterministic UUID for a correlation evidence row.
-fn evidence_uuid(
-    sbom_id: Uuid,
-    node_id: &str,
-    advisory_id: Uuid,
-    vulnerability_id: &str,
-    dimension: MatchDimension,
-) -> Uuid {
+fn evidence_uuid(sbom_id: Uuid, node_id: &str, advisory_id: Uuid, vulnerability_id: &str) -> Uuid {
     let mut id = Uuid::new_v5(&DIGEST_NAMESPACE, sbom_id.as_bytes());
     id = Uuid::new_v5(&id, node_id.as_bytes());
     id = Uuid::new_v5(&id, advisory_id.as_bytes());
     id = Uuid::new_v5(&id, vulnerability_id.as_bytes());
-    id = Uuid::new_v5(&id, format!("{dimension:?}").as_bytes());
     id
 }
 
@@ -70,13 +62,8 @@ impl DigestExtractor {
             if let Some(entries) = value_map.get(ah.value.as_str()) {
                 for (node_id, normalized_algo) in entries {
                     if *normalized_algo == ah.algorithm {
-                        let id = evidence_uuid(
-                            sbom_id,
-                            node_id,
-                            ah.advisory_id,
-                            &ah.vulnerability_id,
-                            MatchDimension::Digest,
-                        );
+                        let id =
+                            evidence_uuid(sbom_id, node_id, ah.advisory_id, &ah.vulnerability_id);
                         models.push(correlation_evidence::ActiveModel {
                             id: Set(id),
                             sbom_id: Set(sbom_id),
@@ -84,7 +71,6 @@ impl DigestExtractor {
                             advisory_id: Set(ah.advisory_id),
                             vulnerability_id: Set(ah.vulnerability_id.clone()),
                             status: Set(ah.status),
-                            match_dimension: Set(MatchDimension::Digest),
                             confidence: Set(1.0),
                             extractor: Set(EXTRACTOR_ID.to_string()),
                             created_at: Set(time::OffsetDateTime::now_utc()),
@@ -146,13 +132,7 @@ impl DigestExtractor {
             if let Some(entries) = value_map.get(cs.value.as_str()) {
                 for (vuln_id, algo, status) in entries {
                     if normalized_algo == *algo {
-                        let id = evidence_uuid(
-                            cs.sbom_id,
-                            &cs.node_id,
-                            advisory_id,
-                            vuln_id,
-                            MatchDimension::Digest,
-                        );
+                        let id = evidence_uuid(cs.sbom_id, &cs.node_id, advisory_id, vuln_id);
                         models.push(correlation_evidence::ActiveModel {
                             id: Set(id),
                             sbom_id: Set(cs.sbom_id),
@@ -160,7 +140,6 @@ impl DigestExtractor {
                             advisory_id: Set(advisory_id),
                             vulnerability_id: Set(vuln_id.to_string()),
                             status: Set(*status),
-                            match_dimension: Set(MatchDimension::Digest),
                             confidence: Set(1.0),
                             extractor: Set(EXTRACTOR_ID.to_string()),
                             created_at: Set(time::OffsetDateTime::now_utc()),
