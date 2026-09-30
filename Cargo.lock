@@ -2090,21 +2090,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "csaf"
-version = "0.5.0"
-source = "git+https://github.com/scm-rs/csaf-rs?branch=main#3b95cd16d78de713a94eb136856b62bcb74617be"
-dependencies = [
- "chrono",
- "cpe",
- "packageurl 0.7.1",
- "serde",
- "serde_json",
- "serde_with",
- "tempfile",
- "url",
-]
-
-[[package]]
 name = "csaf-rs"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9204,7 +9189,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-api"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "serde",
  "time",
@@ -9215,7 +9200,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-auth"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9248,7 +9233,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-cli"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -9288,7 +9273,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-common"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -9349,7 +9334,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-correlation-ui"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "browser-panic-hook",
  "gloo-file",
@@ -9376,7 +9361,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-db"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "anyhow",
  "log",
@@ -9392,10 +9377,10 @@ dependencies = [
 
 [[package]]
 name = "trustify-entity"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "cpe",
- "csaf",
+ "csaf-rs",
  "cvss",
  "cvss-rs 0.4.0",
  "deepsize",
@@ -9415,7 +9400,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-infrastructure"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-cors",
  "actix-tls",
@@ -9449,12 +9434,12 @@ dependencies = [
 
 [[package]]
 name = "trustify-migration"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "anyhow",
  "bytes",
  "clap",
- "csaf",
+ "csaf-rs",
  "cve",
  "futures",
  "futures-util",
@@ -9483,7 +9468,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-analysis"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9524,7 +9509,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-correlation"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9551,7 +9536,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-exploit-intelligence"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -9584,7 +9569,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-fundamental"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9593,7 +9578,7 @@ dependencies = [
  "chrono",
  "cpe",
  "criterion",
- "csaf",
+ "csaf-rs",
  "csv",
  "cve",
  "flate2",
@@ -9660,7 +9645,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-importer"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9719,7 +9704,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-ingestor"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9728,7 +9713,7 @@ dependencies = [
  "bytes",
  "cpe",
  "criterion",
- "csaf",
+ "csaf-rs",
  "cve",
  "cvss-rs 0.4.0",
  "hex",
@@ -9769,6 +9754,7 @@ dependencies = [
  "trustify-module-analysis",
  "trustify-module-storage",
  "trustify-test-context",
+ "url",
  "utoipa",
  "utoipa-actix-web",
  "uuid",
@@ -9778,7 +9764,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-notification"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-web",
  "actix-ws",
@@ -9804,7 +9790,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-storage"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -9834,7 +9820,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-ui"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-web",
  "actix-web-static-files",
@@ -9856,7 +9842,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-module-user"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9878,14 +9864,14 @@ dependencies = [
 
 [[package]]
 name = "trustify-query"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "utoipa",
 ]
 
 [[package]]
 name = "trustify-query-derive"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "quote",
  "syn 2.0.119",
@@ -9893,7 +9879,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-server"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -9938,7 +9924,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-test-context"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "actix-http",
  "actix-web",
@@ -9988,7 +9974,7 @@ dependencies = [
 
 [[package]]
 name = "trustify-trustd"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -11051,7 +11037,7 @@ checksum = "66fee0b777b0f5ac1c69bb06d361268faafa61cd4682ae064a171c16c433e9e4"
 
 [[package]]
 name = "xtask"
-version = "0.6.0-rc.1"
+version = "0.7.0-rc.1"
 dependencies = [
  "anyhow",
  "bytes",
