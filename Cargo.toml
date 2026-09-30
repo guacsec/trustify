@@ -76,8 +76,7 @@ fixedbitset = "0.5.7"
 flate2 = "1.0.35"
 futures = "0.3.30"
 futures-util = "0.3"
-#garage-door = "0.2.0"
-garage-door = { path = "../garage-door" }
+garage-door = "0.2.1"
 git2 = { version = "0.21.0", features = ["https", "ssh"] }
 hex = "0.4.3"
 hide = "0.1.5"
