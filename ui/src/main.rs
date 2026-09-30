@@ -1,3 +1,4 @@
+mod advisory;
 mod api;
 mod correlation;
 mod ingest;
@@ -5,6 +6,7 @@ mod model;
 mod query;
 mod sbom_list;
 
+use advisory::AdvisoryPage;
 use browser_panic_hook::{CustomBody, IntoPanicHook};
 use correlation::CorrelationView;
 use ingest::IngestPage;
@@ -19,6 +21,7 @@ use yew_nested_router::{
     Target,
     prelude::{Switch as RouterSwitch, *},
 };
+use url::Url;
 use yew_oauth2::{components::redirect::router::openid::RouterRedirect, openid, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Target)]
@@ -27,6 +30,9 @@ pub enum AppRoute {
     #[target(index)]
     SbomList,
     Correlation {
+        id: String,
+    },
+    Advisory {
         id: String,
     },
     Query,
@@ -110,7 +116,15 @@ fn app() -> Html {
                 .split_whitespace()
                 .map(String::from)
                 .collect::<Vec<_>>();
-            let login_options = LoginOptions::new().with_nested_router_redirect();
+            let redirect_url = gloo_utils::window()
+                .location()
+                .origin()
+                .expect("origin");
+            let login_options = LoginOptions::new()
+                .with_redirect_url(
+                    Url::parse(&redirect_url).expect("redirect url"),
+                )
+                .with_nested_router_redirect();
             html! {
                 <Router<AppRoute> default={AppRoute::SbomList}>
                     <openid::OAuth2 {config} {scopes} login_options={login_options}>
@@ -164,6 +178,11 @@ fn switch_route(target: AppRoute) -> Html {
         AppRoute::Correlation { id } => html! {
             <AppPage>
                 <CorrelationView sbom_id={id} />
+            </AppPage>
+        },
+        AppRoute::Advisory { id } => html! {
+            <AppPage>
+                <AdvisoryPage advisory_id={id} />
             </AppPage>
         },
         AppRoute::Query => html! {
