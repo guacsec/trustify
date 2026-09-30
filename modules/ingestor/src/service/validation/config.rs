@@ -5,9 +5,7 @@
 
 use crate::service::{
     Format,
-    validation::{
-        OnError, ScheckValidator, Severity, ValidationMode, Validator, csaf, scheck,
-    },
+    validation::{OnError, ScheckValidator, Severity, ValidationMode, Validator, csaf, scheck},
 };
 use anyhow::Context;
 use std::{fs, path::PathBuf, sync::Arc};
