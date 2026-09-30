@@ -1308,8 +1308,8 @@ async fn recommend_report_mixed_vuln_statuses(ctx: &TrustifyContext) -> Result<(
         "Test Product 1.0",
         &[(component, purl)],
         &[
-            ("CVE-TEST-FIXED", "fixed", &[0]),
-            ("CVE-TEST-AFFECTED", "known_affected", &[0]),
+            ("CVE-2024-90001", "fixed", &[0]),
+            ("CVE-2024-90002", "known_affected", &[0]),
         ],
     ))
     .await?;
@@ -1346,11 +1346,11 @@ async fn recommend_report_mixed_vuln_statuses(ctx: &TrustifyContext) -> Result<(
         .filter_map(|v| v.as_str())
         .collect();
     assert!(
-        vulns.contains(&"CVE-TEST-FIXED"),
+        vulns.contains(&"CVE-2024-90001"),
         "fixed CVE should appear, got: {vulns:?}"
     );
     assert!(
-        !vulns.contains(&"CVE-TEST-AFFECTED"),
+        !vulns.contains(&"CVE-2024-90002"),
         "affected CVE should not appear, got: {vulns:?}"
     );
 
@@ -1374,7 +1374,7 @@ async fn recommend_report_excludes_unaddressed_package(
         "TEST-ALL-AFFECTED-001",
         "Test Product 2.0",
         &[(component, purl)],
-        &[("CVE-TEST-STILL-AFFECTED", "known_affected", &[0])],
+        &[("CVE-2024-90003", "known_affected", &[0])],
     ))
     .await?;
 
