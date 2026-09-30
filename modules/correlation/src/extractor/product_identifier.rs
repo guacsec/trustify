@@ -1,4 +1,8 @@
-use crate::{error::Error, evidence::load_product_identifiers_by_values};
+use crate::{
+    error::Error,
+    evidence::{load_product_identifiers_by_values, load_wildcard_product_identifiers},
+    wildcard::{csaf_glob_matches, csaf_glob_to_like, has_wildcards},
+};
 use sea_orm::{ActiveValue::Set, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
 use std::collections::HashMap;
 use tracing::{Instrument, info_span, instrument};
@@ -72,8 +76,39 @@ impl ProductIdentifierExtractor {
                             status: Set(ap.status),
                             confidence: Set(1.0),
                             extractor: Set(EXTRACTOR_ID.to_string()),
+                            matched_value: Set(Some(ap.value.clone())),
                             created_at: Set(time::OffsetDateTime::now_utc()),
                         });
+                    }
+                }
+            }
+        }
+
+        let wildcard_pids = load_wildcard_product_identifiers(connection).await?;
+        for ap in &wildcard_pids {
+            for (&sbom_value, entries) in &value_map {
+                if csaf_glob_matches(&ap.value, sbom_value) {
+                    for (node_id, id_type) in entries {
+                        if *id_type == ap.identifier_type {
+                            let id = evidence_uuid(
+                                sbom_id,
+                                node_id,
+                                ap.advisory_id,
+                                &ap.vulnerability_id,
+                            );
+                            models.push(correlation_evidence::ActiveModel {
+                                id: Set(id),
+                                sbom_id: Set(sbom_id),
+                                node_id: Set(node_id.to_string()),
+                                advisory_id: Set(ap.advisory_id),
+                                vulnerability_id: Set(ap.vulnerability_id.clone()),
+                                status: Set(ap.status),
+                                confidence: Set(1.0),
+                                extractor: Set(EXTRACTOR_ID.to_string()),
+                                matched_value: Set(Some(ap.value.clone())),
+                                created_at: Set(time::OffsetDateTime::now_utc()),
+                            });
+                        }
                     }
                 }
             }
@@ -121,27 +156,52 @@ impl ProductIdentifierExtractor {
             ));
         }
 
-        let unique_values: Vec<&str> = value_map.keys().copied().collect();
-        let sbom_pids = load_sbom_product_identifiers_by_values(unique_values, connection).await?;
+        let (exact_values, wildcard_values): (Vec<&str>, Vec<&str>) =
+            value_map.keys().copied().partition(|v| !has_wildcards(v));
+
+        let sbom_pids = load_sbom_product_identifiers_by_values(exact_values, connection).await?;
+
+        let mut wildcard_sbom_pids = Vec::new();
+        for pattern in &wildcard_values {
+            let like = csaf_glob_to_like(pattern);
+            let rows = sbom_node_product_identifier::Entity::find()
+                .filter(sbom_node_product_identifier::Column::Value.like(&like))
+                .all(connection)
+                .instrument(info_span!("loading sbom identifiers by wildcard"))
+                .await?;
+            wildcard_sbom_pids.extend(rows);
+        }
+
+        let all_sbom_pids = sbom_pids.iter().chain(wildcard_sbom_pids.iter());
 
         let mut models = Vec::new();
-        for si in &sbom_pids {
-            if let Some(entries) = value_map.get(si.value.as_str()) {
-                for (vuln_id, id_type, status) in entries {
-                    if si.identifier_type == *id_type {
-                        let id = evidence_uuid(si.sbom_id, &si.node_id, advisory_id, vuln_id);
-                        models.push(correlation_evidence::ActiveModel {
-                            id: Set(id),
-                            sbom_id: Set(si.sbom_id),
-                            node_id: Set(si.node_id.clone()),
-                            advisory_id: Set(advisory_id),
-                            vulnerability_id: Set(vuln_id.to_string()),
-                            status: Set(*status),
-                            confidence: Set(1.0),
-                            extractor: Set(EXTRACTOR_ID.to_string()),
-                            created_at: Set(time::OffsetDateTime::now_utc()),
-                        });
+        for si in all_sbom_pids {
+            let matching_entries = value_map
+                .iter()
+                .filter(|(pattern, _)| {
+                    if has_wildcards(pattern) {
+                        csaf_glob_matches(pattern, &si.value)
+                    } else {
+                        **pattern == si.value.as_str()
                     }
+                })
+                .flat_map(|(pattern, entries)| entries.iter().map(move |e| (*pattern, e)));
+
+            for (pattern, (vuln_id, id_type, status)) in matching_entries {
+                if si.identifier_type == *id_type {
+                    let id = evidence_uuid(si.sbom_id, &si.node_id, advisory_id, vuln_id);
+                    models.push(correlation_evidence::ActiveModel {
+                        id: Set(id),
+                        sbom_id: Set(si.sbom_id),
+                        node_id: Set(si.node_id.clone()),
+                        advisory_id: Set(advisory_id),
+                        vulnerability_id: Set(vuln_id.to_string()),
+                        status: Set(*status),
+                        confidence: Set(1.0),
+                        extractor: Set(EXTRACTOR_ID.to_string()),
+                        matched_value: Set(Some(pattern.to_string())),
+                        created_at: Set(time::OffsetDateTime::now_utc()),
+                    });
                 }
             }
         }
@@ -292,6 +352,57 @@ mod test {
 
         let count = ProductIdentifierExtractor::extract_for_sbom(sbom_id, &ctx.db).await?;
         assert_eq!(count, 0, "no advisory means no matches");
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(actix_web::test)]
+    async fn wildcard_sku_match_from_sbom(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let sbom = ctx
+            .ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4.cdx.json")
+            .await?;
+        let advisory = ctx
+            .ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0004.json")
+            .await?;
+
+        let sbom_id = Uuid::parse_str(&sbom.id)?;
+        let advisory_id = Uuid::parse_str(&advisory.id)?;
+
+        let count = ProductIdentifierExtractor::extract_for_sbom(sbom_id, &ctx.db).await?;
+        assert!(count > 0, "wildcard SKU pattern should match");
+
+        let evidence = correlation_evidence::Entity::find()
+            .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+            .filter(correlation_evidence::Column::AdvisoryId.eq(advisory_id))
+            .filter(correlation_evidence::Column::Extractor.eq(EXTRACTOR_ID))
+            .all(&ctx.db)
+            .await?;
+        assert!(
+            !evidence.is_empty(),
+            "wildcard SKU-based evidence should exist"
+        );
+        assert_eq!(evidence[0].vulnerability_id, "CVE-2026-50001");
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(actix_web::test)]
+    async fn wildcard_match_from_advisory(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        ctx.ingest_document("scenarios/S19_sku_correlation/sbom/jbl_flip4.cdx.json")
+            .await?;
+        let advisory = ctx
+            .ingest_document("scenarios/S19_sku_correlation/vex/hbsa-2025-0004.json")
+            .await?;
+
+        let advisory_id = Uuid::parse_str(&advisory.id)?;
+
+        let count = ProductIdentifierExtractor::extract_for_advisory(advisory_id, &ctx.db).await?;
+        assert!(
+            count > 0,
+            "wildcard advisory patterns should match SBOM values"
+        );
 
         Ok(())
     }

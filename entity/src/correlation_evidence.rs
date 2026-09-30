@@ -14,6 +14,7 @@ pub struct Model {
     pub status: AssertionStatus,
     pub confidence: f64,
     pub extractor: String,
+    pub matched_value: Option<String>,
     pub created_at: TimeDateTimeWithTimeZone,
 }
 

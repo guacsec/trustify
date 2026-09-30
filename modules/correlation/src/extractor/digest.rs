@@ -73,6 +73,7 @@ impl DigestExtractor {
                             status: Set(ah.status),
                             confidence: Set(1.0),
                             extractor: Set(EXTRACTOR_ID.to_string()),
+                            matched_value: Set(Some(format!("{}:{}", ah.algorithm, ah.value))),
                             created_at: Set(time::OffsetDateTime::now_utc()),
                         });
                     }
@@ -142,6 +143,7 @@ impl DigestExtractor {
                             status: Set(*status),
                             confidence: Set(1.0),
                             extractor: Set(EXTRACTOR_ID.to_string()),
+                            matched_value: Set(Some(format!("{}:{}", algo, cs.value))),
                             created_at: Set(time::OffsetDateTime::now_utc()),
                         });
                     }

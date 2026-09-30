@@ -149,6 +149,7 @@ enum EvidenceColumn {
     Assertion,
     Confidence,
     Extractor,
+    MatchedValue,
     Advisory,
     Created,
 }
@@ -164,6 +165,9 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 html!(format!("{:.0}%", self.0.confidence * 100.0)).into()
             }
             EvidenceColumn::Extractor => html!(&self.0.extractor).into(),
+            EvidenceColumn::MatchedValue => {
+                html!(self.0.matched_value.as_deref().unwrap_or("\u{2014}")).into()
+            }
             EvidenceColumn::Advisory => html! {
                 <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
                     { &self.0.advisory_identifier }
@@ -196,6 +200,7 @@ fn evidence_table(props: &EvidenceTableProps) -> Html {
             <TableColumn<EvidenceColumn> label="Assertion" index={EvidenceColumn::Assertion} />
             <TableColumn<EvidenceColumn> label="Confidence" index={EvidenceColumn::Confidence} />
             <TableColumn<EvidenceColumn> label="Extractor" index={EvidenceColumn::Extractor} />
+            <TableColumn<EvidenceColumn> label="Matched Value" index={EvidenceColumn::MatchedValue} />
             <TableColumn<EvidenceColumn> label="Advisory" index={EvidenceColumn::Advisory} />
             <TableColumn<EvidenceColumn> label="Created" index={EvidenceColumn::Created} />
         </TableHeader<EvidenceColumn>>
@@ -216,6 +221,7 @@ enum UnmatchedColumn {
     Purls,
     Cpes,
     Digests,
+    ProductIdentifiers,
 }
 
 #[derive(Clone, PartialEq)]
@@ -233,6 +239,15 @@ impl TableEntryRenderer<UnmatchedColumn> for UnmatchedEntry {
                     .digests
                     .iter()
                     .map(|d| format!("{}:{}", d.algorithm, d.value))
+                    .collect();
+                render_string_list(&items).into()
+            }
+            UnmatchedColumn::ProductIdentifiers => {
+                let items: Vec<String> = self
+                    .0
+                    .product_identifiers
+                    .iter()
+                    .map(|p| format!("{}: {}", p.identifier_type.label(), p.value))
                     .collect();
                 render_string_list(&items).into()
             }
@@ -305,6 +320,7 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
             <TableColumn<UnmatchedColumn> label="PURLs" index={UnmatchedColumn::Purls} />
             <TableColumn<UnmatchedColumn> label="CPEs" index={UnmatchedColumn::Cpes} />
             <TableColumn<UnmatchedColumn> label="Digests" index={UnmatchedColumn::Digests} />
+            <TableColumn<UnmatchedColumn> label="Product IDs" index={UnmatchedColumn::ProductIdentifiers} />
         </TableHeader<UnmatchedColumn>>
     };
 

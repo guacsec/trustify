@@ -34,6 +34,7 @@ pub struct ComponentRef {
     pub purls: Vec<String>,
     pub cpes: Vec<String>,
     pub digests: Vec<DigestRef>,
+    pub product_identifiers: Vec<ProductIdentifierRef>,
 }
 
 /// A checksum on a component.
@@ -41,6 +42,34 @@ pub struct ComponentRef {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct DigestRef {
     pub algorithm: String,
+    pub value: String,
+}
+
+/// The type of product identifier on a component.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ProductIdentifierType {
+    ModelNumber,
+    SerialNumber,
+    Sku,
+}
+
+impl ProductIdentifierType {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::ModelNumber => "Model Number",
+            Self::SerialNumber => "Serial Number",
+            Self::Sku => "SKU",
+        }
+    }
+}
+
+/// A product identifier on a component (model number, serial number, or SKU).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct ProductIdentifierRef {
+    pub identifier_type: ProductIdentifierType,
     pub value: String,
 }
 
@@ -64,6 +93,8 @@ pub struct EvidenceDetail {
     pub extractor: String,
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matched_value: Option<String>,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
 }
@@ -171,16 +202,26 @@ impl QueryMatchType {
 mod entity_conversions {
     use super::*;
     use trustify_entity::{
-        advisory_vulnerability_product_identifier::ProductIdentifierType,
+        advisory_vulnerability_product_identifier::ProductIdentifierType as EntityProductIdentifierType,
         correlation_evidence::AssertionStatus as EntityAssertionStatus,
     };
 
-    impl From<ProductIdentifierType> for QueryMatchType {
-        fn from(value: ProductIdentifierType) -> Self {
+    impl From<EntityProductIdentifierType> for QueryMatchType {
+        fn from(value: EntityProductIdentifierType) -> Self {
             match value {
-                ProductIdentifierType::ModelNumber => Self::ModelNumber,
-                ProductIdentifierType::SerialNumber => Self::SerialNumber,
-                ProductIdentifierType::Sku => Self::Sku,
+                EntityProductIdentifierType::ModelNumber => Self::ModelNumber,
+                EntityProductIdentifierType::SerialNumber => Self::SerialNumber,
+                EntityProductIdentifierType::Sku => Self::Sku,
+            }
+        }
+    }
+
+    impl From<EntityProductIdentifierType> for super::ProductIdentifierType {
+        fn from(value: EntityProductIdentifierType) -> Self {
+            match value {
+                EntityProductIdentifierType::ModelNumber => Self::ModelNumber,
+                EntityProductIdentifierType::SerialNumber => Self::SerialNumber,
+                EntityProductIdentifierType::Sku => Self::Sku,
             }
         }
     }
