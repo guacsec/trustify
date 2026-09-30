@@ -245,6 +245,10 @@ impl SbomService {
                         .join(JoinType::InnerJoin, sbom_node::Relation::Crypto.def().rev())
                         .select_only()
                         .column(sbom_crypto::Column::SbomId)
+                        .filter(
+                            sbom_crypto::Column::AssetType
+                                .eq(sbom_crypto::CryptoAssetType::Algorithm),
+                        )
                         .filter(sbom_node::Column::Name.is_in(crypto_names))
                         .into_query(),
                 ),
