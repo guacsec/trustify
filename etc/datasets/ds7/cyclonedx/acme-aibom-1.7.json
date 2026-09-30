@@ -1,0 +1,186 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:9f2c6f1e-7a3d-4c88-9f0b-3d1a5b6c7e04",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-01-15T09:15:00Z",
+    "lifecycles": [
+      {
+        "phase": "design"
+      }
+    ],
+    "authors": [
+      {
+        "name": "Acme ML Platform",
+        "email": "ml-platform@acme.example"
+      }
+    ],
+    "supplier": {
+      "name": "Acme Corporation"
+    },
+    "distributionConstraints": {
+      "tlp": "GREEN"
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "acme-assistant",
+      "name": "Acme Assistant",
+      "version": "1.0.0",
+      "purl": "pkg:generic/acme-assistant@1.0.0"
+    }
+  },
+  "components": [
+    {
+      "type": "machine-learning-model",
+      "bom-ref": "acme-summarizer-model",
+      "name": "acme-summarizer",
+      "group": "acme",
+      "version": "1.0",
+      "purl": "pkg:huggingface/acme/acme-summarizer@1.0",
+      "publisher": "Acme Corporation",
+      "description": "Instruction-tuned summarization model shipped with Acme Assistant",
+      "manufacturer": {
+        "name": "Acme Corporation",
+        "url": ["https://acme.example"]
+      },
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://acme.example/models/acme-summarizer"
+        },
+        {
+          "type": "model-card",
+          "url": "https://acme.example/models/acme-summarizer/model-card"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0"
+        }
+      ],
+      "modelCard": {
+        "bom-ref": "acme-summarizer-model-card",
+        "modelParameters": {
+          "approach": {
+            "type": "supervised"
+          },
+          "task": "summarization",
+          "architectureFamily": "transformer",
+          "modelArchitecture": "AcmeSummarizerForConditionalGeneration",
+          "inputs": [
+            {
+              "format": "text"
+            }
+          ],
+          "outputs": [
+            {
+              "format": "generated-text"
+            }
+          ],
+          "datasets": [
+            {
+              "type": "dataset",
+              "bom-ref": "acme-summaries-dataset",
+              "name": "acme-internal-summaries",
+              "contents": {
+                "url": "https://acme.example/datasets/acme-internal-summaries"
+              },
+              "classification": "internal"
+            }
+          ]
+        },
+        "quantitativeAnalysis": {
+          "performanceMetrics": [
+            {
+              "type": "rouge-l",
+              "value": "0.41",
+              "slice": "internal-eval-2026-01"
+            }
+          ]
+        },
+        "considerations": {
+          "useCases": ["Summarizing internal support tickets"],
+          "ethicalConsiderations": [
+            {
+              "name": "Hallucination",
+              "mitigationStrategy": "Summaries are shown alongside the source document"
+            }
+          ]
+        },
+        "properties": [
+          {
+            "name": "primaryPurpose",
+            "value": "text-summarization"
+          },
+          {
+            "name": "typeOfModel",
+            "value": "encoder-decoder"
+          },
+          {
+            "name": "suppliedBy",
+            "value": "Acme Corporation"
+          },
+          {
+            "name": "downloadLocation",
+            "value": "https://acme.example/models/acme-summarizer/tree/main"
+          },
+          {
+            "name": "safetyRiskAssessment",
+            "value": "Reviewed under the Acme AI risk policy; approved for internal use only."
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "acme-inference-runtime",
+      "name": "acme-inference-runtime",
+      "group": "com.acme",
+      "version": "0.7.2",
+      "purl": "pkg:pypi/acme-inference-runtime@0.7.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "torch-runtime",
+      "name": "torch",
+      "isExternal": true,
+      "versionRange": "vers:pypi/>=2.4.0|<3.0.0",
+      "scope": "required",
+      "description": "Supplied by the inference image, not bundled with the assistant"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "acme-assistant",
+      "dependsOn": ["acme-summarizer-model", "acme-inference-runtime"]
+    },
+    {
+      "ref": "acme-summarizer-model",
+      "dependsOn": ["acme-inference-runtime"]
+    },
+    {
+      "ref": "acme-inference-runtime",
+      "dependsOn": ["torch-runtime"]
+    },
+    {
+      "ref": "torch-runtime",
+      "dependsOn": []
+    }
+  ]
+}

@@ -60,3 +60,34 @@ The dump can be loaded to the database like:
 ```shell
 cat dump-ds4.sql | env PGPASSWORD=trustify psql -U postgres -d trustify -h localhost -p 5432 -v ON_ERROR_STOP=1
 ```
+
+## DS7
+
+Hand-written CycloneDX 1.7 SBOMs. Small enough to read and edit, but between them they
+cover the ingestion paths we care about, plus the fields that 1.7 added on top of 1.6
+(`component.isExternal`, `component.versionRange`, `component.patentAssertions`,
+`metadata.distributionConstraints.tlp`, top-level `citations`,
+`algorithmProperties.algorithmFamily` / `.ellipticCurve`, and `relatedCryptographicAssets`).
+
+| File | Covers |
+|---|---|
+| `acme-application-1.7.json` | purls, CPEs, license expressions, hashes, `evidence.identity`, external components with a `vers` range, patent assertions, citations |
+| `acme-container-1.7.json` | container/operating-system/file components, RPM purls, `provides` (→ `GeneratedFrom`), pedigree ancestors and variants |
+| `acme-cbom-1.7.json` | cryptographic assets: PQC (ML-KEM, ML-DSA), classical (AES, ECDSA) and weak (RSA-1024, SHA-1) algorithms, a TLS protocol asset, a certificate and key material |
+| `acme-aibom-1.7.json` | a `machine-learning-model` component with a model card |
+| `acme-licensing-1.7.json` | `LicenseRef` licenses with plain and base64 text, a license expression referring to one, SPDX ids and name-only licenses |
+
+The algorithms in the CBOM are picked so that the PQC policy produces one of each verdict:
+ML-KEM/ML-DSA are compliant, RSA-1024 and SHA-1 are non-compliant, AES and ECDSA warn.
+
+Create the archive:
+
+```shell
+make -C etc/datasets ds7.zip
+```
+
+And upload it to a running instance:
+
+```shell
+http POST localhost:8080/api/v3/dataset @etc/datasets/ds7.zip
+```

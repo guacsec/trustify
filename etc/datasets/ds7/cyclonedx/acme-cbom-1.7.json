@@ -1,0 +1,329 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:9f2c6f1e-7a3d-4c88-9f0b-3d1a5b6c7e03",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-01-15T09:10:00Z",
+    "lifecycles": [
+      {
+        "phase": "operations"
+      }
+    ],
+    "authors": [
+      {
+        "name": "Acme Cryptography Inventory",
+        "email": "crypto-inventory@acme.example"
+      }
+    ],
+    "supplier": {
+      "name": "Acme Corporation"
+    },
+    "distributionConstraints": {
+      "tlp": "AMBER_AND_STRICT"
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "acme-tls-gateway",
+      "name": "Acme TLS Gateway",
+      "version": "2.4.0",
+      "purl": "pkg:generic/acme-tls-gateway@2.4.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "acme-crypto-provider",
+      "name": "acme-crypto-provider",
+      "version": "1.8.0",
+      "purl": "pkg:generic/acme-crypto-provider@1.8.0"
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-ml-kem-768",
+      "name": "ML-KEM-768",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "kem",
+          "algorithmFamily": "ML-KEM",
+          "parameterSetIdentifier": "768",
+          "executionEnvironment": "software-plain-ram",
+          "implementationPlatform": "x86_64",
+          "certificationLevel": ["fips140-3-l1"],
+          "cryptoFunctions": ["keygen", "encapsulate", "decapsulate"],
+          "nistQuantumSecurityLevel": 3
+        },
+        "oid": "2.16.840.1.101.3.4.4.2"
+      }
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-ml-dsa-65",
+      "name": "ML-DSA-65",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "algorithmFamily": "ML-DSA",
+          "parameterSetIdentifier": "65",
+          "cryptoFunctions": ["keygen", "sign", "verify"],
+          "nistQuantumSecurityLevel": 3
+        },
+        "oid": "2.16.840.1.101.3.4.3.18"
+      }
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-aes-256-gcm",
+      "name": "AES-256-GCM",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "ae",
+          "algorithmFamily": "AES",
+          "parameterSetIdentifier": "256",
+          "mode": "gcm",
+          "cryptoFunctions": ["keygen", "encrypt", "decrypt", "tag"],
+          "classicalSecurityLevel": 256,
+          "nistQuantumSecurityLevel": 1
+        },
+        "oid": "2.16.840.1.101.3.4.1.46"
+      }
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-ecdsa-p256",
+      "name": "ECDSA",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "algorithmFamily": "ECDSA",
+          "ellipticCurve": "nist/P-256",
+          "cryptoFunctions": ["keygen", "sign", "verify"],
+          "classicalSecurityLevel": 128,
+          "nistQuantumSecurityLevel": 0
+        },
+        "oid": "1.2.840.10045.4.3.2"
+      }
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-rsa-1024",
+      "name": "RSA-1024",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "signature",
+          "algorithmFamily": "RSASSA-PKCS1",
+          "parameterSetIdentifier": "1024",
+          "padding": "pkcs1v15",
+          "cryptoFunctions": ["sign", "verify"],
+          "classicalSecurityLevel": 80,
+          "nistQuantumSecurityLevel": 0
+        },
+        "oid": "1.2.840.113549.1.1.5"
+      }
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-sha-1",
+      "name": "SHA-1",
+      "cryptoProperties": {
+        "assetType": "algorithm",
+        "algorithmProperties": {
+          "primitive": "hash",
+          "algorithmFamily": "SHA-1",
+          "cryptoFunctions": ["digest"],
+          "classicalSecurityLevel": 80,
+          "nistQuantumSecurityLevel": 0
+        },
+        "oid": "1.3.14.3.2.26"
+      }
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-tls-1-3",
+      "name": "TLSv1.3",
+      "cryptoProperties": {
+        "assetType": "protocol",
+        "protocolProperties": {
+          "type": "tls",
+          "version": "1.3",
+          "cipherSuites": [
+            {
+              "name": "TLS_AES_256_GCM_SHA384",
+              "algorithms": ["crypto-aes-256-gcm"],
+              "identifiers": ["0x13-0x02"]
+            }
+          ],
+          "relatedCryptographicAssets": [
+            {
+              "type": "algorithm",
+              "ref": "crypto-ml-kem-768"
+            },
+            {
+              "type": "algorithm",
+              "ref": "crypto-ecdsa-p256"
+            }
+          ]
+        },
+        "oid": "1.3.18.0.2.32.104"
+      }
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-cert-gateway",
+      "name": "gateway.acme.example",
+      "cryptoProperties": {
+        "assetType": "certificate",
+        "certificateProperties": {
+          "subjectName": "CN=gateway.acme.example, O=Acme Corporation, C=US",
+          "issuerName": "CN=Acme Internal Issuing CA, O=Acme Corporation, C=US",
+          "notValidBefore": "2026-01-01T00:00:00Z",
+          "notValidAfter": "2027-01-01T00:00:00Z",
+          "certificateFormat": "X.509",
+          "certificateFileExtension": "crt",
+          "serialNumber": "0A1B2C3D4E5F60718293A4B5C6D7E8F9",
+          "fingerprint": {
+            "alg": "SHA-256",
+            "content": "c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5061728394a5b6c7d8e9f0a1b2"
+          },
+          "certificateState": [
+            {
+              "state": "active"
+            }
+          ],
+          "signatureAlgorithmRef": "crypto-ecdsa-p256",
+          "subjectPublicKeyRef": "crypto-key-gateway-public",
+          "relatedCryptographicAssets": [
+            {
+              "type": "publicKey",
+              "ref": "crypto-key-gateway-public"
+            },
+            {
+              "type": "algorithm",
+              "ref": "crypto-ecdsa-p256"
+            }
+          ]
+        },
+        "oid": "1.3.6.1.5.5.7.3.1"
+      }
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-key-gateway-public",
+      "name": "gateway.acme.example public key",
+      "cryptoProperties": {
+        "assetType": "related-crypto-material",
+        "relatedCryptoMaterialProperties": {
+          "type": "public-key",
+          "id": "gateway-2026",
+          "state": "active",
+          "algorithmRef": "crypto-ecdsa-p256",
+          "creationDate": "2026-01-01T00:00:00Z",
+          "activationDate": "2026-01-01T00:00:00Z",
+          "expirationDate": "2027-01-01T00:00:00Z",
+          "size": 256,
+          "format": "SubjectPublicKeyInfo",
+          "fingerprint": {
+            "alg": "SHA-256",
+            "content": "d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5061728394a5b6c7d8e9f0a1b2c3"
+          },
+          "relatedCryptographicAssets": [
+            {
+              "type": "algorithm",
+              "ref": "crypto-ecdsa-p256"
+            }
+          ]
+        },
+        "oid": "1.2.840.10045.2.1"
+      }
+    },
+    {
+      "type": "cryptographic-asset",
+      "bom-ref": "crypto-legacy-signing-key",
+      "name": "legacy artifact signing key",
+      "cryptoProperties": {
+        "assetType": "related-crypto-material",
+        "relatedCryptoMaterialProperties": {
+          "type": "private-key",
+          "id": "legacy-signing-2019",
+          "state": "deactivated",
+          "algorithmRef": "crypto-rsa-1024",
+          "creationDate": "2019-03-01T00:00:00Z",
+          "size": 1024,
+          "relatedCryptographicAssets": [
+            {
+              "type": "algorithm",
+              "ref": "crypto-rsa-1024"
+            }
+          ]
+        },
+        "oid": "1.2.840.113549.1.1.1"
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "acme-tls-gateway",
+      "dependsOn": ["acme-crypto-provider"]
+    },
+    {
+      "ref": "acme-crypto-provider",
+      "provides": [
+        "crypto-ml-kem-768",
+        "crypto-ml-dsa-65",
+        "crypto-aes-256-gcm",
+        "crypto-ecdsa-p256",
+        "crypto-rsa-1024",
+        "crypto-sha-1",
+        "crypto-tls-1-3",
+        "crypto-cert-gateway",
+        "crypto-key-gateway-public",
+        "crypto-legacy-signing-key"
+      ]
+    },
+    {
+      "ref": "crypto-tls-1-3",
+      "dependsOn": ["crypto-aes-256-gcm", "crypto-ml-kem-768", "crypto-ecdsa-p256"]
+    },
+    {
+      "ref": "crypto-cert-gateway",
+      "dependsOn": ["crypto-key-gateway-public", "crypto-ecdsa-p256", "crypto-sha-1"]
+    },
+    {
+      "ref": "crypto-key-gateway-public",
+      "dependsOn": ["crypto-ecdsa-p256"]
+    },
+    {
+      "ref": "crypto-legacy-signing-key",
+      "dependsOn": ["crypto-rsa-1024"]
+    },
+    {
+      "ref": "crypto-ml-kem-768",
+      "dependsOn": []
+    },
+    {
+      "ref": "crypto-ml-dsa-65",
+      "dependsOn": []
+    },
+    {
+      "ref": "crypto-aes-256-gcm",
+      "dependsOn": []
+    },
+    {
+      "ref": "crypto-ecdsa-p256",
+      "dependsOn": []
+    },
+    {
+      "ref": "crypto-rsa-1024",
+      "dependsOn": []
+    },
+    {
+      "ref": "crypto-sha-1",
+      "dependsOn": []
+    }
+  ]
+}

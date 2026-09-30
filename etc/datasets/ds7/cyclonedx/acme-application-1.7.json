@@ -1,0 +1,217 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:9f2c6f1e-7a3d-4c88-9f0b-3d1a5b6c7e01",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-01-15T09:00:00Z",
+    "lifecycles": [
+      {
+        "phase": "build"
+      }
+    ],
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "bom-ref": "tool-acme-sbom-generator",
+          "name": "acme-sbom-generator",
+          "version": "2.0.0"
+        }
+      ]
+    },
+    "authors": [
+      {
+        "bom-ref": "author-jane-doe",
+        "name": "Jane Doe",
+        "email": "jane.doe@acme.example"
+      }
+    ],
+    "supplier": {
+      "bom-ref": "supplier-acme",
+      "name": "Acme Corporation",
+      "url": ["https://acme.example"]
+    },
+    "manufacturer": {
+      "bom-ref": "manufacturer-acme",
+      "name": "Acme Corporation"
+    },
+    "licenses": [
+      {
+        "license": {
+          "id": "CC-BY-4.0"
+        }
+      }
+    ],
+    "distributionConstraints": {
+      "tlp": "AMBER"
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "acme-application",
+      "name": "Acme Application",
+      "version": "3.1.0",
+      "description": "Sample product used to exercise CycloneDX 1.7 ingestion",
+      "publisher": "Acme Corporation",
+      "purl": "pkg:maven/com.acme/acme-application@3.1.0",
+      "cpe": "cpe:/a:acme:acme_application:3.1.0",
+      "supplier": {
+        "name": "Acme Corporation"
+      }
+    }
+  },
+  "citations": [
+    {
+      "bom-ref": "citation-core-purl",
+      "pointers": ["/components/0/purl"],
+      "timestamp": "2026-01-15T09:00:00Z",
+      "attributedTo": "tool-acme-sbom-generator"
+    },
+    {
+      "bom-ref": "citation-crypto-shim-identity",
+      "expressions": ["$.components[?(@['bom-ref']=='acme-crypto-shim')].evidence"],
+      "timestamp": "2026-01-15T09:00:00Z",
+      "attributedTo": "author-jane-doe"
+    }
+  ],
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "acme-core",
+      "name": "acme-core",
+      "group": "com.acme",
+      "version": "1.2.0",
+      "purl": "pkg:maven/com.acme/acme-core@1.2.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 AND MIT"
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8a7b0f4d1c2e3a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "acme-utils",
+      "name": "acme-utils",
+      "group": "com.acme",
+      "version": "1.2.0",
+      "purl": "pkg:maven/com.acme/acme-utils@1.2.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "acme-crypto-shim",
+      "name": "acme-crypto-shim",
+      "group": "com.acme",
+      "version": "0.9.4",
+      "evidence": {
+        "identity": [
+          {
+            "field": "purl",
+            "confidence": 0.9,
+            "concludedValue": "pkg:maven/com.acme/acme-crypto-shim@0.9.4",
+            "methods": [
+              {
+                "technique": "filename",
+                "confidence": 0.9,
+                "value": "acme-crypto-shim-0.9.4.jar"
+              }
+            ]
+          },
+          {
+            "field": "cpe",
+            "confidence": 0.6,
+            "concludedValue": "cpe:/a:acme:acme_crypto_shim:0.9.4"
+          }
+        ]
+      }
+    },
+    {
+      "type": "library",
+      "bom-ref": "acme-patented-codec",
+      "name": "acme-patented-codec",
+      "group": "com.acme",
+      "version": "4.0.1",
+      "purl": "pkg:maven/com.acme/acme-patented-codec@4.0.1",
+      "patentAssertions": [
+        {
+          "bom-ref": "assertion-codec-ownership",
+          "assertionType": "ownership",
+          "asserter": "manufacturer-acme",
+          "patentRefs": ["patent-us987654321"],
+          "notes": "Acme owns the patent covering the codec implemented by this component."
+        }
+      ]
+    },
+    {
+      "type": "framework",
+      "bom-ref": "jdk-runtime",
+      "name": "OpenJDK Runtime",
+      "isExternal": true,
+      "versionRange": "vers:generic/>=17.0.0|<22.0.0",
+      "scope": "required",
+      "description": "Provided by the deployment environment, not bundled with the product"
+    },
+    {
+      "type": "application",
+      "bom-ref": "postgres-server",
+      "name": "PostgreSQL",
+      "isExternal": true,
+      "versionRange": "vers:generic/>=15.0.0|<17.0.0",
+      "scope": "required"
+    }
+  ],
+  "definitions": {
+    "patents": [
+      {
+        "bom-ref": "patent-us987654321",
+        "patentNumber": "US987654321",
+        "applicationNumber": "US20240000123",
+        "jurisdiction": "US",
+        "patentLegalStatus": "granted",
+        "title": "Method for encoding sample data"
+      }
+    ]
+  },
+  "dependencies": [
+    {
+      "ref": "acme-application",
+      "dependsOn": ["acme-core", "jdk-runtime", "postgres-server"]
+    },
+    {
+      "ref": "acme-core",
+      "dependsOn": ["acme-utils", "acme-crypto-shim", "acme-patented-codec"]
+    },
+    {
+      "ref": "acme-utils",
+      "dependsOn": []
+    },
+    {
+      "ref": "acme-crypto-shim",
+      "dependsOn": []
+    },
+    {
+      "ref": "acme-patented-codec",
+      "dependsOn": []
+    },
+    {
+      "ref": "jdk-runtime",
+      "dependsOn": []
+    },
+    {
+      "ref": "postgres-server",
+      "dependsOn": []
+    }
+  ]
+}

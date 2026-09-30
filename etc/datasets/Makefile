@@ -1,5 +1,5 @@
 .PHONY: all
-all: ds1.zip ds3.zip
+all: ds1.zip ds3.zip ds7.zip
 
 .PHONY: ds1.zip
 ds1.zip:
@@ -15,6 +15,11 @@ ds3.zip:
 ds3-sboms.zip:
 	-rm ds3-sbom.zip
 	cd ds3 && zip -r ../ds3-sboms.zip ./spdx
+
+.PHONY: ds7.zip
+ds7.zip:
+	-rm ds7.zip
+	cd ds7 && zip -r ../ds7.zip .
 
 TRUSTIFY_UI_REPO ?= https://github.com/trustification/trustify-ui.git
 TRUSTIFY_UI_BRANCH ?= main

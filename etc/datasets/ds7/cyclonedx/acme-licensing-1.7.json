@@ -1,0 +1,154 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:9f2c6f1e-7a3d-4c88-9f0b-3d1a5b6c7e05",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-01-15T09:20:00Z",
+    "authors": [
+      {
+        "name": "Acme Compliance",
+        "email": "compliance@acme.example"
+      }
+    ],
+    "supplier": {
+      "name": "Acme Corporation"
+    },
+    "licenses": [
+      {
+        "license": {
+          "id": "CC0-1.0"
+        }
+      }
+    ],
+    "distributionConstraints": {
+      "tlp": "RED"
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "acme-licensing-sample",
+      "name": "Acme Licensing Sample",
+      "version": "1.0.0",
+      "purl": "pkg:generic/acme-licensing-sample@1.0.0"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "acme-eula-component",
+      "name": "acme-proprietary-engine",
+      "version": "2.0.0",
+      "purl": "pkg:generic/acme-proprietary-engine@2.0.0",
+      "licenses": [
+        {
+          "license": {
+            "bom-ref": "LicenseRef-acme-eula",
+            "name": "Acme End User License Agreement",
+            "url": "https://acme.example/legal/eula",
+            "text": {
+              "contentType": "text/plain",
+              "content": "This software is licensed, not sold. Redistribution requires written consent from Acme Corporation."
+            },
+            "licensing": {
+              "licenseTypes": ["perpetual"],
+              "purchaseOrder": "PO-2026-0042"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "acme-base64-licensed",
+      "name": "acme-oem-adapter",
+      "version": "1.1.0",
+      "purl": "pkg:generic/acme-oem-adapter@1.1.0",
+      "licenses": [
+        {
+          "license": {
+            "bom-ref": "LicenseRef-acme-oem",
+            "name": "Acme OEM License",
+            "text": {
+              "contentType": "text/plain",
+              "encoding": "base64",
+              "content": "UmVkaXN0cmlidXRpb24gaXMgcGVybWl0dGVkIHNvbGVseSBhcyBwYXJ0IG9mIGFuIEFjbWUgT0VNIGJ1bmRsZS4="
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "acme-dual-licensed",
+      "name": "acme-shared-utils",
+      "version": "3.2.1",
+      "purl": "pkg:generic/acme-shared-utils@3.2.1",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR LicenseRef-acme-eula"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "acme-spdx-licensed",
+      "name": "acme-json-parser",
+      "version": "0.4.0",
+      "purl": "pkg:generic/acme-json-parser@0.4.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "url": "https://spdx.org/licenses/MIT.html"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "acme-named-licensed",
+      "name": "acme-legacy-codec",
+      "version": "0.1.0",
+      "purl": "pkg:generic/acme-legacy-codec@0.1.0",
+      "licenses": [
+        {
+          "license": {
+            "name": "Acme Legacy License"
+          }
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "acme-licensing-sample",
+      "dependsOn": [
+        "acme-eula-component",
+        "acme-base64-licensed",
+        "acme-dual-licensed",
+        "acme-spdx-licensed",
+        "acme-named-licensed"
+      ]
+    },
+    {
+      "ref": "acme-eula-component",
+      "dependsOn": []
+    },
+    {
+      "ref": "acme-base64-licensed",
+      "dependsOn": []
+    },
+    {
+      "ref": "acme-dual-licensed",
+      "dependsOn": []
+    },
+    {
+      "ref": "acme-spdx-licensed",
+      "dependsOn": []
+    },
+    {
+      "ref": "acme-named-licensed",
+      "dependsOn": []
+    }
+  ]
+}

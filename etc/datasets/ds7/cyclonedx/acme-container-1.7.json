@@ -1,0 +1,152 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:9f2c6f1e-7a3d-4c88-9f0b-3d1a5b6c7e02",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-01-15T09:05:00Z",
+    "lifecycles": [
+      {
+        "phase": "post-build"
+      }
+    ],
+    "authors": [
+      {
+        "name": "Acme Release Engineering",
+        "email": "release@acme.example"
+      }
+    ],
+    "supplier": {
+      "name": "Acme Corporation",
+      "url": ["https://acme.example"]
+    },
+    "distributionConstraints": {
+      "tlp": "CLEAR"
+    },
+    "component": {
+      "type": "container",
+      "bom-ref": "acme-app-container",
+      "name": "acme/app-container",
+      "version": "3.1.0",
+      "publisher": "Acme Corporation",
+      "purl": "pkg:oci/app-container@sha256%3A6b1c0d2f3a4e5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4?repository_url=registry.acme.example/acme/app-container&tag=3.1.0",
+      "cpe": "cpe:/a:acme:app_container:3.1.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "6b1c0d2f3a4e5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "operating-system",
+      "bom-ref": "rhel-9.2",
+      "name": "Red Hat Enterprise Linux",
+      "version": "9.2",
+      "cpe": "cpe:/o:redhat:enterprise_linux:9.2::baseos"
+    },
+    {
+      "type": "library",
+      "bom-ref": "openssl-src",
+      "name": "openssl",
+      "version": "3.0.7-18.el9_2",
+      "purl": "pkg:rpm/redhat/openssl@3.0.7-18.el9_2?arch=src",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "openssl-libs-x86_64",
+      "name": "openssl-libs",
+      "version": "3.0.7-18.el9_2",
+      "purl": "pkg:rpm/redhat/openssl-libs@3.0.7-18.el9_2?arch=x86_64",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1f2e3d4c5b6a798807162534435261708a9b0c1d2e3f405162738495a6b7c8d9"
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "bom-ref": "file-libssl-so-3",
+      "name": "/usr/lib64/libssl.so.3.0.7",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "acme-agent",
+      "name": "acme-agent",
+      "group": "com.acme",
+      "version": "3.1.0-redhat-00001",
+      "purl": "pkg:maven/com.acme/acme-agent@3.1.0-redhat-00001?repository_url=https://maven.repository.redhat.com/ga/",
+      "pedigree": {
+        "ancestors": [
+          {
+            "type": "library",
+            "bom-ref": "acme-agent-upstream",
+            "name": "acme-agent",
+            "group": "com.acme",
+            "version": "3.1.0",
+            "purl": "pkg:maven/com.acme/acme-agent@3.1.0"
+          }
+        ],
+        "variants": [
+          {
+            "type": "library",
+            "bom-ref": "acme-agent-fips",
+            "name": "acme-agent-fips",
+            "group": "com.acme",
+            "version": "3.1.0-redhat-00001",
+            "purl": "pkg:maven/com.acme/acme-agent-fips@3.1.0-redhat-00001"
+          }
+        ]
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "acme-app-container",
+      "dependsOn": ["rhel-9.2", "openssl-libs-x86_64", "acme-agent", "file-libssl-so-3"]
+    },
+    {
+      "ref": "openssl-src",
+      "provides": ["openssl-libs-x86_64"]
+    },
+    {
+      "ref": "openssl-libs-x86_64",
+      "dependsOn": ["file-libssl-so-3"]
+    },
+    {
+      "ref": "rhel-9.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "acme-agent",
+      "dependsOn": []
+    },
+    {
+      "ref": "file-libssl-so-3",
+      "dependsOn": []
+    }
+  ]
+}
