@@ -37,6 +37,7 @@ async fn evidence_produces_verdict(ctx: &TrustifyContext) -> anyhow::Result<()> 
 
         confidence: Set(0.95),
         extractor: Set("digest".to_string()),
+        matched_value: Set(None),
         created_at: Set(time::OffsetDateTime::now_utc()),
     };
     evidence.insert(&ctx.db).await?;
@@ -76,6 +77,7 @@ async fn include_unmatched_returns_components_without_evidence(
 
         confidence: Set(0.9),
         extractor: Set("digest".to_string()),
+        matched_value: Set(None),
         created_at: Set(time::OffsetDateTime::now_utc()),
     };
     evidence.insert(&ctx.db).await?;

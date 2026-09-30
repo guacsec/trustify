@@ -5217,6 +5217,7 @@ components:
       - purls
       - cpes
       - digests
+      - product_identifiers
       properties:
         cpes:
           type: array
@@ -5230,6 +5231,10 @@ components:
           type: string
         node_id:
           type: string
+        product_identifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductIdentifierRef'
         purls:
           type: array
           items:
@@ -5478,6 +5483,10 @@ components:
         id:
           type: string
           format: uuid
+        matched_value:
+          type:
+          - string
+          - 'null'
     Exploit:
       type: object
       description: |-
@@ -7231,6 +7240,24 @@ components:
           type: string
         name:
           type: string
+    ProductIdentifierRef:
+      type: object
+      description: A product identifier on a component (model number, serial number, or SKU).
+      required:
+      - identifier_type
+      - value
+      properties:
+        identifier_type:
+          $ref: '#/components/schemas/ProductIdentifierType'
+        value:
+          type: string
+    ProductIdentifierType:
+      type: string
+      description: The type of product identifier on a component.
+      enum:
+      - model_number
+      - serial_number
+      - sku
     ProductSbomHead:
       type: object
       required:

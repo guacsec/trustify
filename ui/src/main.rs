@@ -14,6 +14,7 @@ use patternfly_yew::prelude::*;
 use query::QueryPage;
 use sbom_list::SbomList;
 use trustify_api::FrontendOidcInfo;
+use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use yew::{Renderer, prelude::*, set_custom_panic_hook};
@@ -21,7 +22,6 @@ use yew_nested_router::{
     Target,
     prelude::{Switch as RouterSwitch, *},
 };
-use url::Url;
 use yew_oauth2::{components::redirect::router::openid::RouterRedirect, openid, prelude::*};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Target)]
@@ -116,14 +116,9 @@ fn app() -> Html {
                 .split_whitespace()
                 .map(String::from)
                 .collect::<Vec<_>>();
-            let redirect_url = gloo_utils::window()
-                .location()
-                .origin()
-                .expect("origin");
+            let redirect_url = gloo_utils::window().location().origin().expect("origin");
             let login_options = LoginOptions::new()
-                .with_redirect_url(
-                    Url::parse(&redirect_url).expect("redirect url"),
-                )
+                .with_redirect_url(Url::parse(&redirect_url).expect("redirect url"))
                 .with_nested_router_redirect();
             html! {
                 <Router<AppRoute> default={AppRoute::SbomList}>

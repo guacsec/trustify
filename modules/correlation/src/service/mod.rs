@@ -1,10 +1,15 @@
 use crate::{
     error::Error,
-    evidence::{load_advisory_hashes_by_values, load_product_identifiers_by_values},
-    model::{
-        ComponentRef, CorrelationResult, DigestRef, EvidenceDetail, QueryMatch, QueryMatchType,
-        QueryResult, QueryVerdict, VerdictStatus, VerdictSummary, VulnerabilityRef,
+    evidence::{
+        load_advisory_hashes_by_values, load_product_identifiers_by_values,
+        load_wildcard_product_identifiers,
     },
+    model::{
+        ComponentRef, CorrelationResult, DigestRef, EvidenceDetail, ProductIdentifierRef,
+        QueryMatch, QueryMatchType, QueryResult, QueryVerdict, VerdictStatus, VerdictSummary,
+        VulnerabilityRef,
+    },
+    wildcard::csaf_glob_matches,
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, LoaderTrait, QueryFilter};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -12,8 +17,8 @@ use tracing::{Instrument, info_span, instrument};
 use trustify_common::purl::Purl;
 use trustify_entity::{
     advisory, correlation_evidence, correlation_evidence::AssertionStatus, cpe, qualified_purl,
-    sbom_node, sbom_node_checksum, sbom_node_cpe_ref, sbom_node_purl_ref, sbom_package,
-    vulnerability,
+    sbom, sbom_node, sbom_node_checksum, sbom_node_cpe_ref, sbom_node_product_identifier,
+    sbom_node_purl_ref, vulnerability,
 };
 use uuid::Uuid;
 
@@ -55,6 +60,7 @@ impl CorrelationService {
 
         let node_purls = load_node_purls(sbom_id, connection).await?;
         let node_cpes = load_node_cpes(sbom_id, connection).await?;
+        let node_pids = load_node_product_identifiers(sbom_id, connection).await?;
 
         if evidence_rows.is_empty() {
             let unmatched_components = if include_unmatched {
@@ -65,6 +71,7 @@ impl CorrelationService {
                         &node_checksums,
                         &node_purls,
                         &node_cpes,
+                        &node_pids,
                         connection,
                     )
                     .await?,
@@ -144,6 +151,7 @@ impl CorrelationService {
                         extractor: row.extractor.clone(),
                         advisory_id: row.advisory_id,
                         advisory_identifier,
+                        matched_value: row.matched_value.clone(),
                         created_at: row.created_at,
                     }
                 })
@@ -167,6 +175,7 @@ impl CorrelationService {
                     &node_checksums,
                     &node_purls,
                     &node_cpes,
+                    &node_pids,
                 ),
                 vulnerability: VulnerabilityRef {
                     id: vuln_id.to_string(),
@@ -187,6 +196,7 @@ impl CorrelationService {
                     &node_checksums,
                     &node_purls,
                     &node_cpes,
+                    &node_pids,
                     connection,
                 )
                 .await?,
@@ -216,7 +226,14 @@ impl CorrelationService {
         let query_slice: &[&str] = &[query];
 
         let hash_rows = load_advisory_hashes_by_values(query_slice, connection).await?;
-        let pid_rows = load_product_identifiers_by_values(query_slice, connection).await?;
+        let mut pid_rows = load_product_identifiers_by_values(query_slice, connection).await?;
+
+        let wildcard_pids = load_wildcard_product_identifiers(connection).await?;
+        pid_rows.extend(
+            wildcard_pids
+                .into_iter()
+                .filter(|ap| csaf_glob_matches(&ap.value, query)),
+        );
 
         if hash_rows.is_empty() && pid_rows.is_empty() {
             return Ok(QueryResult {
@@ -442,6 +459,7 @@ fn build_component_ref(
     node_checksums: &HashMap<&str, Vec<DigestRef>>,
     node_purls: &HashMap<String, Vec<String>>,
     node_cpes: &HashMap<String, Vec<String>>,
+    node_pids: &HashMap<String, Vec<ProductIdentifierRef>>,
 ) -> ComponentRef {
     ComponentRef {
         digests: node_checksums
@@ -450,33 +468,74 @@ fn build_component_ref(
             .unwrap_or_default(),
         purls: node_purls.get(&node_id).cloned().unwrap_or_default(),
         cpes: node_cpes.get(&node_id).cloned().unwrap_or_default(),
+        product_identifiers: node_pids.get(&node_id).cloned().unwrap_or_default(),
         node_id,
         name,
     }
 }
 
-/// Load all package components for an SBOM, excluding those in the matched set.
+/// Load product identifiers for each node in the SBOM.
+async fn load_node_product_identifiers<C: ConnectionTrait>(
+    sbom_id: Uuid,
+    connection: &C,
+) -> Result<HashMap<String, Vec<ProductIdentifierRef>>, Error> {
+    let rows = sbom_node_product_identifier::Entity::find()
+        .filter(sbom_node_product_identifier::Column::SbomId.eq(sbom_id))
+        .all(connection)
+        .instrument(info_span!("loading product identifiers"))
+        .await?;
+
+    let mut result: HashMap<String, Vec<ProductIdentifierRef>> = HashMap::new();
+    for row in rows {
+        result
+            .entry(row.node_id)
+            .or_default()
+            .push(ProductIdentifierRef {
+                identifier_type: row.identifier_type.into(),
+                value: row.value,
+            });
+    }
+
+    Ok(result)
+}
+
+/// Load all components for an SBOM, excluding those in the matched set.
 async fn load_unmatched_components<C: ConnectionTrait>(
     sbom_id: Uuid,
     exclude_node_ids: &HashSet<&str>,
     node_checksums: &HashMap<&str, Vec<DigestRef>>,
     node_purls: &HashMap<String, Vec<String>>,
     node_cpes: &HashMap<String, Vec<String>>,
+    node_pids: &HashMap<String, Vec<ProductIdentifierRef>>,
     connection: &C,
 ) -> Result<Vec<ComponentRef>, Error> {
-    let packages = sbom_package::Entity::find()
-        .filter(sbom_package::Column::SbomId.eq(sbom_id))
-        .find_also_related(sbom_node::Entity)
+    let root_node_id = sbom::Entity::find_by_id(sbom_id)
+        .one(connection)
+        .instrument(info_span!("loading sbom root"))
+        .await?
+        .map(|s| s.node_id);
+
+    let nodes = sbom_node::Entity::find()
+        .filter(sbom_node::Column::SbomId.eq(sbom_id))
         .all(connection)
-        .instrument(info_span!("loading sbom packages"))
+        .instrument(info_span!("loading sbom nodes"))
         .await?;
 
-    let components = packages
+    let components = nodes
         .into_iter()
-        .filter(|(pkg, _)| !exclude_node_ids.contains(pkg.node_id.as_str()))
-        .map(|(pkg, node)| {
-            let name = node.map(|n| n.name).unwrap_or_else(|| pkg.node_id.clone());
-            build_component_ref(pkg.node_id, name, node_checksums, node_purls, node_cpes)
+        .filter(|n| {
+            !exclude_node_ids.contains(n.node_id.as_str())
+                && root_node_id.as_deref() != Some(n.node_id.as_str())
+        })
+        .map(|n| {
+            build_component_ref(
+                n.node_id,
+                n.name,
+                node_checksums,
+                node_purls,
+                node_cpes,
+                node_pids,
+            )
         })
         .collect();
 
