@@ -17,7 +17,7 @@ use test_context::test_context;
 use test_log::test;
 use trustify_common::{
     db::{self, pagination_cache::PaginationCache},
-    feature::CapabilityFilter,
+    feature::{CapabilityDisabled, CapabilityFilter},
 };
 use trustify_test_context::{ReadOnly, TrustifyContext, app::TestApp};
 use utoipa_actix_web::AppExt;
@@ -62,18 +62,20 @@ fn mock_importer(result: &Importer, source: impl Into<String>) -> Importer {
 async fn app(
     ctx: &TrustifyContext,
 ) -> impl Service<Request, Response = ServiceResponse<BoxBody>, Error = actix_web::Error> {
+    app_with(ctx, CapabilityFilter::default()).await
+}
+
+async fn app_with(
+    ctx: &TrustifyContext,
+    importer_filter: CapabilityFilter,
+) -> impl Service<Request, Response = ServiceResponse<BoxBody>, Error = actix_web::Error> {
     let db = db::ReadWrite::new(ctx.db.clone());
     actix::init_service(
         App::new()
             .into_utoipa_app()
             .add_test_authorizer()
             .service(utoipa_actix_web::scope("/api").configure(|svc| {
-                super::endpoints::configure(
-                    svc,
-                    db,
-                    PaginationCache::for_test(),
-                    CapabilityFilter::default(),
-                )
+                super::endpoints::configure(svc, db, PaginationCache::for_test(), importer_filter)
             }))
             .into_app(),
     )
@@ -494,4 +496,72 @@ async fn http_importer_round_trip(ctx: TrustifyContext) {
         .to_request();
     let resp = actix::call_service(&app, req).await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
+#[test_context(TrustifyContext, skip_teardown)]
+#[test(actix_web::test)]
+async fn capability_disabled(ctx: TrustifyContext) {
+    // create one, while the importer type is still enabled
+
+    let app = app(&ctx).await;
+    let req = actix::TestRequest::post()
+        .uri("/api/v3/importer/foo")
+        .set_json(mock_configuration("bar"))
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::CREATED);
+
+    // now disable the type
+
+    use strum::VariantNames;
+    let filter = CapabilityFilter::new(
+        "importer",
+        ImporterConfiguration::VARIANTS,
+        &[],
+        &["sbom".into()],
+    );
+    let app = app_with(&ctx, filter.clone()).await;
+
+    // forcing a run must fail
+
+    let req = actix::TestRequest::post()
+        .uri("/api/v3/importer/foo/force")
+        .to_request();
+    let resp = actix::call_service(&app, req).await;
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    // enabling must fail, disabling must work
+
+    for (state, status) in [
+        (true, StatusCode::UNPROCESSABLE_ENTITY),
+        (false, StatusCode::NO_CONTENT),
+    ] {
+        let req = actix::TestRequest::put()
+            .uri("/api/v3/importer/foo/enabled")
+            .set_json(state)
+            .to_request();
+        let resp = actix::call_service(&app, req).await;
+        assert_eq!(resp.status(), status, "enabled: {state}");
+    }
+
+    // the error gets recorded once
+
+    let service = super::service::ImporterService::new(
+        db::ReadWrite::new(ctx.db.clone()),
+        PaginationCache::for_test(),
+        filter,
+    );
+    let err = CapabilityDisabled {
+        kind: "importer".into(),
+        name: "sbom".into(),
+    };
+    assert!(service.mark_capability_disabled("foo", &err).await.unwrap());
+    assert!(!service.mark_capability_disabled("foo", &err).await.unwrap());
+
+    let req = actix::TestRequest::get()
+        .uri("/api/v3/importer/foo")
+        .to_request();
+    let result: Importer = actix::call_and_read_body_json(&app, req).await;
+    assert_eq!(result.data.last_error, Some(err.to_string()));
+    assert_eq!(result.data.last_run, None);
 }

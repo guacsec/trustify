@@ -359,7 +359,7 @@ impl IngestorService {
         limit: usize,
         tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<DatasetIngestResult, Error> {
-        let loader = DatasetLoader::new(&self.graph, self.storage(), limit);
+        let loader = DatasetLoader::new(&self.graph, self.storage(), &self.format_filter, limit);
         loader.load(labels.into(), bytes, tx).await
     }
 
