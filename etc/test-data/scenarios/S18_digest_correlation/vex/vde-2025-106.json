@@ -158,7 +158,7 @@
                                 "value": "d62b79b11e2ec822514b5b75fc7733e274b7efc722a3d099e10c4e1184dcf849"
                               }
                             ],
-                            "file_name": "twincat.hmi.server.14.4.267.nupkg"
+                            "filename": "twincat.hmi.server.14.4.267.nupkg"
                           }
                         ],
                         "purl": "pkg:tcpkg/beckhoff/TwinCAT.HMI.Server@14.4.267"
@@ -197,7 +197,7 @@
                                 "value": "b1bde82c12d72c509edf40908f9f752a49de1274f712aebf0612f2f1bb870413"
                               }
                             ],
-                            "file_name": "TF2000-HMI-Server-14.4.267.0.pkg"
+                            "filename": "TF2000-HMI-Server-14.4.267.0.pkg"
                           }
                         ],
                         "purl": "pkg:bsd/beckhoff/TF2000-HMI-Server@14.4.267"
@@ -238,7 +238,7 @@
                                     "value": "0c8612f70c9f0cdcd8ae36b77622130d633db7a3203e1365e5be5210c131a795"
                                   }
                                 ],
-                                "file_name": "tf2000-hmi-server-14.4.267.0_arm64.deb"
+                                "filename": "tf2000-hmi-server-14.4.267.0_arm64.deb"
                               }
                             ],
                             "purl": "pkg:deb/beckhoff/tf2000-hmi-server@14.4.267?arch=arm64"
@@ -277,7 +277,7 @@
                                     "value": "cb9fbc60ed97dffa9f71542b49a95d607c09e241210a69e83d8643e475d4256e"
                                   }
                                 ],
-                                "file_name": "tf2000-hmi-server-14.4.267.0_amd64.deb"
+                                "filename": "tf2000-hmi-server-14.4.267.0_amd64.deb"
                               }
                             ],
                             "purl": "pkg:deb/beckhoff/tf2000-hmi-server@14.4.267?arch=amd64"
