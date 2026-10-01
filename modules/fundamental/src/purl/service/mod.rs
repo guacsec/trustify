@@ -1165,9 +1165,10 @@ impl PurlService {
                 continue;
             }
 
-            // Advisory ID from the most recent advisory across all vulnerabilities.
+            // Advisory ID from the most recent advisory among addressed vulnerabilities.
             let advisory_id = best_by_vuln
                 .values()
+                .filter(|info| matches!(info.status_slug.as_str(), "fixed" | "not_affected"))
                 .max_by(|a, b| a.advisory_date.cmp(&b.advisory_date))
                 .and_then(|info| info.advisory_id.clone());
 
