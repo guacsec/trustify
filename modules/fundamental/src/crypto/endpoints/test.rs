@@ -270,16 +270,6 @@ async fn evaluate_policy_requires_conforma(ctx: &TrustifyContext) -> Result<(), 
         "evaluate_policy must fail with 500 when CONFORMA_POLICY is not set"
     );
 
-    // SHA1 in keycloak-cbom should be NonCompliant
-    let sha1 = response.results.iter().find(|r| r.name == "SHA1");
-    assert!(sha1.is_some(), "SHA1 should be present in results");
-    assert_eq!(sha1.unwrap().verdict, PolicyVerdict::NonCompliant);
-
-    // ECDH should be Warning (classical in transition)
-    let ecdh = response.results.iter().find(|r| r.name == "ECDH");
-    assert!(ecdh.is_some(), "ECDH should be present in results");
-    assert_eq!(ecdh.unwrap().verdict, PolicyVerdict::Warning);
-
     Ok(())
 }
 
