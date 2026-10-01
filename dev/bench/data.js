@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790842145084,
+  "lastUpdate": 1790848120275,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22956,6 +22956,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/9cbaeebd326284814afc7add0e0790ac69654487"
         },
         "date": 1790842142367,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "gilles@redhat.com",
+            "name": "gildub",
+            "username": "gildub"
+          },
+          "committer": {
+            "email": "gilles@redhat.com",
+            "name": "Gilles Dubreuil",
+            "username": "gildub"
+          },
+          "distinct": true,
+          "id": "9fd2669fcc949aef67435632411fd7c29a6c1e6e",
+          "message": "fix(openapi): validationSeverity's description",
+          "timestamp": "2026-10-01T09:05:19Z",
+          "tree_id": "2c9a7431b73e6a2ddcc396310b9e3a9171acc191",
+          "url": "https://github.com/guacsec/trustify/commit/9fd2669fcc949aef67435632411fd7c29a6c1e6e"
+        },
+        "date": 1790848117940,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
