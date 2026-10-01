@@ -149,7 +149,12 @@ async fn query_digest(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let service = CorrelationService::default();
     let tx = ctx.db.begin().await?;
 
-    let expected = |query: String| QueryResult {
+    let digest = |value: String| IdentifierRef {
+        kind: IdentifierKind::Digest,
+        value,
+    };
+
+    let expected = |query: IdentifierRef| QueryResult {
         query,
         verdicts: vec![QueryVerdict {
             vulnerability_id: "CVE-2025-41768".into(),
@@ -166,21 +171,22 @@ async fn query_digest(ctx: &TrustifyContext) -> anyhow::Result<()> {
     };
 
     // bare value matches any algorithm
+    let query = digest(S18_DIGEST.into());
     assert_eq!(
-        service.query_identifier(S18_DIGEST, &tx).await?,
-        expected(S18_DIGEST.into())
-    );
-
-    // explicit algorithm must match
-    let query = format!("sha256:{S18_DIGEST}");
-    assert_eq!(
-        service.query_identifier(&query, &tx).await?,
+        service.query_identifier(query.clone(), &tx).await?,
         expected(query)
     );
 
-    let query = format!("md5:{S18_DIGEST}");
+    // explicit algorithm must match
+    let query = digest(format!("sha256:{S18_DIGEST}"));
     assert_eq!(
-        service.query_identifier(&query, &tx).await?,
+        service.query_identifier(query.clone(), &tx).await?,
+        expected(query)
+    );
+
+    let query = digest(format!("md5:{S18_DIGEST}"));
+    assert_eq!(
+        service.query_identifier(query.clone(), &tx).await?,
         QueryResult {
             query,
             verdicts: vec![],
@@ -202,10 +208,14 @@ async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let service = CorrelationService::default();
     let tx = ctx.db.begin().await?;
 
+    let sku = IdentifierRef {
+        kind: IdentifierKind::Sku,
+        value: "6925281924439".into(),
+    };
     assert_eq!(
-        service.query_identifier("6925281924439", &tx).await?,
+        service.query_identifier(sku.clone(), &tx).await?,
         QueryResult {
-            query: "6925281924439".into(),
+            query: sku,
             verdicts: vec![QueryVerdict {
                 vulnerability_id: "CVE-2026-50001".into(),
                 vulnerability_title: None,
@@ -218,6 +228,19 @@ async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
                     status: ApiAssertionStatus::Affected,
                 }],
             }],
+        }
+    );
+
+    // the same value as a different kind doesn't match
+    let model_number = IdentifierRef {
+        kind: IdentifierKind::ModelNumber,
+        value: "6925281924439".into(),
+    };
+    assert_eq!(
+        service.query_identifier(model_number.clone(), &tx).await?,
+        QueryResult {
+            query: model_number,
+            verdicts: vec![],
         }
     );
 

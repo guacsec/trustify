@@ -1,5 +1,6 @@
 use crate::model::{
-    CorrelationResult, IngestResult, PaginatedResults, QueryResult, SbomSummary, WellKnownInfo,
+    CorrelationResult, IdentifierKind, IngestResult, PaginatedResults, QueryResult, SbomSummary,
+    WellKnownInfo,
 };
 use gloo_net::http::Request;
 use serde::de::DeserializeOwned;
@@ -71,9 +72,16 @@ pub async fn fetch_correlation(
     fetch_json(&url, token).await
 }
 
-pub async fn query_correlation(query: &str, token: Option<&str>) -> Result<QueryResult, ApiError> {
-    let encoded: String = js_sys::encode_uri_component(query).into();
-    let url = format!("/api/v3/correlation/query?q={encoded}");
+pub async fn query_correlation(
+    kind: IdentifierKind,
+    value: &str,
+    token: Option<&str>,
+) -> Result<QueryResult, ApiError> {
+    let encoded: String = js_sys::encode_uri_component(value).into();
+    let url = format!(
+        "/api/v3/correlation/query?kind={}&q={encoded}",
+        kind.as_str()
+    );
     fetch_json(&url, token).await
 }
 

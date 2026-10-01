@@ -1078,13 +1078,19 @@ paths:
       - correlation
       summary: Query for advisory/vulnerability matches by identifier.
       description: |-
-        Searches across digest hashes and product identifiers (model numbers,
-        serial numbers, SKUs) for advisories that reference the given value.
+        Matches the value only as the given identifier kind against advisories
+        that reference it.
       operationId: queryCorrelation
       parameters:
+      - name: kind
+        in: query
+        description: The kind of the identifier.
+        required: true
+        schema:
+          $ref: '#/components/schemas/IdentifierKind'
       - name: q
         in: query
-        description: The identifier value to search for (digest, model number, serial number, SKU).
+        description: The identifier value to search for. Digests use the format `[<algorithm>:]<value>`.
         required: true
         schema:
           type: string
@@ -8003,7 +8009,8 @@ components:
       - verdicts
       properties:
         query:
-          type: string
+          $ref: '#/components/schemas/IdentifierRef'
+          description: The identifier which was queried.
         verdicts:
           type: array
           items:

@@ -28,13 +28,6 @@ pub struct ProductIdentifierExtractor;
 
 const CONFIDENCE: f64 = 1.0;
 
-/// The product identifier types, as identifier kinds, used when interpreting a query.
-const KINDS: [IdentifierKind; 3] = [
-    IdentifierKind::Sku,
-    IdentifierKind::ModelNumber,
-    IdentifierKind::SerialNumber,
-];
-
 /// Map an identifier kind to a product identifier type, if it is one.
 fn identifier_type(kind: IdentifierKind) -> Option<ProductIdentifierType> {
     match kind {
@@ -85,16 +78,6 @@ impl Extractor for ProductIdentifierExtractor {
                 },
             })
             .collect())
-    }
-
-    fn parse_query(&self, query: &str) -> Vec<IdentifierRef> {
-        KINDS
-            .into_iter()
-            .map(|kind| IdentifierRef {
-                kind,
-                value: query.to_string(),
-            })
-            .collect()
     }
 
     #[instrument(skip_all, err(level = tracing::Level::INFO))]

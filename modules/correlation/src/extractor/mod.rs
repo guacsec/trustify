@@ -82,16 +82,9 @@ pub trait Extractor: Send + Sync {
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeIdentifier>, Error>;
 
-    /// Interpret a free-text query as identifiers of this type.
-    ///
-    /// **Experimental:** how free-text queries are mapped to identifiers is not
-    /// settled yet and may change.
-    fn parse_query(&self, _query: &str) -> Vec<IdentifierRef> {
-        Vec::new()
-    }
-
     /// Find advisory assertions matching the given identifiers.
     ///
+    /// Identifiers of kinds this extractor does not handle must be ignored.
     /// Shared by SBOM-direction extraction and the ad-hoc query.
     async fn match_identifiers(
         &self,

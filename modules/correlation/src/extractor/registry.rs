@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{error::Error, model::IdentifierRef};
 use sea_orm::DatabaseTransaction;
-use std::collections::HashMap;
+use std::{collections::HashMap, slice};
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -111,25 +111,24 @@ impl Extractors {
         Ok(result)
     }
 
-    /// Match a free-text query against advisories, using all extractors.
+    /// Match a single identifier against advisories, using all extractors.
+    ///
+    /// Extractors ignore identifiers of kinds they don't handle, so only the
+    /// extractor responsible for the identifier's kind contributes matches.
     pub async fn query(
         &self,
-        query: &str,
+        identifier: &IdentifierRef,
         tx: &DatabaseTransaction,
-    ) -> Result<Vec<(IdentifierRef, Assertion)>, Error> {
+    ) -> Result<Vec<Assertion>, Error> {
         let mut result = Vec::new();
         for extractor in &self.0 {
-            let identifiers = extractor.parse_query(query);
-            if identifiers.is_empty() {
-                continue;
-            }
-            for IdentifierMatch { index, assertion } in
-                extractor.match_identifiers(&identifiers, tx).await?
-            {
-                if let Some(identifier) = identifiers.get(index) {
-                    result.push((identifier.clone(), assertion));
-                }
-            }
+            result.extend(
+                extractor
+                    .match_identifiers(slice::from_ref(identifier), tx)
+                    .await?
+                    .into_iter()
+                    .map(|m| m.assertion),
+            );
         }
         Ok(result)
     }

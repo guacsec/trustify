@@ -64,13 +64,6 @@ impl Extractor for DigestExtractor {
             .collect())
     }
 
-    fn parse_query(&self, query: &str) -> Vec<IdentifierRef> {
-        vec![IdentifierRef {
-            kind: IdentifierKind::Digest,
-            value: query.to_string(),
-        }]
-    }
-
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn match_identifiers(
         &self,
