@@ -116,9 +116,20 @@ fn app() -> Html {
                 .split_whitespace()
                 .map(String::from)
                 .collect::<Vec<_>>();
-            let redirect_url = gloo_utils::window().location().origin().expect("origin");
+            let redirect_url = match redirect_url() {
+                Ok(url) => url,
+                Err(err) => {
+                    return html! {
+                        <Bullseye>
+                            <Alert title="Failed to configure login" r#type={AlertType::Danger} inline=true>
+                                <p>{ err }</p>
+                            </Alert>
+                        </Bullseye>
+                    };
+                }
+            };
             let login_options = LoginOptions::new()
-                .with_redirect_url(Url::parse(&redirect_url).expect("redirect url"))
+                .with_redirect_url(redirect_url)
                 .with_nested_router_redirect();
             html! {
                 <Router<AppRoute> default={AppRoute::SbomList}>
@@ -139,6 +150,15 @@ fn app() -> Html {
             </Router<AppRoute>>
         },
     }
+}
+
+/// The URL the OIDC provider redirects back to: the app's origin.
+fn redirect_url() -> Result<Url, String> {
+    let origin = gloo_utils::window()
+        .location()
+        .origin()
+        .map_err(|err| format!("failed to get origin: {err:?}"))?;
+    Url::parse(&origin).map_err(|err| format!("invalid redirect URL '{origin}': {err}"))
 }
 
 #[function_component(AuthError)]

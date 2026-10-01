@@ -125,10 +125,10 @@ fn file_upload_section(props: &FileUploadSectionProps) -> Html {
         let on_file_selected = on_file_selected.clone();
         Callback::from(move |e: Event| {
             let input: HtmlInputElement = e.target_unchecked_into();
-            if let Some(files) = input.files() {
-                if let Some(file) = files.get(0) {
-                    on_file_selected.emit(File::from(file));
-                }
+            if let Some(files) = input.files()
+                && let Some(file) = files.get(0)
+            {
+                on_file_selected.emit(File::from(file));
             }
         })
     };
@@ -163,12 +163,11 @@ fn file_upload_section(props: &FileUploadSectionProps) -> Html {
         Callback::from(move |e: DragEvent| {
             e.prevent_default();
             drag_over.set(false);
-            if let Some(dt) = e.data_transfer() {
-                if let Some(files) = dt.files() {
-                    if let Some(file) = files.get(0) {
-                        on_file_selected.emit(File::from(file));
-                    }
-                }
+            if let Some(dt) = e.data_transfer()
+                && let Some(files) = dt.files()
+                && let Some(file) = files.get(0)
+            {
+                on_file_selected.emit(File::from(file));
             }
         })
     };

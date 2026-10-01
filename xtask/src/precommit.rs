@@ -22,8 +22,6 @@ impl Precommit {
                 "--workspace",
                 "--all-targets",
                 "--all-features",
-                "--exclude",
-                "trustify-correlation-ui",
                 "--",
                 "-D",
                 "warnings",
@@ -59,14 +57,7 @@ impl Precommit {
 
         println!("Running: cargo check");
         if !Command::new("cargo")
-            .args([
-                "check",
-                "--workspace",
-                "--all-targets",
-                "--all-features",
-                "--exclude",
-                "trustify-correlation-ui",
-            ])
+            .args(["check", "--workspace", "--all-targets", "--all-features"])
             .status()
             .map_err(|_| anyhow!("cargo check failed"))?
             .success()
