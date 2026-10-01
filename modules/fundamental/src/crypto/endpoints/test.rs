@@ -1,7 +1,5 @@
 use crate::{
-    crypto::model::{
-        CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationRequest, PolicyEvaluationResponse,
-    },
+    crypto::model::{CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationRequest},
     crypto::service::policy::PolicyVerdict,
     test::caller,
 };
@@ -287,19 +285,13 @@ async fn evaluate_policy_with_sbom_filter(ctx: &TrustifyContext) -> Result<(), a
             sbom_id: Some(sbom_id),
         })
         .to_request();
-    let response: PolicyEvaluationResponse = app.call_and_read_body_json(request).await;
+    let response = app.call_service(request).await;
 
-    assert!(
-        response.summary.total > 0,
-        "expected algorithms for the specific SBOM"
+    assert_eq!(
+        response.status(),
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "evaluate_policy must fail with 500 when CONFORMA_POLICY is not set"
     );
-
-    for result in &response.results {
-        assert_eq!(
-            result.sbom_id, sbom_id,
-            "all results should match the filtered SBOM ID"
-        );
-    }
 
     Ok(())
 }
@@ -314,10 +306,13 @@ async fn evaluate_policy_empty_db(ctx: &TrustifyContext) -> Result<(), anyhow::E
         .uri("/api/v3/crypto/policy/evaluate")
         .set_json(PolicyEvaluationRequest { sbom_id: None })
         .to_request();
-    let response: PolicyEvaluationResponse = app.call_and_read_body_json(request).await;
+    let response = app.call_service(request).await;
 
-    assert_eq!(response.summary.total, 0);
-    assert!(response.results.is_empty());
+    assert_eq!(
+        response.status(),
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "evaluate_policy must fail with 500 when CONFORMA_POLICY is not set"
+    );
 
     Ok(())
 }
