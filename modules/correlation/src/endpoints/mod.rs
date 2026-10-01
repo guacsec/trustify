@@ -24,7 +24,7 @@ pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
     db_ro: db::ReadOnly,
 ) {
-    let service = CorrelationService;
+    let service = CorrelationService::default();
     config
         .app_data(web::Data::new(db_ro))
         .app_data(web::Data::new(service))

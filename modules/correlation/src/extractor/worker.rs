@@ -1,4 +1,4 @@
-use crate::extractor::{digest::DigestExtractor, product_identifier::ProductIdentifierExtractor};
+use crate::{error::Error, extractor::Extractors};
 use sea_orm::TransactionTrait;
 use tokio::sync::broadcast;
 use trustify_common::db::{
@@ -8,17 +8,18 @@ use trustify_common::db::{
 
 /// Spawns the correlation extraction worker as a background task.
 ///
-/// Subscribes to the `ChangeBroadcaster` and triggers the digest extractor
+/// Subscribes to the `ChangeBroadcaster` and runs all registered extractors
 /// when SBOMs or advisories are ingested.
 pub async fn run_extraction_worker(
     broadcaster: ChangeBroadcaster,
     db: db::ReadWrite,
 ) -> anyhow::Result<()> {
+    let extractors = Extractors::default();
     let mut rx = broadcaster.subscribe();
     loop {
         match rx.recv().await {
             Ok(entry) => {
-                if let Err(err) = handle_change(&entry, &db).await {
+                if let Err(err) = handle_change(&entry, &extractors, &db).await {
                     tracing::warn!(
                         entity = ?entry.r#type,
                         id = ?entry.id,
@@ -39,7 +40,11 @@ pub async fn run_extraction_worker(
     Ok(())
 }
 
-async fn handle_change(entry: &ChangeEntry, db: &db::ReadWrite) -> Result<(), crate::error::Error> {
+async fn handle_change(
+    entry: &ChangeEntry,
+    extractors: &Extractors,
+    db: &db::ReadWrite,
+) -> Result<(), Error> {
     if entry.operation != ChangeOperation::Added {
         return Ok(());
     }
@@ -48,20 +53,12 @@ async fn handle_change(entry: &ChangeEntry, db: &db::ReadWrite) -> Result<(), cr
         return Ok(());
     };
 
+    let tx = db.begin().await?;
     match entry.r#type {
-        ChangeEntity::Sbom => {
-            let tx = db.begin().await?;
-            DigestExtractor::extract_for_sbom(entity_id, &tx).await?;
-            ProductIdentifierExtractor::extract_for_sbom(entity_id, &tx).await?;
-            tx.commit().await?;
-        }
-        ChangeEntity::Advisory => {
-            let tx = db.begin().await?;
-            DigestExtractor::extract_for_advisory(entity_id, &tx).await?;
-            ProductIdentifierExtractor::extract_for_advisory(entity_id, &tx).await?;
-            tx.commit().await?;
-        }
-    }
+        ChangeEntity::Sbom => extractors.extract_for_sbom(entity_id, &tx).await?,
+        ChangeEntity::Advisory => extractors.extract_for_advisory(entity_id, &tx).await?,
+    };
+    tx.commit().await?;
 
     Ok(())
 }

@@ -5534,35 +5534,20 @@ components:
           description: The period the importer should be run.
     ComponentRef:
       type: object
-      description: A component may have multiple PURLs, CPEs, and digests.
+      description: A component and the identifiers attached to it.
       required:
       - node_id
       - name
-      - purls
-      - cpes
-      - digests
-      - product_identifiers
+      - identifiers
       properties:
-        cpes:
+        identifiers:
           type: array
           items:
-            type: string
-        digests:
-          type: array
-          items:
-            $ref: '#/components/schemas/DigestRef'
+            $ref: '#/components/schemas/IdentifierRef'
         name:
           type: string
         node_id:
           type: string
-        product_identifiers:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductIdentifierRef'
-        purls:
-          type: array
-          items:
-            type: string
     ComponentResult:
       type: object
       description: Per-component analysis result within an analysis job.
@@ -5823,17 +5808,6 @@ components:
         properties:
           source:
             type: string
-    DigestRef:
-      type: object
-      description: A checksum on a component.
-      required:
-      - algorithm
-      - value
-      properties:
-        algorithm:
-          type: string
-        value:
-          type: string
     ErrorInformation:
       type: object
       required:
@@ -6356,6 +6330,30 @@ components:
       examples:
       - urn:uuid:018123ef-a791-40d8-b62a-f70a350245d4
       - sha256:dc60aeb735c16a71b6fc56e84ddb8193e3a6d1ef0b7e958d77e78fc039a5d04e
+    IdentifierKind:
+      type: string
+      description: The kind of an identifier used for correlation.
+      enum:
+      - digest
+      - purl
+      - cpe
+      - model_number
+      - serial_number
+      - sku
+    IdentifierRef:
+      type: object
+      description: |-
+        An identifier of a specific kind.
+
+        Digests use the format `<algorithm>:<value>`.
+      required:
+      - kind
+      - value
+      properties:
+        kind:
+          $ref: '#/components/schemas/IdentifierKind'
+        value:
+          type: string
     Importer:
       allOf:
       - $ref: '#/components/schemas/ImporterData'
@@ -7738,24 +7736,6 @@ components:
           type: string
         name:
           type: string
-    ProductIdentifierRef:
-      type: object
-      description: A product identifier on a component (model number, serial number, or SKU).
-      required:
-      - identifier_type
-      - value
-      properties:
-        identifier_type:
-          $ref: '#/components/schemas/ProductIdentifierType'
-        value:
-          type: string
-    ProductIdentifierType:
-      type: string
-      description: The type of product identifier on a component.
-      enum:
-      - model_number
-      - serial_number
-      - sku
     ProductSbomHead:
       type: object
       required:
@@ -7998,7 +7978,7 @@ components:
       type: object
       description: A single match from the query (evidence within a verdict group).
       required:
-      - match_type
+      - kind
       - value
       - advisory_id
       - advisory_identifier
@@ -8009,20 +7989,12 @@ components:
           format: uuid
         advisory_identifier:
           type: string
-        match_type:
-          $ref: '#/components/schemas/QueryMatchType'
+        kind:
+          $ref: '#/components/schemas/IdentifierKind'
         status:
           $ref: '#/components/schemas/AssertionStatus'
         value:
           type: string
-    QueryMatchType:
-      type: string
-      description: The type of identifier that matched.
-      enum:
-      - digest
-      - model_number
-      - serial_number
-      - sku
     QueryResult:
       type: object
       description: Result of a manual identifier query, grouped by vulnerability with resolved verdicts.

@@ -1,8 +1,12 @@
 use crate::{
     AppRoute, api,
-    model::{ComponentRef, CorrelationResult, EvidenceDetail, VerdictStatus, VerdictSummary},
+    model::{
+        ComponentRef, CorrelationResult, EvidenceDetail, IdentifierKind, VerdictStatus,
+        VerdictSummary,
+    },
 };
 use patternfly_yew::prelude::*;
+use std::collections::BTreeMap;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_nested_router::components::Link;
@@ -229,34 +233,20 @@ impl TableEntryRenderer<UnmatchedColumn> for UnmatchedEntry {
         match context.column {
             UnmatchedColumn::Name => html!(&self.0.name).into(),
             UnmatchedColumn::Identifiers => {
-                let sections: Vec<(&str, Vec<String>)> = vec![
-                    ("PURLs", self.0.purls.clone()),
-                    ("CPEs", self.0.cpes.clone()),
-                    (
-                        "Digests",
-                        self.0
-                            .digests
-                            .iter()
-                            .map(|d| format!("{}:{}", d.algorithm, d.value))
-                            .collect(),
-                    ),
-                    (
-                        "Product IDs",
-                        self.0
-                            .product_identifiers
-                            .iter()
-                            .map(|p| format!("{}: {}", p.identifier_type.label(), p.value))
-                            .collect(),
-                    ),
-                ];
+                let mut sections = BTreeMap::<IdentifierKind, Vec<&str>>::new();
+                for identifier in &self.0.identifiers {
+                    sections
+                        .entry(identifier.kind)
+                        .or_default()
+                        .push(&identifier.value);
+                }
 
                 let content: Vec<Html> = sections
                     .into_iter()
-                    .filter(|(_, items)| !items.is_empty())
-                    .map(|(label, items)| {
+                    .map(|(kind, items)| {
                         html! {
                             <div>
-                                <strong>{ label }</strong>
+                                <strong>{ kind.label() }</strong>
                                 <ul style="margin:0;padding-left:1em">
                                     { for items.iter().map(|s| html!(<li>{ s }</li>)) }
                                 </ul>
@@ -274,7 +264,6 @@ impl TableEntryRenderer<UnmatchedColumn> for UnmatchedEntry {
         }
     }
 }
-
 
 #[function_component(CorrelationContent)]
 fn correlation_content(props: &CorrelationContentProps) -> Html {

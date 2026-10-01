@@ -9452,6 +9452,7 @@ dependencies = [
  "actix-http",
  "actix-web",
  "anyhow",
+ "async-trait",
  "rstest",
  "sea-orm",
  "serde",

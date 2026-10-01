@@ -81,6 +81,36 @@ a string ID (the `extractor` column). The first extractor is `digest` —
 it matches SBOM component checksums against advisory-referenced hashes.
 Later extractors add PURL and CPE matching.
 
+Each identifier type is implemented as one unit in
+`modules/correlation/src/extractor/<type>`, implementing the `Extractor` trait:
+
+| Method              | Purpose                                                        |
+|---------------------|----------------------------------------------------------------|
+| `id`                | Stable extractor ID, also seeds the evidence UUID namespace    |
+| `sbom_identifiers`  | Identifiers of SBOM nodes (extraction input and presentation)  |
+| `parse_query`       | Interpret a free-text query as identifiers of this type        |
+| `match_identifiers` | Match identifiers against advisory assertions                  |
+| `match_advisory`    | Match an advisory's assertions against SBOM nodes              |
+
+Only `id` and `sbom_identifiers` are required, so a type can be added for
+presentation first and gain matching later (PURL and CPE currently are
+presentation only).
+
+Extractors read the identifier data from their existing source tables; there
+is no generic identifier table. The engine parts are written once against the
+trait:
+
+- `Extractors` (registry) — the single place where extractors are registered.
+  Runs extraction in both directions, collects component identifiers, and
+  runs ad-hoc queries.
+- `EvidenceWriter` — builds deterministic evidence IDs and bulk inserts rows.
+- The ad-hoc identifier query uses `parse_query` + `match_identifiers`, i.e.
+  the same matching logic as SBOM-direction extraction.
+
+The API exposes identifiers generically as `IdentifierRef { kind, value }`.
+Adding a new identifier type requires a new `IdentifierKind` variant, a new
+extractor unit, and registering it in `Extractors::default`.
+
 ### Match dimensions
 
 | Dimension | Extractor matches via | Confidence band |

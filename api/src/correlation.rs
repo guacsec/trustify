@@ -25,39 +25,35 @@ pub struct VerdictSummary {
     pub evidence: Vec<EvidenceDetail>,
 }
 
-/// A component may have multiple PURLs, CPEs, and digests.
+/// A component and the identifiers attached to it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ComponentRef {
     pub node_id: String,
     pub name: String,
-    pub purls: Vec<String>,
-    pub cpes: Vec<String>,
-    pub digests: Vec<DigestRef>,
-    pub product_identifiers: Vec<ProductIdentifierRef>,
+    pub identifiers: Vec<IdentifierRef>,
 }
 
-/// A checksum on a component.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-pub struct DigestRef {
-    pub algorithm: String,
-    pub value: String,
-}
-
-/// The type of product identifier on a component.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// The kind of an identifier used for correlation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "snake_case")]
-pub enum ProductIdentifierType {
+pub enum IdentifierKind {
+    Digest,
+    Purl,
+    Cpe,
     ModelNumber,
     SerialNumber,
     Sku,
 }
 
-impl ProductIdentifierType {
+impl IdentifierKind {
+    /// Human readable label.
     pub fn label(self) -> &'static str {
         match self {
+            Self::Digest => "Digest",
+            Self::Purl => "PURL",
+            Self::Cpe => "CPE",
             Self::ModelNumber => "Model Number",
             Self::SerialNumber => "Serial Number",
             Self::Sku => "SKU",
@@ -65,11 +61,13 @@ impl ProductIdentifierType {
     }
 }
 
-/// A product identifier on a component (model number, serial number, or SKU).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+/// An identifier of a specific kind.
+///
+/// Digests use the format `<algorithm>:<value>`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-pub struct ProductIdentifierRef {
-    pub identifier_type: ProductIdentifierType,
+pub struct IdentifierRef {
+    pub kind: IdentifierKind,
     pub value: String,
 }
 
@@ -169,33 +167,11 @@ pub struct QueryVerdict {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct QueryMatch {
-    pub match_type: QueryMatchType,
+    pub kind: IdentifierKind,
     pub value: String,
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
     pub status: AssertionStatus,
-}
-
-/// The type of identifier that matched.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[serde(rename_all = "snake_case")]
-pub enum QueryMatchType {
-    Digest,
-    ModelNumber,
-    SerialNumber,
-    Sku,
-}
-
-impl QueryMatchType {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Digest => "Digest",
-            Self::ModelNumber => "Model Number",
-            Self::SerialNumber => "Serial Number",
-            Self::Sku => "SKU",
-        }
-    }
 }
 
 #[cfg(feature = "entity")]
@@ -206,17 +182,7 @@ mod entity_conversions {
         correlation_evidence::AssertionStatus as EntityAssertionStatus,
     };
 
-    impl From<EntityProductIdentifierType> for QueryMatchType {
-        fn from(value: EntityProductIdentifierType) -> Self {
-            match value {
-                EntityProductIdentifierType::ModelNumber => Self::ModelNumber,
-                EntityProductIdentifierType::SerialNumber => Self::SerialNumber,
-                EntityProductIdentifierType::Sku => Self::Sku,
-            }
-        }
-    }
-
-    impl From<EntityProductIdentifierType> for super::ProductIdentifierType {
+    impl From<EntityProductIdentifierType> for IdentifierKind {
         fn from(value: EntityProductIdentifierType) -> Self {
             match value {
                 EntityProductIdentifierType::ModelNumber => Self::ModelNumber,
