@@ -1,6 +1,7 @@
 use crate::{api, model::IngestResult};
-use gloo_file::{File, futures::read_as_bytes};
+use gloo_file::{File, FileList, futures::read_as_bytes};
 use patternfly_yew::prelude::*;
+use std::rc::Rc;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{DragEvent, HtmlInputElement};
 use yew::prelude::*;
@@ -12,35 +13,61 @@ enum IngestTab {
     Url,
 }
 
+/// The outcome of ingesting a single document.
+#[derive(Clone, Debug, PartialEq)]
+struct IngestOutcome {
+    /// The file name or URL of the document.
+    name: String,
+    result: Result<IngestResult, String>,
+}
+
+enum IngestAction {
+    Start,
+    Outcome(IngestOutcome),
+    Done,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+struct IngestState {
+    loading: bool,
+    outcomes: Vec<IngestOutcome>,
+}
+
+impl Reducible for IngestState {
+    type Action = IngestAction;
+
+    fn reduce(self: Rc<Self>, action: Self::Action) -> Rc<Self> {
+        let mut state = (*self).clone();
+        match action {
+            IngestAction::Start => {
+                state.loading = true;
+                state.outcomes.clear();
+            }
+            IngestAction::Outcome(outcome) => state.outcomes.push(outcome),
+            IngestAction::Done => state.loading = false,
+        }
+        Rc::new(state)
+    }
+}
+
 #[function_component(IngestPage)]
 pub fn ingest_page() -> Html {
     let tab = use_state(|| IngestTab::File);
-    let result = use_state(|| Option::<IngestResult>::None);
-    let loading = use_state(|| false);
-    let error = use_state(|| Option::<String>::None);
-
-    let on_result = {
-        let result = result.clone();
-        let loading = loading.clone();
-        let error = error.clone();
-        Callback::from(move |r: Result<IngestResult, String>| {
-            match r {
-                Ok(data) => result.set(Some(data)),
-                Err(e) => error.set(Some(e)),
-            }
-            loading.set(false);
-        })
-    };
+    let state = use_reducer(IngestState::default);
 
     let on_start = {
-        let loading = loading.clone();
-        let error = error.clone();
-        let result = result.clone();
-        Callback::from(move |()| {
-            loading.set(true);
-            error.set(None);
-            result.set(None);
-        })
+        let state = state.dispatcher();
+        Callback::from(move |()| state.dispatch(IngestAction::Start))
+    };
+
+    let on_outcome = {
+        let state = state.dispatcher();
+        Callback::from(move |outcome| state.dispatch(IngestAction::Outcome(outcome)))
+    };
+
+    let on_done = {
+        let state = state.dispatcher();
+        Callback::from(move |()| state.dispatch(IngestAction::Done))
     };
 
     let onselect = {
@@ -53,7 +80,7 @@ pub fn ingest_page() -> Html {
             <Title level={Level::H1}>
                 { "Ingest Document" }
             </Title>
-            <p>{ "Upload any supported document (SBOM or advisory). The format is auto-detected." }</p>
+            <p>{ "Upload any supported documents (SBOM or advisory). The format is auto-detected." }</p>
             <br />
 
             <Tabs<IngestTab> selected={*tab} {onselect}>
@@ -61,9 +88,10 @@ pub fn ingest_page() -> Html {
                     <TabContent>
                         <TabContentBody padding=true>
                             <FileUploadSection
-                                loading={*loading}
+                                loading={state.loading}
                                 on_start={on_start.clone()}
-                                on_result={on_result.clone()}
+                                on_outcome={on_outcome.clone()}
+                                on_done={on_done.clone()}
                             />
                         </TabContentBody>
                     </TabContent>
@@ -72,9 +100,10 @@ pub fn ingest_page() -> Html {
                     <TabContent>
                         <TabContentBody padding=true>
                             <UrlIngestSection
-                                loading={*loading}
+                                loading={state.loading}
                                 on_start={on_start.clone()}
-                                on_result={on_result.clone()}
+                                on_outcome={on_outcome.clone()}
+                                on_done={on_done.clone()}
                             />
                         </TabContentBody>
                     </TabContent>
@@ -83,16 +112,17 @@ pub fn ingest_page() -> Html {
 
             <br />
 
-            if *loading {
+            <div style="display: flex; flex-direction: column; gap: var(--pf-t--global--spacer--md);">
+                { for state.outcomes.iter().map(|outcome| html! {
+                    <IngestOutcomeView outcome={outcome.clone()} />
+                }) }
+            </div>
+
+            if state.loading {
+                <br />
                 <Bullseye>
                     <Spinner />
                 </Bullseye>
-            } else if let Some(err) = &*error {
-                <Alert title="Ingestion failed" r#type={AlertType::Danger} inline=true>
-                    <p>{ err.clone() }</p>
-                </Alert>
-            } else if let Some(data) = &*result {
-                <IngestSuccess result={data.clone()} />
             }
         </PageSection>
     }
@@ -102,34 +132,37 @@ pub fn ingest_page() -> Html {
 struct FileUploadSectionProps {
     loading: bool,
     on_start: Callback<()>,
-    on_result: Callback<Result<IngestResult, String>>,
+    on_outcome: Callback<IngestOutcome>,
+    on_done: Callback<()>,
 }
 
 #[function_component(FileUploadSection)]
 fn file_upload_section(props: &FileUploadSectionProps) -> Html {
-    let selected_file = use_state(|| Option::<File>::None);
+    let selected_files = use_state(Vec::<File>::new);
     let drag_over = use_state(|| false);
     let file_input_ref = use_node_ref();
 
     let latest_token = use_latest_access_token();
     let token: Option<String> = latest_token.as_ref().and_then(|t| t.access_token());
 
-    let on_file_selected = {
-        let selected_file = selected_file.clone();
-        Callback::from(move |file: File| {
-            selected_file.set(Some(file));
+    let on_files_selected = {
+        let selected_files = selected_files.clone();
+        Callback::from(move |files: FileList| {
+            let mut selected = (*selected_files).clone();
+            selected.extend(files.iter().cloned());
+            selected_files.set(selected);
         })
     };
 
     let on_input_change = {
-        let on_file_selected = on_file_selected.clone();
+        let on_files_selected = on_files_selected.clone();
         Callback::from(move |e: Event| {
             let input: HtmlInputElement = e.target_unchecked_into();
-            if let Some(files) = input.files()
-                && let Some(file) = files.get(0)
-            {
-                on_file_selected.emit(File::from(file));
+            if let Some(files) = input.files() {
+                on_files_selected.emit(FileList::from(files));
             }
+            // allow selecting the same file again after it was removed
+            input.set_value("");
         })
     };
 
@@ -159,63 +192,73 @@ fn file_upload_section(props: &FileUploadSectionProps) -> Html {
 
     let ondrop = {
         let drag_over = drag_over.clone();
-        let on_file_selected = on_file_selected.clone();
+        let on_files_selected = on_files_selected.clone();
         Callback::from(move |e: DragEvent| {
             e.prevent_default();
             drag_over.set(false);
-            if let Some(dt) = e.data_transfer()
-                && let Some(files) = dt.files()
-                && let Some(file) = files.get(0)
-            {
-                on_file_selected.emit(File::from(file));
+            if let Some(files) = e.data_transfer().and_then(|dt| dt.files()) {
+                on_files_selected.emit(FileList::from(files));
             }
         })
     };
 
     let on_upload = {
-        let selected_file = selected_file.clone();
-        let file_input_ref = file_input_ref.clone();
+        let selected_files = selected_files.clone();
         let on_start = props.on_start.clone();
-        let on_result = props.on_result.clone();
+        let on_outcome = props.on_outcome.clone();
+        let on_done = props.on_done.clone();
         let token = token.clone();
         Callback::from(move |_: MouseEvent| {
-            if let Some(file) = (*selected_file).clone() {
-                on_start.emit(());
-                let selected_file = selected_file.clone();
-                let file_input_ref = file_input_ref.clone();
-                let on_result = on_result.clone();
-                let token = token.clone();
-                spawn_local(async move {
+            let files = (*selected_files).clone();
+            if files.is_empty() {
+                return;
+            }
+            on_start.emit(());
+            let selected_files = selected_files.clone();
+            let on_outcome = on_outcome.clone();
+            let on_done = on_done.clone();
+            let token = token.clone();
+            spawn_local(async move {
+                let mut failed = Vec::new();
+                for file in files {
                     let result = match read_as_bytes(&file).await {
-                        Ok(bytes) => match api::upload_document(&bytes, token.as_deref()).await {
-                            Ok(data) => Ok(data),
-                            Err(e) => Err(e.to_string()),
-                        },
+                        Ok(bytes) => api::upload_document(&bytes, token.as_deref())
+                            .await
+                            .map_err(|e| e.to_string()),
                         Err(e) => Err(format!("Failed to read file: {e}")),
                     };
-                    let ok = result.is_ok();
-                    on_result.emit(result);
-                    if ok {
-                        selected_file.set(None);
-                        if let Some(input) = file_input_ref.cast::<HtmlInputElement>() {
-                            input.set_value("");
-                        }
+                    let name = file.name();
+                    if result.is_err() {
+                        failed.push(file);
                     }
-                });
-            }
+                    on_outcome.emit(IngestOutcome { name, result });
+                }
+                // keep failed files selected, so that they can be retried
+                selected_files.set(failed);
+                on_done.emit(());
+            });
         })
     };
 
     let on_clear = {
-        let selected_file = selected_file.clone();
-        let file_input_ref = file_input_ref.clone();
+        let selected_files = selected_files.clone();
         Callback::from(move |_: MouseEvent| {
-            selected_file.set(None);
-            if let Some(input) = file_input_ref.cast::<HtmlInputElement>() {
-                input.set_value("");
-            }
+            selected_files.set(Vec::new());
         })
     };
+
+    let on_remove = {
+        let selected_files = selected_files.clone();
+        Callback::from(move |index: usize| {
+            let mut selected = (*selected_files).clone();
+            if index < selected.len() {
+                selected.remove(index);
+            }
+            selected_files.set(selected);
+        })
+    };
+
+    let total_size: u64 = selected_files.iter().map(|f| f.size()).sum();
 
     html! {
         <>
@@ -223,6 +266,7 @@ fn file_upload_section(props: &FileUploadSectionProps) -> Html {
                 ref={file_input_ref}
                 type="file"
                 accept=".json,.xml,.yaml,.yml"
+                multiple=true
                 onchange={on_input_change}
                 style="display: none;"
             />
@@ -234,13 +278,36 @@ fn file_upload_section(props: &FileUploadSectionProps) -> Html {
                         {ondrop}
                         style="padding: var(--pf-t--global--spacer--xl); text-align: center; border: 2px dashed var(--pf-t--global--border--color--default); border-radius: var(--pf-t--global--border--radius--small);"
                     >
-                        if let Some(file) = &*selected_file {
-                            <p>
-                                <strong>{ "Selected: " }</strong>
-                                { file.name() }
-                                { format!(" ({:.1} KB)", file.size() as f64 / 1024.0) }
-                            </p>
+                        if selected_files.is_empty() {
+                            <p>{ "Drag and drop files here, or" }</p>
                             <br />
+                            <Button
+                                variant={ButtonVariant::Secondary}
+                                label="Browse..."
+                                onclick={on_browse}
+                            />
+                        } else {
+                            <p>
+                                <strong>{ format!("Selected {} file(s)", selected_files.len()) }</strong>
+                                { format!(" ({})", format_size(total_size)) }
+                            </p>
+                            <ul style="list-style: none; padding: 0; margin: var(--pf-t--global--spacer--sm) 0;">
+                                { for selected_files.iter().enumerate().map(|(index, file)| {
+                                    let on_remove = on_remove.clone();
+                                    html! {
+                                        <li>
+                                            { file.name() }
+                                            { format!(" ({})", format_size(file.size())) }
+                                            <Button
+                                                variant={ButtonVariant::Link}
+                                                label="Remove"
+                                                onclick={move |_: MouseEvent| on_remove.emit(index)}
+                                                disabled={props.loading}
+                                            />
+                                        </li>
+                                    }
+                                }) }
+                            </ul>
                             <div style="display: flex; gap: var(--pf-t--global--spacer--md); justify-content: center;">
                                 <Button
                                     variant={ButtonVariant::Primary}
@@ -251,19 +318,17 @@ fn file_upload_section(props: &FileUploadSectionProps) -> Html {
                                 />
                                 <Button
                                     variant={ButtonVariant::Secondary}
+                                    label="Add more..."
+                                    onclick={on_browse}
+                                    disabled={props.loading}
+                                />
+                                <Button
+                                    variant={ButtonVariant::Secondary}
                                     label="Clear"
                                     onclick={on_clear}
                                     disabled={props.loading}
                                 />
                             </div>
-                        } else {
-                            <p>{ "Drag and drop a file here, or" }</p>
-                            <br />
-                            <Button
-                                variant={ButtonVariant::Secondary}
-                                label="Browse..."
-                                onclick={on_browse}
-                            />
                         }
                     </div>
                 </FileUploadSelect>
@@ -272,11 +337,16 @@ fn file_upload_section(props: &FileUploadSectionProps) -> Html {
     }
 }
 
+fn format_size(bytes: u64) -> String {
+    format!("{:.1} KB", bytes as f64 / 1024.0)
+}
+
 #[derive(Clone, Debug, PartialEq, Properties)]
 struct UrlIngestSectionProps {
     loading: bool,
     on_start: Callback<()>,
-    on_result: Callback<Result<IngestResult, String>>,
+    on_outcome: Callback<IngestOutcome>,
+    on_done: Callback<()>,
 }
 
 #[function_component(UrlIngestSection)]
@@ -289,7 +359,8 @@ fn url_ingest_section(props: &UrlIngestSectionProps) -> Html {
     let on_ingest = {
         let input = input.clone();
         let on_start = props.on_start.clone();
-        let on_result = props.on_result.clone();
+        let on_outcome = props.on_outcome.clone();
+        let on_done = props.on_done.clone();
         let token = token.clone();
         Callback::from(move |_: ()| {
             let url = input.trim().to_string();
@@ -297,13 +368,15 @@ fn url_ingest_section(props: &UrlIngestSectionProps) -> Html {
                 return;
             }
             on_start.emit(());
-            let on_result = on_result.clone();
+            let on_outcome = on_outcome.clone();
+            let on_done = on_done.clone();
             let token = token.clone();
             spawn_local(async move {
-                match api::ingest_from_url(&url, token.as_deref()).await {
-                    Ok(data) => on_result.emit(Ok(data)),
-                    Err(e) => on_result.emit(Err(e.to_string())),
-                }
+                let result = api::ingest_from_url(&url, token.as_deref())
+                    .await
+                    .map_err(|e| e.to_string());
+                on_outcome.emit(IngestOutcome { name: url, result });
+                on_done.emit(());
             });
         })
     };
@@ -351,17 +424,28 @@ fn url_ingest_section(props: &UrlIngestSectionProps) -> Html {
 }
 
 #[derive(Clone, Debug, PartialEq, Properties)]
-struct IngestSuccessProps {
-    result: IngestResult,
+struct IngestOutcomeViewProps {
+    outcome: IngestOutcome,
 }
 
-#[function_component(IngestSuccess)]
-fn ingest_success(props: &IngestSuccessProps) -> Html {
-    let r = &props.result;
+#[function_component(IngestOutcomeView)]
+fn ingest_outcome_view(props: &IngestOutcomeViewProps) -> Html {
+    let name = &props.outcome.name;
+
+    let r = match &props.outcome.result {
+        Ok(r) => r,
+        Err(err) => {
+            return html! {
+                <Alert title={format!("Ingestion failed: {name}")} r#type={AlertType::Danger} inline=true>
+                    <p>{ err.clone() }</p>
+                </Alert>
+            };
+        }
+    };
 
     if r.duplicate {
         return html! {
-            <Alert title="Document already exists" r#type={AlertType::Info} inline=true>
+            <Alert title={format!("Document already exists: {name}")} r#type={AlertType::Info} inline=true>
                 <p>{ format!("Document {} was already ingested.", r.id) }</p>
             </Alert>
         };
@@ -369,15 +453,14 @@ fn ingest_success(props: &IngestSuccessProps) -> Html {
 
     html! {
         <>
-            <Alert title="Document ingested" r#type={AlertType::Success} inline=true>
+            <Alert title={format!("Document ingested: {name}")} r#type={AlertType::Success} inline=true>
                 <p>{ format!("ID: {}", r.id) }</p>
                 if let Some(doc_id) = &r.document_id {
                     <p>{ format!("Document ID: {doc_id}") }</p>
                 }
             </Alert>
             if !r.warnings.is_empty() {
-                <br />
-                <Alert title="Warnings" r#type={AlertType::Warning} inline=true>
+                <Alert title={format!("Warnings: {name}")} r#type={AlertType::Warning} inline=true>
                     <ul>
                         { for r.warnings.iter().map(|w| html! { <li>{ w }</li> }) }
                     </ul>
