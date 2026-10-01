@@ -1,6 +1,6 @@
 //! Correlation by digest: `sbom_node_checksum` ↔ `advisory_vulnerability_hash`.
 
-use super::{Assertion, Extractor, NodeIdentifier, NodeRef};
+use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
     model::{IdentifierKind, IdentifierRef},
@@ -76,7 +76,7 @@ impl Extractor for DigestExtractor {
         &self,
         identifiers: &[IdentifierRef],
         tx: &DatabaseTransaction,
-    ) -> Result<Vec<(usize, Assertion)>, Error> {
+    ) -> Result<Vec<IdentifierMatch>, Error> {
         // hash value -> [(index, algorithm)]
         let mut value_map = HashMap::<&str, Vec<(usize, Option<String>)>>::new();
         for (idx, identifier) in identifiers.iter().enumerate() {
@@ -101,16 +101,16 @@ impl Extractor for DigestExtractor {
             };
             for (idx, algorithm) in entries {
                 if algorithm.as_ref().is_none_or(|a| *a == ah.algorithm) {
-                    result.push((
-                        *idx,
-                        Assertion {
+                    result.push(IdentifierMatch {
+                        index: *idx,
+                        assertion: Assertion {
                             advisory_id: ah.advisory_id,
                             vulnerability_id: ah.vulnerability_id.clone(),
                             status: ah.status,
                             confidence: CONFIDENCE,
                             matched_value: format_digest(&ah.algorithm, &ah.value),
                         },
-                    ));
+                    });
                 }
             }
         }
@@ -123,7 +123,7 @@ impl Extractor for DigestExtractor {
         &self,
         advisory_id: Uuid,
         tx: &DatabaseTransaction,
-    ) -> Result<Vec<(NodeRef, Assertion)>, Error> {
+    ) -> Result<Vec<NodeMatch>, Error> {
         let advisory_hashes = advisory_vulnerability_hash::Entity::find()
             .filter(advisory_vulnerability_hash::Column::AdvisoryId.eq(advisory_id))
             .all(tx)
@@ -150,19 +150,19 @@ impl Extractor for DigestExtractor {
             let algorithm = normalize_algorithm(&cs.r#type);
             for ah in entries {
                 if algorithm == ah.algorithm {
-                    result.push((
-                        NodeRef {
+                    result.push(NodeMatch {
+                        node: NodeRef {
                             sbom_id: cs.sbom_id,
                             node_id: cs.node_id.clone(),
                         },
-                        Assertion {
+                        assertion: Assertion {
                             advisory_id,
                             vulnerability_id: ah.vulnerability_id.clone(),
                             status: ah.status,
                             confidence: CONFIDENCE,
                             matched_value: format_digest(&ah.algorithm, &ah.value),
                         },
-                    ));
+                    });
                 }
             }
         }

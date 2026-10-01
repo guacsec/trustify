@@ -1,5 +1,5 @@
 use super::{
-    Assertion, Extractor, cpe::CpeExtractor, digest::DigestExtractor,
+    Assertion, Extractor, IdentifierMatch, NodeMatch, cpe::CpeExtractor, digest::DigestExtractor,
     product_identifier::ProductIdentifierExtractor, purl::PurlExtractor, writer::EvidenceWriter,
 };
 use crate::{error::Error, model::IdentifierRef};
@@ -52,8 +52,8 @@ impl Extractors {
             let matches = extractor.match_identifiers(&identifiers, tx).await?;
 
             let mut writer = EvidenceWriter::new(extractor.id());
-            for (idx, assertion) in matches {
-                if let Some(node) = node_identifiers.get(idx) {
+            for IdentifierMatch { index, assertion } in matches {
+                if let Some(node) = node_identifiers.get(index) {
                     writer.add(&node.node, assertion);
                 }
             }
@@ -82,7 +82,7 @@ impl Extractors {
             }
 
             let mut writer = EvidenceWriter::new(extractor.id());
-            for (node, assertion) in matches {
+            for NodeMatch { node, assertion } in matches {
                 writer.add(&node, assertion);
             }
             let count = writer.write(tx).await?;
@@ -123,8 +123,10 @@ impl Extractors {
             if identifiers.is_empty() {
                 continue;
             }
-            for (idx, assertion) in extractor.match_identifiers(&identifiers, tx).await? {
-                if let Some(identifier) = identifiers.get(idx) {
+            for IdentifierMatch { index, assertion } in
+                extractor.match_identifiers(&identifiers, tx).await?
+            {
+                if let Some(identifier) = identifiers.get(index) {
                     result.push((identifier.clone(), assertion));
                 }
             }
