@@ -177,6 +177,11 @@ Disabled features return **503 Service Unavailable** with a `FeatureDisabled` er
 }
 ```
 
+503 is chosen deliberately over the alternatives: the endpoint is part of this API version, but this
+instance is not configured to serve it. A 404 would suggest a wrong URL, and a 501 would suggest the
+server can never support the operation. Clients should not probe endpoints to find out — they check the
+`features` array of `/.well-known/trustify` instead (see [Discovery](#discovery-well-knowntrustify)).
+
 #### Inline feature check
 
 Not every feature check fits an extractor. When a feature gate needs to be checked *inside* handler or
@@ -263,9 +268,22 @@ out specific types). The `capabilities.importers` array contains the resulting a
 This means the capability set is resolved at startup from the compiled-in types and the operator's
 configuration, following the same lifecycle as tier 2 configuration gates.
 
-Disabled capabilities are enforced at the API level: ingesting a disabled document format is rejected,
-and creating an importer of a disabled type fails. The `/.well-known/trustify` response exposes the
-active sets so the UI can adapt its presentation accordingly.
+Disabled capabilities are enforced, rejected requests return **422** with a `CapabilityDisabled` error:
+
+- Ingesting a single document of a disabled format is rejected.
+- In a dataset (zip) ingestion, files of a disabled format are skipped and reported in the dataset
+  warnings. The rest of the dataset is still loaded.
+- Creating, updating, patching, enabling, or force-running an importer of a disabled type is rejected.
+  Disabling such an importer is still possible.
+- Existing, enabled importers of a disabled type are never scheduled. Their `lastError` is set once
+  (using a conditional update, so restarts and multiple instances don't repeat it) and a single warning
+  is logged.
+
+The format filter gates ingestion only. Read-only parsing endpoints, like
+`POST /v3/ui/extract-sbom-purls`, are not affected.
+
+The `/.well-known/trustify` response exposes the active sets so the UI can adapt its presentation
+accordingly.
 
 ### Discovery: `/.well-known/trustify`
 
@@ -280,6 +298,7 @@ The well-known endpoint response is extended with `features` and `capabilities`:
     "recommendations"
   ],
   "capabilities": {
+    "formats": ["csaf", "cve", "cyclonedx", "osv", "spdx"],
     "importers": ["cwe", "kev", "csaf", "sbom", "nvd"]
   },
   "build": { ... }
@@ -292,7 +311,8 @@ Clients check membership: `features.includes("recommendations")`.
 
 **`capabilities`** is a map of category name → array of active options. Categories are always present;
 an empty array means no options are active for that category. Clients check `capabilities.importers`
-to see which importer types are configured.
+to see which importer types are enabled. This reflects the compiled-in types and the operator's filter,
+not the importer configurations that currently exist.
 
 The existing top-level `exploitIntelligence` field is preserved for backward compatibility but
 deprecated. New features are added exclusively to the `features` array.
