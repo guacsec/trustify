@@ -106,6 +106,12 @@ where
     S1: SelectorTrait + 'a,
     S2: SelectorTrait + 'a,
 {
+    /// Replace the item query, keeping the validated limit and unpaginated count query.
+    pub fn with_selector(mut self, selector: Selector<S1>) -> Self {
+        self.selector = selector;
+        self
+    }
+
     /// Fetch the items and return a handle for computing the total count.
     /// If the limit is zero, no query is executed and an empty result is returned.
     #[instrument(skip(self), err(level=tracing::Level::INFO))]

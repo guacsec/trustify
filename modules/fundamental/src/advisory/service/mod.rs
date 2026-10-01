@@ -7,7 +7,7 @@ use sea_orm::{
     FromQueryResult, IntoActiveModel, QueryResult, QuerySelect, QueryTrait, RelationTrait, Select,
     Statement,
 };
-use sea_query::{ColumnType, Expr, JoinType};
+use sea_query::{Alias, ColumnType, CommonTableExpression, Expr, JoinType, WithClause};
 use tracing::instrument;
 use trustify_common::{
     db::{
@@ -42,7 +42,8 @@ impl AdvisoryService {
         deprecation: Deprecation,
         connection: &C,
     ) -> Result<PaginatedResults<AdvisorySummary>, Error> {
-        let limiter = advisory::Entity::find()
+        let page_before_joins = search.q.is_empty() && search.sort.is_empty();
+        let query = advisory::Entity::find()
             .with_deprecation(deprecation)
             .join(
                 JoinType::InnerJoin,
@@ -60,8 +61,18 @@ impl AdvisoryService {
                         Some(("label", key)) => Some(format!("labels:{key}{op}{v}")),
                         _ => None,
                     }),
-            )?
+            )?;
+        let limiter = query
+            .clone()
             .try_limiting_as_multi_model::<AdvisoryCatcher>(connection, paginated, &self.cache)?;
+        let limiter = if page_before_joins {
+            limiter.with_selector(
+                paginate_advisories(query, paginated, deprecation)
+                    .try_into_multi_model::<AdvisoryCatcher>()?,
+            )
+        } else {
+            limiter
+        };
 
         let LimitedResult { items, total } = limiter.fetch().await?;
         let total = total.requested(paginated.total()).await?;
@@ -181,6 +192,39 @@ impl AdvisoryService {
 
         Ok(Some(()))
     }
+}
+
+/// Select the advisory page before loading source documents and issuers.
+fn paginate_advisories(
+    mut query: Select<advisory::Entity>,
+    paginated: impl Pagination,
+    deprecation: Deprecation,
+) -> Select<advisory::Entity> {
+    let page = advisory::Entity::find()
+        .with_deprecation(deprecation)
+        .select_only()
+        .column(advisory::Column::Id)
+        .limit(paginated.limit())
+        .offset(paginated.offset())
+        .into_query();
+    QueryTrait::query(&mut query)
+        .with_cte(
+            WithClause::new()
+                .cte(
+                    CommonTableExpression::new()
+                        .table_name(Alias::new("page"))
+                        .query(page)
+                        .to_owned(),
+                )
+                .to_owned(),
+        )
+        .join(
+            JoinType::InnerJoin,
+            Alias::new("page"),
+            Expr::col((advisory::Entity, advisory::Column::Id))
+                .equals((Alias::new("page"), advisory::Column::Id)),
+        );
+    query
 }
 
 #[derive(Debug)]

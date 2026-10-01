@@ -1,6 +1,7 @@
 use super::*;
 use crate::{advisory::model::AdvisoryHead, source_document::model::SourceDocument};
-use sea_orm::TransactionTrait;
+use rstest::rstest;
+use sea_orm::{ColumnTrait, QueryFilter, TransactionTrait};
 use std::{collections::HashMap, str::FromStr};
 use test_context::test_context;
 use test_log::test;
@@ -91,6 +92,106 @@ async fn all_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         .await?;
 
     assert_eq!(fetched.total, Some(2));
+    Ok(())
+}
+
+#[rstest]
+#[case(Deprecation::Ignore)]
+#[case(Deprecation::Consider)]
+#[test_log::test]
+fn pagination_before_joins_sql(#[case] deprecation: Deprecation) {
+    let query = advisory::Entity::find()
+        .with_deprecation(deprecation)
+        .join(
+            JoinType::InnerJoin,
+            advisory::Relation::SourceDocument.def(),
+        )
+        .join(JoinType::LeftJoin, advisory::Relation::Issuer.def());
+    let sql = paginate_advisories(
+        query,
+        Paginated {
+            offset: 100,
+            limit: 1,
+            total: false,
+        },
+        deprecation,
+    )
+    .build(DatabaseBackend::Postgres)
+    .to_string();
+
+    let (page, outer) = sql.split_once(") SELECT").unwrap();
+    assert!(page.starts_with(r#"WITH "page" AS (SELECT "advisory"."id" FROM "advisory""#));
+    assert!(page.ends_with("LIMIT 1 OFFSET 100"));
+    assert!(!page.contains("JOIN"));
+    assert_eq!(
+        page.contains("deprecated"),
+        deprecation == Deprecation::Ignore
+    );
+    assert!(outer.contains(r#"INNER JOIN "source_document""#));
+    assert!(outer.contains(r#"LEFT JOIN "organization""#));
+    assert!(outer.contains(r#"INNER JOIN "page" ON "advisory"."id" = "page"."id""#));
+    assert!(!outer.contains("LIMIT"));
+    assert!(!outer.contains("OFFSET"));
+}
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn paginated_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    ingest_and_link_advisory(ctx).await?;
+    ingest_sample_advisory(ctx, "RHSA-2", "RHSA-2").await?;
+    let deprecated = ingest_sample_advisory(ctx, "RHSA-3", "RHSA-3").await?;
+    advisory::Entity::update_many()
+        .col_expr(advisory::Column::Deprecated, Expr::value(true))
+        .filter(advisory::Column::Id.eq(deprecated.advisory.id))
+        .exec(&ctx.db)
+        .await?;
+
+    let service = AdvisoryService::new(PaginationCache::for_test());
+    for deprecation in [Deprecation::Ignore, Deprecation::Consider] {
+        let expected_total: u64 = if deprecation == Deprecation::Ignore {
+            2
+        } else {
+            3
+        };
+        let reference = service
+            .fetch_advisories(
+                q("").sort("id:asc"),
+                Paginated::default(),
+                deprecation,
+                &ctx.db,
+            )
+            .await?;
+
+        for total in [false, true] {
+            for (offset, limit) in [(0, 0), (0, 3), (1, 1), (2, 1), (3, 1), (100, 1)] {
+                let fetched = service
+                    .fetch_advisories(
+                        q(""),
+                        Paginated {
+                            offset,
+                            limit,
+                            total,
+                        },
+                        deprecation,
+                        &ctx.db,
+                    )
+                    .await?;
+                assert_eq!(fetched.total, total.then_some(expected_total));
+                assert_eq!(
+                    fetched.items.len() as u64,
+                    limit.min(expected_total.saturating_sub(offset)),
+                );
+                for item in fetched.items {
+                    let expected = reference
+                        .items
+                        .iter()
+                        .find(|r| r.head.uuid == item.head.uuid)
+                        .unwrap();
+                    assert_eq!(serde_json::to_value(item)?, serde_json::to_value(expected)?);
+                }
+            }
+        }
+    }
     Ok(())
 }
 
