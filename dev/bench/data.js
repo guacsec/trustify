@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790762499754,
+  "lastUpdate": 1790842145084,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22927,6 +22927,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/0b3bc0b343116be8df02ccceea4e7e61cf7a8ac3"
         },
         "date": 1790762496879,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "gilles@redhat.com",
+            "name": "gildub",
+            "username": "gildub"
+          },
+          "committer": {
+            "email": "gilles@redhat.com",
+            "name": "Gilles Dubreuil",
+            "username": "gildub"
+          },
+          "distinct": true,
+          "id": "9cbaeebd326284814afc7add0e0790ac69654487",
+          "message": "fix(crypto): regenerate openapi",
+          "timestamp": "2026-10-01T07:17:37Z",
+          "tree_id": "f2775dcb6ff885a9c6bd9d3c9441f26082666d35",
+          "url": "https://github.com/guacsec/trustify/commit/9cbaeebd326284814afc7add0e0790ac69654487"
+        },
+        "date": 1790842142367,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
