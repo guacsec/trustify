@@ -1,177 +1,197 @@
-use crate::{error::Error, evidence::load_advisory_hashes_by_values};
-use sea_orm::{ActiveValue::Set, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
+//! Correlation by digest: `sbom_node_checksum` ↔ `advisory_vulnerability_hash`.
+
+use super::{Assertion, Extractor, NodeIdentifier, NodeRef};
+use crate::{
+    error::Error,
+    model::{IdentifierKind, IdentifierRef},
+};
+use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, QueryFilter};
 use std::collections::HashMap;
 use tracing::{Instrument, info_span, instrument};
-use trustify_common::{db::chunk::EntityChunkedIter, hashing::normalize_algorithm};
-use trustify_entity::{
-    advisory_vulnerability_hash, correlation_evidence, correlation_evidence::AssertionStatus,
-    sbom_node_checksum,
-};
+use trustify_common::hashing::normalize_algorithm;
+use trustify_entity::{advisory_vulnerability_hash, sbom_node_checksum};
 use uuid::Uuid;
 
-const EXTRACTOR_ID: &str = "digest";
-const DIGEST_NAMESPACE: Uuid = Uuid::from_bytes([
-    0xd1, 0x9e, 0x57, 0xa3, 0x2b, 0x4c, 0x6d, 0x8e, 0x9f, 0xa0, 0xb1, 0xc2, 0xd3, 0xe4, 0xf5, 0x06,
-]);
-
-/// Generates a deterministic UUID for a correlation evidence row.
-fn evidence_uuid(sbom_id: Uuid, node_id: &str, advisory_id: Uuid, vulnerability_id: &str) -> Uuid {
-    let mut id = Uuid::new_v5(&DIGEST_NAMESPACE, sbom_id.as_bytes());
-    id = Uuid::new_v5(&id, node_id.as_bytes());
-    id = Uuid::new_v5(&id, advisory_id.as_bytes());
-    id = Uuid::new_v5(&id, vulnerability_id.as_bytes());
-    id
-}
-
 /// Extracts correlation evidence by matching checksums/digests.
+///
+/// Identifier values use the format `<algorithm>:<value>`, with a normalized algorithm.
+/// A value without an algorithm (only possible from a query) matches any algorithm.
 pub struct DigestExtractor;
 
-impl DigestExtractor {
-    /// Match SBOM component checksums against advisory hashes and insert evidence.
-    #[instrument(skip_all, err(level = tracing::Level::INFO))]
-    pub async fn extract_for_sbom<C: ConnectionTrait>(
+const CONFIDENCE: f64 = 1.0;
+
+fn format_digest(algorithm: &str, value: &str) -> String {
+    format!("{algorithm}:{value}")
+}
+
+/// Split a digest identifier into an optional (normalized) algorithm and the value.
+fn parse_digest(value: &str) -> (Option<String>, &str) {
+    match value.split_once(':') {
+        Some((algorithm, value)) => (Some(normalize_algorithm(algorithm)), value),
+        None => (None, value),
+    }
+}
+
+#[async_trait::async_trait]
+impl Extractor for DigestExtractor {
+    fn id(&self) -> &'static str {
+        "digest"
+    }
+
+    #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
+    async fn sbom_identifiers(
+        &self,
         sbom_id: Uuid,
-        connection: &C,
-    ) -> Result<u64, Error> {
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<NodeIdentifier>, Error> {
         let checksums = sbom_node_checksum::Entity::find()
             .filter(sbom_node_checksum::Column::SbomId.eq(sbom_id))
-            .all(connection)
-            .instrument(info_span!("loading sbom checksums"))
+            .all(tx)
             .await?;
 
-        if checksums.is_empty() {
-            return Ok(0);
+        Ok(checksums
+            .into_iter()
+            .map(|cs| NodeIdentifier {
+                identifier: IdentifierRef {
+                    kind: IdentifierKind::Digest,
+                    value: format_digest(&normalize_algorithm(&cs.r#type), &cs.value),
+                },
+                node: NodeRef {
+                    sbom_id: cs.sbom_id,
+                    node_id: cs.node_id,
+                },
+            })
+            .collect())
+    }
+
+    fn parse_query(&self, query: &str) -> Vec<IdentifierRef> {
+        vec![IdentifierRef {
+            kind: IdentifierKind::Digest,
+            value: query.to_string(),
+        }]
+    }
+
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    async fn match_identifiers(
+        &self,
+        identifiers: &[IdentifierRef],
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<(usize, Assertion)>, Error> {
+        // hash value -> [(index, algorithm)]
+        let mut value_map = HashMap::<&str, Vec<(usize, Option<String>)>>::new();
+        for (idx, identifier) in identifiers.iter().enumerate() {
+            if identifier.kind != IdentifierKind::Digest {
+                continue;
+            }
+            let (algorithm, value) = parse_digest(&identifier.value);
+            value_map.entry(value).or_default().push((idx, algorithm));
         }
 
-        // Map hash_value -> Vec<(node_id, normalized_algorithm)>
-        let mut value_map: HashMap<&str, Vec<(&str, String)>> = HashMap::new();
-        for cs in &checksums {
-            let normalized = normalize_algorithm(&cs.r#type);
-            value_map
-                .entry(cs.value.as_str())
-                .or_default()
-                .push((cs.node_id.as_str(), normalized));
+        if value_map.is_empty() {
+            return Ok(Vec::new());
         }
 
-        let unique_values: Vec<&str> = value_map.keys().copied().collect();
+        let values = value_map.keys().copied().collect::<Vec<_>>();
+        let advisory_hashes = load_advisory_hashes_by_values(&values, tx).await?;
 
-        let advisory_hashes = load_advisory_hashes_by_values(&unique_values, connection).await?;
-
-        let mut models = Vec::new();
-        for ah in &advisory_hashes {
-            if let Some(entries) = value_map.get(ah.value.as_str()) {
-                for (node_id, normalized_algo) in entries {
-                    if *normalized_algo == ah.algorithm {
-                        let id =
-                            evidence_uuid(sbom_id, node_id, ah.advisory_id, &ah.vulnerability_id);
-                        models.push(correlation_evidence::ActiveModel {
-                            id: Set(id),
-                            sbom_id: Set(sbom_id),
-                            node_id: Set(node_id.to_string()),
-                            advisory_id: Set(ah.advisory_id),
-                            vulnerability_id: Set(ah.vulnerability_id.clone()),
-                            status: Set(ah.status),
-                            confidence: Set(1.0),
-                            extractor: Set(EXTRACTOR_ID.to_string()),
-                            matched_value: Set(Some(format!("{}:{}", ah.algorithm, ah.value))),
-                            created_at: Set(time::OffsetDateTime::now_utc()),
-                        });
-                    }
+        let mut result = Vec::new();
+        for ah in advisory_hashes {
+            let Some(entries) = value_map.get(ah.value.as_str()) else {
+                continue;
+            };
+            for (idx, algorithm) in entries {
+                if algorithm.as_ref().is_none_or(|a| *a == ah.algorithm) {
+                    result.push((
+                        *idx,
+                        Assertion {
+                            advisory_id: ah.advisory_id,
+                            vulnerability_id: ah.vulnerability_id.clone(),
+                            status: ah.status,
+                            confidence: CONFIDENCE,
+                            matched_value: format_digest(&ah.algorithm, &ah.value),
+                        },
+                    ));
                 }
             }
         }
 
-        let count = models.len() as u64;
-
-        models.sort_by_key(|m| *m.id.as_ref());
-
-        for batch in &models.chunked() {
-            correlation_evidence::Entity::insert_many(batch)
-                .on_conflict_do_nothing()
-                .exec(connection)
-                .instrument(info_span!("inserting evidence"))
-                .await?;
-        }
-
-        tracing::info!(sbom_id = %sbom_id, evidence_count = count, "digest extraction for SBOM complete");
-        Ok(count)
+        Ok(result)
     }
 
-    /// Match advisory hashes against all SBOM checksums and insert evidence.
-    #[instrument(skip_all, err(level = tracing::Level::INFO))]
-    pub async fn extract_for_advisory<C: ConnectionTrait>(
+    #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
+    async fn match_advisory(
+        &self,
         advisory_id: Uuid,
-        connection: &C,
-    ) -> Result<u64, Error> {
+        tx: &DatabaseTransaction,
+    ) -> Result<Vec<(NodeRef, Assertion)>, Error> {
         let advisory_hashes = advisory_vulnerability_hash::Entity::find()
             .filter(advisory_vulnerability_hash::Column::AdvisoryId.eq(advisory_id))
-            .all(connection)
+            .all(tx)
             .instrument(info_span!("loading advisory hashes"))
             .await?;
 
         if advisory_hashes.is_empty() {
-            return Ok(0);
+            return Ok(Vec::new());
         }
 
-        // Map hash_value -> Vec<(vulnerability_id, algorithm, status)>
-        let mut value_map: HashMap<&str, Vec<(&str, &str, AssertionStatus)>> = HashMap::new();
+        let mut value_map = HashMap::<&str, Vec<&advisory_vulnerability_hash::Model>>::new();
         for ah in &advisory_hashes {
-            value_map.entry(ah.value.as_str()).or_default().push((
-                ah.vulnerability_id.as_str(),
-                ah.algorithm.as_str(),
-                ah.status,
-            ));
+            value_map.entry(ah.value.as_str()).or_default().push(ah);
         }
 
-        let unique_values: Vec<&str> = value_map.keys().copied().collect();
+        let values = value_map.keys().copied().collect::<Vec<_>>();
+        let checksums = load_checksums_by_values(&values, tx).await?;
 
-        let checksums = load_checksums_by_values(unique_values, connection).await?;
-
-        let mut models = Vec::new();
-        for cs in &checksums {
-            let normalized_algo = normalize_algorithm(&cs.r#type);
-            if let Some(entries) = value_map.get(cs.value.as_str()) {
-                for (vuln_id, algo, status) in entries {
-                    if normalized_algo == *algo {
-                        let id = evidence_uuid(cs.sbom_id, &cs.node_id, advisory_id, vuln_id);
-                        models.push(correlation_evidence::ActiveModel {
-                            id: Set(id),
-                            sbom_id: Set(cs.sbom_id),
-                            node_id: Set(cs.node_id.clone()),
-                            advisory_id: Set(advisory_id),
-                            vulnerability_id: Set(vuln_id.to_string()),
-                            status: Set(*status),
-                            confidence: Set(1.0),
-                            extractor: Set(EXTRACTOR_ID.to_string()),
-                            matched_value: Set(Some(format!("{}:{}", algo, cs.value))),
-                            created_at: Set(time::OffsetDateTime::now_utc()),
-                        });
-                    }
+        let mut result = Vec::new();
+        for cs in checksums {
+            let Some(entries) = value_map.get(cs.value.as_str()) else {
+                continue;
+            };
+            let algorithm = normalize_algorithm(&cs.r#type);
+            for ah in entries {
+                if algorithm == ah.algorithm {
+                    result.push((
+                        NodeRef {
+                            sbom_id: cs.sbom_id,
+                            node_id: cs.node_id.clone(),
+                        },
+                        Assertion {
+                            advisory_id,
+                            vulnerability_id: ah.vulnerability_id.clone(),
+                            status: ah.status,
+                            confidence: CONFIDENCE,
+                            matched_value: format_digest(&ah.algorithm, &ah.value),
+                        },
+                    ));
                 }
             }
         }
 
-        let count = models.len() as u64;
-
-        models.sort_by_key(|m| *m.id.as_ref());
-
-        for batch in &models.chunked() {
-            correlation_evidence::Entity::insert_many(batch)
-                .on_conflict_do_nothing()
-                .exec(connection)
-                .instrument(info_span!("inserting evidence"))
-                .await?;
-        }
-
-        tracing::info!(advisory_id = %advisory_id, evidence_count = count, "digest extraction for advisory complete");
-        Ok(count)
+        Ok(result)
     }
 }
 
+/// Load advisory_vulnerability_hash rows matching any of the given hash values.
+async fn load_advisory_hashes_by_values(
+    values: &[&str],
+    connection: &impl ConnectionTrait,
+) -> Result<Vec<advisory_vulnerability_hash::Model>, Error> {
+    let mut results = Vec::new();
+    for chunk in values.chunks(5000) {
+        let rows = advisory_vulnerability_hash::Entity::find()
+            .filter(advisory_vulnerability_hash::Column::Value.is_in(chunk.iter().copied()))
+            .all(connection)
+            .instrument(info_span!("loading advisory hashes by value"))
+            .await?;
+        results.extend(rows);
+    }
+    Ok(results)
+}
+
 /// Load sbom_node_checksum rows matching any of the given hash values.
-async fn load_checksums_by_values<C: ConnectionTrait>(
-    values: Vec<&str>,
-    connection: &C,
+async fn load_checksums_by_values(
+    values: &[&str],
+    connection: &impl ConnectionTrait,
 ) -> Result<Vec<sbom_node_checksum::Model>, Error> {
     let mut results = Vec::new();
     for chunk in values.chunks(5000) {
@@ -183,4 +203,68 @@ async fn load_checksums_by_values<C: ConnectionTrait>(
         results.extend(rows);
     }
     Ok(results)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::extractor::Extractors;
+    use sea_orm::TransactionTrait;
+    use test_context::test_context;
+    use test_log::test;
+    use trustify_entity::correlation_evidence;
+    use trustify_test_context::TrustifyContext;
+
+    /// Both directions must find matches and produce the same evidence rows.
+    #[test_context(TrustifyContext)]
+    #[test(actix_web::test)]
+    async fn extract_both_directions(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let sbom = ctx
+            .ingest_document("scenarios/S18_digest_correlation/sbom/libcrypto.cdx.json")
+            .await?;
+        let advisory = ctx
+            .ingest_document("scenarios/S18_digest_correlation/vex/vde-2025-106.json")
+            .await?;
+        let sbom_id = Uuid::parse_str(&sbom.id)?;
+        let advisory_id = Uuid::parse_str(&advisory.id)?;
+
+        let extractors = Extractors::new(vec![Box::new(DigestExtractor)]);
+        let load = || async {
+            let mut ids = correlation_evidence::Entity::find()
+                .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
+                .filter(correlation_evidence::Column::Extractor.eq("digest"))
+                .all(&ctx.db)
+                .await?
+                .into_iter()
+                .map(|e| e.id)
+                .collect::<Vec<_>>();
+            ids.sort();
+            Ok::<_, anyhow::Error>(ids)
+        };
+
+        let tx = ctx.db.begin().await?;
+        assert!(extractors.extract_for_sbom(sbom_id, &tx).await? > 0);
+        tx.commit().await?;
+        let from_sbom = load().await?;
+        assert!(!from_sbom.is_empty());
+
+        let tx = ctx.db.begin().await?;
+        assert!(extractors.extract_for_advisory(advisory_id, &tx).await? > 0);
+        tx.commit().await?;
+        assert_eq!(from_sbom, load().await?);
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_with_algorithm() {
+        let (algorithm, value) = parse_digest("SHA-256:abc");
+        assert_eq!(algorithm, Some(normalize_algorithm("SHA-256")));
+        assert_eq!(value, "abc");
+    }
+
+    #[test]
+    fn parse_without_algorithm() {
+        assert_eq!(parse_digest("abc"), (None, "abc"));
+    }
 }

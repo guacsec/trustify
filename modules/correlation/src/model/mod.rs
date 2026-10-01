@@ -1,5 +1,5 @@
 pub use trustify_api::correlation::{
-    AssertionStatus as ApiAssertionStatus, ComponentRef, CorrelationResult, DigestRef,
-    EvidenceDetail, ProductIdentifierRef, QueryMatch, QueryMatchType, QueryResult, QueryVerdict,
-    VerdictStatus, VerdictSummary, VulnerabilityRef,
+    AssertionStatus as ApiAssertionStatus, ComponentRef, CorrelationResult, EvidenceDetail,
+    IdentifierKind, IdentifierRef, QueryMatch, QueryResult, QueryVerdict, VerdictStatus,
+    VerdictSummary, VulnerabilityRef,
 };

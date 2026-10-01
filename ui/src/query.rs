@@ -175,7 +175,7 @@ struct MatchEntry(QueryMatch);
 impl TableEntryRenderer<MatchColumn> for MatchEntry {
     fn render_cell(&self, context: CellContext<'_, MatchColumn>) -> Cell {
         match context.column {
-            MatchColumn::MatchType => html!(<Label label={self.0.match_type.label()} />).into(),
+            MatchColumn::MatchType => html!(<Label label={self.0.kind.label()} />).into(),
             MatchColumn::Value => html!(&self.0.value).into(),
             MatchColumn::Advisory => html! {
                 <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
