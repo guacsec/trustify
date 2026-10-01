@@ -9001,6 +9001,7 @@ dependencies = [
  "actix-http",
  "actix-web",
  "anyhow",
+ "async-trait",
  "bytes",
  "chrono",
  "cpe",

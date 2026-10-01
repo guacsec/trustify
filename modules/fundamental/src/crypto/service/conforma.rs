@@ -1,8 +1,11 @@
 use std::{net::TcpListener, path::Path, time::Duration};
 
 use anyhow::Context;
+use async_trait::async_trait;
 use serde::Deserialize;
 use tokio::process::Command;
+
+use super::evaluator::{AlgorithmInput, EvaluatorFinding, EvaluatorReport, PolicyEvaluator};
 
 pub struct ConformaClient {
     /// Absolute path to a local Conforma policy YAML file.
@@ -10,16 +13,6 @@ pub struct ConformaClient {
     /// built from the user's chosen policy configuration.
     policy_path: String,
     image: String,
-}
-
-pub struct ConformaReport {
-    pub violations: Vec<ConformaResultEntry>,
-    pub warnings: Vec<ConformaResultEntry>,
-}
-
-pub struct ConformaResultEntry {
-    pub message: String,
-    pub node_id: Option<String>,
 }
 
 impl ConformaClient {
@@ -30,7 +23,7 @@ impl ConformaClient {
         }
     }
 
-    pub async fn evaluate(&self, input: serde_json::Value) -> Result<ConformaReport, crate::Error> {
+    async fn run(&self, input: serde_json::Value) -> Result<RawConformaReport, crate::Error> {
         let (container_id, port) = self.start_server().await?;
         let result = self.call_server(&container_id, port, input).await;
         self.stop_server(&container_id).await;
@@ -109,7 +102,7 @@ impl ConformaClient {
         _container_id: &str,
         port: u16,
         input: serde_json::Value,
-    ) -> Result<ConformaReport, crate::Error> {
+    ) -> Result<RawConformaReport, crate::Error> {
         let base_url = format!("http://127.0.0.1:{port}");
         self.wait_ready(&base_url).await?;
 
@@ -121,16 +114,11 @@ impl ConformaClient {
             .await
             .context("failed to reach Conforma evaluation endpoint")?;
 
-        let raw: RawReport = response
+        response
             .json()
             .await
-            .context("failed to parse Conforma response")?;
-
-        let file = raw.filepaths.into_iter().next().unwrap_or_default();
-        Ok(ConformaReport {
-            violations: file.violations.into_iter().map(into_entry).collect(),
-            warnings: file.warnings.into_iter().map(into_entry).collect(),
-        })
+            .context("failed to parse Conforma response")
+            .map_err(|e| crate::Error::Internal(e.to_string()))
     }
 
     async fn wait_ready(&self, base_url: &str) -> Result<(), crate::Error> {
@@ -161,20 +149,44 @@ impl ConformaClient {
     }
 }
 
-fn into_entry(r: RawResult) -> ConformaResultEntry {
-    // Conforma strips extra fields from deny/warn results; node_id is embedded
-    // as a "[node_id:<uuid>]" prefix in the message by the Rego policy.
-    let node_id = r.msg
-        .strip_prefix("[node_id:")
-        .and_then(|s| s.find(']').map(|i| s[..i].to_string()));
-    ConformaResultEntry {
-        message: r.msg,
-        node_id,
+#[async_trait]
+impl PolicyEvaluator for ConformaClient {
+    async fn evaluate(
+        &self,
+        algorithms: &[AlgorithmInput],
+    ) -> Result<EvaluatorReport, crate::Error> {
+        let input = serde_json::json!({
+            "algorithms": algorithms.iter().map(|a| serde_json::json!({
+                "node_id": a.node_id,
+                "sbom_id": a.sbom_id,
+                "name": a.name,
+                "oid": a.oid,
+                "properties": a.properties,
+            })).collect::<Vec<_>>()
+        });
+
+        let raw = self.run(input).await?;
+        let file = raw.filepaths.into_iter().next().unwrap_or_default();
+
+        Ok(EvaluatorReport {
+            violations: file.violations.into_iter().map(parse_finding).collect(),
+            warnings: file.warnings.into_iter().map(parse_finding).collect(),
+        })
     }
 }
 
+// Conforma strips extra fields from deny/warn results and only preserves "msg".
+// We embed the node_id as a "[node_id:<uuid>]" prefix so trustify can parse it
+// back out and match violations to individual AlgorithmPolicyResult rows.
+fn parse_finding(r: RawResult) -> EvaluatorFinding {
+    let node_id = r.msg
+        .strip_prefix("[node_id:")
+        .and_then(|s| s.find(']').map(|i| s[..i].to_string()));
+    EvaluatorFinding { node_id }
+}
+
 #[derive(Deserialize, Default)]
-struct RawReport {
+struct RawConformaReport {
     #[serde(default)]
     filepaths: Vec<RawFilePath>,
 }

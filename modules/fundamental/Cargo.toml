@@ -51,6 +51,7 @@ uuid = { workspace = true }
 semver = { workspace = true }
 regex = { workspace = true }
 lenient_semver = { workspace = true }
+async-trait = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 
 [dev-dependencies]
