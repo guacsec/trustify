@@ -261,9 +261,10 @@ impl CryptoService {
         sbom_id: Option<Uuid>,
         connection: &C,
     ) -> Result<PolicyEvaluationResponse, Error> {
-        let policy_evaluator = self.evaluator.as_ref().ok_or_else(|| {
-            Error::Internal("CONFORMA_POLICY is not configured".into())
-        })?;
+        let policy_evaluator = self
+            .evaluator
+            .as_ref()
+            .ok_or_else(|| Error::Internal("CONFORMA_POLICY is not configured".into()))?;
 
         let mut query = sbom_crypto::Entity::find()
             .filter(sbom_crypto::Column::AssetType.eq(CryptoAssetType::Algorithm));

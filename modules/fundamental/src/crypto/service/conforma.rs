@@ -36,16 +36,19 @@ impl ConformaClient {
         // the most portable approach across podman versions (port 0 in -p is not
         // universally supported).
         let port = {
-            let listener = TcpListener::bind("127.0.0.1:0")
-                .context("failed to find a free local port")?;
-            listener.local_addr().context("failed to get local addr")?.port()
+            let listener =
+                TcpListener::bind("127.0.0.1:0").context("failed to find a free local port")?;
+            listener
+                .local_addr()
+                .context("failed to get local addr")?
+                .port()
         };
         let port_str = port.to_string();
 
         let policy_path = Path::new(&self.policy_path);
-        let policy_dir = policy_path
-            .parent()
-            .ok_or_else(|| crate::Error::Internal("CONFORMA_POLICY must be an absolute file path".into()))?;
+        let policy_dir = policy_path.parent().ok_or_else(|| {
+            crate::Error::Internal("CONFORMA_POLICY must be an absolute file path".into())
+        })?;
         let policy_filename = policy_path
             .file_name()
             .ok_or_else(|| crate::Error::Internal("CONFORMA_POLICY path has no filename".into()))?
@@ -86,9 +89,7 @@ impl ConformaClient {
             )));
         }
 
-        let container_id = String::from_utf8_lossy(&output.stdout)
-            .trim()
-            .to_string();
+        let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
         if container_id.is_empty() {
             return Err(crate::Error::Internal(
                 "podman returned empty container ID".into(),
@@ -179,7 +180,8 @@ impl PolicyEvaluator for ConformaClient {
 // We embed the node_id as a "[node_id:<uuid>]" prefix so trustify can parse it
 // back out and match violations to individual AlgorithmPolicyResult rows.
 fn parse_finding(r: RawResult) -> EvaluatorFinding {
-    let node_id = r.msg
+    let node_id = r
+        .msg
         .strip_prefix("[node_id:")
         .and_then(|s| s.find(']').map(|i| s[..i].to_string()));
     EvaluatorFinding { node_id }
