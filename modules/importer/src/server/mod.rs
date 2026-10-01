@@ -90,6 +90,42 @@ impl Server {
         LocalSet::new().run_until(self.run_local()).await
     }
 
+    /// Record an error on enabled importers whose type is disabled, as they will never run.
+    ///
+    /// The warning is only logged when the error is newly recorded, not on every startup.
+    async fn mark_capability_disabled(&self, service: &ImporterService) {
+        let importers = match service.list().await {
+            Ok(importers) => importers,
+            Err(err) => {
+                tracing::warn!("Failed to check importers for disabled capabilities: {err}");
+                return;
+            }
+        };
+
+        for importer in importers {
+            if importer.data.configuration.disabled {
+                continue;
+            }
+            let Err(err) = self
+                .importer_filter
+                .try_enabled((&importer.data.configuration).into())
+            else {
+                continue;
+            };
+
+            match service.mark_capability_disabled(&importer.name, &err).await {
+                Ok(true) => {
+                    tracing::warn!(importer = importer.name, "{err}; importer will not run")
+                }
+                Ok(false) => {}
+                Err(err) => tracing::warn!(
+                    importer = importer.name,
+                    "Failed to record disabled capability: {err}"
+                ),
+            }
+        }
+    }
+
     async fn run_local(self) -> anyhow::Result<()> {
         let meter = global::meter("importer::Server");
         let running_importers = meter.u64_gauge("running_importers").build();
@@ -106,6 +142,10 @@ impl Server {
             analysis: self.analysis.clone(),
             credential_config: self.credential_config.clone(),
         };
+        if !self.read_only {
+            self.mark_capability_disabled(&service).await;
+        }
+
         let mut interval = tokio::time::interval(Duration::from_secs(1));
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 

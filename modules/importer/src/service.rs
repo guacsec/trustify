@@ -16,7 +16,7 @@ use trustify_common::{
         query::{Error as QueryError, Filtering, Query},
     },
     error::ErrorInformation,
-    feature::CapabilityFilter,
+    feature::{CapabilityDisabled, CapabilityFilter},
     model::{PaginatedResults, Pagination, Revisioned},
 };
 use trustify_entity::{importer, importer_report, labels};
@@ -232,11 +232,13 @@ impl ImporterService {
         let mut configuration =
             f(current.value.data.configuration).map_err(PatchError::Transform)?;
 
-        // check capability filter
+        // check capability filter, but always allow disabling an importer
 
-        self.importer_filter
-            .try_enabled((&configuration).into())
-            .map_err(|err| PatchError::Common(err.into()))?;
+        if !configuration.disabled {
+            self.importer_filter
+                .try_enabled((&configuration).into())
+                .map_err(|err| PatchError::Common(err.into()))?;
+        }
 
         // validate
 
@@ -407,9 +409,44 @@ impl ImporterService {
         }
     }
 
+    /// Record that an importer can't run because its type is disabled.
+    ///
+    /// Only updates `last_error` if it isn't already set to this error, so that it gets recorded
+    /// once, not on every startup. Returns `true` if this call recorded it.
+    pub async fn mark_capability_disabled(
+        &self,
+        name: &str,
+        err: &CapabilityDisabled,
+    ) -> Result<bool, Error> {
+        let message = err.to_string();
+        let result = importer::Entity::update_many()
+            .col_expr(importer::Column::Revision, Expr::value(Uuid::new_v4()))
+            .col_expr(importer::Column::LastError, Expr::value(message.clone()))
+            .col_expr(
+                importer::Column::LastChange,
+                Expr::value(OffsetDateTime::now_utc()),
+            )
+            .filter(importer::Column::Name.eq(name))
+            .filter(
+                importer::Column::LastError
+                    .is_null()
+                    .or(importer::Column::LastError.ne(message)),
+            )
+            .exec(&self.db)
+            .await?;
+
+        Ok(result.rows_affected > 0)
+    }
+
     /// Reset the last-run timestamp and continuation token to force a new run
     #[instrument(skip(self))]
     pub async fn reset(&self, name: &str, expected_revision: Option<&str>) -> Result<(), Error> {
+        let Some(current) = self.read(name).await? else {
+            return Err(Error::NotFound(name.into()));
+        };
+        self.importer_filter
+            .try_enabled((&current.value.data.configuration).into())?;
+
         self.update(
             &self.db,
             name,
