@@ -279,8 +279,14 @@ Disabled capabilities are enforced, rejected requests return **422** with a `Cap
   (using a conditional update, so restarts and multiple instances don't repeat it) and a single warning
   is logged.
 
-The format filter gates ingestion only. Read-only parsing endpoints, like
-`POST /v3/ui/extract-sbom-purls`, are not affected.
+The format filter and the importer filter are independent mechanisms. The format filter gates
+document uploads and dataset ingestion only — it does not apply to importer-driven ingestion. Importers
+are not tied to a single format (e.g., the `sbom` importer handles both SPDX and CycloneDX, and `http`
+auto-detects the format), so format-level filtering cannot be meaningfully mapped onto importer types.
+To prevent ingestion of a specific format, the operator disables the format via the format filter (which
+blocks uploads) and separately disables or does not configure importers that would produce documents in
+that format. Read-only parsing endpoints, like `POST /v3/ui/extract-sbom-purls`, are not affected by
+either filter.
 
 The `/.well-known/trustify` response exposes the active sets so the UI can adapt its presentation
 accordingly.
