@@ -101,11 +101,11 @@ pub struct FeatureDisabled(pub Feature);
 
 impl actix_web::ResponseError for FeatureDisabled {
     fn status_code(&self) -> actix_web::http::StatusCode {
-        actix_web::http::StatusCode::SERVICE_UNAVAILABLE
+        actix_web::http::StatusCode::UNPROCESSABLE_ENTITY
     }
 
     fn error_response(&self) -> actix_web::HttpResponse {
-        actix_web::HttpResponse::ServiceUnavailable().json(ErrorInformation {
+        actix_web::HttpResponse::UnprocessableEntity().json(ErrorInformation {
             error: "FeatureDisabled".into(),
             message: self.to_string(),
             details: None,

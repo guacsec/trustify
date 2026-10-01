@@ -168,7 +168,12 @@ async fn recommend(
 Because the gate is a type, not a string, a misspelled feature name is a compile error — not a silent
 runtime failure.
 
-Disabled features return **503 Service Unavailable** with a `FeatureDisabled` error:
+Disabled features return **422 Unprocessable Entity** with a `FeatureDisabled` error — the same
+status code used for disabled capabilities (tier 3). Both cases represent a request the server
+understands but refuses to process because the referenced feature or capability is not active on this
+instance. A 5xx code would incorrectly suggest a transient failure that the client should retry.
+Clients should not probe endpoints to find out — they check the `features` array of
+`/.well-known/trustify` instead (see [Discovery](#discovery-well-knowntrustify)).
 
 ```json
 {
@@ -176,11 +181,6 @@ Disabled features return **503 Service Unavailable** with a `FeatureDisabled` er
   "message": "The 'recommendations' feature is not configured on this instance."
 }
 ```
-
-503 is chosen deliberately over the alternatives: the endpoint is part of this API version, but this
-instance is not configured to serve it. A 404 would suggest a wrong URL, and a 501 would suggest the
-server can never support the operation. Clients should not probe endpoints to find out — they check the
-`features` array of `/.well-known/trustify` instead (see [Discovery](#discovery-well-knowntrustify)).
 
 #### Inline feature check
 
@@ -201,7 +201,7 @@ impl ActiveFeatures {
 }
 ```
 
-`FeatureDisabled` implements `ResponseError` to produce the same 503 response as the extractor:
+`FeatureDisabled` implements `ResponseError` to produce the same 422 response as the extractor:
 
 ```rust
 #[derive(Debug, Display, thiserror::Error)]
@@ -210,11 +210,11 @@ pub struct FeatureDisabled(pub Feature);
 
 impl actix_web::ResponseError for FeatureDisabled {
     fn status_code(&self) -> StatusCode {
-        StatusCode::SERVICE_UNAVAILABLE
+        StatusCode::UNPROCESSABLE_ENTITY
     }
 
     fn error_response(&self) -> HttpResponse {
-        HttpResponse::ServiceUnavailable().json(ErrorInformation {
+        HttpResponse::UnprocessableEntity().json(ErrorInformation {
             error: "FeatureDisabled".into(),
             message: self.to_string(),
         })
