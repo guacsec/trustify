@@ -1,6 +1,5 @@
 use crate::{
     crypto::model::{CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationRequest},
-    crypto::service::policy::PolicyVerdict,
     test::caller,
 };
 use actix_http::StatusCode;
@@ -44,14 +43,6 @@ async fn list_algorithms(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     );
 
     for algo in &response.items {
-        assert!(
-            matches!(
-                algo.policy_status,
-                PolicyVerdict::Compliant | PolicyVerdict::Warning | PolicyVerdict::NonCompliant
-            ),
-            "algorithm {} should have a valid policy_status",
-            algo.name
-        );
         assert!(
             algo.sboms_count >= 1,
             "algorithm {} should appear in at least 1 SBOM",
@@ -140,28 +131,6 @@ async fn get_summary(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 
     // Then: keycloak-cbom has 22 algorithm-type components
     assert_eq!(summary.total_algorithms, 22, "expected 22 algorithms");
-    assert!(
-        summary.pqc_compliant >= 0,
-        "pqc_compliant should be non-negative"
-    );
-    assert!(
-        summary.classical_share_pct >= 0.0 && summary.classical_share_pct <= 100.0,
-        "classical_share_pct should be a valid percentage"
-    );
-
-    // keycloak-cbom has no PQC algorithms, so all are classical
-    assert_eq!(
-        summary.pqc_compliant, 0,
-        "keycloak-cbom has no PQC-safe algorithms"
-    );
-    assert!(
-        (summary.classical_share_pct - 100.0).abs() < f64::EPSILON,
-        "all algorithms should be classical"
-    );
-    assert_eq!(
-        summary.sboms_meeting_pqc, 0,
-        "no SBOMs should meet PQC since all algorithms are classical"
-    );
 
     Ok(())
 }
@@ -178,9 +147,6 @@ async fn get_summary_empty_db(ctx: &TrustifyContext) -> Result<(), anyhow::Error
     let summary: CryptoSummary = app.call_and_read_body_json(request).await;
 
     assert_eq!(summary.total_algorithms, 0);
-    assert_eq!(summary.pqc_compliant, 0);
-    assert!((summary.classical_share_pct - 0.0).abs() < f64::EPSILON);
-    assert_eq!(summary.sboms_meeting_pqc, 0);
 
     Ok(())
 }

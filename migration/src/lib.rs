@@ -82,6 +82,7 @@ mod m0002350_drop_purl_status_gist_index;
 mod m0002360_pythonver_cmp_parallel_restricted;
 mod m0002370_importer_quay_auth;
 mod m0002380_version_function_parallelism;
+mod m0002390_add_crypto_policy_verdict;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -177,6 +178,7 @@ impl MigratorExt for Migrator {
             .normal(m0002360_pythonver_cmp_parallel_restricted::Migration)
             .normal(m0002370_importer_quay_auth::Migration)
             .normal(m0002380_version_function_parallelism::Migration)
+            .normal(m0002390_add_crypto_policy_verdict::Migration)
     }
 }
 
