@@ -383,8 +383,10 @@ Existing features are migrated incrementally:
 
 4. **Importers** — register all compiled-in importer types, apply operator configuration to determine
    the active set, and populate `capabilities.importers`. Importers that are configured in the database
-   but whose type is not in the active capability set are silently skipped — they will not run. No
-   creating an importer of a disabled type is rejected at the API level.
+   but whose type is not in the active capability set are skipped — their `lastError` is set once
+   (using a conditional update so that restarts and multiple instances do not repeat it) and a single
+   warning is logged; after that they will not run. Creating an importer of a disabled type is rejected
+   at the API level.
 
 ## Alternatives considered
 
