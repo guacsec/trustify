@@ -1,6 +1,6 @@
 use crate::{
     crypto::model::{
-        CryptoAlgorithmSummary,CryptoSummary, PolicyEvaluationRequest, PolicyEvaluationResponse
+        CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationRequest, PolicyEvaluationResponse,
     },
     crypto::service::policy::PolicyVerdict,
     test::caller,
