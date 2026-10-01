@@ -782,19 +782,19 @@ pub async fn upload(
     if let (Some(svc), Some(uuid)) = (crypto_service, sbom_uuid)
         && svc.has_evaluator()
     {
-            let db_bg = db.clone();
-            tokio::spawn(async move {
-                match db_bg.begin().await {
-                    Ok(tx) => match svc.evaluate_policy(Some(uuid), &tx).await {
-                        Ok(_) => {
-                            if let Err(e) = tx.commit().await {
-                                tracing::warn!("Post-ingest policy eval: commit failed: {e}");
-                            }
+        let db_bg = db.clone();
+        tokio::spawn(async move {
+            match db_bg.begin().await {
+                Ok(tx) => match svc.evaluate_policy(Some(uuid), &tx).await {
+                    Ok(_) => {
+                        if let Err(e) = tx.commit().await {
+                            tracing::warn!("Post-ingest policy eval: commit failed: {e}");
                         }
-                        Err(e) => tracing::warn!("Post-ingest policy evaluation failed: {e}"),
-                    },
-                    Err(e) => tracing::warn!("Post-ingest policy eval: failed to begin tx: {e}"),
-                }
+                    }
+                    Err(e) => tracing::warn!("Post-ingest policy evaluation failed: {e}"),
+                },
+                Err(e) => tracing::warn!("Post-ingest policy eval: failed to begin tx: {e}"),
+            }
         });
     }
 
