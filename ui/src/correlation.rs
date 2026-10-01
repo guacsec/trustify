@@ -218,10 +218,7 @@ fn evidence_table(props: &EvidenceTableProps) -> Html {
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum UnmatchedColumn {
     Name,
-    Purls,
-    Cpes,
-    Digests,
-    ProductIdentifiers,
+    Identifiers,
 }
 
 #[derive(Clone, PartialEq)]
@@ -231,41 +228,53 @@ impl TableEntryRenderer<UnmatchedColumn> for UnmatchedEntry {
     fn render_cell(&self, context: CellContext<'_, UnmatchedColumn>) -> Cell {
         match context.column {
             UnmatchedColumn::Name => html!(&self.0.name).into(),
-            UnmatchedColumn::Purls => render_string_list(&self.0.purls).into(),
-            UnmatchedColumn::Cpes => render_string_list(&self.0.cpes).into(),
-            UnmatchedColumn::Digests => {
-                let items: Vec<String> = self
-                    .0
-                    .digests
-                    .iter()
-                    .map(|d| format!("{}:{}", d.algorithm, d.value))
+            UnmatchedColumn::Identifiers => {
+                let sections: Vec<(&str, Vec<String>)> = vec![
+                    ("PURLs", self.0.purls.clone()),
+                    ("CPEs", self.0.cpes.clone()),
+                    (
+                        "Digests",
+                        self.0
+                            .digests
+                            .iter()
+                            .map(|d| format!("{}:{}", d.algorithm, d.value))
+                            .collect(),
+                    ),
+                    (
+                        "Product IDs",
+                        self.0
+                            .product_identifiers
+                            .iter()
+                            .map(|p| format!("{}: {}", p.identifier_type.label(), p.value))
+                            .collect(),
+                    ),
+                ];
+
+                let content: Vec<Html> = sections
+                    .into_iter()
+                    .filter(|(_, items)| !items.is_empty())
+                    .map(|(label, items)| {
+                        html! {
+                            <div>
+                                <strong>{ label }</strong>
+                                <ul style="margin:0;padding-left:1em">
+                                    { for items.iter().map(|s| html!(<li>{ s }</li>)) }
+                                </ul>
+                            </div>
+                        }
+                    })
                     .collect();
-                render_string_list(&items).into()
-            }
-            UnmatchedColumn::ProductIdentifiers => {
-                let items: Vec<String> = self
-                    .0
-                    .product_identifiers
-                    .iter()
-                    .map(|p| format!("{}: {}", p.identifier_type.label(), p.value))
-                    .collect();
-                render_string_list(&items).into()
+
+                if content.is_empty() {
+                    html!(<i>{ "\u{2014}" }</i>).into()
+                } else {
+                    html!({ for content }).into()
+                }
             }
         }
     }
 }
 
-fn render_string_list(items: &[String]) -> Html {
-    if items.is_empty() {
-        html!(<i>{ "\u{2014}" }</i>)
-    } else {
-        html! {
-            <ul style="margin:0;padding-left:1em">
-                { for items.iter().map(|s| html!(<li>{ s }</li>)) }
-            </ul>
-        }
-    }
-}
 
 #[function_component(CorrelationContent)]
 fn correlation_content(props: &CorrelationContentProps) -> Html {
@@ -317,10 +326,7 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
     let unmatched_header = html_nested! {
         <TableHeader<UnmatchedColumn>>
             <TableColumn<UnmatchedColumn> label="Component" index={UnmatchedColumn::Name} />
-            <TableColumn<UnmatchedColumn> label="PURLs" index={UnmatchedColumn::Purls} />
-            <TableColumn<UnmatchedColumn> label="CPEs" index={UnmatchedColumn::Cpes} />
-            <TableColumn<UnmatchedColumn> label="Digests" index={UnmatchedColumn::Digests} />
-            <TableColumn<UnmatchedColumn> label="Product IDs" index={UnmatchedColumn::ProductIdentifiers} />
+            <TableColumn<UnmatchedColumn> label="Identifiers" index={UnmatchedColumn::Identifiers} />
         </TableHeader<UnmatchedColumn>>
     };
 
