@@ -46,6 +46,21 @@ pub struct Assertion {
     pub matched_value: String,
 }
 
+/// An assertion matching one of the identifiers passed to [`Extractor::match_identifiers`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct IdentifierMatch {
+    /// Index into the identifiers passed in.
+    pub index: usize,
+    pub assertion: Assertion,
+}
+
+/// An SBOM node matching an assertion, found by [`Extractor::match_advisory`].
+#[derive(Clone, Debug, PartialEq)]
+pub struct NodeMatch {
+    pub node: NodeRef,
+    pub assertion: Assertion,
+}
+
 /// One identifier type the correlation engine can match on.
 ///
 /// Only [`Extractor::id`] and [`Extractor::sbom_identifiers`] are required.
@@ -68,19 +83,21 @@ pub trait Extractor: Send + Sync {
     ) -> Result<Vec<NodeIdentifier>, Error>;
 
     /// Interpret a free-text query as identifiers of this type.
+    ///
+    /// **Experimental:** how free-text queries are mapped to identifiers is not
+    /// settled yet and may change.
     fn parse_query(&self, _query: &str) -> Vec<IdentifierRef> {
         Vec::new()
     }
 
     /// Find advisory assertions matching the given identifiers.
     ///
-    /// Returns pairs of an index into `identifiers` and the matching assertion.
     /// Shared by SBOM-direction extraction and the ad-hoc query.
     async fn match_identifiers(
         &self,
         _identifiers: &[IdentifierRef],
         _tx: &DatabaseTransaction,
-    ) -> Result<Vec<(usize, Assertion)>, Error> {
+    ) -> Result<Vec<IdentifierMatch>, Error> {
         Ok(Vec::new())
     }
 
@@ -89,7 +106,7 @@ pub trait Extractor: Send + Sync {
         &self,
         _advisory_id: Uuid,
         _tx: &DatabaseTransaction,
-    ) -> Result<Vec<(NodeRef, Assertion)>, Error> {
+    ) -> Result<Vec<NodeMatch>, Error> {
         Ok(Vec::new())
     }
 }

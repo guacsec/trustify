@@ -5,7 +5,7 @@
 
 pub mod wildcard;
 
-use super::{Assertion, Extractor, NodeIdentifier, NodeRef};
+use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
     model::{IdentifierKind, IdentifierRef},
@@ -102,7 +102,7 @@ impl Extractor for ProductIdentifierExtractor {
         &self,
         identifiers: &[IdentifierRef],
         tx: &DatabaseTransaction,
-    ) -> Result<Vec<(usize, Assertion)>, Error> {
+    ) -> Result<Vec<IdentifierMatch>, Error> {
         // value -> [(index, type)]
         let mut value_map = HashMap::<&str, Vec<(usize, ProductIdentifierType)>>::new();
         for (idx, identifier) in identifiers.iter().enumerate() {
@@ -124,7 +124,10 @@ impl Extractor for ProductIdentifierExtractor {
              entries: &[(usize, ProductIdentifierType)]| {
                 for (idx, id_type) in entries {
                     if *id_type == ap.identifier_type {
-                        result.push((*idx, assertion(ap)));
+                        result.push(IdentifierMatch {
+                            index: *idx,
+                            assertion: assertion(ap),
+                        });
                     }
                 }
             };
@@ -152,7 +155,7 @@ impl Extractor for ProductIdentifierExtractor {
         &self,
         advisory_id: Uuid,
         tx: &DatabaseTransaction,
-    ) -> Result<Vec<(NodeRef, Assertion)>, Error> {
+    ) -> Result<Vec<NodeMatch>, Error> {
         let advisory_pids = advisory_vulnerability_product_identifier::Entity::find()
             .filter(advisory_vulnerability_product_identifier::Column::AdvisoryId.eq(advisory_id))
             .all(tx)
@@ -199,13 +202,13 @@ impl Extractor for ProductIdentifierExtractor {
 
             for ap in matching {
                 if si.identifier_type == ap.identifier_type {
-                    result.push((
-                        NodeRef {
+                    result.push(NodeMatch {
+                        node: NodeRef {
                             sbom_id: si.sbom_id,
                             node_id: si.node_id.clone(),
                         },
-                        assertion(ap),
-                    ));
+                        assertion: assertion(ap),
+                    });
                 }
             }
         }
