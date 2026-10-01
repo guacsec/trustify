@@ -63,7 +63,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendResponse'
-        '503':
+        '422':
           description: Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured
       deprecated: true
   /api/v2/sbom:
@@ -1365,7 +1365,7 @@ paths:
                 $ref: '#/components/schemas/AnalyzeResponse'
         '404':
           description: SBOM not found
-        '503':
+        '422':
           description: Exploit Intelligence service not configured
   /api/v3/exploit-intelligence/jobs:
     get:
@@ -3008,7 +3008,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecommendResponse'
-        '503':
+        '422':
           description: Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured
   /api/v3/purl/recommend/report:
     post:

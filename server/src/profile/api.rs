@@ -1388,7 +1388,7 @@ mod test {
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
-    async fn analyze_returns_503_when_ei_disabled(
+    async fn analyze_returns_422_when_ei_disabled(
         ctx: &TrustifyContext,
     ) -> Result<(), anyhow::Error> {
         let app = caller(ctx, false).await;
@@ -1402,7 +1402,7 @@ mod test {
             .to_request();
 
         let resp = app.call_service(req).await;
-        assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
 
         Ok(())
     }
