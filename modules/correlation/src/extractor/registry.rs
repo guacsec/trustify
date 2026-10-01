@@ -37,7 +37,7 @@ impl Extractors {
         &self,
         sbom_id: Uuid,
         tx: &DatabaseTransaction,
-    ) -> Result<u64, Error> {
+    ) -> Result<usize, Error> {
         let mut total = 0;
         for extractor in &self.0 {
             let node_identifiers = extractor.sbom_identifiers(sbom_id, tx).await?;
@@ -73,7 +73,7 @@ impl Extractors {
         &self,
         advisory_id: Uuid,
         tx: &DatabaseTransaction,
-    ) -> Result<u64, Error> {
+    ) -> Result<usize, Error> {
         let mut total = 0;
         for extractor in &self.0 {
             let matches = extractor.match_advisory(advisory_id, tx).await?;
