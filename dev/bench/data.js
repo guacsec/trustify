@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790848120275,
+  "lastUpdate": 1790852819402,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -22990,6 +22990,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "committer": {
+            "email": "rromerom@redhat.com",
+            "name": "Ruben Romero Montes",
+            "username": "ruromero"
+          },
+          "distinct": true,
+          "id": "e8ea4ed9a4d93c1bbb5a80cbf691a0427d8cf4d0",
+          "message": "fix(purl): scope advisory_id to addressed vulnerabilities only\n\nadvisory_id was selected from all best_by_vuln entries, so a newer\nadvisory reporting a CVE as affected could become provenance for a\npackage whose displayed vulns come from an older fixed advisory.\nNow advisory_id is filtered to fixed/not_affected statuses, matching\nthe vulnerabilities list.\n\nImplements TC-6683\n\nAssisted-by: Claude Code",
+          "timestamp": "2026-10-01T10:15:43Z",
+          "tree_id": "bde6df7e12eedbf116af17f4e70f0c8fb227df09",
+          "url": "https://github.com/guacsec/trustify/commit/e8ea4ed9a4d93c1bbb5a80cbf691a0427d8cf4d0"
+        },
+        "date": 1790852817425,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
