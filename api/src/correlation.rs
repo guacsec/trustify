@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -48,6 +49,28 @@ pub enum IdentifierKind {
 }
 
 impl IdentifierKind {
+    /// All identifier kinds.
+    pub const ALL: [Self; 6] = [
+        Self::Digest,
+        Self::Purl,
+        Self::Cpe,
+        Self::ModelNumber,
+        Self::SerialNumber,
+        Self::Sku,
+    ];
+
+    /// Serialized name, as used in the API.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Digest => "digest",
+            Self::Purl => "purl",
+            Self::Cpe => "cpe",
+            Self::ModelNumber => "model_number",
+            Self::SerialNumber => "serial_number",
+            Self::Sku => "sku",
+        }
+    }
+
     /// Human readable label.
     pub fn label(self) -> &'static str {
         match self {
@@ -58,6 +81,12 @@ impl IdentifierKind {
             Self::SerialNumber => "Serial Number",
             Self::Sku => "SKU",
         }
+    }
+}
+
+impl fmt::Display for IdentifierKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.label())
     }
 }
 
@@ -149,7 +178,8 @@ impl AssertionStatus {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct QueryResult {
-    pub query: String,
+    /// The identifier which was queried.
+    pub query: IdentifierRef,
     pub verdicts: Vec<QueryVerdict>,
 }
 

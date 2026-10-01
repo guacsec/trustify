@@ -1,7 +1,7 @@
 use crate::{AppRoute, api};
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::{
-    AssertionStatus, QueryMatch, QueryResult, QueryVerdict, VerdictStatus,
+    AssertionStatus, IdentifierKind, QueryMatch, QueryResult, QueryVerdict, VerdictStatus,
 };
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
@@ -14,6 +14,7 @@ pub fn query_page() -> Html {
     let loading = use_state(|| false);
     let error = use_state(|| Option::<String>::None);
     let input = use_state(String::new);
+    let kind = use_state(|| IdentifierKind::Sku);
 
     let latest_token = use_latest_access_token();
     let token: Option<String> = latest_token.as_ref().and_then(|t| t.access_token());
@@ -23,8 +24,10 @@ pub fn query_page() -> Html {
         let loading = loading.clone();
         let error = error.clone();
         let input = input.clone();
+        let kind = kind.clone();
         let token = token.clone();
         Callback::from(move |_: ()| {
+            let kind = *kind;
             let query = input.trim().to_string();
             if query.is_empty() {
                 return;
@@ -36,7 +39,7 @@ pub fn query_page() -> Html {
             spawn_local(async move {
                 loading.set(true);
                 error.set(None);
-                match api::query_correlation(&query, token.as_deref()).await {
+                match api::query_correlation(kind, &query, token.as_deref()).await {
                     Ok(data) => result.set(Some(data)),
                     Err(e) => error.set(Some(e.to_string())),
                 }
@@ -65,18 +68,30 @@ pub fn query_page() -> Html {
         Callback::from(move |value: String| input.set(value))
     };
 
+    let onselect = {
+        let kind = kind.clone();
+        Callback::from(move |value: IdentifierKind| kind.set(value))
+    };
+
     html! {
         <PageSection>
             <Title level={Level::H1}>
                 { "Identifier Query" }
             </Title>
-            <p>{ "Search for advisories and vulnerabilities by model number, SKU, serial number, or digest." }</p>
+            <p>{ "Search for advisories and vulnerabilities by an identifier of a specific kind." }</p>
             <br />
 
             <Form {onsubmit}>
+                <FormGroup label="Kind">
+                    <SimpleSelect<IdentifierKind>
+                        entries={IdentifierKind::ALL.to_vec()}
+                        selected={*kind}
+                        {onselect}
+                    />
+                </FormGroup>
                 <FormGroup label="Identifier">
                     <TextInput
-                        placeholder="Enter identifier (model number, SKU, digest, ...)"
+                        placeholder="Enter identifier value"
                         value={(*input).clone()}
                         {onchange}
                     />
@@ -231,7 +246,10 @@ fn query_results(props: &QueryResultsProps) -> Html {
                 icon={Icon::Search}
                 size={Size::XXXXLarge}
             >
-                { format!("No advisories found matching \"{}\".", props.data.query) }
+                { format!(
+                    "No advisories found matching {} \"{}\".",
+                    props.data.query.kind, props.data.query.value
+                ) }
             </EmptyState>
         };
     }
@@ -258,7 +276,12 @@ fn query_results(props: &QueryResultsProps) -> Html {
     html! {
         <>
             <Title level={Level::H3}>
-                { format!("{} verdict(s) for \"{}\"", props.data.verdicts.len(), props.data.query) }
+                { format!(
+                    "{} verdict(s) for {} \"{}\"",
+                    props.data.verdicts.len(),
+                    props.data.query.kind,
+                    props.data.query.value
+                ) }
             </Title>
             <br />
 

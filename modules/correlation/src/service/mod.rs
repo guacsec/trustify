@@ -189,29 +189,29 @@ impl CorrelationService {
         })
     }
 
-    /// Query for advisory/vulnerability matches by identifier value.
+    /// Query for advisory/vulnerability matches by identifier.
     ///
-    /// Interprets the value using all extractors, groups results by vulnerability,
-    /// and resolves a verdict status for each group using the same logic as SBOM
-    /// correlation.
-    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    /// Matches the identifier as its given kind only, groups results by
+    /// vulnerability, and resolves a verdict status for each group using the
+    /// same logic as SBOM correlation.
+    #[instrument(skip(self, connection), err(level = tracing::Level::INFO))]
     pub async fn query_identifier(
         &self,
-        query: &str,
+        identifier: IdentifierRef,
         connection: &DatabaseTransaction,
     ) -> Result<QueryResult, Error> {
-        let matches = self.extractors.query(query, connection).await?;
+        let matches = self.extractors.query(&identifier, connection).await?;
 
         let advisory_ids = matches
             .iter()
-            .map(|(_, a)| a.advisory_id)
+            .map(|a| a.advisory_id)
             .collect::<HashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>();
 
         let vuln_ids = matches
             .iter()
-            .map(|(_, a)| a.vulnerability_id.as_str())
+            .map(|a| a.vulnerability_id.as_str())
             .collect::<HashSet<_>>()
             .into_iter()
             .collect::<Vec<_>>();
@@ -221,7 +221,7 @@ impl CorrelationService {
 
         // Group matches by vulnerability_id, keeping entity statuses for resolution.
         let mut groups = BTreeMap::<&str, Vec<(AssertionStatus, QueryMatch)>>::new();
-        for (IdentifierRef { kind, .. }, assertion) in &matches {
+        for assertion in &matches {
             let advisory_identifier = advisory_map
                 .get(&assertion.advisory_id)
                 .map(String::as_str)
@@ -234,7 +234,7 @@ impl CorrelationService {
                 .push((
                     assertion.status,
                     QueryMatch {
-                        kind: *kind,
+                        kind: identifier.kind,
                         value: assertion.matched_value.clone(),
                         advisory_id: assertion.advisory_id,
                         advisory_identifier,
@@ -260,7 +260,7 @@ impl CorrelationService {
             .collect();
 
         Ok(QueryResult {
-            query: query.to_string(),
+            query: identifier,
             verdicts,
         })
     }

@@ -1,6 +1,6 @@
 use crate::{
     error::Error,
-    model::{CorrelationResult, QueryResult},
+    model::{CorrelationResult, IdentifierKind, IdentifierRef, QueryResult},
     service::CorrelationService,
 };
 use actix_web::{HttpResponse, Responder, get, web};
@@ -61,14 +61,16 @@ async fn get_sbom_correlation(
 /// Query parameters for identifier lookup.
 #[derive(Debug, Deserialize, IntoParams)]
 struct IdentifierQuery {
-    /// The identifier value to search for (digest, model number, serial number, SKU).
+    /// The kind of the identifier.
+    kind: IdentifierKind,
+    /// The identifier value to search for. Digests use the format `[<algorithm>:]<value>`.
     q: String,
 }
 
 /// Query for advisory/vulnerability matches by identifier.
 ///
-/// Searches across digest hashes and product identifiers (model numbers,
-/// serial numbers, SKUs) for advisories that reference the given value.
+/// Matches the value only as the given identifier kind against advisories
+/// that reference it.
 #[utoipa::path(
     tag = "correlation",
     operation_id = "queryCorrelation",
@@ -84,6 +86,9 @@ async fn query_correlation(
     db: web::Data<db::ReadOnly>,
 ) -> Result<impl Responder, Error> {
     let tx = db.begin().await?;
-    let result = service.query_identifier(&params.q, &tx).await?;
+    let IdentifierQuery { kind, q: value } = params.into_inner();
+    let result = service
+        .query_identifier(IdentifierRef { kind, value }, &tx)
+        .await?;
     Ok(HttpResponse::Ok().json(result))
 }
