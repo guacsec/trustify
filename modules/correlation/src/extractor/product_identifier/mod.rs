@@ -286,14 +286,17 @@ mod test {
         Extractors::new(vec![Box::new(ProductIdentifierExtractor)])
     }
 
-    async fn extract_for_sbom(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<u64> {
+    async fn extract_for_sbom(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<usize> {
         let tx = ctx.db.begin().await?;
         let count = extractors().extract_for_sbom(sbom_id, &tx).await?;
         tx.commit().await?;
         Ok(count)
     }
 
-    async fn extract_for_advisory(ctx: &TrustifyContext, advisory_id: Uuid) -> anyhow::Result<u64> {
+    async fn extract_for_advisory(
+        ctx: &TrustifyContext,
+        advisory_id: Uuid,
+    ) -> anyhow::Result<usize> {
         let tx = ctx.db.begin().await?;
         let count = extractors().extract_for_advisory(advisory_id, &tx).await?;
         tx.commit().await?;

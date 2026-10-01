@@ -56,8 +56,8 @@ impl EvidenceWriter {
     /// Insert all collected evidence, ignoring already existing rows.
     ///
     /// Returns the number of evidence entries produced (before de-duplication).
-    pub async fn write(mut self, connection: &impl ConnectionTrait) -> Result<u64, Error> {
-        let count = self.models.len() as u64;
+    pub async fn write(mut self, connection: &impl ConnectionTrait) -> Result<usize, Error> {
+        let count = self.models.len();
 
         // consistent lock ordering
         self.models.sort_by_key(|m| *m.id.as_ref());
