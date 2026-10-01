@@ -1,4 +1,5 @@
 pub mod conforma;
+pub mod evaluator;
 pub mod policy;
 
 use crate::{
@@ -33,14 +34,16 @@ use uuid::Uuid;
 
 pub struct CryptoService {
     cache: PaginationCache,
-    conforma: Option<conforma::ConformaClient>,
+    evaluator: Option<Box<dyn evaluator::PolicyEvaluator>>,
 }
 
 impl CryptoService {
-    pub fn new(cache: PaginationCache, policy_url: Option<String>) -> Self {
+    pub fn new(cache: PaginationCache, policy_path: Option<String>) -> Self {
         Self {
             cache,
-            conforma: policy_url.map(conforma::ConformaClient::new),
+            evaluator: policy_path
+                .map(conforma::ConformaClient::new)
+                .map(|c| Box::new(c) as Box<dyn evaluator::PolicyEvaluator>),
         }
     }
 
@@ -258,7 +261,7 @@ impl CryptoService {
         sbom_id: Option<Uuid>,
         connection: &C,
     ) -> Result<PolicyEvaluationResponse, Error> {
-        let conforma = self.conforma.as_ref().ok_or_else(|| {
+        let policy_evaluator = self.evaluator.as_ref().ok_or_else(|| {
             Error::Internal("CONFORMA_POLICY is not configured".into())
         })?;
 
@@ -272,24 +275,22 @@ impl CryptoService {
         let items = query.all(connection).await?;
         let nodes = items.load_one(sbom_node::Entity, connection).await?;
 
-        let algo_input: Vec<serde_json::Value> = items
+        let algo_input: Vec<evaluator::AlgorithmInput> = items
             .iter()
             .zip(nodes.iter())
             .filter_map(|(crypto, node)| {
                 let node = node.as_ref()?;
-                Some(serde_json::json!({
-                    "node_id": crypto.node_id,
-                    "sbom_id": crypto.sbom_id,
-                    "name": node.name,
-                    "oid": crypto.oid,
-                    "properties": crypto.properties,
-                }))
+                Some(evaluator::AlgorithmInput {
+                    node_id: crypto.node_id.clone(),
+                    sbom_id: crypto.sbom_id,
+                    name: node.name.clone(),
+                    oid: crypto.oid.clone(),
+                    properties: crypto.properties.clone(),
+                })
             })
             .collect();
 
-        let report = conforma
-            .evaluate(serde_json::json!({ "algorithms": algo_input }))
-            .await?;
+        let report = policy_evaluator.evaluate(&algo_input).await?;
 
         let violation_ids: HashSet<&str> = report
             .violations
