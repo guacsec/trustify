@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790852819402,
+  "lastUpdate": 1790946644858,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -23014,6 +23014,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/e8ea4ed9a4d93c1bbb5a80cbf691a0427d8cf4d0"
         },
         "date": 1790852817425,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "1faa825c83180ed9cf5b376b613fa178cb23ad8c",
+          "message": "perf(advisory): paginate IDs before joining related data on GET /api/v3/advisory?offset={offset}&limit=1",
+          "timestamp": "2026-10-02T12:19:44Z",
+          "tree_id": "746e5dc8980e4f214ba9c5391734cd49a10786f4",
+          "url": "https://github.com/guacsec/trustify/commit/1faa825c83180ed9cf5b376b613fa178cb23ad8c"
+        },
+        "date": 1790946642876,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
