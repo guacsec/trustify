@@ -2,12 +2,12 @@ use crate::profile::spawn_db_check;
 use futures::FutureExt;
 use std::{path::PathBuf, process::ExitCode};
 use trustify_common::{
+    capability::VariantFilter,
     config::Database,
     db::{
         self,
         pagination_cache::{PaginationCache, PaginationConfig},
     },
-    feature::CapabilityFilter,
 };
 use trustify_infrastructure::{Infrastructure, InfrastructureConfig, InitContext};
 use trustify_module_importer::{model::auth::CredentialConfig, server::importer};
@@ -106,7 +106,7 @@ struct InitData {
     concurrency: usize,
     read_only: bool,
     credential_config: CredentialConfig,
-    importer_filter: CapabilityFilter,
+    importer_filter: VariantFilter,
 }
 
 impl Run {
@@ -137,7 +137,7 @@ impl InitData {
         let storage = run.storage.into_storage(false).await?;
 
         use strum::VariantNames;
-        let importer_filter = CapabilityFilter::new(
+        let importer_filter = VariantFilter::new(
             "importer",
             trustify_module_importer::model::ImporterConfiguration::VARIANTS,
             &run.enable_importer,

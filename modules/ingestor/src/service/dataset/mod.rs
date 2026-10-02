@@ -16,14 +16,14 @@ use std::{
 };
 use tokio::runtime::Handle;
 use tracing::instrument;
-use trustify_common::{feature::CapabilityFilter, hashing::Digests};
+use trustify_common::{capability::VariantFilter, hashing::Digests};
 use trustify_entity::labels::Labels;
 use trustify_module_storage::{service::StorageBackend, service::dispatch::DispatchBackend};
 
 pub struct DatasetLoader<'g> {
     graph: &'g Graph,
     storage: &'g DispatchBackend,
-    format_filter: &'g CapabilityFilter,
+    format_filter: &'g VariantFilter,
     limit: usize,
 }
 
@@ -31,7 +31,7 @@ impl<'g> DatasetLoader<'g> {
     pub fn new(
         graph: &'g Graph,
         storage: &'g DispatchBackend,
-        format_filter: &'g CapabilityFilter,
+        format_filter: &'g VariantFilter,
         limit: usize,
     ) -> Self {
         Self {

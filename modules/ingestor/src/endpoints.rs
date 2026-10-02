@@ -6,7 +6,7 @@ use actix_web::{HttpResponse, Responder, post, web};
 use sea_orm::TransactionTrait;
 use std::sync::Arc;
 use trustify_auth::{UploadDataset, authorizer::Require};
-use trustify_common::{db, feature::CapabilityFilter, model::BinaryData};
+use trustify_common::{capability::VariantFilter, db, model::BinaryData};
 use trustify_entity::labels::Labels;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
@@ -20,7 +20,7 @@ pub fn configure(
     storage: impl Into<DispatchBackend>,
     analysis: Option<AnalysisService>,
     validators: Vec<Arc<dyn Validator>>,
-    format_filter: CapabilityFilter,
+    format_filter: VariantFilter,
 ) {
     let ingestor_service = IngestorService::new(Graph::new(), storage, analysis)
         .with_validators(validators)

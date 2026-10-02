@@ -18,8 +18,8 @@ use tokio::{task::LocalSet, time::MissedTickBehavior};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 use trustify_common::{
+    capability::VariantFilter,
     db::{ReadWrite, pagination_cache::PaginationCache},
-    feature::CapabilityFilter,
 };
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
@@ -37,7 +37,7 @@ pub async fn importer(
     concurrency: usize,
     read_only: bool,
     credential_config: CredentialConfig,
-    importer_filter: CapabilityFilter,
+    importer_filter: VariantFilter,
 ) -> anyhow::Result<()> {
     Server {
         db,
@@ -79,7 +79,7 @@ struct Server {
     concurrency: usize,
     read_only: bool,
     credential_config: CredentialConfig,
-    importer_filter: CapabilityFilter,
+    importer_filter: VariantFilter,
 }
 
 impl Server {
@@ -93,11 +93,11 @@ impl Server {
     /// Record an error on enabled importers whose type is disabled, as they will never run.
     ///
     /// The warning is only logged when the error is newly recorded, not on every startup.
-    async fn mark_capability_disabled(&self, service: &ImporterService) {
+    async fn mark_variant_disabled(&self, service: &ImporterService) {
         let importers = match service.list().await {
             Ok(importers) => importers,
             Err(err) => {
-                tracing::warn!("Failed to check importers for disabled capabilities: {err}");
+                tracing::warn!("Failed to check importers for disabled variants: {err}");
                 return;
             }
         };
@@ -113,14 +113,14 @@ impl Server {
                 continue;
             };
 
-            match service.mark_capability_disabled(&importer.name, &err).await {
+            match service.mark_variant_disabled(&importer.name, &err).await {
                 Ok(true) => {
                     tracing::warn!(importer = importer.name, "{err}; importer will not run")
                 }
                 Ok(false) => {}
                 Err(err) => tracing::warn!(
                     importer = importer.name,
-                    "Failed to record disabled capability: {err}"
+                    "Failed to record disabled variant: {err}"
                 ),
             }
         }
@@ -143,7 +143,7 @@ impl Server {
             credential_config: self.credential_config.clone(),
         };
         if !self.read_only {
-            self.mark_capability_disabled(&service).await;
+            self.mark_variant_disabled(&service).await;
         }
 
         let mut interval = tokio::time::interval(Duration::from_secs(1));

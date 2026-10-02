@@ -15,8 +15,8 @@ use sea_orm::prelude::Uuid;
 use std::str::FromStr;
 use trustify_auth::{ReadAdvisory, ReadSbom, authorizer::Require};
 use trustify_common::{
+    capability::{Recommendations, RequireCapability},
     db::{self, pagination_cache::PaginationCache, query::Query},
-    feature::{Recommendations, RequireFeature},
     id::IdError,
     model::{Paginated, PaginatedResults},
     purl::Purl,
@@ -120,7 +120,7 @@ mod v2 {
     #[post("/v2/purl/recommend")]
     #[deprecated = "Use the v3 version of this API"]
     pub async fn recommend(
-        _gate: RequireFeature<Recommendations>,
+        _gate: RequireCapability<Recommendations>,
         purl_service: web::Data<PurlService>,
         db: web::Data<db::ReadOnly>,
         request: web::Json<RecommendRequest>,
@@ -149,7 +149,7 @@ mod v3 {
     )]
     #[post("/v3/purl/recommend")]
     pub async fn recommend(
-        _gate: RequireFeature<Recommendations>,
+        _gate: RequireCapability<Recommendations>,
         purl_service: web::Data<PurlService>,
         db: web::Data<db::ReadOnly>,
         request: web::Json<RecommendRequest>,

@@ -16,8 +16,8 @@ use std::time::Duration;
 use test_context::test_context;
 use test_log::test;
 use trustify_common::{
+    capability::{VariantDisabled, VariantFilter},
     db::{self, pagination_cache::PaginationCache},
-    feature::{CapabilityDisabled, CapabilityFilter},
 };
 use trustify_test_context::{ReadOnly, TrustifyContext, app::TestApp};
 use utoipa_actix_web::AppExt;
@@ -62,12 +62,12 @@ fn mock_importer(result: &Importer, source: impl Into<String>) -> Importer {
 async fn app(
     ctx: &TrustifyContext,
 ) -> impl Service<Request, Response = ServiceResponse<BoxBody>, Error = actix_web::Error> {
-    app_with(ctx, CapabilityFilter::default()).await
+    app_with(ctx, VariantFilter::default()).await
 }
 
 async fn app_with(
     ctx: &TrustifyContext,
-    importer_filter: CapabilityFilter,
+    importer_filter: VariantFilter,
 ) -> impl Service<Request, Response = ServiceResponse<BoxBody>, Error = actix_web::Error> {
     let db = db::ReadWrite::new(ctx.db.clone());
     actix::init_service(
@@ -500,7 +500,7 @@ async fn http_importer_round_trip(ctx: TrustifyContext) {
 
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(actix_web::test)]
-async fn capability_disabled(ctx: TrustifyContext) {
+async fn variant_disabled(ctx: TrustifyContext) {
     // create one, while the importer type is still enabled
 
     let app = app(&ctx).await;
@@ -514,7 +514,7 @@ async fn capability_disabled(ctx: TrustifyContext) {
     // now disable the type
 
     use strum::VariantNames;
-    let filter = CapabilityFilter::new(
+    let filter = VariantFilter::new(
         "importer",
         ImporterConfiguration::VARIANTS,
         &[],
@@ -551,12 +551,12 @@ async fn capability_disabled(ctx: TrustifyContext) {
         PaginationCache::for_test(),
         filter,
     );
-    let err = CapabilityDisabled {
+    let err = VariantDisabled {
         kind: "importer".into(),
         name: "sbom".into(),
     };
-    assert!(service.mark_capability_disabled("foo", &err).await.unwrap());
-    assert!(!service.mark_capability_disabled("foo", &err).await.unwrap());
+    assert!(service.mark_variant_disabled("foo", &err).await.unwrap());
+    assert!(!service.mark_variant_disabled("foo", &err).await.unwrap());
 
     let req = actix::TestRequest::get()
         .uri("/api/v3/importer/foo")

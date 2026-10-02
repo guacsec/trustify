@@ -7,7 +7,7 @@ use std::time::Instant;
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
-use trustify_common::{db::pagination_cache::PaginationCache, feature::CapabilityFilter, id::Id};
+use trustify_common::{capability::VariantFilter, db::pagination_cache::PaginationCache, id::Id};
 use trustify_module_fundamental::sbom::service::SbomService;
 use trustify_module_ingestor::service::Format;
 use trustify_module_storage::service::StorageBackend;
@@ -114,15 +114,12 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 async fn ingest_disabled_format(mut ctx: TrustifyContext) -> anyhow::Result<()> {
-    ctx.0.ingestor = ctx
-        .ingestor
-        .clone()
-        .with_format_filter(CapabilityFilter::new(
-            "format",
-            &Format::concrete_variants(),
-            &[],
-            &["csaf".into()],
-        ));
+    ctx.0.ingestor = ctx.ingestor.clone().with_format_filter(VariantFilter::new(
+        "format",
+        &Format::concrete_variants(),
+        &[],
+        &["csaf".into()],
+    ));
 
     let result = ctx.ingest_dataset(Dataset::DS3).await?;
 

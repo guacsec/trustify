@@ -62,13 +62,13 @@ use trustify_auth::{
     swagger_ui::{SwaggerUiOidc, SwaggerUiOidcConfig},
 };
 use trustify_common::{
+    capability::{ActiveCapabilities, Capability, VariantFilter, Variants},
     config::{Database, DatabaseReadOnly},
     db::{
         self,
         change::ChangeBroadcaster,
         pagination_cache::{PaginationCache, PaginationConfig},
     },
-    feature::{ActiveFeatures, Capabilities, CapabilityFilter, Feature},
     middleware::ReadOnlyState,
     model::BinaryByteSize,
 };
@@ -306,7 +306,7 @@ pub struct ExploitIntelligenceArgs {
 impl ExploitIntelligenceArgs {
     /// Convert CLI arguments into an optional `ExploitIntelligenceConfig`.
     ///
-    /// Returns `None` when no EI URL is configured (feature disabled).
+    /// Returns `None` when no EI URL is configured (capability disabled).
     pub async fn into_config(self) -> Result<Option<ExploitIntelligenceConfig>, anyhow::Error> {
         let Some(url) = self.exploit_intelligence_url else {
             return Ok(None);
@@ -475,11 +475,11 @@ struct InitData {
     broadcaster: ChangeBroadcaster,
     read_only: bool,
     ei_config: Option<ExploitIntelligenceConfig>,
-    features: ActiveFeatures,
-    capabilities: Capabilities,
+    capabilities: ActiveCapabilities,
+    variants: Variants,
     validators: Vec<Arc<dyn Validator>>,
-    format_filter: CapabilityFilter,
-    importer_filter: CapabilityFilter,
+    format_filter: VariantFilter,
+    importer_filter: VariantFilter,
 }
 
 /// Groups all module configurations.
@@ -611,31 +611,31 @@ impl InitData {
             }
         }
 
-        let mut features = ActiveFeatures::default();
+        let mut capabilities = ActiveCapabilities::default();
         if ei_config.is_some() {
-            features.insert(Feature::ExploitIntelligence);
+            capabilities.insert(Capability::ExploitIntelligence);
         }
         if !config.fundamental.recommend_patterns.is_empty() {
-            features.insert(Feature::Recommendations);
+            capabilities.insert(Capability::Recommendations);
         }
         if run.validators_config.is_some() {
-            features.insert(Feature::SemanticValidation);
+            capabilities.insert(Capability::SemanticValidation);
         }
 
-        let format_filter = CapabilityFilter::new(
+        let format_filter = VariantFilter::new(
             "format",
             &trustify_module_ingestor::service::Format::concrete_variants(),
             &run.enable_format,
             &run.disable_format,
         );
-        let importer_filter = CapabilityFilter::new(
+        let importer_filter = VariantFilter::new(
             "importer",
             trustify_module_importer::model::ImporterConfiguration::VARIANTS,
             &run.enable_importer,
             &run.disable_importer,
         );
 
-        let capabilities = Capabilities::from([
+        let variants = Variants::from([
             (
                 "formats".into(),
                 format_filter
@@ -675,8 +675,8 @@ impl InitData {
             ui,
             read_only: run.read_only,
             ei_config,
-            features,
             capabilities,
+            variants,
             validators,
             format_filter,
             importer_filter,
@@ -717,8 +717,8 @@ impl InitData {
                             read_only: self.read_only,
                             ei_service: ei_service.clone(),
                             graph: graph.clone(),
-                            features: self.features.clone(),
                             capabilities: self.capabilities.clone(),
+                            variants: self.variants.clone(),
                             validators: self.validators.clone(),
                             format_filter: self.format_filter.clone(),
                             importer_filter: self.importer_filter.clone(),
@@ -809,11 +809,11 @@ pub(crate) struct Config {
     pub(crate) read_only: bool,
     pub(crate) ei_service: ExploitIntelligenceService,
     pub(crate) graph: Graph,
-    pub(crate) features: ActiveFeatures,
-    pub(crate) capabilities: Capabilities,
+    pub(crate) capabilities: ActiveCapabilities,
+    pub(crate) variants: Variants,
     pub(crate) validators: Vec<Arc<dyn Validator>>,
-    pub(crate) format_filter: CapabilityFilter,
-    pub(crate) importer_filter: CapabilityFilter,
+    pub(crate) format_filter: VariantFilter,
+    pub(crate) importer_filter: VariantFilter,
 }
 
 pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, config: Config) {
@@ -834,8 +834,8 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
         read_only,
         ei_service,
         graph,
-        features,
         capabilities,
+        variants,
         validators,
         format_filter,
         importer_filter,
@@ -844,8 +844,8 @@ pub(crate) fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfi
     let limit = ByteSize::gb(1).as_u64() as usize;
 
     svc.app_data(web::Data::new(ReadOnlyState(read_only)));
-    svc.app_data(web::Data::new(features));
     svc.app_data(web::Data::new(capabilities));
+    svc.app_data(web::Data::new(variants));
     svc.app_data(web::PayloadConfig::default().limit(limit));
     svc.app_data(graph.clone());
 
@@ -985,11 +985,11 @@ mod test {
                             ei_service: ExploitIntelligenceService::new(None)
                                 .expect("disabled EI service"),
                             graph: Graph::new(),
-                            features: ActiveFeatures::default(),
-                            capabilities: Capabilities::default(),
+                            capabilities: ActiveCapabilities::default(),
+                            variants: Variants::default(),
                             validators: Vec::new(),
-                            format_filter: CapabilityFilter::default(),
-                            importer_filter: CapabilityFilter::default(),
+                            format_filter: VariantFilter::default(),
+                            importer_filter: VariantFilter::default(),
                         },
                     );
                 })
@@ -1076,11 +1076,11 @@ mod test {
                     read_only,
                     ei_service,
                     graph,
-                    features: ActiveFeatures::default(),
-                    capabilities: Capabilities::default(),
+                    capabilities: ActiveCapabilities::default(),
+                    variants: Variants::default(),
                     validators: Vec::new(),
-                    format_filter: CapabilityFilter::default(),
-                    importer_filter: CapabilityFilter::default(),
+                    format_filter: VariantFilter::default(),
+                    importer_filter: VariantFilter::default(),
                 },
             );
         })
@@ -1287,8 +1287,8 @@ mod test {
             ),
             read_only: false,
             ei_config: None,
-            features: ActiveFeatures::default(),
-            capabilities: Capabilities::default(),
+            capabilities: ActiveCapabilities::default(),
+            variants: Variants::default(),
             broadcaster: ChangeBroadcaster::new(
                 &db::ReadWrite::new(ctx.db.clone()),
                 Duration::from_secs(86400),
@@ -1300,8 +1300,8 @@ mod test {
             embedded_oidc: None,
             ui: Default::default(),
             validators: Vec::new(),
-            format_filter: CapabilityFilter::default(),
-            importer_filter: CapabilityFilter::default(),
+            format_filter: VariantFilter::default(),
+            importer_filter: VariantFilter::default(),
         };
         let graph = Graph::new();
 
@@ -1361,11 +1361,11 @@ mod test {
                     ei_service,
                     graph,
                     broadcaster,
-                    features: [Feature::ExploitIntelligence].into_iter().collect(),
-                    capabilities: Capabilities::default(),
+                    capabilities: [Capability::ExploitIntelligence].into_iter().collect(),
+                    variants: Variants::default(),
                     validators: Vec::new(),
-                    format_filter: CapabilityFilter::default(),
-                    importer_filter: CapabilityFilter::default(),
+                    format_filter: VariantFilter::default(),
+                    importer_filter: VariantFilter::default(),
                 },
             );
         })
@@ -1376,9 +1376,9 @@ mod test {
         let resp: serde_json::Value = app.call_and_read_body_json(req).await;
         assert_eq!(resp["exploitIntelligence"], serde_json::json!(true));
         assert!(
-            resp["features"]
+            resp["capabilities"]
                 .as_array()
-                .expect("features should be array")
+                .expect("capabilities should be array")
                 .iter()
                 .any(|v| v == "exploitIntelligence")
         );
