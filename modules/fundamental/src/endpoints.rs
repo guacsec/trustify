@@ -2,8 +2,8 @@ use actix_web::web;
 use regex::Regex;
 use std::sync::Arc;
 use trustify_common::{
+    capability::VariantFilter,
     db::{self, pagination_cache::PaginationCache},
-    feature::CapabilityFilter,
 };
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_ingestor::common;
@@ -58,7 +58,7 @@ pub fn configure(
     cache: PaginationCache,
     graph: Graph,
     validators: Vec<Arc<dyn Validator>>,
-    format_filter: CapabilityFilter,
+    format_filter: VariantFilter,
 ) {
     let ingestor_service = IngestorService::new(graph, storage, Some(analysis))
         .with_validators(validators)

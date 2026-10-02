@@ -9,6 +9,7 @@ use std::fmt::{Debug, Display};
 use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::{
+    capability::{VariantDisabled, VariantFilter},
     db::{
         DatabaseErrors, ReadWrite,
         limiter::{LimitedResult, LimiterTrait},
@@ -16,7 +17,6 @@ use trustify_common::{
         query::{Error as QueryError, Filtering, Query},
     },
     error::ErrorInformation,
-    feature::{CapabilityDisabled, CapabilityFilter},
     model::{PaginatedResults, Pagination, Revisioned},
 };
 use trustify_entity::{importer, importer_report, labels};
@@ -39,7 +39,7 @@ pub enum Error {
     #[error(transparent)]
     Query(#[from] QueryError),
     #[error(transparent)]
-    CapabilityDisabled(#[from] trustify_common::feature::CapabilityDisabled),
+    VariantDisabled(#[from] trustify_common::capability::VariantDisabled),
     #[error(transparent)]
     Label(#[from] labels::Error),
     #[error(transparent)]
@@ -101,7 +101,7 @@ impl ResponseError for Error {
                 message: self.to_string(),
                 details: None,
             }),
-            Self::CapabilityDisabled(err) => err.error_response(),
+            Self::VariantDisabled(err) => err.error_response(),
             Self::Limit(err) => err.error_response(),
             _ => HttpResponse::InternalServerError().json(ErrorInformation {
                 error: "Internal".into(),
@@ -132,12 +132,12 @@ where
 pub struct ImporterService {
     db: ReadWrite,
     cache: PaginationCache,
-    importer_filter: CapabilityFilter,
+    importer_filter: VariantFilter,
 }
 
 impl ImporterService {
     /// Creates a new importer service backed by the given read-write connection.
-    pub fn new(db: ReadWrite, cache: PaginationCache, importer_filter: CapabilityFilter) -> Self {
+    pub fn new(db: ReadWrite, cache: PaginationCache, importer_filter: VariantFilter) -> Self {
         Self {
             db,
             cache,
@@ -232,7 +232,7 @@ impl ImporterService {
         let mut configuration =
             f(current.value.data.configuration).map_err(PatchError::Transform)?;
 
-        // check capability filter, but always allow disabling an importer
+        // check variant filter, but always allow disabling an importer
 
         if !configuration.disabled {
             self.importer_filter
@@ -413,10 +413,10 @@ impl ImporterService {
     ///
     /// Only updates `last_error` if it isn't already set to this error, so that it gets recorded
     /// once, not on every startup. Returns `true` if this call recorded it.
-    pub async fn mark_capability_disabled(
+    pub async fn mark_variant_disabled(
         &self,
         name: &str,
-        err: &CapabilityDisabled,
+        err: &VariantDisabled,
     ) -> Result<bool, Error> {
         let message = err.to_string();
         let result = importer::Entity::update_many()
