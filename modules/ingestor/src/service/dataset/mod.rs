@@ -16,21 +16,28 @@ use std::{
 };
 use tokio::runtime::Handle;
 use tracing::instrument;
-use trustify_common::hashing::Digests;
+use trustify_common::{capability::VariantFilter, hashing::Digests};
 use trustify_entity::labels::Labels;
 use trustify_module_storage::{service::StorageBackend, service::dispatch::DispatchBackend};
 
 pub struct DatasetLoader<'g> {
     graph: &'g Graph,
     storage: &'g DispatchBackend,
+    format_filter: &'g VariantFilter,
     limit: usize,
 }
 
 impl<'g> DatasetLoader<'g> {
-    pub fn new(graph: &'g Graph, storage: &'g DispatchBackend, limit: usize) -> Self {
+    pub fn new(
+        graph: &'g Graph,
+        storage: &'g DispatchBackend,
+        format_filter: &'g VariantFilter,
+        limit: usize,
+    ) -> Self {
         Self {
             graph,
             storage,
+            format_filter,
             limit,
         }
     }
@@ -105,17 +112,23 @@ impl<'g> DatasetLoader<'g> {
 
                         let labels = labels.clone().add("datasetFile", &full_name);
 
-                        self.storage
-                            .store(&*data)
-                            .await
-                            .map_err(|err| Error::Storage(anyhow!("{err}")))?;
-
                         let result = match DocumentDetector::detect_as(&data, format) {
-                            Ok(detector) => {
-                                detector
-                                    .load(self.graph, labels, None, &Digests::digest(&data), tx)
-                                    .await
-                            }
+                            Ok(detector) => match self
+                                .format_filter
+                                .try_enabled(&detector.format().to_string())
+                            {
+                                Ok(()) => {
+                                    self.storage
+                                        .store(&*data)
+                                        .await
+                                        .map_err(|err| Error::Storage(anyhow!("{err}")))?;
+
+                                    detector
+                                        .load(self.graph, labels, None, &Digests::digest(&data), tx)
+                                        .await
+                                }
+                                Err(err) => Err(err.into()),
+                            },
                             Err(err) => Err(err),
                         };
 

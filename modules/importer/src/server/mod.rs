@@ -17,7 +17,10 @@ use time::OffsetDateTime;
 use tokio::{task::LocalSet, time::MissedTickBehavior};
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
-use trustify_common::db::{ReadWrite, pagination_cache::PaginationCache};
+use trustify_common::{
+    capability::VariantFilter,
+    db::{ReadWrite, pagination_cache::PaginationCache},
+};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 
@@ -34,6 +37,7 @@ pub async fn importer(
     concurrency: usize,
     read_only: bool,
     credential_config: CredentialConfig,
+    importer_filter: VariantFilter,
 ) -> anyhow::Result<()> {
     Server {
         db,
@@ -44,6 +48,7 @@ pub async fn importer(
         concurrency,
         read_only,
         credential_config,
+        importer_filter,
     }
     .run()
     .await
@@ -74,6 +79,7 @@ struct Server {
     concurrency: usize,
     read_only: bool,
     credential_config: CredentialConfig,
+    importer_filter: VariantFilter,
 }
 
 impl Server {
@@ -84,11 +90,51 @@ impl Server {
         LocalSet::new().run_until(self.run_local()).await
     }
 
+    /// Record an error on enabled importers whose type is disabled, as they will never run.
+    ///
+    /// The warning is only logged when the error is newly recorded, not on every startup.
+    async fn mark_variant_disabled(&self, service: &ImporterService) {
+        let importers = match service.list().await {
+            Ok(importers) => importers,
+            Err(err) => {
+                tracing::warn!("Failed to check importers for disabled variants: {err}");
+                return;
+            }
+        };
+
+        for importer in importers {
+            if importer.data.configuration.disabled {
+                continue;
+            }
+            let Err(err) = self
+                .importer_filter
+                .try_enabled((&importer.data.configuration).into())
+            else {
+                continue;
+            };
+
+            match service.mark_variant_disabled(&importer.name, &err).await {
+                Ok(true) => {
+                    tracing::warn!(importer = importer.name, "{err}; importer will not run")
+                }
+                Ok(false) => {}
+                Err(err) => tracing::warn!(
+                    importer = importer.name,
+                    "Failed to record disabled variant: {err}"
+                ),
+            }
+        }
+    }
+
     async fn run_local(self) -> anyhow::Result<()> {
         let meter = global::meter("importer::Server");
         let running_importers = meter.u64_gauge("running_importers").build();
 
-        let service = ImporterService::new(self.db.clone(), self.cache.clone());
+        let service = ImporterService::new(
+            self.db.clone(),
+            self.cache.clone(),
+            self.importer_filter.clone(),
+        );
         let runner = ImportRunner {
             db: self.db.clone(),
             storage: self.storage.clone(),
@@ -96,6 +142,10 @@ impl Server {
             analysis: self.analysis.clone(),
             credential_config: self.credential_config.clone(),
         };
+        if !self.read_only {
+            self.mark_variant_disabled(&service).await;
+        }
+
         let mut interval = tokio::time::interval(Duration::from_secs(1));
         interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
@@ -126,6 +176,11 @@ impl Server {
             runs.extend(
                 importers
                     .into_iter()
+                    .filter(|i| {
+                        self.importer_filter
+                            .try_enabled((&i.data.configuration).into())
+                            .is_ok()
+                    })
                     .filter(|i| i.is_enabled() && i.is_due() && !i.is_running())
                     .take(self.concurrency - count)
                     .map(|importer| {

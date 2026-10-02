@@ -9,6 +9,7 @@ use std::fmt::{Debug, Display};
 use time::OffsetDateTime;
 use tracing::instrument;
 use trustify_common::{
+    capability::{VariantDisabled, VariantFilter},
     db::{
         DatabaseErrors, ReadWrite,
         limiter::{LimitedResult, LimiterTrait},
@@ -37,6 +38,8 @@ pub enum Error {
     Json(#[from] serde_json::Error),
     #[error(transparent)]
     Query(#[from] QueryError),
+    #[error(transparent)]
+    VariantDisabled(#[from] trustify_common::capability::VariantDisabled),
     #[error(transparent)]
     Label(#[from] labels::Error),
     #[error(transparent)]
@@ -98,6 +101,7 @@ impl ResponseError for Error {
                 message: self.to_string(),
                 details: None,
             }),
+            Self::VariantDisabled(err) => err.error_response(),
             Self::Limit(err) => err.error_response(),
             _ => HttpResponse::InternalServerError().json(ErrorInformation {
                 error: "Internal".into(),
@@ -128,12 +132,17 @@ where
 pub struct ImporterService {
     db: ReadWrite,
     cache: PaginationCache,
+    importer_filter: VariantFilter,
 }
 
 impl ImporterService {
     /// Creates a new importer service backed by the given read-write connection.
-    pub fn new(db: ReadWrite, cache: PaginationCache) -> Self {
-        Self { db, cache }
+    pub fn new(db: ReadWrite, cache: PaginationCache, importer_filter: VariantFilter) -> Self {
+        Self {
+            db,
+            cache,
+            importer_filter,
+        }
     }
 
     pub async fn list(&self) -> Result<Vec<Importer>, Error> {
@@ -152,6 +161,8 @@ impl ImporterService {
         name: String,
         mut configuration: ImporterConfiguration,
     ) -> Result<(), Error> {
+        self.importer_filter.try_enabled((&configuration).into())?;
+
         configuration.labels.validate_mut()?;
 
         let entity = importer::ActiveModel {
@@ -221,6 +232,14 @@ impl ImporterService {
         let mut configuration =
             f(current.value.data.configuration).map_err(PatchError::Transform)?;
 
+        // check variant filter, but always allow disabling an importer
+
+        if !configuration.disabled {
+            self.importer_filter
+                .try_enabled((&configuration).into())
+                .map_err(|err| PatchError::Common(err.into()))?;
+        }
+
         // validate
 
         configuration
@@ -252,6 +271,7 @@ impl ImporterService {
         expected_revision: Option<&str>,
         mut configuration: ImporterConfiguration,
     ) -> Result<(), Error> {
+        self.importer_filter.try_enabled((&configuration).into())?;
         configuration.labels.validate_mut()?;
 
         self.update(
@@ -389,9 +409,44 @@ impl ImporterService {
         }
     }
 
+    /// Record that an importer can't run because its type is disabled.
+    ///
+    /// Only updates `last_error` if it isn't already set to this error, so that it gets recorded
+    /// once, not on every startup. Returns `true` if this call recorded it.
+    pub async fn mark_variant_disabled(
+        &self,
+        name: &str,
+        err: &VariantDisabled,
+    ) -> Result<bool, Error> {
+        let message = err.to_string();
+        let result = importer::Entity::update_many()
+            .col_expr(importer::Column::Revision, Expr::value(Uuid::new_v4()))
+            .col_expr(importer::Column::LastError, Expr::value(message.clone()))
+            .col_expr(
+                importer::Column::LastChange,
+                Expr::value(OffsetDateTime::now_utc()),
+            )
+            .filter(importer::Column::Name.eq(name))
+            .filter(
+                importer::Column::LastError
+                    .is_null()
+                    .or(importer::Column::LastError.ne(message)),
+            )
+            .exec(&self.db)
+            .await?;
+
+        Ok(result.rows_affected > 0)
+    }
+
     /// Reset the last-run timestamp and continuation token to force a new run
     #[instrument(skip(self))]
     pub async fn reset(&self, name: &str, expected_revision: Option<&str>) -> Result<(), Error> {
+        let Some(current) = self.read(name).await? else {
+            return Err(Error::NotFound(name.into()));
+        };
+        self.importer_filter
+            .try_enabled((&current.value.data.configuration).into())?;
+
         self.update(
             &self.db,
             name,

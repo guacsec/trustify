@@ -8,7 +8,7 @@ use tracing::instrument;
 use trustify_common::{config, db};
 use trustify_module_storage::service::fs::FileSystemBackend;
 
-pub struct TrustifyContext(pub(crate) TrustifyTestContext);
+pub struct TrustifyContext(pub TrustifyTestContext);
 
 impl TrustifyContext {
     pub async fn new(
