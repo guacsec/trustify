@@ -23,8 +23,8 @@ use sbom_walker::{
     report::{ReportSink, check},
 };
 use sea_orm::ConnectionTrait;
-use serde_cyclonedx::cyclonedx::v_1_6::{
-    Attachment, Component, ComponentEvidenceIdentity, CycloneDx, License, LicenseChoiceUrl,
+use serde_cyclonedx::cyclonedx::v_1_7::{
+    Attachment, Component, ComponentEvidenceIdentity, CycloneDx, License, LicenseChoiceItemUrl,
     OrganizationalContact,
 };
 use std::{borrow::Cow, collections::HashMap, str::FromStr};
@@ -133,14 +133,12 @@ impl<'a> From<Information<'a>> for SbomInformation {
             .as_ref()
             .and_then(|metadata| metadata.licenses.as_ref())
             .into_iter()
-            .flat_map(|licenses| match licenses {
-                LicenseChoiceUrl::Variant0(license) => license
-                    .iter()
-                    .flat_map(|l| l.license.id.as_ref().or(l.license.name.as_ref()).cloned())
-                    .collect::<Vec<_>>(),
-                LicenseChoiceUrl::Variant1(license) => {
-                    license.iter().map(|l| l.expression.clone()).collect()
+            .flatten()
+            .filter_map(|license| match license {
+                LicenseChoiceItemUrl::Variant0(l) => {
+                    l.license.id.as_ref().or(l.license.name.as_ref()).cloned()
                 }
+                LicenseChoiceItemUrl::Variant1(l) => Some(l.expression.clone()),
             })
             .collect();
 
@@ -166,7 +164,7 @@ impl SbomContext {
     ) -> Result<(), Error> {
         // pre-flight checks
 
-        check::serde_cyclonedx::all(warnings, &Sbom::V1_6(Cow::Borrowed(&sbom)));
+        check::serde_cyclonedx::all(warnings, &Sbom::V1_7(Cow::Borrowed(&sbom)));
 
         let mut creator = Creator::new(self.sbom.sbom_id);
 
@@ -543,37 +541,28 @@ impl ComponentCreator {
 
     fn add_license(&mut self, component: &Component) -> Vec<Uuid> {
         let mut license_uuid = vec![];
-        if let Some(licenses) = &component.licenses {
-            match licenses {
-                LicenseChoiceUrl::Variant0(licenses) => {
-                    'l: for license in licenses {
-                        self.add_licensing_info(&license.license);
+        for license in component.licenses.iter().flatten() {
+            let license = match license {
+                LicenseChoiceItemUrl::Variant0(license) => {
+                    self.add_licensing_info(&license.license);
 
-                        let license = if let Some(id) = license.license.id.clone() {
-                            id
-                        } else if let Some(name) = license.license.name.clone() {
-                            name
-                        } else {
-                            continue 'l;
-                        };
-
-                        let license = LicenseInfo { license };
-
-                        self.licenses.add(&license);
-                        license_uuid.push(license.uuid());
-                    }
+                    let Some(license) = license
+                        .license
+                        .id
+                        .clone()
+                        .or_else(|| license.license.name.clone())
+                    else {
+                        continue;
+                    };
+                    license
                 }
-                LicenseChoiceUrl::Variant1(licenses) => {
-                    for license in licenses {
-                        let license = LicenseInfo {
-                            license: license.expression.clone(),
-                        };
+                LicenseChoiceItemUrl::Variant1(license) => license.expression.clone(),
+            };
 
-                        self.licenses.add(&license);
-                        license_uuid.push(license.uuid());
-                    }
-                }
-            }
+            let license = LicenseInfo { license };
+
+            self.licenses.add(&license);
+            license_uuid.push(license.uuid());
         }
         license_uuid
     }
