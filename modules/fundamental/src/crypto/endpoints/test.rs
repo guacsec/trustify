@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use sea_orm::TransactionTrait;
 use test_context::test_context;
 use test_log::test;
-use trustify_common::{db, model::PaginatedResults, db::pagination_cache::PaginationCache};
+use trustify_common::{db, db::pagination_cache::PaginationCache, model::PaginatedResults};
 use trustify_module_ingestor::model::IngestResult;
 use trustify_test_context::{TrustifyContext, call::CallService, document_bytes};
 use uuid::Uuid;
@@ -51,9 +51,19 @@ impl PolicyEvaluator for MockPolicyEvaluator {
 }
 
 fn is_pqc_safe(upper: &str) -> bool {
-    ["MLKEM", "ML-KEM", "KYBER", "MLDSA", "ML-DSA", "DILITHIUM", "SLHDSA", "SLH-DSA", "SPHINCS"]
-        .iter()
-        .any(|kw| upper.contains(kw))
+    [
+        "MLKEM",
+        "ML-KEM",
+        "KYBER",
+        "MLDSA",
+        "ML-DSA",
+        "DILITHIUM",
+        "SLHDSA",
+        "SLH-DSA",
+        "SPHINCS",
+    ]
+    .iter()
+    .any(|kw| upper.contains(kw))
 }
 
 async fn ingest_cbom(app: &impl CallService) -> IngestResult {
@@ -338,10 +348,8 @@ async fn evaluate_policy_stores_verdicts(ctx: &TrustifyContext) -> Result<(), an
     let ingest = ingest_cbom(&app).await;
     let sbom_id: Uuid = ingest.id.parse()?;
 
-    let service = CryptoService::with_evaluator(
-        PaginationCache::for_test(),
-        Box::new(MockPolicyEvaluator),
-    );
+    let service =
+        CryptoService::with_evaluator(PaginationCache::for_test(), Box::new(MockPolicyEvaluator));
     let db_rw = db::ReadWrite::new(ctx.db.clone());
     let tx = db_rw.begin().await?;
     let result = service.evaluate_policy(Some(sbom_id), &tx).await?;
@@ -379,10 +387,8 @@ async fn list_algorithms_returns_policy_status_after_evaluation(
     let ingest = ingest_cbom(&app).await;
     let sbom_id: Uuid = ingest.id.parse()?;
 
-    let service = CryptoService::with_evaluator(
-        PaginationCache::for_test(),
-        Box::new(MockPolicyEvaluator),
-    );
+    let service =
+        CryptoService::with_evaluator(PaginationCache::for_test(), Box::new(MockPolicyEvaluator));
     let db_rw = db::ReadWrite::new(ctx.db.clone());
     let tx = db_rw.begin().await?;
     service.evaluate_policy(Some(sbom_id), &tx).await?;
@@ -421,16 +427,12 @@ async fn list_algorithms_returns_policy_status_after_evaluation(
 /// Verifies that algorithms not on the deny list default to Warning (not Compliant).
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
-async fn unknown_algorithms_default_to_warning(
-    ctx: &TrustifyContext,
-) -> Result<(), anyhow::Error> {
+async fn unknown_algorithms_default_to_warning(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let app = caller(ctx).await?;
     ingest_cbom(&app).await;
 
-    let service = CryptoService::with_evaluator(
-        PaginationCache::for_test(),
-        Box::new(MockPolicyEvaluator),
-    );
+    let service =
+        CryptoService::with_evaluator(PaginationCache::for_test(), Box::new(MockPolicyEvaluator));
     let db_rw = db::ReadWrite::new(ctx.db.clone());
     let tx = db_rw.begin().await?;
     let result = service.evaluate_policy(None, &tx).await?;
