@@ -19,6 +19,7 @@ impl Precommit {
         if !Command::new("cargo")
             .args([
                 "clippy",
+                "--workspace",
                 "--all-targets",
                 "--all-features",
                 "--",
@@ -56,7 +57,7 @@ impl Precommit {
 
         println!("Running: cargo check");
         if !Command::new("cargo")
-            .args(["check", "--all-targets", "--all-features"])
+            .args(["check", "--workspace", "--all-targets", "--all-features"])
             .status()
             .map_err(|_| anyhow!("cargo check failed"))?
             .success()

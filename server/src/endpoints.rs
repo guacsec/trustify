@@ -5,6 +5,7 @@ use actix_web::{
 };
 use build_info::BuildInfo;
 use std::sync::Arc;
+use trustify_api::FrontendInfo;
 use trustify_auth::authenticator::Authenticator;
 use trustify_common::middleware::ReadOnlyState;
 use utoipa_actix_web::service_config::ServiceConfig;
@@ -18,6 +19,7 @@ pub fn configure(
     auth: Option<Arc<Authenticator>>,
     read_only: bool,
     exploit_intelligence: bool,
+    frontend: FrontendInfo,
 ) {
     let mut scope = utoipa_actix_web::scope("/.well-known/trustify");
 
@@ -28,6 +30,7 @@ pub fn configure(
     scope = scope.app_data(web::Data::new(ExploitIntelligenceState(
         exploit_intelligence,
     )));
+    scope = scope.app_data(web::Data::new(frontend));
 
     svc.service(scope.service(info));
 }
@@ -41,6 +44,7 @@ struct Info<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = serde_json::Object)]
     build: Option<&'a BuildInfo>,
+    frontend: FrontendInfo,
 }
 
 build_info::build_info!(fn build_info);
@@ -56,6 +60,7 @@ pub async fn info(
     auth: Option<web::Data<Authenticator>>,
     read_only: ReadOnlyState,
     ei: web::Data<ExploitIntelligenceState>,
+    frontend: web::Data<FrontendInfo>,
 ) -> HttpResponse {
     let details = match auth {
         // authentication is disabled, enable details
@@ -81,5 +86,6 @@ pub async fn info(
         read_only: *read_only,
         exploit_intelligence: ei.0,
         build: details.then(build_info),
+        frontend: frontend.get_ref().clone(),
     })
 }

@@ -82,6 +82,11 @@ mod m0002350_drop_purl_status_gist_index;
 mod m0002360_pythonver_cmp_parallel_restricted;
 mod m0002370_importer_quay_auth;
 mod m0002380_version_function_parallelism;
+mod m0002390_create_correlation_evidence;
+mod m0002400_create_advisory_vulnerability_hash;
+mod m0002410_create_advisory_vulnerability_product_identifier;
+mod m0002420_create_sbom_node_product_identifier;
+mod m0002430_add_correlation_evidence_matched_value;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -177,6 +182,11 @@ impl MigratorExt for Migrator {
             .normal(m0002360_pythonver_cmp_parallel_restricted::Migration)
             .normal(m0002370_importer_quay_auth::Migration)
             .normal(m0002380_version_function_parallelism::Migration)
+            .normal(m0002390_create_correlation_evidence::Migration)
+            .normal(m0002400_create_advisory_vulnerability_hash::Migration)
+            .normal(m0002410_create_advisory_vulnerability_product_identifier::Migration)
+            .normal(m0002420_create_sbom_node_product_identifier::Migration)
+            .normal(m0002430_add_correlation_evidence_matched_value::Migration)
     }
 }
 

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "api",
     "cli",
     "common",
     "common/auth",
@@ -9,6 +10,7 @@ members = [
     "entity",
     "migration",
     "modules/analysis",
+    "modules/correlation",
     "modules/exploit-intelligence",
     "modules/fundamental",
     "modules/importer",
@@ -22,6 +24,7 @@ members = [
     "server",
     "test-context",
     "trustd",
+    "ui",
     "xtask",
 ]
 
@@ -73,7 +76,7 @@ fixedbitset = "0.5.7"
 flate2 = "1.0.35"
 futures = "0.3.30"
 futures-util = "0.3"
-garage-door = "0.2.0"
+garage-door = "0.2.1"
 git2 = { version = "0.21.0", features = ["https", "ssh"] }
 hex = "0.4.3"
 hide = "0.1.5"
@@ -162,6 +165,7 @@ which = "8"
 wiremock = "0.6"
 zip = "8"
 
+trustify-api = { path = "api" }
 trustify-auth = { path = "common/auth", features = ["actix", "swagger"] }
 trustify-common = { path = "common" }
 trustify-db = { path = "common/db" }
@@ -169,6 +173,7 @@ trustify-entity = { path = "entity" }
 trustify-infrastructure = { path = "common/infrastructure" }
 trustify-migration = { path = "migration" }
 trustify-module-analysis = { path = "modules/analysis" }
+trustify-module-correlation = { path = "modules/correlation" }
 trustify-module-exploit-intelligence = { path = "modules/exploit-intelligence" }
 trustify-module-fundamental = { path = "modules/fundamental" }
 trustify-module-importer = { path = "modules/importer" }
@@ -207,3 +212,6 @@ postgresql_commands = { version = "0.20.0", default-features = false, features =
 
 # required due to https://github.com/doubleopen-project/spdx-rs/pull/35
 spdx-rs = { git = "https://github.com/ctron/spdx-rs", branch = "feature/add_alias_2" }
+
+# required due to https://github.com/rh-jfuller/trustify-clients/pull/10
+trustify-client = { git = "https://github.com/ctron/trustify-clients.git", branch = "derive-partial-eq" }

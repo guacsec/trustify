@@ -7,11 +7,13 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+trustify-api = { workspace = true, features = ["openapi"] }
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }
 trustify-db = { workspace = true }
 trustify-infrastructure = { workspace = true }
 trustify-module-analysis = { workspace = true }
+trustify-module-correlation = { workspace = true }
 trustify-module-exploit-intelligence = { workspace = true }
 trustify-module-fundamental = { workspace = true }
 trustify-module-importer = { workspace = true }
@@ -32,6 +34,7 @@ humantime = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_yml = { workspace = true }
 tokio = { workspace = true }

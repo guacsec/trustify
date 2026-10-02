@@ -1,7 +1,10 @@
 pub mod advisory;
 pub mod advisory_vulnerability;
+pub mod advisory_vulnerability_hash;
+pub mod advisory_vulnerability_product_identifier;
 pub mod advisory_vulnerability_score;
 pub mod base_purl;
+pub mod correlation_evidence;
 pub mod cpe;
 pub mod cpe_status;
 pub mod expanded_license;
@@ -39,6 +42,7 @@ pub mod sbom_license_expanded;
 pub mod sbom_node;
 pub mod sbom_node_checksum;
 pub mod sbom_node_cpe_ref;
+pub mod sbom_node_product_identifier;
 pub mod sbom_node_purl_ref;
 pub mod sbom_package;
 pub mod sbom_package_license;

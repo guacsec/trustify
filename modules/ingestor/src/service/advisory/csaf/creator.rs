@@ -25,8 +25,11 @@ use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use tracing::instrument;
-use trustify_common::{db::chunk::EntityChunkedIter, purl::Purl};
+use trustify_common::{db::chunk::EntityChunkedIter, hashing::normalize_algorithm, purl::Purl};
 use trustify_entity::{
+    advisory_vulnerability_hash, advisory_vulnerability_product_identifier,
+    advisory_vulnerability_product_identifier::ProductIdentifierType,
+    correlation_evidence::AssertionStatus,
     organization, product, product_status, product_version_range, purl_status,
     remediation::{self, RemediationCategory},
     remediation_product_status, remediation_purl_status,
@@ -62,6 +65,8 @@ pub struct StatusCreator<'a> {
     products: HashSet<ProductStatus>,
     product_id_to_product: HashMap<String, ProductStatus>,
     product_to_purl_statuses: HashMap<ProductStatus, Vec<PurlStatus>>,
+    hash_entries: HashSet<(String, String, AssertionStatus)>,
+    product_identifier_entries: HashSet<(ProductIdentifierType, String, AssertionStatus)>,
 }
 
 impl<'a> StatusCreator<'a> {
@@ -76,6 +81,8 @@ impl<'a> StatusCreator<'a> {
             products: HashSet::new(),
             product_id_to_product: HashMap::new(),
             product_to_purl_statuses: HashMap::new(),
+            hash_entries: HashSet::new(),
+            product_identifier_entries: HashSet::new(),
         }
     }
 
@@ -86,6 +93,13 @@ impl<'a> StatusCreator<'a> {
         on_invalid: OnInvalidData,
         report: &dyn ReportSink,
     ) -> Result<(), Error> {
+        let assertion_status = match status {
+            "affected" => Some(AssertionStatus::Affected),
+            "fixed" => Some(AssertionStatus::Fixed),
+            "not_affected" => Some(AssertionStatus::NotAffected),
+            _ => None,
+        };
+
         for r in ps.iter().flat_map(|ps| &ps.0) {
             let mut product = ProductStatus {
                 status,
@@ -104,7 +118,7 @@ impl<'a> StatusCreator<'a> {
                     product_ids.push(r.as_str());
                 }
             };
-            for product_id in product_ids {
+            for product_id in &product_ids {
                 product = self.cache.trace_product(product_id).iter().try_fold(
                     product,
                     |mut product, branch| {
@@ -112,6 +126,48 @@ impl<'a> StatusCreator<'a> {
                         Ok::<_, Error>(product)
                     },
                 )?;
+            }
+
+            if let Some(assertion) = assertion_status {
+                for product_id in &product_ids {
+                    for branch in self.cache.trace_product(product_id) {
+                        if let Some(full_name) = &branch.product
+                            && let Some(pih) = &full_name.product_identification_helper
+                        {
+                            for hc in &pih.hashes {
+                                for fh in &hc.file_hashes {
+                                    let algo = normalize_algorithm(&fh.algorithm);
+                                    self.hash_entries.insert((
+                                        algo,
+                                        fh.value.to_string(),
+                                        assertion,
+                                    ));
+                                }
+                            }
+                            for mn in pih.model_numbers.iter().flatten() {
+                                self.product_identifier_entries.insert((
+                                    ProductIdentifierType::ModelNumber,
+                                    mn.to_string(),
+                                    assertion,
+                                ));
+                            }
+                            for sn in pih.serial_numbers.iter().flatten() {
+                                self.product_identifier_entries.insert((
+                                    ProductIdentifierType::SerialNumber,
+                                    sn.to_string(),
+                                    assertion,
+                                ));
+                            }
+                            for sku in &pih.skus {
+                                self.product_identifier_entries.insert((
+                                    ProductIdentifierType::Sku,
+                                    sku.to_string(),
+                                    assertion,
+                                ));
+                            }
+                        }
+                    }
+                }
             }
 
             self.product_id_to_product
@@ -389,6 +445,66 @@ impl<'a> StatusCreator<'a> {
                 .on_conflict_do_nothing()
                 .exec(connection)
                 .await?;
+        }
+
+        if !self.hash_entries.is_empty() {
+            let mut hash_models: Vec<advisory_vulnerability_hash::ActiveModel> = self
+                .hash_entries
+                .iter()
+                .map(
+                    |(algo, value, status)| advisory_vulnerability_hash::ActiveModel {
+                        advisory_id: Set(self.advisory_id),
+                        vulnerability_id: Set(self.vulnerability_id.clone()),
+                        algorithm: Set(algo.clone()),
+                        value: Set(value.clone()),
+                        status: Set(*status),
+                    },
+                )
+                .collect();
+
+            hash_models.sort_by(|a, b| {
+                a.algorithm
+                    .as_ref()
+                    .cmp(b.algorithm.as_ref())
+                    .then_with(|| a.value.as_ref().cmp(b.value.as_ref()))
+            });
+
+            for batch in &hash_models.chunked() {
+                advisory_vulnerability_hash::Entity::insert_many(batch)
+                    .on_conflict_do_nothing()
+                    .exec(connection)
+                    .await?;
+            }
+        }
+
+        if !self.product_identifier_entries.is_empty() {
+            let mut pid_models: Vec<advisory_vulnerability_product_identifier::ActiveModel> = self
+                .product_identifier_entries
+                .iter()
+                .map(|(id_type, value, status)| {
+                    advisory_vulnerability_product_identifier::ActiveModel {
+                        advisory_id: Set(self.advisory_id),
+                        vulnerability_id: Set(self.vulnerability_id.clone()),
+                        identifier_type: Set(*id_type),
+                        value: Set(value.clone()),
+                        status: Set(*status),
+                    }
+                })
+                .collect();
+
+            pid_models.sort_by(|a, b| {
+                a.value.as_ref().cmp(b.value.as_ref()).then_with(|| {
+                    format!("{:?}", a.identifier_type.as_ref())
+                        .cmp(&format!("{:?}", b.identifier_type.as_ref()))
+                })
+            });
+
+            for batch in &pid_models.chunked() {
+                advisory_vulnerability_product_identifier::Entity::insert_many(batch)
+                    .on_conflict_do_nothing()
+                    .exec(connection)
+                    .await?;
+            }
         }
 
         let mut result: HashMap<String, ProductIdStatusMapping> = HashMap::new();
