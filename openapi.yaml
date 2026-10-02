@@ -21,12 +21,21 @@ paths:
                 - version
                 - readOnly
                 - exploitIntelligence
-                - features
                 - capabilities
+                - variants
                 properties:
                   build:
                     type: object
                   capabilities:
+                    type: array
+                    items:
+                      type: string
+                  exploitIntelligence:
+                    type: boolean
+                    description: Deprecated — use the `capabilities` array instead.
+                  readOnly:
+                    type: boolean
+                  variants:
                     type: object
                     additionalProperties:
                       type: array
@@ -34,15 +43,6 @@ paths:
                         type: string
                     propertyNames:
                       type: string
-                  exploitIntelligence:
-                    type: boolean
-                    description: Deprecated — use the `features` array instead.
-                  features:
-                    type: array
-                    items:
-                      type: string
-                  readOnly:
-                    type: boolean
                   version:
                     type: string
   /api/v2/purl/recommend:
