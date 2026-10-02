@@ -26,6 +26,9 @@ pub struct Config {
     /// `POST /api/v3/purl/recommend/report` request. Overrides `TRUSTD_RECOMMEND_REPORT_PACKAGE_LIMIT`
     /// when set explicitly. Default: 10 000.
     pub recommend_report_package_limit: u64,
+    /// URL to the Conforma policy configuration (EnterpriseContractPolicy spec).
+    /// Passed to the on-demand Conforma server at launch. Required for `POST /v3/crypto/policy/evaluate`.
+    pub conforma_policy: Option<String>,
 }
 
 impl Default for Config {
@@ -40,6 +43,7 @@ impl Default for Config {
             max_group_name_length: 0,
             recommend_patterns: vec![],
             recommend_report_package_limit: env_limit,
+            conforma_policy: None,
         }
     }
 }
@@ -67,7 +71,13 @@ pub fn configure(
         config.advisory_upload_limit,
         cache.clone(),
     );
-    crypto::endpoints::configure(svc, db_ro.clone(), cache.clone());
+    crypto::endpoints::configure(
+        svc,
+        db_rw.clone(),
+        db_ro.clone(),
+        cache.clone(),
+        config.conforma_policy,
+    );
     exploit::endpoints::configure(svc, db_ro.clone(), cache.clone());
     license::endpoints::configure(svc, db_ro.clone());
     organization::endpoints::configure(svc, db_ro.clone(), cache.clone());

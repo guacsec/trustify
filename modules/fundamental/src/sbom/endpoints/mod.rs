@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::{
     Error,
     common::LicenseRefMapping,
+    crypto::service::CryptoService,
     license::{
         get_sanitize_filename,
         service::{LicenseService, license_export::LicenseExporter},
@@ -735,6 +736,7 @@ pub async fn upload(
     sbom_group: web::Data<SbomGroupService>,
     config: web::Data<Config>,
     db: web::Data<db::ReadWrite>,
+    crypto_service: Option<web::Data<CryptoService>>,
     QsQuery(UploadQuery {
         labels,
         format,
@@ -763,6 +765,9 @@ pub async fn upload(
             .await?;
     }
 
+    // Capture the raw UUID before the urn:uuid: prefix is added.
+    let sbom_uuid = Uuid::parse_str(&result.id).ok();
+
     // Rewrite ID to have the prefix: Although the field is "id" it always carried the ID,
     // but with the `urn:uuid:` prefix. Which was used for "key" fields. Which accepted
     // for than the actual ID. The whole naming is flawed and confusing. But in order to
@@ -770,6 +775,28 @@ pub async fn upload(
     result.id = format!("urn:uuid:{}", result.id);
 
     tx.commit().await?;
+
+    // Fire-and-forget policy evaluation so verdicts are available immediately after ingest.
+    // Only runs when CONFORMA_POLICY is configured; failures are logged but do not affect
+    // the ingest response.
+    if let (Some(svc), Some(uuid)) = (crypto_service, sbom_uuid)
+        && svc.has_evaluator()
+    {
+        let db_bg = db.clone();
+        tokio::spawn(async move {
+            match db_bg.begin().await {
+                Ok(tx) => match svc.evaluate_policy(Some(uuid), &tx).await {
+                    Ok(_) => {
+                        if let Err(e) = tx.commit().await {
+                            tracing::warn!("Post-ingest policy eval: commit failed: {e}");
+                        }
+                    }
+                    Err(e) => tracing::warn!("Post-ingest policy evaluation failed: {e}"),
+                },
+                Err(e) => tracing::warn!("Post-ingest policy eval: failed to begin tx: {e}"),
+            }
+        });
+    }
 
     log::info!("Uploaded SBOM: {}", result.id);
     Ok(HttpResponse::Created().json(result))
