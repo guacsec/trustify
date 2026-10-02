@@ -51,6 +51,17 @@ impl CryptoService {
         self.evaluator.is_some()
     }
 
+    #[cfg(test)]
+    pub fn with_evaluator(
+        cache: PaginationCache,
+        evaluator: Box<dyn evaluator::PolicyEvaluator>,
+    ) -> Self {
+        Self {
+            cache,
+            evaluator: Some(evaluator),
+        }
+    }
+
     /// List crypto assets with optional filtering by asset type and SBOM.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     pub async fn list_algorithms<C: ConnectionTrait>(
