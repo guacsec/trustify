@@ -27,19 +27,18 @@ pub struct Validator {
     mode: ValidationMode,
     threshold: Severity,
     on_error: OnError,
+    run_on_ingest: bool,
 }
 
 impl Validator {
-    pub fn new(config: &ValidatorConfig) -> Self {
+    pub fn new(config: &ValidatorConfig, profile: Option<&str>) -> Self {
         Self {
             name: config.name.clone(),
-            profile: config
-                .profile
-                .clone()
-                .unwrap_or_else(|| "basic".to_string()),
+            profile: profile.unwrap_or("basic").to_owned(),
             mode: config.mode,
             threshold: config.threshold,
             on_error: config.on_error,
+            run_on_ingest: config.run_on_ingest,
         }
     }
 }
@@ -52,6 +51,7 @@ impl fmt::Debug for Validator {
             .field("mode", &self.mode)
             .field("threshold", &self.threshold)
             .field("on_error", &self.on_error)
+            .field("run_on_ingest", &self.run_on_ingest)
             .finish()
     }
 }
@@ -116,6 +116,10 @@ impl super::Validator for Validator {
         self.on_error
     }
 
+    fn run_on_ingest(&self) -> bool {
+        self.run_on_ingest
+    }
+
     fn applies_to(&self, format: Format) -> bool {
         format == Format::CSAF
     }
@@ -171,11 +175,11 @@ mod tests {
     fn config(profile: Option<&str>, mode: ValidationMode) -> ValidatorConfig {
         ValidatorConfig {
             name: "test-csaf".into(),
-            backend: Backend::Csaf,
+            backend: Backend::Csaf {
+                profile: profile.map(String::from),
+            },
             formats: vec![Format::CSAF],
-            rules: Vec::new(),
-            phase: None,
-            profile: profile.map(String::from),
+            run_on_ingest: true,
             mode,
             threshold: Severity::Error,
             on_error: OnError::Block,
@@ -183,7 +187,7 @@ mod tests {
     }
 
     fn validator(profile: Option<&str>, mode: ValidationMode) -> Validator {
-        Validator::new(&config(profile, mode))
+        Validator::new(&config(profile, mode), profile)
     }
 
     #[tokio::test]
@@ -279,16 +283,14 @@ mod tests {
     fn does_not_apply_to_non_csaf() {
         let config = ValidatorConfig {
             name: "test".into(),
-            backend: Backend::Csaf,
+            backend: Backend::Csaf { profile: None },
             formats: vec![Format::Advisory],
-            rules: Vec::new(),
-            phase: None,
-            profile: None,
+            run_on_ingest: true,
             mode: ValidationMode::Report,
             threshold: Severity::Error,
             on_error: OnError::Block,
         };
-        let v = Validator::new(&config);
+        let v = Validator::new(&config, None);
         assert!(v.applies_to(Format::CSAF));
         assert!(!v.applies_to(Format::CVE));
         assert!(!v.applies_to(Format::OSV));

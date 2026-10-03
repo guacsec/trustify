@@ -5,10 +5,12 @@
 
 use crate::service::{
     Format,
-    validation::{OnError, ScheckValidator, Severity, ValidationMode, Validator, csaf, scheck},
+    validation::{
+        OnError, ScheckValidator, Severity, ValidationMode, Validator, conforma, csaf, scheck,
+    },
 };
 use anyhow::Context;
-use std::{fs, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, fs, path::PathBuf, sync::Arc};
 
 /// Configuration for the complete set of validators.
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -18,15 +20,36 @@ pub struct ValidatorsConfig {
     pub validators: Vec<ValidatorConfig>,
 }
 
-/// Which backend implements a validator.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, serde::Deserialize, serde::Serialize)]
-#[serde(rename_all = "lowercase")]
+/// Which backend implements a validator and its backend-specific settings.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
 pub enum Backend {
     /// The in-process `scheck` semantic validator.
-    #[default]
-    Scheck,
+    Scheck {
+        /// Ruleset files to load (scheck JSON `.json` or DSL `.scheck`).
+        #[serde(default)]
+        rules: Vec<PathBuf>,
+        /// Optional scheck phase to activate.
+        #[serde(default)]
+        phase: Option<String>,
+    },
     /// The in-process CSAF specification validator (`csaf-rs`).
-    Csaf,
+    Csaf {
+        /// Validation profile / preset; defaults to `basic`.
+        #[serde(default)]
+        profile: Option<String>,
+    },
+    /// A remote Conforma `ec validate input --server` instance.
+    Conforma(ConformaConfig),
+}
+
+impl Default for Backend {
+    fn default() -> Self {
+        Self::Scheck {
+            rules: Vec::new(),
+            phase: None,
+        }
+    }
 }
 
 /// Configuration for a single validator.
@@ -34,29 +57,16 @@ pub enum Backend {
 pub struct ValidatorConfig {
     /// Stable identifier used in reports and logs.
     pub name: String,
-    /// The backend implementing this validator.
+    /// Backend and its backend-specific settings.
     #[serde(default)]
     pub backend: Backend,
     /// Formats this validator applies to. A category (e.g. `sbom`) matches all
     /// of its concrete formats.
     #[serde(default)]
     pub formats: Vec<Format>,
-    /// Ruleset files to load (scheck JSON `.json` or DSL `.scheck`).
-    #[serde(default)]
-    pub rules: Vec<PathBuf>,
-    /// Optional backend-specific phase to activate (scheck backend).
-    #[serde(default)]
-    pub phase: Option<String>,
-    /// CSAF validation profile / preset (csaf backend).
-    ///
-    /// For CSAF 2.0: `basic`, `extended`, `full`.
-    /// For CSAF 2.1: additionally `mandatory`, `recommended`, `informative`,
-    /// `schema`, `external-request-free`, `consistent-revision-history`,
-    /// `consistent-date-times`, `ssvc`.
-    ///
-    /// Defaults to `basic` when omitted.
-    #[serde(default)]
-    pub profile: Option<String>,
+    /// Whether this validator runs automatically during ingestion.
+    #[serde(default = "default_run_on_ingest")]
+    pub run_on_ingest: bool,
     /// Whether findings only report, or gate ingestion.
     #[serde(default)]
     pub mode: ValidationMode,
@@ -72,29 +82,67 @@ fn default_threshold() -> Severity {
     Severity::Error
 }
 
+fn default_run_on_ingest() -> bool {
+    true
+}
+
+/// URL and request timeout for a long-lived `ec validate input --server` instance.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct ConformaConfig {
+    /// Base URL of the Conforma server; `/v1/validate/input` is appended.
+    pub url: String,
+    /// Maximum duration of one request, including response-body reading.
+    #[serde(default = "default_conforma_timeout_seconds")]
+    pub timeout_seconds: u64,
+}
+
+fn default_conforma_timeout_seconds() -> u64 {
+    120
+}
+
 /// Build the validator set from configuration.
 ///
 /// Returns an empty set when no validators are configured, preserving the
 /// default validation-disabled behaviour.
 pub fn build(config: &ValidatorsConfig) -> Result<Vec<Arc<dyn Validator>>, anyhow::Error> {
     let mut validators: Vec<Arc<dyn Validator>> = Vec::with_capacity(config.validators.len());
+    let mut names = HashSet::with_capacity(config.validators.len());
     for validator in &config.validators {
-        match validator.backend {
-            Backend::Scheck => validators.push(Arc::new(build_scheck(validator)?)),
-            Backend::Csaf => validators.push(Arc::new(csaf::Validator::new(validator))),
+        anyhow::ensure!(
+            names.insert(&validator.name),
+            "duplicate validator name: {}",
+            validator.name
+        );
+        match &validator.backend {
+            Backend::Scheck { rules, phase } => {
+                validators.push(Arc::new(build_scheck(validator, rules, phase.as_deref())?));
+            }
+            Backend::Csaf { profile } => {
+                validators.push(Arc::new(csaf::Validator::new(
+                    validator,
+                    profile.as_deref(),
+                )));
+            }
+            Backend::Conforma(conforma) => {
+                validators.push(Arc::new(conforma::build(validator, conforma)?));
+            }
         }
     }
     Ok(validators)
 }
 
-fn build_scheck(config: &ValidatorConfig) -> Result<ScheckValidator, anyhow::Error> {
-    let mut schemas = Vec::with_capacity(config.rules.len());
-    for path in &config.rules {
+fn build_scheck(
+    config: &ValidatorConfig,
+    rules: &[PathBuf],
+    phase: Option<&str>,
+) -> Result<ScheckValidator, anyhow::Error> {
+    let mut schemas = Vec::with_capacity(rules.len());
+    for path in rules {
         let contents = fs::read_to_string(path)
             .with_context(|| format!("reading scheck ruleset {}", path.display()))?;
         schemas.push(scheck::parse_ruleset(path, &contents)?);
     }
-    Ok(ScheckValidator::new(config, schemas))
+    Ok(ScheckValidator::new(config, schemas, phase))
 }
 
 #[cfg(test)]
@@ -109,20 +157,45 @@ mod tests {
     }
 
     #[test]
+    fn example_config_parses() {
+        let config: ValidatorsConfig = serde_yml::from_str(include_str!(
+            "../../../../../etc/validators/validators.yaml"
+        ))
+        .expect("parses example config");
+        assert_eq!(config.validators.len(), 4);
+    }
+
+    #[test]
     fn yaml_round_trips_with_defaults() {
         let yaml = r#"
 validators:
-  - name: scheck-csaf
+  - name: scheck-defaults
     formats: [csaf]
-    rules: []
+  - name: scheck-configured
+    backend:
+      type: scheck
+      rules: []
+      phase: structural
+    formats: [csaf]
 "#;
         let config: ValidatorsConfig = serde_yml::from_str(yaml).expect("parses");
-        assert_eq!(config.validators.len(), 1);
+        assert_eq!(config.validators.len(), 2);
         let validator = &config.validators[0];
-        assert_eq!(validator.backend, Backend::Scheck);
+        assert!(matches!(
+            &validator.backend,
+            Backend::Scheck { rules, phase: None } if rules.is_empty()
+        ));
         assert_eq!(validator.mode, ValidationMode::Report);
         assert_eq!(validator.threshold, Severity::Error);
         assert_eq!(validator.on_error, OnError::Block);
+        assert!(validator.run_on_ingest);
+
+        let validator = &config.validators[1];
+        assert!(matches!(
+            &validator.backend,
+            Backend::Scheck { rules, phase: Some(phase) }
+                if rules.is_empty() && phase == "structural"
+        ));
     }
 
     #[test]
@@ -130,18 +203,65 @@ validators:
         let yaml = r#"
 validators:
   - name: csaf-spec
-    backend: csaf
+    backend:
+      type: csaf
+      profile: extended
     formats: [csaf]
-    profile: extended
 "#;
         let config: ValidatorsConfig = serde_yml::from_str(yaml).expect("parses");
         assert_eq!(config.validators.len(), 1);
         let validator = &config.validators[0];
-        assert_eq!(validator.backend, Backend::Csaf);
-        assert_eq!(validator.profile.as_deref(), Some("extended"));
+        assert!(matches!(
+            &validator.backend,
+            Backend::Csaf { profile: Some(profile) } if profile == "extended"
+        ));
         assert_eq!(validator.mode, ValidationMode::Report);
         assert_eq!(validator.threshold, Severity::Error);
         assert_eq!(validator.on_error, OnError::Block);
+        assert!(validator.run_on_ingest);
+    }
+
+    #[test]
+    fn json_configures_remote_conforma_server() {
+        let config: ValidatorsConfig = serde_json::from_value(serde_json::json!({
+            "validators": [{
+                "name": "policy-a",
+                "backend": { "type": "conforma", "url": "https://ec.example.test" },
+                "formats": ["spdx"],
+                "run_on_ingest": false
+            }]
+        }))
+        .expect("parses");
+        let validator = &config.validators[0];
+        let Backend::Conforma(conforma) = &validator.backend else {
+            panic!("expected Conforma backend")
+        };
+        assert!(!validator.run_on_ingest);
+        assert_eq!(conforma.url, "https://ec.example.test");
+        assert_eq!(conforma.timeout_seconds, 120);
+    }
+
+    #[test]
+    fn conforma_backend_requires_settings() {
+        assert!(
+            serde_json::from_value::<ValidatorsConfig>(serde_json::json!({
+                "validators": [{ "name": "policy-a", "backend": { "type": "conforma" } }]
+            }))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn rejects_settings_for_another_backend() {
+        assert!(
+            serde_json::from_value::<ValidatorsConfig>(serde_json::json!({
+                "validators": [{
+                    "name": "csaf",
+                    "backend": { "type": "csaf", "url": "https://ec.example.test" }
+                }]
+            }))
+            .is_err()
+        );
     }
 
     #[test]
@@ -149,11 +269,11 @@ validators:
         let config = ValidatorsConfig {
             validators: vec![ValidatorConfig {
                 name: "csaf-spec".into(),
-                backend: Backend::Csaf,
+                backend: Backend::Csaf {
+                    profile: Some("basic".into()),
+                },
                 formats: vec![Format::CSAF],
-                rules: vec![],
-                phase: None,
-                profile: Some("basic".into()),
+                run_on_ingest: true,
                 mode: ValidationMode::Verify,
                 threshold: Severity::Error,
                 on_error: OnError::Block,
@@ -177,11 +297,12 @@ validators:
         let config = ValidatorsConfig {
             validators: vec![ValidatorConfig {
                 name: "scheck".into(),
-                backend: Backend::Scheck,
+                backend: Backend::Scheck {
+                    rules: vec![path],
+                    phase: None,
+                },
                 formats: vec![Format::CSAF],
-                rules: vec![path],
-                phase: None,
-                profile: None,
+                run_on_ingest: true,
                 mode: ValidationMode::Report,
                 threshold: Severity::Error,
                 on_error: OnError::Block,
@@ -191,5 +312,19 @@ validators:
         let validators = build(&config).expect("builds");
         assert_eq!(validators.len(), 1);
         assert_eq!(validators[0].name(), "scheck");
+    }
+
+    #[test]
+    fn rejects_duplicate_validator_names() {
+        let config: ValidatorsConfig = serde_json::from_value(serde_json::json!({
+            "validators": [{ "name": "duplicate" }, { "name": "duplicate" }]
+        }))
+        .expect("parses");
+        assert!(
+            build(&config)
+                .unwrap_err()
+                .to_string()
+                .contains("duplicate validator name")
+        );
     }
 }

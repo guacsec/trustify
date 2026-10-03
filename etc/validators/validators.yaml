@@ -17,20 +17,22 @@ validators:
   # recommended, informative, schema, external-request-free,
   # consistent-revision-history, consistent-date-times, ssvc.
   - name: csaf-spec
-    backend: csaf
+    backend:
+      type: csaf
+      profile: basic
     formats: [csaf]
-    profile: basic
     mode: report
     threshold: error
     on_error: continue
 
   # CSAF advisories: additional scheck-based structural checks.
   - name: csaf-mandatory
-    backend: scheck
+    backend:
+      type: scheck
+      rules:
+        - etc/validators/rules/csaf-mandatory.json
+      phase: structural
     formats: [csaf]
-    rules:
-      - etc/validators/rules/csaf-mandatory.json
-    phase: structural
     mode: report
     threshold: error
     on_error: continue
@@ -39,20 +41,22 @@ validators:
   # (error) rejects the document; if the validator itself errors,
   # `on_error: block` treats that as a failed gate.
   - name: spdx-min
-    backend: scheck
+    backend:
+      type: scheck
+      rules:
+        - etc/validators/rules/spdx-min.json
     formats: [spdx]
-    rules:
-      - etc/validators/rules/spdx-min.json
     mode: verify
     threshold: error
     on_error: block
 
   # CycloneDX SBOMs: report-only.
   - name: cyclonedx-min
-    backend: scheck
+    backend:
+      type: scheck
+      rules:
+        - etc/validators/rules/cyclonedx-min.json
     formats: [cyclonedx]
-    rules:
-      - etc/validators/rules/cyclonedx-min.json
     mode: report
     threshold: error
     on_error: continue

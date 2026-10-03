@@ -37,8 +37,9 @@ RUST_LOG=trustify_module_ingestor=debug
 
 Each validator declares:
 
-- `backend` — `scheck` (assertion-based rules) or `csaf` (official CSAF spec
-  validator via `csaf-rs`).
+- `backend.type` — a backend variant with its own settings: `scheck` (assertion-based
+  rules), `csaf` (official CSAF spec validator via `csaf-rs`), or `conforma` (a
+  remote Conforma CLI server).
 - `formats` — which documents it applies to. Concrete formats (`csaf`, `spdx`,
   `cyclonedx`, `osv`, `cve`) or categories (`sbom` = SPDX + CycloneDX,
   `advisory` = CSAF + CVE + OSV).
@@ -48,13 +49,53 @@ Each validator declares:
   < `error` < `fatal`); default `error`.
 - `on_error` — in `verify` mode, what to do if the validator itself fails to
   run: `block` (treat as a failed gate) or `continue`.
-- `phase` — optional scheck phase to activate; omit to run all patterns
-  (scheck backend only).
-- `profile` — CSAF validation profile / preset (csaf backend only). For CSAF
+- `backend.phase` — optional scheck phase to activate; omit to run all patterns.
+- `backend.profile` — CSAF validation profile / preset. For CSAF
   2.0: `basic`, `extended`, `full`. CSAF 2.1 adds: `mandatory`, `recommended`,
   `informative`, `schema`, `external-request-free`,
   `consistent-revision-history`, `consistent-date-times`, `ssvc`. Defaults to
   `basic`.
+- `run_on_ingest` — defaults to `true`; set it to `false` to register a validator
+  for explicit invocation from internal code without running it on every ingest.
+- `backend.url` — for the `conforma` backend, the base URL of the remote
+  `ec validate input --server` instance. The client posts to
+  `/v1/validate/input`; `backend.timeout_seconds` defaults to `120`. The server's
+  policy is configured when that Conforma server starts; register another
+  validator with a different name and URL to select a different policy/server.
+  The request body must be JSON or YAML.
+
+Example:
+
+```yaml
+validators:
+  - name: conforma-pqc
+    backend:
+      type: conforma
+      url: https://conforma.internal.example
+      timeout_seconds: 120
+    formats: [spdx, cyclonedx]
+    run_on_ingest: false
+```
+
+Internal code can select the registration by name without ingesting the document:
+
+```rust,ignore
+let report = ingestor
+    .validate_named("conforma-pqc", &document_bytes, Format::SPDX)
+    .await?;
+```
+
+The URL is read from the validators configuration; no Conforma-specific
+environment variable is required. Use HTTPS or a private, access-controlled
+network: the Conforma CLI server does not provide authentication or rate limiting.
+Start an instance with its policy mounted/configured before registering its URL, e.g.:
+
+```bash
+ec validate input --server --server-address 0.0.0.0 --policy policy.yaml
+```
+
+Conforma loads the policy at server startup; restart that instance to apply policy
+changes.
 
 In the provided config, `csaf-spec` runs official CSAF specification tests
 in `report` mode. `csaf-mandatory` and `cyclonedx-min` run scheck-based

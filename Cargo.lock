@@ -9150,6 +9150,7 @@ dependencies = [
  "packageurl 0.7.1",
  "parking_lot",
  "quick-xml",
+ "reqwest 0.13.5",
  "roxmltree",
  "rstest",
  "sbom-walker",
@@ -9182,6 +9183,7 @@ dependencies = [
  "utoipa-actix-web",
  "uuid",
  "vers-rs",
+ "wiremock",
  "zip 8.6.0",
 ]
 

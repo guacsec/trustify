@@ -24,19 +24,25 @@ pub struct ScheckValidator {
     mode: ValidationMode,
     threshold: Severity,
     on_error: OnError,
+    run_on_ingest: bool,
 }
 
 impl ScheckValidator {
     /// Construct a validator from its configuration and pre-parsed rulesets.
-    pub fn new(config: &ValidatorConfig, schemas: Vec<scheck::Schema>) -> Self {
+    pub fn new(
+        config: &ValidatorConfig,
+        schemas: Vec<scheck::Schema>,
+        phase: Option<&str>,
+    ) -> Self {
         Self {
             name: config.name.clone(),
             schemas,
-            phase: config.phase.clone().unwrap_or_default(),
+            phase: phase.unwrap_or_default().to_owned(),
             formats: config.formats.clone(),
             mode: config.mode,
             threshold: config.threshold,
             on_error: config.on_error,
+            run_on_ingest: config.run_on_ingest,
         }
     }
 }
@@ -51,6 +57,7 @@ impl fmt::Debug for ScheckValidator {
             .field("mode", &self.mode)
             .field("threshold", &self.threshold)
             .field("on_error", &self.on_error)
+            .field("run_on_ingest", &self.run_on_ingest)
             .finish()
     }
 }
@@ -113,6 +120,10 @@ impl Validator for ScheckValidator {
 
     fn on_error(&self) -> OnError {
         self.on_error
+    }
+
+    fn run_on_ingest(&self) -> bool {
+        self.run_on_ingest
     }
 
     fn applies_to(&self, format: Format) -> bool {
@@ -197,9 +208,7 @@ mod tests {
             name: "test".into(),
             backend: Default::default(),
             formats,
-            rules: Vec::new(),
-            phase: None,
-            profile: None,
+            run_on_ingest: true,
             mode,
             threshold: Severity::Error,
             on_error: OnError::Block,
@@ -208,7 +217,7 @@ mod tests {
 
     fn validator(mode: ValidationMode) -> ScheckValidator {
         let schema = serde_json::from_str(RULESET).expect("valid ruleset");
-        ScheckValidator::new(&config(vec![Format::CSAF], mode), vec![schema])
+        ScheckValidator::new(&config(vec![Format::CSAF], mode), vec![schema], None)
     }
 
     #[tokio::test]
@@ -250,6 +259,7 @@ mod tests {
         let validator = ScheckValidator::new(
             &config(vec![Format::SBOM], ValidationMode::Report),
             vec![schema],
+            None,
         );
         assert!(validator.applies_to(Format::SPDX));
         assert!(validator.applies_to(Format::CycloneDX));
