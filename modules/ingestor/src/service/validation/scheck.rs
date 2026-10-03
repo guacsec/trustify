@@ -24,6 +24,7 @@ pub struct ScheckValidator {
     mode: ValidationMode,
     threshold: Severity,
     on_error: OnError,
+    run_on_ingest: bool,
 }
 
 impl ScheckValidator {
@@ -37,6 +38,7 @@ impl ScheckValidator {
             mode: config.mode,
             threshold: config.threshold,
             on_error: config.on_error,
+            run_on_ingest: config.run_on_ingest,
         }
     }
 }
@@ -51,6 +53,7 @@ impl fmt::Debug for ScheckValidator {
             .field("mode", &self.mode)
             .field("threshold", &self.threshold)
             .field("on_error", &self.on_error)
+            .field("run_on_ingest", &self.run_on_ingest)
             .finish()
     }
 }
@@ -113,6 +116,10 @@ impl Validator for ScheckValidator {
 
     fn on_error(&self) -> OnError {
         self.on_error
+    }
+
+    fn run_on_ingest(&self) -> bool {
+        self.run_on_ingest
     }
 
     fn applies_to(&self, format: Format) -> bool {
@@ -200,6 +207,8 @@ mod tests {
             rules: Vec::new(),
             phase: None,
             profile: None,
+            conforma: None,
+            run_on_ingest: true,
             mode,
             threshold: Severity::Error,
             on_error: OnError::Block,
