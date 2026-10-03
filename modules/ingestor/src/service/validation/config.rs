@@ -5,10 +5,12 @@
 
 use crate::service::{
     Format,
-    validation::{OnError, ScheckValidator, Severity, ValidationMode, Validator, csaf, scheck},
+    validation::{
+        OnError, ScheckValidator, Severity, ValidationMode, Validator, conforma, csaf, scheck,
+    },
 };
 use anyhow::Context;
-use std::{fs, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, fs, path::PathBuf, sync::Arc};
 
 /// Configuration for the complete set of validators.
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -27,6 +29,8 @@ pub enum Backend {
     Scheck,
     /// The in-process CSAF specification validator (`csaf-rs`).
     Csaf,
+    /// A remote Conforma `ec validate input --server` instance.
+    Conforma,
 }
 
 /// Configuration for a single validator.
@@ -57,6 +61,12 @@ pub struct ValidatorConfig {
     /// Defaults to `basic` when omitted.
     #[serde(default)]
     pub profile: Option<String>,
+    /// Remote Conforma server settings (required for the Conforma backend).
+    #[serde(default)]
+    pub conforma: Option<ConformaConfig>,
+    /// Whether this validator runs automatically during ingestion.
+    #[serde(default = "default_run_on_ingest")]
+    pub run_on_ingest: bool,
     /// Whether findings only report, or gate ingestion.
     #[serde(default)]
     pub mode: ValidationMode,
@@ -72,16 +82,41 @@ fn default_threshold() -> Severity {
     Severity::Error
 }
 
+fn default_run_on_ingest() -> bool {
+    true
+}
+
+/// URL and request timeout for a long-lived `ec validate input --server` instance.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct ConformaConfig {
+    /// Base URL of the Conforma server; `/v1/validate/input` is appended.
+    pub url: String,
+    /// Maximum duration of one request, including response-body reading.
+    #[serde(default = "default_conforma_timeout_seconds")]
+    pub timeout_seconds: u64,
+}
+
+fn default_conforma_timeout_seconds() -> u64 {
+    120
+}
+
 /// Build the validator set from configuration.
 ///
 /// Returns an empty set when no validators are configured, preserving the
 /// default validation-disabled behaviour.
 pub fn build(config: &ValidatorsConfig) -> Result<Vec<Arc<dyn Validator>>, anyhow::Error> {
     let mut validators: Vec<Arc<dyn Validator>> = Vec::with_capacity(config.validators.len());
+    let mut names = HashSet::with_capacity(config.validators.len());
     for validator in &config.validators {
+        anyhow::ensure!(
+            names.insert(&validator.name),
+            "duplicate validator name: {}",
+            validator.name
+        );
         match validator.backend {
             Backend::Scheck => validators.push(Arc::new(build_scheck(validator)?)),
             Backend::Csaf => validators.push(Arc::new(csaf::Validator::new(validator))),
+            Backend::Conforma => validators.push(Arc::new(conforma::build(validator)?)),
         }
     }
     Ok(validators)
@@ -123,6 +158,8 @@ validators:
         assert_eq!(validator.mode, ValidationMode::Report);
         assert_eq!(validator.threshold, Severity::Error);
         assert_eq!(validator.on_error, OnError::Block);
+        assert!(validator.run_on_ingest);
+        assert!(validator.conforma.is_none());
     }
 
     #[test]
@@ -142,6 +179,21 @@ validators:
         assert_eq!(validator.mode, ValidationMode::Report);
         assert_eq!(validator.threshold, Severity::Error);
         assert_eq!(validator.on_error, OnError::Block);
+        assert!(validator.run_on_ingest);
+    }
+
+    #[test]
+    fn yaml_configures_remote_conforma_server() {
+        let config: ValidatorsConfig = serde_yml::from_str(
+            "validators:\n  - name: policy-a\n    backend: conforma\n    formats: [spdx]\n    run_on_ingest: false\n    conforma:\n      url: https://ec.example.test\n",
+        )
+        .expect("parses");
+        let validator = &config.validators[0];
+        assert_eq!(validator.backend, Backend::Conforma);
+        assert!(!validator.run_on_ingest);
+        let conforma = validator.conforma.as_ref().expect("Conforma settings");
+        assert_eq!(conforma.url, "https://ec.example.test");
+        assert_eq!(conforma.timeout_seconds, 120);
     }
 
     #[test]
@@ -154,6 +206,8 @@ validators:
                 rules: vec![],
                 phase: None,
                 profile: Some("basic".into()),
+                conforma: None,
+                run_on_ingest: true,
                 mode: ValidationMode::Verify,
                 threshold: Severity::Error,
                 on_error: OnError::Block,
@@ -182,6 +236,8 @@ validators:
                 rules: vec![path],
                 phase: None,
                 profile: None,
+                conforma: None,
+                run_on_ingest: true,
                 mode: ValidationMode::Report,
                 threshold: Severity::Error,
                 on_error: OnError::Block,
@@ -191,5 +247,18 @@ validators:
         let validators = build(&config).expect("builds");
         assert_eq!(validators.len(), 1);
         assert_eq!(validators[0].name(), "scheck");
+    }
+
+    #[test]
+    fn rejects_duplicate_validator_names() {
+        let config: ValidatorsConfig =
+            serde_yml::from_str("validators:\n  - name: duplicate\n  - name: duplicate\n")
+                .expect("parses");
+        assert!(
+            build(&config)
+                .unwrap_err()
+                .to_string()
+                .contains("duplicate validator name")
+        );
     }
 }

@@ -30,6 +30,7 @@ osv = { workspace = true, features = ["schema"] }
 packageurl = { workspace = true }
 parking_lot = { workspace = true }
 quick-xml = { workspace = true }
+reqwest = { workspace = true, features = ["stream"] }
 roxmltree = { workspace = true }
 sbom-walker = { workspace = true }
 scheck = { workspace = true }
@@ -65,6 +66,7 @@ serde_yml = { workspace = true }
 tempfile = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
+wiremock = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 zip = { workspace = true }
 

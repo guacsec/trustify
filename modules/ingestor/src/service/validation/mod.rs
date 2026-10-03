@@ -1,4 +1,4 @@
-//! Third-party semantic validators run during ingestion.
+//! Third-party semantic validators available to ingestion and internal callers.
 //!
 //! A [`Validator`] inspects a raw document (before it is parsed into the graph)
 //! and returns a structured [`ValidationReport`]. Validators run in one of two
@@ -8,15 +8,16 @@
 //! See ADR 00020 for the design and rationale.
 
 pub mod config;
+pub mod conforma;
 pub mod csaf;
 pub mod scheck;
 
-pub use config::{Backend, ValidatorConfig, ValidatorsConfig, build};
+pub use config::{Backend, ConformaConfig, ValidatorConfig, ValidatorsConfig, build};
 pub use scheck::ScheckValidator;
 
 use crate::service::Format;
 use sea_orm::prelude::async_trait;
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 /// Severity of a single validation finding.
 #[derive(
@@ -127,7 +128,7 @@ pub enum ValidatorError {
     Timeout,
 }
 
-/// A third-party semantic validator run during ingestion.
+/// A registered third-party semantic validator, used during ingestion or explicitly.
 ///
 /// Implementations are shared behind an `Arc` and may run concurrently, so they
 /// must be `Send + Sync`.
@@ -145,6 +146,11 @@ pub trait Validator: Send + Sync + Debug {
     /// For [`ValidationMode::Verify`], the behaviour when the validator errors.
     fn on_error(&self) -> OnError;
 
+    /// Whether this validator runs automatically during ingestion.
+    fn run_on_ingest(&self) -> bool {
+        true
+    }
+
     /// Whether this validator applies to the given document format.
     fn applies_to(&self, format: Format) -> bool;
 
@@ -157,4 +163,50 @@ pub trait Validator: Send + Sync + Debug {
         &self,
         input: &ValidatorInput<'_>,
     ) -> Result<ValidationReport, ValidatorError>;
+}
+
+/// Error returned when explicitly invoking a registered validator by name.
+#[derive(Debug, thiserror::Error)]
+pub enum InvocationError {
+    /// No validator with the requested name is registered.
+    #[error("unknown validator '{0}'")]
+    Unknown(String),
+    /// More than one validator has the requested name.
+    #[error("validator name '{0}' is ambiguous")]
+    Ambiguous(String),
+    /// The requested validator does not accept the supplied format.
+    #[error("validator '{validator}' does not apply to format {format}")]
+    UnsupportedFormat { validator: String, format: Format },
+    /// The validator could not produce a verdict.
+    #[error(transparent)]
+    Validator(#[from] ValidatorError),
+}
+
+/// Invoke one configured validator directly, without ingestion gating.
+///
+/// The report is returned even when its outcome is [`ValidationOutcome::Failed`].
+pub async fn validate_named(
+    validators: &[Arc<dyn Validator>],
+    name: &str,
+    input: &ValidatorInput<'_>,
+) -> Result<ValidationReport, InvocationError> {
+    let mut matches = validators
+        .iter()
+        .filter(|validator| validator.name() == name);
+    let validator = matches
+        .next()
+        .ok_or_else(|| InvocationError::Unknown(name.to_string()))?;
+    if matches.next().is_some() {
+        return Err(InvocationError::Ambiguous(name.to_string()));
+    }
+    if !validator.applies_to(input.format) {
+        return Err(InvocationError::UnsupportedFormat {
+            validator: name.to_string(),
+            format: input.format,
+        });
+    }
+    validator
+        .validate(input)
+        .await
+        .map_err(InvocationError::Validator)
 }

@@ -27,6 +27,7 @@ pub struct Validator {
     mode: ValidationMode,
     threshold: Severity,
     on_error: OnError,
+    run_on_ingest: bool,
 }
 
 impl Validator {
@@ -40,6 +41,7 @@ impl Validator {
             mode: config.mode,
             threshold: config.threshold,
             on_error: config.on_error,
+            run_on_ingest: config.run_on_ingest,
         }
     }
 }
@@ -52,6 +54,7 @@ impl fmt::Debug for Validator {
             .field("mode", &self.mode)
             .field("threshold", &self.threshold)
             .field("on_error", &self.on_error)
+            .field("run_on_ingest", &self.run_on_ingest)
             .finish()
     }
 }
@@ -116,6 +119,10 @@ impl super::Validator for Validator {
         self.on_error
     }
 
+    fn run_on_ingest(&self) -> bool {
+        self.run_on_ingest
+    }
+
     fn applies_to(&self, format: Format) -> bool {
         format == Format::CSAF
     }
@@ -176,6 +183,8 @@ mod tests {
             rules: Vec::new(),
             phase: None,
             profile: profile.map(String::from),
+            conforma: None,
+            run_on_ingest: true,
             mode,
             threshold: Severity::Error,
             on_error: OnError::Block,
@@ -284,6 +293,8 @@ mod tests {
             rules: Vec::new(),
             phase: None,
             profile: None,
+            conforma: None,
+            run_on_ingest: true,
             mode: ValidationMode::Report,
             threshold: Severity::Error,
             on_error: OnError::Block,

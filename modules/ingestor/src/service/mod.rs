@@ -19,8 +19,8 @@ use crate::{
     service::{
         dataset::{DatasetIngestResult, DatasetLoader},
         validation::{
-            Finding, OnError, Severity, ValidationMode, ValidationOutcome, ValidationReport,
-            Validator, ValidatorInput,
+            Finding, InvocationError, OnError, Severity, ValidationMode, ValidationOutcome,
+            ValidationReport, Validator, ValidatorInput,
         },
     },
 };
@@ -236,7 +236,7 @@ impl IngestorService {
         }
     }
 
-    /// Attach the set of semantic validators run on every ingest.
+    /// Attach the registered validators available to ingestion and internal callers.
     ///
     /// With an empty set (the default), ingestion behaves as if validation did
     /// not exist. See ADR 00020.
@@ -247,6 +247,17 @@ impl IngestorService {
 
     pub fn storage(&self) -> &DispatchBackend {
         &self.storage
+    }
+
+    /// Invoke one named validator directly, without ingestion gating or storage.
+    pub async fn validate_named(
+        &self,
+        name: &str,
+        bytes: &[u8],
+        format: Format,
+    ) -> Result<ValidationReport, InvocationError> {
+        let input = ValidatorInput { bytes, format };
+        validation::validate_named(&self.validators, name, &input).await
     }
 
     /// Run all applicable validators against a document.
@@ -390,7 +401,7 @@ async fn run_validators(
     let mut blocked = Vec::new();
 
     for validator in validators {
-        if !validator.applies_to(fmt) {
+        if !validator.run_on_ingest() || !validator.applies_to(fmt) {
             continue;
         }
 
@@ -561,6 +572,7 @@ mod validation_tests {
         mode: ValidationMode,
         on_error: OnError,
         applies: bool,
+        run_on_ingest: bool,
         result: MockResult,
     }
 
@@ -578,6 +590,7 @@ mod validation_tests {
                 mode,
                 on_error: OnError::Block,
                 applies: true,
+                run_on_ingest: true,
                 result,
             }
         }
@@ -589,6 +602,11 @@ mod validation_tests {
 
         fn applies(mut self, applies: bool) -> Self {
             self.applies = applies;
+            self
+        }
+
+        fn run_on_ingest(mut self, run_on_ingest: bool) -> Self {
+            self.run_on_ingest = run_on_ingest;
             self
         }
     }
@@ -606,6 +624,9 @@ mod validation_tests {
         }
         fn on_error(&self) -> OnError {
             self.on_error
+        }
+        fn run_on_ingest(&self) -> bool {
+            self.run_on_ingest
         }
         fn applies_to(&self, _format: Format) -> bool {
             self.applies
@@ -716,5 +737,28 @@ mod validation_tests {
         )])
         .expect("non-applicable validator must be skipped");
         assert!(reports.is_empty());
+    }
+
+    #[tokio::test]
+    async fn disabled_ingest_validator_remains_invocable_by_name() {
+        let validators: Vec<Arc<dyn Validator>> = vec![Arc::new(
+            MockValidator::new("internal-only", ValidationMode::Report, MockResult::Failed)
+                .run_on_ingest(false),
+        )];
+        assert!(
+            run_validators(&validators, b"{}", Format::CSAF)
+                .await
+                .expect("skipped during ingestion")
+                .is_empty()
+        );
+
+        let input = ValidatorInput {
+            bytes: b"{}",
+            format: Format::CSAF,
+        };
+        let report = validation::validate_named(&validators, "internal-only", &input)
+            .await
+            .expect("explicit call runs validator");
+        assert_eq!(report.outcome, ValidationOutcome::Failed);
     }
 }
