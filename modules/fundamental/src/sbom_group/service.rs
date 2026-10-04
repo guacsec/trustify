@@ -537,6 +537,34 @@ WHERE parent IS NULL
         }))
     }
 
+    /// Return the requested groups plus all descendants, without duplicates.
+    #[cfg(feature = "sbom_generation")]
+    pub async fn expand_group_ids(
+        &self,
+        group_ids: &[String],
+        db: &impl ConnectionTrait,
+    ) -> Result<Vec<String>, Error> {
+        let roots = parse_group_ids(group_ids)?;
+        let mut visited: HashSet<Uuid> = roots.iter().copied().collect();
+        let mut frontier = roots;
+        while !frontier.is_empty() {
+            let children: Vec<Uuid> = sbom_group::Entity::find()
+                .select_only()
+                .column(sbom_group::Column::Id)
+                .filter(sbom_group::Column::Parent.is_in(frontier))
+                .into_tuple()
+                .all(db)
+                .await?;
+            frontier = children
+                .into_iter()
+                .filter(|id| visited.insert(*id))
+                .collect();
+        }
+        let mut ids: Vec<_> = visited.into_iter().collect();
+        ids.sort_unstable();
+        Ok(ids.into_iter().map(|id| id.to_string()).collect())
+    }
+
     /// Ensure a group name is valid
     ///
     /// This does not check uniqueness in the context of the parent.

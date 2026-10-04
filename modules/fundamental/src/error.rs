@@ -33,6 +33,9 @@ pub enum Error {
         #[from]
         source: trustify_module_correlation::error::Error,
     },
+    #[cfg(feature = "sbom_generation")]
+    #[error(transparent)]
+    Generation(#[from] trustify_module_analysis::Error),
     #[error(transparent)]
     Purl(#[from] PurlErr),
     #[error(transparent)]
@@ -144,6 +147,8 @@ impl ResponseError for Error {
                 HttpResponse::NotFound().json(ErrorInformation::new("NotFound", msg))
             }
             Self::Ingestor(inner) => inner.error_response(),
+            #[cfg(feature = "sbom_generation")]
+            Self::Generation(inner) => inner.error_response(),
             Self::Authorization(inner) => inner.error_response(),
             Self::ExternalReferenceQuery(inner) => inner.error_response(),
             Self::Query(err) => {
