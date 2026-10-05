@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791195276159,
+  "lastUpdate": 1791222451169,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -23101,6 +23101,35 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/guacsec/trustify/commit/27d5c36c600c17beae3637b3257fc7d2413f3463"
         },
         "date": 1791195273925,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "71e2113173f1c02d2c3c09e4fd350590347c2f7b",
+          "message": "build(deps): bump urllib3 from 2.7.0 to 2.8.0 in /tools/perf\n\nBumps [urllib3](https://github.com/urllib3/urllib3) from 2.7.0 to 2.8.0.\n- [Release notes](https://github.com/urllib3/urllib3/releases)\n- [Changelog](https://github.com/urllib3/urllib3/blob/main/CHANGES.rst)\n- [Commits](https://github.com/urllib3/urllib3/compare/2.7.0...2.8.0)\n\n---\nupdated-dependencies:\n- dependency-name: urllib3\n  dependency-version: 2.8.0\n  dependency-type: indirect\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-10-05T16:53:45Z",
+          "tree_id": "6d270ed13932eda4340ce5f65b078f1ae88e2515",
+          "url": "https://github.com/guacsec/trustify/commit/71e2113173f1c02d2c3c09e4fd350590347c2f7b"
+        },
+        "date": 1791222450052,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
