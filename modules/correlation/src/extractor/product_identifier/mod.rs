@@ -80,6 +80,15 @@ impl Extractor for ProductIdentifierExtractor {
             .collect())
     }
 
+    /// Look up advisory product identifiers by value, exactly and by CSAF glob patterns.
+    ///
+    /// Indexes the SKU, model number and serial number identifiers by value, then:
+    ///
+    /// 1. Exact values: loads all advisory rows having one of the values, in chunks.
+    /// 2. Patterns: loads all advisory rows whose value contains a wildcard (`*`, `?`), across all
+    ///    advisories, and matches each against every identifier value in memory.
+    ///
+    /// In both cases, the identifier type must be equal (a SKU only matches a SKU).
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn match_identifiers(
         &self,
@@ -133,6 +142,16 @@ impl Extractor for ProductIdentifierExtractor {
         Ok(result)
     }
 
+    /// Look up SBOM product identifiers by the identifiers of an advisory, which may be patterns.
+    ///
+    /// Splits the advisory's values into exact values and CSAF glob patterns:
+    ///
+    /// 1. Exact values: loads SBOM rows having one of the values, in chunks.
+    /// 2. Patterns: each pattern is translated into a SQL `LIKE` expression, loading the candidate
+    ///    SBOM rows with one query per pattern.
+    ///
+    /// The candidates are then checked against all advisory values in memory (exact or glob
+    /// match), requiring the same identifier type.
     #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
     async fn match_advisory(
         &self,

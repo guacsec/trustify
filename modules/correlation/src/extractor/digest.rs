@@ -64,6 +64,13 @@ impl Extractor for DigestExtractor {
             .collect())
     }
 
+    /// Look up advisory hashes by digest value.
+    ///
+    /// Indexes the digest identifiers by their hash value (one value may occur for several
+    /// identifiers), then loads all `advisory_vulnerability_hash` rows having one of those values,
+    /// in chunks. A row matches an identifier if the algorithms are equal, or if the identifier
+    /// has no algorithm (a query by bare value). Algorithms are normalized on both sides, so e.g.
+    /// `SHA-256` and `sha256` are the same.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     async fn match_identifiers(
         &self,
@@ -111,6 +118,10 @@ impl Extractor for DigestExtractor {
         Ok(result)
     }
 
+    /// Look up SBOM checksums by the digests of an advisory.
+    ///
+    /// Loads the advisory's hashes, then all `sbom_node_checksum` rows having one of their values,
+    /// in chunks. A checksum matches when its normalized algorithm equals the hash's algorithm.
     #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
     async fn match_advisory(
         &self,
