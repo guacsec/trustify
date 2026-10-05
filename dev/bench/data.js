@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791189457640,
+  "lastUpdate": 1791195276159,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -23077,6 +23077,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dbosanac@redhat.com",
+            "name": "Dejan Bosanac",
+            "username": "dejanb"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "27d5c36c600c17beae3637b3257fc7d2413f3463",
+          "message": "refactor(deps): remove unused cvss-old dependency\n\nRemove the legacy RustSec cvss dependency and unused severity conversion.\n\nConsolidate severity conversion tests on cvss-rs while retaining coverage for all five severity levels.\n\nAssisted-by: OpenAI (pi)",
+          "timestamp": "2026-10-05T09:41:08Z",
+          "tree_id": "1c30d7199c1a60d26b492311e60a38f0ee24dd86",
+          "url": "https://github.com/guacsec/trustify/commit/27d5c36c600c17beae3637b3257fc7d2413f3463"
+        },
+        "date": 1791195273925,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 7,
             "unit": "s"
           }
         ]
