@@ -26,9 +26,10 @@ pub struct Config {
     /// `POST /api/v3/purl/recommend/report` request. Overrides `TRUSTD_RECOMMEND_REPORT_PACKAGE_LIMIT`
     /// when set explicitly. Default: 10 000.
     pub recommend_report_package_limit: u64,
-    /// URL to the Conforma policy configuration (EnterpriseContractPolicy spec).
-    /// Passed to the on-demand Conforma server at launch. Required for `POST /v3/crypto/policy/evaluate`.
-    pub conforma_policy: Option<String>,
+    /// Base URL of the running Conforma server (e.g. `http://localhost:8085`).
+    /// Required for `POST /v3/crypto/policy/evaluate`. Start the service with
+    /// the compose-conforma.yaml overlay before running trustify.
+    pub conforma_url: Option<String>,
 }
 
 impl Default for Config {
@@ -43,7 +44,7 @@ impl Default for Config {
             max_group_name_length: 0,
             recommend_patterns: vec![],
             recommend_report_package_limit: env_limit,
-            conforma_policy: None,
+            conforma_url: None,
         }
     }
 }
@@ -76,7 +77,7 @@ pub fn configure(
         db_rw.clone(),
         db_ro.clone(),
         cache.clone(),
-        config.conforma_policy,
+        config.conforma_url,
     );
     exploit::endpoints::configure(svc, db_ro.clone(), cache.clone());
     license::endpoints::configure(svc, db_ro.clone());

@@ -777,7 +777,7 @@ pub async fn upload(
     tx.commit().await?;
 
     // Fire-and-forget policy evaluation so verdicts are available immediately after ingest.
-    // Only runs when CONFORMA_POLICY is configured; failures are logged but do not affect
+    // Only runs when CONFORMA_URL is configured; failures are logged but do not affect
     // the ingest response.
     if let (Some(svc), Some(uuid)) = (crypto_service, sbom_uuid)
         && svc.has_evaluator()

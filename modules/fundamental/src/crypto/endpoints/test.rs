@@ -273,7 +273,7 @@ async fn list_sbom_crypto_filtered(ctx: &TrustifyContext) -> Result<(), anyhow::
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn evaluate_policy_requires_conforma(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
-    // When CONFORMA_POLICY is not configured (test default), the endpoint must
+    // When CONFORMA_URL is not configured (test default), the endpoint must
     // return 500 rather than silently falling back to a hardcoded policy.
     let app = caller(ctx).await?;
     ingest_cbom(&app).await;
@@ -287,7 +287,7 @@ async fn evaluate_policy_requires_conforma(ctx: &TrustifyContext) -> Result<(), 
     assert_eq!(
         response.status(),
         StatusCode::INTERNAL_SERVER_ERROR,
-        "evaluate_policy must fail with 500 when CONFORMA_POLICY is not set"
+        "evaluate_policy must fail with 500 when CONFORMA_URL is not set"
     );
 
     Ok(())
@@ -312,7 +312,7 @@ async fn evaluate_policy_with_sbom_filter(ctx: &TrustifyContext) -> Result<(), a
     assert_eq!(
         response.status(),
         StatusCode::INTERNAL_SERVER_ERROR,
-        "evaluate_policy must fail with 500 when CONFORMA_POLICY is not set"
+        "evaluate_policy must fail with 500 when CONFORMA_URL is not set"
     );
 
     Ok(())
@@ -333,7 +333,7 @@ async fn evaluate_policy_empty_db(ctx: &TrustifyContext) -> Result<(), anyhow::E
     assert_eq!(
         response.status(),
         StatusCode::INTERNAL_SERVER_ERROR,
-        "evaluate_policy must fail with 500 when CONFORMA_POLICY is not set"
+        "evaluate_policy must fail with 500 when CONFORMA_URL is not set"
     );
 
     Ok(())

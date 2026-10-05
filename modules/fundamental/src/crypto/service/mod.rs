@@ -38,10 +38,10 @@ pub struct CryptoService {
 }
 
 impl CryptoService {
-    pub fn new(cache: PaginationCache, policy_path: Option<String>) -> Self {
+    pub fn new(cache: PaginationCache, conforma_url: Option<String>) -> Self {
         Self {
             cache,
-            evaluator: policy_path
+            evaluator: conforma_url
                 .map(conforma::ConformaClient::new)
                 .map(|c| Box::new(c) as Box<dyn evaluator::PolicyEvaluator>),
         }
@@ -288,7 +288,7 @@ impl CryptoService {
         let policy_evaluator = self
             .evaluator
             .as_ref()
-            .ok_or_else(|| Error::Internal("CONFORMA_POLICY is not configured".into()))?;
+            .ok_or_else(|| Error::Internal("CONFORMA_URL is not configured".into()))?;
 
         let mut query = sbom_crypto::Entity::find()
             .filter(sbom_crypto::Column::AssetType.eq(CryptoAssetType::Algorithm));

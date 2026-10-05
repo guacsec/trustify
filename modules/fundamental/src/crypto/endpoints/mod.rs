@@ -23,9 +23,9 @@ pub fn configure(
     db_rw: db::ReadWrite,
     db_ro: db::ReadOnly,
     cache: PaginationCache,
-    conforma_policy: Option<String>,
+    conforma_url: Option<String>,
 ) {
-    let service = CryptoService::new(cache, conforma_policy);
+    let service = CryptoService::new(cache, conforma_url);
     config
         .app_data(web::Data::new(db_rw))
         .app_data(web::Data::new(db_ro))
