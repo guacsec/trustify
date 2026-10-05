@@ -2191,12 +2191,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cvss"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7fb220d3ce1b565af39cee5b89e47fd8dd1dab162900ee4363c8ee4169ee8a2"
-
-[[package]]
 name = "cvss-rs"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8842,7 +8836,6 @@ version = "0.7.0-rc.1"
 dependencies = [
  "cpe",
  "csaf-rs",
- "cvss",
  "cvss-rs 0.5.0",
  "deepsize",
  "log",
