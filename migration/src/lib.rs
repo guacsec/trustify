@@ -87,6 +87,7 @@ mod m0002400_create_advisory_vulnerability_hash;
 mod m0002410_create_advisory_vulnerability_product_identifier;
 mod m0002420_create_sbom_node_product_identifier;
 mod m0002430_add_correlation_evidence_matched_value;
+mod m0002440_create_advisory_vulnerability_cpe;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -187,6 +188,7 @@ impl MigratorExt for Migrator {
             .normal(m0002410_create_advisory_vulnerability_product_identifier::Migration)
             .normal(m0002420_create_sbom_node_product_identifier::Migration)
             .normal(m0002430_add_correlation_evidence_matched_value::Migration)
+            .normal(m0002440_create_advisory_vulnerability_cpe::Migration)
     }
 }
 

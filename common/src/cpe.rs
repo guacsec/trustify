@@ -150,7 +150,22 @@ impl Cpe {
         let result = Uuid::new_v5(&result, self.version().as_ref().as_bytes());
         let result = Uuid::new_v5(&result, self.update().as_ref().as_bytes());
         let result = Uuid::new_v5(&result, self.edition().as_ref().as_bytes());
-        Uuid::new_v5(&result, self.language().as_ref().as_bytes())
+        let result = Uuid::new_v5(&result, self.language().as_ref().as_bytes());
+
+        // The CPE 2.3 extended attributes are only mixed in when set, keeping the IDs
+        // of CPEs without them stable.
+        let extended = [
+            self.sw_edition(),
+            self.target_sw(),
+            self.target_hw(),
+            self.other(),
+        ];
+        if extended.iter().all(|c| matches!(c, Component::Any)) {
+            return result;
+        }
+        extended
+            .iter()
+            .fold(result, |id, c| Uuid::new_v5(&id, c.as_ref().as_bytes()))
     }
 }
 
@@ -832,6 +847,20 @@ mod test {
             cpe.to_string(),
             "cpe:/o:microsoft:windows_10:1607:*~*~*~*~x64~*:*"
         );
+    }
+
+    #[test]
+    fn cpe23_extended_attributes_uuid() {
+        let uuid = |s: &str| Cpe::from_str(s).expect("must parse").uuid();
+
+        let x86 = uuid("cpe:2.3:a:beckhoff:mdp.dll:1.2.4.0:*:*:*:*:*:x86:*");
+        let arm32 = uuid("cpe:2.3:a:beckhoff:mdp.dll:1.2.4.0:*:*:*:*:*:arm32:*");
+        let plain = uuid("cpe:2.3:a:beckhoff:mdp.dll:1.2.4.0:*:*:*:*:*:*:*");
+
+        assert_ne!(x86, arm32);
+        assert_ne!(x86, plain);
+        // no extended attributes: same ID as the CPE 2.2 URI
+        assert_eq!(plain, uuid("cpe:/a:beckhoff:mdp.dll:1.2.4.0"));
     }
 
     #[test]

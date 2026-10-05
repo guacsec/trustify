@@ -1,3 +1,4 @@
+use crate::extractor::Extractors;
 use crate::{
     model::{
         ApiAssertionStatus, ComponentRef, CorrelationResult, IdentifierKind, IdentifierRef,
@@ -5,11 +6,13 @@ use crate::{
     },
     service::CorrelationService,
 };
+use rstest::rstest;
 use sea_orm::{ActiveModelTrait, Set, TransactionTrait};
+use std::collections::BTreeMap;
 use test_context::test_context;
 use test_log::test;
 use trustify_entity::correlation_evidence::{self, AssertionStatus};
-use trustify_test_context::TrustifyContext;
+use trustify_test_context::{TrustifyContext, document_bytes};
 use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
@@ -300,6 +303,54 @@ async fn components_list_identifiers(ctx: &TrustifyContext) -> anyhow::Result<()
             ]),
         }
     );
+
+    Ok(())
+}
+
+/// Expected verdicts of a correlation scenario (`expected.json`).
+#[derive(serde::Deserialize)]
+struct Scenario {
+    advisories: Vec<String>,
+    /// SBOM file -> node ID -> vulnerability -> verdict status
+    sboms: BTreeMap<String, BTreeMap<String, BTreeMap<String, VerdictStatus>>>,
+}
+
+/// Run a scenario: ingest its documents, extract evidence, and compare the verdicts with
+/// `expected.json`. Components without a verdict must not appear.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case("S20_cpe_range_wago")]
+#[case("S21_cpe_extended_attributes_beckhoff")]
+#[case("S22_cpe_third_party_openssl_phoenix")]
+#[test_log::test(actix_web::test)]
+async fn scenario(ctx: &TrustifyContext, #[case] name: &str) -> anyhow::Result<()> {
+    let base = format!("scenarios/{name}");
+    let expected: Scenario =
+        serde_json::from_slice(&document_bytes(format!("{base}/expected.json")).await?)?;
+
+    for advisory in &expected.advisories {
+        ctx.ingest_document(&format!("{base}/{advisory}")).await?;
+    }
+
+    let service = CorrelationService::default();
+    for (sbom, expected) in expected.sboms {
+        let sbom_id = Uuid::parse_str(&ctx.ingest_document(&format!("{base}/{sbom}")).await?.id)?;
+
+        let tx = ctx.db.begin().await?;
+        Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+        tx.commit().await?;
+
+        let tx = ctx.db.begin().await?;
+        let mut actual = BTreeMap::<_, BTreeMap<_, _>>::new();
+        for verdict in service.correlate_sbom(sbom_id, false, &tx).await?.verdicts {
+            actual
+                .entry(verdict.component.node_id)
+                .or_default()
+                .insert(verdict.vulnerability.id, verdict.status);
+        }
+
+        assert_eq!(actual, expected, "{name}: {sbom}");
+    }
 
     Ok(())
 }

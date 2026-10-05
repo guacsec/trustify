@@ -1,0 +1,19 @@
+{
+  "advisories": [
+    "vex/vde-2025-109.json",
+    "vex/vde-2025-056.json"
+  ],
+  "sboms": {
+    "sbom/mguard_4302_fw_10.6.0.cdx.json": {
+      "openssl": {
+        "CVE-2024-2511": "fixed"
+      }
+    },
+    "sbom/mguard_4302_fw_10.6.0_any_update.cdx.json": {},
+    "sbom/mguard_4302_fw_10.5.0.cdx.json": {
+      "openssl": {
+        "CVE-2024-2511": "affected"
+      }
+    }
+  }
+}
