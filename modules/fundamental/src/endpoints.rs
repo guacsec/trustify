@@ -29,6 +29,8 @@ pub struct Config {
     /// `POST /api/v3/purl/recommend/report` request. Overrides `TRUSTD_RECOMMEND_REPORT_PACKAGE_LIMIT`
     /// when set explicitly. Default: 10 000.
     pub recommend_report_package_limit: u64,
+    /// HTTP client for server-side URL fetching (e.g., ingest-from-URL).
+    pub http_client: reqwest::Client,
 }
 
 impl Default for Config {
@@ -43,6 +45,7 @@ impl Default for Config {
             max_group_name_length: 0,
             recommend_patterns: vec![],
             recommend_report_package_limit: env_limit,
+            http_client: reqwest::Client::new(),
         }
     }
 }
@@ -64,6 +67,7 @@ pub fn configure(
         .with_validators(validators)
         .with_format_filter(format_filter);
     svc.app_data(web::Data::new(ingestor_service.clone()));
+    svc.app_data(web::Data::new(config.http_client.clone()));
 
     advisory::endpoints::configure(
         svc,

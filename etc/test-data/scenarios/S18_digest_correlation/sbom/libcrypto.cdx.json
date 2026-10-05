@@ -1,0 +1,55 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "serialNumber": "urn:uuid:3e671687-395b-41f5-a30f-a58921a69b79",
+  "metadata": {
+    "timestamp": "2026-01-15T10:00:00Z",
+    "component": {
+      "type": "application",
+      "name": "s18-digest-app",
+      "version": "1.0.0",
+      "bom-ref": "s18-digest-app"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "tf2000-hmi-server",
+      "version": "14.4.267",
+      "bom-ref": "tf2000-hmi-server-14.4.267",
+      "purl": "pkg:deb/beckhoff/tf2000-hmi-server@14.4.267?arch=amd64",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "cb9fbc60ed97dffa9f71542b49a95d607c09e241210a69e83d8643e475d4256e"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "TwinCAT.HMI.Server",
+      "version": "14.4.267",
+      "bom-ref": "twincat-hmi-server-14.4.267",
+      "purl": "pkg:tcpkg/beckhoff/TwinCAT.HMI.Server@14.4.267",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d62b79b11e2ec822514b5b75fc7733e274b7efc722a3d099e10c4e1184dcf849"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "unrelated-lib",
+      "version": "1.0.0",
+      "bom-ref": "unrelated-lib-1.0.0",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    }
+  ]
+}

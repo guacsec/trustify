@@ -9,7 +9,6 @@
 
 CLAUDE.md
 
-*.cdx.json
 *.folded
 *-secret.*
 *.tar

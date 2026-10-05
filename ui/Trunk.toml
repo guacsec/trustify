@@ -1,0 +1,17 @@
+[build]
+target = "index.html"
+
+[watch]
+watch = ["src", "index.html", "assets"]
+
+[[proxy]]
+rewrite = "/api/"
+backend = "http://localhost:8080/api/"
+
+[[proxy]]
+rewrite = "/.well-known/"
+backend = "http://localhost:8080/.well-known/"
+
+[[proxy]]
+rewrite = "/realms/"
+backend = "http://localhost:8090/realms/"

@@ -79,6 +79,8 @@ pub enum Error {
     Join(#[from] JoinError),
     #[error(transparent)]
     Zip(#[from] zip::result::ZipError),
+    #[error("forbidden: {0}")]
+    Forbidden(String),
     #[error("payload too large")]
     PayloadTooLarge,
     #[error("unavailable")]
@@ -174,6 +176,11 @@ impl ResponseError for Error {
             Self::Zip(inner) => HttpResponse::BadRequest().json(ErrorInformation {
                 error: "ZipError".into(),
                 message: inner.to_string(),
+                details: None,
+            }),
+            Self::Forbidden(msg) => HttpResponse::Forbidden().json(ErrorInformation {
+                error: "Forbidden".into(),
+                message: msg.clone(),
                 details: None,
             }),
             Self::PayloadTooLarge => HttpResponse::PayloadTooLarge().json(ErrorInformation {

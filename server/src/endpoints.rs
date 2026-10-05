@@ -5,6 +5,7 @@ use actix_web::{
 };
 use build_info::BuildInfo;
 use std::sync::Arc;
+use trustify_api::FrontendInfo;
 use trustify_auth::authenticator::Authenticator;
 use trustify_common::{
     capability::{ActiveCapabilities, Capability, Variants},
@@ -12,13 +13,19 @@ use trustify_common::{
 };
 use utoipa_actix_web::service_config::ServiceConfig;
 
-pub fn configure(svc: &mut ServiceConfig, auth: Option<Arc<Authenticator>>, read_only: bool) {
+pub fn configure(
+    svc: &mut ServiceConfig,
+    auth: Option<Arc<Authenticator>>,
+    read_only: bool,
+    frontend: FrontendInfo,
+) {
     let mut scope = utoipa_actix_web::scope("/.well-known/trustify");
 
     if let Some(auth) = auth {
         scope = scope.app_data(web::Data::from(auth));
     }
     scope = scope.app_data(web::Data::new(ReadOnlyState(read_only)));
+    scope = scope.app_data(web::Data::new(frontend));
 
     svc.service(scope.service(info));
 }
@@ -36,6 +43,7 @@ struct Info<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = serde_json::Object)]
     build: Option<&'a BuildInfo>,
+    frontend: FrontendInfo,
 }
 
 build_info::build_info!(fn build_info);
@@ -50,8 +58,7 @@ pub async fn info(
     req: HttpRequest,
     auth: Option<web::Data<Authenticator>>,
     read_only: ReadOnlyState,
-    capabilities: web::Data<ActiveCapabilities>,
-    variants: web::Data<Variants>,
+    scope = scope.app_data(web::Data::new(frontend));
 ) -> HttpResponse {
     let details = match auth {
         // authentication is disabled, enable details
@@ -79,5 +86,6 @@ pub async fn info(
         capabilities: capabilities.as_sorted_vec(),
         variants: variants.get_ref().clone(),
         build: details.then(build_info),
+        frontend: frontend.get_ref().clone(),
     })
 }

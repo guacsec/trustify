@@ -1,6 +1,7 @@
 use crate::profile::api::{Config, ModuleConfig, configure, default_openapi_info};
 use actix_web::App;
 use std::time::Duration;
+use trustify_api::FrontendInfo;
 use trustify_common::{
     capability::{ActiveCapabilities, VariantFilter, Variants},
     db::{self, change::ChangeBroadcaster, pagination_cache::PaginationCache},
@@ -48,6 +49,7 @@ pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
                     validators: Vec::new(),
                     format_filter: VariantFilter::default(),
                     importer_filter: VariantFilter::default(),
+                    frontend: FrontendInfo { oidc: None },
                 },
             );
         })

@@ -51,6 +51,7 @@ pub fn configure(
         .service(get)
         .service(delete)
         .service(upload)
+        .service(ingest_from_url)
         .service(download)
         .service(label::set)
         .service(label::update)
@@ -228,6 +229,84 @@ pub async fn upload(
         )
         .await?;
     log::info!("Uploaded Advisory: {}", result.id);
+
+    tx.commit().await?;
+
+    Ok(HttpResponse::Created().json(result))
+}
+
+#[utoipa::path(
+    tag = "advisory",
+    operation_id = "ingestAdvisoryFromUrl",
+    request_body = trustify_api::ingest::IngestFromUrlRequest,
+    params(UploadParams),
+    responses(
+        (status = 201, description = "Document fetched and ingested"),
+        (status = 400, description = "The document could not be parsed as an advisory"),
+        (status = 502, description = "Failed to download the document from the given URL"),
+    )
+)]
+#[post("/v3/advisory/from-url")]
+/// Download a document from a URL and ingest it as an advisory.
+async fn ingest_from_url(
+    service: web::Data<IngestorService>,
+    config: web::Data<Config>,
+    http_client: web::Data<reqwest::Client>,
+    web::Query(UploadParams {
+        issuer,
+        labels,
+        format,
+    }): web::Query<UploadParams>,
+    web::Json(body): web::Json<trustify_api::ingest::IngestFromUrlRequest>,
+    db: web::Data<db::ReadWrite>,
+    _: Require<CreateAdvisory>,
+) -> Result<impl Responder, Error> {
+    let format = format.ensure_allowed_for(default_format())?;
+
+    let response = http_client
+        .get(&body.url)
+        .send()
+        .await
+        .map_err(|e| Error::Download(format!("request failed: {e}")))?;
+
+    if !response.status().is_success() {
+        return Err(Error::Download(format!(
+            "HTTP {} from {}",
+            response.status(),
+            body.url
+        )));
+    }
+
+    if let Some(content_length) = response.content_length()
+        && config.upload_limit > 0
+        && content_length > config.upload_limit as u64
+    {
+        return Err(Error::Download(format!(
+            "document too large: {content_length} bytes (limit: {} bytes)",
+            config.upload_limit
+        )));
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| Error::Download(format!("failed to read response body: {e}")))?;
+
+    if config.upload_limit > 0 && bytes.len() > config.upload_limit {
+        return Err(Error::Download(format!(
+            "document too large: {} bytes (limit: {} bytes)",
+            bytes.len(),
+            config.upload_limit
+        )));
+    }
+
+    let tx = db.begin().await?;
+
+    let result = service
+        .ingest(&bytes, format, labels, issuer, Cache::Skip, &tx)
+        .await?;
+
+    tracing::info!("Ingested advisory from URL {}: {}", body.url, result.id);
 
     tx.commit().await?;
 
