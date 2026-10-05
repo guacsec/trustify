@@ -1,6 +1,6 @@
 use crate::model::{
     CorrelationResult, IdentifierKind, IngestResult, PaginatedResults, QueryResult, SbomSummary,
-    WellKnownInfo,
+    SbomVerdictCounts, VerdictCountsRequest, WellKnownInfo,
 };
 use gloo_net::http::Request;
 use serde::de::DeserializeOwned;
@@ -70,6 +70,18 @@ pub async fn fetch_correlation(
 ) -> Result<CorrelationResult, ApiError> {
     let url = format!("/api/v3/correlation/sbom/{sbom_id}?include_unmatched=true");
     fetch_json(&url, token).await
+}
+
+pub async fn count_verdicts(
+    sbom_ids: Vec<uuid::Uuid>,
+    token: Option<&str>,
+) -> Result<Vec<SbomVerdictCounts>, ApiError> {
+    post_json(
+        "/api/v3/correlation/verdict-counts",
+        &VerdictCountsRequest { sbom_ids },
+        token,
+    )
+    .await
 }
 
 pub async fn query_correlation(
