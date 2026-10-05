@@ -150,7 +150,7 @@ impl CryptoService {
         })
     }
 
-    /// Aggregate stored policy verdicts from the DB without calling Conforma.
+    /// Aggregate stored policy verdicts from the DB without calling Validator.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     pub async fn fetch_policy_summary<C: ConnectionTrait>(
         &self,
@@ -164,19 +164,15 @@ impl CryptoService {
             .all(connection)
             .await?;
 
-        let total = rows.len();
-        let mut compliant = 0usize;
-        let mut warning = 0usize;
-        let mut non_compliant = 0usize;
-
-        for verdict in &rows {
-            match verdict.as_deref() {
-                Some("compliant") => compliant += 1,
-                Some("warning") => warning += 1,
-                Some("non_compliant") => non_compliant += 1,
-                _ => {}
-            }
-        }
+        let (total, compliant, warning, non_compliant) =
+            rows.iter().fold((0, 0, 0, 0), |(t, c, w, n), verdict| {
+                match verdict.as_deref() {
+                    Some("compliant") => (t + 1, c + 1, w, n),
+                    Some("warning") => (t + 1, c, w + 1, n),
+                    Some("non_compliant") => (t + 1, c, w, n + 1),
+                    _ => (t + 1, c, w, n),
+                }
+            });
 
         Ok(PolicySummaryResult {
             total,
