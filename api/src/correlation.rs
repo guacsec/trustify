@@ -234,3 +234,23 @@ mod entity_conversions {
         }
     }
 }
+
+/// Request for the verdict counts of several SBOMs.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct VerdictCountsRequest {
+    /// The SBOMs to summarize.
+    pub sbom_ids: Vec<Uuid>,
+}
+
+/// The number of verdicts, per (component, vulnerability), of an SBOM by status.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct SbomVerdictCounts {
+    pub sbom_id: Uuid,
+    pub affected: u64,
+    pub fixed: u64,
+    pub not_affected: u64,
+    pub under_investigation: u64,
+    pub none: u64,
+}

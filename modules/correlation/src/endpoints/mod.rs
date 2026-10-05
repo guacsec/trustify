@@ -1,9 +1,12 @@
 use crate::{
     error::Error,
-    model::{CorrelationResult, IdentifierKind, IdentifierRef, QueryResult},
+    model::{
+        CorrelationResult, IdentifierKind, IdentifierRef, QueryResult, SbomVerdictCounts,
+        VerdictCountsRequest,
+    },
     service::CorrelationService,
 };
-use actix_web::{HttpResponse, Responder, get, web};
+use actix_web::{HttpResponse, Responder, get, post, web};
 use serde::Deserialize;
 use trustify_common::db;
 use utoipa::IntoParams;
@@ -29,6 +32,7 @@ pub fn configure(
         .app_data(web::Data::new(db_ro))
         .app_data(web::Data::new(service))
         .service(get_sbom_correlation)
+        .service(count_verdicts)
         .service(query_correlation);
 }
 
@@ -55,6 +59,38 @@ async fn get_sbom_correlation(
     let result = service
         .correlate_sbom(*sbom_id, params.include_unmatched, &tx)
         .await?;
+    Ok(HttpResponse::Ok().json(result))
+}
+
+/// Maximum number of SBOMs per verdict count request.
+const MAX_VERDICT_COUNT_SBOMS: usize = 1000;
+
+/// Count the verdicts of several SBOMs by status, e.g. for a list of SBOMs.
+///
+/// Returns one entry per requested SBOM, in the requested order.
+#[utoipa::path(
+    tag = "correlation",
+    operation_id = "countVerdicts",
+    request_body = VerdictCountsRequest,
+    responses(
+        (status = 200, description = "Verdict counts per SBOM", body = Vec<SbomVerdictCounts>),
+        (status = 400, description = "Too many SBOMs requested"),
+    ),
+)]
+#[post("/v3/correlation/verdict-counts")]
+async fn count_verdicts(
+    web::Json(request): web::Json<VerdictCountsRequest>,
+    service: web::Data<CorrelationService>,
+    db: web::Data<db::ReadOnly>,
+) -> Result<impl Responder, Error> {
+    if request.sbom_ids.len() > MAX_VERDICT_COUNT_SBOMS {
+        return Err(Error::BadRequest(format!(
+            "at most {MAX_VERDICT_COUNT_SBOMS} SBOMs per request"
+        )));
+    }
+
+    let tx = db.begin().await?;
+    let result = service.count_verdicts(&request.sbom_ids, &tx).await?;
     Ok(HttpResponse::Ok().json(result))
 }
 

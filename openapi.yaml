@@ -1128,6 +1128,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CorrelationResult'
+  /api/v3/correlation/verdict-counts:
+    post:
+      tags:
+      - correlation
+      summary: Count the verdicts of several SBOMs by status, e.g. for a list of SBOMs.
+      description: Returns one entry per requested SBOM, in the requested order.
+      operationId: countVerdicts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerdictCountsRequest'
+        required: true
+      responses:
+        '200':
+          description: Verdict counts per SBOM
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SbomVerdictCounts'
+        '400':
+          description: Too many SBOMs requested
   /api/v3/crypto/algorithm:
     get:
       tags:
@@ -8563,6 +8587,40 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/SbomPackage'
+    SbomVerdictCounts:
+      type: object
+      description: The number of verdicts, per (component, vulnerability), of an SBOM by status.
+      required:
+      - sbom_id
+      - affected
+      - fixed
+      - not_affected
+      - under_investigation
+      - none
+      properties:
+        affected:
+          type: integer
+          format: int64
+          minimum: 0
+        fixed:
+          type: integer
+          format: int64
+          minimum: 0
+        none:
+          type: integer
+          format: int64
+          minimum: 0
+        not_affected:
+          type: integer
+          format: int64
+          minimum: 0
+        sbom_id:
+          type: string
+          format: uuid
+        under_investigation:
+          type: integer
+          format: int64
+          minimum: 0
     Score:
       type: object
       description: 'A parsed CVSS score: the scoring system version, numeric value, and derived severity.'
@@ -8738,6 +8796,18 @@ components:
       - warning
       - error
       - fatal
+    VerdictCountsRequest:
+      type: object
+      description: Request for the verdict counts of several SBOMs.
+      required:
+      - sbom_ids
+      properties:
+        sbom_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: The SBOMs to summarize.
     VerdictStatus:
       type: string
       description: Resolved verdict status.

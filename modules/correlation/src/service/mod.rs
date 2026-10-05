@@ -3,10 +3,13 @@ use crate::{
     extractor::Extractors,
     model::{
         ComponentRef, CorrelationResult, EvidenceDetail, IdentifierRef, QueryMatch, QueryResult,
-        QueryVerdict, VerdictStatus, VerdictSummary, VulnerabilityRef,
+        QueryVerdict, SbomVerdictCounts, VerdictStatus, VerdictSummary, VulnerabilityRef,
     },
 };
-use sea_orm::{ColumnTrait, DatabaseTransaction, EntityTrait, QueryFilter};
+use sea_orm::{
+    ColumnTrait, DatabaseTransaction, DbBackend, EntityTrait, FromQueryResult, QueryFilter,
+    Statement,
+};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use tracing::{Instrument, info_span, instrument};
 use trustify_entity::{
@@ -28,6 +31,73 @@ impl CorrelationService {
     /// Create a new service using the given extractors.
     pub fn new(extractors: Extractors) -> Self {
         Self { extractors }
+    }
+
+    /// Count the verdicts of SBOMs by status, without loading the evidence.
+    ///
+    /// Returns one entry per requested SBOM, in the requested order, with zero counts for SBOMs
+    /// without evidence (or unknown SBOMs).
+    #[instrument(skip_all, fields(sboms = sbom_ids.len()), err(level = tracing::Level::INFO))]
+    pub async fn count_verdicts(
+        &self,
+        sbom_ids: &[Uuid],
+        connection: &DatabaseTransaction,
+    ) -> Result<Vec<SbomVerdictCounts>, Error> {
+        #[derive(FromQueryResult)]
+        struct Row {
+            sbom_id: Uuid,
+            status: String,
+            count: i64,
+        }
+
+        // Resolves the verdict per (component, vulnerability) the same way as
+        // `resolve_verdict_status`, then counts per status.
+        let rows = Row::find_by_statement(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"
+SELECT sbom_id, status, count(*) AS count
+FROM (
+    SELECT
+        sbom_id,
+        CASE
+            WHEN bool_or(status = 'fixed') THEN 'fixed'
+            WHEN bool_or(status = 'not_affected') THEN 'not_affected'
+            WHEN bool_or(status = 'affected') THEN 'affected'
+            WHEN bool_or(status = 'under_investigation') THEN 'under_investigation'
+            ELSE 'none'
+        END AS status
+    FROM correlation_evidence
+    WHERE sbom_id = ANY($1)
+    GROUP BY sbom_id, node_id, vulnerability_id
+) verdict
+GROUP BY sbom_id, status
+"#,
+            [sbom_ids.to_vec().into()],
+        ))
+        .all(connection)
+        .instrument(info_span!("counting verdicts"))
+        .await?;
+
+        let mut counts = HashMap::<Uuid, SbomVerdictCounts>::new();
+        for row in rows {
+            let entry = counts.entry(row.sbom_id).or_default();
+            let count = u64::try_from(row.count).unwrap_or_default();
+            match row.status.as_str() {
+                "fixed" => entry.fixed = count,
+                "not_affected" => entry.not_affected = count,
+                "affected" => entry.affected = count,
+                "under_investigation" => entry.under_investigation = count,
+                _ => entry.none = count,
+            }
+        }
+
+        Ok(sbom_ids
+            .iter()
+            .map(|sbom_id| SbomVerdictCounts {
+                sbom_id: *sbom_id,
+                ..counts.remove(sbom_id).unwrap_or_default()
+            })
+            .collect())
     }
 
     /// Read evidence for an SBOM and compute verdicts.

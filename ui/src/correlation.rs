@@ -391,15 +391,19 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
     }
 }
 
-fn status_label(status: VerdictStatus) -> Html {
-    let color = match status {
+/// The label color of a verdict status.
+pub(crate) fn status_color(status: VerdictStatus) -> Color {
+    match status {
         VerdictStatus::Affected => Color::Red,
         VerdictStatus::Fixed => Color::Green,
         VerdictStatus::NotAffected => Color::Blue,
         VerdictStatus::UnderInvestigation => Color::Orange,
         VerdictStatus::None => Color::Grey,
-    };
-    html! { <Label label={status.label()} {color} /> }
+    }
+}
+
+fn status_label(status: VerdictStatus) -> Html {
+    html! { <Label label={status.label()} color={status_color(status)} /> }
 }
 
 fn verdict_summary_counts(verdicts: &[VerdictSummary]) -> Vec<(VerdictStatus, usize)> {

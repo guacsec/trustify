@@ -2,7 +2,7 @@ use crate::extractor::Extractors;
 use crate::{
     model::{
         ApiAssertionStatus, ComponentRef, CorrelationResult, IdentifierKind, IdentifierRef,
-        QueryMatch, QueryResult, QueryVerdict, VerdictStatus,
+        QueryMatch, QueryResult, QueryVerdict, SbomVerdictCounts, VerdictStatus,
     },
     service::CorrelationService,
 };
@@ -350,6 +350,26 @@ async fn scenario(ctx: &TrustifyContext, #[case] name: &str) -> anyhow::Result<(
         }
 
         assert_eq!(actual, expected, "{name}: {sbom}");
+
+        // the counts must agree with the verdicts
+        let mut counts = SbomVerdictCounts {
+            sbom_id,
+            ..Default::default()
+        };
+        for status in actual.values().flat_map(BTreeMap::values) {
+            match status {
+                VerdictStatus::Affected => counts.affected += 1,
+                VerdictStatus::Fixed => counts.fixed += 1,
+                VerdictStatus::NotAffected => counts.not_affected += 1,
+                VerdictStatus::UnderInvestigation => counts.under_investigation += 1,
+                VerdictStatus::None => counts.none += 1,
+            }
+        }
+        assert_eq!(
+            service.count_verdicts(&[sbom_id], &tx).await?,
+            vec![counts],
+            "{name}: {sbom}"
+        );
     }
 
     Ok(())
