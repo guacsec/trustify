@@ -93,8 +93,8 @@ Each identifier type is implemented as one unit in
 | `match_advisory`    | Match an advisory's assertions against SBOM nodes              |
 
 Only `id` and `sbom_identifiers` are required, so a type can be added for
-presentation first and gain matching later (PURL and CPE currently are
-presentation only).
+presentation first and gain matching later (PURL currently is presentation
+only).
 
 Extractors read the identifier data from their existing source tables; there
 is no generic identifier table. The engine parts are written once against the
@@ -117,7 +117,34 @@ extractor unit, and registering it in `Extractors::default`.
 |-----------|----------------------|-----------------|
 | Digest | `sbom_node_checksum` checksum equality | Highest |
 | PURL | `base_purl` type/namespace/name + version range | Medium-High |
-| CPE | `cpe` vendor/product match | Medium |
+| CPE | `advisory_vulnerability_cpe` pattern match + version range | Medium |
+
+#### CPE matching
+
+CSAF advisories carry CPEs in `product_identification_helper.cpe`, either with a
+concrete version, or with version ANY on a `product_version_range` branch whose
+`vers:` name constrains the version. During ingestion, these are stored in
+`advisory_vulnerability_cpe` (CPE + optional `version_range`). For
+relationships, only the component side (`product_reference`) is stored, not the
+platform it relates to.
+
+Advisory CPEs are patterns, SBOM CPEs are concrete. A component matches when
+the advisory CPE is a superset of the SBOM CPE: every advisory attribute
+(including the CPE 2.3 extended attributes) is ANY or equal
+(case-insensitive, `*`/`?` wildcards within values). An SBOM attribute that is
+ANY where the advisory has a value does not match, and the SBOM CPE must have
+a concrete version. Version ranges are evaluated with the database's
+`version_matches` function.
+
+The matching runs in the database, as one query per direction (SQL function
+`cpe_attribute_matches` for the attribute rule), so only actual matches are
+loaded, not every component sharing a product with the advisory.
+
+| Version match | Confidence |
+|---------------|-----------:|
+| Exact CPE version | 0.8 |
+| Version range | 0.7 |
+| Version ANY, no range | 0.5 |
 
 ### Verdict status
 

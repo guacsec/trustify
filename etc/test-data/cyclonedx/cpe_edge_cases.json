@@ -1,0 +1,88 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:s20-cpe-plant",
+  "metadata": {
+    "timestamp": "2026-10-01T12:00:00Z",
+    "component": {
+      "type": "device",
+      "name": "Plant",
+      "version": "1.0.0",
+      "bom-ref": "plant-root"
+    }
+  },
+  "components": [
+    {
+      "type": "operating-system",
+      "name": "WAGO OS Linux",
+      "version": "4.8.9",
+      "bom-ref": "wago-os-affected",
+      "cpe": "cpe:2.3:o:wago:wago_os_linux:4.8.9:*:*:*:*:*:*:*"
+    },
+    {
+      "type": "operating-system",
+      "name": "WAGO OS Linux",
+      "version": "4.10.0",
+      "bom-ref": "wago-os-fixed",
+      "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+    },
+    {
+      "type": "operating-system",
+      "name": "WAGO OS Linux",
+      "version": "0.9.0",
+      "bom-ref": "wago-os-out-of-range",
+      "cpe": "cpe:2.3:o:wago:wago_os_linux:0.9.0:*:*:*:*:*:*:*"
+    },
+    {
+      "type": "operating-system",
+      "name": "WAGO OS Linux hardened",
+      "version": "4.8.9",
+      "bom-ref": "wago-os-hardened",
+      "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.8.9:*:*:*:*:*:*:*"
+    },
+    {
+      "type": "operating-system",
+      "name": "WAGO OS Linux",
+      "version": "V1.2.1.S0",
+      "bom-ref": "wago-os-unparsable-version",
+      "cpe": "cpe:2.3:o:wago:wago_os_linux:V1.2.1.S0:*:*:*:*:*:*:*"
+    },
+    {
+      "type": "library",
+      "name": "MDP.dll",
+      "version": "1.7.0.0",
+      "bom-ref": "mdp-x86",
+      "cpe": "cpe:2.3:a:beckhoff:mdp.dll:1.7.0.0:*:*:*:*:*:x86:*"
+    },
+    {
+      "type": "library",
+      "name": "MDP.dll",
+      "version": "1.7.0.0",
+      "bom-ref": "mdp-arm32",
+      "cpe": "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:arm32:*"
+    },
+    {
+      "type": "library",
+      "name": "MDP.dll",
+      "version": "1.7.0.0",
+      "bom-ref": "mdp-unknown-arch",
+      "cpe": "cpe:2.3:a:beckhoff:mdp.dll:1.7.0.0:*:*:*:*:*:*:*"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "plant-root",
+      "dependsOn": [
+        "wago-os-affected",
+        "wago-os-fixed",
+        "wago-os-out-of-range",
+        "wago-os-hardened",
+        "wago-os-unparsable-version",
+        "mdp-x86",
+        "mdp-arm32",
+        "mdp-unknown-arch"
+      ]
+    }
+  ]
+}

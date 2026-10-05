@@ -1,0 +1,652 @@
+{
+  "document": {
+    "acknowledgments": [
+      {
+        "organization": "CERT@VDE",
+        "summary": "coordination",
+        "urls": [
+          "https://certvde.com"
+        ]
+      },
+      {
+        "names": [
+          "Diego Giubertoni"
+        ],
+        "organization": "Nozomi Networks",
+        "summary": "Reported by",
+        "urls": [
+          "https://www.nozominetworks.com"
+        ]
+      }
+    ],
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/v1/"
+      }
+    },
+    "lang": "en-US",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "The vulnerability CVE-2025-41726 (NN-2025-0074) allows an authenticated remote user to execute arbitrary commands on the device. This can be exploited over the web UI or via API. In one case the execution of the arbitrary command happens within a privileged process.\n\nThe vulnerability CVE-2025-41727 (NN-2025-0075) allows a local user with low privileges on the device to bypass the authentication mechanism of the UI and send commands to a privileged process which it executes on behalf of that user but with higher privileges. This way the local user can escalate privileges.\n\nThe vulnerability CVE-2025-41728 (NN-2025-0076) allows an authenticated remote user to cause an out-of-bounds read operation within a specific service process which runs on the device. The read operation might copy sensitive information from the memory of the specific service into a response message which is then provided to the user but the user cannot choose which information is disclosed.",
+        "title": "Summary"
+      },
+      {
+        "category": "description",
+        "text": "CVE-2025-41726: On a Beckhoff IPC or CX device an authenticated user can execute arbitrary code by sending specially crafted calls to the web service of the Beckhoff Device Manager or locally via an API and can cause integer overflows which then can lead to arbitrary code execution within privileged processes.\n\nCVE-2025-41727: On a Beckhoff IPC or CX device  a local user can bypass the authentication of the Beckhoff Device Manager user interface, allowing them to perform privileged operations and gain administrator access.\n\nCVE-2025-41728: On a Beckhoff IPC or CX device, an authenticated user may be able to disclose confidential information from the memory of a privileged process by sending specially crafted calls to the Beckhoff Device Manager web service that cause an out-of-bounds read operation and thereby potentially copy confidential information into a response.",
+        "title": "Impact"
+      },
+      {
+        "category": "description",
+        "text": "Beckhoff IPC and CX devices are intended for industrial use within operational technology (OT). For the Beckhoff Device Manager user interface network access is to be restricted to trustworthy personal. Additionally, it is advisable to restrict local access to trustworthy personal.\n\nWhen not needed, the Beckhoff Device Manager user interface can be disabled for remote access or even be uninstalled. In example, for disabling remote access the OS firewall can be used to forbid the access to the network port or the web server process can be stopped permanently.",
+        "title": "General Recommendation"
+      },
+      {
+        "category": "description",
+        "text": "Please update to a recent version of the affected components (see below) or update the complete operating system image. Operating system images are available on request from Beckhoff's service (service@beckhoff.com). The setup / installer for Windows 10 and 11 are available on request from Beckhoff's service also.\n\n| Product                          | Fixed Version |\n|----------------------------------|---------------|\n| Beckhoff.Device.Manager.XAR tcpkg package | 2.5.3 |\n| Beckhoff IPC Diagnostics software for Windows | 2.5.3 |\n| MDP.dll library library for Windows CE 6.0 and Embedded Compact 7 on x86 | 1.7.0.0 |\n| MDP software package for TwinCAT/BSD | 1.7.0.0 |\n| mdp-bhf software package Beckhoff RT Linux(R) | 0.0.5-1 |\n| MDP.dll library library for Windows CE 6.0 and Embedded Compact 7 on ARM32 | 1.7.0.0 |",
+        "title": "Remediation"
+      },
+      {
+        "category": "general",
+        "text": "Beckhoff Automation welcomes responsibly coordinated reports of vulnerabilities and Beckhoff will collaborate with reporting parties to fix vulnerabilities or mitigate threats.",
+        "title": "Reporting vulnerabilities"
+      },
+      {
+        "category": "legal_disclaimer",
+        "text": "Beckhoff is not responsible for any side effects negatively affecting the real-time capabilities of your TwinCAT control application possibly caused by updates. Beckhoff offers updated images with qualified performance for Beckhoff hardware from time to time. TwinCAT System Manager offers tools which can be of assistance to verify real-time performance after update. A backup should be created every time before installing an update. Only administrators or IT experts should perform the backup and update procedure.",
+        "title": "Disclaimer"
+      },
+      {
+        "category": "details",
+        "text": "Beckhoff IPC and CX devices are shipped with the Beckhoff Device Manager user interface (UI) installed when they are ordered with an operating system. This Device Manager user interface can be accessed from the network or by a local user. Either way the user must authenticate before access and have administrative access rights assigned on the device to use the UI. The Beckhoff Device Manager user interface is intended as UI for administrators to configure the device including the creation and maintenance of user accounts and their access rights.",
+        "title": "Product description"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "product-securityincident@beckhoff.com",
+      "name": "Beckhoff Automation GmbH & Co. KG",
+      "namespace": "https://www.beckhoff.com"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "Beckhoff Security Advisory 2025-003: Privilege escalation and information leak via Beckhoff Device Manager - PDF version",
+        "url": "https://download.beckhoff.com/download/Document/product-security/Advisories/advisory-2025-003.pdf"
+      },
+      {
+        "category": "external",
+        "summary": "Additional information about the latest security advisories is provided here:",
+        "url": "https://www.beckhoff.com/secinfo"
+      },
+      {
+        "category": "external",
+        "summary": "CERT@VDE Security Advisories for Beckhoff Automation GmbH & Co. KG",
+        "url": "https://certvde.com/en/advisories/vendor/beckhoff/"
+      },
+      {
+        "category": "self",
+        "summary": "VDE-2025-092: Beckhoff: Privilege escalation and information leak via Beckhoff Device Manager - CSAF",
+        "url": "https://beckhoff.csaf-tp.certvde.com/.well-known/csaf/white/2026/vde-2025-092.json"
+      },
+      {
+        "category": "self",
+        "summary": "VDE-2025-092: Beckhoff: Privilege escalation and information leak via Beckhoff Device Manager - HTML",
+        "url": "https://certvde.com/en/advisories/VDE-2025-092"
+      }
+    ],
+    "title": "Beckhoff: Privilege escalation and information leak via Beckhoff Device Manager",
+    "tracking": {
+      "aliases": [
+        "VDE-2025-092"
+      ],
+      "current_release_date": "2026-01-27T11:00:00.000Z",
+      "generator": {
+        "date": "2026-01-27T11:30:02.659Z",
+        "engine": {
+          "name": "Secvisogram",
+          "version": "2.5.42"
+        }
+      },
+      "id": "VDE-2025-092",
+      "initial_release_date": "2026-01-27T11:00:00.000Z",
+      "revision_history": [
+        {
+          "date": "2026-01-20T10:00:00.000Z",
+          "number": "1.0.0",
+          "summary": "Initial revision"
+        },
+        {
+          "date": "2026-01-27T11:00:00.000Z",
+          "number": "1.0.1",
+          "summary": "fixed date"
+        }
+      ],
+      "status": "final",
+      "version": "1.0.1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "branches": [
+                  {
+                    "category": "product_version_range",
+                    "name": "vers:semver/<2.5.3",
+                    "product": {
+                      "name": "Beckhoff.Device.Manager.XAR tcpkg package <2.5.3",
+                      "product_id": "CSAFPID-51001",
+                      "product_identification_helper": {
+                        "purl": "pkg:tcpkg/beckhoff/Beckhoff.Device.Manager.XAR?vers=%3C2.5.3"
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_version",
+                    "name": "2.5.3",
+                    "product": {
+                      "name": "Beckhoff.Device.Manager.XAR tcpkg package 2.5.3",
+                      "product_id": "CSAFPID-52001",
+                      "product_identification_helper": {
+                        "purl": "pkg:tcpkg/beckhoff/Beckhoff.Device.Manager.XAR@2.5.3"
+                      }
+                    }
+                  }
+                ],
+                "category": "product_name",
+                "name": "Beckhoff.Device.Manager.XAR"
+              },
+              {
+                "branches": [
+                  {
+                    "category": "product_version",
+                    "name": "2.4.5",
+                    "product": {
+                      "name": "Beckhoff IPC Diagnostics softwarefor Windows 2.4.5",
+                      "product_id": "CSAFPID-51011",
+                      "product_identification_helper": {
+                        "cpe": "cpe:2.3:a:beckhoff:ipc_diagnostics_package:2.4.5:*:*:*:*:Windows:*:*"
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_version",
+                    "name": "2.5.3",
+                    "product": {
+                      "name": "Beckhoff IPC Diagnostics software for Windows 2.5.3",
+                      "product_id": "CSAFPID-52011",
+                      "product_identification_helper": {
+                        "cpe": "cpe:2.3:a:beckhoff:ipc_diagnostics_package:2.5.3:*:*:*:*:Windows:*:*"
+                      }
+                    }
+                  }
+                ],
+                "category": "product_name",
+                "name": "Beckhoff IPC Diagnosticssoftware for Windows"
+              },
+              {
+                "branches": [
+                  {
+                    "branches": [
+                      {
+                        "category": "product_version",
+                        "name": "1.2.4.0",
+                        "product": {
+                          "name": "MDP.dll library library for Windows CE 6.0 and Embedded Compact on x86 7 1.2.4.0",
+                          "product_id": "CSAFPID-51021",
+                          "product_identification_helper": {
+                            "cpe": "cpe:2.3:a:beckhoff:MDP.dll:1.2.4.0:*:*:*:*:*:x86:*",
+                            "hashes": [
+                              {
+                                "file_hashes": [
+                                  {
+                                    "algorithm": "sha256",
+                                    "value": "ab1476181b38e981da0fe3603799531369f97538c8491455e9f0b7f506e6341a"
+                                  }
+                                ],
+                                "filename": "MDP.dll"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "category": "product_version",
+                        "name": "1.7.0.0",
+                        "product": {
+                          "name": "MDP.dll library library for Windows CE 6.0 and Embedded Compact 7 on x86 1.7.0.0",
+                          "product_id": "CSAFPID-52021",
+                          "product_identification_helper": {
+                            "cpe": "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:x86:*",
+                            "hashes": [
+                              {
+                                "file_hashes": [
+                                  {
+                                    "algorithm": "sha256",
+                                    "value": "f9b7846531207d14aeca1fde18876076affc860be680d2947bba22501601e654"
+                                  }
+                                ],
+                                "filename": "MDP.dll"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ],
+                    "category": "architecture",
+                    "name": "x86"
+                  },
+                  {
+                    "branches": [
+                      {
+                        "category": "product_version",
+                        "name": "1.2.4.0",
+                        "product": {
+                          "name": "MDP.dll library library for Windows CE 6.0 and Embedded Compact on ARM32 7 1.2.4.0",
+                          "product_id": "CSAFPID-51051",
+                          "product_identification_helper": {
+                            "cpe": "cpe:2.3:a:beckhoff:MDP.dll:1.2.4.0:*:*:*:*:*:arm32:*",
+                            "hashes": [
+                              {
+                                "file_hashes": [
+                                  {
+                                    "algorithm": "sha256",
+                                    "value": "19d466138f34b861b5dea35e9f7dc152dfa07659cd96061add04b60bd7463aec"
+                                  }
+                                ],
+                                "filename": "MDP.dll"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "category": "product_version",
+                        "name": "1.7.0.0",
+                        "product": {
+                          "name": "MDP.dll library library for Windows CE 6.0 and Embedded Compact 7 on ARM32 1.7.0.0",
+                          "product_id": "CSAFPID-52051",
+                          "product_identification_helper": {
+                            "cpe": "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:arm32:*",
+                            "hashes": [
+                              {
+                                "file_hashes": [
+                                  {
+                                    "algorithm": "sha256",
+                                    "value": "454f53f7972ef8fdb57e45ffc0861612a1853f75264e86dedb78cbc36854457b"
+                                  }
+                                ],
+                                "filename": "MDP.dll"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ],
+                    "category": "architecture",
+                    "name": "arm32"
+                  }
+                ],
+                "category": "product_name",
+                "name": "MDP.dll library for Windows CE 6.0 and Embedded Compact 7"
+              },
+              {
+                "branches": [
+                  {
+                    "category": "product_version_range",
+                    "name": "vers:generic/<1.7.0.0",
+                    "product": {
+                      "name": "MDP software package for TwinCAT/BSD <1.7.0.0",
+                      "product_id": "CSAFPID-51031",
+                      "product_identification_helper": {
+                        "purl": "pkg:bsd/beckhoff/MDP?vers=%3C1.7.0.0"
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_version",
+                    "name": "1.2.7.0",
+                    "product": {
+                      "name": "MDP software package for TwinCAT/BSD 1.7.0.0",
+                      "product_id": "CSAFPID-52031",
+                      "product_identification_helper": {
+                        "purl": "pkg:bsd/beckhoff/MDP@1.7.0.0"
+                      }
+                    }
+                  }
+                ],
+                "category": "product_name",
+                "name": "MDP software package for TwinCAT/BSD"
+              },
+              {
+                "branches": [
+                  {
+                    "category": "product_version_range",
+                    "name": "vers:generic/<0.0.5-1",
+                    "product": {
+                      "name": "mdp-bhf software package Beckhoff RT Linux(R) <0.0.5-1",
+                      "product_id": "CSAFPID-51041",
+                      "product_identification_helper": {
+                        "purl": "pkg:deb/beckhoff/mdp-bhf?vers=%3C0.0.5-1"
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_version",
+                    "name": "0.0.5-1",
+                    "product": {
+                      "name": "mdp-bhf software package Beckhoff RT Linux(R) 0.0.5-1",
+                      "product_id": "CSAFPID-52041",
+                      "product_identification_helper": {
+                        "purl": "pkg:deb/beckhoff/mdp-bhf@0.0.5-1"
+                      }
+                    }
+                  }
+                ],
+                "category": "product_name",
+                "name": "MDP for Beckhoff RT Linux(R)"
+              }
+            ],
+            "category": "product_family",
+            "name": "Software"
+          }
+        ],
+        "category": "vendor",
+        "name": "Beckhoff"
+      }
+    ],
+    "product_groups": [
+      {
+        "group_id": "CSAFGID-0001",
+        "product_ids": [
+          "CSAFPID-51001",
+          "CSAFPID-51031",
+          "CSAFPID-51041"
+        ],
+        "summary": "Affected products"
+      },
+      {
+        "group_id": "CSAFGID-0002",
+        "product_ids": [
+          "CSAFPID-52001",
+          "CSAFPID-52011",
+          "CSAFPID-52021",
+          "CSAFPID-52031",
+          "CSAFPID-52041",
+          "CSAFPID-52051"
+        ],
+        "summary": "Fixed products"
+      },
+      {
+        "group_id": "CSAFGID-0003",
+        "product_ids": [
+          "CSAFPID-51011",
+          "CSAFPID-51021",
+          "CSAFPID-51051"
+        ],
+        "summary": "Last affected products"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Diego Giubertoni"
+          ],
+          "organization": "Nozomi Networks",
+          "summary": "Diego Giubertoni reported the vulnerability to Beckhoff"
+        }
+      ],
+      "cve": "CVE-2025-41726",
+      "cwe": {
+        "id": "CWE-190",
+        "name": "Integer Overflow or Wraparound"
+      },
+      "notes": [
+        {
+          "category": "description",
+          "text": "A low privileged remote attacker can execute arbitrary code by sending specially crafted calls to the web service of the Device Manager or locally via an API and can cause integer overflows which then may lead to arbitrary code execution within privileged processes.",
+          "title": "CVE Description"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "CSAFPID-52001",
+          "CSAFPID-52011",
+          "CSAFPID-52021",
+          "CSAFPID-52031",
+          "CSAFPID-52041",
+          "CSAFPID-52051"
+        ],
+        "known_affected": [
+          "CSAFPID-51001",
+          "CSAFPID-51031",
+          "CSAFPID-51041"
+        ],
+        "last_affected": [
+          "CSAFPID-51011",
+          "CSAFPID-51021",
+          "CSAFPID-51051"
+        ]
+      },
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Please update to a recent version of the affected components or update the complete operating system image. Operating system images are available on request from Beckhoff's service (service@beckhoff.com). The setup / installer for Windows 10 and 11 are available on request from Beckhoff's service also.",
+          "group_ids": [
+            "CSAFGID-0001",
+            "CSAFGID-0003"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 8.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "environmentalScore": 8.8,
+            "environmentalSeverity": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "temporalScore": 8.8,
+            "temporalSeverity": "HIGH",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-51001",
+            "CSAFPID-51011",
+            "CSAFPID-51021",
+            "CSAFPID-51031",
+            "CSAFPID-51041",
+            "CSAFPID-51051"
+          ]
+        }
+      ],
+      "title": "CVE-2025-41726"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Diego Giubertoni"
+          ],
+          "organization": "Nozomi Networks",
+          "summary": "Diego Giubertoni reported the vulnerability to Beckhoff"
+        }
+      ],
+      "cve": "CVE-2025-41727",
+      "cwe": {
+        "id": "CWE-420",
+        "name": "Unprotected Alternate Channel"
+      },
+      "notes": [
+        {
+          "category": "description",
+          "text": "A local low privileged attacker can bypass the authentication of the Device Manager user interface, allowing them to perform privileged operations and gain administrator access.",
+          "title": "CVE Description"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "CSAFPID-52001",
+          "CSAFPID-52011",
+          "CSAFPID-52021",
+          "CSAFPID-52031",
+          "CSAFPID-52041",
+          "CSAFPID-52051"
+        ],
+        "known_affected": [
+          "CSAFPID-51001",
+          "CSAFPID-51031",
+          "CSAFPID-51041"
+        ],
+        "last_affected": [
+          "CSAFPID-51011",
+          "CSAFPID-51021",
+          "CSAFPID-51051"
+        ]
+      },
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Please update to a recent version of the affected components or update the complete operating system image. Operating system images are available on request from Beckhoff's service (service@beckhoff.com). The setup / installer for Windows 10 and 11 are available on request from Beckhoff's service also.",
+          "group_ids": [
+            "CSAFGID-0001",
+            "CSAFGID-0003"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.8,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "environmentalScore": 7.8,
+            "environmentalSeverity": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "temporalScore": 7.8,
+            "temporalSeverity": "HIGH",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-51001",
+            "CSAFPID-51011",
+            "CSAFPID-51021",
+            "CSAFPID-51031",
+            "CSAFPID-51041",
+            "CSAFPID-51051"
+          ]
+        }
+      ],
+      "title": "CVE-2025-41727"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "Diego Giubertoni"
+          ],
+          "organization": "Nozomi Networks",
+          "summary": "Diego Giubertoni reported the vulnerability to Beckhoff"
+        }
+      ],
+      "cve": "CVE-2025-41728",
+      "cwe": {
+        "id": "CWE-125",
+        "name": "Out-of-bounds Read"
+      },
+      "notes": [
+        {
+          "category": "description",
+          "text": "A low privileged remote attacker may be able to disclose confidential information from the memory of a privileged process by sending specially crafted calls to the Device Manager web service that cause an out-of-bounds read operation under certain circumstances due to ASLR and thereby potentially copy confidential information into a response.",
+          "title": "CVE Description"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "CSAFPID-52001",
+          "CSAFPID-52011",
+          "CSAFPID-52021",
+          "CSAFPID-52031",
+          "CSAFPID-52041",
+          "CSAFPID-52051"
+        ],
+        "known_affected": [
+          "CSAFPID-51001",
+          "CSAFPID-51031",
+          "CSAFPID-51041"
+        ],
+        "last_affected": [
+          "CSAFPID-51011",
+          "CSAFPID-51021",
+          "CSAFPID-51051"
+        ]
+      },
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Please update to a recent version of the affected components or update the complete operating system image. Operating system images are available on request from Beckhoff's service (service@beckhoff.com). The setup / installer for Windows 10 and 11 are available on request from Beckhoff's service also.",
+          "group_ids": [
+            "CSAFGID-0001",
+            "CSAFGID-0003"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "HIGH",
+            "environmentalScore": 5.3,
+            "environmentalSeverity": "MEDIUM",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "temporalScore": 5.3,
+            "temporalSeverity": "MEDIUM",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-51001",
+            "CSAFPID-51011",
+            "CSAFPID-51021",
+            "CSAFPID-51031",
+            "CSAFPID-51041",
+            "CSAFPID-51051"
+          ]
+        }
+      ],
+      "title": "CVE-2025-41728"
+    }
+  ]
+}

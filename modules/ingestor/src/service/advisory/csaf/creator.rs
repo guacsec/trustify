@@ -5,6 +5,7 @@ use crate::{
         advisory::{
             product_status::{ProductStatus as GraphProductStatus, ProductVersionRange},
             purl_status::PurlStatus,
+            vers::parse_vers,
             version::{Version, VersionInfo, VersionSpec},
         },
         cpe::CpeCreator,
@@ -14,20 +15,29 @@ use crate::{
     },
     service::{
         Error,
-        advisory::csaf::{product_status::ProductStatus, util::ResolveProductIdCache},
+        advisory::csaf::{
+            product_status::ProductStatus,
+            util::{ResolveProductIdCache, branch_cpe},
+        },
     },
 };
 use csaf::schema::csaf2_0::schema::{
-    CommonSecurityAdvisoryFramework as Csaf, ProductsT, Remediation,
+    CategoryOfTheBranch, CommonSecurityAdvisoryFramework as Csaf, ProductsT, Remediation,
 };
 use sbom_walker::report::ReportSink;
-use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait};
+use sea_orm::{ActiveEnum, ActiveValue::Set, ConnectionTrait, EntityTrait};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use tracing::instrument;
-use trustify_common::{db::chunk::EntityChunkedIter, hashing::normalize_algorithm, purl::Purl};
+use trustify_common::{
+    cpe::{Component, Cpe},
+    db::chunk::EntityChunkedIter,
+    hashing::normalize_algorithm,
+    purl::Purl,
+};
 use trustify_entity::{
-    advisory_vulnerability_hash, advisory_vulnerability_product_identifier,
+    advisory_vulnerability_cpe, advisory_vulnerability_hash,
+    advisory_vulnerability_product_identifier,
     advisory_vulnerability_product_identifier::ProductIdentifierType,
     correlation_evidence::AssertionStatus,
     organization, product, product_status, product_version_range, purl_status,
@@ -45,6 +55,14 @@ pub struct ProductIdStatusMapping {
     pub purl_status_ids: Vec<Uuid>,
     pub product_status_ids: Vec<Uuid>,
 }
+
+/// Namespace of the IDs of `advisory_vulnerability_cpe` rows.
+const ADVISORY_CPE_NAMESPACE: Uuid = Uuid::from_bytes([
+    0x5c, 0x1e, 0x8b, 0x3f, 0x92, 0x7d, 0x4a, 0x06, 0xb4, 0x2e, 0x61, 0xc9, 0x0f, 0xd8, 0x37, 0xa5,
+]);
+
+/// A CPE (pattern) an advisory makes an assertion about, optionally constrained by a version range.
+type CpeEntry = (Cpe, Option<VersionInfo>, AssertionStatus);
 
 /// Check if the CSAF document is published by Red Hat.
 fn is_redhat(csaf: &Csaf) -> bool {
@@ -67,6 +85,7 @@ pub struct StatusCreator<'a> {
     product_to_purl_statuses: HashMap<ProductStatus, Vec<PurlStatus>>,
     hash_entries: HashSet<(String, String, AssertionStatus)>,
     product_identifier_entries: HashSet<(ProductIdentifierType, String, AssertionStatus)>,
+    cpe_entries: HashSet<CpeEntry>,
 }
 
 impl<'a> StatusCreator<'a> {
@@ -83,6 +102,7 @@ impl<'a> StatusCreator<'a> {
             product_to_purl_statuses: HashMap::new(),
             hash_entries: HashSet::new(),
             product_identifier_entries: HashSet::new(),
+            cpe_entries: HashSet::new(),
         }
     }
 
@@ -168,12 +188,82 @@ impl<'a> StatusCreator<'a> {
                         }
                     }
                 }
+
+                // For a relationship, only the component carries the assertion. The platform it
+                // relates to (e.g. hardware a firmware is installed on) is typically listed with
+                // both affected and fixed combinations.
+                let component = match self.cache.get_relationship(r) {
+                    Some(rel) => rel.product_reference.as_str(),
+                    None => r.as_str(),
+                };
+                self.add_cpe_entries(component, assertion, on_invalid, report)?;
             }
 
             self.product_id_to_product
                 .insert(r.to_string(), product.clone());
             self.products.insert(product);
         }
+        Ok(())
+    }
+
+    /// Collect the CPE assertions of a product.
+    ///
+    /// The CPE is the nearest one on the path to the product. If its version is ANY, the version
+    /// is constrained by the product's version range or version branch.
+    fn add_cpe_entries(
+        &mut self,
+        product_id: &str,
+        assertion: AssertionStatus,
+        on_invalid: OnInvalidData,
+        report: &dyn ReportSink,
+    ) -> Result<(), Error> {
+        let trace = self.cache.trace_product(product_id);
+        let Some(leaf) = trace.last() else {
+            return Ok(());
+        };
+
+        let mut cpe = None;
+        for branch in trace.iter().rev() {
+            if let Some(found) = branch_cpe(branch, on_invalid, report)? {
+                cpe = Some(found);
+                break;
+            }
+        }
+        let Some(cpe) = cpe else {
+            return Ok(());
+        };
+
+        // too broad, and can't be looked up
+        if matches!(cpe.vendor(), Component::Any) || matches!(cpe.product(), Component::Any) {
+            tracing::debug!(%cpe, "skipping CPE without vendor or product");
+            return Ok(());
+        }
+
+        let ranges = if !matches!(cpe.version(), Component::Any) {
+            // the CPE's own version is the constraint
+            vec![None]
+        } else {
+            match leaf.category {
+                CategoryOfTheBranch::ProductVersionRange => match parse_vers(&leaf.name) {
+                    Ok(infos) => infos.into_iter().map(Some).collect(),
+                    Err(err) => {
+                        // never widen an unparsable range to "all versions"
+                        tracing::debug!(%cpe, range = leaf.name.as_str(), "skipping CPE with invalid range: {err}");
+                        return Ok(());
+                    }
+                },
+                CategoryOfTheBranch::ProductVersion => vec![Some(VersionInfo {
+                    scheme: VersionScheme::Generic,
+                    spec: VersionSpec::Exact(leaf.name.to_string()),
+                })],
+                _ => vec![None],
+            }
+        };
+
+        for range in ranges {
+            self.cpe_entries.insert((cpe.clone(), range, assertion));
+        }
+
         Ok(())
     }
 
@@ -390,6 +480,13 @@ impl<'a> StatusCreator<'a> {
             }
         }
 
+        for (cpe, range, _) in &self.cpe_entries {
+            cpes.add(cpe.clone());
+            if let Some(range) = range {
+                version_ranges.push(range.clone().into_active_model());
+            }
+        }
+
         purls.create(connection).await?;
         cpes.create(connection).await?;
 
@@ -507,6 +604,34 @@ impl<'a> StatusCreator<'a> {
             }
         }
 
+        if !self.cpe_entries.is_empty() {
+            let mut cpe_models = self
+                .cpe_entries
+                .iter()
+                .map(|(cpe, range, status)| {
+                    let cpe_id = cpe.uuid();
+                    let version_range_id = range.as_ref().map(VersionInfo::uuid);
+                    advisory_vulnerability_cpe::ActiveModel {
+                        id: Set(self.advisory_cpe_id(cpe_id, version_range_id, *status)),
+                        advisory_id: Set(self.advisory_id),
+                        vulnerability_id: Set(self.vulnerability_id.clone()),
+                        status: Set(*status),
+                        cpe_id: Set(cpe_id),
+                        version_range_id: Set(version_range_id),
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            cpe_models.sort_by_key(|model| *model.id.as_ref());
+
+            for batch in &cpe_models.chunked() {
+                advisory_vulnerability_cpe::Entity::insert_many(batch)
+                    .on_conflict_do_nothing()
+                    .exec(connection)
+                    .await?;
+            }
+        }
+
         let mut result: HashMap<String, ProductIdStatusMapping> = HashMap::new();
         for (product_id, product) in &self.product_id_to_product {
             if let Some(mapping) = product_to_status_uuids.get(product) {
@@ -515,6 +640,20 @@ impl<'a> StatusCreator<'a> {
         }
 
         Ok(result)
+    }
+
+    /// Deterministic ID of an `advisory_vulnerability_cpe` row.
+    fn advisory_cpe_id(
+        &self,
+        cpe_id: Uuid,
+        version_range_id: Option<Uuid>,
+        status: AssertionStatus,
+    ) -> Uuid {
+        let mut id = Uuid::new_v5(&ADVISORY_CPE_NAMESPACE, self.advisory_id.as_bytes());
+        id = Uuid::new_v5(&id, self.vulnerability_id.as_bytes());
+        id = Uuid::new_v5(&id, cpe_id.as_bytes());
+        id = Uuid::new_v5(&id, version_range_id.unwrap_or_default().as_bytes());
+        Uuid::new_v5(&id, status.to_value().as_bytes())
     }
 
     fn create_purl_status(

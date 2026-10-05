@@ -5,11 +5,12 @@
 
 use crate::service::Error;
 use anyhow::anyhow;
-use cpe::{error::CpeError, uri::OwnedUri};
+use cpe::error::CpeError;
 use packageurl::PackageUrl;
 use sbom_walker::report::ReportSink;
 use std::{fmt::Display, str::FromStr};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+use trustify_common::cpe::Cpe;
 use url::{ParseError, Url};
 
 /// What to do when a CSAF document carries a value trustify cannot parse.
@@ -82,12 +83,12 @@ pub fn purl(value: &str) -> Operation<'_, PackageUrl<'static>, packageurl::Error
     }
 }
 
-/// Parse a CPE held in a CSAF document.
-pub fn cpe(value: &str) -> Operation<'_, OwnedUri, CpeError> {
+/// Parse a CPE held in a CSAF document, either as CPE 2.2 URI or CPE 2.3 formatted string.
+pub fn cpe(value: &str) -> Operation<'_, Cpe, CpeError> {
     Operation {
         kind: "cpe",
         value,
-        result: cpe::uri::Uri::parse(value).map(|cpe| cpe.to_owned()),
+        result: Cpe::from_str(value),
     }
 }
 
