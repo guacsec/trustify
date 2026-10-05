@@ -128,15 +128,14 @@ pub struct SbomSummary<P: IntoPackage = SbomPackage> {
     pub advisories: RequestedField<SbomAdvisorySummary>,
 }
 
-impl<P: IntoPackage> SbomSummary<P> {
+impl SbomSummary<SbomPackage> {
     #[instrument(skip(service, db), err(level=tracing::Level::INFO))]
     pub async fn from_entity<C: ConnectionTrait>(
         (sbom, node, source_document): (sbom::Model, sbom_node::Model, source_document::Model),
         service: &SbomService,
         db: &C,
     ) -> Result<Self, Error> {
-        // TODO: consider improving the n-select issues here
-        let described_by = service.describes_packages(sbom.sbom_id, (), db).await?;
+        let described_by = service.describing_packages(sbom.sbom_id, db).await?;
 
         Ok(SbomSummary {
             head: SbomHead::from_entity(&sbom, &node, db).await?,
@@ -145,7 +144,9 @@ impl<P: IntoPackage> SbomSummary<P> {
             advisories: RequestedField::NotRequested,
         })
     }
+}
 
+impl<P: IntoPackage> SbomSummary<P> {
     /// Batch-convert multiple SBOM entity tuples into summaries, using two
     /// queries total instead of two per SBOM.
     #[instrument(skip_all, err(level=tracing::Level::INFO), fields(count=entities.len()))]
