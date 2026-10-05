@@ -127,8 +127,9 @@ pub async fn ingest_from_url(url: &str, token: Option<&str>) -> Result<IngestRes
 pub async fn upload_document(bytes: &[u8], token: Option<&str>) -> Result<IngestResult, ApiError> {
     let array = js_sys::Uint8Array::from(bytes);
 
-    let mut req =
-        Request::post("/api/v3/upload").header("Content-Type", "application/octet-stream");
+    // No content type: a declared type disables the server's detection of compressed
+    // content (xz, gzip, bzip2) by magic bytes.
+    let mut req = Request::post("/api/v3/upload");
 
     if let Some(token) = token {
         req = req.header("Authorization", &format!("Bearer {token}"));

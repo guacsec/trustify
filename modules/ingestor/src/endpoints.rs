@@ -10,11 +10,33 @@ use trustify_auth::{
     authenticator::user::UserInformation,
     authorizer::{Authorizer, Require},
 };
-use trustify_common::{db, decompress::decompress_async, model::BinaryData};
+use trustify_common::{
+    db,
+    decompress::{self, decompress_async},
+    model::BinaryData,
+};
 use trustify_entity::labels::Labels;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::dispatch::DispatchBackend;
 use utoipa::IntoParams;
+
+/// Decompress an uploaded document, if required, enforcing the limit on the decompressed size.
+///
+/// Without a content type declaring the compression, it is detected by magic bytes.
+async fn decompress_upload(
+    bytes: web::Bytes,
+    content_type: Option<header::ContentType>,
+    limit: usize,
+) -> Result<web::Bytes, Error> {
+    match decompress_async(bytes, content_type, limit)
+        .await
+        .map_err(|e| Error::Generic(e.into()))?
+    {
+        Ok(bytes) => Ok(bytes),
+        Err(decompress::Error::PayloadTooLarge) => Err(Error::PayloadTooLarge),
+        Err(err) => Err(Error::Generic(err.into())),
+    }
+}
 
 /// mount the "ingestor" module
 pub fn configure(
@@ -155,10 +177,7 @@ pub async fn upload_document(
     content_type: Option<web::Header<header::ContentType>>,
     bytes: web::Bytes,
 ) -> Result<impl Responder, Error> {
-    let bytes = decompress_async(bytes, content_type.map(|ct| ct.0), config.upload_limit)
-        .await
-        .map_err(|e| Error::Generic(e.into()))?
-        .map_err(|e| Error::Generic(e.into()))?;
+    let bytes = decompress_upload(bytes, content_type.map(|ct| ct.0), config.upload_limit).await?;
 
     let detected = DocumentDetector::detect_as(&bytes, format)?;
     let fmt = detected.format();
@@ -241,6 +260,10 @@ pub async fn upload_document_from_url(
     if config.upload_limit > 0 && bytes.len() > config.upload_limit {
         return Err(Error::PayloadTooLarge);
     }
+
+    // The server's content type is not trusted to declare the compression: compressed files are
+    // commonly served as `application/x-xz` or `application/octet-stream`. Detect it instead.
+    let bytes = decompress_upload(bytes, None, config.upload_limit).await?;
 
     let detected = DocumentDetector::detect_as(&bytes, format)?;
     let fmt = detected.format();

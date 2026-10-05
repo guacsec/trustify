@@ -80,7 +80,7 @@ pub fn ingest_page() -> Html {
             <Title level={Level::H1}>
                 { "Ingest Document" }
             </Title>
-            <p>{ "Upload any supported documents (SBOM or advisory). The format is auto-detected." }</p>
+            <p>{ "Upload any supported documents (SBOM or advisory), optionally compressed (xz, gzip, bzip2). The format and compression are auto-detected." }</p>
             <br />
 
             <Tabs<IngestTab> selected={*tab} {onselect}>
@@ -265,7 +265,7 @@ fn file_upload_section(props: &FileUploadSectionProps) -> Html {
             <input
                 ref={file_input_ref}
                 type="file"
-                accept=".json,.xml,.yaml,.yml"
+                accept=".json,.xml,.yaml,.yml,.xz,.gz,.bz2"
                 multiple=true
                 onchange={on_input_change}
                 style="display: none;"

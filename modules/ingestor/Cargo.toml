@@ -69,6 +69,7 @@ tempfile = { workspace = true }
 test-context = { workspace = true }
 test-log = { workspace = true, features = ["log", "trace"] }
 tokio = { workspace = true, features = ["full"] }
+wiremock = { workspace = true }
 zip = { workspace = true }
 
 [[bench]]

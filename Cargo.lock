@@ -9762,6 +9762,7 @@ dependencies = [
  "utoipa-actix-web",
  "uuid",
  "vers-rs",
+ "wiremock",
  "zip 8.6.0",
 ]
 
