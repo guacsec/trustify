@@ -2209,9 +2209,9 @@ dependencies = [
 
 [[package]]
 name = "cvss-rs"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "645d89ca788d27e913003ba02b5cb5acfadec15058857b325ade449f6a11a1c3"
+checksum = "a77e7c34a7f8ebac33c19cc15d2ed85fd55f0977e78cb62630a4c4b2bebd4345"
 dependencies = [
  "serde",
  "serde_json",
@@ -8843,7 +8843,7 @@ dependencies = [
  "cpe",
  "csaf-rs",
  "cvss",
- "cvss-rs 0.4.0",
+ "cvss-rs 0.5.0",
  "deepsize",
  "log",
  "rstest",
@@ -9147,7 +9147,7 @@ dependencies = [
  "criterion",
  "csaf-rs",
  "cve",
- "cvss-rs 0.4.0",
+ "cvss-rs 0.5.0",
  "hex",
  "humantime",
  "jsonpath-rust",

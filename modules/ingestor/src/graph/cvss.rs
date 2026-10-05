@@ -218,6 +218,7 @@ impl ScoreCreator {
 #[cfg(test)]
 mod test {
     use super::*;
+    use rstest::rstest;
     use std::str::FromStr;
     use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
     use uuid::Uuid;
@@ -346,6 +347,94 @@ mod test {
         // Then the score is 10.0 (E:A → EQ5=0, lookup (0,0,0,1,0,0) → 10.0)
         assert_eq!(info.score, 10.0_f32);
         assert_eq!(info.severity, Severity::Critical);
+    }
+
+    /// Vector-only JSON must still override an incorrect provider-supplied score.
+    #[rstest]
+    #[case::v2(
+        None,
+        "AV:N/AC:L/Au:N/C:C/I:C/A:C",
+        ScoreType::V2_0,
+        10.0,
+        Severity::High
+    )]
+    #[case::v3_0(
+        Some("3.0"),
+        "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        ScoreType::V3_0,
+        9.8,
+        Severity::Critical
+    )]
+    #[case::v3_1(
+        Some("3.1"),
+        "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        ScoreType::V3_1,
+        9.8,
+        Severity::Critical
+    )]
+    #[case::v4(
+        None,
+        "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H",
+        ScoreType::V4_0,
+        10.0,
+        Severity::Critical
+    )]
+    #[case::v4_threat(
+        None,
+        "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/E:P",
+        ScoreType::V4_0,
+        9.3,
+        Severity::Critical
+    )]
+    #[case::v4_undefined_threat(
+        None,
+        "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/E:X",
+        ScoreType::V4_0,
+        10.0,
+        Severity::Critical
+    )]
+    fn score_information_from_vector_only_json(
+        #[case] version: Option<&str>,
+        #[case] vector: &str,
+        #[case] score_type: ScoreType,
+        #[case] expected_score: f32,
+        #[case] expected_severity: Severity,
+    ) -> anyhow::Result<()> {
+        // Missing metric fields force the fallback to parsing vectorString. V2 and V4
+        // intentionally omit version to exercise the library's deserialization defaults.
+        let mut value = serde_json::json!({
+            "vectorString": vector,
+            "baseScore": 0.0,
+            "baseSeverity": "NONE"
+        });
+        if let Some(version) = version {
+            value["version"] = version.into();
+        }
+        let vulnerability_id = "CVE-2026-1234".to_string();
+        let info: ScoreInformation = match score_type {
+            ScoreType::V2_0 => {
+                let cvss: v2_0::CvssV2 = serde_json::from_value(value)?;
+                assert!(cvss.calculated_base_score().is_none());
+                (vulnerability_id, cvss).into()
+            }
+            ScoreType::V3_0 | ScoreType::V3_1 => {
+                let cvss: v3::CvssV3 = serde_json::from_value(value)?;
+                assert!(cvss.calculated_base_score().is_none());
+                (vulnerability_id, cvss).into()
+            }
+            ScoreType::V4_0 => {
+                let cvss: v4_0::CvssV4 = serde_json::from_value(value)?;
+                assert!(cvss.calculated_full_score().is_none());
+                (vulnerability_id, cvss).into()
+            }
+        };
+
+        assert_eq!(info.vulnerability_id, "CVE-2026-1234");
+        assert_eq!(info.r#type, score_type);
+        assert_eq!(info.vector, vector);
+        assert_eq!(info.score, expected_score);
+        assert_eq!(info.severity, expected_severity);
+        Ok(())
     }
 
     #[test]
