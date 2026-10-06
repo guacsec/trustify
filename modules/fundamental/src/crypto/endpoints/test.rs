@@ -519,14 +519,23 @@ async fn policy_summary_after_evaluation(ctx: &TrustifyContext) -> Result<(), an
         app.call_and_read_body_json(request).await;
 
     // total counts all algorithms (evaluated + any unevaluated in other SBOMs)
-    assert!(summary.total >= eval.summary.total, "total must include all algorithms");
+    assert!(
+        summary.total >= eval.summary.total,
+        "total must include all algorithms"
+    );
     // verdict sub-counts must match the evaluation response exactly (single SBOM)
     assert_eq!(summary.compliant, eval.summary.compliant);
     assert_eq!(summary.warning, eval.summary.warning);
     assert_eq!(summary.non_compliant, eval.summary.non_compliant);
     // sanity: at least one non-compliant (SHA1) and one warning
-    assert!(summary.non_compliant > 0, "SHA1 must produce at least one non_compliant");
-    assert!(summary.warning > 0, "classical algorithms must produce at least one warning");
+    assert!(
+        summary.non_compliant > 0,
+        "SHA1 must produce at least one non_compliant"
+    );
+    assert!(
+        summary.warning > 0,
+        "classical algorithms must produce at least one warning"
+    );
 
     Ok(())
 }
