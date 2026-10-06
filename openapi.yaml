@@ -3031,6 +3031,8 @@ paths:
                 $ref: '#/components/schemas/RecommendReportResponse'
         '413':
           description: Total package count across requested SBOMs exceeds the configured limit
+        '422':
+          description: Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured
   /api/v3/purl/{key}:
     get:
       tags:

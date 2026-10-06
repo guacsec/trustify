@@ -170,11 +170,13 @@ mod v3 {
         responses(
             (status = 200, description = "Aggregated recommendation report for the requested SBOMs", body = RecommendReportResponse),
             (status = 413, description = "Total package count across requested SBOMs exceeds the configured limit"),
+            (status = 422, description = "Endpoint disabled — TRUSTD_RECOMMEND_PATTERNS not configured"),
         )
     )]
     #[post("/v3/purl/recommend/report")]
     /// Generate an aggregated vendor recommendation report for a set of SBOMs.
     pub async fn recommend_report(
+        _gate: RequireCapability<Recommendations>,
         purl_service: web::Data<PurlService>,
         db: web::Data<db::ReadOnly>,
         request: web::Json<RecommendReportRequest>,
