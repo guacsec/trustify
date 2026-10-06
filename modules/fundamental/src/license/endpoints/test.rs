@@ -18,7 +18,7 @@ async fn list_spdx_licenses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> 
 
     let response: PaginatedResults<SpdxLicenseSummary> = app.call_and_read_body_json(request).await;
 
-    assert_eq!(Some(734), response.total);
+    assert_eq!(Some(747), response.total);
 
     Ok(())
 }
