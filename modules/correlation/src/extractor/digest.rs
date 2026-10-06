@@ -3,7 +3,7 @@
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
-    model::{IdentifierKind, IdentifierRef},
+    model::{IdentifierKind, IdentifierRef, MatchedValue},
 };
 use sea_orm::{ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, QueryFilter};
 use std::collections::HashMap;
@@ -17,6 +17,9 @@ use uuid::Uuid;
 /// Identifier values use the format `<algorithm>:<value>`, with a normalized algorithm.
 /// A value without an algorithm (only possible from a query) matches any algorithm.
 pub struct DigestExtractor;
+
+/// ID of the extractor, and type of its evidence.
+const ID: &str = "digest";
 
 const CONFIDENCE: f64 = 1.0;
 
@@ -35,7 +38,7 @@ fn parse_digest(value: &str) -> (Option<String>, &str) {
 #[async_trait::async_trait]
 impl Extractor for DigestExtractor {
     fn id(&self) -> &'static str {
-        "digest"
+        ID
     }
 
     #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]
@@ -104,11 +107,15 @@ impl Extractor for DigestExtractor {
                     result.push(IdentifierMatch {
                         index: *idx,
                         assertion: Assertion {
+                            extractor: ID,
                             advisory_id: ah.advisory_id,
                             vulnerability_id: ah.vulnerability_id.clone(),
                             status: ah.status,
                             confidence: CONFIDENCE,
-                            matched_value: format_digest(&ah.algorithm, &ah.value),
+                            matched_value: MatchedValue::new(format_digest(
+                                &ah.algorithm,
+                                &ah.value,
+                            )),
                         },
                     });
                 }
@@ -160,11 +167,15 @@ impl Extractor for DigestExtractor {
                             node_id: cs.node_id.clone(),
                         },
                         assertion: Assertion {
+                            extractor: ID,
                             advisory_id,
                             vulnerability_id: ah.vulnerability_id.clone(),
                             status: ah.status,
                             confidence: CONFIDENCE,
-                            matched_value: format_digest(&ah.algorithm, &ah.value),
+                            matched_value: MatchedValue::new(format_digest(
+                                &ah.algorithm,
+                                &ah.value,
+                            )),
                         },
                     });
                 }

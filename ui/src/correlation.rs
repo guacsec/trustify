@@ -1,8 +1,8 @@
 use crate::{
     AppRoute, api,
     model::{
-        ComponentRef, CorrelationResult, EvidenceDetail, IdentifierKind, VerdictStatus,
-        VerdictSummary,
+        ComponentRef, CorrelationResult, EvidenceDetail, IdentifierKind, IdentifierRef,
+        MatchedValue, VerdictStatus, VerdictSummary,
     },
 };
 use patternfly_yew::prelude::*;
@@ -137,7 +137,16 @@ impl TableEntryRenderer<VerdictColumn> for VerdictEntry {
         }
 
         let content = html! {
-            <EvidenceTable evidence={evidence.clone()} />
+            <Stack gutter=true>
+                <StackItem>
+                    <Title level={Level::H4}>{ "Component in the SBOM" }</Title>
+                    { identifiers(&self.0.component.identifiers) }
+                </StackItem>
+                <StackItem>
+                    <Title level={Level::H4}>{ "Matched advisory assertions" }</Title>
+                    <EvidenceTable evidence={evidence.clone()} />
+                </StackItem>
+            </Stack>
         };
 
         vec![Span::max(content)]
@@ -169,9 +178,10 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 html!(format!("{:.0}%", self.0.confidence * 100.0)).into()
             }
             EvidenceColumn::Extractor => html!(&self.0.extractor).into(),
-            EvidenceColumn::MatchedValue => {
-                html!(self.0.matched_value.as_deref().unwrap_or("\u{2014}")).into()
-            }
+            EvidenceColumn::MatchedValue => match &self.0.matched_value {
+                Some(value) => matched_value(value).into(),
+                None => html!("\u{2014}").into(),
+            },
             EvidenceColumn::Advisory => html! {
                 <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
                     { &self.0.advisory_identifier }
@@ -232,35 +242,7 @@ impl TableEntryRenderer<UnmatchedColumn> for UnmatchedEntry {
     fn render_cell(&self, context: CellContext<'_, UnmatchedColumn>) -> Cell {
         match context.column {
             UnmatchedColumn::Name => html!(&self.0.name).into(),
-            UnmatchedColumn::Identifiers => {
-                let mut sections = BTreeMap::<IdentifierKind, Vec<&str>>::new();
-                for identifier in &self.0.identifiers {
-                    sections
-                        .entry(identifier.kind)
-                        .or_default()
-                        .push(&identifier.value);
-                }
-
-                let content: Vec<Html> = sections
-                    .into_iter()
-                    .map(|(kind, items)| {
-                        html! {
-                            <div>
-                                <strong>{ kind.label() }</strong>
-                                <ul style="margin:0;padding-left:1em">
-                                    { for items.iter().map(|s| html!(<li>{ s }</li>)) }
-                                </ul>
-                            </div>
-                        }
-                    })
-                    .collect();
-
-                if content.is_empty() {
-                    html!(<i>{ "\u{2014}" }</i>).into()
-                } else {
-                    html!({ for content }).into()
-                }
-            }
+            UnmatchedColumn::Identifiers => identifiers(&self.0.identifiers).into(),
         }
     }
 }
@@ -386,6 +368,47 @@ fn correlation_content(props: &CorrelationContentProps) -> Html {
                     header={unmatched_header}
                     entries={unmatched_entries}
                 />
+            }
+        </>
+    }
+}
+
+/// Render the identifiers of a component, grouped by kind.
+fn identifiers(identifiers: &[IdentifierRef]) -> Html {
+    let mut sections = BTreeMap::<IdentifierKind, Vec<&str>>::new();
+    for identifier in identifiers {
+        sections
+            .entry(identifier.kind)
+            .or_default()
+            .push(&identifier.value);
+    }
+
+    if sections.is_empty() {
+        return html!(<i>{ "\u{2014}" }</i>);
+    }
+
+    html! {
+        { for sections.into_iter().map(|(kind, items)| html! {
+            <div>
+                <strong>{ kind.label() }</strong>
+                <ul style="margin:0;padding-left:1em">
+                    { for items.iter().map(|s| html!(<li><code>{ s }</code></li>)) }
+                </ul>
+            </div>
+        })}
+    }
+}
+
+/// Render the advisory side of a match: the identifier, and each matched version range on a line
+/// of its own.
+pub(crate) fn matched_value(value: &MatchedValue) -> Html {
+    html! {
+        <>
+            <code>{ &value.identifier }</code>
+            if !value.ranges.is_empty() {
+                <ul style="margin:0;padding-left:1em">
+                    { for value.ranges.iter().map(|range| html!(<li>{ range.to_string() }</li>)) }
+                </ul>
             }
         </>
     }

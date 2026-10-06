@@ -8,7 +8,7 @@ pub mod wildcard;
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
-    model::{IdentifierKind, IdentifierRef},
+    model::{IdentifierKind, IdentifierRef, MatchedValue},
 };
 use sea_orm::{
     ColumnTrait, Condition, ConnectionTrait, DatabaseTransaction, EntityTrait, QueryFilter,
@@ -26,6 +26,9 @@ use wildcard::{csaf_glob_matches, csaf_glob_to_like, has_wildcards};
 /// (SKU, model number, serial number) against advisory product identifiers.
 pub struct ProductIdentifierExtractor;
 
+/// ID of the extractor, and type of its evidence.
+const ID: &str = "product_identifier";
+
 const CONFIDENCE: f64 = 1.0;
 
 /// Map an identifier kind to a product identifier type, if it is one.
@@ -40,18 +43,19 @@ fn identifier_type(kind: IdentifierKind) -> Option<ProductIdentifierType> {
 
 fn assertion(ap: &advisory_vulnerability_product_identifier::Model) -> Assertion {
     Assertion {
+        extractor: ID,
         advisory_id: ap.advisory_id,
         vulnerability_id: ap.vulnerability_id.clone(),
         status: ap.status,
         confidence: CONFIDENCE,
-        matched_value: ap.value.clone(),
+        matched_value: MatchedValue::new(ap.value.clone()),
     }
 }
 
 #[async_trait::async_trait]
 impl Extractor for ProductIdentifierExtractor {
     fn id(&self) -> &'static str {
-        "product_identifier"
+        ID
     }
 
     #[instrument(skip(self, tx), err(level = tracing::Level::INFO))]

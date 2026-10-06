@@ -15,6 +15,8 @@ pub enum Error {
     BadRequest(String),
     #[error("unavailable")]
     Unavailable,
+    #[error("failed to serialize the matched value: {0}")]
+    MatchedValue(#[source] serde_json::Error),
 }
 
 impl From<DbErr> for Error {

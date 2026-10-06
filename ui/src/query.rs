@@ -1,4 +1,4 @@
-use crate::{AppRoute, api};
+use crate::{AppRoute, api, correlation::matched_value};
 use patternfly_yew::prelude::*;
 use trustify_api::correlation::{
     AssertionStatus, IdentifierKind, QueryMatch, QueryResult, QueryVerdict, VerdictStatus,
@@ -182,6 +182,8 @@ enum MatchColumn {
     Value,
     Advisory,
     Status,
+    Confidence,
+    Extractor,
 }
 
 #[derive(Clone, PartialEq)]
@@ -191,7 +193,7 @@ impl TableEntryRenderer<MatchColumn> for MatchEntry {
     fn render_cell(&self, context: CellContext<'_, MatchColumn>) -> Cell {
         match context.column {
             MatchColumn::MatchType => html!(<Label label={self.0.kind.label()} />).into(),
-            MatchColumn::Value => html!(&self.0.value).into(),
+            MatchColumn::Value => matched_value(&self.0.value).into(),
             MatchColumn::Advisory => html! {
                 <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
                     { &self.0.advisory_identifier }
@@ -199,6 +201,8 @@ impl TableEntryRenderer<MatchColumn> for MatchEntry {
             }
             .into(),
             MatchColumn::Status => html!(assertion_label(self.0.status)).into(),
+            MatchColumn::Confidence => html!(format!("{:.0}%", self.0.confidence * 100.0)).into(),
+            MatchColumn::Extractor => html!(&self.0.extractor).into(),
         }
     }
 }
@@ -225,6 +229,8 @@ fn match_table(props: &MatchTableProps) -> Html {
             <TableColumn<MatchColumn> label="Matched Value" index={MatchColumn::Value} />
             <TableColumn<MatchColumn> label="Advisory" index={MatchColumn::Advisory} />
             <TableColumn<MatchColumn> label="Status" index={MatchColumn::Status} />
+            <TableColumn<MatchColumn> label="Confidence" index={MatchColumn::Confidence} />
+            <TableColumn<MatchColumn> label="Extractor" index={MatchColumn::Extractor} />
         </TableHeader<MatchColumn>>
     };
 
