@@ -16,7 +16,10 @@ pub mod writer;
 
 pub use registry::Extractors;
 
-use crate::{error::Error, model::IdentifierRef};
+use crate::{
+    error::Error,
+    model::{IdentifierRef, MatchedValue},
+};
 use sea_orm::DatabaseTransaction;
 use trustify_entity::correlation_evidence::AssertionStatus;
 use uuid::Uuid;
@@ -38,12 +41,18 @@ pub struct NodeIdentifier {
 /// A vulnerability assertion of an advisory which matched an identifier.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Assertion {
+    /// The type of evidence, stored in `correlation_evidence.extractor`.
+    ///
+    /// Usually the ID of the extractor. An extractor with several matching strategies reports
+    /// each under its own type (e.g. `purl` and `purl_stream`). It also seeds the namespace of the
+    /// deterministic evidence IDs, so it must not change.
+    pub extractor: &'static str,
     pub advisory_id: Uuid,
     pub vulnerability_id: String,
     pub status: AssertionStatus,
     pub confidence: f64,
-    /// The advisory side value which matched (e.g. a wildcard pattern).
-    pub matched_value: String,
+    /// The advisory side value which matched (e.g. a wildcard pattern and version ranges).
+    pub matched_value: MatchedValue,
 }
 
 /// An assertion matching one of the identifiers passed to [`Extractor::match_identifiers`].
@@ -68,9 +77,10 @@ pub struct NodeMatch {
 /// for presentation first and implementing matching later.
 #[async_trait::async_trait]
 pub trait Extractor: Send + Sync {
-    /// Stable ID, stored in `correlation_evidence.extractor`.
+    /// Stable ID of the extractor, used for logging.
     ///
-    /// Also seeds the namespace of the deterministic evidence IDs, so it must not change.
+    /// The evidence itself is stored under the type of each [`Assertion::extractor`], which
+    /// usually is this ID.
     fn id(&self) -> &'static str;
 
     /// Identifiers of this type attached to the nodes of an SBOM.

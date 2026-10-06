@@ -204,7 +204,13 @@ GROUP BY sbom_id, status
                         extractor: row.extractor.clone(),
                         advisory_id: row.advisory_id,
                         advisory_identifier,
-                        matched_value: row.matched_value.clone(),
+                        matched_value: row.matched_value.clone().and_then(|value| {
+                            serde_json::from_value(value)
+                                .inspect_err(|err| {
+                                    tracing::warn!("failed to parse matched value: {err}")
+                                })
+                                .ok()
+                        }),
                         created_at: row.created_at,
                     }
                 })
@@ -309,6 +315,8 @@ GROUP BY sbom_id, status
                         advisory_id: assertion.advisory_id,
                         advisory_identifier,
                         status: assertion.status.into(),
+                        extractor: assertion.extractor.to_string(),
+                        confidence: assertion.confidence,
                     },
                 ));
         }

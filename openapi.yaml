@@ -5885,9 +5885,9 @@ components:
           type: string
           format: uuid
         matched_value:
-          type:
-          - string
-          - 'null'
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/MatchedValue'
     Exploit:
       type: object
       description: |-
@@ -6646,6 +6646,42 @@ components:
       properties:
         license:
           type: string
+    MatchedRange:
+      type: object
+      description: A version range of an advisory assertion. A missing bound is unbounded.
+      required:
+      - scheme
+      properties:
+        high:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/RangeBound'
+        low:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/RangeBound'
+        scheme:
+          type: string
+          description: The version scheme, e.g. `rpm` or `semver`.
+    MatchedValue:
+      type: object
+      description: 'The advisory side of a match: what an SBOM identifier was matched against.'
+      required:
+      - identifier
+      properties:
+        identifier:
+          type: string
+          description: |-
+            The advisory identifier which matched, e.g. a PURL without a version, a CPE pattern, or a
+            digest.
+        ranges:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchedRange'
+          description: |-
+            The version ranges of the assertion which contain the SBOM version.
+
+            Empty when no version range was involved in the match.
     Message:
       type: object
       required:
@@ -8013,18 +8049,26 @@ components:
       - advisory_id
       - advisory_identifier
       - status
+      - extractor
+      - confidence
       properties:
         advisory_id:
           type: string
           format: uuid
         advisory_identifier:
           type: string
+        confidence:
+          type: number
+          format: double
+        extractor:
+          type: string
+          description: The type of evidence, i.e. how the match was established (e.g. `purl` or `purl_stream`).
         kind:
           $ref: '#/components/schemas/IdentifierKind'
         status:
           $ref: '#/components/schemas/AssertionStatus'
         value:
-          type: string
+          $ref: '#/components/schemas/MatchedValue'
     QueryResult:
       type: object
       description: Result of a manual identifier query, grouped by vulnerability with resolved verdicts.
@@ -8059,6 +8103,17 @@ components:
           type:
           - string
           - 'null'
+    RangeBound:
+      type: object
+      description: One bound of a [`MatchedRange`].
+      required:
+      - version
+      - inclusive
+      properties:
+        inclusive:
+          type: boolean
+        version:
+          type: string
     RecommendEntry:
       type: object
       required:

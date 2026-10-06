@@ -12,7 +12,7 @@
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
-    model::{IdentifierKind, IdentifierRef},
+    model::{IdentifierKind, IdentifierRef, MatchedValue},
 };
 use sea_orm::{
     ActiveEnum, ColumnTrait, ConnectionTrait, DatabaseTransaction, DbBackend, EntityTrait,
@@ -32,6 +32,9 @@ use uuid::Uuid;
 
 /// Extracts correlation evidence by matching SBOM CPEs against advisory CPE patterns.
 pub struct CpeExtractor;
+
+/// ID of the extractor, and type of its evidence.
+const ID: &str = "cpe";
 
 /// How the SBOM version satisfied the advisory CPE, determining the confidence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -122,7 +125,7 @@ struct NodeRow {
 #[async_trait::async_trait]
 impl Extractor for CpeExtractor {
     fn id(&self) -> &'static str {
-        "cpe"
+        ID
     }
 
     /// The CPEs of the nodes of an SBOM, as CPE 2.3 formatted strings.
@@ -309,7 +312,7 @@ WHERE a.advisory_id = $1 AND {MATCH_CONDITION}
 /// Turn a matched row into an assertion.
 fn assertion(
     row: AssertionRow,
-    matched_values: &HashMap<(Uuid, Option<Uuid>), String>,
+    matched_values: &HashMap<(Uuid, Option<Uuid>), MatchedValue>,
 ) -> Result<Assertion, Error> {
     let check = match row.version_check.as_str() {
         "exact" => VersionCheck::Exact,
@@ -317,6 +320,7 @@ fn assertion(
         _ => VersionCheck::Any,
     };
     Ok(Assertion {
+        extractor: ID,
         status: AssertionStatus::try_from_value(&row.status)?,
         confidence: check.confidence(),
         matched_value: matched_values
@@ -332,7 +336,7 @@ fn assertion(
 async fn matched_values(
     rows: impl IntoIterator<Item = &AssertionRow>,
     connection: &impl ConnectionTrait,
-) -> Result<HashMap<(Uuid, Option<Uuid>), String>, Error> {
+) -> Result<HashMap<(Uuid, Option<Uuid>), MatchedValue>, Error> {
     let keys = rows
         .into_iter()
         .map(|r| (r.cpe_id, r.version_range_id))
@@ -365,31 +369,17 @@ async fn matched_values(
     Ok(keys
         .into_iter()
         .filter_map(|(cpe_id, range_id)| {
-            let cpe = format_cpe23(cpes.get(&cpe_id)?);
-            let value = match range_id.and_then(|id| ranges.get(&id)) {
-                Some(range) => format!("{cpe} {}", format_range(range)),
-                None => cpe,
+            let value = MatchedValue {
+                identifier: format_cpe23(cpes.get(&cpe_id)?),
+                ranges: range_id
+                    .and_then(|id| ranges.get(&id))
+                    .map(|range| range.clone().into())
+                    .into_iter()
+                    .collect(),
             };
             Some(((cpe_id, range_id), value))
         })
         .collect())
-}
-
-/// Format a version range for presentation, e.g. `semver:[1.0.0,4.10.0)`.
-fn format_range(range: &version_range::Model) -> String {
-    let low = range.low_version.as_deref().unwrap_or("*");
-    let high = range.high_version.as_deref().unwrap_or("*");
-    let open = if range.low_inclusive == Some(true) {
-        '['
-    } else {
-        '('
-    };
-    let close = if range.high_inclusive == Some(true) {
-        ']'
-    } else {
-        ')'
-    };
-    format!("{}:{open}{low},{high}{close}", range.version_scheme_id)
 }
 
 /// Format a stored CPE as CPE 2.3 formatted string, including the extended attributes.
@@ -437,7 +427,10 @@ fn format_cpe23(model: &cpe::Model) -> String {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::extractor::Extractors;
+    use crate::{
+        extractor::Extractors,
+        model::{MatchedRange, RangeBound},
+    };
     use sea_orm::{QueryOrder, TransactionTrait};
     use test_context::test_context;
     use test_log::test;
@@ -459,25 +452,29 @@ mod test {
         ctx: &TrustifyContext,
         sbom_id: Uuid,
     ) -> anyhow::Result<Vec<(String, String, AssertionStatus, f64, String)>> {
-        Ok(correlation_evidence::Entity::find()
+        correlation_evidence::Entity::find()
             .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
             .filter(correlation_evidence::Column::Extractor.eq("cpe"))
             .order_by_asc(correlation_evidence::Column::NodeId)
             .order_by_asc(correlation_evidence::Column::VulnerabilityId)
-            .order_by_asc(correlation_evidence::Column::MatchedValue)
             .all(&ctx.db)
             .await?
             .into_iter()
             .map(|e| {
-                (
+                let matched = e
+                    .matched_value
+                    .map(serde_json::from_value::<MatchedValue>)
+                    .transpose()?
+                    .unwrap_or_default();
+                Ok((
                     e.node_id,
                     e.vulnerability_id,
                     e.status,
                     e.confidence,
-                    e.matched_value.unwrap_or_default(),
-                )
+                    matched.to_string(),
+                ))
             })
-            .collect())
+            .collect()
     }
 
     async fn ingest_all(ctx: &TrustifyContext) -> anyhow::Result<(Uuid, Vec<Uuid>)> {
@@ -508,10 +505,10 @@ mod test {
 
     fn expected() -> Vec<(String, String, AssertionStatus, f64, String)> {
         const WAGO_RANGE: &str =
-            "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:* semver:[1.0.0,4.10.0)";
+            "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:* semver: >= 1.0.0, < 4.10.0";
         const WAGO_FIXED: &str = "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*";
         const WAGO_HARDENED_RANGE: &str =
-            "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:* semver:[1.0.0,4.10.0(70))";
+            "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:* semver: >= 1.0.0, < 4.10.0(70)";
         const MDP_ARM32: &str = "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:arm32:*";
         const MDP_X86: &str = "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:x86:*";
 
@@ -692,13 +689,25 @@ mod test {
             WAGO_CVES
                 .into_iter()
                 .map(|vuln| Assertion {
+                    extractor: ID,
                     advisory_id: advisories[0],
                     vulnerability_id: vuln.to_string(),
                     status: AssertionStatus::Affected,
                     confidence: 0.7,
-                    matched_value:
-                        "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:* semver:[1.0.0,4.10.0)"
-                            .to_string(),
+                    matched_value: MatchedValue {
+                        identifier: "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*".into(),
+                        ranges: vec![MatchedRange {
+                            scheme: "semver".into(),
+                            low: Some(RangeBound {
+                                version: "1.0.0".into(),
+                                inclusive: true,
+                            }),
+                            high: Some(RangeBound {
+                                version: "4.10.0".into(),
+                                inclusive: false,
+                            }),
+                        }],
+                    },
                 })
                 .collect::<Vec<_>>()
         );

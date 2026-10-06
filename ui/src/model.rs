@@ -1,8 +1,8 @@
 use serde::Deserialize;
 
 pub use trustify_api::correlation::{
-    ComponentRef, CorrelationResult, EvidenceDetail, IdentifierKind, QueryResult,
-    SbomVerdictCounts, VerdictCountsRequest, VerdictStatus, VerdictSummary,
+    ComponentRef, CorrelationResult, EvidenceDetail, IdentifierKind, IdentifierRef, MatchedValue,
+    QueryResult, SbomVerdictCounts, VerdictCountsRequest, VerdictStatus, VerdictSummary,
 };
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]

@@ -2,7 +2,7 @@ use crate::extractor::Extractors;
 use crate::{
     model::{
         ApiAssertionStatus, ComponentRef, CorrelationResult, IdentifierKind, IdentifierRef,
-        QueryMatch, QueryResult, QueryVerdict, SbomVerdictCounts, VerdictStatus,
+        MatchedValue, QueryMatch, QueryResult, QueryVerdict, SbomVerdictCounts, VerdictStatus,
     },
     service::CorrelationService,
 };
@@ -165,10 +165,12 @@ async fn query_digest(ctx: &TrustifyContext) -> anyhow::Result<()> {
             status: VerdictStatus::Fixed,
             matches: vec![QueryMatch {
                 kind: IdentifierKind::Digest,
-                value: format!("sha256:{S18_DIGEST}"),
+                value: MatchedValue::new(format!("sha256:{S18_DIGEST}")),
                 advisory_id,
                 advisory_identifier: "https://www.beckhoff.com/#VDE-2025-106".into(),
                 status: ApiAssertionStatus::Fixed,
+                extractor: "digest".into(),
+                confidence: 1.0,
             }],
         }],
     };
@@ -225,10 +227,12 @@ async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 status: VerdictStatus::Affected,
                 matches: vec![QueryMatch {
                     kind: IdentifierKind::Sku,
-                    value: "6925281*".into(),
+                    value: MatchedValue::new("6925281*"),
                     advisory_id,
                     advisory_identifier: "https://www.harman.com/#HBSA-2025-0004".into(),
                     status: ApiAssertionStatus::Affected,
+                    extractor: "product_identifier".into(),
+                    confidence: 1.0,
                 }],
             }],
         }

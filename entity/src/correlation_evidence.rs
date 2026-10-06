@@ -14,7 +14,9 @@ pub struct Model {
     pub status: AssertionStatus,
     pub confidence: f64,
     pub extractor: String,
-    pub matched_value: Option<String>,
+    /// The advisory side value which matched, a serialized `trustify_api::correlation::MatchedValue`.
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub matched_value: Option<serde_json::Value>,
     pub created_at: TimeDateTimeWithTimeZone,
 }
 

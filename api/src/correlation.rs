@@ -121,9 +121,92 @@ pub struct EvidenceDetail {
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub matched_value: Option<String>,
+    pub matched_value: Option<MatchedValue>,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+}
+
+/// The advisory side of a match: what an SBOM identifier was matched against.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct MatchedValue {
+    /// The advisory identifier which matched, e.g. a PURL without a version, a CPE pattern, or a
+    /// digest.
+    pub identifier: String,
+    /// The version ranges of the assertion which contain the SBOM version.
+    ///
+    /// Empty when no version range was involved in the match.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ranges: Vec<MatchedRange>,
+}
+
+impl MatchedValue {
+    /// A matched value without version ranges.
+    pub fn new(identifier: impl Into<String>) -> Self {
+        Self {
+            identifier: identifier.into(),
+            ranges: Vec::new(),
+        }
+    }
+}
+
+impl fmt::Display for MatchedValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.identifier)?;
+        for (i, range) in self.ranges.iter().enumerate() {
+            f.write_str(if i == 0 { " " } else { "; " })?;
+            write!(f, "{range}")?;
+        }
+        Ok(())
+    }
+}
+
+/// A version range of an advisory assertion. A missing bound is unbounded.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct MatchedRange {
+    /// The version scheme, e.g. `rpm` or `semver`.
+    pub scheme: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub low: Option<RangeBound>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub high: Option<RangeBound>,
+}
+
+/// Formats the range for humans, e.g. `rpm: < 1.2.3`, `semver: >= 1.0.0, < 2.0.0` or `semver: = 1.0.0`.
+impl fmt::Display for MatchedRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}: ", self.scheme)?;
+        match (&self.low, &self.high) {
+            (Some(low), Some(high)) if low == high && low.inclusive => {
+                write!(f, "= {}", low.version)
+            }
+            (Some(low), Some(high)) => write!(f, "{}, {}", low.as_low(), high.as_high()),
+            (Some(low), None) => write!(f, "{}", low.as_low()),
+            (None, Some(high)) => write!(f, "{}", high.as_high()),
+            (None, None) => f.write_str("any version"),
+        }
+    }
+}
+
+/// One bound of a [`MatchedRange`].
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct RangeBound {
+    pub version: String,
+    pub inclusive: bool,
+}
+
+impl RangeBound {
+    fn as_low(&self) -> String {
+        let op = if self.inclusive { ">=" } else { ">" };
+        format!("{op} {}", self.version)
+    }
+
+    fn as_high(&self) -> String {
+        let op = if self.inclusive { "<=" } else { "<" };
+        format!("{op} {}", self.version)
+    }
 }
 
 /// Resolved verdict status.
@@ -198,10 +281,13 @@ pub struct QueryVerdict {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct QueryMatch {
     pub kind: IdentifierKind,
-    pub value: String,
+    pub value: MatchedValue,
     pub advisory_id: Uuid,
     pub advisory_identifier: String,
     pub status: AssertionStatus,
+    /// The type of evidence, i.e. how the match was established (e.g. `purl` or `purl_stream`).
+    pub extractor: String,
+    pub confidence: f64,
 }
 
 #[cfg(feature = "entity")]
@@ -209,8 +295,24 @@ mod entity_conversions {
     use super::*;
     use trustify_entity::{
         advisory_vulnerability_product_identifier::ProductIdentifierType as EntityProductIdentifierType,
-        correlation_evidence::AssertionStatus as EntityAssertionStatus,
+        correlation_evidence::AssertionStatus as EntityAssertionStatus, version_range,
     };
+
+    impl From<version_range::Model> for MatchedRange {
+        fn from(value: version_range::Model) -> Self {
+            let bound = |version: Option<String>, inclusive: Option<bool>| {
+                version.map(|version| RangeBound {
+                    version,
+                    inclusive: inclusive.unwrap_or_default(),
+                })
+            };
+            Self {
+                scheme: value.version_scheme_id.to_string(),
+                low: bound(value.low_version, value.low_inclusive),
+                high: bound(value.high_version, value.high_inclusive),
+            }
+        }
+    }
 
     impl From<EntityProductIdentifierType> for IdentifierKind {
         fn from(value: EntityProductIdentifierType) -> Self {
@@ -253,4 +355,39 @@ pub struct SbomVerdictCounts {
     pub not_affected: u64,
     pub under_investigation: u64,
     pub none: u64,
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn bound(version: &str, inclusive: bool) -> Option<RangeBound> {
+        Some(RangeBound {
+            version: version.into(),
+            inclusive,
+        })
+    }
+
+    #[test]
+    fn display_matched_value() {
+        let range = |low, high| MatchedRange {
+            scheme: "rpm".into(),
+            low,
+            high,
+        };
+        let value = MatchedValue {
+            identifier: "pkg:rpm/redhat/bind".into(),
+            ranges: vec![
+                range(None, bound("1:2-3", false)),
+                range(bound("1.0", true), bound("2.0", false)),
+                range(bound("1.0", false), None),
+                range(bound("1.0", true), bound("1.0", true)),
+                range(None, None),
+            ],
+        };
+        assert_eq!(
+            value.to_string(),
+            "pkg:rpm/redhat/bind rpm: < 1:2-3; rpm: >= 1.0, < 2.0; rpm: > 1.0; rpm: = 1.0; rpm: any version"
+        );
+    }
 }
