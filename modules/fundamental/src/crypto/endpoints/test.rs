@@ -452,3 +452,81 @@ async fn unknown_algorithms_default_to_warning(ctx: &TrustifyContext) -> Result<
 
     Ok(())
 }
+
+/// Verifies that fetch_policy_summary returns all zeros on an empty database.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn policy_summary_empty_db(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+
+    let request = TestRequest::get()
+        .uri("/api/v3/crypto/policy/summary")
+        .to_request();
+    let summary: crate::crypto::model::PolicySummaryResult =
+        app.call_and_read_body_json(request).await;
+
+    assert_eq!(summary.total, 0);
+    assert_eq!(summary.compliant, 0);
+    assert_eq!(summary.warning, 0);
+    assert_eq!(summary.non_compliant, 0);
+
+    Ok(())
+}
+
+/// Verifies that fetch_policy_summary returns total > 0 but zero verdict counts
+/// when algorithms exist but none have been evaluated yet (NULL policy_verdict).
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn policy_summary_no_verdicts(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    ingest_cbom(&app).await;
+
+    let request = TestRequest::get()
+        .uri("/api/v3/crypto/policy/summary")
+        .to_request();
+    let summary: crate::crypto::model::PolicySummaryResult =
+        app.call_and_read_body_json(request).await;
+
+    // keycloak-cbom has 22 algorithm-type assets; none evaluated yet
+    assert_eq!(summary.total, 22, "total must count unevaluated algorithms");
+    assert_eq!(summary.compliant, 0);
+    assert_eq!(summary.warning, 0);
+    assert_eq!(summary.non_compliant, 0);
+
+    Ok(())
+}
+
+/// Verifies that fetch_policy_summary reflects stored verdicts after evaluation
+/// and that counts are consistent with the evaluate_policy response.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn policy_summary_after_evaluation(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    let app = caller(ctx).await?;
+    let ingest = ingest_cbom(&app).await;
+    let sbom_id: Uuid = ingest.id.parse()?;
+
+    let service =
+        CryptoService::with_evaluator(PaginationCache::for_test(), Box::new(MockPolicyEvaluator));
+    let db_rw = db::ReadWrite::new(ctx.db.clone());
+    let tx = db_rw.begin().await?;
+    let eval = service.evaluate_policy(Some(sbom_id), &tx).await?;
+    tx.commit().await?;
+
+    let request = TestRequest::get()
+        .uri("/api/v3/crypto/policy/summary")
+        .to_request();
+    let summary: crate::crypto::model::PolicySummaryResult =
+        app.call_and_read_body_json(request).await;
+
+    // total counts all algorithms (evaluated + any unevaluated in other SBOMs)
+    assert!(summary.total >= eval.summary.total, "total must include all algorithms");
+    // verdict sub-counts must match the evaluation response exactly (single SBOM)
+    assert_eq!(summary.compliant, eval.summary.compliant);
+    assert_eq!(summary.warning, eval.summary.warning);
+    assert_eq!(summary.non_compliant, eval.summary.non_compliant);
+    // sanity: at least one non-compliant (SHA1) and one warning
+    assert!(summary.non_compliant > 0, "SHA1 must produce at least one non_compliant");
+    assert!(summary.warning > 0, "classical algorithms must produce at least one warning");
+
+    Ok(())
+}
