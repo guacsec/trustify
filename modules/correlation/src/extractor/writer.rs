@@ -1,6 +1,6 @@
 use super::{Assertion, NodeRef};
 use crate::error::Error;
-use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait};
+use sea_orm::{ActiveEnum, ActiveValue::Set, ConnectionTrait, EntityTrait};
 use tracing::{Instrument, info_span};
 use trustify_common::db::chunk::EntityChunkedIter;
 use trustify_entity::correlation_evidence;
@@ -45,13 +45,17 @@ impl EvidenceWriter {
         Ok(())
     }
 
-    /// Deterministic ID per (evidence type, sbom, node, advisory, vulnerability).
+    /// Deterministic ID per (evidence type, sbom, node, advisory, vulnerability, status).
+    ///
+    /// The status is part of it, as one evidence type may find conflicting statements (e.g. of
+    /// different products) for the same node.
     fn evidence_id(node: &NodeRef, assertion: &Assertion) -> Uuid {
         let namespace = Uuid::new_v5(&EVIDENCE_NAMESPACE, assertion.extractor.as_bytes());
         let mut id = Uuid::new_v5(&namespace, node.sbom_id.as_bytes());
         id = Uuid::new_v5(&id, node.node_id.as_bytes());
         id = Uuid::new_v5(&id, assertion.advisory_id.as_bytes());
-        Uuid::new_v5(&id, assertion.vulnerability_id.as_bytes())
+        id = Uuid::new_v5(&id, assertion.vulnerability_id.as_bytes());
+        Uuid::new_v5(&id, assertion.status.to_value().as_bytes())
     }
 
     /// Insert all collected evidence, ignoring already existing rows.
@@ -99,7 +103,17 @@ mod test {
 
         assert_eq!(
             EvidenceWriter::evidence_id(&node, &assertion),
-            Uuid::parse_str("39e5eccd-4581-5359-91a0-028bb920c39d").unwrap()
+            Uuid::parse_str("370bbae1-96e7-5dc2-9688-c98f1be1c28c").unwrap()
+        );
+
+        // another status of the same evidence type is another piece of evidence
+        let not_affected = Assertion {
+            status: AssertionStatus::NotAffected,
+            ..assertion.clone()
+        };
+        assert_ne!(
+            EvidenceWriter::evidence_id(&node, &assertion),
+            EvidenceWriter::evidence_id(&node, &not_affected)
         );
     }
 }
