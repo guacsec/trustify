@@ -301,3 +301,130 @@ async fn no_match_without_advisory(ctx: &TrustifyContext) -> anyhow::Result<()> 
 
     Ok(())
 }
+
+const SUSE_OLD_SBOM: &str =
+    "scenarios/S23_suse_codestream_openssl/sbom/bci-base_15.6.47.11.1.cdx.json";
+const SUSE_NEW_SBOM: &str =
+    "scenarios/S23_suse_codestream_openssl/sbom/bci-base_15.6.47.26.19.cdx.json";
+const SUSE_VEX: &str = "scenarios/S23_suse_codestream_openssl/vex/cve-2024-6119.json.xz";
+
+/// The SLE 15 SP6 `openssl-3` packages of the official SBOMs: (node, name).
+const SUSE_OLD_PACKAGES: [(&str, &str); 3] = [
+    (
+        "pkg:libopenssl-3-fips-provider-cfaacc362f4a214cbf95e206d26685d9",
+        "libopenssl-3-fips-provider",
+    ),
+    (
+        "pkg:libopenssl3-426db71183a22234f82854c990f2eacf",
+        "libopenssl3",
+    ),
+    (
+        "pkg:openssl-3-74fdf8be9af579e40f0343324a1a4d33",
+        "openssl-3",
+    ),
+];
+const SUSE_NEW_PACKAGES: [(&str, &str); 3] = [
+    (
+        "pkg:rpm/libopenssl-3-fips-provider-6968892f34af1cade0d1e3335998bacb",
+        "libopenssl-3-fips-provider",
+    ),
+    (
+        "pkg:rpm/libopenssl3-9e046a27101d2904cfe553dc6054e2dc",
+        "libopenssl3",
+    ),
+    (
+        "pkg:rpm/openssl-3-d4d5f859ac5fb640bc297892e9d9120a",
+        "openssl-3",
+    ),
+];
+
+/// SUSE's fix of the SLE 15 SP6 codestream for CVE-2024-6119.
+const SUSE_SP6_FIX: &str = "3.1.4-150600.5.15.1";
+
+/// The `openssl` package of the SBOM, which SUSE states as not affected, for all versions.
+fn suse_openssl_not_affected(node: &str) -> Evidence {
+    (
+        node.to_string(),
+        "CVE-2024-6119".to_string(),
+        "purl_suse_any_version".to_string(),
+        AssertionStatus::NotAffected,
+        0.7,
+        Some(MatchedValue {
+            identifier: "pkg:rpm/suse/openssl".into(),
+            ranges: vec![MatchedRange {
+                scheme: "rpm".into(),
+                low: None,
+                high: None,
+            }],
+        }),
+    )
+}
+
+/// An SP6 package before the SP6 fix is affected by that fix only. The fixes of the other
+/// codestreams in the same document (SP4, SP5, SP7, 16.0, Micro, Tumbleweed) don't apply,
+/// although e.g. `3.1.4-150600.5.7.1` is "newer" than Tumbleweed's `3.1.4-13.1`.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn suse_recommended_codestream(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let mut expected = SUSE_OLD_PACKAGES
+        .iter()
+        .map(|(node, name)| {
+            (
+                node.to_string(),
+                "CVE-2024-6119".to_string(),
+                "purl_suse_recommended_before".to_string(),
+                AssertionStatus::Affected,
+                0.9,
+                Some(MatchedValue {
+                    identifier: format!("pkg:rpm/suse/{name}"),
+                    ranges: fixed_in("rpm", &[SUSE_SP6_FIX]),
+                }),
+            )
+        })
+        .collect::<Vec<_>>();
+    expected.push(suse_openssl_not_affected(
+        "pkg:openssl-0907d1fb499114c5df61bf90f42de3cc",
+    ));
+    expected.sort_by(|a, b| (&a.0, &a.1, &a.2).cmp(&(&b.0, &b.1, &b.2)));
+
+    assert_eq!(evidence_of(ctx, SUSE_OLD_SBOM, SUSE_VEX).await?, expected);
+
+    Ok(())
+}
+
+/// A later build of the same codestream is fixed from the recommended version on.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn suse_recommended_later_build(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let mut expected = SUSE_NEW_PACKAGES
+        .iter()
+        .map(|(node, name)| {
+            (
+                node.to_string(),
+                "CVE-2024-6119".to_string(),
+                "purl_suse_recommended".to_string(),
+                AssertionStatus::Fixed,
+                0.9,
+                Some(MatchedValue {
+                    identifier: format!("pkg:rpm/suse/{name}"),
+                    ranges: vec![MatchedRange {
+                        scheme: "rpm".into(),
+                        low: Some(RangeBound {
+                            version: SUSE_SP6_FIX.into(),
+                            inclusive: true,
+                        }),
+                        high: None,
+                    }],
+                }),
+            )
+        })
+        .collect::<Vec<_>>();
+    expected.push(suse_openssl_not_affected(
+        "pkg:rpm/openssl-0907d1fb499114c5df61bf90f42de3cc",
+    ));
+    expected.sort_by(|a, b| (&a.0, &a.1, &a.2).cmp(&(&b.0, &b.1, &b.2)));
+
+    assert_eq!(evidence_of(ctx, SUSE_NEW_SBOM, SUSE_VEX).await?, expected);
+
+    Ok(())
+}

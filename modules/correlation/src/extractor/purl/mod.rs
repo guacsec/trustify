@@ -9,6 +9,10 @@
 //! or share its major (e.g. `el8`) with a lower confidence. Ranges of other streams (e.g. `el9_0`
 //! for an `el8` package) are dropped. Such matches are reported as `purl_stream` evidence.
 //!
+//! SUSE packages (`pkg:rpm/suse/…`) carry no dist tag, but a codestream at the start of the release
+//! (e.g. `150600` of `3.1.4-150600.5.39.1` for SLE 15 SP6). They only match ranges of the same
+//! codestream (or both have none), see [`stream::suse_stream_match`].
+//!
 //! All other matches (not RPM, or without a stream on either side) are reported as `purl`
 //! evidence.
 //!
@@ -58,6 +62,9 @@ const PLAIN: &str = "purl";
 const STREAM: &str = "purl_stream";
 
 const CONFIDENCE: f64 = 1.0;
+
+/// PURL namespace of SUSE packages, scoped by their codestream.
+const SUSE: &str = "suse";
 
 fn map_status(slug: &str) -> Option<AssertionStatus> {
     match slug {
@@ -185,18 +192,30 @@ struct PurlStatusRow {
 impl PurlStatusRow {
     /// Relation of the RPM streams of the SBOM version and the range.
     ///
-    /// The range's stream is taken from its upper bound, falling back to the lower one.
+    /// The range's stream is taken from its upper bound, falling back to the lower one. SUSE
+    /// packages (`pkg:rpm/suse/…`) are scoped by their codestream instead.
     fn stream_match(&self) -> Option<StreamMatch> {
         if self.range_scheme != VersionScheme::Rpm {
             return Some(StreamMatch::Unscoped);
         }
-        let sbom = Evr::parse(&self.sbom_version).stream();
         let range = self
             .range_high_version
             .as_deref()
             .or(self.range_low_version.as_deref())
-            .and_then(|version| Evr::parse(version).stream());
-        stream::stream_match(sbom, range)
+            .map(Evr::parse);
+        let sbom = Evr::parse(&self.sbom_version);
+
+        if self.base_purl_namespace.as_deref() == Some(SUSE) {
+            let Some(range) = range else {
+                return Some(StreamMatch::Unscoped);
+            };
+            return stream::suse_stream_match(
+                sbom.release.and_then(stream::suse_codestream),
+                range.release.and_then(stream::suse_codestream),
+            );
+        }
+
+        stream::stream_match(sbom.stream(), range.and_then(|range| range.stream()))
     }
 
     /// The base PURL, e.g. `pkg:rpm/redhat/bind`, and the matched version range.
