@@ -243,6 +243,12 @@ impl<'g> CsafLoader<'g> {
             self.on_invalid,
             report,
         )?;
+        creator.add_all(
+            &product_status.recommended,
+            "recommended",
+            self.on_invalid,
+            report,
+        )?;
 
         let product_id_mapping = creator.create(self.graph, connection).await?;
 
