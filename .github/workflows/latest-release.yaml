@@ -95,7 +95,7 @@ jobs:
 
       - name: Push to ghcr.io (trustd)
         id: push-trustd
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           image: trustd
           tags: ${{ needs.init.outputs.version }}
@@ -105,7 +105,7 @@ jobs:
 
       - name: Push to ghcr.io (xtask)
         id: push-xtask
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           image: xtask
           tags: ${{ needs.init.outputs.version }}
@@ -115,7 +115,7 @@ jobs:
 
       - name: Push to ghcr.io (gensbom)
         id: push-gensbom
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           image: gensbom
           tags: ${{ needs.init.outputs.version }}

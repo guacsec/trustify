@@ -140,7 +140,7 @@ jobs:
       # Push to ghcr.io
 
       - name: Push to ghcr.io (trustd)
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           image: trustd
           tags: ${{ needs.init.outputs.version }}
@@ -149,7 +149,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push to ghcr.io (xtask)
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           image: xtask
           tags: ${{ needs.init.outputs.version }}
@@ -158,7 +158,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push to ghcr.io (gensbom)
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           image: gensbom
           tags: ${{ needs.init.outputs.version }}

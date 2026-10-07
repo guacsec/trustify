@@ -27,7 +27,7 @@ jobs:
     name: Supply chain audit
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check
@@ -145,7 +145,7 @@ jobs:
               exit 1
           fi
       - name: Check the docs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -247,14 +247,14 @@ jobs:
           ' xtask-grype.sarif | sort | head -100
 
       - name: Upload trustd scan results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trustd-grype.sarif
           category: grype-trustd
 
       - name: Upload xtask scan results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: xtask-grype.sarif
