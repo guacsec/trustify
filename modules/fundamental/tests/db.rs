@@ -13,10 +13,7 @@ async fn read_only_begin_rejects_writes(ctx: &TrustifyContext) -> anyhow::Result
     let tx = ro.begin().await?;
 
     let result = tx
-        .execute_raw(Statement::from_string(
-            DbBackend::Postgres,
-            "CREATE TEMP TABLE _ro_test (id int)".to_string(),
-        ))
+        .execute_unprepared("CREATE TEMP TABLE _ro_test (id int)")
         .await;
 
     assert!(
@@ -59,11 +56,8 @@ async fn read_write_allows_writes(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let rw = ReadWrite::new(ctx.db.clone());
     let tx = rw.begin().await?;
 
-    tx.execute_raw(Statement::from_string(
-        DbBackend::Postgres,
-        "CREATE TEMP TABLE _rw_test (id int)".to_string(),
-    ))
-    .await?;
+    tx.execute_unprepared("CREATE TEMP TABLE _rw_test (id int)")
+        .await?;
 
     tx.rollback().await?;
 

@@ -6,7 +6,7 @@ use anyhow::{Context, anyhow, ensure};
 use migration::Migrator;
 use migration::data::Runner;
 use postgresql_commands::{CommandBuilder, psql::PsqlBuilder};
-use sea_orm::{ConnectionTrait, Statement};
+use sea_orm::ConnectionTrait;
 use sea_orm_migration::prelude::{MigrationTrait, MigratorTrait};
 use std::process::Stdio;
 use tokio::io::{self, AsyncRead, AsyncWriteExt};
@@ -77,18 +77,12 @@ impl<'a> Database<'a> {
 
         let db = db::connect_admin(&admin).await?;
 
-        db.execute_raw(Statement::from_string(
-            db.get_database_backend(),
-            format!("DROP DATABASE IF EXISTS \"{}\";", database.name),
-        ))
-        .await?;
+        db.execute_unprepared(&format!("DROP DATABASE IF EXISTS \"{}\";", database.name))
+            .await?;
 
-        db.execute_raw(Statement::from_string(
-            db.get_database_backend(),
-            format!(
-                "CREATE DATABASE \"{}\" WITH LC_COLLATE 'C' TEMPLATE 'template0';",
-                database.name
-            ),
+        db.execute_unprepared(&format!(
+            "CREATE DATABASE \"{}\" WITH LC_COLLATE 'C' TEMPLATE 'template0';",
+            database.name
         ))
         .await?;
         db.close().await?;
