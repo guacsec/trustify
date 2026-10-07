@@ -77,32 +77,27 @@ impl Heart {
         let t = OffsetDateTime::now_utc().unix_timestamp_nanos();
         let new_heartbeat: Decimal = t.into();
 
-        use importer::Column::{Heartbeat, Name};
+        use importer::Column::Heartbeat;
         let lock = match importer.heartbeat {
             Some(t) => Expr::col(Heartbeat).eq(Decimal::from_i128_with_scale(t, 0)),
             None => Expr::col(Heartbeat).is_null(),
         };
 
-        let result = importer::Entity::update_many()
-            .col_expr(Heartbeat, Expr::value(new_heartbeat))
-            .filter(Name.eq(importer.name.as_str()))
+        let model = importer::ActiveModel {
+            name: Set(importer.name.to_owned()),
+            heartbeat: Set(Some(new_heartbeat)),
+            ..Default::default()
+        };
+        match importer::Entity::update(model)
+            .validate()
+            .map_err(Error::Heartbeat)?
             .filter(lock)
             .exec(db)
             .await
-            .map_err(Error::Heartbeat)?;
-
-        if result.rows_affected == 0 {
-            return Err(Error::Heartbeat(DbErr::RecordNotUpdated));
+        {
+            Ok(model) => Importer::try_from(model).map_err(Error::Json),
+            Err(e) => Err(Error::Heartbeat(e)),
         }
-
-        let model = importer::Entity::find()
-            .filter(Name.eq(importer.name.as_str()))
-            .one(db)
-            .await
-            .map_err(Error::Heartbeat)?
-            .ok_or_else(|| Error::Heartbeat(DbErr::RecordNotFound("importer".to_string())))?;
-
-        Importer::try_from(model).map_err(Error::Json)
     }
 }
 
