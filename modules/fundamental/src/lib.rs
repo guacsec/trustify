@@ -1,4 +1,4 @@
-#![recursion_limit = "1024"]
+#![recursion_limit = "512"]
 
 pub mod advisory;
 pub mod common;
