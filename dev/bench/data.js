@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791388295323,
+  "lastUpdate": 1791396961335,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -23193,6 +23193,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 9,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "6434bf8b478dedbaede116ed766037275d192e76",
+          "message": "fix(importer): restore atomic heartbeat update using ValidatedUpdateOne\n\nThe migration to SeaORM 2.x replaced UpdateOne.filter() with\nupdate_many + separate find, breaking the optimistic lock's atomicity.\nRestore the original single-statement UPDATE ... RETURNING pattern\nusing UpdateOne.validate().filter() which is the 2.x equivalent.\n\nImplements: TC-3513\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-07T17:24:49Z",
+          "tree_id": "e5b3cc1a5865ad8b15bf757d2eb18a76ad361dff",
+          "url": "https://github.com/guacsec/trustify/commit/6434bf8b478dedbaede116ed766037275d192e76"
+        },
+        "date": 1791396958832,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 8,
             "unit": "s"
           }
         ]
