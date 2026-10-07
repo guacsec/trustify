@@ -1115,6 +1115,7 @@ async fn version_range_boundary_semantics(ctx: &TrustifyContext) -> Result<(), a
 /// affected version range, so product_status entries with CPE context must appear.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
+#[ignore = "Red Hat's implied affected statuses are no longer stored; derived by correlation instead (see TODO.md)"]
 async fn product_status_version_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     let service = PurlService::new(PaginationCache::for_test()).with_default_patterns();
     ctx.ingest_dataset(Dataset::DS3).await?;

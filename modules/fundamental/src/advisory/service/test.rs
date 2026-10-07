@@ -46,6 +46,7 @@ pub async fn ingest_sample_advisory<'a>(
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )

@@ -138,6 +138,7 @@ async fn create_set(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 published: Some(published),
                 modified: Some(modified),
                 withdrawn: None,
+                publisher_namespace: None,
                 version: None,
             };
             graph

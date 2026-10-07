@@ -11,6 +11,12 @@
   the SBOM side needs a context too (e.g. the described root component), products should be
   identified by CPE/PURL rather than by free text names, non-CSAF sources (OSV, CVE) express scope
   differently, and it should probably start as a confidence modifier rather than a filter.
+  Vendor specific semantics belong into correlation rules
+  (`modules/correlation/src/extractor/purl/rule/`), not into ingestion.
+- [ ] Fundamental: Red Hat's "fixed in X" no longer implies "affected before X" in the stored
+  data (ingestion only stores what documents state). The SBOM, PURL and vulnerability APIs of the
+  fundamental module therefore no longer report those inferred "affected" statuses. Migrate them
+  to the correlation engine, which derives them (`purl_rh_fixed` evidence).
 - [ ] CSAF ingestion ignores products not defined as branch leaves
   ([#2740](https://github.com/guacsec/trustify/issues/2740)). CSAF 2.0 (mandatory test 6.1.2)
   defines product IDs in three places: `product_tree.branches[]…product`,

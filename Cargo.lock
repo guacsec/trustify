@@ -9465,6 +9465,7 @@ dependencies = [
  "trustify-module-ingestor",
  "trustify-module-storage",
  "trustify-test-context",
+ "url",
  "uuid",
 ]
 

@@ -1,0 +1,81 @@
+{
+  "document": {
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE"
+      }
+    },
+    "lang": "en-US",
+    "publisher": {
+      "category": "vendor",
+      "name": "Example Vendor",
+      "namespace": "https://www.example.com"
+    },
+    "title": "Stated RPM ranges of two streams",
+    "tracking": {
+      "current_release_date": "2026-10-01T00:00:00.000Z",
+      "id": "EXAMPLE-2026-0001",
+      "initial_release_date": "2026-10-01T00:00:00.000Z",
+      "revision_history": [
+        {
+          "date": "2026-10-01T00:00:00.000Z",
+          "number": "1.0.0",
+          "summary": "Initial revision"
+        }
+      ],
+      "status": "final",
+      "version": "1.0.0"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Example",
+        "branches": [
+          {
+            "category": "product_name",
+            "name": "openssl",
+            "branches": [
+              {
+                "category": "product_version_range",
+                "name": "vers:rpm/<1:1.1.1k-9.el8_6",
+                "product": {
+                  "name": "openssl <1:1.1.1k-9.el8_6",
+                  "product_id": "openssl-el8",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/openssl"
+                  }
+                }
+              },
+              {
+                "category": "product_version_range",
+                "name": "vers:rpm/<1:3.0.1-46.el9_0",
+                "product": {
+                  "name": "openssl <1:3.0.1-46.el9_0",
+                  "product_id": "openssl-el9",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/openssl"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2023-0215",
+      "product_status": {
+        "known_affected": [
+          "openssl-el8",
+          "openssl-el9"
+        ]
+      }
+    }
+  ]
+}
