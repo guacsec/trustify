@@ -4,13 +4,10 @@
 //! package of the same stream before that version is affected. The stream scoping of the PURL
 //! extractor ensures a package isn't judged against the fix of another stream.
 
-use super::RangeRule;
+use super::{RangeRule, exact_of, low};
 use crate::extractor::purl::Candidates;
-use sea_orm::{
-    ColumnTrait, EntityTrait, QueryFilter, QuerySelect, QueryTrait,
-    sea_query::{Expr, SimpleExpr},
-};
-use trustify_entity::{advisory, purl_status, status, version_range};
+use sea_orm::sea_query::Expr;
+use trustify_entity::status;
 
 /// Publisher namespaces of Red Hat advisories.
 const NAMESPACES: &[&str] = &["https://www.redhat.com"];
@@ -28,30 +25,11 @@ impl RangeRule for RedHatFixed {
     }
 
     fn candidates(&self) -> Candidates {
-        let low = || -> SimpleExpr {
-            Expr::col((version_range::Entity, version_range::Column::LowVersion)).into()
-        };
-        let high = Expr::col((version_range::Entity, version_range::Column::HighVersion));
-
-        let redhat_advisories = advisory::Entity::find()
-            .select_only()
-            .column(advisory::Column::Id)
-            .filter(
-                Expr::expr(Expr::cust_with_expr(
-                    "rtrim($1, '/')",
-                    Expr::col((advisory::Entity, advisory::Column::PublisherNamespace)),
-                ))
-                .is_in(NAMESPACES.iter().copied()),
-            )
-            .into_query();
-
         Candidates {
             // fixed, in an exact version, by Red Hat
             condition: Expr::col((status::Entity, status::Column::Slug))
                 .eq("fixed")
-                .and(Expr::expr(low()).is_not_null())
-                .and(Expr::expr(low()).eq(high))
-                .and(purl_status::Column::AdvisoryId.in_subquery(redhat_advisories)),
+                .and(exact_of(NAMESPACES)),
             status: Expr::val("affected").into(),
             // (unbounded, < fixed)
             low_version: Expr::cust("NULL"),

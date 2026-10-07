@@ -12,7 +12,9 @@
   identified by CPE/PURL rather than by free text names, non-CSAF sources (OSV, CVE) express scope
   differently, and it should probably start as a confidence modifier rather than a filter.
   Vendor specific semantics belong into correlation rules
-  (`modules/correlation/src/extractor/purl/rule/`), not into ingestion.
+  (`modules/correlation/src/extractor/purl/rule/`), not into ingestion. A concrete case: SUSE's
+  versionless statements (`pkg:rpm/suse/openssl@`) are about a product, but `purl_suse_any_version`
+  applies them to the package of any product (scenario S23, `openssl` × CVE-2025-9230).
 - [ ] Fundamental: Red Hat's "fixed in X" no longer implies "affected before X" in the stored
   data (ingestion only stores what documents state). The SBOM, PURL and vulnerability APIs of the
   fundamental module therefore no longer report those inferred "affected" statuses. Migrate them
