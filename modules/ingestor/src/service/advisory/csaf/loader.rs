@@ -665,7 +665,8 @@ mod test {
     ///
     /// * `pkg:cargo/ns/name@1.0` is not a valid purl, because `cargo` prohibits a namespace.
     ///   This is the case that previously got recorded silently as a *package name*.
-    /// * `cpe:/a:vendor:product:1:2:3:4` is not a valid CPE, because `4` is not a language tag.
+    /// * `cpe:/a:vendor:product%zz` is not a valid CPE, because `%zz` is not a percent escape. (An
+    ///   invalid language tag is no longer rejected, but dropped, see `trustify_common::cpe`.)
     /// * dates and the publisher namespace are plain strings in CSAF, so anything reaches us.
     #[test_context(TrustifyContext)]
     #[rstest]
@@ -678,7 +679,7 @@ mod test {
     #[case::cpe(
         "csaf/cve-2023-0044.json",
         "/product_tree/branches/0/branches/0/product/product_identification_helper/cpe",
-        "cpe:/a:vendor:product:1:2:3:4",
+        "cpe:/a:vendor:product%zz",
         "invalid cpe"
     )]
     #[case::date(
