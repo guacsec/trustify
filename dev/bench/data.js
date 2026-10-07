@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791374081475,
+  "lastUpdate": 1791388295323,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -23164,6 +23164,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 6,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "2813412a89cd5e5c71265eb3d7f471b799e97ba9",
+          "message": "build(deps): bump werkzeug from 3.1.8 to 3.1.9 in /tools/perf\n\nBumps [werkzeug](https://github.com/pallets/werkzeug) from 3.1.8 to 3.1.9.\n- [Release notes](https://github.com/pallets/werkzeug/releases)\n- [Changelog](https://github.com/pallets/werkzeug/blob/main/CHANGES.rst)\n- [Commits](https://github.com/pallets/werkzeug/compare/3.1.8...3.1.9)\n\n---\nupdated-dependencies:\n- dependency-name: werkzeug\n  dependency-version: 3.1.9\n  dependency-type: indirect\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>",
+          "timestamp": "2026-10-07T14:59:47Z",
+          "tree_id": "54cf2afc14adfb8f0af0eca564a699f8894bfb25",
+          "url": "https://github.com/guacsec/trustify/commit/2813412a89cd5e5c71265eb3d7f471b799e97ba9"
+        },
+        "date": 1791388293490,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
