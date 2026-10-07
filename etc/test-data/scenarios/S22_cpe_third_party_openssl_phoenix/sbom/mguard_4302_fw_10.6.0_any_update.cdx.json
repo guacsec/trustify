@@ -1,0 +1,40 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:00000000-0000-4000-8000-000000002202",
+  "metadata": {
+    "timestamp": "2026-10-01T12:00:00Z",
+    "component": {
+      "type": "device",
+      "name": "Phoenix Contact FL MGUARD 4302",
+      "version": "1",
+      "bom-ref": "device"
+    }
+  },
+  "components": [
+    {
+      "type": "firmware",
+      "name": "FL MGUARD firmware",
+      "version": "10.6.0",
+      "bom-ref": "firmware",
+      "cpe": "cpe:2.3:o:phoenix_contact:fl_mguard_firmware:10.6.0:*:*:*:*:*:*:*"
+    },
+    {
+      "type": "library",
+      "name": "OpenSSL",
+      "version": "3.0.14",
+      "bom-ref": "openssl",
+      "cpe": "cpe:2.3:a:openssl:openssl:3.0.14:*:*:*:*:*:*:*"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "device",
+      "dependsOn": [
+        "firmware",
+        "openssl"
+      ]
+    }
+  ]
+}

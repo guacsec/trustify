@@ -1,0 +1,18 @@
+[package]
+name = "trustify-api"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+openapi = ["dep:utoipa"]
+entity = ["dep:trustify-entity"]
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+time = { workspace = true, features = ["serde", "formatting", "parsing"] }
+trustify-entity = { workspace = true, optional = true }
+utoipa = { workspace = true, optional = true, features = ["uuid", "time"] }
+uuid = { workspace = true, features = ["serde"] }

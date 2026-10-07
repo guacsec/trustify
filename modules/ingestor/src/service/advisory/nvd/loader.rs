@@ -82,6 +82,7 @@ impl<'g> NvdLoader<'g> {
             published,
             modified,
             withdrawn: None,
+            publisher_namespace: None,
         };
 
         let advisory = match self

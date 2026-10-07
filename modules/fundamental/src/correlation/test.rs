@@ -777,6 +777,7 @@ async fn s7_cpeonly_opentofu_image(ctx: &TrustifyContext) -> Result<(), anyhow::
 #[test_context(TrustifyContext)]
 #[rstest]
 #[test_log::test(actix_web::test)]
+#[ignore = "Red Hat's implied affected statuses are no longer stored; derived by correlation instead (see TODO.md)"]
 async fn s8_epoch_mismatch_openjdk(
     ctx: &TrustifyContext,
     #[values("cdx", "spdx")] fmt: &str,

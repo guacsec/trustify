@@ -7,10 +7,9 @@ use crate::graph::advisory::{
     version::{Version, VersionInfo, VersionSpec},
 };
 use crate::service::Error;
-use cpe::cpe::Cpe;
 use csaf::schema::csaf2_0::schema::{Branch, CategoryOfTheBranch, FullProductNameT};
 use sbom_walker::report::ReportSink;
-use trustify_common::purl::Purl;
+use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::version_scheme::VersionScheme;
 
 #[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
@@ -18,7 +17,7 @@ pub struct ProductStatus {
     pub vendor: Option<String>,
     pub product: String,
     pub version: Option<VersionInfo>,
-    pub cpe: Option<trustify_common::cpe::Cpe>,
+    pub cpe: Option<Cpe>,
     pub status: &'static str,
     pub purls: Vec<Purl>,
     pub packages: Vec<String>,
@@ -97,7 +96,7 @@ impl ProductStatus {
         };
 
         if let Some(cpe) = cpe {
-            self.cpe = Some(cpe.clone().into());
+            self.cpe = Some(cpe.clone());
             self.version = Some(version_from_cpe(&cpe));
             return Ok(());
         }
@@ -120,7 +119,7 @@ impl ProductStatus {
 }
 
 /// Derive the version information from a CPE.
-fn version_from_cpe(cpe: &cpe::uri::OwnedUri) -> VersionInfo {
+fn version_from_cpe(cpe: &Cpe) -> VersionInfo {
     let version = cpe.version().to_string();
 
     if version == "*" {

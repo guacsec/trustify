@@ -18,6 +18,7 @@ pub mod purl;
 pub mod redact;
 pub mod requested_field;
 pub mod reqwest;
+pub mod rpm;
 pub mod sbom;
 pub mod serde;
 pub mod service;

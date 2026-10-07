@@ -22,6 +22,8 @@ pub struct Model {
     pub title: Option<String>,
     pub labels: Labels,
     pub source_document_id: Uuid,
+    /// The namespace of the publisher, as claimed by the document (e.g. CSAF `publisher.namespace`)
+    pub publisher_namespace: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

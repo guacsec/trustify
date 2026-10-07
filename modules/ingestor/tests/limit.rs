@@ -18,6 +18,7 @@ async fn upload_bomb_dataset(ctx: &TrustifyContext) -> anyhow::Result<()> {
         ctx,
         Config {
             dataset_entry_limit: 1024 * 1024,
+            ..Default::default()
         },
     )
     .await?;

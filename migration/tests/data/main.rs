@@ -1,6 +1,7 @@
 #![recursion_limit = "512"]
 
 mod m0002010;
+mod m0002470;
 
 use migration::{
     Migrator, MigratorExt,

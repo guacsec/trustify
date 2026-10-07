@@ -1,0 +1,29 @@
+{
+  "advisories": [
+    "vex/vde-2025-092.json"
+  ],
+  "sboms": {
+    "sbom/cx5020_wec7_x86.cdx.json": {
+      "mdp": {
+        "CVE-2025-41726": "fixed",
+        "CVE-2025-41727": "fixed",
+        "CVE-2025-41728": "fixed"
+      }
+    },
+    "sbom/cx9020_wec7_arm32.cdx.json": {
+      "mdp": {
+        "CVE-2025-41726": "fixed",
+        "CVE-2025-41727": "fixed",
+        "CVE-2025-41728": "fixed"
+      }
+    },
+    "sbom/cx_wec7_unknown_arch.cdx.json": {},
+    "sbom/c6030_ipc_diagnostics.cdx.json": {
+      "ipc-diagnostics": {
+        "CVE-2025-41726": "fixed",
+        "CVE-2025-41727": "fixed",
+        "CVE-2025-41728": "fixed"
+      }
+    }
+  }
+}

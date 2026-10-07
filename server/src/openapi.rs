@@ -1,6 +1,7 @@
 use crate::profile::api::{Config, ModuleConfig, configure, default_openapi_info};
 use actix_web::App;
 use std::time::Duration;
+use trustify_api::FrontendInfo;
 use trustify_common::db::{self, change::ChangeBroadcaster, pagination_cache::PaginationCache};
 use trustify_module_analysis::{config::AnalysisConfig, service::AnalysisService};
 use trustify_module_exploit_intelligence::service::ExploitIntelligenceService;
@@ -40,6 +41,7 @@ pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
                     ei_service,
                     graph: Graph::new(),
                     validators: Vec::new(),
+                    frontend: FrontendInfo { oidc: None },
                 },
             );
         })

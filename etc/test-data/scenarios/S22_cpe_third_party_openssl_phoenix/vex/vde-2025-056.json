@@ -1,0 +1,1315 @@
+{
+  "document": {
+    "acknowledgments": [
+      {
+        "organization": "CERT@VDE",
+        "summary": "coordination.",
+        "urls": [
+          "https://certvde.com"
+        ]
+      },
+      {
+        "organization": "CyberDanube",
+        "summary": "Reporting."
+      }
+    ],
+    "aggregate_severity": {
+      "namespace": "https://www.first.org/cvss/v3.1/specification-document#Qualitative-Severity-Rating-Scale",
+      "text": "Critical"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en-GB",
+    "notes": [
+      {
+        "category": "general",
+        "text": "Phoenix Contact recommends operating network-capable devices in closed networks or protected with a suitable firewall. For detailed information on our recommendations for measures to protect network-capable devices, please refer to our [Application note](https://dam-mdc.phoenixcontact.com/asset/156443151564/0a870ae433c19148b80bd760f3a1c1f2/107913_en_03.pdf).",
+        "title": "General Recommendation"
+      },
+      {
+        "category": "description",
+        "text": "The reported vulnerabilities allow an unauthenticated remote attacker to cause a denial-of-service condition, trigger unexpected behaviour through a buffer overflow, or execute unauthorized SQL queries against affected PLCnext devices. Successful exploitation could impact the availability, integrity, and confidentiality of the system.",
+        "title": "Impact"
+      },
+      {
+        "category": "description",
+        "text": "Phoenix Contact recommends updating affected devices to PLCnext firmware version 2026.0.3 or later, which addresses all vulnerabilities described in this advisory.",
+        "title": "Remediation"
+      },
+      {
+        "category": "summary",
+        "text": "This advisory addresses multiple security vulnerabilities in PLCnext firmware versions prior to 2026.0.3. The vulnerabilities may allow unauthenticated attackers to cause denial of service, trigger unexpected system behavior, or execute unauthorized SQL queries. Successful exploitation could impact the availability, integrity, and confidentiality of affected PLCnext Control devices. All issues are resolved in PLCnext firmware version 2026.0.3.",
+        "title": "Summary"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "psirt@phoenixcontact.com",
+      "name": "Phoenix Contact GmbH & Co. KG",
+      "namespace": "https://phoenixcontact.com/psirt"
+    },
+    "references": [
+      {
+        "category": "external",
+        "summary": "PCSA-2025-00009",
+        "url": "https://phoenixcontact.com/psirt"
+      },
+      {
+        "category": "external",
+        "summary": "Phoenix Contact advisory overview at CERT@VDE",
+        "url": "https://certvde.com/de/advisories/vendor/phoenixcontact"
+      },
+      {
+        "category": "self",
+        "summary": "vde-2025-056: Phoenix Contact: Improper Input Validation Vulnerabilities in PLCnext Firmware - HTML",
+        "url": "https://certvde.com/en/advisories/vde-2025-056"
+      },
+      {
+        "category": "self",
+        "summary": "vde-2025-056: Phoenix Contact: Improper Input Validation Vulnerabilities in PLCnext Firmware - CSAF",
+        "url": "https://phoenixcontact.csaf-tp.certvde.com/.well-known/csaf/white/2026/vde-2025-056.json"
+      }
+    ],
+    "source_lang": "en",
+    "title": "Phoenix Contact: Improper Input Validation Vulnerabilities in PLCnext Firmware",
+    "tracking": {
+      "aliases": [
+        "VDE-2025-056",
+        "PCSA-2025-00009"
+      ],
+      "current_release_date": "2026-08-12T10:00:00.000Z",
+      "generator": {
+        "date": "2026-07-29T09:23:43.680Z",
+        "engine": {
+          "name": "Secvisogram",
+          "version": "2.6.4"
+        }
+      },
+      "id": "vde-2025-056",
+      "initial_release_date": "2026-08-12T10:00:00.000Z",
+      "revision_history": [
+        {
+          "date": "2026-08-12T10:00:00.000Z",
+          "number": "1.0.0",
+          "summary": "Initial"
+        }
+      ],
+      "status": "final",
+      "version": "1.0.0"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Catan C1",
+                "product": {
+                  "name": "Catan C1",
+                  "product_id": "CSAFPID-11017",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:catan_c1:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1886438"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "EPC 1502",
+                "product": {
+                  "name": "EPC 1502",
+                  "product_id": "CSAFPID-11016",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:epc_1502:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1185416"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "EPC 1522",
+                "product": {
+                  "name": "EPC 1522",
+                  "product_id": "CSAFPID-11018",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:epc_1522:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1185423"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "AXC F 1152",
+                "product": {
+                  "name": "AXC F 1152",
+                  "product_id": "CSAFPID-11001",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:axc_f_1152:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1151412"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "AXC F 1252",
+                "product": {
+                  "name": "AXC F 1252",
+                  "product_id": "CSAFPID-11012",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:axc_f_1252:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1646469"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "AXC F 2000 EA",
+                "product": {
+                  "name": "AXC F 2000 EA",
+                  "product_id": "CSAFPID-11013",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:axc_f_2000_ea:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1551772"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "AXC F 2152",
+                "product": {
+                  "name": "AXC F 2152",
+                  "product_id": "CSAFPID-11002",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:axc_f_2152:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "2404267"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "AXC F 3152",
+                "product": {
+                  "name": "AXC F 3152",
+                  "product_id": "CSAFPID-11003",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:axc_f_3152:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1069208"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "BPC 9102S",
+                "product": {
+                  "name": "BPC 9102S",
+                  "product_id": "CSAFPID-11011",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:bpc_9102s:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1246285"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "BPC 9202S",
+                "product": {
+                  "name": "BPC 9202S",
+                  "product_id": "CSAFPID-11005",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:bpc_9202s:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1839159"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "RFC 4072R",
+                "product": {
+                  "name": "RFC 4072R",
+                  "product_id": "CSAFPID-11014",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:rfc_4072r:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1136419"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "RFC 4072S",
+                "product": {
+                  "name": "RFC 4072S",
+                  "product_id": "CSAFPID-11004",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:rfc_4072s:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1051328"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "VL3 UPC 2440 EDGE",
+                "product": {
+                  "name": "VL3 UPC 2440 EDGE",
+                  "product_id": "CSAFPID-11015",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:vl3_upc_2440_edge:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1760157"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "VPLCNEXT CONTROL 1000",
+                "product": {
+                  "name": "VPLCNEXT CONTROL 1000",
+                  "product_id": "CSAFPID-11031",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:vplcnext_control_1000:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1737875"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "VPLCNEXT CONTROL 2000",
+                "product": {
+                  "name": "VPLCNEXT CONTROL 2000",
+                  "product_id": "CSAFPID-11032",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:vplcnext_control_2000:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      " 1738453 "
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "VPLCNEXT CONTROL 3000",
+                "product": {
+                  "name": "VPLCNEXT CONTROL 3000",
+                  "product_id": "CSAFPID-11033",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:vplcnext_control_3000:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "  1738454"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "VPLCNEXT CONTROL 500",
+                "product": {
+                  "name": "VPLCNEXT CONTROL 500",
+                  "product_id": "CSAFPID-11030",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:h:phoenix_contact:vplcnext_control_500:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1751491"
+                    ]
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Hardware"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version_range",
+                "name": "vers:generic/>=2019.0.4|<2026.0.3",
+                "product": {
+                  "name": "<2026.0.3",
+                  "product_id": "CSAFPID-21001",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:o:phoenix_contact:plcnext_firmware:*:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1151412",
+                      "1646469",
+                      "1551772",
+                      "2404267",
+                      "1069208",
+                      "1246285",
+                      "1185423",
+                      "1136419",
+                      "1051328",
+                      "1760157",
+                      "1737875",
+                      "1738453",
+                      "1738454",
+                      "1751491"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "2026.0.3",
+                "product": {
+                  "name": "2026.0.3",
+                  "product_id": "CSAFPID-22001",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:o:phoenix_contact:charx_sec3xxx_firmware:2026.0.3:*:*:*:*:*:*:*",
+                    "model_numbers": [
+                      "1151412",
+                      "1646469",
+                      "1551772",
+                      "2404267",
+                      "1069208",
+                      "1246285",
+                      "1185423",
+                      "1136419",
+                      "1051328",
+                      "1760157",
+                      "1737875",
+                      "1738453",
+                      "1738454",
+                      "1751491"
+                    ]
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Firmware"
+          }
+        ],
+        "category": "vendor",
+        "name": "Phoenix Contact"
+      }
+    ],
+    "product_groups": [
+      {
+        "group_id": "CSAFGID-61001",
+        "product_ids": [
+          "CSAFPID-31001",
+          "CSAFPID-31002",
+          "CSAFPID-31003",
+          "CSAFPID-31004",
+          "CSAFPID-31005",
+          "CSAFPID-31006",
+          "CSAFPID-31007",
+          "CSAFPID-31008",
+          "CSAFPID-31009",
+          "CSAFPID-31010",
+          "CSAFPID-31011",
+          "CSAFPID-31012",
+          "CSAFPID-31013",
+          "CSAFPID-31014",
+          "CSAFPID-31015",
+          "CSAFPID-31016",
+          "CSAFPID-31018"
+        ],
+        "summary": "Affected Products."
+      },
+      {
+        "group_id": "CSAFGID-62002",
+        "product_ids": [
+          "CSAFPID-32001",
+          "CSAFPID-32002",
+          "CSAFPID-32003",
+          "CSAFPID-32004",
+          "CSAFPID-32005",
+          "CSAFPID-32006",
+          "CSAFPID-32007",
+          "CSAFPID-32008",
+          "CSAFPID-32009",
+          "CSAFPID-32010",
+          "CSAFPID-32011",
+          "CSAFPID-32012",
+          "CSAFPID-32013",
+          "CSAFPID-32014",
+          "CSAFPID-32015"
+        ],
+        "summary": "Fixed Products."
+      }
+    ],
+    "relationships": [
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on Catan C1",
+          "product_id": "CSAFPID-31015",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:catan_c1_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1886438"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11017"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on Catan C1",
+          "product_id": "CSAFPID-32015",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:catan_c1_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1886438"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11017"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on EPC 1502",
+          "product_id": "CSAFPID-31016",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:epc_1502_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1185416"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11016"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on EPC 1522",
+          "product_id": "CSAFPID-31018",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:epc_1522_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1185423"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11018"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on AXC F 1152",
+          "product_id": "CSAFPID-31001",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:axc_f_1152_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1151412"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11001"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on AXC F 1152",
+          "product_id": "CSAFPID-32001",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:axc_f_1152_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1151412"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11001"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on AXC F 1252",
+          "product_id": "CSAFPID-31002",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:axc_f_1252_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1646469"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11012"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on AXC F 1252",
+          "product_id": "CSAFPID-32002",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:axc_f_1252_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1646469"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11012"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on AXC F 2000 EA",
+          "product_id": "CSAFPID-31003",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:axc_f_2000_ea_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1551772"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11013"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on AXC F 2000 EA",
+          "product_id": "CSAFPID-32003",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:axc_f_2000_ea_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1551772"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11013"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on AXC F 2152",
+          "product_id": "CSAFPID-31004",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:axc_f_2152_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "2404267"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11002"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on AXC F 2152",
+          "product_id": "CSAFPID-32004",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:axc_f_2152_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "2404267"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11002"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on AXC F 3152",
+          "product_id": "CSAFPID-31005",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:axc_f_3152_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1069208"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11003"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on AXC F 3152",
+          "product_id": "CSAFPID-32005",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:axc_f_3152_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1069208"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11003"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on BPC 9102S",
+          "product_id": "CSAFPID-31006",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:bpc_9102s_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1246285"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11011"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on BPC 9102S",
+          "product_id": "CSAFPID-32006",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:bpc_9102s_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1246285"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11011"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on BPC 9202S",
+          "product_id": "CSAFPID-31007",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:bpc_9202s_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1246285"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11005"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on BPC 9202S",
+          "product_id": "CSAFPID-32007",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:bpc_9202s_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1246285"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11005"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on RFC 4072R",
+          "product_id": "CSAFPID-31008",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:rfc_4072r_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1136419"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11014"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on RFC 4072R",
+          "product_id": "CSAFPID-32008",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:rfc_4072r_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1136419"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11014"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on RFC 4072S",
+          "product_id": "CSAFPID-31009",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:rfc_4072s_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1051328"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11004"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on RFC 4072S",
+          "product_id": "CSAFPID-32009",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:rfc_4072s_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1051328"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11004"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on VL3 UPC 2440 EDGE",
+          "product_id": "CSAFPID-31010",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:vl3_upc_2440_edge_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1760157"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11015"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on VL3 UPC 2440 EDGE",
+          "product_id": "CSAFPID-32010",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:vl3_upc_2440_edge_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1760157"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11015"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on VPLCNEXT CONTROL 1000",
+          "product_id": "CSAFPID-31011",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:vplcnext_control_1000_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1737875"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11031"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on VPLCNEXT CONTROL 1000",
+          "product_id": "CSAFPID-32011",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:vplcnext_control_1000_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1737875"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11031"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on VPLCNEXT CONTROL 2000",
+          "product_id": "CSAFPID-31012",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:vplcnext_control_2000_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              " 1738453 "
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11032"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on VPLCNEXT CONTROL 2000",
+          "product_id": "CSAFPID-32012",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:vplcnext_control_2000_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              " 1738453 "
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11032"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on VPLCNEXT CONTROL 3000",
+          "product_id": "CSAFPID-31013",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:vplcnext_control_3000_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "  1738454"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11033"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on VPLCNEXT CONTROL 3000",
+          "product_id": "CSAFPID-32013",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:vplcnext_control_3000_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "  1738454"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11033"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware <2026.0.3 installed on VPLCNEXT CONTROL 500",
+          "product_id": "CSAFPID-31014",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:vplcnext_control_500_firmware:*:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1751491"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11030"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 2026.0.3 installed on VPLCNEXT CONTROL 500",
+          "product_id": "CSAFPID-32014",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:phoenix_contact:vplcnext_control_500_firmware:2026.0.3:*:*:*:*:*:*:*",
+            "model_numbers": [
+              "1751491"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11030"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "T. Weber"
+          ],
+          "organization": "CyberDanube",
+          "summary": "Reporting."
+        }
+      ],
+      "cve": "CVE-2025-41769",
+      "cwe": {
+        "id": "CWE-120",
+        "name": "Buffer Copy without Checking Size of Input ('Classic Buffer Overflow')"
+      },
+      "notes": [
+        {
+          "category": "description",
+          "text": "The device's PROFINET service is affected by a buffer overflow vulnerability that exists in the default configuration. An unauthenticated remote attacker could exploit this vulnerability to reboot the device or execute arbitrary code.",
+          "title": "CVE Description"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "CSAFPID-32001",
+          "CSAFPID-32002",
+          "CSAFPID-32004",
+          "CSAFPID-32005",
+          "CSAFPID-32006",
+          "CSAFPID-32007",
+          "CSAFPID-32008",
+          "CSAFPID-32009",
+          "CSAFPID-32010",
+          "CSAFPID-32011",
+          "CSAFPID-32012",
+          "CSAFPID-32013",
+          "CSAFPID-32014"
+        ],
+        "known_affected": [
+          "CSAFPID-31001",
+          "CSAFPID-31002",
+          "CSAFPID-31004",
+          "CSAFPID-31005",
+          "CSAFPID-31006",
+          "CSAFPID-31007",
+          "CSAFPID-31008",
+          "CSAFPID-31009",
+          "CSAFPID-31010",
+          "CSAFPID-31011",
+          "CSAFPID-31012",
+          "CSAFPID-31013",
+          "CSAFPID-31014",
+          "CSAFPID-31016",
+          "CSAFPID-31018"
+        ]
+      },
+      "references": [
+        {
+          "category": "external",
+          "summary": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N - 9.3 / Critical",
+          "url": "https://www.first.org/cvss/calculator/4.0#CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+        }
+      ],
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-06-03T10:00:00.000Z",
+          "details": "Update to PLCnext firmware version 2026.0.3 or later which fixes this vulnerability. Check regularly for firmware updates and apply them as soon as they are available for the specific device.",
+          "group_ids": [
+            "CSAFGID-61001"
+          ],
+          "restart_required": {
+            "category": "system"
+          }
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 9.8,
+            "baseSeverity": "CRITICAL",
+            "confidentialityImpact": "HIGH",
+            "environmentalScore": 9.8,
+            "environmentalSeverity": "CRITICAL",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "temporalScore": 9.8,
+            "temporalSeverity": "CRITICAL",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-31001",
+            "CSAFPID-31002",
+            "CSAFPID-31003",
+            "CSAFPID-31004",
+            "CSAFPID-31005",
+            "CSAFPID-31006",
+            "CSAFPID-31007",
+            "CSAFPID-31008",
+            "CSAFPID-31009",
+            "CSAFPID-31010",
+            "CSAFPID-31011",
+            "CSAFPID-31012",
+            "CSAFPID-31013",
+            "CSAFPID-31014",
+            "CSAFPID-31016",
+            "CSAFPID-31018"
+          ]
+        }
+      ],
+      "title": "Unauthenticated Buffer Overflow in PROFINET Service"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "F. Koroknai"
+          ],
+          "organization": "CyberDanube",
+          "summary": "Reporting."
+        }
+      ],
+      "cve": "CVE-2025-41770",
+      "cwe": {
+        "id": "CWE-770",
+        "name": "Allocation of Resources Without Limits or Throttling"
+      },
+      "notes": [
+        {
+          "category": "description",
+          "text": "An unauthenticated denial-of-service vulnerability in the device's PLCnext Engineer communication interface allows an remote attacker to interrupt access via the client application. Successful exploitation prevents communication until the PLCnext service is manually restarted.",
+          "title": "CVE Description"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "CSAFPID-32001",
+          "CSAFPID-32002",
+          "CSAFPID-32003",
+          "CSAFPID-32004",
+          "CSAFPID-32005",
+          "CSAFPID-32006",
+          "CSAFPID-32007",
+          "CSAFPID-32008",
+          "CSAFPID-32009",
+          "CSAFPID-32010",
+          "CSAFPID-32011",
+          "CSAFPID-32012",
+          "CSAFPID-32013",
+          "CSAFPID-32014",
+          "CSAFPID-32015"
+        ],
+        "known_affected": [
+          "CSAFPID-31001",
+          "CSAFPID-31002",
+          "CSAFPID-31003",
+          "CSAFPID-31004",
+          "CSAFPID-31005",
+          "CSAFPID-31006",
+          "CSAFPID-31007",
+          "CSAFPID-31008",
+          "CSAFPID-31009",
+          "CSAFPID-31010",
+          "CSAFPID-31011",
+          "CSAFPID-31012",
+          "CSAFPID-31013",
+          "CSAFPID-31014",
+          "CSAFPID-31015",
+          "CSAFPID-31016",
+          "CSAFPID-31018"
+        ]
+      },
+      "references": [
+        {
+          "category": "external",
+          "summary": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N - 8.7 / High",
+          "url": "https://www.first.org/cvss/calculator/4.0#CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N"
+        }
+      ],
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-06-03T10:00:00.000Z",
+          "details": "Update to PLCnext firmware version 2026.0.3 or later which fixes this vulnerability. Check regularly for firmware updates and apply them as soon as they are available for the specific device.",
+          "group_ids": [
+            "CSAFGID-61001"
+          ],
+          "restart_required": {
+            "category": "system"
+          }
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 7.5,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "NONE",
+            "environmentalScore": 7.5,
+            "environmentalSeverity": "HIGH",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "temporalScore": 7.5,
+            "temporalSeverity": "HIGH",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-31001",
+            "CSAFPID-31002",
+            "CSAFPID-31003",
+            "CSAFPID-31004",
+            "CSAFPID-31005",
+            "CSAFPID-31006",
+            "CSAFPID-31007",
+            "CSAFPID-31008",
+            "CSAFPID-31009",
+            "CSAFPID-31010",
+            "CSAFPID-31011",
+            "CSAFPID-31012",
+            "CSAFPID-31013",
+            "CSAFPID-31014",
+            "CSAFPID-31015",
+            "CSAFPID-31016",
+            "CSAFPID-31018"
+          ]
+        }
+      ],
+      "title": "Unauthenticated Denial of Service"
+    },
+    {
+      "acknowledgments": [
+        {
+          "names": [
+            "S. Dietz"
+          ],
+          "organization": "CyberDanube",
+          "summary": "Reporting."
+        }
+      ],
+      "cve": "CVE-2025-41771",
+      "cwe": {
+        "id": "CWE-89",
+        "name": "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+      },
+      "notes": [
+        {
+          "category": "description",
+          "text": "An authenticated attacker with low privileges can access an endpoint in the controller’s web interface that is vulnerable to SQL injection. The vulnerability affects a SQLite database used only for storing notification messages. Therefore, the impact is limited to the system’s notification functionality.",
+          "title": "CVE Description"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "CSAFPID-32001",
+          "CSAFPID-32002",
+          "CSAFPID-32003",
+          "CSAFPID-32004",
+          "CSAFPID-32005",
+          "CSAFPID-32006",
+          "CSAFPID-32007",
+          "CSAFPID-32008",
+          "CSAFPID-32009",
+          "CSAFPID-32010",
+          "CSAFPID-32011",
+          "CSAFPID-32012",
+          "CSAFPID-32013",
+          "CSAFPID-32014",
+          "CSAFPID-32015"
+        ],
+        "known_affected": [
+          "CSAFPID-31001",
+          "CSAFPID-31002",
+          "CSAFPID-31003",
+          "CSAFPID-31004",
+          "CSAFPID-31005",
+          "CSAFPID-31006",
+          "CSAFPID-31007",
+          "CSAFPID-31008",
+          "CSAFPID-31009",
+          "CSAFPID-31010",
+          "CSAFPID-31011",
+          "CSAFPID-31012",
+          "CSAFPID-31013",
+          "CSAFPID-31014",
+          "CSAFPID-31015",
+          "CSAFPID-31016",
+          "CSAFPID-31018"
+        ]
+      },
+      "references": [
+        {
+          "category": "external",
+          "summary": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N - 5.3 / Medium",
+          "url": "https://www.first.org/cvss/calculator/4.0#CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N"
+        }
+      ],
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "date": "2026-06-03T10:00:00.000Z",
+          "details": "Update to PLCnext firmware version 2026.0.3 or later which fixes this vulnerability. Check regularly for firmware updates and apply them as soon as they are available for the specific device.",
+          "group_ids": [
+            "CSAFGID-61001"
+          ],
+          "restart_required": {
+            "category": "system"
+          }
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "NONE",
+            "baseScore": 4.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "environmentalScore": 4.3,
+            "environmentalSeverity": "MEDIUM",
+            "integrityImpact": "LOW",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "temporalScore": 4.3,
+            "temporalSeverity": "MEDIUM",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:L/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-31001",
+            "CSAFPID-31002",
+            "CSAFPID-31003",
+            "CSAFPID-31004",
+            "CSAFPID-31005",
+            "CSAFPID-31006",
+            "CSAFPID-31007",
+            "CSAFPID-31008",
+            "CSAFPID-31009",
+            "CSAFPID-31010",
+            "CSAFPID-31011",
+            "CSAFPID-31012",
+            "CSAFPID-31013",
+            "CSAFPID-31014",
+            "CSAFPID-31015",
+            "CSAFPID-31016",
+            "CSAFPID-31018"
+          ]
+        }
+      ],
+      "title": "SQL injection"
+    }
+  ]
+}

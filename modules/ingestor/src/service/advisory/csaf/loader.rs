@@ -46,6 +46,7 @@ fn advisory_information(
         published: on_invalid.validate(value::date(&tracking.initial_release_date), report)?,
         modified: on_invalid.validate(value::date(&tracking.current_release_date), report)?,
         withdrawn: None,
+        publisher_namespace: Some(csaf.document.publisher.namespace.to_string()),
     })
 }
 
@@ -239,6 +240,12 @@ impl<'g> CsafLoader<'g> {
         creator.add_all(
             &product_status.known_affected,
             "affected",
+            self.on_invalid,
+            report,
+        )?;
+        creator.add_all(
+            &product_status.recommended,
+            "recommended",
             self.on_invalid,
             report,
         )?;
@@ -575,13 +582,59 @@ mod test {
             .all(&ctx.db)
             .await?;
 
-        // There are 9 purls in rhsa-2024_3666 and 2 vulnerabilities, but 2 purls share a base
-        // resulting in 8 x 2 = 16
+        // There are 9 purls in rhsa-2024_3666, but 2 purls share a base, resulting in 8 fixed
+        // purl statuses. The implied "affected" ranges are no longer stored, but derived by
+        // correlation.
         assert_eq!(
-            16,
+            8,
             purl_status_links.len(),
-            "Expected vendor_fix remediation to be linked to 16 purl statuses"
+            "Expected vendor_fix remediation to be linked to 8 purl statuses"
         );
+
+        Ok(())
+    }
+
+    /// Only what the document states is stored: Red Hat's fixed versions don't imply additional
+    /// "affected" ranges (those are derived by correlation).
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn redhat_stores_stated_statuses_only(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use sea_orm::{
+            ColumnTrait, EntityTrait, JoinType, QueryFilter, QuerySelect, RelationTrait,
+        };
+        use trustify_entity::{purl_status, status};
+
+        let graph = Graph::new();
+        let loader = CsafLoader::new(&graph);
+
+        let (csaf, digests): (Csaf, _) = document("csaf/rhsa-2024_3666.json").await?;
+        loader
+            .load(("source", "test"), csaf, &digests, &ctx.db)
+            .await?;
+
+        let advisory = graph
+            .get_advisory_by_digest(&digests.sha256.encode_hex::<String>(), &ctx.db)
+            .await?
+            .expect("advisory must exist")
+            .advisory;
+        assert_eq!(
+            advisory.publisher_namespace.as_deref(),
+            Some("https://www.redhat.com")
+        );
+
+        let mut slugs: Vec<String> = purl_status::Entity::find()
+            .select_only()
+            .column(status::Column::Slug)
+            .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
+            .filter(purl_status::Column::AdvisoryId.eq(advisory.id))
+            .distinct()
+            .into_tuple()
+            .all(&ctx.db)
+            .await?;
+        slugs.sort();
+        assert_eq!(slugs, vec!["fixed".to_string()]);
 
         Ok(())
     }
@@ -618,7 +671,8 @@ mod test {
     ///
     /// * `pkg:cargo/ns/name@1.0` is not a valid purl, because `cargo` prohibits a namespace.
     ///   This is the case that previously got recorded silently as a *package name*.
-    /// * `cpe:/a:vendor:product:1:2:3:4` is not a valid CPE, because `4` is not a language tag.
+    /// * `cpe:/a:vendor:product%zz` is not a valid CPE, because `%zz` is not a percent escape. (An
+    ///   invalid language tag is no longer rejected, but dropped, see `trustify_common::cpe`.)
     /// * dates and the publisher namespace are plain strings in CSAF, so anything reaches us.
     #[test_context(TrustifyContext)]
     #[rstest]
@@ -631,7 +685,7 @@ mod test {
     #[case::cpe(
         "csaf/cve-2023-0044.json",
         "/product_tree/branches/0/branches/0/product/product_identification_helper/cpe",
-        "cpe:/a:vendor:product:1:2:3:4",
+        "cpe:/a:vendor:product%zz",
         "invalid cpe"
     )]
     #[case::date(

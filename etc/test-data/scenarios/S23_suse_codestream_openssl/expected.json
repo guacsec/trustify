@@ -1,0 +1,97 @@
+{
+  "advisories": [
+    "vex/cve-2024-6119.json.xz",
+    "vex/cve-2024-9143.json.xz",
+    "vex/cve-2025-9230.json.xz"
+  ],
+  "sboms": {
+    "sbom/bci-base_15.6.47.11.1.cdx.json": {
+      "pkg:libopenssl-3-fips-provider-cfaacc362f4a214cbf95e206d26685d9": {
+        "CVE-2024-6119": "affected",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "affected"
+      },
+      "pkg:libopenssl3-426db71183a22234f82854c990f2eacf": {
+        "CVE-2024-6119": "affected",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "affected"
+      },
+      "pkg:openssl-0907d1fb499114c5df61bf90f42de3cc": {
+        "CVE-2024-6119": "not_affected",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "not_affected"
+      },
+      "pkg:openssl-3-74fdf8be9af579e40f0343324a1a4d33": {
+        "CVE-2024-6119": "affected",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "affected"
+      }
+    },
+    "sbom/bci-base_15.6.47.11.1.spdx.json.xz": {
+      "SPDXRef-Package-libopenssl-3-fips-provider-cfaacc362f4a214cbf95e206d26685d9": {
+        "CVE-2024-6119": "affected",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "affected"
+      },
+      "SPDXRef-Package-libopenssl3-426db71183a22234f82854c990f2eacf": {
+        "CVE-2024-6119": "affected",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "affected"
+      },
+      "SPDXRef-Package-openssl-0907d1fb499114c5df61bf90f42de3cc": {
+        "CVE-2024-6119": "not_affected",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "not_affected"
+      },
+      "SPDXRef-Package-openssl-3-74fdf8be9af579e40f0343324a1a4d33": {
+        "CVE-2024-6119": "affected",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "affected"
+      }
+    },
+    "sbom/bci-base_15.6.47.26.19.cdx.json": {
+      "pkg:rpm/libopenssl-3-fips-provider-6968892f34af1cade0d1e3335998bacb": {
+        "CVE-2024-6119": "fixed",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "fixed"
+      },
+      "pkg:rpm/libopenssl3-9e046a27101d2904cfe553dc6054e2dc": {
+        "CVE-2024-6119": "fixed",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "fixed"
+      },
+      "pkg:rpm/openssl-0907d1fb499114c5df61bf90f42de3cc": {
+        "CVE-2024-6119": "not_affected",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "not_affected"
+      },
+      "pkg:rpm/openssl-3-d4d5f859ac5fb640bc297892e9d9120a": {
+        "CVE-2024-6119": "fixed",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "fixed"
+      }
+    },
+    "sbom/bci-base_15.6.47.26.19.spdx.json.xz": {
+      "SPDXRef-Package-rpm-libopenssl-3-fips-provider-6968892f34af1cade0d1e3335998bacb": {
+        "CVE-2024-6119": "fixed",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "fixed"
+      },
+      "SPDXRef-Package-rpm-libopenssl3-9e046a27101d2904cfe553dc6054e2dc": {
+        "CVE-2024-6119": "fixed",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "fixed"
+      },
+      "SPDXRef-Package-rpm-openssl-0907d1fb499114c5df61bf90f42de3cc": {
+        "CVE-2024-6119": "not_affected",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "not_affected"
+      },
+      "SPDXRef-Package-rpm-openssl-3-d4d5f859ac5fb640bc297892e9d9120a": {
+        "CVE-2024-6119": "fixed",
+        "CVE-2024-9143": "not_affected",
+        "CVE-2025-9230": "fixed"
+      }
+    }
+  }
+}

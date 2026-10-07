@@ -21,11 +21,14 @@ paths:
                 - version
                 - readOnly
                 - exploitIntelligence
+                - frontend
                 properties:
                   build:
                     type: object
                   exploitIntelligence:
                     type: boolean
+                  frontend:
+                    $ref: '#/components/schemas/FrontendInfo'
                   readOnly:
                     type: boolean
                   version:
@@ -376,6 +379,63 @@ paths:
               schema:
                 type: array
                 items: {}
+  /api/v3/advisory/from-url:
+    post:
+      tags:
+      - advisory
+      summary: Download a document from a URL and ingest it as an advisory.
+      operationId: ingestAdvisoryFromUrl
+      parameters:
+      - name: issuer
+        in: query
+        description: Optional issuer if it cannot be determined from advisory contents.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: labels
+        in: query
+        description: |-
+          Optional labels.
+
+          Only use keys with a prefix of `labels.`
+        required: true
+        schema:
+          $ref: '#/components/schemas/Labels'
+      - name: format
+        in: query
+        description: The format of the uploaded document.
+        required: false
+        schema:
+          type: string
+          enum:
+          - osv
+          - csaf
+          - cve
+          - nvd
+          - spdx
+          - cyclonedx
+          - clearlydefinedcuration
+          - clearlydefined
+          - cwecatalog
+          - cisakev
+          - advisory
+          - sbom
+          - unknown
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestFromUrlRequest'
+        required: true
+      responses:
+        '201':
+          description: Document fetched and ingested
+        '400':
+          description: The document could not be parsed as an advisory
+        '502':
+          description: Failed to download the document from the given URL
   /api/v3/advisory/{id}/label:
     put:
       tags:
@@ -1012,6 +1072,86 @@ paths:
           description: The user did not provide valid authentication credentials
         '403':
           description: The user lacks the required permission
+  /api/v3/correlation/query:
+    get:
+      tags:
+      - correlation
+      summary: Query for advisory/vulnerability matches by identifier.
+      description: |-
+        Matches the value only as the given identifier kind against advisories
+        that reference it.
+      operationId: queryCorrelation
+      parameters:
+      - name: kind
+        in: query
+        description: The kind of the identifier.
+        required: true
+        schema:
+          $ref: '#/components/schemas/IdentifierKind'
+      - name: q
+        in: query
+        description: The identifier value to search for. Digests use the format `[<algorithm>:]<value>`.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Matching advisories and vulnerabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResult'
+  /api/v3/correlation/sbom/{id}:
+    get:
+      tags:
+      - correlation
+      summary: Get correlation verdicts for an SBOM.
+      operationId: getSbomCorrelation
+      parameters:
+      - name: id
+        in: path
+        description: SBOM ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: include_unmatched
+        in: query
+        description: When true, include components that have no correlation evidence.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Correlation verdicts for the SBOM
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrelationResult'
+  /api/v3/correlation/verdict-counts:
+    post:
+      tags:
+      - correlation
+      summary: Count the verdicts of several SBOMs by status, e.g. for a list of SBOMs.
+      description: Returns one entry per requested SBOM, in the requested order.
+      operationId: countVerdicts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerdictCountsRequest'
+        required: true
+      responses:
+        '200':
+          description: Verdict counts per SBOM
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SbomVerdictCounts'
+        '400':
+          description: Too many SBOMs requested
   /api/v3/crypto/algorithm:
     get:
       tags:
@@ -4363,6 +4503,123 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorInformation'
+  /api/v3/upload:
+    post:
+      tags:
+      - upload
+      summary: Upload a document with auto-detected format and permission checking.
+      operationId: uploadDocument
+      parameters:
+      - name: issuer
+        in: query
+        description: Optional issuer if it cannot be determined from document contents.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: labels
+        in: query
+        description: |-
+          Optional labels.
+
+          Only use keys with a prefix of `labels.`
+        required: true
+        schema:
+          $ref: '#/components/schemas/Labels'
+      - name: format
+        in: query
+        description: Optional format hint. Defaults to auto-detection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - osv
+          - csaf
+          - cve
+          - nvd
+          - spdx
+          - cyclonedx
+          - clearlydefinedcuration
+          - clearlydefined
+          - cwecatalog
+          - cisakev
+          - advisory
+          - sbom
+          - unknown
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        '201':
+          description: Document ingested successfully
+        '400':
+          description: The file could not be parsed
+        '403':
+          description: Insufficient permissions for this document type
+  /api/v3/upload/from-url:
+    post:
+      tags:
+      - upload
+      summary: Download a document from a URL and ingest it with auto-detected format.
+      operationId: uploadDocumentFromUrl
+      parameters:
+      - name: issuer
+        in: query
+        description: Optional issuer if it cannot be determined from document contents.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: labels
+        in: query
+        description: |-
+          Optional labels.
+
+          Only use keys with a prefix of `labels.`
+        required: true
+        schema:
+          $ref: '#/components/schemas/Labels'
+      - name: format
+        in: query
+        description: Optional format hint. Defaults to auto-detection.
+        required: false
+        schema:
+          type: string
+          enum:
+          - osv
+          - csaf
+          - cve
+          - nvd
+          - spdx
+          - cyclonedx
+          - clearlydefinedcuration
+          - clearlydefined
+          - cwecatalog
+          - cisakev
+          - advisory
+          - sbom
+          - unknown
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestFromUrlRequest'
+        required: true
+      responses:
+        '201':
+          description: Document fetched and ingested
+        '400':
+          description: The document could not be parsed
+        '403':
+          description: Insufficient permissions for this document type
+        '502':
+          description: Failed to download the document from the given URL
   /api/v3/userPreference/{key}:
     get:
       tags:
@@ -5029,6 +5286,15 @@ components:
         status:
           $ref: '#/components/schemas/ExploitIntelligenceJobStatus'
           description: Current lifecycle status of the job.
+    AssertionStatus:
+      type: string
+      description: Status assertion from an advisory.
+      enum:
+      - affected
+      - fixed
+      - not_affected
+      - under_investigation
+      - recommended
     AuthConfig:
       type: object
       description: |-
@@ -5306,6 +5572,22 @@ components:
         period:
           type: string
           description: The period the importer should be run.
+    ComponentRef:
+      type: object
+      description: A component and the identifiers attached to it.
+      required:
+      - node_id
+      - name
+      - identifiers
+      properties:
+        identifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/IdentifierRef'
+        name:
+          type: string
+        node_id:
+          type: string
     ComponentResult:
       type: object
       description: Per-component analysis result within an analysis job.
@@ -5354,6 +5636,30 @@ components:
         updated:
           type: string
           description: Timestamp when the component record was last updated.
+    CorrelationResult:
+      type: object
+      description: Top-level correlation result for an SBOM.
+      required:
+      - sbom_id
+      - verdicts
+      properties:
+        sbom_id:
+          type: string
+          format: uuid
+        unmatched_components:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/ComponentRef'
+          description: |-
+            Components in the SBOM that have no correlation evidence.
+
+            `None` when not requested, `Some(vec)` when `include_unmatched=true`.
+        verdicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/VerdictSummary'
     Cpe:
       type: string
       format: uri
@@ -5558,6 +5864,40 @@ components:
         message:
           type: string
           description: A human-readable error message
+    EvidenceDetail:
+      type: object
+      description: One piece of evidence from the correlation engine.
+      required:
+      - id
+      - assertion_status
+      - confidence
+      - extractor
+      - advisory_id
+      - advisory_identifier
+      - created_at
+      properties:
+        advisory_id:
+          type: string
+          format: uuid
+        advisory_identifier:
+          type: string
+        assertion_status:
+          $ref: '#/components/schemas/AssertionStatus'
+        confidence:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+        extractor:
+          type: string
+        id:
+          type: string
+          format: uuid
+        matched_value:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/MatchedValue'
     Exploit:
       type: object
       description: |-
@@ -5886,6 +6226,28 @@ components:
       - advisory
       - sbom
       - unknown
+    FrontendInfo:
+      type: object
+      description: Frontend configuration exposed via `/.well-known/trustify`.
+      properties:
+        oidc:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/FrontendOidcInfo'
+    FrontendOidcInfo:
+      type: object
+      description: OIDC configuration for frontend clients.
+      required:
+      - issuerUrl
+      - clientId
+      - scope
+      properties:
+        clientId:
+          type: string
+        issuerUrl:
+          type: string
+        scope:
+          type: string
     Group:
       type: object
       required:
@@ -6008,6 +6370,30 @@ components:
       examples:
       - urn:uuid:018123ef-a791-40d8-b62a-f70a350245d4
       - sha256:dc60aeb735c16a71b6fc56e84ddb8193e3a6d1ef0b7e958d77e78fc039a5d04e
+    IdentifierKind:
+      type: string
+      description: The kind of an identifier used for correlation.
+      enum:
+      - digest
+      - purl
+      - cpe
+      - model_number
+      - serial_number
+      - sku
+    IdentifierRef:
+      type: object
+      description: |-
+        An identifier of a specific kind.
+
+        Digests use the format `<algorithm>:<value>`.
+      required:
+      - kind
+      - value
+      properties:
+        kind:
+          $ref: '#/components/schemas/IdentifierKind'
+        value:
+          type: string
     Importer:
       allOf:
       - $ref: '#/components/schemas/ImporterData'
@@ -6150,6 +6536,15 @@ components:
           - type: 'null'
           - $ref: '#/components/schemas/Report'
             description: Detailed report information
+    IngestFromUrlRequest:
+      type: object
+      description: Request body for ingesting a document from a remote URL.
+      required:
+      - url
+      properties:
+        url:
+          type: string
+          description: The URL of the document to download and ingest.
     IngestResult:
       type: object
       description: The result of the ingestion process
@@ -6261,6 +6656,42 @@ components:
       properties:
         license:
           type: string
+    MatchedRange:
+      type: object
+      description: A version range of an advisory assertion. A missing bound is unbounded.
+      required:
+      - scheme
+      properties:
+        high:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/RangeBound'
+        low:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/RangeBound'
+        scheme:
+          type: string
+          description: The version scheme, e.g. `rpm` or `semver`.
+    MatchedValue:
+      type: object
+      description: 'The advisory side of a match: what an SBOM identifier was matched against.'
+      required:
+      - identifier
+      properties:
+        identifier:
+          type: string
+          description: |-
+            The advisory identifier which matched, e.g. a PURL without a version, a CPE pattern, or a
+            digest.
+        ranges:
+          type: array
+          items:
+            $ref: '#/components/schemas/MatchedRange'
+          description: |-
+            The version ranges of the assertion which contain the SBOM version.
+
+            Empty when no version range was involved in the match.
     Message:
       type: object
       required:
@@ -7619,6 +8050,80 @@ components:
           unencrypted:
             type: boolean
             description: Whether the scheme used is 'http' [true] or 'https' [false]
+    QueryMatch:
+      type: object
+      description: A single match from the query (evidence within a verdict group).
+      required:
+      - kind
+      - value
+      - advisory_id
+      - advisory_identifier
+      - status
+      - extractor
+      - confidence
+      properties:
+        advisory_id:
+          type: string
+          format: uuid
+        advisory_identifier:
+          type: string
+        confidence:
+          type: number
+          format: double
+        extractor:
+          type: string
+          description: The type of evidence, i.e. how the match was established (e.g. `purl` or `purl_stream`).
+        kind:
+          $ref: '#/components/schemas/IdentifierKind'
+        status:
+          $ref: '#/components/schemas/AssertionStatus'
+        value:
+          $ref: '#/components/schemas/MatchedValue'
+    QueryResult:
+      type: object
+      description: Result of a manual identifier query, grouped by vulnerability with resolved verdicts.
+      required:
+      - query
+      - verdicts
+      properties:
+        query:
+          $ref: '#/components/schemas/IdentifierRef'
+          description: The identifier which was queried.
+        verdicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryVerdict'
+    QueryVerdict:
+      type: object
+      description: Resolved verdict for a single vulnerability from an ad-hoc identifier query.
+      required:
+      - vulnerability_id
+      - status
+      - matches
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryMatch'
+        status:
+          $ref: '#/components/schemas/VerdictStatus'
+        vulnerability_id:
+          type: string
+        vulnerability_title:
+          type:
+          - string
+          - 'null'
+    RangeBound:
+      type: object
+      description: One bound of a [`MatchedRange`].
+      required:
+      - version
+      - inclusive
+      properties:
+        inclusive:
+          type: boolean
+        version:
+          type: string
     RecommendEntry:
       type: object
       required:
@@ -8147,6 +8652,40 @@ components:
             type: array
             items:
               $ref: '#/components/schemas/SbomPackage'
+    SbomVerdictCounts:
+      type: object
+      description: The number of verdicts, per (component, vulnerability), of an SBOM by status.
+      required:
+      - sbom_id
+      - affected
+      - fixed
+      - not_affected
+      - under_investigation
+      - none
+      properties:
+        affected:
+          type: integer
+          format: int64
+          minimum: 0
+        fixed:
+          type: integer
+          format: int64
+          minimum: 0
+        none:
+          type: integer
+          format: int64
+          minimum: 0
+        not_affected:
+          type: integer
+          format: int64
+          minimum: 0
+        sbom_id:
+          type: string
+          format: uuid
+        under_investigation:
+          type: integer
+          format: int64
+          minimum: 0
     Score:
       type: object
       description: 'A parsed CVSS score: the scoring system version, numeric value, and derived severity.'
@@ -8319,6 +8858,46 @@ components:
       - warning
       - error
       - fatal
+    VerdictCountsRequest:
+      type: object
+      description: Request for the verdict counts of several SBOMs.
+      required:
+      - sbom_ids
+      properties:
+        sbom_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: The SBOMs to summarize.
+    VerdictStatus:
+      type: string
+      description: Resolved verdict status.
+      enum:
+      - affected
+      - fixed
+      - not_affected
+      - under_investigation
+      - none
+    VerdictSummary:
+      type: object
+      description: Resolved determination per (component, vulnerability) pair.
+      required:
+      - component
+      - vulnerability
+      - status
+      - evidence
+      properties:
+        component:
+          $ref: '#/components/schemas/ComponentRef'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceDetail'
+        status:
+          $ref: '#/components/schemas/VerdictStatus'
+        vulnerability:
+          $ref: '#/components/schemas/VulnerabilityRef'
     VersionRange:
       oneOf:
       - type: object
@@ -8603,6 +9182,25 @@ components:
           - 'null'
           format: date-time
           description: The date (in RFC3339 format) of when the vulnerability was last withdrawn, if any.
+    VulnerabilityRef:
+      type: object
+      description: Reference to an advisory's vulnerability assertion.
+      required:
+      - id
+      - advisory_id
+      - advisory_identifier
+      properties:
+        advisory_id:
+          type: string
+          format: uuid
+        advisory_identifier:
+          type: string
+        id:
+          type: string
+        title:
+          type:
+          - string
+          - 'null'
     VulnerabilitySbomStatus:
       allOf:
       - $ref: '#/components/schemas/SbomHead'

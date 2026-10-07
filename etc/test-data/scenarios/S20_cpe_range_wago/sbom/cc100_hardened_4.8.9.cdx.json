@@ -1,0 +1,32 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:00000000-0000-4000-8000-000000002003",
+  "metadata": {
+    "timestamp": "2026-10-01T12:00:00Z",
+    "component": {
+      "type": "device",
+      "name": "WAGO CC100 0751-9401",
+      "version": "1",
+      "bom-ref": "device"
+    }
+  },
+  "components": [
+    {
+      "type": "operating-system",
+      "name": "WAGO OS Linux (hardened)",
+      "version": "4.8.9",
+      "bom-ref": "firmware",
+      "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.8.9:*:*:*:*:*:*:*"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "device",
+      "dependsOn": [
+        "firmware"
+      ]
+    }
+  ]
+}

@@ -3,7 +3,6 @@ use garage_door::{
     issuer::{Client, Issuer, RedirectUrl},
     server::Server,
 };
-use rand::{RngExt, distr::Alphanumeric};
 use tokio::{sync::oneshot, task::JoinHandle};
 use trustify_auth::devmode::{
     CONFIDENTIAL_CLIENT_IDS, ISSUER_URL, PUBLIC_CLIENT_IDS, SSO_CLIENT_SECRET,
@@ -20,14 +19,7 @@ fn create(enabled: bool) -> anyhow::Result<Option<Server>> {
         return Ok(None);
     }
 
-    let mut issuer = Issuer::new(
-        rand::rng()
-            .sample_iter(&Alphanumeric)
-            .take(64)
-            .map(char::from)
-            .collect::<String>(),
-        [SCOPE],
-    )?;
+    let mut issuer = Issuer::new([SCOPE])?;
 
     for id in PUBLIC_CLIENT_IDS {
         issuer = issuer.add_client(Client::Public {

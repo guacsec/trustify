@@ -6,6 +6,7 @@ use csaf::schema::csaf2_0::schema::{
 use packageurl::PackageUrl;
 use sbom_walker::report::ReportSink;
 use std::collections::HashMap;
+use trustify_common::cpe::Cpe;
 
 /// Extract and parse the purl of a branch, if it has one.
 pub fn branch_purl(
@@ -26,12 +27,11 @@ pub fn branch_purl(
 }
 
 /// Extract and parse the CPE of a branch, if it has one.
-#[allow(dead_code)]
 pub fn branch_cpe(
     branch: &Branch,
     on_invalid: OnInvalidData,
     report: &dyn ReportSink,
-) -> Result<Option<cpe::uri::OwnedUri>, Error> {
+) -> Result<Option<Cpe>, Error> {
     let Some(cpe) = branch
         .product
         .as_ref()

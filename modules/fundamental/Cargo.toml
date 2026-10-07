@@ -10,6 +10,7 @@ rust-version.workspace = true
 long_running = [] # enable long-running tests
 
 [dependencies]
+trustify-api = { workspace = true, features = ["openapi"] }
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true}
 trustify-entity = { workspace = true }
@@ -50,6 +51,7 @@ utoipa-actix-web = { workspace = true }
 uuid = { workspace = true }
 semver = { workspace = true }
 regex = { workspace = true }
+reqwest = { workspace = true }
 lenient_semver = { workspace = true }
 
 [dev-dependencies]

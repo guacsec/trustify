@@ -1,0 +1,28 @@
+{
+  "advisories": [
+    "vex/vde-2025-081.json"
+  ],
+  "sboms": {
+    "sbom/pfc200_fw_4.8.9.cdx.json": {
+      "firmware": {
+        "CVE-2025-41700": "affected",
+        "CVE-2025-41738": "affected",
+        "CVE-2025-41739": "affected"
+      }
+    },
+    "sbom/pfc200_fw_4.10.0.cdx.json": {
+      "firmware": {
+        "CVE-2025-41700": "fixed",
+        "CVE-2025-41738": "fixed",
+        "CVE-2025-41739": "fixed"
+      }
+    },
+    "sbom/cc100_hardened_4.8.9.cdx.json": {
+      "firmware": {
+        "CVE-2025-41700": "affected",
+        "CVE-2025-41738": "affected",
+        "CVE-2025-41739": "affected"
+      }
+    }
+  }
+}
