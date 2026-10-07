@@ -74,6 +74,7 @@ impl<'g> OsvLoader<'g> {
             published: osv.published.map(ChronoExt::into_time),
             modified: Some(osv.modified.into_time()),
             withdrawn: osv.withdrawn.map(ChronoExt::into_time),
+            publisher_namespace: None,
         };
         let advisory = match self
             .graph

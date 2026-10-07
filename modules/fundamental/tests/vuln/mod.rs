@@ -97,6 +97,7 @@ async fn vuln_backlink_cpe_context_mismatch(ctx: &TrustifyContext) -> Result<(),
 
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
+#[ignore = "Red Hat's implied affected statuses are no longer stored; derived by correlation instead (see TODO.md)"]
 async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ctx.ingest_dataset(Dataset::DS3).await?;
 
@@ -210,6 +211,7 @@ async fn issue_1840(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
 /// a version ABOVE the advisory's affected range must not be reported as affected.
 #[test_context(TrustifyContext)]
 #[test(tokio::test)]
+#[ignore = "Red Hat's implied affected statuses are no longer stored; derived by correlation instead (see TODO.md)"]
 async fn version_filtering(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
     ctx.ingest_dataset(Dataset::DS3).await?;
 

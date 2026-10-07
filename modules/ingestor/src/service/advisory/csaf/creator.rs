@@ -6,7 +6,7 @@ use crate::{
             product_status::{ProductStatus as GraphProductStatus, ProductVersionRange},
             purl_status::PurlStatus,
             vers::parse_vers,
-            version::{Version, VersionInfo, VersionSpec},
+            version::{VersionInfo, VersionSpec},
         },
         cpe::CpeCreator,
         organization::creator::OrganizationCreator,
@@ -27,7 +27,6 @@ use csaf::schema::csaf2_0::schema::{
 use sbom_walker::report::ReportSink;
 use sea_orm::{ActiveEnum, ActiveValue::Set, ConnectionTrait, EntityTrait};
 use std::collections::{HashMap, HashSet};
-use std::str::FromStr;
 use tracing::instrument;
 use trustify_common::{
     cpe::{Component, Cpe},
@@ -42,12 +41,9 @@ use trustify_entity::{
     correlation_evidence::AssertionStatus,
     organization, product, product_status, product_version_range, purl_status,
     remediation::{self, RemediationCategory},
-    remediation_product_status, remediation_purl_status,
-    status::Status,
-    version_range,
+    remediation_product_status, remediation_purl_status, version_range,
     version_scheme::VersionScheme,
 };
-use url::Url;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Default)]
@@ -64,21 +60,11 @@ const ADVISORY_CPE_NAMESPACE: Uuid = Uuid::from_bytes([
 /// A CPE (pattern) an advisory makes an assertion about, optionally constrained by a version range.
 type CpeEntry = (Cpe, Option<VersionInfo>, AssertionStatus);
 
-/// Check if the CSAF document is published by Red Hat.
-fn is_redhat(csaf: &Csaf) -> bool {
-    Url::parse(&csaf.document.publisher.namespace)
-        .ok()
-        .as_ref()
-        .and_then(Url::host_str)
-        == Some("www.redhat.com")
-}
-
 #[derive(Debug)]
 pub struct StatusCreator<'a> {
     cache: ResolveProductIdCache<'a>,
     advisory_id: Uuid,
     vulnerability_id: String,
-    is_redhat: bool,
     entries: HashSet<PurlStatus>,
     products: HashSet<ProductStatus>,
     product_id_to_product: HashMap<String, ProductStatus>,
@@ -95,7 +81,6 @@ impl<'a> StatusCreator<'a> {
             cache,
             advisory_id,
             vulnerability_id: vulnerability_identifier,
-            is_redhat: is_redhat(csaf),
             entries: HashSet::new(),
             products: HashSet::new(),
             product_id_to_product: HashMap::new(),
@@ -431,31 +416,6 @@ impl<'a> StatusCreator<'a> {
                         None => (VersionScheme::Generic, VersionSpec::Exact(String::new())),
                     };
                     self.create_purl_status(&product, purl, scheme, spec, status_id);
-
-                    // For "fixed" status and Red Hat CSAF advisories,
-                    // insert "affected" status up until this version.
-                    if let Ok(Status::Fixed) = Status::from_str(product.status)
-                        && self.is_redhat
-                        && purl.version.is_some()
-                    {
-                        let scheme = VersionScheme::from(purl.ty.as_str());
-                        let spec = VersionSpec::Range(
-                            Version::Unbounded,
-                            Version::Exclusive(purl.effective_version()),
-                        );
-                        self.create_purl_status(
-                            &product,
-                            purl,
-                            scheme,
-                            spec,
-                            graph
-                                .db_context
-                                .lock()
-                                .await
-                                .get_status_id(&Status::Affected.to_string(), connection)
-                                .await?,
-                        );
-                    }
                 }
             }
         }

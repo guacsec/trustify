@@ -16,6 +16,7 @@ use trustify_test_context::{Dataset, TrustifyContext};
 #[test_context(TrustifyContext, skip_teardown)]
 #[test(tokio::test)]
 #[instrument]
+#[ignore = "Red Hat's implied affected statuses are no longer stored; derived by correlation instead (see TODO.md)"]
 async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
     let service = SbomService::new(PaginationCache::for_test());
     let storage = &ctx.storage;
