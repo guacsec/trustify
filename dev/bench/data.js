@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791222451169,
+  "lastUpdate": 1791374081475,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -23135,6 +23135,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 7,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfuller@redhat.com",
+            "name": "rh-jfuller",
+            "username": "rh-jfuller"
+          },
+          "committer": {
+            "email": "jfuller@redhat.com",
+            "name": "James Fuller",
+            "username": "rh-jfuller"
+          },
+          "distinct": true,
+          "id": "16718a56db9e07828620c5c8d3110fbf3350fbac",
+          "message": "feat(ingestor): add remote Conforma validator",
+          "timestamp": "2026-10-07T11:09:27Z",
+          "tree_id": "d52acc6fb2e305edcd13ed602cf4476c68491d4a",
+          "url": "https://github.com/guacsec/trustify/commit/16718a56db9e07828620c5c8d3110fbf3350fbac"
+        },
+        "date": 1791374079751,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 6,
             "unit": "s"
           }
         ]
