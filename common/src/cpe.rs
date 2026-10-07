@@ -545,7 +545,26 @@ fn cpe23_to_uri(value: &str, body: &str) -> Result<OwnedUri, cpe::error::CpeErro
         components.pop();
     }
 
-    OwnedUri::from_str(&format!("cpe:/{}", components.join(":")))
+    parse_uri(&format!("cpe:/{}", components.join(":")))
+}
+
+/// Parse a CPE 2.2 URI.
+///
+/// A language component which isn't a language tag is dropped (ANY), rather than failing the
+/// whole CPE. SUSE e.g. uses it for the image of a product:
+/// `cpe:/o:suse:sles:15:sp1:chost-amazon:suse-sles-15-sp1-chost-byos-v20210304-hvm-ssd-x86_64`.
+fn parse_uri(value: &str) -> Result<OwnedUri, cpe::error::CpeError> {
+    match OwnedUri::from_str(value) {
+        Err(cpe::error::CpeError::LanguageError { source }) => {
+            // the language is the last of the seven components (URI encoding escapes any `:`)
+            let Some((rest, language)) = value.rsplit_once(':') else {
+                return Err(source.into());
+            };
+            tracing::debug!("dropping invalid language '{language}' of CPE '{value}': {source}");
+            OwnedUri::from_str(rest.trim_end_matches(':'))
+        }
+        result => result,
+    }
 }
 
 impl FromStr for Cpe {
@@ -554,7 +573,7 @@ impl FromStr for Cpe {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let uri = match s.strip_prefix("cpe:2.3:") {
             Some(body) => cpe23_to_uri(s, body)?,
-            None => OwnedUri::from_str(s)?,
+            None => parse_uri(s)?,
         };
         Ok(Self { uri })
     }
@@ -779,6 +798,7 @@ macro_rules! impl_try_into_cpe {
 #[cfg(test)]
 mod test {
     use super::*;
+    use rstest::rstest;
 
     #[test]
     fn uuid_simple() {
@@ -868,6 +888,23 @@ mod test {
         let cpe =
             Cpe::from_str("cpe:2.3:a:vendor:product:1.0:*:*:en-us:*:*:*:*").expect("must parse");
         assert_eq!(cpe.language().as_ref(), "en-US");
+    }
+
+    #[rstest]
+    #[case(
+        "cpe:/o:suse:sles:15:sp1:chost-amazon:suse-sles-15-sp1-chost-byos-v20210304-hvm-ssd-x86_64",
+        "cpe:/o:suse:sles:15:sp1:chost-amazon"
+    )]
+    #[case("cpe:/o:suse:sles:15:sp1::not_a_language", "cpe:/o:suse:sles:15:sp1")]
+    #[case(
+        "cpe:2.3:o:suse:sles:15:sp1:chost-amazon:not_a_language:*:*:*:*",
+        "cpe:/o:suse:sles:15:sp1:chost-amazon"
+    )]
+    fn invalid_language_dropped(#[case] value: &str, #[case] expected: &str) {
+        let cpe = Cpe::from_str(value).expect("must parse");
+        let expected = Cpe::from_str(expected).expect("must parse");
+        assert_eq!(cpe.to_string(), expected.to_string());
+        assert_eq!(cpe.uuid(), expected.uuid());
     }
 
     #[test]
