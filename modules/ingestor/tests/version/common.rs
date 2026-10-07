@@ -77,7 +77,7 @@ pub async fn version_matches(
     let high = high.map(|v| format!("'{v}'")).unwrap_or("null".to_string());
 
     if let Some(result) = db
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             db.get_database_backend(),
             format!(
                 r#"

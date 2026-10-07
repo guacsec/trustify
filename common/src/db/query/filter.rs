@@ -1,28 +1,16 @@
 use super::{Columns, Error, q};
-use sea_orm::{
-    Condition,
-    sea_query::{BinOper, ConditionExpression, IntoCondition},
-};
+use sea_orm::{Condition, sea_query::BinOper};
 use std::{
     fmt::{Display, Formatter},
     str::FromStr,
 };
 
 pub struct Filter {
-    clause: ConditionExpression,
+    clause: Condition,
 }
 
-impl IntoCondition for Filter {
-    fn into_condition(self) -> Condition {
-        match self.clause {
-            ConditionExpression::Condition(c) => c,
-            ConditionExpression::SimpleExpr(s) => s.into_condition(),
-        }
-    }
-}
-
-impl From<Filter> for ConditionExpression {
-    fn from(f: Filter) -> Self {
+impl From<Filter> for Condition {
+    fn from(f: Filter) -> Condition {
         f.clause
     }
 }
@@ -30,11 +18,9 @@ impl From<Filter> for ConditionExpression {
 impl Filter {
     pub(crate) fn all(filters: Vec<Filter>) -> Self {
         Self {
-            clause: ConditionExpression::Condition(
-                filters
-                    .into_iter()
-                    .fold(Condition::all(), |and, f| and.add(f)),
-            ),
+            clause: filters
+                .into_iter()
+                .fold(Condition::all(), |and, f| and.add(f)),
         }
     }
 }
@@ -51,7 +37,7 @@ impl TryFrom<(&str, Operator, &Vec<String>, &Columns)> for Filter {
                 |s| match columns.translate(field, &operator.to_string(), s) {
                     Some(x) => q(&x).filter_for(columns),
                     None => columns.expression(field, &operator, s).map(|expr| Filter {
-                        clause: ConditionExpression::SimpleExpr(expr),
+                        clause: Condition::all().add(expr),
                     }),
                 },
             )
@@ -66,9 +52,7 @@ impl TryFrom<(&str, Operator, &Vec<String>, &Columns)> for Filter {
                 |cond, f| cond.add(f),
             );
 
-        Ok(Filter {
-            clause: ConditionExpression::Condition(condition),
-        })
+        Ok(Filter { clause: condition })
     }
 }
 
@@ -82,14 +66,12 @@ impl TryFrom<(&Vec<String>, &Columns)> for Filter {
             .flat_map(|s| {
                 // Create a LIKE filter for all the string-ish columns
                 columns.strings(s).map(move |expr| Filter {
-                    clause: ConditionExpression::SimpleExpr(expr),
+                    clause: Condition::all().add(expr),
                 })
             })
             .fold(Condition::any(), |cond, f| cond.add(f));
 
-        Ok(Filter {
-            clause: ConditionExpression::Condition(condition),
-        })
+        Ok(Filter { clause: condition })
     }
 }
 

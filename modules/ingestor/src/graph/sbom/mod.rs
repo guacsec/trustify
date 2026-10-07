@@ -588,7 +588,7 @@ impl SbomContext {
     /// Materializes describing CPE associations from the relationship and CPE ref
     /// data already inserted for this SBOM into the `sbom_describing_cpe` table.
     pub async fn populate_describing_cpes<C: ConnectionTrait>(&self, db: &C) -> Result<(), Error> {
-        db.execute(Statement::from_sql_and_values(
+        db.execute_raw(Statement::from_sql_and_values(
             DbBackend::Postgres,
             r#"
             INSERT INTO sbom_describing_cpe (sbom_id, cpe_id)
@@ -614,7 +614,7 @@ impl SbomContext {
     /// entry is the ancestor (product); the checksum-matched SBOM is the
     /// child (component). Rows are `(child, ancestor)`.
     pub async fn populate_ancestors<C: ConnectionTrait>(&self, db: &C) -> Result<(), Error> {
-        db.execute(Statement::from_sql_and_values(
+        db.execute_raw(Statement::from_sql_and_values(
             DbBackend::Postgres,
             r#"
             WITH linked_as_child AS (

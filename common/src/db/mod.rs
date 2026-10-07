@@ -22,7 +22,8 @@ use rds_iam::{RDS_IAM_TOKEN_REFRESH, generate_rds_iam_token};
 use sea_orm::{
     AccessMode, ConnectOptions, ConnectionTrait, DatabaseConnection, DatabaseTransaction,
     DbBackend, DbErr, ExecResult, IsolationLevel, QueryResult, RuntimeErr, SqlxPostgresConnector,
-    Statement, StreamTrait, TransactionError, TransactionTrait, prelude::async_trait,
+    Statement, StreamTrait, TransactionError, TransactionOptions, TransactionTrait,
+    prelude::async_trait,
 };
 use sea_orm_migration::{IntoSchemaManagerConnection, SchemaManagerConnection};
 use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions, PgSslMode};
@@ -53,7 +54,7 @@ pub trait DatabaseExt {
 #[async_trait::async_trait]
 impl<T> DatabaseExt for T
 where
-    T: TransactionTrait + Sync,
+    T: TransactionTrait<Transaction = DatabaseTransaction> + Sync,
 {
     async fn begin_read(&self) -> Result<DatabaseTransaction, DbErr> {
         self.begin_with_config(
@@ -77,30 +78,33 @@ pub trait DatabaseErrors {
 impl DatabaseErrors for DbErr {
     fn is_duplicate(&self) -> bool {
         match self {
-            DbErr::Query(RuntimeErr::SqlxError(sqlx::error::Error::Database(err)))
-            | DbErr::Exec(RuntimeErr::SqlxError(sqlx::error::Error::Database(err))) => {
-                err.is_unique_violation()
-            }
+            DbErr::Query(RuntimeErr::SqlxError(arc_err))
+            | DbErr::Exec(RuntimeErr::SqlxError(arc_err)) => matches!(
+                arc_err.as_ref(),
+                sqlx::error::Error::Database(err) if err.is_unique_violation()
+            ),
             _ => false,
         }
     }
 
     fn is_read_only(&self) -> bool {
         match self {
-            DbErr::Query(RuntimeErr::SqlxError(sqlx::error::Error::Database(err)))
-            | DbErr::Exec(RuntimeErr::SqlxError(sqlx::error::Error::Database(err))) => {
-                err.code().as_deref() == Some("25006")
-            }
+            DbErr::Query(RuntimeErr::SqlxError(arc_err))
+            | DbErr::Exec(RuntimeErr::SqlxError(arc_err)) => matches!(
+                arc_err.as_ref(),
+                sqlx::error::Error::Database(err) if err.code().as_deref() == Some("25006")
+            ),
             _ => false,
         }
     }
 
     fn is_foreign_key_violation(&self) -> bool {
         match self {
-            DbErr::Query(RuntimeErr::SqlxError(sqlx::error::Error::Database(err)))
-            | DbErr::Exec(RuntimeErr::SqlxError(sqlx::error::Error::Database(err))) => {
-                err.is_foreign_key_violation()
-            }
+            DbErr::Query(RuntimeErr::SqlxError(arc_err))
+            | DbErr::Exec(RuntimeErr::SqlxError(arc_err)) => matches!(
+                arc_err.as_ref(),
+                sqlx::error::Error::Database(err) if err.is_foreign_key_violation()
+            ),
             _ => false,
         }
     }
@@ -313,20 +317,20 @@ impl ConnectionTrait for Database {
         self.db.get_database_backend()
     }
 
-    async fn execute(&self, stmt: Statement) -> Result<ExecResult, DbErr> {
-        self.db.execute(stmt).await
+    async fn execute_raw(&self, stmt: Statement) -> Result<ExecResult, DbErr> {
+        self.db.execute_raw(stmt).await
     }
 
     async fn execute_unprepared(&self, sql: &str) -> Result<ExecResult, DbErr> {
         self.db.execute_unprepared(sql).await
     }
 
-    async fn query_one(&self, stmt: Statement) -> Result<Option<QueryResult>, DbErr> {
-        self.db.query_one(stmt).await
+    async fn query_one_raw(&self, stmt: Statement) -> Result<Option<QueryResult>, DbErr> {
+        self.db.query_one_raw(stmt).await
     }
 
-    async fn query_all(&self, stmt: Statement) -> Result<Vec<QueryResult>, DbErr> {
-        self.db.query_all(stmt).await
+    async fn query_all_raw(&self, stmt: Statement) -> Result<Vec<QueryResult>, DbErr> {
+        self.db.query_all_raw(stmt).await
     }
 
     fn support_returning(&self) -> bool {
@@ -336,6 +340,8 @@ impl ConnectionTrait for Database {
 
 #[async_trait::async_trait]
 impl TransactionTrait for Database {
+    type Transaction = DatabaseTransaction;
+
     async fn begin(&self) -> Result<DatabaseTransaction, DbErr> {
         self.db.begin().await
     }
@@ -348,6 +354,13 @@ impl TransactionTrait for Database {
         self.db
             .begin_with_config(isolation_level, access_mode)
             .await
+    }
+
+    async fn begin_with_options(
+        &self,
+        options: TransactionOptions,
+    ) -> Result<DatabaseTransaction, DbErr> {
+        self.db.begin_with_options(options).await
     }
 
     async fn transaction<F, T, E>(&self, callback: F) -> Result<T, TransactionError<E>>
@@ -392,20 +405,20 @@ impl ConnectionTrait for &Database {
         self.db.get_database_backend()
     }
 
-    async fn execute(&self, stmt: Statement) -> Result<ExecResult, DbErr> {
-        self.db.execute(stmt).await
+    async fn execute_raw(&self, stmt: Statement) -> Result<ExecResult, DbErr> {
+        self.db.execute_raw(stmt).await
     }
 
     async fn execute_unprepared(&self, sql: &str) -> Result<ExecResult, DbErr> {
         self.db.execute_unprepared(sql).await
     }
 
-    async fn query_one(&self, stmt: Statement) -> Result<Option<QueryResult>, DbErr> {
-        self.db.query_one(stmt).await
+    async fn query_one_raw(&self, stmt: Statement) -> Result<Option<QueryResult>, DbErr> {
+        self.db.query_one_raw(stmt).await
     }
 
-    async fn query_all(&self, stmt: Statement) -> Result<Vec<QueryResult>, DbErr> {
-        self.db.query_all(stmt).await
+    async fn query_all_raw(&self, stmt: Statement) -> Result<Vec<QueryResult>, DbErr> {
+        self.db.query_all_raw(stmt).await
     }
 
     fn support_returning(&self) -> bool {
@@ -413,36 +426,42 @@ impl ConnectionTrait for &Database {
     }
 }
 
-#[async_trait::async_trait]
 impl StreamTrait for Database {
     type Stream<'a> = <DatabaseConnection as StreamTrait>::Stream<'a>;
 
-    fn stream<'a>(
+    fn get_database_backend(&self) -> DbBackend {
+        self.db.get_database_backend()
+    }
+
+    fn stream_raw<'a>(
         &'a self,
         stmt: Statement,
     ) -> Pin<Box<dyn Future<Output = Result<Self::Stream<'a>, DbErr>> + 'a + Send>> {
-        self.db.stream(stmt)
+        self.db.stream_raw(stmt)
     }
 }
 
-#[async_trait::async_trait]
 impl<'b> StreamTrait for &'b Database {
     type Stream<'a>
         = <DatabaseConnection as StreamTrait>::Stream<'a>
     where
         'b: 'a;
 
-    fn stream<'a>(
+    fn get_database_backend(&self) -> DbBackend {
+        self.db.get_database_backend()
+    }
+
+    fn stream_raw<'a>(
         &'a self,
         stmt: Statement,
     ) -> Pin<Box<dyn Future<Output = Result<Self::Stream<'a>, DbErr>> + 'a + Send>> {
-        self.db.stream(stmt)
+        self.db.stream_raw(stmt)
     }
 }
 
 impl<'a> IntoSchemaManagerConnection<'a> for &'a Database {
-    fn into_schema_manager_connection(self) -> SchemaManagerConnection<'a> {
-        self.db.into_schema_manager_connection()
+    fn into_database_executor(self) -> SchemaManagerConnection<'a> {
+        SchemaManagerConnection::Connection(&self.db)
     }
 }
 
@@ -506,23 +525,23 @@ impl Deref for ReadWrite {
 #[async_trait::async_trait]
 impl ConnectionTrait for ReadWrite {
     fn get_database_backend(&self) -> DbBackend {
-        self.0.get_database_backend()
+        self.0.db.get_database_backend()
     }
 
-    async fn execute(&self, stmt: Statement) -> Result<ExecResult, DbErr> {
-        self.0.execute(stmt).await
+    async fn execute_raw(&self, stmt: Statement) -> Result<ExecResult, DbErr> {
+        self.0.execute_raw(stmt).await
     }
 
     async fn execute_unprepared(&self, sql: &str) -> Result<ExecResult, DbErr> {
         self.0.execute_unprepared(sql).await
     }
 
-    async fn query_one(&self, stmt: Statement) -> Result<Option<QueryResult>, DbErr> {
-        self.0.query_one(stmt).await
+    async fn query_one_raw(&self, stmt: Statement) -> Result<Option<QueryResult>, DbErr> {
+        self.0.query_one_raw(stmt).await
     }
 
-    async fn query_all(&self, stmt: Statement) -> Result<Vec<QueryResult>, DbErr> {
-        self.0.query_all(stmt).await
+    async fn query_all_raw(&self, stmt: Statement) -> Result<Vec<QueryResult>, DbErr> {
+        self.0.query_all_raw(stmt).await
     }
 
     fn support_returning(&self) -> bool {
@@ -533,23 +552,23 @@ impl ConnectionTrait for ReadWrite {
 #[async_trait::async_trait]
 impl ConnectionTrait for &ReadWrite {
     fn get_database_backend(&self) -> DbBackend {
-        self.0.get_database_backend()
+        self.0.db.get_database_backend()
     }
 
-    async fn execute(&self, stmt: Statement) -> Result<ExecResult, DbErr> {
-        self.0.execute(stmt).await
+    async fn execute_raw(&self, stmt: Statement) -> Result<ExecResult, DbErr> {
+        self.0.execute_raw(stmt).await
     }
 
     async fn execute_unprepared(&self, sql: &str) -> Result<ExecResult, DbErr> {
         self.0.execute_unprepared(sql).await
     }
 
-    async fn query_one(&self, stmt: Statement) -> Result<Option<QueryResult>, DbErr> {
-        self.0.query_one(stmt).await
+    async fn query_one_raw(&self, stmt: Statement) -> Result<Option<QueryResult>, DbErr> {
+        self.0.query_one_raw(stmt).await
     }
 
-    async fn query_all(&self, stmt: Statement) -> Result<Vec<QueryResult>, DbErr> {
-        self.0.query_all(stmt).await
+    async fn query_all_raw(&self, stmt: Statement) -> Result<Vec<QueryResult>, DbErr> {
+        self.0.query_all_raw(stmt).await
     }
 
     fn support_returning(&self) -> bool {
@@ -557,41 +576,49 @@ impl ConnectionTrait for &ReadWrite {
     }
 }
 
-#[async_trait::async_trait]
 impl StreamTrait for ReadWrite {
     type Stream<'a> = <DatabaseConnection as StreamTrait>::Stream<'a>;
 
-    fn stream<'a>(
+    fn get_database_backend(&self) -> DbBackend {
+        self.0.db.get_database_backend()
+    }
+
+    fn stream_raw<'a>(
         &'a self,
         stmt: Statement,
     ) -> Pin<Box<dyn Future<Output = Result<Self::Stream<'a>, DbErr>> + 'a + Send>> {
-        self.0.stream(stmt)
+        self.0.db.stream_raw(stmt)
     }
 }
 
-#[async_trait::async_trait]
 impl<'b> StreamTrait for &'b ReadWrite {
     type Stream<'a>
         = <DatabaseConnection as StreamTrait>::Stream<'a>
     where
         'b: 'a;
 
-    fn stream<'a>(
+    fn get_database_backend(&self) -> DbBackend {
+        self.0.db.get_database_backend()
+    }
+
+    fn stream_raw<'a>(
         &'a self,
         stmt: Statement,
     ) -> Pin<Box<dyn Future<Output = Result<Self::Stream<'a>, DbErr>> + 'a + Send>> {
-        self.0.stream(stmt)
+        self.0.db.stream_raw(stmt)
     }
 }
 
 impl<'a> IntoSchemaManagerConnection<'a> for &'a ReadWrite {
-    fn into_schema_manager_connection(self) -> SchemaManagerConnection<'a> {
-        (&self.0).into_schema_manager_connection()
+    fn into_database_executor(self) -> SchemaManagerConnection<'a> {
+        SchemaManagerConnection::Connection(&self.0.db)
     }
 }
 
 #[async_trait::async_trait]
 impl TransactionTrait for ReadWrite {
+    type Transaction = DatabaseTransaction;
+
     async fn begin(&self) -> Result<DatabaseTransaction, DbErr> {
         self.0.begin().await
     }
@@ -602,6 +629,13 @@ impl TransactionTrait for ReadWrite {
         access_mode: Option<AccessMode>,
     ) -> Result<DatabaseTransaction, DbErr> {
         self.0.begin_with_config(isolation_level, access_mode).await
+    }
+
+    async fn begin_with_options(
+        &self,
+        options: TransactionOptions,
+    ) -> Result<DatabaseTransaction, DbErr> {
+        self.0.begin_with_options(options).await
     }
 
     async fn transaction<F, T, E>(&self, callback: F) -> Result<T, TransactionError<E>>

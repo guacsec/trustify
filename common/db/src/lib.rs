@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 pub mod embedded;
 
 use anyhow::{Context, anyhow, ensure};
@@ -75,13 +77,13 @@ impl<'a> Database<'a> {
 
         let db = db::connect_admin(&admin).await?;
 
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             db.get_database_backend(),
             format!("DROP DATABASE IF EXISTS \"{}\";", database.name),
         ))
         .await?;
 
-        db.execute(Statement::from_string(
+        db.execute_raw(Statement::from_string(
             db.get_database_backend(),
             format!(
                 "CREATE DATABASE \"{}\" WITH LC_COLLATE 'C' TEMPLATE 'template0';",

@@ -14,10 +14,11 @@ use crate::{
 use sea_orm::{
     ColumnTrait, Condition, ConnectionTrait, DbErr, EntityTrait, FromQueryResult, LoaderTrait,
     ModelTrait, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
-    Select, SelectColumns,
+    Select,
 };
 use sea_query::{
-    Alias, Asterisk, ColumnRef, Expr, Func, IntoIden, JoinType, PgFunc, SimpleExpr, UnionType,
+    Alias, Asterisk, ColumnRef, Expr, ExprTrait, Func, IntoIden, JoinType, PgFunc, SimpleExpr,
+    UnionType,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, hash_map::Entry};
@@ -103,10 +104,10 @@ impl PurlDetails {
                     .add(purl_status::Column::ContextCpeId.in_subquery(allowed_cpe_ids))
                     .add(Expr::exists(sbom_has_cpes).not()),
             )
-            .distinct_on([ColumnRef::TableColumn(
+            .distinct_on([ColumnRef::Column(sea_query::ColumnName::from((
                 purl_status::Entity.into_iden(),
                 purl_status::Column::Id.into_iden(),
-            )])
+            )))])
             .with_deprecation_related(deprecation)
             .all(tx)
             .await?;
@@ -123,7 +124,7 @@ impl PurlDetails {
             .distinct()
             .select_only()
             .column_as(license_text_coalesce(), "license_name")
-            .select_column(sbom_package_license::Column::LicenseType)
+            .column(sbom_package_license::Column::LicenseType)
             .filter(sbom_node_purl_ref::Column::QualifiedPurlId.eq(qualified_package.id))
             .join(JoinType::Join, sbom_node_purl_ref::Relation::Node.def())
             .join(JoinType::Join, sbom_node::Relation::PackageLicense.def())

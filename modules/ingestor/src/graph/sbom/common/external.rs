@@ -80,7 +80,7 @@ impl ExternalNodeCreator {
                         .do_nothing()
                         .to_owned(),
                 )
-                .do_nothing()
+                .try_insert()
                 .exec(db)
                 .await?;
         }
@@ -95,7 +95,7 @@ impl ExternalNodeCreator {
                     .do_nothing()
                     .to_owned(),
                 )
-                .do_nothing()
+                .try_insert()
                 .exec(db)
                 .await?;
         }

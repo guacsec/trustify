@@ -3,7 +3,7 @@ use crate::graph::{
     error::Error,
 };
 use sea_orm::{ActiveValue::Set, ConnectionTrait, EntityTrait, QueryFilter};
-use sea_query::{Expr, OnConflict, PgFunc};
+use sea_query::{Expr, ExprTrait, OnConflict, PgFunc};
 use std::collections::{BTreeMap, BTreeSet};
 use tracing::instrument;
 use trustify_common::{cpe::Cpe, db::chunk::EntityChunkedIter, purl::Purl};
@@ -116,7 +116,7 @@ impl PurlStatusCreator {
         for batch in &version_ranges.into_values().chunked() {
             version_range::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
-                .do_nothing()
+                .try_insert()
                 .exec_without_returning(connection)
                 .await?;
         }
@@ -125,7 +125,7 @@ impl PurlStatusCreator {
         for batch in &purl_statuses.into_values().chunked() {
             purl_status::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
-                .do_nothing()
+                .try_insert()
                 .exec_without_returning(connection)
                 .await?;
         }

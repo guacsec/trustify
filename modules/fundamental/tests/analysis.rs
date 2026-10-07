@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 //! Testing full circle: ingest, analysis
 
 use actix_http::{Request, StatusCode};

@@ -75,11 +75,12 @@ where
     }
 }
 
-impl<E, F, G> TrySelectForId for SelectThree<E, F, G>
+impl<E, F, G, TOP> TrySelectForId for SelectThree<E, F, G, TOP>
 where
     E: EntityTrait + TryFilterForId,
     F: EntityTrait,
     G: EntityTrait,
+    TOP: sea_orm::Topology,
 {
     fn try_filter(self, id: Id) -> Result<Self, IdError> {
         Ok(self.filter(E::try_filter(id)?))

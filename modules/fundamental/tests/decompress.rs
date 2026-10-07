@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 include!("../src/test/common.rs");
 
 use actix_http::StatusCode;

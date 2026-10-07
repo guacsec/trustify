@@ -8,7 +8,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QuerySelect,
     SelectGetableTuple, Selector, Set, Statement, query::QueryFilter,
 };
-use sea_query::{ArrayType, Expr, OnConflict, SimpleExpr, Value};
+use sea_query::{ArrayType, Expr, ExprTrait, OnConflict, SimpleExpr, Value};
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
@@ -185,7 +185,7 @@ impl SbomGroupService {
         // build lookup: parent_id -> count
         let mut counts: HashMap<Uuid, u64> = HashMap::with_capacity(rows.len());
         for row in rows {
-            counts.insert(row.0, row.1.max(0) as u64);
+            counts.insert(row.0, Ord::max(row.1, 0) as u64);
         }
 
         // return counts, aligned with `ids` order
@@ -276,7 +276,7 @@ WHERE parent IS NULL
         let ids_param: Vec<Value> = ids
             .iter()
             .copied()
-            .map(|id| Value::Uuid(Some(Box::new(id))))
+            .map(|id| Value::Uuid(Some(id)))
             .collect();
 
         let stmt = Statement::from_sql_and_values(
@@ -285,7 +285,7 @@ WHERE parent IS NULL
             vec![Value::Array(ArrayType::Uuid, Some(Box::new(ids_param)))],
         );
 
-        let rows = db.query_all(stmt).await?;
+        let rows = db.query_all_raw(stmt).await?;
 
         let mut map = HashMap::with_capacity(ids.len());
         for row in rows {
@@ -781,7 +781,7 @@ WHERE parent IS NULL
                     .do_nothing()
                     .to_owned(),
                 )
-                .do_nothing()
+                .try_insert()
                 .exec(db)
                 .await
                 .map_err(|err| {

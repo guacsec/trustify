@@ -67,7 +67,7 @@ impl PurlCreator {
         for batch in &versions.into_values().chunked() {
             versioned_purl::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
-                .do_nothing()
+                .try_insert()
                 .exec_without_returning(db)
                 .await?;
         }
@@ -77,7 +77,7 @@ impl PurlCreator {
         for batch in &qualifieds.into_values().chunked() {
             qualified_purl::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
-                .do_nothing()
+                .try_insert()
                 .exec_without_returning(db)
                 .await?;
         }

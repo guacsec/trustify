@@ -33,7 +33,7 @@ pub async fn populate_expanded_license(
     db: &impl ConnectionTrait,
 ) -> Result<(), DbErr> {
     // Step 1: Insert into expanded_license dictionary
-    db.execute(Statement::from_sql_and_values(
+    db.execute_raw(Statement::from_sql_and_values(
         db.get_database_backend(),
         r#"
 INSERT INTO expanded_license (expanded_text)
@@ -57,7 +57,7 @@ ON CONFLICT (text_hash) DO NOTHING
 
     // Step 2: Insert into sbom_license_expanded junction table
     // Use CTE to call expand_license_expression_with_mappings() only once per (sbom_id, license_id)
-    db.execute(Statement::from_sql_and_values(
+    db.execute_raw(Statement::from_sql_and_values(
         db.get_database_backend(),
         r#"
 WITH license_expansions AS (

@@ -7,7 +7,7 @@ use sea_orm::{
     ColumnTrait, ColumnType, EntityTrait, IntoIdentity, Iterable, Value as SeaValue, sea_query,
 };
 use sea_query::{
-    Alias, ColumnRef, Expr, ExprTrait, Func, IntoColumnRef, IntoIden, SimpleExpr,
+    Alias, ColumnName, ColumnRef, Expr, ExprTrait, Func, IntoColumnRef, IntoIden, SimpleExpr,
     extension::postgres::PgExpr,
 };
 use time::{
@@ -50,7 +50,7 @@ impl Columns {
         let columns = E::Column::iter()
             .map(|c| {
                 let (t, u) = c.as_column_ref();
-                let column_ref = ColumnRef::TableColumn(t, u);
+                let column_ref = ColumnRef::Column(ColumnName::from((t, u)));
                 let column_type = c.def().get_column_type().clone();
                 (column_ref, column_type)
             })
@@ -108,8 +108,19 @@ impl Columns {
             .columns
             .into_iter()
             .map(|(r, d)| match r {
-                ColumnRef::TableColumn(t, c) if t.to_string().eq_ignore_ascii_case(from) => {
-                    (ColumnRef::TableColumn(Alias::new(to).into_iden(), c), d)
+                ColumnRef::Column(col_name)
+                    if col_name
+                        .0
+                        .as_ref()
+                        .is_some_and(|tn| tn.1.to_string().eq_ignore_ascii_case(from)) =>
+                {
+                    (
+                        ColumnRef::Column(ColumnName::from((
+                            Alias::new(to).into_iden(),
+                            col_name.1,
+                        ))),
+                        d,
+                    )
                 }
                 _ => (r, d),
             })
@@ -241,13 +252,10 @@ impl Columns {
 
     /// Return the valid field names associated with this collection
     pub(crate) fn fields(&self) -> Vec<String> {
-        use ColumnRef::*;
         self.columns
             .iter()
-            .filter_map(|(r, t)| match (r, t) {
-                (Column(name) | TableColumn(_, name) | SchemaTableColumn(_, _, name), _) => {
-                    Some(name.to_string().to_lowercase())
-                }
+            .filter_map(|(r, _)| match r {
+                ColumnRef::Column(col_name) => Some(col_name.1.to_string().to_lowercase()),
                 _ => None,
             })
             .chain(self.exprs.keys().map(|k| k.to_lowercase()))
@@ -260,14 +268,18 @@ impl Columns {
     fn find(&self, field: &str) -> Option<(ColumnRef, ColumnType)> {
         self.columns
             .iter()
-            .find(|(col, _)| {
-                use ColumnRef::*;
-                match field.split_once(':') {
-                    Some((ft, fc)) => // field names may be optionally prefixed by their table names
-                        matches!(col, TableColumn(t, c) | SchemaTableColumn(_, t, c) if t.to_string().eq_ignore_ascii_case(ft) && c.to_string().eq_ignore_ascii_case(fc)),
-                    _ =>
-                        matches!(col, Column(c) | TableColumn(_, c) | SchemaTableColumn(_, _, c) if c.to_string().eq_ignore_ascii_case(field)),
-                }
+            .find(|(col, _)| match col {
+                ColumnRef::Column(col_name) => match field.split_once(':') {
+                    Some((ft, fc)) => {
+                        col_name
+                            .0
+                            .as_ref()
+                            .is_some_and(|tn| tn.1.to_string().eq_ignore_ascii_case(ft))
+                            && col_name.1.to_string().eq_ignore_ascii_case(fc)
+                    }
+                    _ => col_name.1.to_string().eq_ignore_ascii_case(field),
+                },
+                _ => false,
             })
             .cloned()
     }
@@ -304,9 +316,7 @@ fn parse(s: &str, ct: &ColumnType) -> Result<SimpleExpr, Error> {
         }
         ColumnType::Enum { name, .. } => SimpleExpr::AsEnum(
             name.clone(),
-            Box::new(SimpleExpr::Value(SeaValue::String(Some(Box::new(
-                s.to_owned(),
-            ))))),
+            Box::new(SimpleExpr::Value(SeaValue::String(Some(s.to_owned())))),
         ),
         // `Date` shares this arm: it already tries a plain date before falling
         // back, and postgres has no `date > text` operator, so binding the

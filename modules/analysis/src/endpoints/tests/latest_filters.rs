@@ -22,7 +22,7 @@ async fn delete_sbom(db: &impl ConnectionTrait, sbom_id: Uuid) -> Result<(), any
         "#,
         vec![sbom_id.into()],
     );
-    db.execute(stmt).await?;
+    db.execute_raw(stmt).await?;
     Ok(())
 }
 

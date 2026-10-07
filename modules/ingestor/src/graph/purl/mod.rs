@@ -364,7 +364,7 @@ pub async fn batch_create_base_purls<C: ConnectionTrait>(
     for batch in &packages.into_values().chunked() {
         entity::base_purl::Entity::insert_many(batch)
             .on_conflict(OnConflict::new().do_nothing().to_owned())
-            .do_nothing()
+            .try_insert()
             .exec(connection)
             .await?;
     }

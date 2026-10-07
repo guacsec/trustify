@@ -181,7 +181,7 @@ async fn paginated_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error
                 assert_eq!(fetched.total, total.then_some(expected_total));
                 assert_eq!(
                     fetched.items.len() as u64,
-                    limit.min(expected_total.saturating_sub(offset)),
+                    Ord::min(limit, expected_total.saturating_sub(offset)),
                 );
                 for item in fetched.items {
                     let expected = reference

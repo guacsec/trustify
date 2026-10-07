@@ -1,7 +1,6 @@
 use sea_orm::Iden;
 use sea_orm::{ConnectionTrait, DbErr, ExecResult};
 use sea_query::{Func, SelectStatement};
-use std::fmt::Write;
 
 /// PostgreSQL's `array_agg` function.
 ///
@@ -9,9 +8,8 @@ use std::fmt::Write;
 pub struct ArrayAgg;
 
 impl Iden for ArrayAgg {
-    #[allow(clippy::unwrap_used)]
-    fn unquoted(&self, s: &mut dyn Write) {
-        s.write_str("array_agg").unwrap();
+    fn unquoted(&self) -> &str {
+        "array_agg"
     }
 }
 
@@ -21,9 +19,8 @@ impl Iden for ArrayAgg {
 pub struct JsonBuildObject;
 
 impl Iden for JsonBuildObject {
-    #[allow(clippy::unwrap_used)]
-    fn unquoted(&self, s: &mut dyn Write) {
-        s.write_str("json_build_object").unwrap();
+    fn unquoted(&self) -> &str {
+        "json_build_object"
     }
 }
 
@@ -33,27 +30,24 @@ impl Iden for JsonBuildObject {
 pub struct ToJson;
 
 impl Iden for ToJson {
-    #[allow(clippy::unwrap_used)]
-    fn unquoted(&self, s: &mut dyn Write) {
-        s.write_str("to_json").unwrap();
+    fn unquoted(&self) -> &str {
+        "to_json"
     }
 }
 
 pub struct Cvss3Score;
 
 impl Iden for Cvss3Score {
-    #[allow(clippy::unwrap_used)]
-    fn unquoted(&self, s: &mut dyn Write) {
-        write!(s, "cvss3_score").unwrap()
+    fn unquoted(&self) -> &str {
+        "cvss3_score"
     }
 }
 
 pub struct VersionMatches;
 
 impl Iden for VersionMatches {
-    #[allow(clippy::unwrap_used)]
-    fn unquoted(&self, s: &mut dyn Write) {
-        write!(s, "version_matches").unwrap()
+    fn unquoted(&self) -> &str {
+        "version_matches"
     }
 }
 
@@ -61,9 +55,8 @@ impl Iden for VersionMatches {
 pub struct UpdateDeprecatedAdvisory;
 
 impl Iden for UpdateDeprecatedAdvisory {
-    #[allow(clippy::unwrap_used)]
-    fn unquoted(&self, s: &mut dyn Write) {
-        write!(s, "update_deprecated_advisory").unwrap()
+    fn unquoted(&self) -> &str {
+        "update_deprecated_advisory"
     }
 }
 
@@ -73,7 +66,7 @@ impl UpdateDeprecatedAdvisory {
             .get_database_backend()
             .build(SelectStatement::new().expr(Func::cust(Self).arg(identifier)));
 
-        db.execute(stmt).await
+        db.execute_raw(stmt).await
     }
 }
 

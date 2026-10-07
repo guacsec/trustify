@@ -98,13 +98,13 @@ async fn process_page(
                     .do_nothing()
                     .to_owned(),
             )
-            .do_nothing()
+            .try_insert()
             .exec(conn)
             .await?;
     }
 
     for (qp_id, new_vp_id) in &qp_updates {
-        conn.execute(Statement::from_sql_and_values(
+        conn.execute_raw(Statement::from_sql_and_values(
             DatabaseBackend::Postgres,
             "UPDATE qualified_purl SET versioned_purl_id = $1 WHERE id = $2",
             [(*new_vp_id).into(), (*qp_id).into()],

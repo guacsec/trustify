@@ -12,7 +12,7 @@ trustify-common = { workspace = true }
 trustify-entity = { workspace = true }
 
 actix-web = { workspace = true }
-sea-orm = { workspace = true, features = ["sea-query-binder", "sqlx-postgres", "runtime-tokio-rustls", "macros", "debug-print"] }
+sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio-rustls", "macros", "debug-print"] }
 sea-query = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

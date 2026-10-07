@@ -101,7 +101,7 @@ pub async fn record_change(
     operation: ChangeOperation,
 ) -> Result<(), DbErr> {
     let id = Uuid::now_v7();
-    conn.execute(Statement::from_sql_and_values(
+    conn.execute_raw(Statement::from_sql_and_values(
         conn.get_database_backend(),
         "INSERT INTO change_log (id, entity_type, entity_id, operation) VALUES ($1, $2, $3, $4)",
         vec![

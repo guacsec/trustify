@@ -24,7 +24,6 @@ pub struct Model {
     DeriveActiveEnum,
     serde::Serialize,
     serde::Deserialize,
-    strum::EnumString,
     strum::Display,
     utoipa::ToSchema,
 )]
@@ -88,7 +87,6 @@ impl ActiveModelBehavior for ActiveModel {}
 mod test {
     use super::*;
     use serde_json::json;
-    use std::str::FromStr;
     use test_log::test;
 
     #[test]
@@ -102,13 +100,12 @@ mod test {
             ("protocol", Protocol),
             ("related-crypto-material", RelatedCryptoMaterial),
         ] {
-            assert_eq!(CryptoAssetType::from_str(s), Ok(t));
+            assert_eq!(CryptoAssetType::try_from(s).unwrap(), t);
             assert_eq!(t.to_string(), s);
             assert_eq!(json!(t), json!(s));
         }
 
         // Error handling
-        assert!(CryptoAssetType::from_str("missing").is_err());
-        assert_eq!(CryptoAssetType::from_str("aLgOrItHm"), Ok(Algorithm));
+        assert!(CryptoAssetType::try_from("missing").is_err());
     }
 }

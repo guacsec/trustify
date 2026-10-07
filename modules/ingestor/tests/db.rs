@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use hex::ToHex;
 use sea_orm::{ConnectionTrait, EntityTrait, QueryOrder};
 use std::fmt::Display;

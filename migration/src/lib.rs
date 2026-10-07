@@ -1,4 +1,4 @@
-#![recursion_limit = "512"]
+#![recursion_limit = "1024"]
 use crate::data::{
     Migration, MigrationTraitWithData, MigrationWithData, Migrations, MigratorWithData,
 };
@@ -196,17 +196,15 @@ impl MigratorTrait for Migrator {
 pub struct Now;
 
 impl Iden for Now {
-    #[allow(clippy::unwrap_used)]
-    fn unquoted(&self, s: &mut dyn Write) {
-        write!(s, "now").unwrap()
+    fn unquoted(&self) -> &str {
+        "now"
     }
 }
 
 pub struct UuidV4;
 
 impl Iden for UuidV4 {
-    #[allow(clippy::unwrap_used)]
-    fn unquoted(&self, s: &mut dyn Write) {
-        write!(s, "gen_random_uuid").unwrap()
+    fn unquoted(&self) -> &str {
+        "gen_random_uuid"
     }
 }

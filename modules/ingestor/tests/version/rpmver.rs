@@ -9,7 +9,7 @@ mod common;
 
 async fn rpmver_cmp(db: &Database, left: &str, right: &str) -> Result<Option<i32>, anyhow::Error> {
     let result = db
-        .query_one(Statement::from_string(
+        .query_one_raw(Statement::from_string(
             db.get_database_backend(),
             format!(
                 r#"

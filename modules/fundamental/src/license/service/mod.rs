@@ -16,7 +16,8 @@ use sea_orm::{
     QueryOrder, QuerySelect, QueryTrait, RelationTrait, Statement,
 };
 use sea_query::{
-    Asterisk, Condition, Expr, Func, JoinType, PostgresQueryBuilder, SimpleExpr, UnionType,
+    Asterisk, Condition, Expr, ExprTrait, Func, JoinType, PostgresQueryBuilder, SimpleExpr,
+    UnionType,
 };
 use serde::{Deserialize, Serialize};
 use spdx::License;

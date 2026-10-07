@@ -39,7 +39,7 @@ reqwest = { workspace = true, features = ["native-tls"] }
 ring = { workspace = true }
 sbom-walker = { workspace = true }
 schemars = { workspace = true }
-sea-orm = { workspace = true, features = ["sea-query-binder", "sqlx-postgres", "runtime-tokio-rustls", "macros"] }
+sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
 sea-orm-migration = { workspace = true }
 sea-query = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

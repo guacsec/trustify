@@ -3,7 +3,7 @@ use sea_orm::{
     ActiveValue::Set, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait, QueryFilter,
     prelude::Uuid,
 };
-use sea_query::{Alias, Expr, OnConflict};
+use sea_query::{Alias, Expr, ExprTrait, OnConflict};
 use trustify_common::{db::DatabaseErrors, error::ErrorInformation, model::Revisioned};
 use trustify_entity::user_preferences;
 

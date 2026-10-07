@@ -53,11 +53,12 @@ where
 }
 
 /// SeaORM SelectThree
-impl<E, F, G> Filtering<E> for SelectThree<E, F, G>
+impl<E, F, G, TOP> Filtering<E> for SelectThree<E, F, G, TOP>
 where
     E: EntityTrait,
     F: EntityTrait,
     G: EntityTrait,
+    TOP: sea_orm::Topology,
 {
     fn filtering(self, search: Query) -> Result<Self, Error> {
         self.filtering_with(

@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use actix_http::StatusCode;
 use actix_web::test::TestRequest;
 use test_context::test_context;

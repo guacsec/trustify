@@ -92,7 +92,7 @@ impl OrganizationCreator {
         for batch in &models.chunked() {
             organization::Entity::insert_many(batch)
                 .on_conflict(OnConflict::new().do_nothing().to_owned())
-                .do_nothing()
+                .try_insert()
                 .exec_without_returning(connection)
                 .await?;
         }

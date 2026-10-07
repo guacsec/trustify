@@ -4,7 +4,7 @@ use sea_orm::{
     ActiveModelTrait, ActiveValue::Set, ColumnTrait, ConnectionTrait, EntityTrait, PaginatorTrait,
     QueryFilter, QueryOrder, TransactionTrait,
 };
-use sea_query::{Alias, Expr, Nullable, SimpleExpr};
+use sea_query::{Alias, Expr, ExprTrait, Nullable, SimpleExpr};
 use std::fmt::{Debug, Display};
 use time::OffsetDateTime;
 use tracing::instrument;

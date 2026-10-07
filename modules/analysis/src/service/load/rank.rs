@@ -3,7 +3,7 @@ use sea_orm::{
     ConnectionTrait, DatabaseBackend, EntityTrait, FromQueryResult, JoinType, QueryFilter,
     QuerySelect, RelationTrait, Select, Statement,
 };
-use sea_query::{Expr, PgFunc};
+use sea_query::{Expr, ExprTrait, PgFunc};
 use std::collections::{HashMap, HashSet};
 use time::OffsetDateTime;
 use tracing::{Instrument, instrument};

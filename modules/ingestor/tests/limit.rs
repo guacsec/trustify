@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 #[path = "common.rs"]
 mod common;
 

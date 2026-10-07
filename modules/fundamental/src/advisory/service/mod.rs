@@ -7,7 +7,7 @@ use sea_orm::{
     FromQueryResult, IntoActiveModel, QueryResult, QuerySelect, QueryTrait, RelationTrait, Select,
     Statement,
 };
-use sea_query::{Alias, ColumnType, CommonTableExpression, Expr, JoinType, WithClause};
+use sea_query::{Alias, ColumnType, CommonTableExpression, Expr, ExprTrait, JoinType, WithClause};
 use tracing::instrument;
 use trustify_common::{
     db::{
@@ -117,7 +117,7 @@ impl AdvisoryService {
             [id.into()],
         );
 
-        let result = connection.query_all(stmt).await?;
+        let result = connection.query_all_raw(stmt).await?;
         if result.len() > 1 {
             return Err(Error::Data(format!("Too many rows deleted for {id}")));
         }

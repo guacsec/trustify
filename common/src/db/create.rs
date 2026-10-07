@@ -28,7 +28,7 @@ BEGIN
   END IF;
 END$$;
 "#,
-        name = r#type.to_string()
+        name = r#type
     );
 
     manager.get_connection().execute_unprepared(&stmt).await?;

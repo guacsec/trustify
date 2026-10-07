@@ -173,7 +173,7 @@ impl ProgressLogger {
 pub trait DocumentProcessor {
     fn process<D>(
         &self,
-        db: &(impl ConnectionTrait + TransactionTrait),
+        db: &(impl ConnectionTrait + TransactionTrait<Transaction = DatabaseTransaction>),
         storage: &DispatchBackend,
         options: &Options,
         f: impl Handler<D>,
@@ -221,7 +221,7 @@ impl<'c> DocumentProcessor for SchemaManager<'c> {
     /// actual system is still running from the read-only clone of the original data.
     async fn process<D>(
         &self,
-        db: &(impl ConnectionTrait + TransactionTrait),
+        db: &(impl ConnectionTrait + TransactionTrait<Transaction = DatabaseTransaction>),
         storage: &DispatchBackend,
         options: &Options,
         f: impl Handler<D>,

@@ -105,7 +105,7 @@ impl PackageCreator {
                     .do_nothing()
                     .to_owned(),
                 )
-                .do_nothing()
+                .try_insert()
                 .exec(db)
                 .await?;
         }
@@ -122,7 +122,7 @@ impl PackageCreator {
                     .do_nothing()
                     .to_owned(),
                 )
-                .do_nothing()
+                .try_insert()
                 .exec(db)
                 .await?;
         }

@@ -15,7 +15,7 @@ use sea_orm::{
     ConnectionTrait, DbBackend, DbErr, EntityTrait, FromQueryResult, JoinType, ModelTrait,
     QueryFilter, QueryOrder, QueryResult, QuerySelect, RelationTrait, Statement,
 };
-use sea_query::{Asterisk, Expr, Func, PgFunc, SimpleExpr};
+use sea_query::{Asterisk, Expr, ExprTrait, Func, PgFunc, SimpleExpr};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -180,7 +180,7 @@ impl SbomDetails {
 
         // Execute the raw SQL query and collect IDs
         let raw_results = tx
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 raw_sql::product_advisory_info_sql(),
                 [sbom.sbom_id.into(), statuses.clone().into()],
@@ -203,7 +203,7 @@ impl SbomDetails {
         // product-stream membership, which is unrelated to component-level
         // CPEs harvested from third-party SBOMs.
         let cpe_raw_results = tx
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 DbBackend::Postgres,
                 raw_sql::cpe_advisory_info_sql(),
                 [sbom.sbom_id.into(), statuses.into()],

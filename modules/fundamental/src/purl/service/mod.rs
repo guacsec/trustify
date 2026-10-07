@@ -22,7 +22,7 @@ use sea_orm::{
     QueryFilter, QueryOrder, QuerySelect, QueryTrait, RelationTrait, prelude::Uuid,
 };
 use sea_query::{
-    Asterisk, ColumnType, Expr, Func,
+    Asterisk, ColumnType, Expr, ExprTrait, Func,
     JoinType::{self, InnerJoin},
     Order, SimpleExpr, UnionType,
 };

@@ -15,9 +15,9 @@ use crate::{
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DbErr, EntityTrait, FromJsonQueryResult, FromQueryResult,
     IntoSimpleExpr, QueryFilter, QueryOrder, QueryResult, QuerySelect, QueryTrait, RelationTrait,
-    Select, SelectColumns, Statement, StreamTrait, prelude::Uuid,
+    Select, Statement, StreamTrait, prelude::Uuid,
 };
-use sea_query::{ColumnType, Expr, JoinType, UnionType, extension::postgres::PgExpr};
+use sea_query::{ColumnType, Expr, ExprTrait, JoinType, UnionType, extension::postgres::PgExpr};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, fmt::Debug, sync::Arc, vec::Vec};
@@ -165,7 +165,7 @@ impl SbomService {
             vec![ids.clone().into()],
         );
 
-        let result = connection.query_all(stmt).await?;
+        let result = connection.query_all_raw(stmt).await?;
 
         let source_document_ids: Vec<_> = result
             .iter()
@@ -193,7 +193,7 @@ impl SbomService {
             );
 
             let gc_result = connection
-                .execute(gc_stmt)
+                .execute_raw(gc_stmt)
                 .instrument(info_span!("delete_sboms::gc"))
                 .await?;
             log::debug!(
@@ -617,10 +617,10 @@ impl SbomService {
             .join(JoinType::Join, sbom_node::Relation::Package.def())
             .select_only()
             .distinct()
-            .select_column_as(sbom_node::Column::NodeId, "id")
-            .select_column_as(sbom_node::Column::Name, "name")
-            .select_column_as(sbom_package::Column::Group, "group")
-            .select_column_as(sbom_package::Column::Version, "version")
+            .column_as(sbom_node::Column::NodeId, "id")
+            .column_as(sbom_node::Column::Name, "name")
+            .column_as(sbom_package::Column::Group, "group")
+            .column_as(sbom_package::Column::Version, "version")
             .order_by_asc(sbom_node::Column::NodeId)
             .into_model()
             .all(db)
@@ -801,11 +801,11 @@ impl SbomService {
             .filter(package_relates_to_package::Column::SbomId.is_in(sbom_ids.to_vec()))
             .filter(package_relates_to_package::Column::Relationship.eq(Relationship::Describes))
             .select_only()
-            .select_column(package_relates_to_package::Column::SbomId)
-            .select_column_as(sbom_node::Column::NodeId, "id")
-            .select_column_as(sbom_node::Column::Name, "name")
-            .select_column_as(sbom_package::Column::Group, "group")
-            .select_column_as(sbom_package::Column::Version, "version")
+            .column(package_relates_to_package::Column::SbomId)
+            .column_as(sbom_node::Column::NodeId, "id")
+            .column_as(sbom_node::Column::Name, "name")
+            .column_as(sbom_package::Column::Group, "group")
+            .column_as(sbom_package::Column::Version, "version")
             // join the right side (the described node) → package
             .join(
                 JoinType::Join,
@@ -863,7 +863,7 @@ impl SbomService {
             vec![sbom_ids.to_vec().into()],
         );
 
-        let rows = db.query_all(stmt).await?;
+        let rows = db.query_all_raw(stmt).await?;
 
         let mut result: HashMap<Uuid, SbomAdvisorySummary> = HashMap::new();
         for row in rows {
@@ -1058,14 +1058,14 @@ impl SbomService {
         let mut query = package_relates_to_package::Entity::find()
             .filter(package_relates_to_package::Column::SbomId.eq(sbom_id))
             .select_only()
-            .select_column_as(sbom_node::Column::NodeId, "id")
-            .select_column_as(sbom_node::Column::Name, "name")
-            .select_column_as(
+            .column_as(sbom_node::Column::NodeId, "id")
+            .column_as(sbom_node::Column::Name, "name")
+            .column_as(
                 package_relates_to_package::Column::Relationship,
                 "relationship",
             )
-            .select_column_as(sbom_package::Column::Group, "group")
-            .select_column_as(sbom_package::Column::Version, "version")
+            .column_as(sbom_package::Column::Group, "group")
+            .column_as(sbom_package::Column::Version, "version")
             // join the other side
             .join(JoinType::Join, join.def())
             .join(JoinType::Join, sbom_node::Relation::Package.def());
@@ -1277,7 +1277,7 @@ where
         )
         .join(JoinType::LeftJoin, versioned_purl::Relation::BasePurl.def())
         // aggregate the purls
-        .select_column_as(
+        .column_as(
             Expr::cust_with_exprs(
                 "coalesce(array_agg(distinct $1) filter (where $2), '{}')",
                 [
@@ -1291,7 +1291,7 @@ where
         )
         .join(JoinType::LeftJoin, sbom_node_cpe_ref::Relation::Cpe.def())
         // aggregate the cpes
-        .select_column_as(
+        .column_as(
             Expr::cust_with_exprs(
                 "to_json(coalesce(array_agg(distinct $1) filter (where $2), '{}'))",
                 [
@@ -1314,7 +1314,7 @@ where
     E: EntityTrait,
 {
     query
-        .select_column_as(
+        .column_as(
             Expr::cust_with_exprs(
                 "coalesce(json_agg(distinct jsonb_build_object('license_name', $1, 'license_type', $2)) filter (where $3), '[]'::json)",
                 [

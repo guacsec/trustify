@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use sea_orm::{AccessMode, ConnectionTrait, DbBackend, Statement, TransactionTrait};
 use test_context::test_context;
 use test_log::test;
@@ -12,7 +13,7 @@ async fn read_only_begin_rejects_writes(ctx: &TrustifyContext) -> anyhow::Result
     let tx = ro.begin().await?;
 
     let result = tx
-        .execute(Statement::from_string(
+        .execute_raw(Statement::from_string(
             DbBackend::Postgres,
             "CREATE TEMP TABLE _ro_test (id int)".to_string(),
         ))
@@ -58,7 +59,7 @@ async fn read_write_allows_writes(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let rw = ReadWrite::new(ctx.db.clone());
     let tx = rw.begin().await?;
 
-    tx.execute(Statement::from_string(
+    tx.execute_raw(Statement::from_string(
         DbBackend::Postgres,
         "CREATE TEMP TABLE _rw_test (id int)".to_string(),
     ))
@@ -76,7 +77,7 @@ async fn read_only_allows_reads(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let ro = ReadOnly::new(ctx.db.clone());
     let tx = ro.begin().await?;
 
-    tx.query_one(Statement::from_string(
+    tx.query_one_raw(Statement::from_string(
         DbBackend::Postgres,
         "SELECT 1 AS n".to_string(),
     ))

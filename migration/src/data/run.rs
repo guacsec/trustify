@@ -73,7 +73,7 @@ impl Runner {
 
         let database = self.database.clone().try_into_connection().await?;
 
-        let manager = SchemaManager::new(database.into_schema_manager_connection());
+        let manager = SchemaManager::new((&database).into_database_executor());
         let manager =
             SchemaDataManager::new(&manager, Some(&database), &self.storage, &self.options);
 

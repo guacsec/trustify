@@ -1,5 +1,5 @@
 use sea_orm::{IntoIdentity, Set};
-use sea_query::{Condition, Expr, IntoCondition};
+use sea_query::{Condition, Expr, ExprTrait};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use trustify_entity::version_range;
@@ -109,11 +109,11 @@ impl VersionInfo {
     }
 }
 
-impl IntoCondition for VersionInfo {
-    fn into_condition(self) -> Condition {
-        match self.spec {
+impl From<VersionInfo> for Condition {
+    fn from(info: VersionInfo) -> Condition {
+        match info.spec {
             VersionSpec::Exact(version) => Condition::all()
-                .add(Expr::col("version_scheme_id".into_identity()).eq(self.scheme))
+                .add(Expr::col("version_scheme_id".into_identity()).eq(info.scheme))
                 .add(Expr::col("low_version".into_identity()).eq(version.clone()))
                 .add(Expr::col("low_inclusive".into_identity()).eq(true))
                 .add(Expr::col("high_version".into_identity()).eq(version))

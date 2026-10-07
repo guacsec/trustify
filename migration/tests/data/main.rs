@@ -70,7 +70,7 @@ mod sbom {
                                 r#"UPDATE SBOM SET FOO = $1 WHERE SBOM_ID = $2"#,
                                 [value.into(), id.sbom.into()],
                             );
-                            tx.execute(stmt).await?;
+                            tx.execute_raw(stmt).await?;
                         }
 
                         Ok(())
@@ -129,7 +129,7 @@ async fn examples(ctx: &TrustifyMigrationContext) -> Result<(), anyhow::Error> {
 
     let result = ctx
         .db
-        .query_all(Statement::from_string(
+        .query_all_raw(Statement::from_string(
             ctx.db.get_database_backend(),
             r#"SELECT FOO FROM SBOM"#,
         ))

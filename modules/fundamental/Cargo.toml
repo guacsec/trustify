@@ -5,6 +5,7 @@ edition.workspace = true
 publish.workspace = true
 license.workspace = true
 rust-version.workspace = true
+autobenches = false
 
 [features]
 long_running = [] # enable long-running tests

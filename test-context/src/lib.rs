@@ -126,7 +126,7 @@ $$;
         terminate_connections(&db).await?;
 
         let result = db
-            .query_one(Statement::from_string(
+            .query_one_raw(Statement::from_string(
                 db.get_database_backend(),
                 "SHOW default_transaction_read_only",
             ))
@@ -434,12 +434,10 @@ async fn terminate_connections_int(db: &Database, our: bool) -> Result<(), DbErr
         .await
         .map(|_| ())
         .or_else(|err| match err {
-            DbErr::Exec(RuntimeErr::SqlxError(sqlx::error::Error::Database(err)))
-            if err.code().as_deref() == Some("57P01") =>
+            DbErr::Exec(RuntimeErr::SqlxError(ref arc_err))
+            if matches!(arc_err.as_ref(), sqlx::error::Error::Database(e) if e.code().as_deref() == Some("57P01")) =>
                 {
                     log::info!("Ignoring broken connection");
-                    // should catch the "terminating connection due to administrator command", which
-                    // is caused by killing the connection at the end of the above statement.
                     Ok(())
                 }
             _ => Err(err),

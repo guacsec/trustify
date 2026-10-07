@@ -2,7 +2,7 @@ use std::future::Future;
 
 use super::Error;
 use crate::model::Importer;
-use sea_orm::{QueryFilter, entity::*, prelude::*};
+use sea_orm::{QueryFilter, entity::*, prelude::*, sea_query::ExprTrait};
 use time::OffsetDateTime;
 use tokio::{
     task::{JoinHandle, spawn_local},
@@ -75,22 +75,34 @@ impl Heart {
     // returned. Upon success, the updated Importer is returned.
     async fn beat(importer: &Importer, db: &ReadWrite) -> Result<Importer, Error> {
         let t = OffsetDateTime::now_utc().unix_timestamp_nanos();
-        let model = importer::ActiveModel {
-            name: Set(importer.name.to_owned()),
-            heartbeat: Set(Some(t.into())),
-            ..Default::default()
-        };
-        use importer::Column::Heartbeat;
+        let new_heartbeat: Decimal = t.into();
+
+        use importer::Column::{Heartbeat, Name};
         let lock = match importer.heartbeat {
             Some(t) => Expr::col(Heartbeat).eq(Decimal::from_i128_with_scale(t, 0)),
             None => Expr::col(Heartbeat).is_null(),
         };
-        // We rely on the fact that `update` will return an error if
-        // no row is affected, as opposed to how `update_many` works
-        match importer::Entity::update(model).filter(lock).exec(db).await {
-            Ok(model) => Importer::try_from(model).map_err(Error::Json),
-            Err(e) => Err(Error::Heartbeat(e)),
+
+        let result = importer::Entity::update_many()
+            .col_expr(Heartbeat, Expr::value(new_heartbeat))
+            .filter(Name.eq(importer.name.as_str()))
+            .filter(lock)
+            .exec(db)
+            .await
+            .map_err(Error::Heartbeat)?;
+
+        if result.rows_affected == 0 {
+            return Err(Error::Heartbeat(DbErr::RecordNotUpdated));
         }
+
+        let model = importer::Entity::find()
+            .filter(Name.eq(importer.name.as_str()))
+            .one(db)
+            .await
+            .map_err(Error::Heartbeat)?
+            .ok_or_else(|| Error::Heartbeat(DbErr::RecordNotFound("importer".to_string())))?;
+
+        Importer::try_from(model).map_err(Error::Json)
     }
 }
 

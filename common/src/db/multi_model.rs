@@ -2,7 +2,7 @@ use sea_orm::{
     ColumnTrait, DbErr, EntityTrait, FromQueryResult, IntoIdentity, IntoSimpleExpr, Iterable,
     QueryResult, QuerySelect, Select, SelectModel, Selector,
 };
-use sea_query::{ColumnRef, Expr, SimpleExpr};
+use sea_query::{ColumnName, ColumnRef, Expr, SimpleExpr};
 
 pub trait ColumnsPrefixed: Sized {
     fn try_columns_prefixed<C, I>(self, prefix: &str, cols: I) -> Result<Self, DbErr>
@@ -20,17 +20,15 @@ impl<T: QuerySelect> ColumnsPrefixed for T {
         for col in cols.into_iter() {
             if let SimpleExpr::Column(col_ref) = col.into_simple_expr() {
                 match col_ref {
-                    ColumnRef::Column(name)
-                    | ColumnRef::TableColumn(_, name)
-                    | ColumnRef::SchemaTableColumn(_, _, name) => {
-                        let prefixed = format!("{prefix}{}", name.to_string());
+                    ColumnRef::Column(ColumnName(_, ref name)) => {
+                        let prefixed = format!("{prefix}{name}");
                         self = self.column_as(col, prefixed);
                     }
-                    ColumnRef::Asterisk => {
+                    ColumnRef::Asterisk(_) => {
                         return Err(DbErr::Custom("Unable to prefix asterisk".to_string()));
                     }
-                    ColumnRef::TableAsterisk(_) => {
-                        return Err(DbErr::Custom("Unable to prefix asterisk".to_string()));
+                    _ => {
+                        return Err(DbErr::Custom("Unable to prefix column".to_string()));
                     }
                 }
             } else {
@@ -57,7 +55,7 @@ pub trait SelectIntoMultiModel: Sized {
 
 impl<E: EntityTrait> SelectIntoMultiModel for Select<E> {
     fn try_model_columns<O: EntityTrait>(self, entity: O) -> Result<Self, DbErr> {
-        let name = entity.module_name();
+        let name = entity.table_name();
         let prefix = format!("{name}$");
         self.try_columns_prefixed(&prefix, O::Column::iter())
     }
@@ -71,18 +69,16 @@ impl<E: EntityTrait> SelectIntoMultiModel for Select<E> {
         for simple_col in O::Column::iter() {
             if let SimpleExpr::Column(col_ref) = simple_col.into_simple_expr() {
                 match col_ref {
-                    ColumnRef::Column(name)
-                    | ColumnRef::TableColumn(_, name)
-                    | ColumnRef::SchemaTableColumn(_, _, name) => {
-                        let prefixed = format!("{prefix}{}", name.clone().to_string());
+                    ColumnRef::Column(ColumnName(_, name)) => {
+                        let prefixed = format!("{prefix}{name}");
                         self = self
                             .column_as(Expr::col((table_alias.into_identity(), name)), prefixed);
                     }
-                    ColumnRef::Asterisk => {
+                    ColumnRef::Asterisk(_) => {
                         return Err(DbErr::Custom("Unable to prefix asterisk".to_string()));
                     }
-                    ColumnRef::TableAsterisk(_) => {
-                        return Err(DbErr::Custom("Unable to prefix asterisk".to_string()));
+                    _ => {
+                        return Err(DbErr::Custom("Unable to prefix column".to_string()));
                     }
                 }
             } else {
@@ -111,7 +107,7 @@ pub trait FromQueryResultMultiModel: FromQueryResult {
         entity: E,
     ) -> Result<E::Model, DbErr> {
         let prefix = if alias.is_empty() {
-            let name = entity.module_name();
+            let name = entity.table_name();
             format!("{name}$")
         } else {
             format!("{alias}$")

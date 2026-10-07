@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use migration::{Migrator, MigratorTrait};
 use test_context::test_context;
 use test_log::test;

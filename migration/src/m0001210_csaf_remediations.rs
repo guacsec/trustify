@@ -194,22 +194,16 @@ enum RemediationCategory {
 }
 
 impl Iden for RemediationCategory {
-    fn unquoted(&self, s: &mut dyn Write) {
-        #[allow(clippy::unwrap_used)]
-        write!(
-            s,
-            "{}",
-            match self {
-                Self::Type => "remediation_category",
-                Self::VendorFix => "vendor_fix",
-                Self::Workaround => "workaround",
-                Self::Mitigation => "mitigation",
-                Self::NoFixPlanned => "no_fix_planned",
-                Self::NoneAvailable => "none_available",
-                Self::WillNotFix => "will_not_fix",
-            }
-        )
-        .unwrap();
+    fn unquoted(&self) -> &str {
+        match self {
+            Self::Type => "remediation_category",
+            Self::VendorFix => "vendor_fix",
+            Self::Workaround => "workaround",
+            Self::Mitigation => "mitigation",
+            Self::NoFixPlanned => "no_fix_planned",
+            Self::NoneAvailable => "none_available",
+            Self::WillNotFix => "will_not_fix",
+        }
     }
 }
 

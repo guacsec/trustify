@@ -30,7 +30,7 @@ version = "0.7.0-rc.1"
 edition = "2024"
 publish = false
 license = "Apache-2.0"
-rust-version = "1.92.0"
+rust-version = "1.94.0"
 
 [workspace.dependencies]
 actix-cors = "0.7"
@@ -117,9 +117,9 @@ sanitize-filename = "0.6.0"
 sbom-walker = { version = "0.19.0", default-features = false, features = ["crypto-openssl", "serde-cyclonedx", "spdx-rs"] }
 scheck = "0.8.0"
 schemars = "1.0"
-sea-orm = { version = "1.1.20", features = ["debug-print"] }
-sea-orm-migration = "1"
-sea-query = "0.32.0" # keep aligned with sea-orm
+sea-orm = { version = "2.0.4", features = ["debug-print"] }
+sea-orm-migration = "2"
+sea-query = "1.0.2" # keep aligned with sea-orm
 semver = "1"
 serde = "1.0.183"
 serde-cyclonedx = "0.10.0"
@@ -130,7 +130,7 @@ sha2 = "0.11"
 spdx = "0.13.3"
 spdx-expression = "0.5.2"
 spdx-rs = "0.5.3"
-sqlx = { version = "0.8", features = ["tls-native-tls", "postgres"] } # keep aligned with sea-orm
+sqlx = { version = "0.9", features = ["tls-native-tls", "postgres"] } # keep aligned with sea-orm
 strum = "0.28.0"
 tar = "0.4.45"
 temp-env = "0.3"

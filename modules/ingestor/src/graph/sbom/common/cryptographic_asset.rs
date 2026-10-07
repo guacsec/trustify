@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::convert::TryFrom;
 
 use crate::{
     graph::sbom::{Checksum, ReferenceSource, common::node::NodeCreator},
@@ -24,7 +24,7 @@ impl TryFrom<&Component> for Asset {
     fn try_from(c: &Component) -> Result<Self, Self::Error> {
         match &c.crypto_properties {
             Some(crypto) => {
-                let asset_type = CryptoAssetType::from_str(&crypto.asset_type)
+                let asset_type = CryptoAssetType::try_from(crypto.asset_type.as_str())
                     .map_err(|e| Error::InvalidContent(anyhow!(e)))?;
                 let oid = crypto.oid.clone();
                 let properties = match asset_type {
