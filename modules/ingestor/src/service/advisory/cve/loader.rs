@@ -87,6 +87,7 @@ impl<'g> CveLoader<'g> {
             published: information.published,
             modified: information.modified,
             withdrawn: information.withdrawn,
+            publisher_namespace: None,
         };
 
         let entries = Self::build_descriptions(descriptions);

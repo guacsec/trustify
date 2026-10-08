@@ -2,15 +2,11 @@ use super::{
     util::branch_purl,
     value::{self, OnInvalidData},
 };
-use crate::graph::advisory::{
-    vers::parse_vers,
-    version::{Version, VersionInfo, VersionSpec},
-};
+use crate::graph::advisory::version::{Version, VersionInfo, VersionSpec};
 use crate::service::Error;
-use cpe::cpe::Cpe;
 use csaf::schema::csaf2_0::schema::{Branch, CategoryOfTheBranch, FullProductNameT};
 use sbom_walker::report::ReportSink;
-use trustify_common::purl::Purl;
+use trustify_common::{cpe::Cpe, purl::Purl};
 use trustify_entity::version_scheme::VersionScheme;
 
 #[derive(Clone, Default, Debug, Eq, Hash, PartialEq)]
@@ -18,17 +14,25 @@ pub struct ProductStatus {
     pub vendor: Option<String>,
     pub product: String,
     pub version: Option<VersionInfo>,
-    pub cpe: Option<trustify_common::cpe::Cpe>,
+    pub cpe: Option<Cpe>,
     pub status: &'static str,
     pub purls: Vec<Purl>,
     pub packages: Vec<String>,
     pub vers_specs: Vec<VersionInfo>,
+    /// A version range of the product could not be parsed, so its purls must not be used.
+    pub invalid_range: bool,
 }
 
 impl ProductStatus {
+    /// Update the product from a branch on the path to it.
+    ///
+    /// Only the branches of the `subject` contribute purls and version ranges. For a relationship,
+    /// that is the component (`product_reference`), not the platform it relates to: the document
+    /// states the status of the combination, not of the platform.
     pub fn update_from_branch(
         &mut self,
         branch: &Branch,
+        subject: bool,
         on_invalid: OnInvalidData,
         report: &dyn ReportSink,
     ) -> Result<(), Error> {
@@ -51,7 +55,11 @@ impl ProductStatus {
                                 None => None,
                             };
                             match purl {
-                                Some(purl) => self.purls.push(purl.into()),
+                                Some(purl) => {
+                                    if subject {
+                                        self.purls.push(purl.into());
+                                    }
+                                }
                                 None => self.packages.push(branch.name.to_string()),
                             }
                         }
@@ -61,19 +69,58 @@ impl ProductStatus {
                 };
             }
             CategoryOfTheBranch::ProductVersionRange => {
-                let version_infos =
-                    parse_vers(&branch.name).map_err(|err| Error::Generic(err.into()))?;
-                self.vers_specs.extend(version_infos);
-                if let Some(purl) = branch_purl(branch, on_invalid, report)? {
-                    self.purls.push(Purl::from(purl));
+                if !subject {
+                    return Ok(());
+                }
+                match on_invalid.validate(value::range(&branch.name), report)? {
+                    Some(version_infos) => {
+                        self.vers_specs.extend(version_infos);
+                        if let Some(purl) = branch_purl(branch, on_invalid, report)? {
+                            self.purls.push(Purl::from(purl));
+                        }
+                    }
+                    // never widen a range we can't read to "all versions"
+                    None => self.invalid_range = true,
                 }
             }
             _ => {
-                if let Some(purl) = branch_purl(branch, on_invalid, report)? {
+                if subject && let Some(purl) = branch_purl(branch, on_invalid, report)? {
                     self.purls.push(Purl::from(purl));
                 }
             }
         }
+        Ok(())
+    }
+
+    /// Update the product from its definition outside of branches (in `full_product_names`, or
+    /// a relationship), which carries no category, just a name and an identification helper.
+    ///
+    /// Like [`Self::update_from_branch`], only a `subject` contributes its purl.
+    pub fn update_from_full_product_name(
+        &mut self,
+        full_name: &FullProductNameT,
+        subject: bool,
+        on_invalid: OnInvalidData,
+        report: &dyn ReportSink,
+    ) -> Result<(), Error> {
+        if self.product.is_empty() {
+            self.product = full_name.name.to_string();
+        }
+        if self.cpe.is_none() && self.version.is_none() {
+            self.set_version(Some(full_name.clone()), on_invalid, report)?;
+        }
+
+        let purl = full_name
+            .product_identification_helper
+            .as_ref()
+            .and_then(|helper| helper.purl.as_deref());
+        if subject
+            && let Some(purl) = purl
+            && let Some(purl) = on_invalid.validate(value::purl(purl), report)?
+        {
+            self.purls.push(purl.into());
+        }
+
         Ok(())
     }
 
@@ -97,7 +144,7 @@ impl ProductStatus {
         };
 
         if let Some(cpe) = cpe {
-            self.cpe = Some(cpe.clone().into());
+            self.cpe = Some(cpe.clone());
             self.version = Some(version_from_cpe(&cpe));
             return Ok(());
         }
@@ -120,7 +167,7 @@ impl ProductStatus {
 }
 
 /// Derive the version information from a CPE.
-fn version_from_cpe(cpe: &cpe::uri::OwnedUri) -> VersionInfo {
+fn version_from_cpe(cpe: &Cpe) -> VersionInfo {
     let version = cpe.version().to_string();
 
     if version == "*" {

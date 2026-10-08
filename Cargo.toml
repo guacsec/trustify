@@ -68,14 +68,15 @@ csaf-rs = "0.5.1"
 csaf-walker = { version = "0.20.0", default-features = false }
 csv = "1.3.0"
 cve = "0.5.0"
-cvss = { package = "cvss-rs", version = "0.5.0" }
+cvss = { package = "cvss-rs", version = "0.4.0" }
+cvss-old = { package = "cvss", version = "2" }
 deepsize = "0.2.0"
 dotenvy = "0.15.7"
 fixedbitset = "0.5.7"
 flate2 = "1.0.35"
 futures = "0.3.30"
 futures-util = "0.3"
-garage-door = "0.2.1"
+garage-door = "0.3.0"
 git2 = { version = "0.21.0", features = ["https", "ssh"] }
 hex = "0.4.3"
 hide = "0.1.5"
@@ -134,7 +135,7 @@ sha2 = "0.11"
 spdx = "0.13.3"
 spdx-expression = "0.5.2"
 spdx-rs = "0.5.3"
-sqlx = { version = "0.9", features = ["tls-native-tls", "postgres"] } # keep aligned with sea-orm
+sqlx = { version = "0.8", features = ["tls-native-tls", "postgres"] } # keep aligned with sea-orm
 strum = "0.28.0"
 tar = "0.4.45"
 temp-env = "0.3"
@@ -158,6 +159,7 @@ utoipa = "6.0.0"
 utoipa-actix-web = { version = "0.2.0" }
 utoipa-swagger-ui = "10.0.2"
 uuid = "1.23.3"
+vers-like-specifier = { version = "0.1.2", default-features = false }
 vers-rs = "0.1.3"
 walkdir = "2.5"
 walker-common = "0.20.0"

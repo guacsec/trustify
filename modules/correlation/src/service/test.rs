@@ -1,15 +1,18 @@
+use crate::extractor::Extractors;
 use crate::{
     model::{
         ApiAssertionStatus, ComponentRef, CorrelationResult, IdentifierKind, IdentifierRef,
-        QueryMatch, QueryResult, QueryVerdict, VerdictStatus,
+        MatchedValue, QueryMatch, QueryResult, QueryVerdict, SbomVerdictCounts, VerdictStatus,
     },
     service::CorrelationService,
 };
+use rstest::rstest;
 use sea_orm::{ActiveModelTrait, Set, TransactionTrait};
+use std::collections::BTreeMap;
 use test_context::test_context;
 use test_log::test;
 use trustify_entity::correlation_evidence::{self, AssertionStatus};
-use trustify_test_context::TrustifyContext;
+use trustify_test_context::{TrustifyContext, document_bytes};
 use uuid::Uuid;
 
 #[test_context(TrustifyContext)]
@@ -162,10 +165,12 @@ async fn query_digest(ctx: &TrustifyContext) -> anyhow::Result<()> {
             status: VerdictStatus::Fixed,
             matches: vec![QueryMatch {
                 kind: IdentifierKind::Digest,
-                value: format!("sha256:{S18_DIGEST}"),
+                value: MatchedValue::new(format!("sha256:{S18_DIGEST}")),
                 advisory_id,
                 advisory_identifier: "https://www.beckhoff.com/#VDE-2025-106".into(),
                 status: ApiAssertionStatus::Fixed,
+                extractor: "digest".into(),
+                confidence: 1.0,
             }],
         }],
     };
@@ -222,10 +227,12 @@ async fn query_wildcard_sku(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 status: VerdictStatus::Affected,
                 matches: vec![QueryMatch {
                     kind: IdentifierKind::Sku,
-                    value: "6925281*".into(),
+                    value: MatchedValue::new("6925281*"),
                     advisory_id,
                     advisory_identifier: "https://www.harman.com/#HBSA-2025-0004".into(),
                     status: ApiAssertionStatus::Affected,
+                    extractor: "product_identifier".into(),
+                    confidence: 1.0,
                 }],
             }],
         }
@@ -300,6 +307,75 @@ async fn components_list_identifiers(ctx: &TrustifyContext) -> anyhow::Result<()
             ]),
         }
     );
+
+    Ok(())
+}
+
+/// Expected verdicts of a correlation scenario (`expected.json`).
+#[derive(serde::Deserialize)]
+struct Scenario {
+    advisories: Vec<String>,
+    /// SBOM file -> node ID -> vulnerability -> verdict status
+    sboms: BTreeMap<String, BTreeMap<String, BTreeMap<String, VerdictStatus>>>,
+}
+
+/// Run a scenario: ingest its documents, extract evidence, and compare the verdicts with
+/// `expected.json`. Components without a verdict must not appear.
+#[test_context(TrustifyContext)]
+#[rstest]
+#[case("S20_cpe_range_wago")]
+#[case("S21_cpe_extended_attributes_beckhoff")]
+#[case("S22_cpe_third_party_openssl_phoenix")]
+#[case("S23_suse_codestream_openssl")]
+#[test_log::test(actix_web::test)]
+async fn scenario(ctx: &TrustifyContext, #[case] name: &str) -> anyhow::Result<()> {
+    let base = format!("scenarios/{name}");
+    let expected: Scenario =
+        serde_json::from_slice(&document_bytes(format!("{base}/expected.json")).await?)?;
+
+    for advisory in &expected.advisories {
+        ctx.ingest_document(&format!("{base}/{advisory}")).await?;
+    }
+
+    let service = CorrelationService::default();
+    for (sbom, expected) in expected.sboms {
+        let sbom_id = Uuid::parse_str(&ctx.ingest_document(&format!("{base}/{sbom}")).await?.id)?;
+
+        let tx = ctx.db.begin().await?;
+        Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+        tx.commit().await?;
+
+        let tx = ctx.db.begin().await?;
+        let mut actual = BTreeMap::<_, BTreeMap<_, _>>::new();
+        for verdict in service.correlate_sbom(sbom_id, false, &tx).await?.verdicts {
+            actual
+                .entry(verdict.component.node_id)
+                .or_default()
+                .insert(verdict.vulnerability.id, verdict.status);
+        }
+
+        assert_eq!(actual, expected, "{name}: {sbom}");
+
+        // the counts must agree with the verdicts
+        let mut counts = SbomVerdictCounts {
+            sbom_id,
+            ..Default::default()
+        };
+        for status in actual.values().flat_map(BTreeMap::values) {
+            match status {
+                VerdictStatus::Affected => counts.affected += 1,
+                VerdictStatus::Fixed => counts.fixed += 1,
+                VerdictStatus::NotAffected => counts.not_affected += 1,
+                VerdictStatus::UnderInvestigation => counts.under_investigation += 1,
+                VerdictStatus::None => counts.none += 1,
+            }
+        }
+        assert_eq!(
+            service.count_verdicts(&[sbom_id], &tx).await?,
+            vec![counts],
+            "{name}: {sbom}"
+        );
+    }
 
     Ok(())
 }

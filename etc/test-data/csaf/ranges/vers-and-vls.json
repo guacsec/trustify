@@ -1,0 +1,121 @@
+{
+  "document": {
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE"
+      }
+    },
+    "lang": "en",
+    "publisher": {
+      "category": "vendor",
+      "name": "Example Publisher",
+      "namespace": "https://example.com"
+    },
+    "title": "Version ranges",
+    "tracking": {
+      "current_release_date": "2026-10-08T00:00:00Z",
+      "id": "EXAMPLE-RANGES-0001",
+      "initial_release_date": "2026-10-08T00:00:00Z",
+      "revision_history": [
+        {
+          "date": "2026-10-08T00:00:00Z",
+          "number": "1",
+          "summary": "Initial version"
+        }
+      ],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Example Vendor",
+        "branches": [
+          {
+            "category": "product_name",
+            "name": "Example App",
+            "branches": [
+              {
+                "category": "product_version_range",
+                "name": "vers:npm/<2.0.0",
+                "product": {
+                  "name": "Example App < 2.0.0",
+                  "product_id": "CSAFPID-APP",
+                  "product_identification_helper": {
+                    "purl": "pkg:npm/example-app"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "category": "product_name",
+            "name": "Example Lib",
+            "branches": [
+              {
+                "category": "product_version_range",
+                "name": "<4.2",
+                "product": {
+                  "name": "Example Lib < 4.2",
+                  "product_id": "CSAFPID-LIB",
+                  "product_identification_helper": {
+                    "purl": "pkg:npm/example-lib"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "category": "product_name",
+            "name": "Example Platform",
+            "branches": [
+              {
+                "category": "product_version_range",
+                "name": "vers:npm/<3.0.0",
+                "product": {
+                  "name": "Example Platform < 3.0.0",
+                  "product_id": "CSAFPID-PLATFORM",
+                  "product_identification_helper": {
+                    "purl": "pkg:npm/example-platform"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Example App < 2.0.0 on Example Platform < 3.0.0",
+          "product_id": "CSAFPID-APP-ON-PLATFORM"
+        },
+        "product_reference": "CSAFPID-APP",
+        "relates_to_product_reference": "CSAFPID-PLATFORM"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2099-20001",
+      "notes": [
+        {
+          "category": "description",
+          "text": "Example vulnerability."
+        }
+      ],
+      "product_status": {
+        "known_affected": [
+          "CSAFPID-APP-ON-PLATFORM",
+          "CSAFPID-LIB"
+        ]
+      }
+    }
+  ]
+}

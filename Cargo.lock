@@ -9423,6 +9423,7 @@ dependencies = [
  "trustify-module-ingestor",
  "trustify-module-storage",
  "trustify-test-context",
+ "url",
  "uuid",
 ]
 
@@ -9716,6 +9717,7 @@ dependencies = [
  "utoipa",
  "utoipa-actix-web",
  "uuid",
+ "vers-like-specifier",
  "vers-rs",
  "wiremock",
  "zip",
@@ -10300,6 +10302,18 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
+
+[[package]]
+name = "vers-like-specifier"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc5ad8d9f0998abafa2dd6dfc7f018de45c042131c4f4808bd78035afb5cae25"
+dependencies = [
+ "serde",
+ "serde_json",
+ "strum 0.28.0",
+ "thiserror 2.0.20",
+]
 
 [[package]]
 name = "vers-rs"

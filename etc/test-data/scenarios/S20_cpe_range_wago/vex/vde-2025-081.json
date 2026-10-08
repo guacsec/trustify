@@ -1,0 +1,1312 @@
+{
+  "document": {
+    "acknowledgments": [
+      {
+        "organization": "CERT@VDE",
+        "summary": "coordination",
+        "urls": [
+          "https://certvde.com"
+        ]
+      }
+    ],
+    "aggregate_severity": {
+      "namespace": "https://www.first.org/cvss/v3.1/specification-document#Qualitative-Severity-Rating-Scale",
+      "text": "High"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en-GB",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "Multiple WAGO devices are affected by CODESYS Control vulnerabilities. The affected WAGO firmware versions are <4.10.0 (FW32) and <4.10.0 (70).\n",
+        "title": "Summary"
+      },
+      {
+        "category": "description",
+        "text": "Exploitation of these vulnerabilities can cause denial‑of‑service conditions on affected WAGO PLCs and communication components, disrupting industrial control operations. Additionally, opening manipulated CODESYS project files may trigger arbitrary code execution in the user context, compromising system integrity, confidentiality, and availability.",
+        "title": "Impact"
+      },
+      {
+        "category": "description",
+        "text": "Update to Firmware version 4.10.0 (FW32) or higher. For the latest Custom Firmware please contact the WAGO support.",
+        "title": "Remediation"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "psirt@wago.com",
+      "name": "WAGO GmbH & Co. KG",
+      "namespace": "https://www.wago.com/psirt"
+    },
+    "references": [
+      {
+        "category": "self",
+        "summary": "WAGO PSIRT",
+        "url": "https://www.wago.com/de-en/automation-technology/psirt"
+      },
+      {
+        "category": "external",
+        "summary": "CERT@VDE Security Advisories for WAGO",
+        "url": "https://certvde.com/de/advisories/vendor/wago/"
+      },
+      {
+        "category": "self",
+        "summary": "VDE-2025-081: WAGO: Multiple PLCs and Communication Components are Affected by multiple Vulnerabilities leading to RCE - HTML",
+        "url": "https://certvde.com/en/advisories/vde-2025-081"
+      },
+      {
+        "category": "self",
+        "summary": "VDE-2025-081: WAGO: Multiple PLCs and Communication Components are Affected by multiple Vulnerabilities leading to RCE - CSAF",
+        "url": "https://wago.csaf-tp.certvde.com/.well-known/csaf/white/2026/vde-2025-081.json"
+      }
+    ],
+    "title": "WAGO: Multiple PLCs and Communication Components are Affected by multiple Vulnerabilities leading to RCE",
+    "tracking": {
+      "aliases": [
+        "VDE-2025-081"
+      ],
+      "current_release_date": "2026-10-01T10:00:00.000Z",
+      "generator": {
+        "date": "2026-09-28T09:13:59.657Z",
+        "engine": {
+          "name": "Secvisogram",
+          "version": "2.6.12"
+        }
+      },
+      "id": "VDE-2025-081",
+      "initial_release_date": "2026-10-01T10:00:00.000Z",
+      "revision_history": [
+        {
+          "date": "2026-10-01T10:00:00.000Z",
+          "number": "1.0.0",
+          "summary": "Release version."
+        }
+      ],
+      "status": "final",
+      "version": "1.0.0"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "branches": [
+                  {
+                    "category": "product_name",
+                    "name": "0751-9x01",
+                    "product": {
+                      "name": "CC100 0751-9x01",
+                      "product_id": "CSAFPID-11001",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "0751-9?01"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "category": "product_family",
+                "name": "CC100"
+              },
+              {
+                "branches": [
+                  {
+                    "category": "product_name",
+                    "name": "0750-811x-xxxx-xxxx",
+                    "product": {
+                      "name": "PFC100 G2 0750-811x-xxxx-xxxx",
+                      "product_id": "CSAFPID-11002",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "0750-811?-????-????"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "category": "product_family",
+                "name": "PFC100 G2"
+              },
+              {
+                "branches": [
+                  {
+                    "category": "product_name",
+                    "name": "750-821x-xxx-xxx",
+                    "product": {
+                      "name": "PFC200 G2 750-821x-xxx-xxx",
+                      "product_id": "CSAFPID-11003",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "750-821?-????-????"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "category": "product_family",
+                "name": "PFC200 G2"
+              },
+              {
+                "branches": [
+                  {
+                    "category": "product_name",
+                    "name": "0762-420x/8000-000x",
+                    "product": {
+                      "name": "TP600 0762-420x/8000-000x",
+                      "product_id": "CSAFPID-11004",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "0762-420?/8000-000?"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_name",
+                    "name": "0762-430x/8000-000x",
+                    "product": {
+                      "name": "TP600 0762-430x/8000-000x",
+                      "product_id": "CSAFPID-11005",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "0762-430?/8000-000?"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_name",
+                    "name": "0762-520x/8000-000x",
+                    "product": {
+                      "name": "TP600 0762-520x/8000-000x",
+                      "product_id": "CSAFPID-11006",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "0762-520?/8000-000?"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_name",
+                    "name": "0762-530x/8000-000x",
+                    "product": {
+                      "name": "TP600 0762-530x/8000-000x",
+                      "product_id": "CSAFPID-11007",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "0762-530?/8000-000?"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_name",
+                    "name": "0762-620x/8000-000x",
+                    "product": {
+                      "name": "TP600 0762-620x/8000-000x",
+                      "product_id": "CSAFPID-11008",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "0762-620?/8000-000?"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "category": "product_name",
+                    "name": "0762-630x/8000-000x",
+                    "product": {
+                      "name": "TP600 0762-630x/8000-000x",
+                      "product_id": "CSAFPID-11009",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "0762-630?/8000-000?"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "category": "product_family",
+                "name": "TP600"
+              },
+              {
+                "branches": [
+                  {
+                    "category": "product_name",
+                    "name": "0752-8303/8000-0002",
+                    "product": {
+                      "name": "Edge Controller 0752-8303/8000-0002",
+                      "product_id": "CSAFPID-11010",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "0752-8303/8000-0002"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "category": "product_family",
+                "name": "Edge Controller"
+              },
+              {
+                "branches": [
+                  {
+                    "category": "product_name",
+                    "name": "0762-340x",
+                    "product": {
+                      "name": "WP400 0762-340x",
+                      "product_id": "CSAFPID-11011",
+                      "product_identification_helper": {
+                        "model_numbers": [
+                          "0762-340?"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "category": "product_family",
+                "name": "WP400"
+              }
+            ],
+            "category": "product_family",
+            "name": "Hardware"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version_range",
+                "name": "vers:semver/>=1.0.0|<4.10.0",
+                "product": {
+                  "name": "wago_os_linux <4.10.0 (FW32)",
+                  "product_id": "CSAFPID-21001",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "4.10.0",
+                "product": {
+                  "name": "wago_os_linux 4.10.0 (FW32)",
+                  "product_id": "CSAFPID-22001",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+                  }
+                }
+              },
+              {
+                "category": "product_version_range",
+                "name": "vers:semver/>=1.0.0|<4.10.0 (70)",
+                "product": {
+                  "name": "custom wago_os_linux <4.10.0 (70)",
+                  "product_id": "CSAFPID-21002",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "4.10.0 (70)",
+                "product": {
+                  "name": "custom wago_os_linux 4.10.0 (70)",
+                  "product_id": "CSAFPID-22002",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Firmware"
+          }
+        ],
+        "category": "vendor",
+        "name": "WAGO"
+      }
+    ],
+    "product_groups": [
+      {
+        "group_id": "CSAFGID-0001",
+        "product_ids": [
+          "CSAFPID-31001",
+          "CSAFPID-31002",
+          "CSAFPID-31003",
+          "CSAFPID-31004",
+          "CSAFPID-31005",
+          "CSAFPID-31006",
+          "CSAFPID-31007",
+          "CSAFPID-31008",
+          "CSAFPID-31009",
+          "CSAFPID-31010",
+          "CSAFPID-31011",
+          "CSAFPID-31012",
+          "CSAFPID-31013",
+          "CSAFPID-31014",
+          "CSAFPID-31015",
+          "CSAFPID-31016",
+          "CSAFPID-31017",
+          "CSAFPID-31018",
+          "CSAFPID-31019",
+          "CSAFPID-31020",
+          "CSAFPID-31021",
+          "CSAFPID-31022"
+        ],
+        "summary": "Affected products."
+      },
+      {
+        "group_id": "CSAFGID-0002",
+        "product_ids": [
+          "CSAFPID-32001",
+          "CSAFPID-32002",
+          "CSAFPID-32003",
+          "CSAFPID-32004",
+          "CSAFPID-32005",
+          "CSAFPID-32006",
+          "CSAFPID-32007",
+          "CSAFPID-32008",
+          "CSAFPID-32009",
+          "CSAFPID-32010",
+          "CSAFPID-32011",
+          "CSAFPID-32012",
+          "CSAFPID-32013",
+          "CSAFPID-32014",
+          "CSAFPID-32015",
+          "CSAFPID-32016",
+          "CSAFPID-32017",
+          "CSAFPID-32018",
+          "CSAFPID-32019",
+          "CSAFPID-32020",
+          "CSAFPID-32021",
+          "CSAFPID-32022"
+        ],
+        "summary": "Fixed products."
+      }
+    ],
+    "relationships": [
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on CC100 0751-9x01",
+          "product_id": "CSAFPID-31001",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11001"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on PFC100 G2 0750-811x-xxxx-xxxx",
+          "product_id": "CSAFPID-31002",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11002"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on PFC200 G2 750-821x-xxx-xxx",
+          "product_id": "CSAFPID-31003",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11003"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on TP600 0762-420x/8000-000x",
+          "product_id": "CSAFPID-31004",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11004"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on TP600 0762-430x/8000-000x",
+          "product_id": "CSAFPID-31005",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11005"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on TP600 0762-520x/8000-000x",
+          "product_id": "CSAFPID-31006",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11006"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on TP600 0762-530x/8000-000x",
+          "product_id": "CSAFPID-31007",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11007"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on TP600 0762-620x/8000-000x",
+          "product_id": "CSAFPID-31008",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11008"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on TP600 0762-630x/8000-000x",
+          "product_id": "CSAFPID-31009",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11009"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on Edge Controller 0752-8303/8000-0002",
+          "product_id": "CSAFPID-31010",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11010"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux <4.10.0 (FW32) installed on WP400 0762-340x",
+          "product_id": "CSAFPID-31011",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11011"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on CC100 0751-9x01",
+          "product_id": "CSAFPID-32001",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11001"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on PFC100 G2 0750-811x-xxxx-xxxx",
+          "product_id": "CSAFPID-32002",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11002"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on PFC200 G2 750-821x-xxx-xxx",
+          "product_id": "CSAFPID-32003",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11003"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on TP600 0762-420x/8000-000x",
+          "product_id": "CSAFPID-32004",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11004"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on TP600 0762-430x/8000-000x",
+          "product_id": "CSAFPID-32005",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11005"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on TP600 0762-520x/8000-000x",
+          "product_id": "CSAFPID-32006",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11006"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on TP600 0762-530x/8000-000x",
+          "product_id": "CSAFPID-32007",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11007"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on TP600 0762-620x/8000-000x",
+          "product_id": "CSAFPID-32008",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11008"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on TP600 0762-630x/8000-000x",
+          "product_id": "CSAFPID-32009",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11009"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on Edge Controller 0752-8303/8000-0002",
+          "product_id": "CSAFPID-32010",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11010"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "wago_os_linux 4.10.0 (FW32) installed on WP400 0762-340x",
+          "product_id": "CSAFPID-32011",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11011"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on CC100 0751-9x01",
+          "product_id": "CSAFPID-31012",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11001"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on PFC100 G2 0750-811x-xxxx-xxxx",
+          "product_id": "CSAFPID-31013",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11002"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on PFC200 G2 750-821x-xxx-xxx",
+          "product_id": "CSAFPID-31014",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11003"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on TP600 0762-420x/8000-000x",
+          "product_id": "CSAFPID-31015",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11004"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on TP600 0762-430x/8000-000x",
+          "product_id": "CSAFPID-31016",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11005"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on TP600 0762-520x/8000-000x",
+          "product_id": "CSAFPID-31017",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11006"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on TP600 0762-530x/8000-000x",
+          "product_id": "CSAFPID-31018",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11007"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on TP600 0762-620x/8000-000x",
+          "product_id": "CSAFPID-31019",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11008"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on TP600 0762-630x/8000-000x",
+          "product_id": "CSAFPID-31020",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11009"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on Edge Controller 0752-8303/8000-0002",
+          "product_id": "CSAFPID-31021",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11010"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux <4.10.0 (70) installed on WP400 0762-340x",
+          "product_id": "CSAFPID-31022",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:*:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-21002",
+        "relates_to_product_reference": "CSAFPID-11011"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on CC100 0751-9x01",
+          "product_id": "CSAFPID-32012",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11001"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on PFC100 G2 0750-811x-xxxx-xxxx",
+          "product_id": "CSAFPID-32013",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11002"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on PFC200 G2 750-821x-xxx-xxx",
+          "product_id": "CSAFPID-32014",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11003"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on TP600 0762-420x/8000-000x",
+          "product_id": "CSAFPID-32015",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11004"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on TP600 0762-430x/8000-000x",
+          "product_id": "CSAFPID-32016",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11005"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on TP600 0762-520x/8000-000x",
+          "product_id": "CSAFPID-32017",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11006"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on TP600 0762-530x/8000-000x",
+          "product_id": "CSAFPID-32018",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11007"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on TP600 0762-620x/8000-000x",
+          "product_id": "CSAFPID-32019",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11008"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on TP600 0762-630x/8000-000x",
+          "product_id": "CSAFPID-32020",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11009"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on Edge Controller 0752-8303/8000-0002",
+          "product_id": "CSAFPID-32021",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11010"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "custom wago_os_linux 4.10.0 (70) installed on WP400 0762-340x",
+          "product_id": "CSAFPID-32022",
+          "product_identification_helper": {
+            "cpe": "cpe:2.3:o:wago:wago_os_linux_hardened:4.10.0:*:*:*:*:*:*:*"
+          }
+        },
+        "product_reference": "CSAFPID-22002",
+        "relates_to_product_reference": "CSAFPID-11011"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2025-41700",
+      "cwe": {
+        "id": "CWE-502",
+        "name": "Deserialization of Untrusted Data"
+      },
+      "notes": [
+        {
+          "category": "description",
+          "text": "An unauthenticated attacker can trick a local user into executing arbitrary code by opening a deliberately manipulated CODESYS project file with a CODESYS development system. This arbitrary code is executed in the user context.",
+          "title": "CVE description"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "CSAFPID-32001",
+          "CSAFPID-32002",
+          "CSAFPID-32003",
+          "CSAFPID-32004",
+          "CSAFPID-32005",
+          "CSAFPID-32006",
+          "CSAFPID-32007",
+          "CSAFPID-32008",
+          "CSAFPID-32009",
+          "CSAFPID-32010",
+          "CSAFPID-32011",
+          "CSAFPID-32012",
+          "CSAFPID-32013",
+          "CSAFPID-32014",
+          "CSAFPID-32015",
+          "CSAFPID-32016",
+          "CSAFPID-32017",
+          "CSAFPID-32018",
+          "CSAFPID-32019",
+          "CSAFPID-32020",
+          "CSAFPID-32021",
+          "CSAFPID-32022"
+        ],
+        "known_affected": [
+          "CSAFPID-31001",
+          "CSAFPID-31002",
+          "CSAFPID-31003",
+          "CSAFPID-31004",
+          "CSAFPID-31005",
+          "CSAFPID-31006",
+          "CSAFPID-31007",
+          "CSAFPID-31008",
+          "CSAFPID-31009",
+          "CSAFPID-31010",
+          "CSAFPID-31011",
+          "CSAFPID-31012",
+          "CSAFPID-31013",
+          "CSAFPID-31014",
+          "CSAFPID-31015",
+          "CSAFPID-31016",
+          "CSAFPID-31017",
+          "CSAFPID-31018",
+          "CSAFPID-31019",
+          "CSAFPID-31020",
+          "CSAFPID-31021",
+          "CSAFPID-31022"
+        ]
+      },
+      "references": [
+        {
+          "category": "external",
+          "summary": "Advisory: VDE-2025-101",
+          "url": "https://certvde.com/en/advisories/VDE-2025-101/"
+        }
+      ],
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Update to Firmware version 4.10.0 (FW32) or higher. For the latest Custom Firmware please contact the WAGO support.",
+          "group_ids": [
+            "CSAFGID-0001"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "LOCAL",
+            "availabilityImpact": "NONE",
+            "baseScore": 5.5,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "HIGH",
+            "environmentalScore": 5.5,
+            "environmentalSeverity": "MEDIUM",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "temporalScore": 5.5,
+            "temporalSeverity": "MEDIUM",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-31001",
+            "CSAFPID-31002",
+            "CSAFPID-31003",
+            "CSAFPID-31004",
+            "CSAFPID-31005",
+            "CSAFPID-31006",
+            "CSAFPID-31007",
+            "CSAFPID-31008",
+            "CSAFPID-31009",
+            "CSAFPID-31010",
+            "CSAFPID-31011",
+            "CSAFPID-31012",
+            "CSAFPID-31013",
+            "CSAFPID-31014",
+            "CSAFPID-31015",
+            "CSAFPID-31016",
+            "CSAFPID-31017",
+            "CSAFPID-31018",
+            "CSAFPID-31019",
+            "CSAFPID-31020",
+            "CSAFPID-31021",
+            "CSAFPID-31022"
+          ]
+        }
+      ],
+      "title": "CODESYS Development System - Deserialization of Untrusted Data"
+    },
+    {
+      "cve": "CVE-2025-41738",
+      "cwe": {
+        "id": "CWE-843",
+        "name": "Access of Resource Using Incompatible Type ('Type Confusion')"
+      },
+      "notes": [
+        {
+          "category": "description",
+          "text": "An unauthenticated remote attacker may cause the visualisation server of the CODESYS Control runtime system to access a resource with a pointer of wrong type, potentially leading to a denial-of-service (DoS) condition.",
+          "title": "CVE description"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "CSAFPID-32001",
+          "CSAFPID-32002",
+          "CSAFPID-32003",
+          "CSAFPID-32004",
+          "CSAFPID-32005",
+          "CSAFPID-32006",
+          "CSAFPID-32007",
+          "CSAFPID-32008",
+          "CSAFPID-32009",
+          "CSAFPID-32010",
+          "CSAFPID-32011",
+          "CSAFPID-32012",
+          "CSAFPID-32013",
+          "CSAFPID-32014",
+          "CSAFPID-32015",
+          "CSAFPID-32016",
+          "CSAFPID-32017",
+          "CSAFPID-32018",
+          "CSAFPID-32019",
+          "CSAFPID-32020",
+          "CSAFPID-32021",
+          "CSAFPID-32022"
+        ],
+        "known_affected": [
+          "CSAFPID-31001",
+          "CSAFPID-31002",
+          "CSAFPID-31003",
+          "CSAFPID-31004",
+          "CSAFPID-31005",
+          "CSAFPID-31006",
+          "CSAFPID-31007",
+          "CSAFPID-31008",
+          "CSAFPID-31009",
+          "CSAFPID-31010",
+          "CSAFPID-31011",
+          "CSAFPID-31012",
+          "CSAFPID-31013",
+          "CSAFPID-31014",
+          "CSAFPID-31015",
+          "CSAFPID-31016",
+          "CSAFPID-31017",
+          "CSAFPID-31018",
+          "CSAFPID-31019",
+          "CSAFPID-31020",
+          "CSAFPID-31021",
+          "CSAFPID-31022"
+        ]
+      },
+      "references": [
+        {
+          "category": "external",
+          "summary": "Advisory: VDE-2025-100",
+          "url": "https://certvde.com/en/advisories/VDE-2025-100/"
+        }
+      ],
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Update to Firmware version 4.10.0 (FW32) or higher. For the latest Custom Firmware please contact the WAGO support.",
+          "group_ids": [
+            "CSAFGID-0001"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "LOW",
+            "baseScore": 8.3,
+            "baseSeverity": "HIGH",
+            "confidentialityImpact": "HIGH",
+            "environmentalScore": 8.3,
+            "environmentalSeverity": "HIGH",
+            "integrityImpact": "HIGH",
+            "privilegesRequired": "LOW",
+            "scope": "UNCHANGED",
+            "temporalScore": 8.3,
+            "temporalSeverity": "HIGH",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:L",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-31001",
+            "CSAFPID-31002",
+            "CSAFPID-31003",
+            "CSAFPID-31004",
+            "CSAFPID-31005",
+            "CSAFPID-31006",
+            "CSAFPID-31007",
+            "CSAFPID-31008",
+            "CSAFPID-31009",
+            "CSAFPID-31010",
+            "CSAFPID-31011",
+            "CSAFPID-31012",
+            "CSAFPID-31013",
+            "CSAFPID-31014",
+            "CSAFPID-31015",
+            "CSAFPID-31016",
+            "CSAFPID-31017",
+            "CSAFPID-31018",
+            "CSAFPID-31019",
+            "CSAFPID-31020",
+            "CSAFPID-31021",
+            "CSAFPID-31022"
+          ]
+        }
+      ],
+      "title": "CODESYS Control - Invalid type usage in visualization"
+    },
+    {
+      "cve": "CVE-2025-41739",
+      "cwe": {
+        "id": "CWE-125",
+        "name": "Out-of-bounds Read"
+      },
+      "notes": [
+        {
+          "category": "description",
+          "text": "An unauthenticated remote attacker, who beats a race condition, can exploit a flaw in the communication servers of the CODESYS Control runtime system on Linux and QNX to trigger an out-of-bounds read via crafted socket communication, potentially causing a denial of service.",
+          "title": "CVE description"
+        }
+      ],
+      "product_status": {
+        "fixed": [
+          "CSAFPID-32001",
+          "CSAFPID-32002",
+          "CSAFPID-32003",
+          "CSAFPID-32004",
+          "CSAFPID-32005",
+          "CSAFPID-32006",
+          "CSAFPID-32007",
+          "CSAFPID-32008",
+          "CSAFPID-32009",
+          "CSAFPID-32010",
+          "CSAFPID-32011",
+          "CSAFPID-32012",
+          "CSAFPID-32013",
+          "CSAFPID-32014",
+          "CSAFPID-32015",
+          "CSAFPID-32016",
+          "CSAFPID-32017",
+          "CSAFPID-32018",
+          "CSAFPID-32019",
+          "CSAFPID-32020",
+          "CSAFPID-32021",
+          "CSAFPID-32022"
+        ],
+        "known_affected": [
+          "CSAFPID-31001",
+          "CSAFPID-31002",
+          "CSAFPID-31003",
+          "CSAFPID-31004",
+          "CSAFPID-31005",
+          "CSAFPID-31006",
+          "CSAFPID-31007",
+          "CSAFPID-31008",
+          "CSAFPID-31009",
+          "CSAFPID-31010",
+          "CSAFPID-31011",
+          "CSAFPID-31012",
+          "CSAFPID-31013",
+          "CSAFPID-31014",
+          "CSAFPID-31015",
+          "CSAFPID-31016",
+          "CSAFPID-31017",
+          "CSAFPID-31018",
+          "CSAFPID-31019",
+          "CSAFPID-31020",
+          "CSAFPID-31021",
+          "CSAFPID-31022"
+        ]
+      },
+      "references": [
+        {
+          "category": "external",
+          "summary": "Advisory: VDE-2025-099",
+          "url": "https://certvde.com/de/advisories/VDE-2025-099"
+        }
+      ],
+      "remediations": [
+        {
+          "category": "vendor_fix",
+          "details": "Update to Firmware version 4.10.0 (FW32) or higher. For the latest Custom Firmware please contact the WAGO support.",
+          "group_ids": [
+            "CSAFGID-0001"
+          ]
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 5.9,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "environmentalScore": 5.9,
+            "environmentalSeverity": "MEDIUM",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "temporalScore": 5.9,
+            "temporalSeverity": "MEDIUM",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-31001",
+            "CSAFPID-31002",
+            "CSAFPID-31003",
+            "CSAFPID-31004",
+            "CSAFPID-31005",
+            "CSAFPID-31006",
+            "CSAFPID-31007",
+            "CSAFPID-31008",
+            "CSAFPID-31009",
+            "CSAFPID-31010",
+            "CSAFPID-31011",
+            "CSAFPID-31012",
+            "CSAFPID-31013",
+            "CSAFPID-31014",
+            "CSAFPID-31015",
+            "CSAFPID-31016",
+            "CSAFPID-31017",
+            "CSAFPID-31018",
+            "CSAFPID-31019",
+            "CSAFPID-31020",
+            "CSAFPID-31021",
+            "CSAFPID-31022"
+          ]
+        }
+      ],
+      "title": "CODESYS Control - Linux/QNX SysSocket flaw"
+    }
+  ]
+}

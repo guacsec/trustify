@@ -90,6 +90,12 @@ mod m0002400_create_advisory_vulnerability_hash;
 mod m0002410_create_advisory_vulnerability_product_identifier;
 mod m0002420_create_sbom_node_product_identifier;
 mod m0002430_add_correlation_evidence_matched_value;
+mod m0002440_create_advisory_vulnerability_cpe;
+mod m0002450_correlation_evidence_matched_value_jsonb;
+mod m0002460_advisory_publisher_namespace;
+mod m0002470_drop_redhat_derived_purl_status;
+mod m0002480_correlation_evidence_per_status;
+mod m0002490_add_vls_version_scheme;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -195,6 +201,12 @@ impl MigratorExt for Migrator {
             .normal(m0002410_create_advisory_vulnerability_product_identifier::Migration)
             .normal(m0002420_create_sbom_node_product_identifier::Migration)
             .normal(m0002430_add_correlation_evidence_matched_value::Migration)
+            .normal(m0002440_create_advisory_vulnerability_cpe::Migration)
+            .normal(m0002450_correlation_evidence_matched_value_jsonb::Migration)
+            .normal(m0002460_advisory_publisher_namespace::Migration)
+            .data(m0002470_drop_redhat_derived_purl_status::Migration)
+            .normal(m0002480_correlation_evidence_per_status::Migration)
+            .normal(m0002490_add_vls_version_scheme::Migration)
     }
 }
 

@@ -1,0 +1,56 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:5d0b3c1e-6a43-4f6e-9a0e-2a7c2d6b8f10",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-08T00:00:00Z",
+    "component": {
+      "type": "application",
+      "bom-ref": "root",
+      "name": "example",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "example-app-1.0.0",
+      "name": "example-app",
+      "version": "1.0.0",
+      "purl": "pkg:npm/example-app@1.0.0"
+    },
+    {
+      "type": "library",
+      "bom-ref": "example-lib-4.1",
+      "name": "example-lib",
+      "version": "4.1",
+      "purl": "pkg:npm/example-lib@4.1"
+    },
+    {
+      "type": "library",
+      "bom-ref": "example-lib-4.3",
+      "name": "example-lib",
+      "version": "4.3",
+      "purl": "pkg:npm/example-lib@4.3"
+    },
+    {
+      "type": "library",
+      "bom-ref": "example-platform-1.0.0",
+      "name": "example-platform",
+      "version": "1.0.0",
+      "purl": "pkg:npm/example-platform@1.0.0"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root",
+      "dependsOn": [
+        "example-app-1.0.0",
+        "example-lib-4.1",
+        "example-lib-4.3",
+        "example-platform-1.0.0"
+      ]
+    }
+  ]
+}

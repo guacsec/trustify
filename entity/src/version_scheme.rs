@@ -36,6 +36,8 @@ pub enum VersionScheme {
     Swift,
     Pub,
     Cargo,
+    /// A CSAF vers-like specifier (vls): a range of versions without a versioning scheme.
+    Vls,
 }
 
 /// Translate from other ecosystems to our internal version scheme.

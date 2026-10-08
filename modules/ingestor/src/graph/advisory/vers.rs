@@ -1,66 +1,128 @@
 use crate::graph::advisory::version::{Version, VersionInfo, VersionSpec};
 use trustify_entity::version_scheme::VersionScheme;
-use vers_rs::{Comparator, VersError, VersVersionRange};
+use vers_like_specifier::{Comparator as VlsComparator, Vls, VlsError};
+use vers_rs::{Comparator, VersVersionRange, VersError};
+
+/// Prefix of a `vers:` URI.
+const VERS_PREFIX: &str = "vers:";
+
+/// An error parsing a CSAF version range.
+#[derive(Debug, thiserror::Error)]
+pub enum RangeError {
+    #[error("invalid vers: {0}")]
+    Vers(#[from] VersError),
+    #[error("invalid vls: {0}")]
+    Vls(#[from] VlsError),
+    #[error("a vls must not denote a single version")]
+    SingleVersion,
+}
 
 /// Parse a `vers:` URI and convert to one or more [`VersionInfo`] values.
 pub fn parse_vers(input: &str) -> Result<Vec<VersionInfo>, VersError> {
     let range: VersVersionRange<String> = input.parse()?;
     let scheme = VersionScheme::from(range.versioning_scheme.as_str());
-    Ok(convert_constraints(&range.constraints, scheme))
+    let constraints = range
+        .constraints
+        .iter()
+        .map(|c| {
+            let op = match c.comparator {
+                Comparator::Any => Op::Any,
+                Comparator::Equal => Op::Equal,
+                Comparator::NotEqual => Op::NotEqual,
+                Comparator::LessThan => Op::LessThan,
+                Comparator::LessThanOrEqual => Op::LessThanOrEqual,
+                Comparator::GreaterThan => Op::GreaterThan,
+                Comparator::GreaterThanOrEqual => Op::GreaterThanOrEqual,
+            };
+            (op, c.version.as_str())
+        })
+        .collect::<Vec<_>>();
+    Ok(convert_constraints(&constraints, scheme))
 }
 
-fn convert_constraints(
-    constraints: &[vers_rs::VersionConstraint<String>],
-    scheme: VersionScheme,
-) -> Vec<VersionInfo> {
-    if constraints.len() == 1 {
-        let c = &constraints[0];
-        let spec = match c.comparator {
-            Comparator::Any => VersionSpec::Range(Version::Unbounded, Version::Unbounded),
-            Comparator::Equal => VersionSpec::Exact(c.version.clone()),
-            Comparator::GreaterThan => {
-                VersionSpec::Range(Version::Exclusive(c.version.clone()), Version::Unbounded)
+/// Parse a CSAF vers-like specifier (vls), e.g. `<4.2`, which states no versioning scheme.
+///
+/// The result carries [`VersionScheme::Vls`]: picking a scheme is up to the consumer.
+pub fn parse_vls(input: &str) -> Result<Vec<VersionInfo>, RangeError> {
+    let vls: Vls = input.parse()?;
+    // CSAF 2.1: a single version isn't a valid vls
+    if vls.is_single_version() {
+        return Err(RangeError::SingleVersion);
+    }
+    let constraints = vls
+        .constraints()
+        .iter()
+        .map(|c| {
+            let op = match c.comparator() {
+                VlsComparator::Equal => Op::Equal,
+                VlsComparator::NotEqual => Op::NotEqual,
+                VlsComparator::LessThan => Op::LessThan,
+                VlsComparator::LessThanOrEqual => Op::LessThanOrEqual,
+                VlsComparator::GreaterThan => Op::GreaterThan,
+                VlsComparator::GreaterThanOrEqual => Op::GreaterThanOrEqual,
+            };
+            (op, c.version().as_str())
+        })
+        .collect::<Vec<_>>();
+    Ok(convert_constraints(&constraints, VersionScheme::Vls))
+}
+
+/// Parse the name of a CSAF `product_version_range` branch: either a `vers:` URI, or a vls.
+pub fn parse_range(input: &str) -> Result<Vec<VersionInfo>, RangeError> {
+    if input.starts_with(VERS_PREFIX) {
+        Ok(parse_vers(input)?)
+    } else {
+        parse_vls(input)
+    }
+}
+
+/// The comparator of a constraint, common to vers and vls.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Op {
+    Any,
+    Equal,
+    NotEqual,
+    LessThan,
+    LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
+}
+
+fn convert_constraints(constraints: &[(Op, &str)], scheme: VersionScheme) -> Vec<VersionInfo> {
+    if let [(op, version)] = constraints {
+        let version = version.to_string();
+        let spec = match op {
+            Op::Any => VersionSpec::Range(Version::Unbounded, Version::Unbounded),
+            Op::Equal => VersionSpec::Exact(version),
+            Op::GreaterThan => VersionSpec::Range(Version::Exclusive(version), Version::Unbounded),
+            Op::GreaterThanOrEqual => {
+                VersionSpec::Range(Version::Inclusive(version), Version::Unbounded)
             }
-            Comparator::GreaterThanOrEqual => {
-                VersionSpec::Range(Version::Inclusive(c.version.clone()), Version::Unbounded)
+            Op::LessThan => VersionSpec::Range(Version::Unbounded, Version::Exclusive(version)),
+            Op::LessThanOrEqual => {
+                VersionSpec::Range(Version::Unbounded, Version::Inclusive(version))
             }
-            Comparator::LessThan => {
-                VersionSpec::Range(Version::Unbounded, Version::Exclusive(c.version.clone()))
-            }
-            Comparator::LessThanOrEqual => {
-                VersionSpec::Range(Version::Unbounded, Version::Inclusive(c.version.clone()))
-            }
-            Comparator::NotEqual => VersionSpec::Range(Version::Unbounded, Version::Unbounded),
+            Op::NotEqual => VersionSpec::Range(Version::Unbounded, Version::Unbounded),
         };
         return vec![VersionInfo { scheme, spec }];
     }
 
-    let lower = constraints.iter().find(|c| {
-        matches!(
-            c.comparator,
-            Comparator::GreaterThan | Comparator::GreaterThanOrEqual
-        )
-    });
-    let upper = constraints.iter().find(|c| {
-        matches!(
-            c.comparator,
-            Comparator::LessThan | Comparator::LessThanOrEqual
-        )
-    });
+    let lower = constraints
+        .iter()
+        .find(|(op, _)| matches!(op, Op::GreaterThan | Op::GreaterThanOrEqual));
+    let upper = constraints
+        .iter()
+        .find(|(op, _)| matches!(op, Op::LessThan | Op::LessThanOrEqual));
 
     if lower.is_some() || upper.is_some() {
         let low = match lower {
-            Some(c) if c.comparator == Comparator::GreaterThanOrEqual => {
-                Version::Inclusive(c.version.clone())
-            }
-            Some(c) => Version::Exclusive(c.version.clone()),
+            Some((Op::GreaterThanOrEqual, version)) => Version::Inclusive(version.to_string()),
+            Some((_, version)) => Version::Exclusive(version.to_string()),
             None => Version::Unbounded,
         };
         let high = match upper {
-            Some(c) if c.comparator == Comparator::LessThanOrEqual => {
-                Version::Inclusive(c.version.clone())
-            }
-            Some(c) => Version::Exclusive(c.version.clone()),
+            Some((Op::LessThanOrEqual, version)) => Version::Inclusive(version.to_string()),
+            Some((_, version)) => Version::Exclusive(version.to_string()),
             None => Version::Unbounded,
         };
         return vec![VersionInfo {
@@ -69,19 +131,17 @@ fn convert_constraints(
         }];
     }
 
-    let equals: Vec<_> = constraints
+    let equals = constraints
         .iter()
-        .filter(|c| c.comparator == Comparator::Equal)
-        .collect();
+        .filter(|(op, _)| *op == Op::Equal)
+        .map(|(_, version)| VersionInfo {
+            scheme,
+            spec: VersionSpec::Exact(version.to_string()),
+        })
+        .collect::<Vec<_>>();
 
     if !equals.is_empty() {
-        return equals
-            .into_iter()
-            .map(|c| VersionInfo {
-                scheme,
-                spec: VersionSpec::Exact(c.version.clone()),
-            })
-            .collect();
+        return equals;
     }
 
     vec![VersionInfo {
@@ -93,6 +153,7 @@ fn convert_constraints(
 #[cfg(test)]
 mod test {
     use super::*;
+    use rstest::rstest;
 
     #[test]
     fn parse_range() {
@@ -168,5 +229,47 @@ mod test {
     #[test]
     fn parse_error_invalid() {
         assert!(parse_vers("not-a-vers").is_err());
+    }
+
+    /// vers and vls with the same constraints give the same bounds, only the scheme differs.
+    #[rstest]
+    #[case::upper("vers:npm/<4.2", "<4.2")]
+    #[case::bounded("vers:npm/>=1.0|<=2.0", ">=1.0|<=2.0")]
+    #[case::versions("vers:npm/1.0|1.1", "1.0|1.1")]
+    fn vers_vls_equivalent(#[case] vers: &str, #[case] vls: &str) {
+        let vers = super::parse_range(vers).unwrap();
+        let vls = super::parse_range(vls).unwrap();
+        assert_eq!(
+            vers.into_iter()
+                .map(|info| VersionInfo {
+                    scheme: VersionScheme::Vls,
+                    ..info
+                })
+                .collect::<Vec<_>>(),
+            vls
+        );
+    }
+
+    #[rstest]
+    #[case::vls("<V3.0.29", vec![VersionInfo {
+        scheme: VersionScheme::Vls,
+        spec: VersionSpec::Range(Version::Unbounded, Version::Exclusive("V3.0.29".into())),
+    }])]
+    #[case::vers_all("vers:all/*", vec![VersionInfo {
+        scheme: VersionScheme::Generic,
+        spec: VersionSpec::Range(Version::Unbounded, Version::Unbounded),
+    }])]
+    fn range(#[case] input: &str, #[case] expected: Vec<VersionInfo>) {
+        assert_eq!(super::parse_range(input).unwrap(), expected);
+    }
+
+    /// Not a range: free text, the vers "any" in vls, a single version, and a broken vers.
+    #[rstest]
+    #[case::free_text("prior to 4.2")]
+    #[case::any("*")]
+    #[case::single("4.2")]
+    #[case::broken_vers("vers:npm/")]
+    fn not_a_range(#[case] input: &str) {
+        assert!(super::parse_range(input).is_err(), "{input} must not parse");
     }
 }

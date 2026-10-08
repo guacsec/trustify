@@ -51,10 +51,10 @@ impl Extractors {
                 .collect::<Vec<_>>();
             let matches = extractor.match_identifiers(&identifiers, tx).await?;
 
-            let mut writer = EvidenceWriter::new(extractor.id());
+            let mut writer = EvidenceWriter::new();
             for IdentifierMatch { index, assertion } in matches {
                 if let Some(node) = node_identifiers.get(index) {
-                    writer.add(&node.node, assertion);
+                    writer.add(&node.node, assertion)?;
                 }
             }
             let count = writer.write(tx).await?;
@@ -81,9 +81,9 @@ impl Extractors {
                 continue;
             }
 
-            let mut writer = EvidenceWriter::new(extractor.id());
+            let mut writer = EvidenceWriter::new();
             for NodeMatch { node, assertion } in matches {
-                writer.add(&node, assertion);
+                writer.add(&node, assertion)?;
             }
             let count = writer.write(tx).await?;
 

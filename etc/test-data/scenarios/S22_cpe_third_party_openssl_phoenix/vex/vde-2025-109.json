@@ -1,0 +1,637 @@
+{
+  "document": {
+    "acknowledgments": [
+      {
+        "organization": "CERT@VDE",
+        "summary": "coordination",
+        "urls": [
+          "https://certvde.com"
+        ]
+      }
+    ],
+    "aggregate_severity": {
+      "namespace": "https://www.first.org/cvss/v3.1/specification-document#Qualitative-Severity-Rating-Scale",
+      "text": "Medium"
+    },
+    "category": "csaf_security_advisory",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE",
+        "url": "https://www.first.org/tlp/"
+      }
+    },
+    "lang": "en-US",
+    "notes": [
+      {
+        "category": "summary",
+        "text": "The OpenSSL library used in the affected products is vulnerable to an unbounded growth of the session cache in the TLSv1.3 implementation.",
+        "title": "Summary"
+      },
+      {
+        "category": "description",
+        "text": "A remote attacker can exhaust all the memory by establishing a large number of TLSv1.3 connections to the TCP encapsulation service, causing the device to reboot.",
+        "title": "Impact"
+      },
+      {
+        "category": "description",
+        "text": "It is recommended to disable TCP encapsulation on affected mGuard devices and use Pathfinder instead.",
+        "title": "Mitigation"
+      },
+      {
+        "category": "description",
+        "text": "Phoenix Contact strongly recommends upgrading affected mGuard devices to firmware version 10.6.0 or higher which fixes this vulnerability.",
+        "title": "Remediation"
+      },
+      {
+        "category": "general",
+        "text": "For general information and recommendations on security measures refer to the mGuard documentation: https://help.mguard.com/en/documentation.",
+        "title": "General Recommendation"
+      },
+      {
+        "category": "description",
+        "text": "mGuards are industrial routers and security appliances",
+        "title": "Product Description"
+      }
+    ],
+    "publisher": {
+      "category": "vendor",
+      "contact_details": "psirt@phoenixcontact.com",
+      "name": "Phoenix Contact GmbH & Co. KG",
+      "namespace": "https://phoenixcontact.com/psirt"
+    },
+    "references": [
+      {
+        "category": "external",
+        "summary": "PCSA-2025-00024",
+        "url": "https://phoenixcontact.com/psirt"
+      },
+      {
+        "category": "external",
+        "summary": "Phoenix Contact advisory overview at CERT@VDE",
+        "url": "https://certvde.com/de/advisories/vendor/phoenixcontact"
+      },
+      {
+        "category": "self",
+        "summary": "VDE-2025-109: Phoenix Contact: Unbounded growth of the session cache in TCP encapsulation service in FL MGUARD 2xxx and 4xxx firmware - HTML",
+        "url": "https://certvde.com/en/advisories/VDE-2025-109"
+      },
+      {
+        "category": "self",
+        "summary": "VDE-2025-109: Phoenix Contact: Unbounded growth of the session cache in TCP encapsulation service in FL MGUARD 2xxx and 4xxx firmware - CSAF",
+        "url": "https://phoenixcontact.csaf-tp.certvde.com/.well-known/csaf/white/2026/vde-2025-109.json"
+      }
+    ],
+    "title": "Phoenix Contact: Unbounded growth of the session cache in TCP encapsulation service in FL MGUARD 2xxx and 4xxx firmware",
+    "tracking": {
+      "aliases": [
+        "VDE-2025-109",
+        "PCSA-2025-00024"
+      ],
+      "current_release_date": "2026-02-23T14:00:00.000Z",
+      "generator": {
+        "date": "2026-02-23T13:33:51.512Z",
+        "engine": {
+          "name": "Secvisogram",
+          "version": "2.5.43"
+        }
+      },
+      "id": "VDE-2025-109",
+      "initial_release_date": "2026-02-10T08:00:00.000Z",
+      "revision_history": [
+        {
+          "date": "2026-02-10T08:00:00.000Z",
+          "number": "1.0.0",
+          "summary": "Initial release."
+        },
+        {
+          "date": "2026-02-23T14:00:00.000Z",
+          "number": "1.0.1",
+          "summary": "Updated category type in product tree."
+        }
+      ],
+      "status": "final",
+      "version": "1.0.1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "FL MGUARD 2102",
+                "product": {
+                  "name": "FL MGUARD 2102",
+                  "product_id": "CSAFPID-11001",
+                  "product_identification_helper": {
+                    "model_numbers": [
+                      "1357828"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "FL MGUARD 2105",
+                "product": {
+                  "name": "FL MGUARD 2105",
+                  "product_id": "CSAFPID-11002",
+                  "product_identification_helper": {
+                    "model_numbers": [
+                      "1357850"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "FL MGUARD 4302",
+                "product": {
+                  "name": "FL MGUARD 4302",
+                  "product_id": "CSAFPID-11003",
+                  "product_identification_helper": {
+                    "model_numbers": [
+                      "1357840"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "FL MGUARD 4305",
+                "product": {
+                  "name": "FL MGUARD 4305",
+                  "product_id": "CSAFPID-11004",
+                  "product_identification_helper": {
+                    "model_numbers": [
+                      "1357875"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "FL MGUARD 4102 PCIE",
+                "product": {
+                  "name": "FL MGUARD 4102 PCIE",
+                  "product_id": "CSAFPID-11005",
+                  "product_identification_helper": {
+                    "model_numbers": [
+                      "1357842"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_name",
+                "name": "FL MGUARD 4102 PCI",
+                "product": {
+                  "name": "FL MGUARD 4102 PCI",
+                  "product_id": "CSAFPID-11006",
+                  "product_identification_helper": {
+                    "model_numbers": [
+                      "1441187"
+                    ]
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Hardware"
+          },
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "10.5.0",
+                "product": {
+                  "name": "Firmware 10.5.0",
+                  "product_id": "CSAFPID-21001",
+                  "product_identification_helper": {
+                    "model_numbers": [
+                      "1357828",
+                      "1357850",
+                      "1357840",
+                      "1357875",
+                      "1357842",
+                      "1441187"
+                    ]
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "10.6.0",
+                "product": {
+                  "name": "Firmware 10.6.0",
+                  "product_id": "CSAFPID-22001",
+                  "product_identification_helper": {
+                    "model_numbers": [
+                      "1357828",
+                      "1357850",
+                      "1357840",
+                      "1357875",
+                      "1357842",
+                      "1441187"
+                    ]
+                  }
+                }
+              }
+            ],
+            "category": "product_family",
+            "name": "Firmware"
+          }
+        ],
+        "category": "vendor",
+        "name": "Phoenix Contact"
+      },
+      {
+        "branches": [
+          {
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "3.0.0",
+                "product": {
+                  "name": "OpenSSL 3.0.0",
+                  "product_id": "CSAFPID-51001",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:a:openssl:openssl:3.0.0:-:*:*:*:*:*:*"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "3.0.14",
+                "product": {
+                  "name": "OpenSSL 3.0.14",
+                  "product_id": "CSAFPID-52001",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:a:openssl:openssl:3.0.14:-:*:*:*:*:*:*"
+                  }
+                }
+              },
+              {
+                "category": "product_version",
+                "name": "3.0.13",
+                "product": {
+                  "name": "OpenSSL 3.0.13",
+                  "product_id": "CSAFPID-51002",
+                  "product_identification_helper": {
+                    "cpe": "cpe:2.3:a:openssl:openssl:3.0.13:-:*:*:*:*:*:*"
+                  }
+                }
+              }
+            ],
+            "category": "product_name",
+            "name": "OpenSSL"
+          }
+        ],
+        "category": "vendor",
+        "name": "OpenSSL Software Foundation"
+      }
+    ],
+    "product_groups": [
+      {
+        "group_id": "CSAFGID-0001",
+        "product_ids": [
+          "CSAFPID-31001",
+          "CSAFPID-31002",
+          "CSAFPID-31003",
+          "CSAFPID-31004",
+          "CSAFPID-31005",
+          "CSAFPID-31006",
+          "CSAFPID-51001",
+          "CSAFPID-51002"
+        ],
+        "summary": "Affected Products."
+      },
+      {
+        "group_id": "CSAFGID-0002",
+        "product_ids": [
+          "CSAFPID-32001",
+          "CSAFPID-32002",
+          "CSAFPID-32003",
+          "CSAFPID-32004",
+          "CSAFPID-32005",
+          "CSAFPID-32006",
+          "CSAFPID-52001"
+        ],
+        "summary": "Fixed Products."
+      }
+    ],
+    "relationships": [
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.5.0 installed on FL MGUARD 2102",
+          "product_id": "CSAFPID-31001",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1357828"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11001"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.5.0 installed on FL MGUARD 2105",
+          "product_id": "CSAFPID-31002",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1357850"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11002"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.5.0 installed on FL MGUARD 4302",
+          "product_id": "CSAFPID-31003",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1357840"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11003"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.5.0 installed on FL MGUARD 4305",
+          "product_id": "CSAFPID-31004",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1357875"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11004"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.5.0 installed on FL MGUARD 4102 PCIE",
+          "product_id": "CSAFPID-31005",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1357842"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11005"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.5.0 installed on FL MGUARD 4102 PCI",
+          "product_id": "CSAFPID-31006",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1441187"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-21001",
+        "relates_to_product_reference": "CSAFPID-11006"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.6.0 installed on FL MGUARD 2102",
+          "product_id": "CSAFPID-32001",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1357828"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11001"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.6.0 installed on FL MGUARD 2105",
+          "product_id": "CSAFPID-32002",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1357850"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11002"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.6.0 installed on FL MGUARD 4302",
+          "product_id": "CSAFPID-32003",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1357840"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11003"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.6.0 installed on FL MGUARD 4305",
+          "product_id": "CSAFPID-32004",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1357875"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11004"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.6.0 installed on FL MGUARD 4102 PCIE",
+          "product_id": "CSAFPID-32005",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1357842"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11005"
+      },
+      {
+        "category": "installed_on",
+        "full_product_name": {
+          "name": "Firmware 10.6.0 installed on FL MGUARD 4102 PCI",
+          "product_id": "CSAFPID-32006",
+          "product_identification_helper": {
+            "model_numbers": [
+              "1441187"
+            ]
+          }
+        },
+        "product_reference": "CSAFPID-22001",
+        "relates_to_product_reference": "CSAFPID-11006"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2024-2511",
+      "cwe": {
+        "id": "CWE-1325",
+        "name": "Improperly Controlled Sequential Memory Allocation"
+      },
+      "notes": [
+        {
+          "audience": "all",
+          "category": "description",
+          "text": "Issue summary: Some non-default TLS server configurations can cause unbounded memory growth when processing TLSv1.3 sessions Impact summary: An attacker may exploit certain server configurations to trigger unbounded memory growth that would lead to a Denial of Service This problem can occur in TLSv1.3 if the non-default SSL_OP_NO_TICKET option is being used (but not if early_data support is also configured and the default anti-replay protection is in use). In this case, under certain conditions, the session cache can get into an incorrect state and it will fail to flush properly as it fills. The session cache will continue to grow in an unbounded manner. A malicious client could deliberately create the scenario for this failure to force a Denial of Service. It may also happen by accident in normal operation. This issue only affects TLS servers supporting TLSv1.3. It does not affect TLS clients. The FIPS modules in 3.2, 3.1 and 3.0 are not affected by this issue. OpenSSL 1.0.2 is also not affected by this issue.",
+          "title": "CVE Description"
+        },
+        {
+          "audience": "all",
+          "category": "details",
+          "text": "This problem can occur in TLSv1.3 if the non-default SSL_OP_NO_TICKET option is being used (but not if early_data support is also configured and the default anti-replay protection is in use). In this case, under certain conditions, the session cache can get into an incorrect state and it will fail to flush properly\nas it fills. The session cache will continue to grow in an unbounded manner. A malicious client could deliberately create the scenario for this failure to force a Denial of Service. It may also happen by accident in normal operation.\n\nThis issue only affects TLS servers supporting TLSv1.3. It does not affect TLS clients.",
+          "title": "CVE Details"
+        },
+        {
+          "audience": "operational management and system administrators",
+          "category": "details",
+          "text": "An attacker may exploit certain server configurations to trigger unbounded memory growth that would lead to a Denial of Service",
+          "title": "CVE Impact"
+        },
+        {
+          "audience": "Operational management and system administrators",
+          "category": "details",
+          "text": "The OpenSSL library as used in the TCP encapsulation service of affected products, is vulnerable to an unbounded growth of the session cache in the TLSv1.3 implementation.\n\nA remote attacker can exhaust all memory by establishing a large number of TLSv1.3 connections to the TCP encapsulation service, causing the device to reboot.\n\nIn the device context, there are two deviations from the original CVSS assessment. An attack - although complex to achieve - can generally be automated, which leads to a rating of low Attack Complexity (AC:L). A successful attack has a temporary effect on the availability of the device, as an automatic reboot occurs when the RAM is fully utilized (A:L).",
+          "title": "CVE Characterisation"
+        }
+      ],
+      "product_status": {
+        "first_affected": [
+          "CSAFPID-51001"
+        ],
+        "fixed": [
+          "CSAFPID-32001",
+          "CSAFPID-32002",
+          "CSAFPID-32003",
+          "CSAFPID-32004",
+          "CSAFPID-32005",
+          "CSAFPID-32006",
+          "CSAFPID-52001"
+        ],
+        "known_affected": [
+          "CSAFPID-31001",
+          "CSAFPID-31002",
+          "CSAFPID-31003",
+          "CSAFPID-31004",
+          "CSAFPID-31005",
+          "CSAFPID-31006",
+          "CSAFPID-51001",
+          "CSAFPID-51002"
+        ],
+        "last_affected": [
+          "CSAFPID-51002"
+        ]
+      },
+      "remediations": [
+        {
+          "category": "mitigation",
+          "details": "It is recommended to disable TCP encapsulation on affected mGuard devices and use Pathfinder instead.",
+          "group_ids": [
+            "CSAFGID-0001"
+          ],
+          "restart_required": {
+            "category": "service"
+          }
+        },
+        {
+          "category": "vendor_fix",
+          "date": "2025-11-14T10:00:00.000Z",
+          "details": "Phoenix Contact recommends upgrading the firmware of affected mGuard devices to version 10.6.0 or higher, which fixes the vulnerability.",
+          "group_ids": [
+            "CSAFGID-0001"
+          ],
+          "restart_required": {
+            "category": "system"
+          }
+        }
+      ],
+      "scores": [
+        {
+          "cvss_v3": {
+            "attackComplexity": "HIGH",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "HIGH",
+            "baseScore": 5.9,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "environmentalScore": 5.9,
+            "environmentalSeverity": "MEDIUM",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "temporalScore": 5.9,
+            "temporalSeverity": "MEDIUM",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-51001",
+            "CSAFPID-51002"
+          ]
+        },
+        {
+          "cvss_v3": {
+            "attackComplexity": "LOW",
+            "attackVector": "NETWORK",
+            "availabilityImpact": "LOW",
+            "baseScore": 5.3,
+            "baseSeverity": "MEDIUM",
+            "confidentialityImpact": "NONE",
+            "environmentalScore": 5.3,
+            "environmentalSeverity": "MEDIUM",
+            "integrityImpact": "NONE",
+            "privilegesRequired": "NONE",
+            "scope": "UNCHANGED",
+            "temporalScore": 5.3,
+            "temporalSeverity": "MEDIUM",
+            "userInteraction": "NONE",
+            "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+            "version": "3.1"
+          },
+          "products": [
+            "CSAFPID-31001",
+            "CSAFPID-31002",
+            "CSAFPID-31003",
+            "CSAFPID-31004",
+            "CSAFPID-31005",
+            "CSAFPID-31006"
+          ]
+        }
+      ],
+      "title": "Unbounded memory growth with session handling in TLSv1.3"
+    }
+  ]
+}

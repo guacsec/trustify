@@ -55,6 +55,7 @@ async fn all_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )
@@ -88,6 +89,7 @@ async fn all_advisories(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )
@@ -160,6 +162,7 @@ async fn one_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )
@@ -179,6 +182,7 @@ async fn one_advisory(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )
@@ -264,6 +268,7 @@ async fn one_advisory_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Error
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )
@@ -283,6 +288,7 @@ async fn one_advisory_by_uuid(ctx: &TrustifyContext) -> Result<(), anyhow::Error
                 published: Some(OffsetDateTime::now_utc()),
                 modified: None,
                 withdrawn: None,
+                publisher_namespace: None,
             },
             &ctx.db,
         )

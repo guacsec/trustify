@@ -11,8 +11,12 @@ pub enum Error {
     Database(DbErr),
     #[error("not found: {0}")]
     NotFound(String),
+    #[error("bad request: {0}")]
+    BadRequest(String),
     #[error("unavailable")]
     Unavailable,
+    #[error("failed to serialize the matched value: {0}")]
+    MatchedValue(#[source] serde_json::Error),
 }
 
 impl From<DbErr> for Error {
@@ -43,6 +47,9 @@ impl ResponseError for Error {
         match self {
             Self::NotFound(msg) => {
                 HttpResponse::NotFound().json(ErrorInformation::new("NotFound", msg))
+            }
+            Self::BadRequest(msg) => {
+                HttpResponse::BadRequest().json(ErrorInformation::new("BadRequest", msg))
             }
             Self::Unavailable => {
                 HttpResponse::ServiceUnavailable().json(ErrorInformation::new("Unavailable", self))
