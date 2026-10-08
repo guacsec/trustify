@@ -282,8 +282,12 @@ mod test {
     use rstest::rstest;
     use test_context::test_context;
     use test_log::test;
-    use trustify_entity::advisory_vulnerability_score::{ScoreType, Severity};
+    use trustify_entity::{
+        advisory_vulnerability_score::{ScoreType, Severity},
+        version_scheme::VersionScheme,
+    };
     use trustify_test_context::{TrustifyContext, document, document_bytes};
+    use uuid::Uuid;
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
@@ -648,6 +652,7 @@ mod test {
         fixture: &str,
         pointer: &str,
         replacement: &str,
+        on_invalid: OnInvalidData,
     ) -> Result<IngestResult, Error> {
         let data = document_bytes(fixture).await.expect("fixture loads");
 
@@ -659,9 +664,13 @@ mod test {
         let digests = Digests::digest(&data);
         let csaf: Csaf = serde_json::from_slice(&data)?;
 
-        CsafLoader::new(&Graph::new())
-            .load(("source", "test"), csaf, &digests, &ctx.db)
-            .await
+        let graph = Graph::new();
+        CsafLoader {
+            graph: &graph,
+            on_invalid,
+        }
+        .load(("source", "test"), csaf, &digests, &ctx.db)
+        .await
     }
 
     /// A value trustify cannot parse rejects the document, rather than being skipped.
@@ -673,6 +682,7 @@ mod test {
     ///   This is the case that previously got recorded silently as a *package name*.
     /// * `cpe:/a:vendor:product%zz` is not a valid CPE, because `%zz` is not a percent escape. (An
     ///   invalid language tag is no longer rejected, but dropped, see `trustify_common::cpe`.)
+    /// * `prior to 4.2` is neither vers nor vls, which is all a `product_version_range` may hold.
     /// * dates and the publisher namespace are plain strings in CSAF, so anything reaches us.
     #[test_context(TrustifyContext)]
     #[rstest]
@@ -687,6 +697,12 @@ mod test {
         "/product_tree/branches/0/branches/0/product/product_identification_helper/cpe",
         "cpe:/a:vendor:product%zz",
         "invalid cpe"
+    )]
+    #[case::range(
+        "csaf/ranges/vers-and-vls.json",
+        LIB_RANGE,
+        "prior to 4.2",
+        "invalid version range"
     )]
     #[case::date(
         "csaf/cve-2023-0044.json",
@@ -708,7 +724,7 @@ mod test {
         #[case] replacement: &str,
         #[case] expected: &str,
     ) -> Result<(), anyhow::Error> {
-        let err = load_patched(ctx, fixture, pointer, replacement)
+        let err = load_patched(ctx, fixture, pointer, replacement, OnInvalidData::Reject)
             .await
             .expect_err("must reject an invalid value");
 
@@ -717,6 +733,126 @@ mod test {
             "expected InvalidContent, got {err:?}"
         );
         assert!(err.to_string().contains(expected), "got {err}");
+
+        Ok(())
+    }
+
+    /// The `product_version_range` of the vls product in `csaf/ranges/vers-and-vls.json`.
+    const LIB_RANGE: &str = "/product_tree/branches/0/branches/1/branches/0/name";
+
+    /// A stored purl status: base purl name, version range (scheme, low, low inclusive, high,
+    /// high inclusive) and status.
+    type StatedPurlStatus = (
+        String,
+        VersionScheme,
+        Option<String>,
+        Option<bool>,
+        Option<String>,
+        Option<bool>,
+        String,
+    );
+
+    /// All purl statuses an advisory states, sorted by name and status.
+    async fn stated_purl_statuses(
+        ctx: &TrustifyContext,
+        advisory_id: &str,
+    ) -> Result<Vec<StatedPurlStatus>, anyhow::Error> {
+        use sea_orm::{
+            ColumnTrait, EntityTrait, JoinType, QueryFilter, QuerySelect, RelationTrait,
+        };
+        use trustify_entity::{base_purl, purl_status, status, version_range};
+
+        let mut result: Vec<StatedPurlStatus> = purl_status::Entity::find()
+            .select_only()
+            .column(base_purl::Column::Name)
+            .column(version_range::Column::VersionSchemeId)
+            .column(version_range::Column::LowVersion)
+            .column(version_range::Column::LowInclusive)
+            .column(version_range::Column::HighVersion)
+            .column(version_range::Column::HighInclusive)
+            .column(status::Column::Slug)
+            .join(JoinType::InnerJoin, purl_status::Relation::BasePurl.def())
+            .join(
+                JoinType::InnerJoin,
+                purl_status::Relation::VersionRange.def(),
+            )
+            .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
+            .filter(purl_status::Column::AdvisoryId.eq(advisory_id.parse::<Uuid>()?))
+            .into_tuple()
+            .all(&ctx.db)
+            .await?;
+        result.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.6.cmp(&b.6)));
+        Ok(result)
+    }
+
+    /// A version range is stored as stated: vers with its scheme, vls without one, and only for
+    /// the purl of its own product. For a relationship, the platform is neither a subject of the
+    /// status, nor does its range constrain the component.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn ranges_as_stated(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        let result = ctx.ingest_document("csaf/ranges/vers-and-vls.json").await?;
+        assert!(result.warnings.is_empty(), "{:?}", result.warnings);
+
+        assert_eq!(
+            stated_purl_statuses(ctx, &result.id).await?,
+            vec![
+                (
+                    "example-app".to_string(),
+                    VersionScheme::Semver,
+                    None,
+                    Some(false),
+                    Some("2.0.0".to_string()),
+                    Some(false),
+                    "affected".to_string(),
+                ),
+                (
+                    "example-lib".to_string(),
+                    VersionScheme::Vls,
+                    None,
+                    Some(false),
+                    Some("4.2".to_string()),
+                    Some(false),
+                    "affected".to_string(),
+                ),
+            ]
+        );
+
+        Ok(())
+    }
+
+    /// A range which can't be parsed, and is skipped by the policy, drops the purls of its
+    /// product, rather than claiming all versions.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn invalid_range_skipped(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        let result = load_patched(
+            ctx,
+            "csaf/ranges/vers-and-vls.json",
+            LIB_RANGE,
+            "prior to 4.2",
+            OnInvalidData::Warn,
+        )
+        .await?;
+
+        assert_eq!(result.warnings.len(), 1, "{:?}", result.warnings);
+        assert!(
+            result.warnings[0].starts_with("invalid version range 'prior to 4.2'"),
+            "{:?}",
+            result.warnings
+        );
+        assert_eq!(
+            stated_purl_statuses(ctx, &result.id).await?,
+            vec![(
+                "example-app".to_string(),
+                VersionScheme::Semver,
+                None,
+                Some(false),
+                Some("2.0.0".to_string()),
+                Some(false),
+                "affected".to_string(),
+            )]
+        );
 
         Ok(())
     }

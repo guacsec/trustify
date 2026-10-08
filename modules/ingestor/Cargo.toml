@@ -52,6 +52,7 @@ utoipa = { workspace = true }
 utoipa-actix-web = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v7"] }
+vers-like-specifier = { workspace = true }
 vers-rs = { workspace = true }
 zip = { workspace = true }
 

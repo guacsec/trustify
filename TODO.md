@@ -26,3 +26,12 @@
   `ResolveProductIdCache` only indexes branches, so products from the other two get no
   `purl_status`, no remediation links, and no advisory side correlation data (hashes, product
   identifiers, CPEs).
+- [ ] CSAF ingestion still infers in `product_status` (only used by the fundamental APIs, not by
+  correlation): `version_from_cpe` widens a CPE version `X` to the "stream" `[X, X+1 major)`, and
+  `set_version` assumes `semver` for a PURL version. Ingestion should store what is stated, and
+  leave such inferences to correlation rules.
+- [ ] `VersionScheme::from(&str)` (vers schemes) maps neither `pypi` nor `cargo`, `gem`, `golang`,
+  `nuget`, … (only `python`, `npm`, `maven`, `rpm`, `semver`, `git`), so those fall back to
+  `generic`, which only matches exact versions.
+- [ ] `vers-rs` doesn't build without its default `wasm` feature (unconditional `tsify` /
+  `wasm_bindgen` attributes), so the server pulls in `wasm-bindgen` and `tsify`.

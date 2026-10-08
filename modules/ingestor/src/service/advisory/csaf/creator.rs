@@ -5,7 +5,7 @@ use crate::{
         advisory::{
             product_status::{ProductStatus as GraphProductStatus, ProductVersionRange},
             purl_status::PurlStatus,
-            vers::parse_vers,
+            vers::parse_range,
             version::{VersionInfo, VersionSpec},
         },
         cpe::CpeCreator,
@@ -110,31 +110,27 @@ impl<'a> StatusCreator<'a> {
                 status,
                 ..Default::default()
             };
-            let mut product_ids = vec![];
-            match self.cache.get_relationship(r) {
-                Some(rel) => {
-                    // Find all products
-                    product_ids.push(rel.relates_to_product_reference.as_str());
-                    // Find all components/packages within
-                    product_ids.push(rel.product_reference.as_str());
-                }
-                None => {
-                    // If there's no relationship, find only products
-                    product_ids.push(r.as_str());
-                }
+            // The product IDs to resolve, and whether each is the subject of the status: for a
+            // relationship, the component is, the platform it relates to isn't.
+            let product_ids = match self.cache.get_relationship(r) {
+                Some(rel) => vec![
+                    (rel.relates_to_product_reference.as_str(), false),
+                    (rel.product_reference.as_str(), true),
+                ],
+                None => vec![(r.as_str(), true)],
             };
-            for product_id in &product_ids {
+            for (product_id, subject) in &product_ids {
                 product = self.cache.trace_product(product_id).iter().try_fold(
                     product,
                     |mut product, branch| {
-                        product.update_from_branch(branch, on_invalid, report)?;
+                        product.update_from_branch(branch, *subject, on_invalid, report)?;
                         Ok::<_, Error>(product)
                     },
                 )?;
             }
 
             if let Some(assertion) = assertion_status {
-                for product_id in &product_ids {
+                for (product_id, _) in &product_ids {
                     for branch in self.cache.trace_product(product_id) {
                         if let Some(full_name) = &branch.product
                             && let Some(pih) = &full_name.product_identification_helper
@@ -229,7 +225,7 @@ impl<'a> StatusCreator<'a> {
             vec![None]
         } else {
             match leaf.category {
-                CategoryOfTheBranch::ProductVersionRange => match parse_vers(&leaf.name) {
+                CategoryOfTheBranch::ProductVersionRange => match parse_range(&leaf.name) {
                     Ok(infos) => infos.into_iter().map(Some).collect(),
                     Err(err) => {
                         // never widen an unparsable range to "all versions"
@@ -396,7 +392,13 @@ impl<'a> StatusCreator<'a> {
                 }
             }
 
-            for purl in &product.purls {
+            // purls without the range they are bound to would claim all versions
+            let purls = if product.invalid_range {
+                &[][..]
+            } else {
+                &product.purls[..]
+            };
+            for purl in purls {
                 if !product.vers_specs.is_empty() {
                     for vers_info in &product.vers_specs {
                         self.create_purl_status(

@@ -2,10 +2,7 @@ use super::{
     util::branch_purl,
     value::{self, OnInvalidData},
 };
-use crate::graph::advisory::{
-    vers::parse_vers,
-    version::{Version, VersionInfo, VersionSpec},
-};
+use crate::graph::advisory::version::{Version, VersionInfo, VersionSpec};
 use crate::service::Error;
 use csaf::schema::csaf2_0::schema::{Branch, CategoryOfTheBranch, FullProductNameT};
 use sbom_walker::report::ReportSink;
@@ -22,12 +19,20 @@ pub struct ProductStatus {
     pub purls: Vec<Purl>,
     pub packages: Vec<String>,
     pub vers_specs: Vec<VersionInfo>,
+    /// A version range of the product could not be parsed, so its purls must not be used.
+    pub invalid_range: bool,
 }
 
 impl ProductStatus {
+    /// Update the product from a branch on the path to it.
+    ///
+    /// Only the branches of the `subject` contribute purls and version ranges. For a relationship,
+    /// that is the component (`product_reference`), not the platform it relates to: the document
+    /// states the status of the combination, not of the platform.
     pub fn update_from_branch(
         &mut self,
         branch: &Branch,
+        subject: bool,
         on_invalid: OnInvalidData,
         report: &dyn ReportSink,
     ) -> Result<(), Error> {
@@ -50,7 +55,11 @@ impl ProductStatus {
                                 None => None,
                             };
                             match purl {
-                                Some(purl) => self.purls.push(purl.into()),
+                                Some(purl) => {
+                                    if subject {
+                                        self.purls.push(purl.into());
+                                    }
+                                }
                                 None => self.packages.push(branch.name.to_string()),
                             }
                         }
@@ -60,15 +69,22 @@ impl ProductStatus {
                 };
             }
             CategoryOfTheBranch::ProductVersionRange => {
-                let version_infos =
-                    parse_vers(&branch.name).map_err(|err| Error::Generic(err.into()))?;
-                self.vers_specs.extend(version_infos);
-                if let Some(purl) = branch_purl(branch, on_invalid, report)? {
-                    self.purls.push(Purl::from(purl));
+                if !subject {
+                    return Ok(());
+                }
+                match on_invalid.validate(value::range(&branch.name), report)? {
+                    Some(version_infos) => {
+                        self.vers_specs.extend(version_infos);
+                        if let Some(purl) = branch_purl(branch, on_invalid, report)? {
+                            self.purls.push(Purl::from(purl));
+                        }
+                    }
+                    // never widen a range we can't read to "all versions"
+                    None => self.invalid_range = true,
                 }
             }
             _ => {
-                if let Some(purl) = branch_purl(branch, on_invalid, report)? {
+                if subject && let Some(purl) = branch_purl(branch, on_invalid, report)? {
                     self.purls.push(Purl::from(purl));
                 }
             }
