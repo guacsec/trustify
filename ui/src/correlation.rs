@@ -410,6 +410,19 @@ pub(crate) fn matched_value(value: &MatchedValue) -> Html {
                     { for value.ranges.iter().map(|range| html!(<li>{ range.to_string() }</li>)) }
                 </ul>
             }
+            if let Some(enabled_by) = &value.enabled_by {
+                <div>
+                    <small>
+                        { "enabled by option " }
+                        <code>{ enabled_by.key.as_str() }</code>
+                        { " for " }
+                        <code>{ &enabled_by.publisher_namespace }</code>
+                        if let Some(reason) = &enabled_by.reason {
+                            { ": " }{ reason }
+                        }
+                    </small>
+                </div>
+            }
         </>
     }
 }

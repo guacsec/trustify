@@ -1,8 +1,9 @@
 use serde::Deserialize;
 
 pub use trustify_api::correlation::{
-    ComponentRef, CorrelationResult, EvidenceDetail, IdentifierKind, IdentifierRef, MatchedValue,
-    QueryResult, SbomVerdictCounts, VerdictCountsRequest, VerdictStatus, VerdictSummary,
+    ComponentRef, CorrelationOption, CorrelationOptionData, CorrelationOptionKey,
+    CorrelationResult, EvidenceDetail, IdentifierKind, IdentifierRef, MatchedValue, QueryResult,
+    SbomVerdictCounts, VerdictCountsRequest, VerdictStatus, VerdictSummary,
 };
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -35,4 +36,10 @@ pub struct IngestResult {
     pub duplicate: bool,
     #[serde(default)]
     pub warnings: Vec<String>,
+}
+
+/// The response of creating a resource.
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+pub struct Created {
+    pub id: uuid::Uuid,
 }

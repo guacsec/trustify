@@ -3,6 +3,7 @@ mod api;
 mod correlation;
 mod ingest;
 mod model;
+mod options;
 mod query;
 mod sbom_list;
 
@@ -10,6 +11,7 @@ use advisory::AdvisoryPage;
 use browser_panic_hook::{CustomBody, IntoPanicHook};
 use correlation::CorrelationView;
 use ingest::IngestPage;
+use options::OptionsPage;
 use patternfly_yew::prelude::*;
 use query::QueryPage;
 use sbom_list::SbomList;
@@ -37,6 +39,7 @@ pub enum AppRoute {
     },
     Query,
     Ingest,
+    Options,
 }
 
 pub fn main() -> Result<(), JsValue> {
@@ -210,6 +213,11 @@ fn switch_route(target: AppRoute) -> Html {
                 <IngestPage />
             </AppPage>
         },
+        AppRoute::Options => html! {
+            <AppPage>
+                <OptionsPage />
+            </AppPage>
+        },
     }
 }
 
@@ -232,6 +240,9 @@ fn page(props: &PageProps) -> Html {
                     </NavRouterItem<AppRoute>>
                     <NavRouterItem<AppRoute> to={AppRoute::Ingest}>
                         { "Ingest" }
+                    </NavRouterItem<AppRoute>>
+                    <NavRouterItem<AppRoute> to={AppRoute::Options}>
+                        { "Options" }
                     </NavRouterItem<AppRoute>>
                 </NavList>
             </Nav>
