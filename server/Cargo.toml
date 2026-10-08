@@ -6,6 +6,13 @@ publish.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+sbom_generation = ["trustify-module-fundamental/sbom_generation"]
+latest_sbom_generation = [
+  "sbom_generation",
+  "trustify-module-analysis/latest_sbom_generation",
+]
+
 [dependencies]
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }

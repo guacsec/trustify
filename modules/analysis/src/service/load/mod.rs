@@ -337,6 +337,21 @@ impl InnerService {
     where
         C: ConnectionTrait + Send + Sync,
     {
+        let latest_ids = self.latest_sbom_ids_query(connection, query, None).await?;
+        self.load_graphs(connection, latest_ids.into_iter().collect())
+            .await
+    }
+
+    #[instrument(skip(self, connection), err(level=Level::INFO))]
+    pub(crate) async fn latest_sbom_ids_query<C>(
+        &self,
+        connection: &C,
+        query: GraphQuery<'_>,
+        max_ids: Option<usize>,
+    ) -> Result<HashSet<Uuid>, Error>
+    where
+        C: ConnectionTrait + Send + Sync,
+    {
         // query for cpe, name or purl
         let (cpe_search, matched_sbom_ids): (_, Vec<Row>) = match query {
             GraphQuery::Component(ComponentReference::Id(node_id)) => (
@@ -430,17 +445,23 @@ impl InnerService {
         log::trace!("ranked sboms: {:?}", TruncatedIter(&ranked_sboms));
 
         // retrieve only ranked_sboms with rank = 1
-        let latest_ids: HashSet<_> = ranked_sboms
-            .into_iter()
-            .filter(|item| item.rank == Some(1))
-            .map(|item| item.matched_sbom_id)
-            .collect();
+        let mut latest_ids = HashSet::new();
+        for item in ranked_sboms.into_iter().filter(|item| item.rank == Some(1)) {
+            latest_ids.insert(item.matched_sbom_id);
+            if let Some(limit) = max_ids
+                && latest_ids.len() > limit
+            {
+                return Err(Error::BadRequest {
+                    msg: format!("latest source set exceeds {limit} SBOMs"),
+                    status: actix_http::StatusCode::PAYLOAD_TOO_LARGE,
+                });
+            }
+        }
 
         log::debug!("latest sboms: {:?}", latest_ids.len());
         log::trace!("latest sboms: {:?}", TruncatedIter(&latest_ids));
 
-        self.load_graphs(connection, latest_ids.into_iter().collect())
-            .await
+        Ok(latest_ids)
     }
 
     /// Take a select for sboms, and ensure they are loaded and return their IDs.

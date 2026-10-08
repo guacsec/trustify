@@ -9,6 +9,7 @@ autobenches = false
 
 [features]
 long_running = [] # enable long-running tests
+sbom_generation = ["trustify-module-analysis/sbom_generation"]
 
 [dependencies]
 trustify-auth = { workspace = true }
@@ -104,4 +105,3 @@ harness = false
 name = "bench-otel"
 path = "benches/bench-otel.rs"
 harness = false
-

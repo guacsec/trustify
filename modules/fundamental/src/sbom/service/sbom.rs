@@ -83,6 +83,138 @@ impl FetchOptions {
 }
 
 impl SbomService {
+    /// Resolve the complete SBOM ID set matching the same filters used by the
+    /// listing endpoint. Deliberately does not paginate the source set.
+    #[cfg(feature = "sbom_generation")]
+    pub async fn matching_sbom_ids<C: ConnectionTrait>(
+        &self,
+        search: Query,
+        options: FetchOptions,
+        source_formats: trustify_module_analysis::sbom_generation::SourceFormatFilter,
+        connection: &C,
+    ) -> Result<Vec<Uuid>, Error> {
+        use trustify_module_analysis::sbom_generation::SourceFormatFilter;
+
+        let mut query = Self::filtered_sbom_query(&search, &options)?
+            .join(JoinType::InnerJoin, sbom::Relation::Node.def())
+            .join(JoinType::LeftJoin, sbom::Relation::SourceDocument.def())
+            .filtering_with(
+                search,
+                Columns::from_entity::<sbom::Entity>()
+                    .add_columns(sbom_node::Entity)
+                    .add_columns(source_document::Entity)
+                    .translator(|field, op, value| match field.split_once(':') {
+                        Some(("label", key)) => Some(format!("labels:{key}{op}{value}")),
+                        Some((LICENSE, _)) => Some(String::new()),
+                        _ => None,
+                    }),
+            )?;
+        match source_formats {
+            SourceFormatFilter::Spdx => {
+                query = query.filter(
+                    Expr::col(sbom::Column::Labels)
+                        .contains(trustify_entity::labels::Labels::from_one("type", "spdx")),
+                );
+            }
+            SourceFormatFilter::CycloneDx => {
+                query = query.filter(Expr::col(sbom::Column::Labels).contains(
+                    trustify_entity::labels::Labels::from_one("type", "cyclonedx"),
+                ));
+            }
+            SourceFormatFilter::Both => {}
+        }
+        Ok(query
+            .select_only()
+            .distinct()
+            .column(sbom::Column::SbomId)
+            .limit((trustify_module_analysis::sbom_generation::MAX_SOURCE_SBOMS + 1) as u64)
+            .into_tuple::<Uuid>()
+            .all(connection)
+            .await?)
+    }
+
+    fn filtered_sbom_query(
+        search: &Query,
+        options: &FetchOptions,
+    ) -> Result<Select<sbom::Entity>, Error> {
+        let mut query = if options.labels.is_empty() {
+            sbom::Entity::find()
+        } else {
+            sbom::Entity::find()
+                .filter(Expr::col(sbom::Column::Labels).contains(options.labels.clone()))
+        };
+        if let Some(group_ids) = options.groups.as_ref() {
+            query = query.filter(
+                sbom::Column::SbomId.in_subquery(
+                    sbom_group_assignment::Entity::find()
+                        .select_only()
+                        .column(sbom_group_assignment::Column::SbomId)
+                        .filter(sbom_group_assignment::Column::GroupId.is_in(group_ids.clone()))
+                        .into_query(),
+                ),
+            );
+        }
+        if let Some(crypto_names) = options.crypto.as_ref() {
+            query = query.filter(
+                sbom::Column::SbomId.in_subquery(
+                    sbom_crypto::Entity::find()
+                        .join(JoinType::InnerJoin, sbom_node::Relation::Crypto.def().rev())
+                        .select_only()
+                        .column(sbom_crypto::Column::SbomId)
+                        .filter(
+                            sbom_crypto::Column::AssetType
+                                .eq(sbom_crypto::CryptoAssetType::Algorithm),
+                        )
+                        .filter(sbom_node::Column::Name.is_in(crypto_names.clone()))
+                        .into_query(),
+                ),
+            );
+        }
+        if let Some(license_query) = search
+            .get_constraint_for_field(LICENSE)
+            .map(|constraint| q(&format!("{constraint}")))
+        {
+            let mut spdx_query = sbom_license_expanded::Entity::find()
+                .select_only()
+                .distinct()
+                .column(sbom_license_expanded::Column::SbomId)
+                .join(
+                    JoinType::InnerJoin,
+                    sbom_license_expanded::Relation::ExpandedLicense.def(),
+                )
+                .filtering_with(
+                    license_query.clone(),
+                    Columns::default()
+                        .add_column("expanded_text", ColumnType::Text)
+                        .translator(|field, operator, value| match field {
+                            LICENSE => Some(format!("expanded_text{operator}{value}")),
+                            _ => None,
+                        }),
+                )?;
+            let cyclonedx_query = sbom_package_license::Entity::find()
+                .select_only()
+                .distinct()
+                .column(sbom_package_license::Column::SbomId)
+                .join(
+                    JoinType::InnerJoin,
+                    sbom_package_license::Relation::License.def(),
+                )
+                .filtering_with(
+                    license_query,
+                    license::Entity
+                        .columns()
+                        .translator(|field, operator, value| match field {
+                            LICENSE => Some(format!("text{operator}{value}")),
+                            _ => None,
+                        }),
+                )?;
+            QueryTrait::query(&mut spdx_query)
+                .union(UnionType::Distinct, cyclonedx_query.into_query());
+            query = query.filter(sbom::Column::SbomId.in_subquery(spdx_query.into_query()));
+        }
+        Ok(query)
+    }
+
     /// Fetch an SBOM, its node, and source document
     #[instrument(skip(self, connection), err(level=tracing::Level::INFO))]
     pub async fn fetch_sbom<C: ConnectionTrait>(
@@ -223,88 +355,7 @@ impl SbomService {
         C: ConnectionTrait,
         P: IntoPackage,
     {
-        let mut query = if options.labels.is_empty() {
-            sbom::Entity::find()
-        } else {
-            sbom::Entity::find().filter(Expr::col(sbom::Column::Labels).contains(options.labels))
-        };
-
-        if let Some(group_ids) = options.groups {
-            query = query.filter(
-                sbom::Column::SbomId.in_subquery(
-                    sbom_group_assignment::Entity::find()
-                        .select_only()
-                        .column(sbom_group_assignment::Column::SbomId)
-                        .filter(sbom_group_assignment::Column::GroupId.is_in(group_ids))
-                        .into_query(),
-                ),
-            );
-        }
-
-        if let Some(crypto_names) = options.crypto {
-            query = query.filter(
-                sbom::Column::SbomId.in_subquery(
-                    sbom_crypto::Entity::find()
-                        .join(JoinType::InnerJoin, sbom_node::Relation::Crypto.def().rev())
-                        .select_only()
-                        .column(sbom_crypto::Column::SbomId)
-                        .filter(
-                            sbom_crypto::Column::AssetType
-                                .eq(sbom_crypto::CryptoAssetType::Algorithm),
-                        )
-                        .filter(sbom_node::Column::Name.is_in(crypto_names))
-                        .into_query(),
-                ),
-            );
-        }
-
-        // Add license filtering if license query is present
-        if let Some(license_query) = search
-            .get_constraint_for_field(LICENSE)
-            .map(|constraint| q(&format!("{constraint}")))
-        {
-            // SPDX path: join through junction → dictionary
-            let mut spdx_select = sbom_license_expanded::Entity::find()
-                .select_only()
-                .distinct()
-                .column(sbom_license_expanded::Column::SbomId)
-                .join(
-                    JoinType::InnerJoin,
-                    sbom_license_expanded::Relation::ExpandedLicense.def(),
-                )
-                .filtering_with(
-                    license_query.clone(),
-                    Columns::default()
-                        .add_column("expanded_text", ColumnType::Text)
-                        .translator(|field, operator, value| match field {
-                            LICENSE => Some(format!("expanded_text{operator}{value}")),
-                            _ => None,
-                        }),
-                )?;
-
-            // CycloneDX path: direct text match
-            let cyclonedx_select = sbom_package_license::Entity::find()
-                .select_only()
-                .distinct()
-                .column(sbom_package_license::Column::SbomId)
-                .join(
-                    JoinType::InnerJoin,
-                    sbom_package_license::Relation::License.def(),
-                )
-                .filtering_with(
-                    license_query,
-                    license::Entity
-                        .columns()
-                        .translator(|field, operator, value| match field {
-                            LICENSE => Some(format!("text{operator}{value}")),
-                            _ => None,
-                        }),
-                )?;
-
-            QueryTrait::query(&mut spdx_select)
-                .union(UnionType::Distinct, cyclonedx_select.into_query());
-            query = query.filter(sbom::Column::SbomId.in_subquery(spdx_select.into_query()));
-        }
+        let query = Self::filtered_sbom_query(&search, &options)?;
 
         let limiter = query
             .join(JoinType::InnerJoin, sbom::Relation::SbomNode.def())

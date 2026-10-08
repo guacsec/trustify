@@ -83,6 +83,26 @@ pub struct QueryOptions {
     pub relationships: HashSet<Relationship>,
 }
 
+/// Options specific to generating an SBOM from the latest component results.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, IntoParams)]
+pub struct LatestGenerationOptions {
+    #[cfg(feature = "latest_sbom_generation")]
+    /// Return an aggregated SPDX SBOM instead of components.
+    #[serde(default)]
+    pub generate_sbom: bool,
+    #[cfg(feature = "latest_sbom_generation")]
+    /// Input SBOM formats included by generated output. Defaults to both.
+    #[serde(default)]
+    pub source_format: crate::sbom_generation::SourceFormatFilter,
+    #[cfg(feature = "latest_sbom_generation")]
+    /// Optional generated document name and supplier overrides.
+    #[serde(default)]
+    pub document_name: Option<String>,
+    #[cfg(feature = "latest_sbom_generation")]
+    #[serde(default)]
+    pub supplier: Option<String>,
+}
+
 fn deserialize_relationships<'de, D>(deserializer: D) -> Result<HashSet<Relationship>, D::Error>
 where
     D: Deserializer<'de>,

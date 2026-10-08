@@ -3,6 +3,8 @@
 pub mod config;
 pub mod endpoints;
 pub mod error;
+#[cfg(feature = "sbom_generation")]
+pub mod sbom_generation;
 pub mod service;
 
 use actix_http::StatusCode;
