@@ -85,7 +85,7 @@ impl FailureRate {
             lock.last_check = now;
             let _ = lock
                 .counter
-                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+                .try_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
                     Some(current.saturating_sub(leak))
                 });
         }
@@ -150,7 +150,7 @@ impl FailureRateHandle {
         // increment if we are below max
         let _ = lock
             .counter
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
                 if current < self.max {
                     Some(current + 1)
                 } else {
