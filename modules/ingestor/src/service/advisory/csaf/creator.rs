@@ -18,6 +18,7 @@ use crate::{
         advisory::csaf::{
             product_status::ProductStatus,
             util::{ResolveProductIdCache, branch_cpe},
+            value,
         },
     },
 };
@@ -110,62 +111,54 @@ impl<'a> StatusCreator<'a> {
                 status,
                 ..Default::default()
             };
-            // The product IDs to resolve, and whether each is the subject of the status: for a
+            // The products to resolve, and whether each is the subject of the status: for a
             // relationship, the component is, the platform it relates to isn't.
-            let product_ids = match self.cache.get_relationship(r) {
-                Some(rel) => vec![
-                    (rel.relates_to_product_reference.as_str(), false),
-                    (rel.product_reference.as_str(), true),
-                ],
-                None => vec![(r.as_str(), true)],
-            };
-            for (product_id, subject) in &product_ids {
-                product = self.cache.trace_product(product_id).iter().try_fold(
-                    product,
-                    |mut product, branch| {
-                        product.update_from_branch(branch, *subject, on_invalid, report)?;
-                        Ok::<_, Error>(product)
-                    },
-                )?;
+            let parts = self.cache.parts(r);
+            for (product_id, subject) in &parts {
+                let trace = self.cache.trace_product(product_id);
+                if trace.is_empty() {
+                    if let Some(full_name) = self.cache.definition(product_id) {
+                        product.update_from_full_product_name(
+                            full_name, *subject, on_invalid, report,
+                        )?;
+                    }
+                    continue;
+                }
+                for branch in trace {
+                    product.update_from_branch(branch, *subject, on_invalid, report)?;
+                }
             }
 
             if let Some(assertion) = assertion_status {
-                for (product_id, _) in &product_ids {
-                    for branch in self.cache.trace_product(product_id) {
-                        if let Some(full_name) = &branch.product
-                            && let Some(pih) = &full_name.product_identification_helper
-                        {
-                            for hc in &pih.hashes {
-                                for fh in &hc.file_hashes {
-                                    let algo = normalize_algorithm(&fh.algorithm);
-                                    self.hash_entries.insert((
-                                        algo,
-                                        fh.value.to_string(),
-                                        assertion,
-                                    ));
-                                }
+                for (product_id, _) in &parts {
+                    for pih in self.cache.helpers(product_id) {
+                        for hc in &pih.hashes {
+                            for fh in &hc.file_hashes {
+                                let algo = normalize_algorithm(&fh.algorithm);
+                                self.hash_entries
+                                    .insert((algo, fh.value.to_string(), assertion));
                             }
-                            for mn in pih.model_numbers.iter().flatten() {
-                                self.product_identifier_entries.insert((
-                                    ProductIdentifierType::ModelNumber,
-                                    mn.to_string(),
-                                    assertion,
-                                ));
-                            }
-                            for sn in pih.serial_numbers.iter().flatten() {
-                                self.product_identifier_entries.insert((
-                                    ProductIdentifierType::SerialNumber,
-                                    sn.to_string(),
-                                    assertion,
-                                ));
-                            }
-                            for sku in &pih.skus {
-                                self.product_identifier_entries.insert((
-                                    ProductIdentifierType::Sku,
-                                    sku.to_string(),
-                                    assertion,
-                                ));
-                            }
+                        }
+                        for mn in pih.model_numbers.iter().flatten() {
+                            self.product_identifier_entries.insert((
+                                ProductIdentifierType::ModelNumber,
+                                mn.to_string(),
+                                assertion,
+                            ));
+                        }
+                        for sn in pih.serial_numbers.iter().flatten() {
+                            self.product_identifier_entries.insert((
+                                ProductIdentifierType::SerialNumber,
+                                sn.to_string(),
+                                assertion,
+                            ));
+                        }
+                        for sku in &pih.skus {
+                            self.product_identifier_entries.insert((
+                                ProductIdentifierType::Sku,
+                                sku.to_string(),
+                                assertion,
+                            ));
                         }
                     }
                 }
@@ -173,11 +166,11 @@ impl<'a> StatusCreator<'a> {
                 // For a relationship, only the component carries the assertion. The platform it
                 // relates to (e.g. hardware a firmware is installed on) is typically listed with
                 // both affected and fixed combinations.
-                let component = match self.cache.get_relationship(r) {
-                    Some(rel) => rel.product_reference.as_str(),
-                    None => r.as_str(),
-                };
-                self.add_cpe_entries(component, assertion, on_invalid, report)?;
+                for (product_id, subject) in &parts {
+                    if *subject {
+                        self.add_cpe_entries(product_id, assertion, on_invalid, report)?;
+                    }
+                }
             }
 
             self.product_id_to_product
@@ -189,8 +182,9 @@ impl<'a> StatusCreator<'a> {
 
     /// Collect the CPE assertions of a product.
     ///
-    /// The CPE is the nearest one on the path to the product. If its version is ANY, the version
-    /// is constrained by the product's version range or version branch.
+    /// The CPE is the nearest one on the path to the product, or the one of its definition outside
+    /// of branches. If its version is ANY, the version is constrained by the product's version
+    /// range or version branch, which for a relationship is the one of its component.
     fn add_cpe_entries(
         &mut self,
         product_id: &str,
@@ -199,9 +193,6 @@ impl<'a> StatusCreator<'a> {
         report: &dyn ReportSink,
     ) -> Result<(), Error> {
         let trace = self.cache.trace_product(product_id);
-        let Some(leaf) = trace.last() else {
-            return Ok(());
-        };
 
         let mut cpe = None;
         for branch in trace.iter().rev() {
@@ -209,6 +200,16 @@ impl<'a> StatusCreator<'a> {
                 cpe = Some(found);
                 break;
             }
+        }
+        // a product defined outside of branches carries at most its own CPE
+        if trace.is_empty()
+            && let Some(value) = self
+                .cache
+                .definition(product_id)
+                .and_then(|name| name.product_identification_helper.as_ref())
+                .and_then(|helper| helper.cpe.as_deref())
+        {
+            cpe = on_invalid.validate(value::cpe(value), report)?;
         }
         let Some(cpe) = cpe else {
             return Ok(());
@@ -224,20 +225,25 @@ impl<'a> StatusCreator<'a> {
             // the CPE's own version is the constraint
             vec![None]
         } else {
-            match leaf.category {
-                CategoryOfTheBranch::ProductVersionRange => match parse_range(&leaf.name) {
-                    Ok(infos) => infos.into_iter().map(Some).collect(),
-                    Err(err) => {
-                        // never widen an unparsable range to "all versions"
-                        tracing::debug!(%cpe, range = leaf.name.as_str(), "skipping CPE with invalid range: {err}");
-                        return Ok(());
-                    }
+            // for a relationship, the component states the version (e.g. a firmware range,
+            // installed on a device which is identified by the relationship's CPE)
+            match self.cache.version_branch(product_id) {
+                None => vec![None],
+                Some(leaf) => match leaf.category {
+                    CategoryOfTheBranch::ProductVersionRange => match parse_range(&leaf.name) {
+                        Ok(infos) => infos.into_iter().map(Some).collect(),
+                        Err(err) => {
+                            // never widen an unparsable range to "all versions"
+                            tracing::debug!(%cpe, range = leaf.name.as_str(), "skipping CPE with invalid range: {err}");
+                            return Ok(());
+                        }
+                    },
+                    CategoryOfTheBranch::ProductVersion => vec![Some(VersionInfo {
+                        scheme: VersionScheme::Generic,
+                        spec: VersionSpec::Exact(leaf.name.to_string()),
+                    })],
+                    _ => vec![None],
                 },
-                CategoryOfTheBranch::ProductVersion => vec![Some(VersionInfo {
-                    scheme: VersionScheme::Generic,
-                    spec: VersionSpec::Exact(leaf.name.to_string()),
-                })],
-                _ => vec![None],
             }
         };
 

@@ -19,13 +19,6 @@
   data (ingestion only stores what documents state). The SBOM, PURL and vulnerability APIs of the
   fundamental module therefore no longer report those inferred "affected" statuses. Migrate them
   to the correlation engine, which derives them (`purl_rh_fixed` evidence).
-- [ ] CSAF ingestion ignores products not defined as branch leaves
-  ([#2740](https://github.com/guacsec/trustify/issues/2740)). CSAF 2.0 (mandatory test 6.1.2)
-  defines product IDs in three places: `product_tree.branches[]…product`,
-  `product_tree.full_product_names[]` and `product_tree.relationships[].full_product_name`.
-  `ResolveProductIdCache` only indexes branches, so products from the other two get no
-  `purl_status`, no remediation links, and no advisory side correlation data (hashes, product
-  identifiers, CPEs).
 - [ ] CSAF ingestion still infers in `product_status` (only used by the fundamental APIs, not by
   correlation): `version_from_cpe` widens a CPE version `X` to the "stream" `[X, X+1 major)`, and
   `set_version` assumes `semver` for a PURL version. Ingestion should store what is stated, and

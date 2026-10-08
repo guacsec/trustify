@@ -92,6 +92,38 @@ impl ProductStatus {
         Ok(())
     }
 
+    /// Update the product from its definition outside of branches (in `full_product_names`, or
+    /// a relationship), which carries no category, just a name and an identification helper.
+    ///
+    /// Like [`Self::update_from_branch`], only a `subject` contributes its purl.
+    pub fn update_from_full_product_name(
+        &mut self,
+        full_name: &FullProductNameT,
+        subject: bool,
+        on_invalid: OnInvalidData,
+        report: &dyn ReportSink,
+    ) -> Result<(), Error> {
+        if self.product.is_empty() {
+            self.product = full_name.name.to_string();
+        }
+        if self.cpe.is_none() && self.version.is_none() {
+            self.set_version(Some(full_name.clone()), on_invalid, report)?;
+        }
+
+        let purl = full_name
+            .product_identification_helper
+            .as_ref()
+            .and_then(|helper| helper.purl.as_deref());
+        if subject
+            && let Some(purl) = purl
+            && let Some(purl) = on_invalid.validate(value::purl(purl), report)?
+        {
+            self.purls.push(purl.into());
+        }
+
+        Ok(())
+    }
+
     /// Parse cpe or purl from product identifier helper
     pub fn set_version(
         &mut self,

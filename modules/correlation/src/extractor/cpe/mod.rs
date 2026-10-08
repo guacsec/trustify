@@ -635,7 +635,8 @@ mod test {
     }
 
     /// For relationships, only the component side (firmware) yields CPE assertions, not the
-    /// platform (hardware) it is installed on.
+    /// platform (hardware) it is installed on. The relationship's own CPE (the firmware of that
+    /// device) does too, with the version (range) of its component.
     #[test_context(TrustifyContext)]
     #[test(actix_web::test)]
     async fn relationship_platform_excluded(ctx: &TrustifyContext) -> anyhow::Result<()> {
@@ -645,23 +646,57 @@ mod test {
             .filter(advisory_vulnerability_cpe::Column::AdvisoryId.eq(advisory_id))
             .all(&ctx.db)
             .await?;
+        let cpes = rows.load_one(cpe::Entity, &ctx.db).await?;
+        let ranges = rows.load_one(version_range::Entity, &ctx.db).await?;
         let mut cpes = rows
-            .load_one(cpe::Entity, &ctx.db)
-            .await?
             .into_iter()
-            .flatten()
-            .map(|c| format_cpe23(&c))
+            .zip(cpes)
+            .zip(ranges)
+            .filter_map(|((row, cpe), range)| {
+                Some((
+                    format_cpe23(&cpe?),
+                    row.status,
+                    range.map(|range| (range.low_version, range.high_version)),
+                ))
+            })
             .collect::<Vec<_>>();
-        cpes.sort();
+        cpes.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.2.cmp(&b.2)));
         cpes.dedup();
 
+        // no hardware (platform) CPEs
+        assert!(
+            cpes.iter().all(|(cpe, _, _)| cpe.starts_with("cpe:2.3:o:")),
+            "{cpes:?}"
+        );
+
+        // the firmware of one device: the affected range, and the fixed version
+        let affected_range = Some((Some("2019.0.4".to_string()), Some("2026.0.3".to_string())));
         assert_eq!(
-            cpes,
+            cpes.iter()
+                .filter(|(cpe, _, _)| cpe.contains(":catan_c1_firmware:"))
+                .cloned()
+                .collect::<Vec<_>>(),
             [
-                "cpe:2.3:o:phoenix_contact:charx_sec3xxx_firmware:2026.0.3:*:*:*:*:*:*:*",
-                "cpe:2.3:o:phoenix_contact:plcnext_firmware:*:*:*:*:*:*:*:*",
+                (
+                    "cpe:2.3:o:phoenix_contact:catan_c1_firmware:*:*:*:*:*:*:*:*".to_string(),
+                    AssertionStatus::Affected,
+                    affected_range.clone(),
+                ),
+                (
+                    "cpe:2.3:o:phoenix_contact:catan_c1_firmware:2026.0.3:*:*:*:*:*:*:*"
+                        .to_string(),
+                    AssertionStatus::Fixed,
+                    None,
+                ),
             ]
         );
+
+        // the components themselves
+        assert!(cpes.contains(&(
+            "cpe:2.3:o:phoenix_contact:plcnext_firmware:*:*:*:*:*:*:*:*".to_string(),
+            AssertionStatus::Affected,
+            affected_range,
+        )));
 
         Ok(())
     }
