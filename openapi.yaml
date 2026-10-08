@@ -1072,6 +1072,185 @@ paths:
           description: The user did not provide valid authentication credentials
         '403':
           description: The user lacks the required permission
+  /api/v3/correlation/option:
+    get:
+      tags:
+      - correlation
+      summary: List the correlation options.
+      operationId: listCorrelationOptions
+      parameters:
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: The options
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      allOf:
+                      - $ref: '#/components/schemas/CorrelationOptionData'
+                      - type: object
+                        required:
+                        - id
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                      description: |-
+                        An option of the correlation engine, for the advisories of one publisher.
+
+                        A changed option applies to documents extracted afterwards.
+                  total:
+                    type:
+                    - integer
+                    - 'null'
+                    format: int64
+                    minimum: 0
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+    post:
+      tags:
+      - correlation
+      summary: Create a correlation option.
+      description: It applies to documents extracted afterwards.
+      operationId: createCorrelationOption
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrelationOptionData'
+        required: true
+      responses:
+        '201':
+          description: The option was created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateResponse'
+        '400':
+          description: The value doesn't fit the key
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '409':
+          description: The publisher already has an option of that key
+  /api/v3/correlation/option/{id}:
+    get:
+      tags:
+      - correlation
+      summary: Get a correlation option.
+      operationId: getCorrelationOption
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the option
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: The option
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorrelationOption'
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '404':
+          description: The option doesn't exist
+    put:
+      tags:
+      - correlation
+      summary: Update a correlation option.
+      description: It applies to documents extracted afterwards.
+      operationId: updateCorrelationOption
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the option
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrelationOptionData'
+        required: true
+      responses:
+        '204':
+          description: The option was updated
+        '400':
+          description: The value doesn't fit the key
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
+        '404':
+          description: The option doesn't exist
+        '409':
+          description: The publisher already has an option of that key
+    delete:
+      tags:
+      - correlation
+      summary: Delete a correlation option.
+      description: It applies to documents extracted afterwards.
+      operationId: deleteCorrelationOption
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the option
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: The option was deleted or did not exist
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
   /api/v3/correlation/query:
     get:
       tags:
@@ -5626,6 +5805,48 @@ components:
         updated:
           type: string
           description: Timestamp when the component record was last updated.
+    CorrelationOption:
+      allOf:
+      - $ref: '#/components/schemas/CorrelationOptionData'
+      - type: object
+        required:
+        - id
+        properties:
+          id:
+            type: string
+            format: uuid
+      description: |-
+        An option of the correlation engine, for the advisories of one publisher.
+
+        A changed option applies to documents extracted afterwards.
+    CorrelationOptionData:
+      type: object
+      description: The settable content of a correlation option.
+      required:
+      - key
+      - publisher_namespace
+      - value
+      properties:
+        key:
+          $ref: '#/components/schemas/CorrelationOptionKey'
+        publisher_namespace:
+          type: string
+          description: |-
+            The publisher namespace of the advisories the option applies to, e.g.
+            `https://www.redhat.com`.
+        reason:
+          type:
+          - string
+          - 'null'
+          description: Why the option is set, shown with the evidence it enables.
+        value:
+          type: object
+          description: The value, its type depends on the key.
+    CorrelationOptionKey:
+      type: string
+      description: The options of the correlation engine.
+      enum:
+      - versionless_purl
     CorrelationResult:
       type: object
       description: Top-level correlation result for an SBOM.
@@ -5655,12 +5876,13 @@ components:
       format: uri
     CreateResponse:
       type: object
+      description: The ID of a created option.
       required:
       - id
       properties:
         id:
           type: string
-          description: The ID of the newly created group
+          format: uuid
     CredentialSource:
       oneOf:
       - type: object
@@ -5838,6 +6060,25 @@ components:
         properties:
           source:
             type: string
+    EnabledBy:
+      type: object
+      description: The correlation option which enabled a match, as it was when the evidence was extracted.
+      required:
+      - option_id
+      - key
+      - publisher_namespace
+      properties:
+        key:
+          $ref: '#/components/schemas/CorrelationOptionKey'
+        option_id:
+          type: string
+          format: uuid
+        publisher_namespace:
+          type: string
+        reason:
+          type:
+          - string
+          - 'null'
     ErrorInformation:
       type: object
       required:
@@ -6669,6 +6910,11 @@ components:
       required:
       - identifier
       properties:
+        enabled_by:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/EnabledBy'
+            description: The option which enabled the match, if it depends on one.
         identifier:
           type: string
           description: |-

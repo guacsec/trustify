@@ -12,6 +12,7 @@ entity = ["dep:trustify-entity"]
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 trustify-entity = { workspace = true, optional = true }
 utoipa = { workspace = true, optional = true, features = ["uuid", "time"] }

@@ -6,15 +6,21 @@
 //! which the PURL extractor matches like stated ones (including the stream scoping), and reports
 //! as evidence of the rule's own type.
 //!
+//! Whether a rule applies can depend on the correlation options of a publisher (see
+//! [`crate::service::option`]), e.g. reading versionless PURLs as all versions. Such evidence
+//! records the option which enabled it.
+//!
 //! To add a rule, implement [`RangeRule`] in a new module and add it to [`rules`].
 
+mod any_version;
 mod redhat;
 mod suse;
 mod vls;
 
 use super::Candidates;
+use crate::{error::Error, model::EnabledBy};
 use sea_orm::{
-    ColumnTrait, EntityTrait, QueryFilter, QuerySelect, QueryTrait,
+    ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QuerySelect, QueryTrait,
     sea_query::{Expr, SimpleExpr},
 };
 use trustify_entity::{advisory, purl_status, version_range};
@@ -29,17 +35,24 @@ pub trait RangeRule: Send + Sync {
 
     /// The derived candidates, as SQL over the stated rows.
     fn candidates(&self) -> Candidates;
+
+    /// The option which enabled a candidate of an advisory with the given publisher namespace,
+    /// `None` if the rule doesn't depend on an option.
+    fn enabled_by(&self, publisher_namespace: Option<&str>) -> Option<EnabledBy> {
+        let _ = publisher_namespace;
+        None
+    }
 }
 
-/// All active rules.
-pub fn rules() -> Vec<Box<dyn RangeRule>> {
-    vec![
+/// All active rules, with the current correlation options.
+pub async fn rules<C: ConnectionTrait>(connection: &C) -> Result<Vec<Box<dyn RangeRule>>, Error> {
+    Ok(vec![
         Box::new(redhat::RedHatFixed),
         Box::new(suse::SuseRecommendedBefore),
         Box::new(suse::SuseRecommended),
-        Box::new(suse::SuseAnyVersion),
+        Box::new(any_version::AnyVersion::load(connection).await?),
         Box::new(vls::VlsRange),
-    ]
+    ])
 }
 
 /// Stated rows of a publisher's advisories, identified by its namespaces (ignoring a trailing

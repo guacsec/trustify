@@ -376,6 +376,7 @@ async fn matched_values(
                     .map(|range| range.clone().into())
                     .into_iter()
                     .collect(),
+                enabled_by: None,
             };
             Some(((cpe_id, range_id), value))
         })
@@ -742,6 +743,7 @@ mod test {
                                 inclusive: false,
                             }),
                         }],
+                        enabled_by: None,
                     },
                 })
                 .collect::<Vec<_>>()

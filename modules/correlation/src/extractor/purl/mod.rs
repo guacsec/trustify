@@ -19,7 +19,9 @@
 //! Besides the stated ranges, [`rule`]s derive implied ranges from what advisories state (e.g.
 //! Red Hat's "fixed in X" implies "affected before X"), or evaluate stated ranges differently (e.g.
 //! a CSAF vls range, which states no versioning scheme, with the scheme of the PURL type). Those
-//! are matched the same way, but reported as evidence of the rule's own type.
+//! are matched the same way, but reported as evidence of the rule's own type. A rule may depend on
+//! a correlation option of the advisory's publisher (e.g. versionless PURLs meaning all versions),
+//! which its evidence then records (`enabled_by`).
 
 pub mod rule;
 pub mod stream;
@@ -34,7 +36,7 @@ use self::{
 use super::{Assertion, Extractor, IdentifierMatch, NodeIdentifier, NodeMatch, NodeRef};
 use crate::{
     error::Error,
-    model::{IdentifierKind, IdentifierRef, MatchedRange, MatchedValue},
+    model::{EnabledBy, IdentifierKind, IdentifierRef, MatchedRange, MatchedValue},
 };
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, FromQueryResult, JoinType,
@@ -48,7 +50,7 @@ use std::{
 use tracing::{Instrument, info_span, instrument};
 use trustify_common::{db::VersionMatches, purl::Purl, rpm::Evr};
 use trustify_entity::{
-    base_purl, correlation_evidence::AssertionStatus, purl_status, qualified_purl,
+    advisory, base_purl, correlation_evidence::AssertionStatus, purl_status, qualified_purl,
     sbom_node_purl_ref, status, version_range, version_scheme::VersionScheme, versioned_purl,
 };
 use uuid::Uuid;
@@ -146,6 +148,7 @@ impl Candidates {
             .column_as(base_purl::Column::Type, "base_purl_type")
             .column_as(base_purl::Column::Namespace, "base_purl_namespace")
             .column_as(base_purl::Column::Name, "base_purl_name")
+            .column_as(advisory::Column::PublisherNamespace, "publisher_namespace")
             .column_as(version_range::Column::Id, "range_id")
             .column_as(self.scheme.clone(), "range_scheme")
             .column_as(self.low_version.clone(), "range_low_version")
@@ -189,6 +192,7 @@ struct PurlStatusRow {
     base_purl_type: String,
     base_purl_namespace: Option<String>,
     base_purl_name: String,
+    publisher_namespace: Option<String>,
     range_id: Uuid,
     range_scheme: VersionScheme,
     range_low_version: Option<String>,
@@ -277,7 +281,12 @@ fn group<'a, K: Ord>(
 ) -> impl Iterator<Item = (K, Assertion)> {
     let mut groups = BTreeMap::<
         (K, &'static str, Uuid, String, String, String),
-        (AssertionStatus, f64, BTreeSet<MatchedRange>),
+        (
+            AssertionStatus,
+            f64,
+            BTreeSet<MatchedRange>,
+            Option<EnabledBy>,
+        ),
     >::new();
     for (target, source, row) in rows {
         let Some(status) = map_status(&row.slug) else {
@@ -294,6 +303,8 @@ fn group<'a, K: Ord>(
                 (stream.confidence() * rule.confidence() * 100.0).round() / 100.0,
             ),
         };
+        let enabled_by =
+            source.and_then(|rule| rule.enabled_by(row.publisher_namespace.as_deref()));
         let (advisory_id, vulnerability_id, slug) = (
             row.advisory_id,
             row.vulnerability_id.clone(),
@@ -309,7 +320,7 @@ fn group<'a, K: Ord>(
                 slug,
                 identifier,
             ))
-            .or_insert_with(|| (status, confidence, BTreeSet::new()));
+            .or_insert_with(|| (status, confidence, BTreeSet::new(), enabled_by));
         entry.1 = entry.1.max(confidence);
         entry.2.insert(range);
     }
@@ -317,7 +328,7 @@ fn group<'a, K: Ord>(
     groups.into_iter().map(
         |(
             (target, extractor, advisory_id, vulnerability_id, _, identifier),
-            (status, confidence, ranges),
+            (status, confidence, ranges, enabled_by),
         )| {
             (
                 target,
@@ -330,6 +341,7 @@ fn group<'a, K: Ord>(
                     matched_value: MatchedValue {
                         identifier,
                         ranges: ranges.into_iter().collect(),
+                        enabled_by,
                     },
                 },
             )
@@ -404,7 +416,7 @@ impl Extractor for PurlExtractor {
         }
 
         let vp_ids: Vec<_> = vp_map.keys().copied().collect();
-        let rules = rules();
+        let rules = rules(tx).await?;
         let mut rows = Vec::new();
         for (source, candidates) in sources(&rules) {
             for chunk in vp_ids.chunks(5000) {
@@ -438,7 +450,7 @@ impl Extractor for PurlExtractor {
         advisory_id: Uuid,
         tx: &DatabaseTransaction,
     ) -> Result<Vec<NodeMatch>, Error> {
-        let rules = rules();
+        let rules = rules(tx).await?;
         let mut rows = Vec::new();
         for (source, candidates) in sources(&rules) {
             rows.extend(
@@ -489,6 +501,7 @@ async fn load_purl_status_matches(
             purl_status::Relation::VersionRange.def(),
         )
         .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
+        .join(JoinType::InnerJoin, purl_status::Relation::Advisory.def())
         .filter(versioned_purl::Column::Id.is_in(versioned_purl_ids.iter().copied()))
         .into_model::<PurlStatusMatch>()
         .all(connection)
@@ -515,6 +528,7 @@ async fn load_advisory_purl_matches(
             purl_status::Relation::VersionRange.def(),
         )
         .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
+        .join(JoinType::InnerJoin, purl_status::Relation::Advisory.def())
         .join(JoinType::InnerJoin, purl_status::Relation::BasePurl.def())
         .join(
             JoinType::InnerJoin,

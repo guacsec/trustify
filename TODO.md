@@ -12,9 +12,15 @@
   identified by CPE/PURL rather than by free text names, non-CSAF sources (OSV, CVE) express scope
   differently, and it should probably start as a confidence modifier rather than a filter.
   Vendor specific semantics belong into correlation rules
-  (`modules/correlation/src/extractor/purl/rule/`), not into ingestion. A concrete case: SUSE's
-  versionless statements (`pkg:rpm/suse/openssl@`) are about a product, but `purl_suse_any_version`
-  applies them to the package of any product (scenario S23, `openssl` × CVE-2025-9230).
+  (`modules/correlation/src/extractor/purl/rule/`), not into ingestion. A concrete case:
+  versionless statements (SUSE `pkg:rpm/suse/openssl@`, Red Hat `pkg:rpm/redhat/golang?arch=src`)
+  are about a product, but `purl_any_version` applies them to the package of any product. A
+  `not_affected` of one product then beats an `affected` of another (scenario S23, `openssl` ×
+  CVE-2025-9230; 21 of 159 versionless packages in Red Hat's CVE-2023-44487 VEX).
+  Worse, as Red Hat (enabled by default) states unfixed old products (e.g. RHEL 6/7 `openssl`
+  `known_affected`) versionless: that applies to newer streams too. A RHEL 8/9 build above its
+  fix has no `fixed` evidence (stated fixes are exact, `purl_rh_fixed` only derives "affected
+  before"), so it becomes affected.
 - [ ] Fundamental: Red Hat's "fixed in X" no longer implies "affected before X" in the stored
   data (ingestion only stores what documents state). The SBOM, PURL and vulnerability APIs of the
   fundamental module therefore no longer report those inferred "affected" statuses. Migrate them
@@ -31,3 +37,5 @@
   `generic`, which only matches exact versions.
 - [ ] `vers-rs` doesn't build without its default `wasm` feature (unconditional `tsify` /
   `wasm_bindgen` attributes), so the server pulls in `wasm-bindgen` and `tsify`.
+- [ ] Correlation options (`correlation_option`) only apply to documents extracted after a
+  change. Changing an option should re-extract the advisories of its publisher.

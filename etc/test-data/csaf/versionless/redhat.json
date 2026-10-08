@@ -1,0 +1,97 @@
+{
+  "document": {
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE"
+      }
+    },
+    "lang": "en",
+    "publisher": {
+      "category": "vendor",
+      "name": "Red Hat Product Security",
+      "namespace": "https://www.redhat.com"
+    },
+    "title": "golang: versionless component (test)",
+    "tracking": {
+      "current_release_date": "2026-10-08T00:00:00Z",
+      "id": "CVE-2023-44487",
+      "initial_release_date": "2026-10-08T00:00:00Z",
+      "revision_history": [
+        {
+          "date": "2026-10-08T00:00:00Z",
+          "number": "1",
+          "summary": "Initial version"
+        }
+      ],
+      "status": "final",
+      "version": "1"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Red Hat",
+        "branches": [
+          {
+            "category": "product_family",
+            "name": "Red Hat Storage 3",
+            "branches": [
+              {
+                "category": "product_name",
+                "name": "Red Hat Storage 3",
+                "product": {
+                  "name": "Red Hat Storage 3",
+                  "product_id": "red_hat_storage_3",
+                  "product_identification_helper": {
+                    "cpe": "cpe:/a:redhat:storage:3"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "category": "product_version",
+            "name": "golang.src",
+            "product": {
+              "name": "golang.src",
+              "product_id": "golang.src",
+              "product_identification_helper": {
+                "purl": "pkg:rpm/redhat/golang?arch=src"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "category": "default_component_of",
+        "full_product_name": {
+          "name": "golang.src as a component of Red Hat Storage 3",
+          "product_id": "red_hat_storage_3:golang.src"
+        },
+        "product_reference": "golang.src",
+        "relates_to_product_reference": "red_hat_storage_3"
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2023-44487",
+      "notes": [
+        {
+          "category": "description",
+          "text": "HTTP/2 Rapid Reset."
+        }
+      ],
+      "product_status": {
+        "known_affected": [
+          "red_hat_storage_3:golang.src"
+        ]
+      }
+    }
+  ]
+}

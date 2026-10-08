@@ -1,5 +1,8 @@
 use super::*;
-use crate::{extractor::Extractors, model::RangeBound};
+use crate::{
+    extractor::Extractors,
+    model::{CorrelationOptionKey, EnabledBy, RangeBound},
+};
 use sea_orm::TransactionTrait;
 use test_context::test_context;
 use test_log::test;
@@ -40,13 +43,14 @@ type Evidence = (
 
 /// All PURL evidence of an SBOM (stated and derived by rules), sorted.
 async fn load_evidence(ctx: &TrustifyContext, sbom_id: Uuid) -> anyhow::Result<Vec<Evidence>> {
+    let rules = rule::rules(&ctx.db).await?;
     let mut evidence = correlation_evidence::Entity::find()
         .filter(correlation_evidence::Column::SbomId.eq(sbom_id))
         .filter(
             correlation_evidence::Column::Extractor.is_in(
                 [PLAIN, STREAM]
                     .into_iter()
-                    .chain(rule::rules().iter().map(|r| r.id())),
+                    .chain(rules.iter().map(|r| r.id())),
             ),
         )
         .all(&ctx.db)
@@ -131,17 +135,21 @@ async fn evidence_of(
 async fn rh_fixed_major(ctx: &TrustifyContext) -> anyhow::Result<()> {
     assert_eq!(
         evidence_of(ctx, S5_SBOM, S5_VEX).await?,
-        vec![(
-            "pkg-openssl".to_string(),
-            "CVE-2023-0215".to_string(),
-            RH_FIXED.to_string(),
-            AssertionStatus::Affected,
-            0.72,
-            Some(MatchedValue {
-                identifier: "pkg:rpm/redhat/openssl".into(),
-                ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6", "1:1.1.1k-9.el8_7"]),
-            }),
-        )]
+        vec![
+            rh_openssl_any_version("CVE-2023-0215"),
+            (
+                "pkg-openssl".to_string(),
+                "CVE-2023-0215".to_string(),
+                RH_FIXED.to_string(),
+                AssertionStatus::Affected,
+                0.72,
+                Some(MatchedValue {
+                    identifier: "pkg:rpm/redhat/openssl".into(),
+                    ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6", "1:1.1.1k-9.el8_7"]),
+                    enabled_by: None,
+                }),
+            ),
+        ]
     );
 
     Ok(())
@@ -158,17 +166,21 @@ async fn rh_fixed_exact(ctx: &TrustifyContext) -> anyhow::Result<()> {
             S9_VEX
         )
         .await?,
-        vec![(
-            "pkg-openssl".to_string(),
-            "CVE-2023-0286".to_string(),
-            RH_FIXED.to_string(),
-            AssertionStatus::Affected,
-            0.9,
-            Some(MatchedValue {
-                identifier: "pkg:rpm/redhat/openssl".into(),
-                ranges: fixed_in("rpm", &["1:1.1.1c-21.el8_2"]),
-            }),
-        )]
+        vec![
+            rh_openssl_any_version("CVE-2023-0286"),
+            (
+                "pkg-openssl".to_string(),
+                "CVE-2023-0286".to_string(),
+                RH_FIXED.to_string(),
+                AssertionStatus::Affected,
+                0.9,
+                Some(MatchedValue {
+                    identifier: "pkg:rpm/redhat/openssl".into(),
+                    ranges: fixed_in("rpm", &["1:1.1.1c-21.el8_2"]),
+                    enabled_by: None,
+                }),
+            ),
+        ]
     );
 
     Ok(())
@@ -185,27 +197,31 @@ async fn rh_fixed_at_fix(ctx: &TrustifyContext) -> anyhow::Result<()> {
             S9_VEX
         )
         .await?,
-        vec![(
-            "pkg-openssl".to_string(),
-            "CVE-2023-0286".to_string(),
-            STREAM.to_string(),
-            AssertionStatus::Fixed,
-            1.0,
-            Some(MatchedValue {
-                identifier: "pkg:rpm/redhat/openssl".into(),
-                ranges: vec![MatchedRange {
-                    scheme: "rpm".into(),
-                    low: Some(RangeBound {
-                        version: "1:1.1.1c-21.el8_2".into(),
-                        inclusive: true,
-                    }),
-                    high: Some(RangeBound {
-                        version: "1:1.1.1c-21.el8_2".into(),
-                        inclusive: true,
-                    }),
-                }],
-            }),
-        )]
+        vec![
+            rh_openssl_any_version("CVE-2023-0286"),
+            (
+                "pkg-openssl".to_string(),
+                "CVE-2023-0286".to_string(),
+                STREAM.to_string(),
+                AssertionStatus::Fixed,
+                1.0,
+                Some(MatchedValue {
+                    identifier: "pkg:rpm/redhat/openssl".into(),
+                    ranges: vec![MatchedRange {
+                        scheme: "rpm".into(),
+                        low: Some(RangeBound {
+                            version: "1:1.1.1c-21.el8_2".into(),
+                            inclusive: true,
+                        }),
+                        high: Some(RangeBound {
+                            version: "1:1.1.1c-21.el8_2".into(),
+                            inclusive: true,
+                        }),
+                    }],
+                    enabled_by: None,
+                }),
+            ),
+        ]
     );
 
     Ok(())
@@ -227,6 +243,7 @@ async fn stated_stream_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6"]),
+                enabled_by: None,
             }),
         )]
     );
@@ -283,6 +300,7 @@ async fn plain_match(ctx: &TrustifyContext) -> anyhow::Result<()> {
                         }),
                     },
                 ],
+                enabled_by: None,
             }),
         )]
     );
@@ -342,11 +360,62 @@ const SUSE_NEW_PACKAGES: [(&str, &str); 3] = [
 const SUSE_SP6_FIX: &str = "3.1.4-150600.5.15.1";
 
 /// The `openssl` package of the SBOM, which SUSE states as not affected, for all versions.
+/// The evidence type of versionless PURLs, read as all versions.
+const ANY_VERSION: &str = "purl_any_version";
+
+/// The default option enabling versionless PURLs of a publisher (see the migration creating
+/// `correlation_option`).
+fn versionless(id: &str, publisher_namespace: &str, reason: &str) -> EnabledBy {
+    EnabledBy {
+        option_id: Uuid::parse_str(id).expect("valid UUID"),
+        key: CorrelationOptionKey::VersionlessPurl,
+        publisher_namespace: publisher_namespace.into(),
+        reason: Some(reason.into()),
+    }
+}
+
+fn suse_versionless() -> EnabledBy {
+    versionless(
+        "019dc7a4-6a00-7000-8000-000000000002",
+        "https://www.suse.com",
+        "SUSE states the status of a package in a product with a versionless PURL, meaning all versions.",
+    )
+}
+
+fn redhat_versionless() -> EnabledBy {
+    versionless(
+        "019dc7a4-6a00-7000-8000-000000000001",
+        "https://www.redhat.com",
+        "Red Hat states the status of a component in a product with a versionless PURL, meaning all versions.",
+    )
+}
+
+/// Red Hat states `openssl` as affected in RHEL 6 and 7 with a versionless PURL. Without product
+/// context, that also applies to RHEL 8 packages.
+fn rh_openssl_any_version(vulnerability: &str) -> Evidence {
+    (
+        "pkg-openssl".to_string(),
+        vulnerability.to_string(),
+        ANY_VERSION.to_string(),
+        AssertionStatus::Affected,
+        0.7,
+        Some(MatchedValue {
+            identifier: "pkg:rpm/redhat/openssl".into(),
+            ranges: vec![MatchedRange {
+                scheme: "generic".into(),
+                low: None,
+                high: None,
+            }],
+            enabled_by: Some(redhat_versionless()),
+        }),
+    )
+}
+
 fn suse_openssl_not_affected(node: &str) -> Evidence {
     (
         node.to_string(),
         "CVE-2024-6119".to_string(),
-        "purl_suse_any_version".to_string(),
+        ANY_VERSION.to_string(),
         AssertionStatus::NotAffected,
         0.7,
         Some(MatchedValue {
@@ -356,6 +425,7 @@ fn suse_openssl_not_affected(node: &str) -> Evidence {
                 low: None,
                 high: None,
             }],
+            enabled_by: Some(suse_versionless()),
         }),
     )
 }
@@ -378,6 +448,7 @@ async fn suse_recommended_codestream(ctx: &TrustifyContext) -> anyhow::Result<()
                 Some(MatchedValue {
                     identifier: format!("pkg:rpm/suse/{name}"),
                     ranges: fixed_in("rpm", &[SUSE_SP6_FIX]),
+                    enabled_by: None,
                 }),
             )
         })
@@ -415,6 +486,7 @@ async fn suse_recommended_later_build(ctx: &TrustifyContext) -> anyhow::Result<(
                         }),
                         high: None,
                     }],
+                    enabled_by: None,
                 }),
             )
         })
@@ -461,6 +533,7 @@ async fn vls_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 Some(MatchedValue {
                     identifier: "pkg:npm/example-app".into(),
                     ranges: below("semver", "2.0.0"),
+                    enabled_by: None,
                 }),
             ),
             (
@@ -472,10 +545,102 @@ async fn vls_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 Some(MatchedValue {
                     identifier: "pkg:npm/example-lib".into(),
                     ranges: below("npm", "4.2"),
+                    enabled_by: None,
                 }),
             ),
         ]
     );
+
+    Ok(())
+}
+
+const RH_VERSIONLESS_VEX: &str = "csaf/versionless/redhat.json";
+const GOLANG_SBOM: &str =
+    "scenarios/S16_crossscheme_purlquery_golang/sbom_golang_rpm_storage3.cdx.json";
+
+/// Red Hat states the status of a component in a product with a versionless PURL. With the
+/// default option, it applies to all versions, and the evidence names the option.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn versionless_redhat(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    assert_eq!(
+        evidence_of(ctx, GOLANG_SBOM, RH_VERSIONLESS_VEX).await?,
+        vec![(
+            "pkg-golang".to_string(),
+            "CVE-2023-44487".to_string(),
+            ANY_VERSION.to_string(),
+            AssertionStatus::Affected,
+            0.7,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/golang".into(),
+                ranges: vec![MatchedRange {
+                    scheme: "generic".into(),
+                    low: None,
+                    high: None,
+                }],
+                enabled_by: Some(redhat_versionless()),
+            }),
+        )]
+    );
+
+    Ok(())
+}
+
+/// Without an enabled option for the publisher, a versionless PURL matches nothing.
+#[test_context(TrustifyContext)]
+#[rstest::rstest]
+#[case::deleted(None)]
+#[case::disabled(Some(serde_json::Value::Bool(false)))]
+#[test_log::test(actix_web::test)]
+async fn versionless_not_enabled(
+    ctx: &TrustifyContext,
+    #[case] value: Option<serde_json::Value>,
+) -> anyhow::Result<()> {
+    use sea_orm::ActiveValue::Set;
+    use trustify_entity::correlation_option;
+
+    let publisher = correlation_option::Column::PublisherNamespace.eq("https://www.redhat.com");
+    match value {
+        None => {
+            correlation_option::Entity::delete_many()
+                .filter(publisher)
+                .exec(&ctx.db)
+                .await?;
+        }
+        Some(value) => {
+            correlation_option::Entity::update_many()
+                .set(correlation_option::ActiveModel {
+                    value: Set(value),
+                    ..Default::default()
+                })
+                .filter(publisher)
+                .exec(&ctx.db)
+                .await?;
+        }
+    }
+
+    assert_eq!(
+        evidence_of(ctx, GOLANG_SBOM, RH_VERSIONLESS_VEX).await?,
+        vec![]
+    );
+
+    Ok(())
+}
+
+/// A publisher without an option: its versionless PURLs match nothing.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn versionless_other_publisher(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let mut vex: serde_json::Value =
+        serde_json::from_slice(&trustify_test_context::document_bytes(RH_VERSIONLESS_VEX).await?)?;
+    vex["document"]["publisher"]["namespace"] = "https://example.com".into();
+
+    let sbom = ctx.ingest_document(GOLANG_SBOM).await?;
+    ctx.ingest_json(vex).await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+    extract_for_sbom(ctx, sbom_id).await?;
+
+    assert_eq!(load_evidence(ctx, sbom_id).await?, vec![]);
 
     Ok(())
 }

@@ -4,9 +4,20 @@ use actix_web::{
 };
 use test_context::test_context;
 use test_log::test;
+use trustify_common::db::{ReadOnly, ReadWrite, pagination_cache::PaginationCache};
 use trustify_test_context::TrustifyContext;
 use utoipa_actix_web::AppExt;
 use uuid::Uuid;
+
+/// Configure the correlation endpoints on the test database.
+fn configure(svc: &mut utoipa_actix_web::service_config::ServiceConfig, ctx: &TrustifyContext) {
+    super::configure(
+        svc,
+        ReadOnly::new(ctx.db.clone()),
+        ReadWrite::new(ctx.db.clone()),
+        PaginationCache::for_test(),
+    );
+}
 
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -14,8 +25,7 @@ async fn empty_sbom_returns_empty_verdicts(ctx: &TrustifyContext) -> anyhow::Res
     let app = App::new()
         .into_utoipa_app()
         .configure(|svc| {
-            let db_ro = trustify_common::db::ReadOnly::new(ctx.db.clone());
-            super::configure(svc, db_ro);
+            configure(svc, ctx);
         })
         .into_app();
     let app = actix_web::test::init_service(app).await;
@@ -40,8 +50,7 @@ async fn query_requires_kind(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let app = App::new()
         .into_utoipa_app()
         .configure(|svc| {
-            let db_ro = trustify_common::db::ReadOnly::new(ctx.db.clone());
-            super::configure(svc, db_ro);
+            configure(svc, ctx);
         })
         .into_app();
     let app = actix_web::test::init_service(app).await;
@@ -75,8 +84,7 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
     let app = App::new()
         .into_utoipa_app()
         .configure(|svc| {
-            let db_ro = trustify_common::db::ReadOnly::new(ctx.db.clone());
-            super::configure(svc, db_ro);
+            configure(svc, ctx);
         })
         .into_app();
     let app = actix_web::test::init_service(app).await;
@@ -111,4 +119,180 @@ async fn verdict_counts(ctx: &TrustifyContext) -> anyhow::Result<()> {
     assert_eq!(call_service(&app, req).await.status(), 400);
 
     Ok(())
+}
+
+mod option {
+    use super::configure;
+    use crate::model::{CorrelationOption, CorrelationOptionData, CorrelationOptionKey};
+    use actix_http::StatusCode;
+    use actix_web::test::TestRequest;
+    use serde_json::{Value, json};
+    use test_context::test_context;
+    use test_log::test;
+    use trustify_common::model::PaginatedResults;
+    use trustify_test_context::{
+        TrustifyContext,
+        call::{CallService, caller},
+    };
+    use uuid::Uuid;
+
+    const BASE: &str = "/api/v3/correlation/option";
+
+    fn data(publisher_namespace: &str, value: Value) -> CorrelationOptionData {
+        CorrelationOptionData {
+            key: CorrelationOptionKey::VersionlessPurl,
+            publisher_namespace: publisher_namespace.into(),
+            value,
+            reason: Some("test".into()),
+        }
+    }
+
+    /// The defaults are listed, ordered by publisher namespace.
+    #[test_context(TrustifyContext)]
+    #[test(actix_web::test)]
+    async fn defaults(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let app = caller(|svc| configure(svc, ctx)).await?;
+
+        let result: PaginatedResults<CorrelationOption> = app
+            .call_and_read_body_json(TestRequest::get().uri(BASE).to_request())
+            .await;
+
+        assert_eq!(
+            result
+                .items
+                .iter()
+                .map(|option| (
+                    option.data.key,
+                    option.data.publisher_namespace.as_str(),
+                    &option.data.value
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    CorrelationOptionKey::VersionlessPurl,
+                    "https://www.redhat.com",
+                    &json!(true)
+                ),
+                (
+                    CorrelationOptionKey::VersionlessPurl,
+                    "https://www.suse.com",
+                    &json!(true)
+                ),
+            ]
+        );
+
+        Ok(())
+    }
+
+    /// Create, read, update and delete an option. The publisher namespace is stored without a
+    /// trailing slash, and deleting is idempotent.
+    #[test_context(TrustifyContext)]
+    #[test(actix_web::test)]
+    async fn crud(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let app = caller(|svc| configure(svc, ctx)).await?;
+
+        // create
+
+        let response = app
+            .call_service(
+                TestRequest::post()
+                    .uri(BASE)
+                    .set_json(data("https://example.com/", json!(true)))
+                    .to_request(),
+            )
+            .await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let created: Value = actix_web::test::read_body_json(response).await;
+        let id: Uuid = serde_json::from_value(created["id"].clone())?;
+        let uri = format!("{BASE}/{id}");
+
+        let option: CorrelationOption = app
+            .call_and_read_body_json(TestRequest::get().uri(&uri).to_request())
+            .await;
+        assert_eq!(
+            option,
+            CorrelationOption {
+                id,
+                data: data("https://example.com", json!(true)),
+            }
+        );
+
+        // update
+
+        let response = app
+            .call_service(
+                TestRequest::put()
+                    .uri(&uri)
+                    .set_json(data("https://example.com", json!(false)))
+                    .to_request(),
+            )
+            .await;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+        let option: CorrelationOption = app
+            .call_and_read_body_json(TestRequest::get().uri(&uri).to_request())
+            .await;
+        assert_eq!(option.data.value, json!(false));
+
+        // delete, twice
+
+        for _ in 0..2 {
+            let response = app
+                .call_service(TestRequest::delete().uri(&uri).to_request())
+                .await;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        }
+
+        let response = app
+            .call_service(TestRequest::get().uri(&uri).to_request())
+            .await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+        Ok(())
+    }
+
+    /// Invalid requests: a duplicate, an unknown key, a value not fitting the key, and an update
+    /// of an unknown option.
+    #[test_context(TrustifyContext)]
+    #[test(actix_web::test)]
+    async fn invalid(ctx: &TrustifyContext) -> anyhow::Result<()> {
+        let app = caller(|svc| configure(svc, ctx)).await?;
+
+        for (body, expected) in [
+            // the default exists
+            (
+                serde_json::to_value(data("https://www.redhat.com/", json!(false)))?,
+                StatusCode::CONFLICT,
+            ),
+            (
+                json!({"key": "unknown", "publisher_namespace": "https://example.com", "value": true}),
+                StatusCode::BAD_REQUEST,
+            ),
+            (
+                serde_json::to_value(data("https://example.com", json!("yes")))?,
+                StatusCode::BAD_REQUEST,
+            ),
+            (
+                serde_json::to_value(data("/", json!(true)))?,
+                StatusCode::BAD_REQUEST,
+            ),
+        ] {
+            let response = app
+                .call_service(TestRequest::post().uri(BASE).set_json(&body).to_request())
+                .await;
+            assert_eq!(response.status(), expected, "{body}");
+        }
+
+        let response = app
+            .call_service(
+                TestRequest::put()
+                    .uri(&format!("{BASE}/{}", Uuid::now_v7()))
+                    .set_json(data("https://example.com", json!(true)))
+                    .to_request(),
+            )
+            .await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+        Ok(())
+    }
 }

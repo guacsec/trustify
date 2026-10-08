@@ -4,11 +4,11 @@ use crate::{
         CorrelationResult, IdentifierKind, IdentifierRef, QueryResult, SbomVerdictCounts,
         VerdictCountsRequest,
     },
-    service::CorrelationService,
+    service::{CorrelationService, option::OptionService},
 };
 use actix_web::{HttpResponse, Responder, get, post, web};
 use serde::Deserialize;
-use trustify_common::db;
+use trustify_common::db::{self, pagination_cache::PaginationCache};
 use utoipa::IntoParams;
 use uuid::Uuid;
 
@@ -20,20 +20,26 @@ struct SbomCorrelationParams {
     include_unmatched: bool,
 }
 
+mod option;
 #[cfg(test)]
 mod test;
 
 pub fn configure(
     config: &mut utoipa_actix_web::service_config::ServiceConfig,
     db_ro: db::ReadOnly,
+    db_rw: db::ReadWrite,
+    cache: PaginationCache,
 ) {
     let service = CorrelationService::default();
     config
         .app_data(web::Data::new(db_ro))
+        .app_data(web::Data::new(db_rw))
         .app_data(web::Data::new(service))
+        .app_data(web::Data::new(OptionService::new(cache)))
         .service(get_sbom_correlation)
         .service(count_verdicts)
-        .service(query_correlation);
+        .service(query_correlation)
+        .configure(option::configure);
 }
 
 /// Get correlation verdicts for an SBOM.
