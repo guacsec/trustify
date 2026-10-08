@@ -1,5 +1,6 @@
 pub mod advisory;
 pub mod aws;
+pub mod capability;
 pub mod config;
 pub mod cpe;
 pub mod db;

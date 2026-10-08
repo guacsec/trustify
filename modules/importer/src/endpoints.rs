@@ -11,6 +11,7 @@ use trustify_auth::{
     CreateImporter, DeleteImporter, ReadImporter, UpdateImporter, authorizer::Require,
 };
 use trustify_common::{
+    capability::VariantFilter,
     db::{self, pagination_cache::PaginationCache, query::Query},
     endpoints::extract_revision,
     model::{Paginated, PaginatedResults, Revisioned},
@@ -21,17 +22,22 @@ pub fn configure(
     svc: &mut utoipa_actix_web::service_config::ServiceConfig,
     db: db::ReadWrite,
     cache: PaginationCache,
+    importer_filter: VariantFilter,
 ) {
-    svc.app_data(web::Data::new(ImporterService::new(db, cache)))
-        .service(list)
-        .service(create)
-        .service(read)
-        .service(update)
-        .service(patch_json_merge)
-        .service(delete)
-        .service(get_reports)
-        .service(set_enabled)
-        .service(force);
+    svc.app_data(web::Data::new(ImporterService::new(
+        db,
+        cache,
+        importer_filter,
+    )))
+    .service(list)
+    .service(create)
+    .service(read)
+    .service(update)
+    .service(patch_json_merge)
+    .service(delete)
+    .service(get_reports)
+    .service(set_enabled)
+    .service(force);
 }
 
 #[utoipa::path(

@@ -7,8 +7,9 @@ use std::time::Instant;
 use test_context::test_context;
 use test_log::test;
 use tracing::instrument;
-use trustify_common::{db::pagination_cache::PaginationCache, id::Id};
+use trustify_common::{capability::VariantFilter, db::pagination_cache::PaginationCache, id::Id};
 use trustify_module_fundamental::sbom::service::SbomService;
+use trustify_module_ingestor::service::Format;
 use trustify_module_storage::service::StorageBackend;
 use trustify_test_context::{Dataset, TrustifyContext};
 
@@ -105,6 +106,27 @@ async fn ingest(ctx: TrustifyContext) -> anyhow::Result<()> {
     );
 
     // done
+
+    Ok(())
+}
+
+/// Test that disabled formats in a dataset are skipped, with a warning.
+#[test_context(TrustifyContext, skip_teardown)]
+#[test(tokio::test)]
+async fn ingest_disabled_format(mut ctx: TrustifyContext) -> anyhow::Result<()> {
+    ctx.0.ingestor = ctx.ingestor.clone().with_format_filter(VariantFilter::new(
+        "format",
+        &Format::concrete_variants(),
+        &[],
+        &["csaf".into()],
+    ));
+
+    let result = ctx.ingest_dataset(Dataset::DS3).await?;
+
+    assert!(!result.files.keys().any(|k| k.starts_with("csaf/")));
+    assert!(result.files.keys().any(|k| k.starts_with("spdx/")));
+    assert!(!result.warnings.is_empty());
+    assert!(result.warnings.iter().all(|w| w.contains("disabled")));
 
     Ok(())
 }

@@ -35,7 +35,12 @@ use std::{fmt::Debug, sync::Arc, time::Instant};
 use tokio::task::JoinError;
 use tracing::instrument;
 use trustify_common::db::change::{ChangeEntity, ChangeOperation, record_change};
-use trustify_common::{db::DatabaseErrors, error::ErrorInformation, id::IdError};
+use trustify_common::{
+    capability::{VariantDisabled, VariantFilter},
+    db::DatabaseErrors,
+    error::ErrorInformation,
+    id::IdError,
+};
 use trustify_entity::labels::Labels;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::{StorageBackend, dispatch::DispatchBackend};
@@ -68,6 +73,8 @@ pub enum Error {
     InvalidContent(#[source] anyhow::Error),
     #[error("invalid format: {0}")]
     UnsupportedFormat(String),
+    #[error(transparent)]
+    VariantDisabled(#[from] VariantDisabled),
     #[error("failed to await the task: {0}")]
     Join(#[from] JoinError),
     #[error(transparent)]
@@ -158,6 +165,7 @@ impl ResponseError for Error {
                 message: format!("Unsupported document format: {fmt}"),
                 details: None,
             }),
+            Self::VariantDisabled(err) => err.error_response(),
             Error::HashKey(inner) => HttpResponse::BadRequest().json(ErrorInformation {
                 error: "Digest key error".into(),
                 message: inner.to_string(),
@@ -220,6 +228,7 @@ pub struct IngestorService {
     storage: DispatchBackend,
     analysis: Option<AnalysisService>,
     validators: Arc<[Arc<dyn Validator>]>,
+    format_filter: VariantFilter,
 }
 
 impl IngestorService {
@@ -233,6 +242,7 @@ impl IngestorService {
             storage: storage.into(),
             analysis,
             validators: Vec::new().into(),
+            format_filter: VariantFilter::default(),
         }
     }
 
@@ -242,6 +252,16 @@ impl IngestorService {
     /// not exist. See ADR 00020.
     pub fn with_validators(mut self, validators: Vec<Arc<dyn Validator>>) -> Self {
         self.validators = validators.into();
+        self
+    }
+
+    /// Attach a format variant filter.
+    ///
+    /// When set, ingestion of disabled formats is rejected with
+    /// `Error::UnsupportedFormat`. With the default (no filter), all formats
+    /// are accepted.
+    pub fn with_format_filter(mut self, filter: VariantFilter) -> Self {
+        self.format_filter = filter;
         self
     }
 
@@ -290,6 +310,8 @@ impl IngestorService {
 
         let detector = DocumentDetector::detect_as(bytes, format)?;
         let fmt = detector.format();
+
+        self.format_filter.try_enabled(&fmt.to_string())?;
 
         // Run semantic validators before persisting anything. A blocking
         // (verify) failure returns an error here, so no bytes are stored and no
@@ -348,7 +370,7 @@ impl IngestorService {
         limit: usize,
         tx: &(impl ConnectionTrait + TransactionTrait),
     ) -> Result<DatasetIngestResult, Error> {
-        let loader = DatasetLoader::new(&self.graph, self.storage(), limit);
+        let loader = DatasetLoader::new(&self.graph, self.storage(), &self.format_filter, limit);
         loader.load(labels.into(), bytes, tx).await
     }
 
