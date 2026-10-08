@@ -10,6 +10,7 @@
 
 mod redhat;
 mod suse;
+mod vls;
 
 use super::Candidates;
 use sea_orm::{
@@ -37,6 +38,7 @@ pub fn rules() -> Vec<Box<dyn RangeRule>> {
         Box::new(suse::SuseRecommendedBefore),
         Box::new(suse::SuseRecommended),
         Box::new(suse::SuseAnyVersion),
+        Box::new(vls::VlsRange),
     ]
 }
 

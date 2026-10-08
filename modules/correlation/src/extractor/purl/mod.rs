@@ -17,8 +17,9 @@
 //! evidence.
 //!
 //! Besides the stated ranges, [`rule`]s derive implied ranges from what advisories state (e.g.
-//! Red Hat's "fixed in X" implies "affected before X"). Those are matched the same way, but
-//! reported as evidence of the rule's own type.
+//! Red Hat's "fixed in X" implies "affected before X"), or evaluate stated ranges differently (e.g.
+//! a CSAF vls range, which states no versioning scheme, with the scheme of the PURL type). Those
+//! are matched the same way, but reported as evidence of the rule's own type.
 
 pub mod rule;
 pub mod stream;
@@ -87,6 +88,8 @@ pub struct Candidates {
     pub condition: SimpleExpr,
     /// The status (slug) of the candidate.
     pub status: SimpleExpr,
+    /// The version scheme (ID) to evaluate the candidate range with.
+    pub scheme: SimpleExpr,
     /// Lower bound of the candidate range, `NULL` if unbounded.
     pub low_version: SimpleExpr,
     /// Whether the lower bound is inclusive.
@@ -103,6 +106,7 @@ impl Candidates {
         Self {
             condition: Expr::value(true),
             status: Expr::col((status::Entity, status::Column::Slug)).into(),
+            scheme: stated_scheme(),
             low_version: range_col(version_range::Column::LowVersion),
             low_inclusive: range_col(version_range::Column::LowInclusive),
             high_version: range_col(version_range::Column::HighVersion),
@@ -116,7 +120,7 @@ impl Candidates {
             "ROW($1, $2, $3, $4, $5, $6)::version_range",
             [
                 range_col(version_range::Column::Id),
-                range_col(version_range::Column::VersionSchemeId),
+                self.scheme.clone(),
                 self.low_version.clone(),
                 self.low_inclusive.clone(),
                 self.high_version.clone(),
@@ -143,7 +147,7 @@ impl Candidates {
             .column_as(base_purl::Column::Namespace, "base_purl_namespace")
             .column_as(base_purl::Column::Name, "base_purl_name")
             .column_as(version_range::Column::Id, "range_id")
-            .column_as(version_range::Column::VersionSchemeId, "range_scheme")
+            .column_as(self.scheme.clone(), "range_scheme")
             .column_as(self.low_version.clone(), "range_low_version")
             .column_as(self.low_inclusive.clone(), "range_low_inclusive")
             .column_as(self.high_version.clone(), "range_high_version")
@@ -152,6 +156,11 @@ impl Candidates {
             .filter(self.condition.clone())
             .filter(self.version_matches())
     }
+}
+
+/// The version scheme of the stated `version_range`.
+pub fn stated_scheme() -> SimpleExpr {
+    range_col(version_range::Column::VersionSchemeId)
 }
 
 /// A column of the stated `version_range`.

@@ -5,7 +5,7 @@
 //! extractor ensures a package isn't judged against the fix of another stream.
 
 use super::{RangeRule, exact_of, low};
-use crate::extractor::purl::Candidates;
+use crate::extractor::purl::{Candidates, stated_scheme};
 use sea_orm::sea_query::Expr;
 use trustify_entity::status;
 
@@ -31,6 +31,7 @@ impl RangeRule for RedHatFixed {
                 .eq("fixed")
                 .and(exact_of(NAMESPACES)),
             status: Expr::val("affected").into(),
+            scheme: stated_scheme(),
             // (unbounded, < fixed)
             low_version: Expr::cust("NULL"),
             low_inclusive: Expr::val(false).into(),

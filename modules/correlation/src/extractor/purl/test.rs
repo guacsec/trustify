@@ -428,3 +428,54 @@ async fn suse_recommended_later_build(ctx: &TrustifyContext) -> anyhow::Result<(
 
     Ok(())
 }
+
+const RANGES_SBOM: &str = "csaf/ranges/vers-and-vls.cdx.json";
+const RANGES_VEX: &str = "csaf/ranges/vers-and-vls.json";
+
+/// A vls range (`<4.2`) states no versioning scheme, so it only matches through `purl_vls_range`,
+/// with the scheme of the PURL type (`npm`) and a lower confidence. A vers range (`vers:npm/<2.0.0`)
+/// matches as stated. The platform of a relationship is no subject of the status.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn vls_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let below = |scheme: &str, version: &str| {
+        vec![MatchedRange {
+            scheme: scheme.into(),
+            low: None,
+            high: Some(RangeBound {
+                version: version.into(),
+                inclusive: false,
+            }),
+        }]
+    };
+
+    assert_eq!(
+        evidence_of(ctx, RANGES_SBOM, RANGES_VEX).await?,
+        vec![
+            (
+                "example-app-1.0.0".to_string(),
+                "CVE-2099-20001".to_string(),
+                PLAIN.to_string(),
+                AssertionStatus::Affected,
+                1.0,
+                Some(MatchedValue {
+                    identifier: "pkg:npm/example-app".into(),
+                    ranges: below("semver", "2.0.0"),
+                }),
+            ),
+            (
+                "example-lib-4.1".to_string(),
+                "CVE-2099-20001".to_string(),
+                "purl_vls_range".to_string(),
+                AssertionStatus::Affected,
+                0.6,
+                Some(MatchedValue {
+                    identifier: "pkg:npm/example-lib".into(),
+                    ranges: below("npm", "4.2"),
+                }),
+            ),
+        ]
+    );
+
+    Ok(())
+}

@@ -30,6 +30,9 @@
   correlation): `version_from_cpe` widens a CPE version `X` to the "stream" `[X, X+1 major)`, and
   `set_version` assumes `semver` for a PURL version. Ingestion should store what is stated, and
   leave such inferences to correlation rules.
+- [ ] Correlation: vls ranges (CSAF `product_version_range` without `vers:`, stored with the
+  version scheme `vls`) only match PURLs (`purl_vls_range`, scheme by PURL type). A vls range of a
+  CPE (`advisory_vulnerability_cpe`) yields no evidence, as nothing hints at a version scheme.
 - [ ] `VersionScheme::from(&str)` (vers schemes) maps neither `pypi` nor `cargo`, `gem`, `golang`,
   `nuget`, … (only `python`, `npm`, `maven`, `rpm`, `semver`, `git`), so those fall back to
   `generic`, which only matches exact versions.

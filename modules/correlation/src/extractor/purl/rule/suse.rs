@@ -12,7 +12,7 @@
 //! the product isn't part of the match yet, those apply to the package in any product.
 
 use super::{RangeRule, exact_of, low, published_by};
-use crate::extractor::purl::Candidates;
+use crate::extractor::purl::{Candidates, stated_scheme};
 use sea_orm::sea_query::{Expr, SimpleExpr};
 use trustify_entity::{status, version_range};
 
@@ -42,6 +42,7 @@ impl RangeRule for SuseRecommendedBefore {
         Candidates {
             condition: recommended(),
             status: Expr::val("affected").into(),
+            scheme: stated_scheme(),
             // (unbounded, < recommended)
             low_version: Expr::cust("NULL"),
             low_inclusive: Expr::val(false).into(),
@@ -67,6 +68,7 @@ impl RangeRule for SuseRecommended {
         Candidates {
             condition: recommended(),
             status: Expr::val("fixed").into(),
+            scheme: stated_scheme(),
             // [recommended, unbounded)
             low_version: low(),
             low_inclusive: Expr::val(true).into(),
@@ -98,6 +100,7 @@ impl RangeRule for SuseAnyVersion {
                 .and(high.eq(""))
                 .and(published_by(NAMESPACES)),
             status: Expr::col((status::Entity, status::Column::Slug)).into(),
+            scheme: stated_scheme(),
             // (unbounded, unbounded)
             low_version: Expr::cust("NULL"),
             low_inclusive: Expr::val(false).into(),
