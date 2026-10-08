@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791396961335,
+  "lastUpdate": 1791452479470,
   "repoUrl": "https://github.com/guacsec/trustify",
   "entries": {
     "Benchmark": [
@@ -23222,6 +23222,35 @@ window.BENCHMARK_DATA = {
           {
             "name": "Ingest DS3",
             "value": 8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "committer": {
+            "email": "ctron@dentrassi.de",
+            "name": "Jens Reimann",
+            "username": "ctron"
+          },
+          "distinct": true,
+          "id": "af6ffd72c38d093b04b92462204d7d6990bdbbe5",
+          "message": "chore(ci): update deprecated GitHub Actions to latest major versions\n\n- actions/checkout v5 → v7\n- actions/setup-node v4 → v7\n- actions-rust-lang/setup-rust-toolchain v1 → v2\n- redhat-actions/push-to-registry v2 → v3\n- github/codeql-action/upload-sarif v3 → v4\n\nAll are drop-in replacements with no input/output changes.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-10-08T08:55:19Z",
+          "tree_id": "e8d195cf145ca6a3836e923e066947702d9d789a",
+          "url": "https://github.com/guacsec/trustify/commit/af6ffd72c38d093b04b92462204d7d6990bdbbe5"
+        },
+        "date": 1791452477436,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Ingest DS3",
+            "value": 9,
             "unit": "s"
           }
         ]
