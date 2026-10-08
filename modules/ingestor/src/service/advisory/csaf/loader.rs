@@ -856,4 +856,70 @@ mod test {
 
         Ok(())
     }
+
+    /// A status stated for a relationship is stored with its context: the platform, with its
+    /// identifiers, name and the relationship category. A product which isn't a relationship has
+    /// no context.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn relationship_context(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+        use trustify_entity::{
+            assertion_context::{self, AssertionContextCategory},
+            assertion_context_identifier::{self, ContextIdentifierKind},
+            base_purl, purl_status,
+        };
+
+        let result = ctx.ingest_document("csaf/ranges/vers-and-vls.json").await?;
+        let advisory_id = result.id.parse::<Uuid>()?;
+
+        let mut statuses = purl_status::Entity::find()
+            .filter(purl_status::Column::AdvisoryId.eq(advisory_id))
+            .find_also_related(base_purl::Entity)
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|(status, purl)| {
+                (
+                    purl.map(|purl| purl.name).unwrap_or_default(),
+                    status.assertion_context_id,
+                )
+            })
+            .collect::<Vec<_>>();
+        statuses.sort();
+
+        let [(app, Some(context_id)), (lib, None)] = statuses.as_slice() else {
+            panic!("unexpected statuses: {statuses:?}");
+        };
+        assert_eq!((app.as_str(), lib.as_str()), ("example-app", "example-lib"));
+
+        let context = assertion_context::Entity::find_by_id(*context_id)
+            .one(&ctx.db)
+            .await?
+            .expect("context must exist");
+        assert_eq!(
+            (context.category, context.name.as_str()),
+            (
+                Some(AssertionContextCategory::InstalledOn),
+                "Example Platform < 3.0.0"
+            )
+        );
+
+        let identifiers = assertion_context_identifier::Entity::find()
+            .filter(assertion_context_identifier::Column::ContextId.eq(*context_id))
+            .all(&ctx.db)
+            .await?
+            .into_iter()
+            .map(|identifier| (identifier.kind, identifier.value))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            identifiers,
+            [(
+                ContextIdentifierKind::Purl,
+                "pkg:npm/example-platform".to_string()
+            )]
+        );
+
+        Ok(())
+    }
 }

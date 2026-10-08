@@ -39,3 +39,6 @@
   `wasm_bindgen` attributes), so the server pulls in `wasm-bindgen` and `tsify`.
 - [ ] Correlation options (`correlation_option`) only apply to documents extracted after a
   change. Changing an option should re-extract the advisories of its publisher.
+- [ ] Assertion contexts (`assertion_context`) are only stored for advisories ingested after
+  `m0002510`. Existing advisories need to be re-ingested to get the product context of their
+  statements.

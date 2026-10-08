@@ -94,6 +94,7 @@ mod m0002470_drop_redhat_derived_purl_status;
 mod m0002480_correlation_evidence_per_status;
 mod m0002490_add_vls_version_scheme;
 mod m0002500_create_correlation_option;
+mod m0002510_create_assertion_context;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -203,6 +204,7 @@ impl MigratorExt for Migrator {
             .normal(m0002480_correlation_evidence_per_status::Migration)
             .normal(m0002490_add_vls_version_scheme::Migration)
             .normal(m0002500_create_correlation_option::Migration)
+            .normal(m0002510_create_assertion_context::Migration)
     }
 }
 

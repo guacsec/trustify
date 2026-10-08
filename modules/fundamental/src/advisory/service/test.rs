@@ -502,3 +502,32 @@ async fn update_advisory_label(ctx: &TrustifyContext) -> Result<(), anyhow::Erro
 
     Ok(())
 }
+
+/// Deleting an advisory deletes the assertion contexts only it referenced. A context which
+/// another advisory references too remains.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn delete_advisory_contexts(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    use sea_orm::{EntityTrait, PaginatorTrait};
+    use trustify_entity::assertion_context;
+
+    // the same document twice, as two advisories, sharing their context
+    let mut doc: serde_json::Value = serde_json::from_slice(
+        &trustify_test_context::document_bytes("csaf/ranges/vers-and-vls.json").await?,
+    )?;
+    let first = ctx.ingest_json(doc.clone()).await?;
+    doc["document"]["tracking"]["id"] = "EXAMPLE-RANGES-0002".into();
+    let second = ctx.ingest_json(doc).await?;
+
+    let contexts = || assertion_context::Entity::find().count(&ctx.db);
+    assert_eq!(contexts().await?, 1);
+
+    let service = AdvisoryService::new(PaginationCache::for_test());
+    assert!(service.delete_advisory(first.id.parse()?, &ctx.db).await?);
+    assert_eq!(contexts().await?, 1);
+
+    assert!(service.delete_advisory(second.id.parse()?, &ctx.db).await?);
+    assert_eq!(contexts().await?, 0);
+
+    Ok(())
+}

@@ -4,6 +4,8 @@ pub mod advisory_vulnerability_cpe;
 pub mod advisory_vulnerability_hash;
 pub mod advisory_vulnerability_product_identifier;
 pub mod advisory_vulnerability_score;
+pub mod assertion_context;
+pub mod assertion_context_identifier;
 pub mod base_purl;
 pub mod correlation_evidence;
 pub mod correlation_option;

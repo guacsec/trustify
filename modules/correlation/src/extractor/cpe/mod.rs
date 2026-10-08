@@ -232,7 +232,7 @@ WITH sc AS (
         language text, sw_edition text, target_sw text, target_hw text, other text
     )
 )
-SELECT sc.i, {ASSERTION_COLUMNS}
+SELECT DISTINCT sc.i, {ASSERTION_COLUMNS}
 FROM sc
 JOIN cpe ac ON lower(ac.product) = lower(sc.product)
 JOIN advisory_vulnerability_cpe a ON a.cpe_id = ac.id
@@ -278,7 +278,7 @@ WHERE {MATCH_CONDITION}
             DbBackend::Postgres,
             format!(
                 r#"
-SELECT r.sbom_id, r.node_id, {ASSERTION_COLUMNS}
+SELECT DISTINCT r.sbom_id, r.node_id, {ASSERTION_COLUMNS}
 FROM advisory_vulnerability_cpe a
 JOIN cpe ac ON ac.id = a.cpe_id
 JOIN cpe sc ON lower(sc.product) = lower(ac.product)
@@ -936,6 +936,7 @@ mod test {
                 status: Set(AssertionStatus::Affected),
                 cpe_id: Set(cpe_id),
                 version_range_id: Set(version_range_id),
+                assertion_context_id: Set(None),
             }
             .insert(&ctx.db)
             .await?;
