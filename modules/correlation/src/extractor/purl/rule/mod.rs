@@ -13,6 +13,7 @@
 //! To add a rule, implement [`RangeRule`] in a new module and add it to [`rules`].
 
 mod any_version;
+mod csaf;
 mod redhat;
 mod suse;
 mod vls;
@@ -23,7 +24,7 @@ use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QuerySelect, QueryTrait,
     sea_query::{Expr, SimpleExpr},
 };
-use trustify_entity::{advisory, purl_status, version_range};
+use trustify_entity::{advisory, purl_status, status, version_range};
 
 /// Derives additional, implied version ranges from the statements of an advisory.
 pub trait RangeRule: Send + Sync {
@@ -56,6 +57,10 @@ pub async fn rules<C: ConnectionTrait>(connection: &C) -> Result<Vec<Box<dyn Ran
         Box::new(suse::SuseRecommendedBefore),
         Box::new(suse::SuseRecommended),
         Box::new(any_version::AnyVersion::load(connection).await?),
+        Box::new(csaf::FirstFixed),
+        Box::new(csaf::FirstFixedBefore),
+        Box::new(csaf::FirstAffected),
+        Box::new(csaf::LastAffected),
         Box::new(vls::VlsRange),
     ])
 }
@@ -77,15 +82,26 @@ fn published_by(namespaces: &[&str]) -> SimpleExpr {
     purl_status::Column::AdvisoryId.in_subquery(advisories)
 }
 
-/// Stated rows of a publisher's advisories, with an exact version (e.g. `fixed` in `1.2-3`).
-fn exact_of(namespaces: &[&str]) -> SimpleExpr {
+/// Stated rows with an exact version (e.g. `fixed` in `1.2-3`).
+fn exact() -> SimpleExpr {
     Expr::expr(low())
         .is_not_null()
         .and(Expr::expr(low()).eq(Expr::col((
             version_range::Entity,
             version_range::Column::HighVersion,
         ))))
-        .and(published_by(namespaces))
+}
+
+/// Stated rows of a publisher's advisories, with an exact version.
+fn exact_of(namespaces: &[&str]) -> SimpleExpr {
+    exact().and(published_by(namespaces))
+}
+
+/// Stated rows of the given status (slug), with an exact version.
+fn exact_status(slug: &str) -> SimpleExpr {
+    Expr::col((status::Entity, status::Column::Slug))
+        .eq(slug)
+        .and(exact())
 }
 
 /// Lower bound of the stated range.

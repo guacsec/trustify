@@ -35,12 +35,17 @@
   of the UBI 10 image above, among them `openssl-libs`, `glibc`, `krb5-libs`, `libxml2`).
 - [ ] Correlation, Red Hat `fixed` as `first_fixed`: Red Hat states `fixed` only for the fixing
   build. `purl_rh_fixed` derives "affected before X", but nothing derives "fixed from X on", so a
-  newer build of the same stream (typical for an up-to-date image) gets no verdict. Plan:
-  - ingest CSAF's `first_fixed` (currently dropped) as stated;
-  - generic rules for `first_fixed`: affected before X, fixed from X on (same stream);
-  - a correlation option (e.g. `fixed_is_first_fixed`, enabled for `https://www.redhat.com` by
-    default) reading a publisher's `fixed` as `first_fixed`, replacing the hard-wired
-    `purl_rh_fixed`.
+  newer build of the same stream (typical for an up-to-date image) gets no verdict. CSAF
+  `first_fixed` is ingested now, with generic rules (`purl_first_fixed`,
+  `purl_first_fixed_before`). Missing: a correlation option (e.g. `fixed_is_first_fixed`, enabled
+  for `https://www.redhat.com` by default) reading a publisher's `fixed` as `first_fixed`,
+  replacing the hard-wired `purl_rh_fixed`.
+- [ ] CSAF `first_fixed`, `first_affected` and `last_affected` are only stored for PURLs
+  (`purl_status`, `product_status`). CPE, hash and product identifier assertions
+  (`assertion_status`) have no such values, so those statements are dropped for them, and the
+  CPE extractor has no rules deriving their ranges.
+- [ ] CSAF `first_fixed`, `first_affected`, `last_affected` and `under_investigation` are only
+  stored for advisories ingested after `m0002540`. Existing advisories need to be re-ingested.
 - [ ] Fundamental: Red Hat's "fixed in X" no longer implies "affected before X" in the stored
   data (ingestion only stores what documents state). The SBOM, PURL and vulnerability APIs of the
   fundamental module therefore no longer report those inferred "affected" statuses. Migrate them

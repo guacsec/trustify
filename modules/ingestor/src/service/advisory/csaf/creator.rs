@@ -126,6 +126,8 @@ impl<'a> StatusCreator<'a> {
             "affected" => Some(AssertionStatus::Affected),
             "fixed" => Some(AssertionStatus::Fixed),
             "not_affected" => Some(AssertionStatus::NotAffected),
+            "under_investigation" => Some(AssertionStatus::UnderInvestigation),
+            // `first_*` / `last_*` are only stored for PURLs (see `TODO.md`)
             _ => None,
         };
 

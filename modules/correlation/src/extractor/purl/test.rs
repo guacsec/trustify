@@ -534,6 +534,138 @@ async fn vls_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// CSAF statuses stating a single version (`first_fixed`, `first_affected`, `last_affected`) mean
+/// a range from or up to that version, of the same stream: the `el9_0` package matches none of
+/// them. `under_investigation` is stated for that exact version.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn csaf_single_version_statuses(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    const VERSION: &str = "1:1.1.1k-9.el8_6";
+    let bound = |inclusive| {
+        Some(RangeBound {
+            version: VERSION.into(),
+            inclusive,
+        })
+    };
+    let from = MatchedRange {
+        scheme: "rpm".into(),
+        low: bound(true),
+        high: None,
+    };
+    let before = MatchedRange {
+        scheme: "rpm".into(),
+        low: None,
+        high: bound(false),
+    };
+    let up_to = MatchedRange {
+        scheme: "rpm".into(),
+        low: None,
+        high: bound(true),
+    };
+    let exact = MatchedRange {
+        scheme: "rpm".into(),
+        low: bound(true),
+        high: bound(true),
+    };
+    let evidence = |node: &str,
+                    vulnerability: &str,
+                    extractor: &str,
+                    status,
+                    confidence,
+                    range: &MatchedRange| {
+        (
+            node.to_string(),
+            vulnerability.to_string(),
+            extractor.to_string(),
+            status,
+            confidence,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: vec![range.clone()],
+                enabled_by: None,
+            }),
+        )
+    };
+
+    use AssertionStatus::{Affected, Fixed, UnderInvestigation};
+    assert_eq!(
+        evidence_of(
+            ctx,
+            "csaf/statuses/openssl.cdx.json",
+            "csaf/statuses/first-last.json"
+        )
+        .await?,
+        vec![
+            evidence(
+                "openssl-12",
+                "CVE-2099-30001",
+                "purl_first_fixed",
+                Fixed,
+                1.0,
+                &from
+            ),
+            evidence(
+                "openssl-12",
+                "CVE-2099-30002",
+                "purl_first_affected",
+                Affected,
+                0.9,
+                &from
+            ),
+            evidence(
+                "openssl-5",
+                "CVE-2099-30001",
+                "purl_first_fixed_before",
+                Affected,
+                0.9,
+                &before
+            ),
+            evidence(
+                "openssl-5",
+                "CVE-2099-30003",
+                "purl_last_affected",
+                Affected,
+                0.9,
+                &up_to
+            ),
+            evidence(
+                "openssl-9",
+                "CVE-2099-30001",
+                "purl_first_fixed",
+                Fixed,
+                1.0,
+                &from
+            ),
+            evidence(
+                "openssl-9",
+                "CVE-2099-30002",
+                "purl_first_affected",
+                Affected,
+                0.9,
+                &from
+            ),
+            evidence(
+                "openssl-9",
+                "CVE-2099-30003",
+                "purl_last_affected",
+                Affected,
+                0.9,
+                &up_to
+            ),
+            evidence(
+                "openssl-9",
+                "CVE-2099-30004",
+                STREAM,
+                UnderInvestigation,
+                1.0,
+                &exact
+            ),
+        ]
+    );
+
+    Ok(())
+}
+
 const RH_VERSIONLESS_VEX: &str = "csaf/versionless/redhat.json";
 const GOLANG_SBOM: &str =
     "scenarios/S16_crossscheme_purlquery_golang/sbom_golang_rpm_storage3.cdx.json";

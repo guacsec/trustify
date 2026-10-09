@@ -1,0 +1,93 @@
+{
+  "document": {
+    "category": "csaf_vex",
+    "csaf_version": "2.0",
+    "distribution": {
+      "tlp": {
+        "label": "WHITE"
+      }
+    },
+    "lang": "en-US",
+    "publisher": {
+      "category": "vendor",
+      "name": "Example Vendor",
+      "namespace": "https://www.example.com"
+    },
+    "title": "One version of openssl, in every product status stating a single version",
+    "tracking": {
+      "current_release_date": "2026-10-09T00:00:00.000Z",
+      "id": "EXAMPLE-2026-0002",
+      "initial_release_date": "2026-10-09T00:00:00.000Z",
+      "revision_history": [
+        {
+          "date": "2026-10-09T00:00:00.000Z",
+          "number": "1.0.0",
+          "summary": "Initial revision"
+        }
+      ],
+      "status": "final",
+      "version": "1.0.0"
+    }
+  },
+  "product_tree": {
+    "branches": [
+      {
+        "category": "vendor",
+        "name": "Example",
+        "branches": [
+          {
+            "category": "product_name",
+            "name": "openssl",
+            "branches": [
+              {
+                "category": "product_version",
+                "name": "1:1.1.1k-9.el8_6",
+                "product": {
+                  "name": "openssl 1:1.1.1k-9.el8_6",
+                  "product_id": "openssl-9.el8_6",
+                  "product_identification_helper": {
+                    "purl": "pkg:rpm/redhat/openssl@1.1.1k-9.el8_6?arch=src&epoch=1"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2099-30001",
+      "product_status": {
+        "first_fixed": [
+          "openssl-9.el8_6"
+        ]
+      }
+    },
+    {
+      "cve": "CVE-2099-30002",
+      "product_status": {
+        "first_affected": [
+          "openssl-9.el8_6"
+        ]
+      }
+    },
+    {
+      "cve": "CVE-2099-30003",
+      "product_status": {
+        "last_affected": [
+          "openssl-9.el8_6"
+        ]
+      }
+    },
+    {
+      "cve": "CVE-2099-30004",
+      "product_status": {
+        "under_investigation": [
+          "openssl-9.el8_6"
+        ]
+      }
+    }
+  ]
+}

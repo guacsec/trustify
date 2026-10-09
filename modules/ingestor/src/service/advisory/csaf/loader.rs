@@ -232,6 +232,24 @@ impl<'g> CsafLoader<'g> {
 
         creator.add_all(&product_status.fixed, "fixed", self.on_invalid, report)?;
         creator.add_all(
+            &product_status.first_fixed,
+            "first_fixed",
+            self.on_invalid,
+            report,
+        )?;
+        creator.add_all(
+            &product_status.first_affected,
+            "first_affected",
+            self.on_invalid,
+            report,
+        )?;
+        creator.add_all(
+            &product_status.last_affected,
+            "last_affected",
+            self.on_invalid,
+            report,
+        )?;
+        creator.add_all(
             &product_status.known_not_affected,
             "not_affected",
             self.on_invalid,
@@ -246,6 +264,12 @@ impl<'g> CsafLoader<'g> {
         creator.add_all(
             &product_status.recommended,
             "recommended",
+            self.on_invalid,
+            report,
+        )?;
+        creator.add_all(
+            &product_status.under_investigation,
+            "under_investigation",
             self.on_invalid,
             report,
         )?;
@@ -639,6 +663,59 @@ mod test {
             .await?;
         slugs.sort();
         assert_eq!(slugs, vec!["fixed".to_string()]);
+
+        Ok(())
+    }
+
+    /// All product statuses of CSAF are stored as stated, including those stating a single
+    /// version (`first_fixed`, `first_affected`, `last_affected`).
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn stores_all_product_statuses(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        use sea_orm::{EntityTrait, JoinType, QueryOrder, QuerySelect, RelationTrait};
+        use trustify_entity::{purl_status, status, version_range};
+
+        let graph = Graph::new();
+        let loader = CsafLoader::new(&graph);
+
+        let (csaf, digests): (Csaf, _) = document("csaf/statuses/first-last.json").await?;
+        loader
+            .load(("source", "test"), csaf, &digests, &ctx.db)
+            .await?;
+
+        let statuses: Vec<(String, String, Option<String>, Option<String>)> =
+            purl_status::Entity::find()
+                .select_only()
+                .column(purl_status::Column::VulnerabilityId)
+                .column(status::Column::Slug)
+                .column(version_range::Column::LowVersion)
+                .column(version_range::Column::HighVersion)
+                .join(JoinType::InnerJoin, purl_status::Relation::Status.def())
+                .join(
+                    JoinType::InnerJoin,
+                    purl_status::Relation::VersionRange.def(),
+                )
+                .order_by_asc(purl_status::Column::VulnerabilityId)
+                .into_tuple()
+                .all(&ctx.db)
+                .await?;
+
+        let version = || Some("1:1.1.1k-9.el8_6".to_string());
+        assert_eq!(
+            statuses,
+            [
+                ("CVE-2099-30001", "first_fixed"),
+                ("CVE-2099-30002", "first_affected"),
+                ("CVE-2099-30003", "last_affected"),
+                ("CVE-2099-30004", "under_investigation"),
+            ]
+            .map(|(vulnerability, slug)| (
+                vulnerability.to_string(),
+                slug.to_string(),
+                version(),
+                version()
+            ))
+        );
 
         Ok(())
     }
