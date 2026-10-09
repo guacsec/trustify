@@ -8,11 +8,15 @@
 //! See ADR 00020 for the design and rationale.
 
 pub mod config;
+#[cfg(feature = "semantic-validation")]
 pub mod conforma;
+#[cfg(feature = "semantic-validation")]
 pub mod csaf;
+#[cfg(feature = "semantic-validation")]
 pub mod scheck;
 
 pub use config::{Backend, ConformaConfig, ValidatorConfig, ValidatorsConfig, build};
+#[cfg(feature = "semantic-validation")]
 pub use scheck::ScheckValidator;
 
 use crate::service::Format;

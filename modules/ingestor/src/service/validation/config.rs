@@ -3,14 +3,15 @@
 //! The default configuration is empty, which disables validation entirely and
 //! preserves the pre-existing ingestion behaviour. See ADR 00020.
 
+#[cfg(feature = "semantic-validation")]
+use crate::service::validation::{ScheckValidator, conforma, csaf, scheck};
 use crate::service::{
     Format,
-    validation::{
-        OnError, ScheckValidator, Severity, ValidationMode, Validator, conforma, csaf, scheck,
-    },
+    validation::{OnError, Severity, ValidationMode, Validator},
 };
+#[cfg(feature = "semantic-validation")]
 use anyhow::Context;
-use std::{collections::HashSet, fs, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
 /// Configuration for the complete set of validators.
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -113,24 +114,35 @@ pub fn build(config: &ValidatorsConfig) -> Result<Vec<Arc<dyn Validator>>, anyho
             "duplicate validator name: {}",
             validator.name
         );
-        match &validator.backend {
-            Backend::Scheck { rules, phase } => {
-                validators.push(Arc::new(build_scheck(validator, rules, phase.as_deref())?));
-            }
-            Backend::Csaf { profile } => {
-                validators.push(Arc::new(csaf::Validator::new(
-                    validator,
-                    profile.as_deref(),
-                )));
-            }
-            Backend::Conforma(conforma) => {
-                validators.push(Arc::new(conforma::build(validator, conforma)?));
-            }
-        }
+        validators.push(build_one(validator)?);
     }
     Ok(validators)
 }
 
+/// Build a single validator from its configuration.
+fn build_one(validator: &ValidatorConfig) -> Result<Arc<dyn Validator>, anyhow::Error> {
+    match &validator.backend {
+        #[cfg(feature = "semantic-validation")]
+        Backend::Scheck { rules, phase } => {
+            Ok(Arc::new(build_scheck(validator, rules, phase.as_deref())?))
+        }
+        #[cfg(feature = "semantic-validation")]
+        Backend::Csaf { profile } => Ok(Arc::new(csaf::Validator::new(
+            validator,
+            profile.as_deref(),
+        ))),
+        #[cfg(feature = "semantic-validation")]
+        Backend::Conforma(conforma) => Ok(Arc::new(conforma::build(validator, conforma)?)),
+        #[allow(unreachable_patterns)]
+        backend => anyhow::bail!(
+            "validator '{}' uses backend {backend:?}, which is not compiled into this build \
+             (the 'semantic-validation' feature is disabled)",
+            validator.name,
+        ),
+    }
+}
+
+#[cfg(feature = "semantic-validation")]
 fn build_scheck(
     config: &ValidatorConfig,
     rules: &[PathBuf],
@@ -138,7 +150,7 @@ fn build_scheck(
 ) -> Result<ScheckValidator, anyhow::Error> {
     let mut schemas = Vec::with_capacity(rules.len());
     for path in rules {
-        let contents = fs::read_to_string(path)
+        let contents = std::fs::read_to_string(path)
             .with_context(|| format!("reading scheck ruleset {}", path.display()))?;
         schemas.push(scheck::parse_ruleset(path, &contents)?);
     }
@@ -264,6 +276,7 @@ validators:
         );
     }
 
+    #[cfg(feature = "semantic-validation")]
     #[test]
     fn builds_csaf_validator_from_config() {
         let config = ValidatorsConfig {
@@ -284,6 +297,7 @@ validators:
         assert_eq!(validators[0].name(), "csaf-spec");
     }
 
+    #[cfg(feature = "semantic-validation")]
     #[test]
     fn builds_scheck_validator_from_ruleset_file() {
         let dir = tempfile::tempdir().expect("tempdir");

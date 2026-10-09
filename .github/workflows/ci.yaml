@@ -74,6 +74,13 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
         run: cargo clippy --all-targets --all-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::todo -D clippy::unimplemented
 
+      # ADR 00022: every Cargo feature must also be built with the feature off.
+      # Lib only: dev-dependencies pull in the default features again.
+      - name: Clippy (semantic-validation off)
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
+        run: cargo clippy -p trustify-module-ingestor --no-default-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::todo -D clippy::unimplemented
+
   test:
     runs-on: ubuntu-24.04
 

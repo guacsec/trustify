@@ -6,6 +6,14 @@ publish.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[features]
+default = ["semantic-validation"]
+
+# The semantic validator subsystem (ADR 00020): scheck, CSAF spec and Conforma
+# backends. Disabling it drops the `scheck` dependency tree; the validator
+# config still parses, but building a configured validator fails. See ADR 00022.
+semantic-validation = ["dep:scheck"]
+
 [dependencies]
 trustify-auth = { workspace = true }
 trustify-common = { workspace = true }
@@ -33,7 +41,7 @@ quick-xml = { workspace = true }
 reqwest = { workspace = true, features = ["stream"] }
 roxmltree = { workspace = true }
 sbom-walker = { workspace = true }
-scheck = { workspace = true }
+scheck = { workspace = true, optional = true }
 sea-orm = { workspace = true }
 sea-query = { workspace = true }
 semver = { workspace = true }
