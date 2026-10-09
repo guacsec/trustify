@@ -6,6 +6,7 @@ use crate::{
     resource::{TestResourceExt, defer},
 };
 use anyhow::Context;
+use migration::Migrator;
 use postgresql_embedded::{PostgreSQL, Settings};
 use std::{
     fs::OpenOptions,
@@ -132,11 +133,14 @@ impl Snapshot {
             ..default_settings().context("unable to create default settings")?
         };
 
+        let migrator = Migrator::new(storage.clone(), ());
+
         let (db, postgresql) = trustify_db::embedded::create_for(
             settings,
             Options {
                 source: trustify_db::embedded::Source::Import(base.join(db_file)),
             },
+            &migrator,
         )
         .await
         .context("failed to create an embedded database")?;

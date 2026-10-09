@@ -9,8 +9,9 @@ use trustify_module_storage::service::fs::FileSystemBackend;
 use utoipa_actix_web::AppExt;
 
 pub async fn create_openapi() -> anyhow::Result<utoipa::openapi::OpenApi> {
-    let (db, _) = trustify_db::embedded::create().await?;
     let (storage, _temp) = FileSystemBackend::for_test().await?;
+    let migrator = trustify_db::Migrator::new(storage.clone(), ());
+    let (db, _) = trustify_db::embedded::create(&migrator).await?;
     let db_rw = db::ReadWrite::new(db.clone());
     let db_ro = db::ReadOnly::new(db.clone());
     let analysis = AnalysisService::new(AnalysisConfig::default(), db_ro.clone());

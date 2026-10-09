@@ -2,12 +2,13 @@
 
 pub mod embedded;
 
+pub use migration::Migrator;
+
 use anyhow::{Context, anyhow, ensure};
-use migration::Migrator;
 use migration::data::Runner;
 use postgresql_commands::{CommandBuilder, psql::PsqlBuilder};
 use sea_orm::ConnectionTrait;
-use sea_orm_migration::prelude::{MigrationTrait, MigratorTrait};
+use sea_orm_migration::{MigrationTrait, MigratorTraitSelf};
 use std::process::Stdio;
 use tokio::io::{self, AsyncRead, AsyncWriteExt};
 use tracing::instrument;
@@ -16,24 +17,28 @@ use trustify_common::{config, db};
 pub struct Database<'a>(pub &'a db::Database);
 
 impl<'a> Database<'a> {
-    #[instrument(skip(self), err(level=tracing::Level::INFO))]
-    pub async fn migrate(&self) -> Result<(), anyhow::Error> {
+    #[instrument(skip(self, migrator), err(level=tracing::Level::INFO))]
+    pub async fn migrate(&self, migrator: &Migrator) -> Result<(), anyhow::Error> {
         log::debug!("applying migrations");
-        Migrator::up(self.0, None).await?;
+        migrator.up(self.0, None).await?;
         log::debug!("applied migrations");
 
         Ok(())
     }
 
     /// Apply migrations up to and including the one matching the given name.
-    #[instrument(skip(self), err(level=tracing::Level::INFO))]
-    pub async fn migrate_up_to(&self, name: &str) -> Result<(), anyhow::Error> {
-        let all_migrations = Migrator::migrations();
+    #[instrument(skip(self, migrator), err(level=tracing::Level::INFO))]
+    pub async fn migrate_up_to(
+        &self,
+        migrator: &Migrator,
+        name: &str,
+    ) -> Result<(), anyhow::Error> {
+        let all_migrations = migrator.migrations();
 
         let target_pos = find_migration_position(&all_migrations, name)?;
         let target_name = all_migrations[target_pos].name().to_string();
 
-        let applied = Migrator::get_applied_migrations(self.0).await?;
+        let applied = migrator.get_applied_migrations(self.0).await?;
         let applied_count = applied.len() as u32;
         let target_count = (target_pos as u32) + 1;
 
@@ -44,16 +49,16 @@ impl<'a> Database<'a> {
 
         let steps = target_count - applied_count;
         log::debug!("applying {steps} migration(s) up to '{target_name}'");
-        Migrator::up(self.0, Some(steps)).await?;
+        migrator.up(self.0, Some(steps)).await?;
         log::debug!("applied migrations up to '{target_name}'");
 
         Ok(())
     }
 
-    #[instrument(skip(self), err(level=tracing::Level::INFO))]
-    pub async fn refresh(&self) -> Result<(), anyhow::Error> {
+    #[instrument(skip(self, migrator), err(level=tracing::Level::INFO))]
+    pub async fn refresh(&self, migrator: &Migrator) -> Result<(), anyhow::Error> {
         log::warn!("refreshing database schema...");
-        Migrator::refresh(self.0).await?;
+        migrator.refresh(self.0).await?;
         log::warn!("refreshing database schema... done!");
 
         Ok(())
@@ -94,11 +99,14 @@ impl<'a> Database<'a> {
         Ok(db)
     }
 
-    #[instrument(err(level=tracing::Level::INFO))]
-    pub async fn bootstrap(database: &config::Database) -> Result<db::Database, anyhow::Error> {
+    #[instrument(skip(migrator), err(level=tracing::Level::INFO))]
+    pub async fn bootstrap(
+        database: &config::Database,
+        migrator: &Migrator,
+    ) -> Result<db::Database, anyhow::Error> {
         let db = Self::setup(database).await?;
 
-        Database(&db).migrate().await?;
+        Database(&db).migrate(migrator).await?;
 
         Ok(db)
     }

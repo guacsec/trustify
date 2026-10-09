@@ -1,9 +1,9 @@
-use migration::data::{self, Direction, Options, Runner};
+use migration::{Migrator, data::{self, Direction, Options, Runner}};
 use postgresql_embedded::{PostgreSQL, VersionReq};
 use std::{collections::HashMap, env, fs::create_dir_all, process::ExitCode, time::Duration};
 use trustify_common::{config::Database, db};
 use trustify_infrastructure::otel::{Tracing, init_tracing};
-use trustify_module_storage::config::StorageConfig;
+use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
 
 #[derive(clap::Args, Debug)]
 pub struct Run {
@@ -11,6 +11,11 @@ pub struct Run {
     pub(crate) command: Command,
     #[command(flatten)]
     pub(crate) database: Database,
+    /// Location of the storage
+    #[command(flatten)]
+    pub(crate) storage: StorageConfig,
+    #[command(flatten)]
+    pub(crate) options: Options,
 }
 
 #[derive(clap::Subcommand, Debug, Clone)]
@@ -34,26 +39,33 @@ pub enum Command {
 impl Run {
     pub async fn run(self) -> anyhow::Result<ExitCode> {
         init_tracing("db-run", Tracing::Disabled);
-        let Run { command, database } = self;
+        let Run {
+            command,
+            database,
+            storage,
+            options,
+        } = self;
+        let storage = storage.into_storage(false).await?;
+        let migrator = Migrator::new(storage.clone(), options.clone());
         match command {
-            Command::Create => Run::create(database).await,
-            Command::Migrate { up_to } => Run::migrate(database, up_to).await,
-            Command::Refresh => Run::refresh(database).await,
-            Command::Data(data) => data.run(Direction::Up, database).await,
+            Command::Create => Run::create(database, &migrator).await,
+            Command::Migrate { up_to } => Run::migrate(database, up_to, &migrator).await,
+            Command::Refresh => Run::refresh(database, &migrator).await,
+            Command::Data(data) => data.run(Direction::Up, database, storage, options).await,
         }
     }
 
-    async fn create(database: Database) -> anyhow::Result<ExitCode> {
-        match trustify_db::Database::bootstrap(&database).await {
+    async fn create(database: Database, migrator: &Migrator) -> anyhow::Result<ExitCode> {
+        match trustify_db::Database::bootstrap(&database, migrator).await {
             Ok(_) => Ok(ExitCode::SUCCESS),
             Err(e) => Err(e),
         }
     }
 
-    async fn refresh(database: Database) -> anyhow::Result<ExitCode> {
+    async fn refresh(database: Database, migrator: &Migrator) -> anyhow::Result<ExitCode> {
         match db::Database::new(&database).await {
             Ok(db) => {
-                trustify_db::Database(&db).refresh().await?;
+                trustify_db::Database(&db).refresh(migrator).await?;
                 Ok(ExitCode::SUCCESS)
             }
             Err(e) => Err(e),
@@ -61,13 +73,17 @@ impl Run {
     }
 
     /// Apply database migrations, optionally stopping at a specific migration.
-    async fn migrate(database: Database, up_to: Option<String>) -> anyhow::Result<ExitCode> {
+    async fn migrate(
+        database: Database,
+        up_to: Option<String>,
+        migrator: &Migrator,
+    ) -> anyhow::Result<ExitCode> {
         match db::Database::new(&database).await {
             Ok(db) => {
                 let db = trustify_db::Database(&db);
                 match up_to {
-                    Some(name) => db.migrate_up_to(&name).await?,
-                    None => db.migrate().await?,
+                    Some(name) => db.migrate_up_to(migrator, &name).await?,
+                    None => db.migrate(migrator).await?,
                 }
                 Ok(ExitCode::SUCCESS)
             }
@@ -126,20 +142,16 @@ pub struct Data {
     /// Migrations to run
     #[arg()]
     name: Vec<String>,
-    #[command(flatten)]
-    storage: StorageConfig,
-    #[command(flatten)]
-    options: Options,
 }
 
 impl Data {
-    pub async fn run(self, direction: Direction, database: Database) -> anyhow::Result<ExitCode> {
-        let Self {
-            name: migrations,
-            storage,
-            options,
-        } = self;
-
+    pub async fn run(
+        self,
+        direction: Direction,
+        database: Database,
+        storage: DispatchBackend,
+        options: Options,
+    ) -> anyhow::Result<ExitCode> {
         match db::Database::new(&database).await {
             Ok(db) => {
                 trustify_db::Database(&db)
@@ -148,9 +160,9 @@ impl Data {
                             url: database.to_url(),
                             schema: None,
                         },
-                        storage: storage.into_storage(false).await?,
+                        storage: storage.into(),
                         direction,
-                        migrations,
+                        migrations: self.name,
                         options,
                     })
                     .await?;

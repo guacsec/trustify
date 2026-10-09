@@ -24,7 +24,6 @@ bytes = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 csaf-rs = { workspace = true }
 cve = { workspace = true }
-futures = { workspace = true }
 futures-util = { workspace = true }
 humantime = { workspace = true }
 indicatif = { workspace = true, features = ["tokio", "futures"] }

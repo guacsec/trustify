@@ -27,10 +27,18 @@ mod test {
     use super::*;
     use crate::profile::spawn_db_check;
     use test_log::test;
+    use trustify_db::Migrator;
+    use trustify_module_storage::service::fs::FileSystemBackend;
 
     #[test(tokio::test)]
     async fn timeout() {
-        let (db, postgresql) = trustify_db::embedded::create().await.expect("must create");
+        let (storage, _tmp) = FileSystemBackend::for_test()
+            .await
+            .expect("must create storage");
+        let migrator = Migrator::new(storage, ());
+        let (db, postgresql) = trustify_db::embedded::create(&migrator)
+            .await
+            .expect("must create");
 
         let check = spawn_db_check(db).expect("must create");
 

@@ -2,82 +2,17 @@ use crate::{
     async_trait,
     data::{Document, DocumentProcessor, Handler, Options},
 };
-use clap::Parser;
-use futures::executor::block_on;
 use sea_orm::{DatabaseConnection, DbErr};
 use sea_orm_migration::{MigrationName, MigrationTrait, SchemaManager};
-use std::{ffi::OsString, ops::Deref, sync::LazyLock};
-use tokio::task_local;
+use std::ops::Deref;
 use tracing::log;
-use trustify_module_storage::{config::StorageConfig, service::dispatch::DispatchBackend};
+use trustify_module_storage::service::dispatch::DispatchBackend;
 
 /// A migration which also processes data.
 pub struct MigrationWithData {
     pub storage: DispatchBackend,
     pub options: Options,
     pub migration: Box<dyn MigrationTraitWithData>,
-}
-
-static STORAGE: LazyLock<DispatchBackend> = LazyLock::new(init_storage);
-static OPTIONS: LazyLock<Options> = LazyLock::new(init_options);
-
-task_local! {
-    static TEST_STORAGE: DispatchBackend;
-    static TEST_OPTIONS: Options;
-}
-
-#[allow(clippy::expect_used)]
-fn init_storage() -> DispatchBackend {
-    // create from env-vars only
-    let config = StorageConfig::parse_from::<_, OsString>(vec![]);
-
-    block_on(config.into_storage(false)).expect("task panicked")
-}
-
-fn init_options() -> Options {
-    // create from env-vars only
-    Options::parse_from::<_, OsString>(vec![])
-}
-
-impl MigrationWithData {
-    /// Wrap a data migration, turning it into a combined schema/data migration.
-    ///
-    /// **NOTE:** This may panic if the storage configuration is missing.
-    pub fn new(migration: Box<dyn MigrationTraitWithData>) -> Self {
-        // if we have a test storage set, use this instead.
-        let storage = TEST_STORAGE
-            .try_with(|s| s.clone())
-            .unwrap_or_else(|_| STORAGE.clone());
-
-        let options = TEST_OPTIONS
-            .try_with(|o| o.clone())
-            .unwrap_or_else(|_| OPTIONS.clone());
-
-        Self {
-            storage,
-            options,
-            migration,
-        }
-    }
-
-    /// Set a storage backend to be used for running tests.
-    ///
-    /// This will, for the duration of the call, initialize the migrator with the provided storage
-    /// backend.
-    pub async fn run_with_test<F>(
-        storage: impl Into<DispatchBackend>,
-        options: impl Into<Options>,
-        f: F,
-    ) -> F::Output
-    where
-        F: Future,
-    {
-        TEST_STORAGE
-            .scope(storage.into(), async {
-                TEST_OPTIONS.scope(options.into(), f).await
-            })
-            .await
-    }
 }
 
 /// A [`SchemaManager`], extended with data migration features.

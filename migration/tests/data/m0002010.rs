@@ -1,9 +1,8 @@
 use crate::MigratorTest;
 use migration::{
-    Migrator,
-    data::{Database, Direction, MigrationWithData, Options, Runner},
+    Migrator, MigratorTraitSelf,
+    data::{Database, Direction, Options, Runner},
 };
-use sea_orm_migration::MigratorTrait;
 use test_context::test_context;
 use test_log::test;
 use tracing::log;
@@ -31,15 +30,14 @@ async fn examples(
 
     // now run the migrations, but skip the already run migration
 
-    MigrationWithData::run_with_test(
+    let migrator = MigratorTest::new(
         ctx.storage.clone(),
         Options {
             skip: migrations,
             ..Default::default()
         },
-        async { MigratorTest::up(&ctx.db, None).await },
-    )
-    .await?;
+    );
+    migrator.up(&ctx.db, None).await?;
 
     // done
 
@@ -89,15 +87,14 @@ async fn performance(ctx: &TrustifyMigrationContext<Ds4>) -> Result<(), anyhow::
 
     log::info!("Running migrations");
 
-    MigrationWithData::run_with_test(
+    let migrator = Migrator::new(
         ctx.storage.clone(),
         Options {
             skip: migrations,
             ..Options::default()
         },
-        async { Migrator::up(&ctx.db, None).await },
-    )
-    .await?;
+    );
+    migrator.up(&ctx.db, None).await?;
 
     // done
 
