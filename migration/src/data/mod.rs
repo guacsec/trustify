@@ -357,4 +357,23 @@ impl Migrations {
         self.all.push(Migration::Data(Box::new(migration)));
         self
     }
+
+    /// Convert into SeaORM's `Vec<Box<dyn MigrationTrait>>`, wrapping data migrations with the
+    /// provided storage backend and options.
+    pub fn into_migration_vec(
+        self,
+        storage: DispatchBackend,
+        options: Options,
+    ) -> Vec<Box<dyn MigrationTrait>> {
+        self.into_iter()
+            .map(|migration| match migration {
+                Migration::Normal(m) => m,
+                Migration::Data(m) => Box::new(MigrationWithData {
+                    storage: storage.clone(),
+                    options: options.clone(),
+                    migration: m,
+                }) as Box<dyn MigrationTrait>,
+            })
+            .collect()
+    }
 }

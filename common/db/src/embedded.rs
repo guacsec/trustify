@@ -1,4 +1,5 @@
 use anyhow::Context;
+use migration::Migrator;
 use postgresql_embedded::{PostgreSQL, Settings, VersionReq};
 use std::path::{Path, PathBuf};
 use tracing::{Instrument, info_span};
@@ -19,12 +20,15 @@ pub fn default_settings() -> anyhow::Result<Settings> {
 }
 
 /// Create a new, embedded database instance
-pub async fn create() -> anyhow::Result<(Database, PostgreSQL)> {
-    create_for(default_settings()?, Default::default()).await
+pub async fn create(migrator: &Migrator) -> anyhow::Result<(Database, PostgreSQL)> {
+    create_for(default_settings()?, Default::default(), migrator).await
 }
 
 /// Create a new, embedded database instance in a specific directory
-pub async fn create_in(base: impl AsRef<Path>) -> anyhow::Result<(Database, PostgreSQL)> {
+pub async fn create_in(
+    base: impl AsRef<Path>,
+    migrator: &Migrator,
+) -> anyhow::Result<(Database, PostgreSQL)> {
     let base = base.as_ref();
 
     create_for(
@@ -34,6 +38,7 @@ pub async fn create_in(base: impl AsRef<Path>) -> anyhow::Result<(Database, Post
             ..default_settings()?
         },
         Default::default(),
+        migrator,
     )
     .await
 }
@@ -54,6 +59,7 @@ pub struct Options {
 pub async fn create_for(
     settings: Settings,
     options: Options,
+    migrator: &Migrator,
 ) -> anyhow::Result<(Database, PostgreSQL)> {
     log::info!("creating embedded database - version: {}", settings.version);
 
@@ -75,7 +81,7 @@ pub async fn create_for(
     let config = crate::config::Database::from_port(postgresql.settings().port)?;
 
     let db = match options.source {
-        Source::Bootstrap => super::Database::bootstrap(&config)
+        Source::Bootstrap => super::Database::bootstrap(&config, migrator)
             .await
             .context("Bootstrapping the test database")?,
         Source::Import(path) => {

@@ -2,6 +2,7 @@ use crate::{
     TrustifyTestContext,
     resource::{ResourceStack, TestResourceExt, defer},
 };
+use migration::Migrator;
 use std::{env, ops::Deref};
 use test_context::AsyncTestContext;
 use tracing::instrument;
@@ -43,6 +44,8 @@ impl AsyncTestContext for TrustifyContext {
             .await
             .expect("initializing the storage backend");
 
+        let migrator = Migrator::new(storage.clone(), ());
+
         if env::var("EXTERNAL_TEST_DB").is_ok() {
             log::warn!("Using external database from 'DB_*' env vars");
             let config = config::Database::from_env().expect("DB config from env");
@@ -51,7 +54,7 @@ impl AsyncTestContext for TrustifyContext {
                 env::var("EXTERNAL_TEST_DB_BOOTSTRAP").as_deref(),
                 Ok("1" | "true")
             ) {
-                trustify_db::Database::bootstrap(&config).await
+                trustify_db::Database::bootstrap(&config, &migrator).await
             } else {
                 db::Database::new(&config).await
             }
@@ -60,7 +63,7 @@ impl AsyncTestContext for TrustifyContext {
             return TrustifyContext::new(db, config.port, storage, defer(tmp)).await;
         }
 
-        let (db, postgresql) = trustify_db::embedded::create()
+        let (db, postgresql) = trustify_db::embedded::create(&migrator)
             .await
             .expect("Create an embedded database");
 

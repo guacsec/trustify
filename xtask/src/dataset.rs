@@ -116,11 +116,6 @@ impl GenerateDump {
     }
 
     pub async fn run(self) -> anyhow::Result<()> {
-        let (db, postgres) = match &self.working_dir {
-            Some(wd) => trustify_db::embedded::create_in(wd.join("db")).await?,
-            None => trustify_db::embedded::create().await?,
-        };
-
         let (storage, storage_path, _tmp) = match &self.working_dir {
             Some(wd) => (
                 FileSystemBackend::new(wd.join("storage"), Compression::Zstd).await?,
@@ -131,6 +126,13 @@ impl GenerateDump {
                 let (storage, tmp) = FileSystemBackend::for_test_with(Compression::Zstd).await?;
                 (storage, tmp.path().to_owned(), Some(tmp))
             }
+        };
+
+        let migrator = trustify_db::Migrator::new(storage.clone(), ());
+
+        let (db, postgres) = match &self.working_dir {
+            Some(wd) => trustify_db::embedded::create_in(wd.join("db"), &migrator).await?,
+            None => trustify_db::embedded::create(&migrator).await?,
         };
 
         let importer = ImportRunner {

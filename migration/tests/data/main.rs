@@ -3,17 +3,30 @@
 mod m0002010;
 
 use migration::{
-    Migrator, MigratorExt,
-    data::{MigrationWithData, Migrations},
+    Migrator, MigratorExt, MigratorTraitSelf,
+    data::{Migrations, Options},
 };
 use sea_orm::{ConnectionTrait, Statement};
-use sea_orm_migration::{MigrationTrait, MigratorTrait};
+use sea_orm_migration::MigrationTrait;
 use std::collections::BTreeSet;
 use test_context::test_context;
 use test_log::test;
+use trustify_module_storage::service::dispatch::DispatchBackend;
 use trustify_test_context::TrustifyMigrationContext;
 
-struct MigratorTest;
+struct MigratorTest {
+    storage: DispatchBackend,
+    options: Options,
+}
+
+impl MigratorTest {
+    fn new(storage: impl Into<DispatchBackend>, options: impl Into<Options>) -> Self {
+        Self {
+            storage: storage.into(),
+            options: options.into(),
+        }
+    }
+}
 
 mod sbom {
     use migration::{
@@ -108,9 +121,10 @@ impl MigratorExt for MigratorTest {
     }
 }
 
-impl MigratorTrait for MigratorTest {
-    fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        Self::into_migrations()
+#[sea_orm_migration::async_trait::async_trait]
+impl MigratorTraitSelf for MigratorTest {
+    fn migrations(&self) -> Vec<Box<dyn MigrationTrait>> {
+        Self::build_migrations().into_migration_vec(self.storage.clone(), self.options.clone())
     }
 }
 
@@ -122,10 +136,8 @@ impl MigratorTrait for MigratorTest {
 #[test_context(TrustifyMigrationContext)]
 #[test(tokio::test)]
 async fn examples(ctx: &TrustifyMigrationContext) -> Result<(), anyhow::Error> {
-    MigrationWithData::run_with_test(ctx.storage.clone(), (), async {
-        MigratorTest::up(&ctx.db, None).await
-    })
-    .await?;
+    let migrator = MigratorTest::new(ctx.storage.clone(), ());
+    migrator.up(&ctx.db, None).await?;
 
     let result = ctx
         .db
