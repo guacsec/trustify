@@ -6,7 +6,9 @@ use crate::{
 use sea_orm::TransactionTrait;
 use test_context::test_context;
 use test_log::test;
-use trustify_entity::correlation_evidence;
+use trustify_entity::{
+    correlation_evidence, correlation_evidence_context, correlation_evidence_context::ContextSource,
+};
 use trustify_test_context::TrustifyContext;
 
 const S5_SBOM: &str =
@@ -135,21 +137,18 @@ async fn evidence_of(
 async fn rh_fixed_major(ctx: &TrustifyContext) -> anyhow::Result<()> {
     assert_eq!(
         evidence_of(ctx, S5_SBOM, S5_VEX).await?,
-        vec![
-            rh_openssl_any_version("CVE-2023-0215"),
-            (
-                "pkg-openssl".to_string(),
-                "CVE-2023-0215".to_string(),
-                RH_FIXED.to_string(),
-                AssertionStatus::Affected,
-                0.72,
-                Some(MatchedValue {
-                    identifier: "pkg:rpm/redhat/openssl".into(),
-                    ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6", "1:1.1.1k-9.el8_7"]),
-                    enabled_by: None,
-                }),
-            ),
-        ]
+        vec![(
+            "pkg-openssl".to_string(),
+            "CVE-2023-0215".to_string(),
+            RH_FIXED.to_string(),
+            AssertionStatus::Affected,
+            0.72,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6", "1:1.1.1k-9.el8_7"]),
+                enabled_by: None,
+            }),
+        ),]
     );
 
     Ok(())
@@ -166,21 +165,18 @@ async fn rh_fixed_exact(ctx: &TrustifyContext) -> anyhow::Result<()> {
             S9_VEX
         )
         .await?,
-        vec![
-            rh_openssl_any_version("CVE-2023-0286"),
-            (
-                "pkg-openssl".to_string(),
-                "CVE-2023-0286".to_string(),
-                RH_FIXED.to_string(),
-                AssertionStatus::Affected,
-                0.9,
-                Some(MatchedValue {
-                    identifier: "pkg:rpm/redhat/openssl".into(),
-                    ranges: fixed_in("rpm", &["1:1.1.1c-21.el8_2"]),
-                    enabled_by: None,
-                }),
-            ),
-        ]
+        vec![(
+            "pkg-openssl".to_string(),
+            "CVE-2023-0286".to_string(),
+            RH_FIXED.to_string(),
+            AssertionStatus::Affected,
+            0.9,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: fixed_in("rpm", &["1:1.1.1c-21.el8_2"]),
+                enabled_by: None,
+            }),
+        ),]
     );
 
     Ok(())
@@ -197,31 +193,28 @@ async fn rh_fixed_at_fix(ctx: &TrustifyContext) -> anyhow::Result<()> {
             S9_VEX
         )
         .await?,
-        vec![
-            rh_openssl_any_version("CVE-2023-0286"),
-            (
-                "pkg-openssl".to_string(),
-                "CVE-2023-0286".to_string(),
-                STREAM.to_string(),
-                AssertionStatus::Fixed,
-                1.0,
-                Some(MatchedValue {
-                    identifier: "pkg:rpm/redhat/openssl".into(),
-                    ranges: vec![MatchedRange {
-                        scheme: "rpm".into(),
-                        low: Some(RangeBound {
-                            version: "1:1.1.1c-21.el8_2".into(),
-                            inclusive: true,
-                        }),
-                        high: Some(RangeBound {
-                            version: "1:1.1.1c-21.el8_2".into(),
-                            inclusive: true,
-                        }),
-                    }],
-                    enabled_by: None,
-                }),
-            ),
-        ]
+        vec![(
+            "pkg-openssl".to_string(),
+            "CVE-2023-0286".to_string(),
+            STREAM.to_string(),
+            AssertionStatus::Fixed,
+            1.0,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: vec![MatchedRange {
+                    scheme: "rpm".into(),
+                    low: Some(RangeBound {
+                        version: "1:1.1.1c-21.el8_2".into(),
+                        inclusive: true,
+                    }),
+                    high: Some(RangeBound {
+                        version: "1:1.1.1c-21.el8_2".into(),
+                        inclusive: true,
+                    }),
+                }],
+                enabled_by: None,
+            }),
+        ),]
     );
 
     Ok(())
@@ -374,59 +367,11 @@ fn versionless(id: &str, publisher_namespace: &str, reason: &str) -> EnabledBy {
     }
 }
 
-fn suse_versionless() -> EnabledBy {
-    versionless(
-        "019dc7a4-6a00-7000-8000-000000000002",
-        "https://www.suse.com",
-        "SUSE states the status of a package in a product with a versionless PURL, meaning all versions.",
-    )
-}
-
 fn redhat_versionless() -> EnabledBy {
     versionless(
         "019dc7a4-6a00-7000-8000-000000000001",
         "https://www.redhat.com",
         "Red Hat states the status of a component in a product with a versionless PURL, meaning all versions.",
-    )
-}
-
-/// Red Hat states `openssl` as affected in RHEL 6 and 7 with a versionless PURL. Without product
-/// context, that also applies to RHEL 8 packages.
-fn rh_openssl_any_version(vulnerability: &str) -> Evidence {
-    (
-        "pkg-openssl".to_string(),
-        vulnerability.to_string(),
-        ANY_VERSION.to_string(),
-        AssertionStatus::Affected,
-        0.7,
-        Some(MatchedValue {
-            identifier: "pkg:rpm/redhat/openssl".into(),
-            ranges: vec![MatchedRange {
-                scheme: "generic".into(),
-                low: None,
-                high: None,
-            }],
-            enabled_by: Some(redhat_versionless()),
-        }),
-    )
-}
-
-fn suse_openssl_not_affected(node: &str) -> Evidence {
-    (
-        node.to_string(),
-        "CVE-2024-6119".to_string(),
-        ANY_VERSION.to_string(),
-        AssertionStatus::NotAffected,
-        0.7,
-        Some(MatchedValue {
-            identifier: "pkg:rpm/suse/openssl".into(),
-            ranges: vec![MatchedRange {
-                scheme: "rpm".into(),
-                low: None,
-                high: None,
-            }],
-            enabled_by: Some(suse_versionless()),
-        }),
     )
 }
 
@@ -453,9 +398,6 @@ async fn suse_recommended_codestream(ctx: &TrustifyContext) -> anyhow::Result<()
             )
         })
         .collect::<Vec<_>>();
-    expected.push(suse_openssl_not_affected(
-        "pkg:openssl-0907d1fb499114c5df61bf90f42de3cc",
-    ));
     expected.sort_by(|a, b| (&a.0, &a.1, &a.2).cmp(&(&b.0, &b.1, &b.2)));
 
     assert_eq!(evidence_of(ctx, SUSE_OLD_SBOM, SUSE_VEX).await?, expected);
@@ -491,9 +433,6 @@ async fn suse_recommended_later_build(ctx: &TrustifyContext) -> anyhow::Result<(
             )
         })
         .collect::<Vec<_>>();
-    expected.push(suse_openssl_not_affected(
-        "pkg:rpm/openssl-0907d1fb499114c5df61bf90f42de3cc",
-    ));
     expected.sort_by(|a, b| (&a.0, &a.1, &a.2).cmp(&(&b.0, &b.1, &b.2)));
 
     assert_eq!(evidence_of(ctx, SUSE_NEW_SBOM, SUSE_VEX).await?, expected);
@@ -570,7 +509,8 @@ async fn versionless_redhat(ctx: &TrustifyContext) -> anyhow::Result<()> {
             "CVE-2023-44487".to_string(),
             ANY_VERSION.to_string(),
             AssertionStatus::Affected,
-            0.7,
+            // 0.7 × 0.9: the context is the CPE of the root component, depending on the package
+            0.63,
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/golang".into(),
                 ranges: vec![MatchedRange {
@@ -580,6 +520,34 @@ async fn versionless_redhat(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 }],
                 enabled_by: Some(redhat_versionless()),
             }),
+        )]
+    );
+
+    // the evidence is linked to the context, through the root component's CPE (which is also the
+    // describing CPE, a less specific source of the same CPE)
+    let links = correlation_evidence_context::Entity::find()
+        .all(&ctx.db)
+        .await?
+        .into_iter()
+        .map(|link| {
+            (
+                link.source,
+                link.distance,
+                link.node_identifier,
+                link.context_identifier,
+                link.confidence,
+            )
+        })
+        .collect::<Vec<_>>();
+    let storage = "cpe:2.3:a:redhat:storage:3:*:*:*:*:*:*:*".to_string();
+    assert_eq!(
+        links,
+        vec![(
+            ContextSource::AncestorNode,
+            1,
+            storage.clone(),
+            storage,
+            0.9
         )]
     );
 

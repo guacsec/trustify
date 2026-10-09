@@ -6,6 +6,7 @@
 //! work against the trait. Adding a new identifier type means adding a module
 //! here and registering it in [`Extractors::default`].
 
+pub mod context;
 pub mod cpe;
 pub mod digest;
 pub mod product_identifier;
@@ -53,6 +54,11 @@ pub struct Assertion {
     pub confidence: f64,
     /// The advisory side value which matched (e.g. a wildcard pattern and version ranges).
     pub matched_value: MatchedValue,
+    /// The product (assertion context) the assertion is stated in, if any.
+    pub context_id: Option<Uuid>,
+    /// Whether the assertion only applies to a node in its context, e.g. a versionless
+    /// statement, which identifies the package only through its product.
+    pub requires_context: bool,
 }
 
 /// An assertion matching one of the identifiers passed to [`Extractor::match_identifiers`].

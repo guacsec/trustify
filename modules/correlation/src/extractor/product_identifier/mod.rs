@@ -49,6 +49,8 @@ fn assertion(ap: &advisory_vulnerability_product_identifier::Model) -> Assertion
         status: ap.status,
         confidence: CONFIDENCE,
         matched_value: MatchedValue::new(ap.value.clone()),
+        context_id: ap.assertion_context_id,
+        requires_context: false,
     }
 }
 

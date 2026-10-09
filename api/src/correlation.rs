@@ -122,8 +122,73 @@ pub struct EvidenceDetail {
     pub advisory_identifier: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub matched_value: Option<MatchedValue>,
+    /// The products (assertion contexts) the evidence was matched in. Empty when the assertion
+    /// has no context, or the SBOM nothing to compare it with.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub contexts: Vec<EvidenceContext>,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+}
+
+/// A product (assertion context) a piece of evidence was matched in, and how the SBOM component
+/// got into it.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct EvidenceContext {
+    pub context_id: Uuid,
+    /// The name of the product, e.g. "Red Hat Storage 3".
+    pub name: String,
+    /// How the subject of the assertion relates to the product, if stated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub category: Option<ContextCategory>,
+    /// Where the component got the matching CPE from.
+    pub source: ContextSource,
+    /// Hops from the component (ancestor node) or SBOM (ancestor SBOM), 0 otherwise.
+    pub distance: i32,
+    /// The SBOM side CPE which matched.
+    pub node_identifier: String,
+    /// The product's CPE which matched.
+    pub context_identifier: String,
+    /// The confidence of this context, applied to the evidence.
+    pub confidence: f64,
+}
+
+/// How the subject of an assertion relates to its context (CSAF relationship categories).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ContextCategory {
+    DefaultComponentOf,
+    ExternalComponentOf,
+    InstalledOn,
+    InstalledWith,
+    OptionalComponentOf,
+}
+
+/// Where an SBOM component got a CPE putting it into a product from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum ContextSource {
+    /// The component's own CPE.
+    Node,
+    /// The CPE of an ancestor component in the same SBOM.
+    AncestorNode,
+    /// A describing CPE of the SBOM.
+    Describing,
+    /// A describing CPE of an ancestor SBOM.
+    AncestorSbom,
+}
+
+impl ContextSource {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Node => "component",
+            Self::AncestorNode => "ancestor component",
+            Self::Describing => "SBOM",
+            Self::AncestorSbom => "ancestor SBOM",
+        }
+    }
 }
 
 /// The advisory side of a match: what an SBOM identifier was matched against.
@@ -375,10 +440,35 @@ mod entity_conversions {
     use super::*;
     use trustify_entity::{
         advisory_vulnerability_product_identifier::ProductIdentifierType as EntityProductIdentifierType,
+        assertion_context::AssertionContextCategory as EntityCategory,
         correlation_evidence::AssertionStatus as EntityAssertionStatus,
+        correlation_evidence_context::ContextSource as EntityContextSource,
         correlation_option::{self, CorrelationOptionKey as EntityCorrelationOptionKey},
         version_range,
     };
+
+    impl From<EntityCategory> for ContextCategory {
+        fn from(value: EntityCategory) -> Self {
+            match value {
+                EntityCategory::DefaultComponentOf => Self::DefaultComponentOf,
+                EntityCategory::ExternalComponentOf => Self::ExternalComponentOf,
+                EntityCategory::InstalledOn => Self::InstalledOn,
+                EntityCategory::InstalledWith => Self::InstalledWith,
+                EntityCategory::OptionalComponentOf => Self::OptionalComponentOf,
+            }
+        }
+    }
+
+    impl From<EntityContextSource> for ContextSource {
+        fn from(value: EntityContextSource) -> Self {
+            match value {
+                EntityContextSource::Node => Self::Node,
+                EntityContextSource::AncestorNode => Self::AncestorNode,
+                EntityContextSource::Describing => Self::Describing,
+                EntityContextSource::AncestorSbom => Self::AncestorSbom,
+            }
+        }
+    }
 
     impl From<EntityCorrelationOptionKey> for CorrelationOptionKey {
         fn from(value: EntityCorrelationOptionKey) -> Self {

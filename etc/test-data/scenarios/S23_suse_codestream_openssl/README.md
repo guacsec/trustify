@@ -9,6 +9,10 @@ PURLs. Matching them correctly requires four SUSE specifics, each a distinct fai
 2. **"Any version" is a versionless PURL.** `known_not_affected` (and some `known_affected`) for a
    whole product use e.g. `pkg:rpm/suse/libopenssl3@?upstream=openssl-3.src.rpm`, stored as the
    exact, empty version (rule `purl_any_version`, enabled for SUSE by the `versionless_purl` option).
+   Such a statement is about the package in a product (e.g. SLES 15 SP6), so it only applies to a
+   component in that product. The BCI SBOMs carry no product CPE, only the PURL qualifier
+   `distro=sles-15.6`, which isn't used as a context yet (`TODO.md`). So the versionless
+   statements produce no verdicts here.
 3. **The codestream is a release prefix, not a dist tag.** `3.1.4-150600.5.39.1` is SLE 15 SP6
    (`150600`), `150700.` SP7, `160000.` SLE 16.0, `slfo.1.1_7.1` SUSE Linux Micro 6.1. Tumbleweed
    and Micro 6.0 releases (`13.1`, `6.1`) carry none.
@@ -64,9 +68,9 @@ CycloneDX and SPDX variant of each SBOM.
 
 | SBOM | package | CVE-2024-6119 | CVE-2025-9230 | CVE-2024-9143 |
 |---|---|---|---|---|
-| `15.6.47.11.1` | `openssl-3` family `…150600.5.7.1` | **affected** — before the SP6 fix `5.15.1` | **affected** — before the SP6 fix `5.39.1` | **not_affected** — versionless |
-| `15.6.47.26.19` | `openssl-3` family `…150600.5.39.1` | **fixed** — from `5.15.1` on | **fixed** — exactly the SP6 fix | **not_affected** — versionless |
-| both | `openssl` `3.1.4-150600.2.1` | not_affected | not_affected | not_affected |
+| `15.6.47.11.1` | `openssl-3` family `…150600.5.7.1` | **affected** — before the SP6 fix `5.15.1` | **affected** — before the SP6 fix `5.39.1` | none — versionless, no product context |
+| `15.6.47.26.19` | `openssl-3` family `…150600.5.39.1` | **fixed** — from `5.15.1` on | **fixed** — exactly the SP6 fix | none — versionless, no product context |
+| both | `openssl` `3.1.4-150600.2.1` | none | none | none |
 
 ### Why
 
@@ -76,13 +80,12 @@ CycloneDX and SPDX variant of each SBOM.
   and 16.0 `3.5.0-…` → `affected`, which shows up as evidence. The evidence test
   `suse_recommended_codestream` asserts that only the SP6 range matches.
 - **CVE-2024-9143.** SP6 is `known_not_affected` (versionless). The SP7/16.0/Tumbleweed fixes are
-  other codestreams, so no "before the fix → affected" applies.
-- **`openssl` × CVE-2025-9230.** The versionless statements conflict: `known_affected` for SLE 12 SP2,
-  `known_not_affected` for the rest (including SP6). The product isn't part of the match yet, so
-  both are evidence (`purl_any_version`, confidence 0.7), and `not_affected` wins over
-  `affected`. This needs one evidence record per status: before, one of them was silently dropped.
-  The same applies to `openssl-3` × CVE-2025-9230 (*Module for Certifications 15 SP7*), where
-  `fixed` / `affected` decide anyway.
+  other codestreams, so no "before the fix → affected" applies. As the SBOM isn't put into SP6 by
+  a product CPE, the versionless statement doesn't apply either, so there is no verdict.
+- **`openssl` × all three CVEs.** The meta package only has versionless statements, e.g. for
+  CVE-2025-9230 `known_affected` for SLE 12 SP2 and `known_not_affected` for the rest (including
+  SP6). Without a product context none applies. With one (e.g. from `distro=sles-15.6`), only
+  SP6's `not_affected` would.
 
 ## Files
 

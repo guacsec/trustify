@@ -86,6 +86,7 @@ const ASSERTION_COLUMNS: &str = r#"
     a.status::text AS status,
     a.cpe_id,
     a.version_range_id,
+    a.assertion_context_id,
     CASE
         WHEN ac.version <> '*' THEN 'exact'
         WHEN a.version_range_id IS NOT NULL THEN 'range'
@@ -101,6 +102,7 @@ struct AssertionRow {
     status: String,
     cpe_id: Uuid,
     version_range_id: Option<Uuid>,
+    assertion_context_id: Option<Uuid>,
     version_check: String,
 }
 
@@ -329,6 +331,8 @@ fn assertion(
             .unwrap_or_default(),
         advisory_id: row.advisory_id,
         vulnerability_id: row.vulnerability_id,
+        context_id: row.assertion_context_id,
+        requires_context: false,
     })
 }
 
@@ -745,6 +749,8 @@ mod test {
                         }],
                         enabled_by: None,
                     },
+                    context_id: None,
+                    requires_context: false,
                 })
                 .collect::<Vec<_>>()
         );

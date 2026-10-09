@@ -5,22 +5,14 @@
   (`vex/vde-2025-106.json`) has been patched to use `file_name`. Once the upstream
   `csaf` crate is fixed to accept `filename`, revert this rename and use the
   original document as-is.
-- [ ] Correlation: product scope for assertions. Adopt the CSAF vendor → product → version
-  hierarchy (and `relationships`, e.g. `default_component_of`) as the context of a vulnerability
-  assertion, to filter or down-rank assertions which don't match an SBOM's context. Open points:
-  the SBOM side needs a context too (e.g. the described root component), products should be
-  identified by CPE/PURL rather than by free text names, non-CSAF sources (OSV, CVE) express scope
-  differently, and it should probably start as a confidence modifier rather than a filter.
-  Vendor specific semantics belong into correlation rules
-  (`modules/correlation/src/extractor/purl/rule/`), not into ingestion. A concrete case:
-  versionless statements (SUSE `pkg:rpm/suse/openssl@`, Red Hat `pkg:rpm/redhat/golang?arch=src`)
-  are about a product, but `purl_any_version` applies them to the package of any product. A
-  `not_affected` of one product then beats an `affected` of another (scenario S23, `openssl` ×
-  CVE-2025-9230; 21 of 159 versionless packages in Red Hat's CVE-2023-44487 VEX).
-  Worse, as Red Hat (enabled by default) states unfixed old products (e.g. RHEL 6/7 `openssl`
-  `known_affected`) versionless: that applies to newer streams too. A RHEL 8/9 build above its
-  fix has no `fixed` evidence (stated fixes are exact, `purl_rh_fixed` only derives "affected
-  before"), so it becomes affected.
+- [ ] Correlation, product context: SBOM-side contexts are CPE only (describing CPEs, CPEs of the
+  node and its ancestors, ancestor SBOMs). Missing:
+  - the PURL `distro=` qualifier (SUSE `sles-15.6` → `cpe:/o:suse:sles:15:sp6`, Red Hat
+    `rhel-8.10`), which would be a vendor specific rule. Without it, the SUSE BCI SBOMs (S23) get
+    no versionless verdicts;
+  - PURL, model number, SKU and digest contexts: advisory contexts store them, but nothing on the
+    SBOM side is compared with them yet;
+  - the fundamental APIs still use `product_status` and `purl_status.context_cpe_id`.
 - [ ] Fundamental: Red Hat's "fixed in X" no longer implies "affected before X" in the stored
   data (ingestion only stores what documents state). The SBOM, PURL and vulnerability APIs of the
   fundamental module therefore no longer report those inferred "affected" statuses. Migrate them

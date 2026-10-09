@@ -116,6 +116,8 @@ impl Extractor for DigestExtractor {
                                 &ah.algorithm,
                                 &ah.value,
                             )),
+                            context_id: ah.assertion_context_id,
+                            requires_context: false,
                         },
                     });
                 }
@@ -176,6 +178,8 @@ impl Extractor for DigestExtractor {
                                 &ah.algorithm,
                                 &ah.value,
                             )),
+                            context_id: ah.assertion_context_id,
+                            requires_context: false,
                         },
                     });
                 }

@@ -6,8 +6,8 @@
 //! matches. For publishers with the option `versionless_purl` enabled, this rule reads such a
 //! statement as unbounded, and records the option with the evidence.
 //!
-//! As the product isn't part of the match yet, such a statement applies to the package in any
-//! product.
+//! Such a statement identifies the package only through its product, so it requires the node to
+//! be in the statement's context (product).
 
 use super::{RangeRule, low, published_by};
 use crate::{
@@ -78,6 +78,11 @@ impl RangeRule for AnyVersion {
             high_version: unbounded(),
             high_inclusive: Expr::val(false).into(),
         }
+    }
+
+    /// A versionless statement identifies the package only through its product.
+    fn requires_context(&self) -> bool {
+        true
     }
 
     fn enabled_by(&self, publisher_namespace: Option<&str>) -> Option<EnabledBy> {

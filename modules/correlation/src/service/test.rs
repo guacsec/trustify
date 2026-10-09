@@ -379,3 +379,52 @@ async fn scenario(ctx: &TrustifyContext, #[case] name: &str) -> anyhow::Result<(
 
     Ok(())
 }
+
+/// The evidence of a statement in a product lists that product, and how the component got into it.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn evidence_contexts(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use crate::model::{ContextCategory, ContextSource, EvidenceContext};
+
+    let sbom = ctx
+        .ingest_document(
+            "scenarios/S16_crossscheme_purlquery_golang/sbom_golang_rpm_storage3.cdx.json",
+        )
+        .await?;
+    ctx.ingest_document("csaf/versionless/redhat.json").await?;
+    let sbom_id = Uuid::parse_str(&sbom.id)?;
+
+    let tx = ctx.db.begin().await?;
+    Extractors::default().extract_for_sbom(sbom_id, &tx).await?;
+    let result = CorrelationService::default()
+        .correlate_sbom(sbom_id, false, &tx)
+        .await?;
+
+    let contexts = result
+        .verdicts
+        .iter()
+        .flat_map(|verdict| &verdict.evidence)
+        .flat_map(|evidence| &evidence.contexts)
+        .map(|context| EvidenceContext {
+            // generated
+            context_id: Uuid::nil(),
+            ..context.clone()
+        })
+        .collect::<Vec<_>>();
+    let storage = "cpe:2.3:a:redhat:storage:3:*:*:*:*:*:*:*".to_string();
+    assert_eq!(
+        contexts,
+        [EvidenceContext {
+            context_id: Uuid::nil(),
+            name: "Red Hat Storage 3".into(),
+            category: Some(ContextCategory::DefaultComponentOf),
+            source: ContextSource::AncestorNode,
+            distance: 1,
+            node_identifier: storage.clone(),
+            context_identifier: storage,
+            confidence: 0.9,
+        }]
+    );
+
+    Ok(())
+}

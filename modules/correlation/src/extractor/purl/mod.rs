@@ -149,6 +149,10 @@ impl Candidates {
             .column_as(base_purl::Column::Namespace, "base_purl_namespace")
             .column_as(base_purl::Column::Name, "base_purl_name")
             .column_as(advisory::Column::PublisherNamespace, "publisher_namespace")
+            .column_as(
+                purl_status::Column::AssertionContextId,
+                "assertion_context_id",
+            )
             .column_as(version_range::Column::Id, "range_id")
             .column_as(self.scheme.clone(), "range_scheme")
             .column_as(self.low_version.clone(), "range_low_version")
@@ -193,6 +197,7 @@ struct PurlStatusRow {
     base_purl_namespace: Option<String>,
     base_purl_name: String,
     publisher_namespace: Option<String>,
+    assertion_context_id: Option<Uuid>,
     range_id: Uuid,
     range_scheme: VersionScheme,
     range_low_version: Option<String>,
@@ -279,15 +284,17 @@ struct AdvisoryPurlMatch {
 fn group<'a, K: Ord>(
     rows: impl IntoIterator<Item = (K, Source<'a>, PurlStatusRow)>,
 ) -> impl Iterator<Item = (K, Assertion)> {
-    let mut groups = BTreeMap::<
-        (K, &'static str, Uuid, String, String, String),
-        (
-            AssertionStatus,
-            f64,
-            BTreeSet<MatchedRange>,
-            Option<EnabledBy>,
-        ),
-    >::new();
+    /// The merged rows of one assertion.
+    struct Group {
+        status: AssertionStatus,
+        confidence: f64,
+        ranges: BTreeSet<MatchedRange>,
+        enabled_by: Option<EnabledBy>,
+        requires_context: bool,
+    }
+
+    let mut groups =
+        BTreeMap::<(K, &'static str, Uuid, String, String, String, Option<Uuid>), Group>::new();
     for (target, source, row) in rows {
         let Some(status) = map_status(&row.slug) else {
             continue;
@@ -305,10 +312,12 @@ fn group<'a, K: Ord>(
         };
         let enabled_by =
             source.and_then(|rule| rule.enabled_by(row.publisher_namespace.as_deref()));
-        let (advisory_id, vulnerability_id, slug) = (
+        let requires_context = source.is_some_and(|rule| rule.requires_context());
+        let (advisory_id, vulnerability_id, slug, context_id) = (
             row.advisory_id,
             row.vulnerability_id.clone(),
             row.slug.clone(),
+            row.assertion_context_id,
         );
         let (identifier, range) = row.into_match();
         let entry = groups
@@ -319,30 +328,36 @@ fn group<'a, K: Ord>(
                 vulnerability_id,
                 slug,
                 identifier,
+                context_id,
             ))
-            .or_insert_with(|| (status, confidence, BTreeSet::new(), enabled_by));
-        entry.1 = entry.1.max(confidence);
-        entry.2.insert(range);
+            .or_insert_with(|| Group {
+                status,
+                confidence,
+                ranges: BTreeSet::new(),
+                enabled_by,
+                requires_context,
+            });
+        entry.confidence = entry.confidence.max(confidence);
+        entry.ranges.insert(range);
     }
 
     groups.into_iter().map(
-        |(
-            (target, extractor, advisory_id, vulnerability_id, _, identifier),
-            (status, confidence, ranges, enabled_by),
-        )| {
+        |((target, extractor, advisory_id, vulnerability_id, _, identifier, context_id), group)| {
             (
                 target,
                 Assertion {
                     extractor,
                     advisory_id,
                     vulnerability_id,
-                    status,
-                    confidence,
+                    status: group.status,
+                    confidence: group.confidence,
                     matched_value: MatchedValue {
                         identifier,
-                        ranges: ranges.into_iter().collect(),
-                        enabled_by,
+                        ranges: group.ranges.into_iter().collect(),
+                        enabled_by: group.enabled_by,
                     },
+                    context_id,
+                    requires_context: group.requires_context,
                 },
             )
         },

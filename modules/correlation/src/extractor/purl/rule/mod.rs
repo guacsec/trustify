@@ -36,6 +36,11 @@ pub trait RangeRule: Send + Sync {
     /// The derived candidates, as SQL over the stated rows.
     fn candidates(&self) -> Candidates;
 
+    /// Whether the derived candidates only apply to a node in the assertion's context (product).
+    fn requires_context(&self) -> bool {
+        false
+    }
+
     /// The option which enabled a candidate of an advisory with the given publisher namespace,
     /// `None` if the rule doesn't depend on an option.
     fn enabled_by(&self, publisher_namespace: Option<&str>) -> Option<EnabledBy> {

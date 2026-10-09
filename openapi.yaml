@@ -5805,6 +5805,23 @@ components:
         updated:
           type: string
           description: Timestamp when the component record was last updated.
+    ContextCategory:
+      type: string
+      description: How the subject of an assertion relates to its context (CSAF relationship categories).
+      enum:
+      - default_component_of
+      - external_component_of
+      - installed_on
+      - installed_with
+      - optional_component_of
+    ContextSource:
+      type: string
+      description: Where an SBOM component got a CPE putting it into a product from.
+      enum:
+      - node
+      - ancestor_node
+      - describing
+      - ancestor_sbom
     CorrelationOption:
       allOf:
       - $ref: '#/components/schemas/CorrelationOptionData'
@@ -6095,6 +6112,48 @@ components:
         message:
           type: string
           description: A human-readable error message
+    EvidenceContext:
+      type: object
+      description: |-
+        A product (assertion context) a piece of evidence was matched in, and how the SBOM component
+        got into it.
+      required:
+      - context_id
+      - name
+      - source
+      - distance
+      - node_identifier
+      - context_identifier
+      - confidence
+      properties:
+        category:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ContextCategory'
+            description: How the subject of the assertion relates to the product, if stated.
+        confidence:
+          type: number
+          format: double
+          description: The confidence of this context, applied to the evidence.
+        context_id:
+          type: string
+          format: uuid
+        context_identifier:
+          type: string
+          description: The product's CPE which matched.
+        distance:
+          type: integer
+          format: int32
+          description: Hops from the component (ancestor node) or SBOM (ancestor SBOM), 0 otherwise.
+        name:
+          type: string
+          description: The name of the product, e.g. "Red Hat Storage 3".
+        node_identifier:
+          type: string
+          description: The SBOM side CPE which matched.
+        source:
+          $ref: '#/components/schemas/ContextSource'
+          description: Where the component got the matching CPE from.
     EvidenceDetail:
       type: object
       description: One piece of evidence from the correlation engine.
@@ -6117,6 +6176,13 @@ components:
         confidence:
           type: number
           format: double
+        contexts:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceContext'
+          description: |-
+            The products (assertion contexts) the evidence was matched in. Empty when the assertion
+            has no context, or the SBOM nothing to compare it with.
         created_at:
           type: string
           format: date-time
