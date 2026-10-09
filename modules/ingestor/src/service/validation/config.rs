@@ -221,7 +221,9 @@ fn default_conforma_timeout_seconds() -> u64 {
 /// Returns an empty set when no validators are configured, preserving the
 /// default validation-disabled behaviour.
 pub fn build(config: &ValidatorsConfig) -> Result<Vec<Arc<dyn Validator>>, anyhow::Error> {
-    let mut validators: Vec<Arc<dyn Validator>> = Vec::with_capacity(config.validators.len());
+    // Check the configuration as a whole before building anything: a backend
+    // can read ruleset files or reject itself as not compiled in, and reporting
+    // that instead of a plain duplicate name would be misleading.
     let mut names = HashSet::with_capacity(config.validators.len());
     for validator in &config.validators {
         anyhow::ensure!(
@@ -229,6 +231,10 @@ pub fn build(config: &ValidatorsConfig) -> Result<Vec<Arc<dyn Validator>>, anyho
             "duplicate validator name: {}",
             validator.name
         );
+    }
+
+    let mut validators: Vec<Arc<dyn Validator>> = Vec::with_capacity(config.validators.len());
+    for validator in &config.validators {
         validators.push(build_one(config, validator)?);
     }
     Ok(validators)
