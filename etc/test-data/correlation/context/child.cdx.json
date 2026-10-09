@@ -34,13 +34,29 @@
       "name": "helper",
       "version": "4",
       "purl": "pkg:npm/helper@4"
+    },
+    {
+      "bom-ref": "rpm-distro",
+      "type": "library",
+      "name": "libopenssl3",
+      "version": "3.1.4-150600.5.39.1",
+      "purl": "pkg:rpm/suse/libopenssl3@3.1.4-150600.5.39.1?arch=x86_64&distro=sles-15.6"
+    },
+    {
+      "bom-ref": "rpm-release",
+      "type": "library",
+      "name": "openssl",
+      "version": "1.1.1k-9.el8_7",
+      "purl": "pkg:rpm/redhat/openssl@1.1.1k-9.el8_7?arch=x86_64"
     }
   ],
   "dependencies": [
     {
       "ref": "root",
       "dependsOn": [
-        "app"
+        "app",
+        "rpm-distro",
+        "rpm-release"
       ]
     },
     {

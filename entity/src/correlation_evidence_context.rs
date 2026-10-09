@@ -73,4 +73,10 @@ pub enum ContextSource {
     /// A describing CPE of an ancestor SBOM.
     #[sea_orm(string_value = "ancestor_sbom")]
     AncestorSbom,
+    /// The product of an RPM, by the `distro=` qualifier of its PURL.
+    #[sea_orm(string_value = "purl_qualifier")]
+    PurlQualifier,
+    /// The product of an RPM, by the release (stream, codestream) of its version.
+    #[sea_orm(string_value = "purl_release")]
+    PurlRelease,
 }

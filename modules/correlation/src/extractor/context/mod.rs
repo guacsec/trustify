@@ -18,14 +18,17 @@ use crate::{
 use sea_orm::{
     ColumnTrait, ConnectionTrait, DbBackend, EntityTrait, FromQueryResult, QueryFilter, Statement,
 };
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use tracing::{Instrument, info_span};
+use trustify_common::purl::Purl;
 use trustify_entity::{
     assertion_context, assertion_context_identifier,
     assertion_context_identifier::ContextIdentifierKind,
-    correlation_evidence_context::ContextSource, cpe,
+    correlation_evidence_context::ContextSource, cpe, qualified_purl, sbom_node_purl_ref,
 };
 use uuid::Uuid;
+
+mod rpm;
 
 /// Confidence of a context of the node's own CPE.
 const NODE: f64 = 1.0;
@@ -35,6 +38,12 @@ const ANCESTOR_NODE: (f64, f64, f64) = (0.9, 0.05, 0.7);
 const DESCRIBING: f64 = 0.8;
 /// Confidence of a context of an ancestor SBOM's describing CPE at 1 hop, decreasing per hop.
 const ANCESTOR_SBOM: (f64, f64, f64) = (0.7, 0.05, 0.5);
+/// Confidence of a context of an RPM's product, stated by the `distro=` qualifier of its PURL.
+const PURL_QUALIFIER: f64 = 0.85;
+/// Confidence of a context of an RPM's product, inferred from its release.
+const PURL_RELEASE: f64 = 0.75;
+/// Factor of an assertion stated in a product, on a node whose product can't be compared.
+const UNCHECKED: f64 = 0.7;
 /// Factor of a match through an ANY attribute (instead of equal values).
 const ANY_MATCH: f64 = 0.9;
 
@@ -64,6 +73,8 @@ impl NodeCpe {
             ContextSource::AncestorNode => decreasing(ANCESTOR_NODE),
             ContextSource::Describing => DESCRIBING,
             ContextSource::AncestorSbom => decreasing(ANCESTOR_SBOM),
+            ContextSource::PurlQualifier => PURL_QUALIFIER,
+            ContextSource::PurlRelease => PURL_RELEASE,
         }
     }
 }
@@ -94,8 +105,9 @@ pub enum Scope {
         confidence: f64,
         links: Vec<ContextLink>,
     },
-    /// Nothing to compare (no context on either side, or nothing comparable).
-    Unscoped,
+    /// Nothing to compare: no context on either side, or nothing comparable. The confidence is
+    /// lower for an assertion stated in a product which couldn't be checked.
+    Unscoped { confidence: f64 },
     /// The contexts are comparable, but don't match, or a required context is missing.
     Dropped,
 }
@@ -106,12 +118,13 @@ pub fn scope(
     node: &[NodeCpe],
     requires_context: bool,
 ) -> Scope {
-    let unscoped = || match requires_context {
+    let unscoped = |confidence| match requires_context {
         true => Scope::Dropped,
-        false => Scope::Unscoped,
+        false => Scope::Unscoped { confidence },
     };
+    // an assertion without a context isn't about a product
     let Some(context) = context else {
-        return unscoped();
+        return unscoped(1.0);
     };
 
     let mut links = Vec::new();
@@ -141,7 +154,7 @@ pub fn scope(
     if links.is_empty() {
         return match comparable {
             true => Scope::Dropped,
-            false => unscoped(),
+            false => unscoped(UNCHECKED),
         };
     }
 
@@ -346,18 +359,20 @@ struct NodeCpeRow {
     cpe: cpe::Model,
 }
 
-/// The CPEs putting the given nodes into products.
+/// The CPEs putting the given nodes into products: from the CPEs around them, and from their
+/// own PURL (an RPM's product, see [`rpm`]).
 pub async fn load_node_cpes<C: ConnectionTrait>(
     nodes: impl IntoIterator<Item = NodeRef>,
     connection: &C,
 ) -> Result<BTreeMap<NodeRef, Vec<NodeCpe>>, Error> {
-    let (sboms, node_ids): (Vec<_>, Vec<_>) = nodes
-        .into_iter()
-        .map(|node| (node.sbom_id, node.node_id))
-        .unzip();
-    if sboms.is_empty() {
+    let nodes = nodes.into_iter().collect::<BTreeSet<_>>();
+    if nodes.is_empty() {
         return Ok(BTreeMap::new());
     }
+    let (sboms, node_ids): (Vec<_>, Vec<_>) = nodes
+        .iter()
+        .map(|node| (node.sbom_id, node.node_id.clone()))
+        .unzip();
 
     // SAFETY: only constants are interpolated, the values are bound.
     let sql = format!(
@@ -428,6 +443,63 @@ GROUP BY f.sbom_id, f.node_id, f.source, c.id
                 source: row.source,
                 distance: row.distance,
             });
+    }
+
+    for (node, (cpe, source)) in load_rpm_contexts(&nodes, connection).await? {
+        result.entry(node).or_default().push(NodeCpe {
+            cpe,
+            source,
+            distance: 0,
+        });
+    }
+
+    Ok(result)
+}
+
+/// The products of the RPMs among the given nodes, by their PURLs.
+async fn load_rpm_contexts<C: ConnectionTrait>(
+    nodes: &BTreeSet<NodeRef>,
+    connection: &C,
+) -> Result<Vec<(NodeRef, (cpe::Model, ContextSource))>, Error> {
+    let sbom_ids = nodes
+        .iter()
+        .map(|node| node.sbom_id)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let node_ids = nodes
+        .iter()
+        .map(|node| node.node_id.as_str())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+
+    let mut result = Vec::new();
+    for sbom_chunk in sbom_ids.chunks(CHUNK) {
+        for node_chunk in node_ids.chunks(CHUNK) {
+            // the cross product of SBOMs and nodes is a superset, filtered below
+            let refs = sbom_node_purl_ref::Entity::find()
+                .filter(sbom_node_purl_ref::Column::SbomId.is_in(sbom_chunk.iter().copied()))
+                .filter(sbom_node_purl_ref::Column::NodeId.is_in(node_chunk.iter().copied()))
+                .find_also_related(qualified_purl::Entity)
+                .all(connection)
+                .instrument(info_span!("loading node purls"))
+                .await?;
+            for (purl_ref, qualified) in refs {
+                let node = NodeRef {
+                    sbom_id: purl_ref.sbom_id,
+                    node_id: purl_ref.node_id,
+                };
+                if !nodes.contains(&node) {
+                    continue;
+                }
+                if let Some(context) =
+                    qualified.and_then(|qualified| rpm::rpm_context(&Purl::from(qualified.purl)))
+                {
+                    result.push((node, context));
+                }
+            }
+        }
     }
     Ok(result)
 }
@@ -574,6 +646,8 @@ mod test {
     #[case::far(ContextSource::AncestorNode, 10, 0.7)]
     #[case::describing(ContextSource::Describing, 0, 0.8)]
     #[case::ancestor_sbom(ContextSource::AncestorSbom, 1, 0.7)]
+    #[case::purl_qualifier(ContextSource::PurlQualifier, 0, 0.85)]
+    #[case::purl_release(ContextSource::PurlRelease, 0, 0.75)]
     #[case::far_ancestor_sbom(ContextSource::AncestorSbom, 9, 0.5)]
     fn proximity(#[case] source: ContextSource, #[case] distance: i32, #[case] expected: f64) {
         let confidence = node("cpe:/a:a:b", source, distance).confidence();
@@ -609,23 +683,27 @@ mod test {
         );
     }
 
+    /// Not matched: dropped (`None`), or kept unscoped with a confidence factor.
     #[rstest]
     // comparable, but different
-    #[case::mismatch(Some(&["cpe:/o:redhat:enterprise_linux:8"][..]), &["cpe:/o:redhat:enterprise_linux:9"][..], false, false)]
-    // nothing comparable: a container of another product keeps the RHEL statement
-    #[case::unrelated(Some(&["cpe:/o:redhat:enterprise_linux:9"][..]), &["cpe:/a:redhat:openshift:4.15"][..], false, true)]
-    #[case::unrelated_required(Some(&["cpe:/o:redhat:enterprise_linux:9"][..]), &["cpe:/a:redhat:openshift:4.15"][..], true, false)]
+    #[case::mismatch(Some(&["cpe:/o:redhat:enterprise_linux:8"][..]), &["cpe:/o:redhat:enterprise_linux:9"][..], false, None)]
+    // nothing comparable: a container of another product keeps the RHEL statement, unchecked
+    #[case::unrelated(Some(&["cpe:/o:redhat:enterprise_linux:9"][..]), &["cpe:/a:redhat:openshift:4.15"][..], false, Some(UNCHECKED))]
+    #[case::unrelated_required(Some(&["cpe:/o:redhat:enterprise_linux:9"][..]), &["cpe:/a:redhat:openshift:4.15"][..], true, None)]
     // no context on the node
-    #[case::no_node_context(Some(&["cpe:/a:redhat:storage:3"][..]), &[][..], false, true)]
-    #[case::no_node_context_required(Some(&["cpe:/a:redhat:storage:3"][..]), &[][..], true, false)]
-    // no context on the assertion
-    #[case::no_assertion_context(None, &["cpe:/a:redhat:storage:3"][..], false, true)]
-    #[case::no_assertion_context_required(None, &["cpe:/a:redhat:storage:3"][..], true, false)]
+    #[case::no_node_context(Some(&["cpe:/a:redhat:storage:3"][..]), &[][..], false, Some(UNCHECKED))]
+    #[case::no_node_context_required(Some(&["cpe:/a:redhat:storage:3"][..]), &[][..], true, None)]
+    // no context on the assertion: not about a product
+    #[case::no_assertion_context(None, &["cpe:/a:redhat:storage:3"][..], false, Some(1.0))]
+    #[case::no_assertion_context_required(None, &["cpe:/a:redhat:storage:3"][..], true, None)]
+    // an SLE 15 SP6 RPM: another service pack, another product
+    #[case::suse_other_sp(Some(&["cpe:/o:suse:sles:12:sp2"][..]), &["cpe:/o:suse::15:sp6"][..], true, None)]
+    #[case::suse_tumbleweed(Some(&["cpe:/o:opensuse:tumbleweed"][..]), &["cpe:/o:suse::15:sp6"][..], false, Some(UNCHECKED))]
     fn not_matched(
         #[case] assertion: Option<&[&str]>,
         #[case] node_cpes: &[&str],
         #[case] requires_context: bool,
-        #[case] kept: bool,
+        #[case] kept: Option<f64>,
     ) {
         let assertion = assertion.map(context);
         let node_cpes = node_cpes
@@ -633,13 +711,32 @@ mod test {
             .map(|value| node(value, ContextSource::Describing, 0))
             .collect::<Vec<_>>();
         let expected = match kept {
-            true => Scope::Unscoped,
-            false => Scope::Dropped,
+            Some(confidence) => Scope::Unscoped { confidence },
+            None => Scope::Dropped,
         };
         assert_eq!(
             scope(assertion.as_ref(), &node_cpes, requires_context),
             expected
         );
+    }
+
+    /// An SLE 15 SP6 RPM (by its PURL) is in every product of that service pack.
+    #[test]
+    fn suse_service_pack() {
+        let result = scope(
+            Some(&context(&[
+                "cpe:/o:suse:sles:15:sp6",
+                "cpe:/o:suse:sle-module-basesystem:15:sp6",
+            ])),
+            &[node("cpe:/o:suse::15:sp6", ContextSource::PurlQualifier, 0)],
+            true,
+        );
+        let Scope::Matched { confidence, links } = result else {
+            panic!("must match: {result:?}");
+        };
+        // the qualifier (0.85), through ANY (0.9)
+        assert_eq!(confidence, 0.77);
+        assert_eq!(links.len(), 2);
     }
 
     /// The CPEs putting nodes into products: their own, their ancestors' (by distance, also
@@ -671,7 +768,16 @@ mod test {
             sbom_id: child,
             node_id: node_id.into(),
         };
-        let result = load_node_cpes([node("app"), node("helper")], &ctx.db).await?;
+        let result = load_node_cpes(
+            [
+                node("app"),
+                node("helper"),
+                node("rpm-distro"),
+                node("rpm-release"),
+            ],
+            &ctx.db,
+        )
+        .await?;
         let cpes = |node_id: &str| {
             let mut cpes = result
                 .get(&node(node_id))
@@ -701,6 +807,32 @@ mod test {
                 (ContextSource::Describing, 0, cpe("a:example:product:1")),
                 (ContextSource::AncestorSbom, 1, cpe("o:example:platform:5")),
             ]
+        );
+
+        // RPMs: their product by the PURL's qualifier, or else the release
+        assert_eq!(
+            cpes("rpm-distro"),
+            [
+                (ContextSource::AncestorNode, 1, cpe("a:example:product:1")),
+                (ContextSource::Describing, 0, cpe("a:example:product:1")),
+                (ContextSource::AncestorSbom, 1, cpe("o:example:platform:5")),
+                (
+                    ContextSource::PurlQualifier,
+                    0,
+                    "cpe:2.3:o:suse:*:15:sp6:*:*:*:*:*:*".to_string()
+                ),
+            ]
+        );
+        assert_eq!(
+            cpes("rpm-release")
+                .into_iter()
+                .filter(|(source, ..)| *source == ContextSource::PurlRelease)
+                .collect::<Vec<_>>(),
+            [(
+                ContextSource::PurlRelease,
+                0,
+                "cpe:2.3:*:redhat:enterprise_linux:8:*:*:*:*:*:*:*".to_string()
+            )]
         );
 
         Ok(())

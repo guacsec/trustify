@@ -178,6 +178,10 @@ pub enum ContextSource {
     Describing,
     /// A describing CPE of an ancestor SBOM.
     AncestorSbom,
+    /// The product of an RPM, by the `distro=` qualifier of its PURL.
+    PurlQualifier,
+    /// The product of an RPM, by the release of its version.
+    PurlRelease,
 }
 
 impl ContextSource {
@@ -187,6 +191,8 @@ impl ContextSource {
             Self::AncestorNode => "ancestor component",
             Self::Describing => "SBOM",
             Self::AncestorSbom => "ancestor SBOM",
+            Self::PurlQualifier => "distro qualifier",
+            Self::PurlRelease => "release",
         }
     }
 }
@@ -466,6 +472,8 @@ mod entity_conversions {
                 EntityContextSource::AncestorNode => Self::AncestorNode,
                 EntityContextSource::Describing => Self::Describing,
                 EntityContextSource::AncestorSbom => Self::AncestorSbom,
+                EntityContextSource::PurlQualifier => Self::PurlQualifier,
+                EntityContextSource::PurlRelease => Self::PurlRelease,
             }
         }
     }

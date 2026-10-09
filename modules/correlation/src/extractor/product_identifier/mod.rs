@@ -346,7 +346,8 @@ mod test {
             !evidence.is_empty(),
             "SKU-based evidence should exist between SBOM and advisory"
         );
-        assert_eq!(evidence[0].confidence, 1.0);
+        // stated for a product (a context), which the SBOM component can't be compared with
+        assert_eq!(evidence[0].confidence, 0.7);
         assert_eq!(evidence[0].vulnerability_id, "CVE-2025-41725");
 
         Ok(())

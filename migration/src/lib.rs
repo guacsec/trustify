@@ -96,6 +96,7 @@ mod m0002490_add_vls_version_scheme;
 mod m0002500_create_correlation_option;
 mod m0002510_create_assertion_context;
 mod m0002520_create_correlation_evidence_context;
+mod m0002530_context_source_purl;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -207,6 +208,7 @@ impl MigratorExt for Migrator {
             .normal(m0002500_create_correlation_option::Migration)
             .normal(m0002510_create_assertion_context::Migration)
             .normal(m0002520_create_correlation_evidence_context::Migration)
+            .normal(m0002530_context_source_purl::Migration)
     }
 }
 

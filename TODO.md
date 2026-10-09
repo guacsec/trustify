@@ -7,9 +7,11 @@
   original document as-is.
 - [ ] Correlation, product context: SBOM-side contexts are CPE only (describing CPEs, CPEs of the
   node and its ancestors, ancestor SBOMs). Missing:
-  - the PURL `distro=` qualifier (SUSE `sles-15.6` → `cpe:/o:suse:sles:15:sp6`, Red Hat
-    `rhel-8.10`), which would be a vendor specific rule. Without it, the SUSE BCI SBOMs (S23) get
-    no versionless verdicts;
+  - RPM products by PURL (`extractor/context/rpm.rs`) only map RHEL (`enterprise_linux:<major>`)
+    and SLE 12/15 (`*:<major>:sp<minor>`). Missing: RHEL EUS/AUS/E4S/TUS (`rhel_eus:8.2`, …, the
+    minor stream of `el8_2`), SLE 16, SUSE Linux Micro / `slfo`, and other distributions;
+  - SUSE GA products are written without a service pack (`sles:15`), so they match the packages
+    of every service pack of that version;
   - PURL, model number, SKU and digest contexts: advisory contexts store them, but nothing on the
     SBOM side is compared with them yet;
   - the fundamental APIs still use `product_status` and `purl_status.context_cpe_id`.

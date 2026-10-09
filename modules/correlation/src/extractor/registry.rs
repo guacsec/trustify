@@ -170,7 +170,10 @@ async fn write_scoped(
     for (node, mut assertion) in matches {
         match scoper.scope(&node, &assertion) {
             Scope::Dropped => {}
-            Scope::Unscoped => writer.add(&node, assertion)?,
+            Scope::Unscoped { confidence } => {
+                assertion.confidence = round(assertion.confidence * confidence);
+                writer.add(&node, assertion)?;
+            }
             Scope::Matched { confidence, links } => {
                 assertion.confidence = round(assertion.confidence * confidence);
                 writer.add_in_context(&node, assertion, links)?;

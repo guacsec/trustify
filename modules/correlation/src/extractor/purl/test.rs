@@ -142,7 +142,8 @@ async fn rh_fixed_major(ctx: &TrustifyContext) -> anyhow::Result<()> {
             "CVE-2023-0215".to_string(),
             RH_FIXED.to_string(),
             AssertionStatus::Affected,
-            0.72,
+            // 0.72, in RHEL 8 by the PURL's `distro=rhel-8.10` (0.85 × 0.9)
+            0.55,
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6", "1:1.1.1k-9.el8_7"]),
@@ -170,7 +171,8 @@ async fn rh_fixed_exact(ctx: &TrustifyContext) -> anyhow::Result<()> {
             "CVE-2023-0286".to_string(),
             RH_FIXED.to_string(),
             AssertionStatus::Affected,
-            0.9,
+            // 0.9, stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
+            0.63,
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1c-21.el8_2"]),
@@ -198,7 +200,8 @@ async fn rh_fixed_at_fix(ctx: &TrustifyContext) -> anyhow::Result<()> {
             "CVE-2023-0286".to_string(),
             STREAM.to_string(),
             AssertionStatus::Fixed,
-            1.0,
+            // stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
+            0.7,
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: vec![MatchedRange {
@@ -375,6 +378,35 @@ fn redhat_versionless() -> EnabledBy {
     )
 }
 
+fn suse_versionless() -> EnabledBy {
+    versionless(
+        "019dc7a4-6a00-7000-8000-000000000002",
+        "https://www.suse.com",
+        "SUSE states the status of a package in a product with a versionless PURL, meaning all versions.",
+    )
+}
+
+/// SUSE states the meta package `openssl` as not affected in SLE 15 SP6, with a versionless PURL.
+/// The SBOM's packages are in SP6 by their `distro=sles-15.6` qualifier: 0.7 × 0.85 × 0.9.
+fn suse_openssl_not_affected(node: &str) -> Evidence {
+    (
+        node.to_string(),
+        "CVE-2024-6119".to_string(),
+        ANY_VERSION.to_string(),
+        AssertionStatus::NotAffected,
+        0.54,
+        Some(MatchedValue {
+            identifier: "pkg:rpm/suse/openssl".into(),
+            ranges: vec![MatchedRange {
+                scheme: "rpm".into(),
+                low: None,
+                high: None,
+            }],
+            enabled_by: Some(suse_versionless()),
+        }),
+    )
+}
+
 /// An SP6 package before the SP6 fix is affected by that fix only. The fixes of the other
 /// codestreams in the same document (SP4, SP5, SP7, 16.0, Micro, Tumbleweed) don't apply,
 /// although e.g. `3.1.4-150600.5.7.1` is "newer" than Tumbleweed's `3.1.4-13.1`.
@@ -389,7 +421,8 @@ async fn suse_recommended_codestream(ctx: &TrustifyContext) -> anyhow::Result<()
                 "CVE-2024-6119".to_string(),
                 "purl_suse_recommended_before".to_string(),
                 AssertionStatus::Affected,
-                0.9,
+                // 0.9, in SLE 15 SP6 by the PURL's `distro=sles-15.6` (0.85 × 0.9)
+                0.69,
                 Some(MatchedValue {
                     identifier: format!("pkg:rpm/suse/{name}"),
                     ranges: fixed_in("rpm", &[SUSE_SP6_FIX]),
@@ -398,6 +431,9 @@ async fn suse_recommended_codestream(ctx: &TrustifyContext) -> anyhow::Result<()
             )
         })
         .collect::<Vec<_>>();
+    expected.push(suse_openssl_not_affected(
+        "pkg:openssl-0907d1fb499114c5df61bf90f42de3cc",
+    ));
     expected.sort_by(|a, b| (&a.0, &a.1, &a.2).cmp(&(&b.0, &b.1, &b.2)));
 
     assert_eq!(evidence_of(ctx, SUSE_OLD_SBOM, SUSE_VEX).await?, expected);
@@ -417,7 +453,8 @@ async fn suse_recommended_later_build(ctx: &TrustifyContext) -> anyhow::Result<(
                 "CVE-2024-6119".to_string(),
                 "purl_suse_recommended".to_string(),
                 AssertionStatus::Fixed,
-                0.9,
+                // 0.9, in SLE 15 SP6 by the PURL's `distro=sles-15.6` (0.85 × 0.9)
+                0.69,
                 Some(MatchedValue {
                     identifier: format!("pkg:rpm/suse/{name}"),
                     ranges: vec![MatchedRange {
@@ -433,6 +470,9 @@ async fn suse_recommended_later_build(ctx: &TrustifyContext) -> anyhow::Result<(
             )
         })
         .collect::<Vec<_>>();
+    expected.push(suse_openssl_not_affected(
+        "pkg:rpm/openssl-0907d1fb499114c5df61bf90f42de3cc",
+    ));
     expected.sort_by(|a, b| (&a.0, &a.1, &a.2).cmp(&(&b.0, &b.1, &b.2)));
 
     assert_eq!(evidence_of(ctx, SUSE_NEW_SBOM, SUSE_VEX).await?, expected);
@@ -468,7 +508,8 @@ async fn vls_range(ctx: &TrustifyContext) -> anyhow::Result<()> {
                 "CVE-2099-20001".to_string(),
                 PLAIN.to_string(),
                 AssertionStatus::Affected,
-                1.0,
+                // stated as installed on a platform, which the SBOM doesn't name (×0.7)
+                0.7,
                 Some(MatchedValue {
                     identifier: "pkg:npm/example-app".into(),
                     ranges: below("semver", "2.0.0"),

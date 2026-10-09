@@ -5822,6 +5822,8 @@ components:
       - ancestor_node
       - describing
       - ancestor_sbom
+      - purl_qualifier
+      - purl_release
     CorrelationOption:
       allOf:
       - $ref: '#/components/schemas/CorrelationOptionData'

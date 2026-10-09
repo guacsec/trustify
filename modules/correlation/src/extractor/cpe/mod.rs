@@ -517,6 +517,8 @@ mod test {
         const MDP_ARM32: &str = "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:arm32:*";
         const MDP_X86: &str = "cpe:2.3:a:beckhoff:MDP.dll:1.7.0.0:*:*:*:*:*:x86:*";
 
+        // WAGO states its firmware as installed on devices (a context), which the SBOM components
+        // can't be compared with: ×0.7 (unchecked)
         let mut result = Vec::new();
         for (node, vulns, status, confidence, matched) in [
             (
@@ -537,21 +539,21 @@ mod test {
                 "wago-os-affected",
                 WAGO_CVES,
                 AssertionStatus::Affected,
-                0.7,
+                0.49,
                 WAGO_RANGE,
             ),
             (
                 "wago-os-fixed",
                 WAGO_CVES,
                 AssertionStatus::Fixed,
-                0.8,
+                0.56,
                 WAGO_FIXED,
             ),
             (
                 "wago-os-hardened",
                 WAGO_CVES,
                 AssertionStatus::Affected,
-                0.7,
+                0.49,
                 WAGO_HARDENED_RANGE,
             ),
         ] {
