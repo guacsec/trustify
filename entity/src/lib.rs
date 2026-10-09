@@ -45,6 +45,7 @@ pub mod sbom_package_license;
 pub mod source_document;
 pub mod status;
 pub mod user_preferences;
+pub mod validation_report;
 pub mod version_range;
 pub mod version_scheme;
 pub mod versioned_purl;

@@ -1,6 +1,6 @@
 use crate::{
     graph::Graph,
-    service::{Error, IngestorService, validation::Validator},
+    service::{Error, IngestorService, validation::Validator, validation::store::Provenance},
 };
 use actix_web::{HttpResponse, Responder, post, web};
 use sea_orm::TransactionTrait;
@@ -21,8 +21,10 @@ pub fn configure(
     analysis: Option<AnalysisService>,
     validators: Vec<Arc<dyn Validator>>,
 ) {
-    let ingestor_service =
-        IngestorService::new(Graph::new(), storage, analysis).with_validators(validators);
+    let ingestor_service = IngestorService::new(Graph::new(), storage, analysis)
+        .with_validators(validators)
+        .with_provenance(Provenance::Dataset)
+        .with_report_store(db.clone());
 
     svc.app_data(web::Data::new(ingestor_service))
         .app_data(web::Data::new(config))

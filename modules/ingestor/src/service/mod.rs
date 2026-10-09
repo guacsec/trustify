@@ -20,12 +20,13 @@ use crate::{
         dataset::{DatasetIngestResult, DatasetLoader},
         validation::{
             Finding, InvocationError, OnError, Severity, ValidationMode, ValidationOutcome,
-            ValidationReport, Validator, ValidatorInput,
+            ValidationReport, Validator, ValidatorInput, store, store::Provenance,
         },
     },
 };
 use actix_web::{HttpResponse, ResponseError, body::BoxBody};
 use anyhow::anyhow;
+use hex::ToHex;
 use jsonpath_rust::parser::errors::JsonPathError;
 use parking_lot::Mutex;
 use sbom_walker::report::ReportSink;
@@ -34,8 +35,15 @@ use sea_orm::{ConnectionTrait, TransactionTrait};
 use std::{fmt::Debug, sync::Arc, time::Instant};
 use tokio::task::JoinError;
 use tracing::instrument;
-use trustify_common::db::change::{ChangeEntity, ChangeOperation, record_change};
-use trustify_common::{db::DatabaseErrors, error::ErrorInformation, id::IdError};
+use trustify_common::{
+    db::{
+        DatabaseErrors, ReadWrite,
+        change::{ChangeEntity, ChangeOperation, record_change},
+    },
+    error::ErrorInformation,
+    hashing::Contexts,
+    id::IdError,
+};
 use trustify_entity::labels::Labels;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::{StorageBackend, dispatch::DispatchBackend};
@@ -220,6 +228,10 @@ pub struct IngestorService {
     storage: DispatchBackend,
     analysis: Option<AnalysisService>,
     validators: Arc<[Arc<dyn Validator>]>,
+    provenance: Arc<Provenance>,
+    /// Connection used to record rejections, which must outlive the caller's
+    /// rolled-back transaction.
+    reports: Option<ReadWrite>,
 }
 
 impl IngestorService {
@@ -233,15 +245,33 @@ impl IngestorService {
             storage: storage.into(),
             analysis,
             validators: Vec::new().into(),
+            provenance: Arc::new(Provenance::default()),
+            reports: None,
         }
     }
 
     /// Attach the registered validators available to ingestion and internal callers.
     ///
     /// With an empty set (the default), ingestion behaves as if validation did
-    /// not exist. See ADR 00020.
+    /// not exist. See ADR 00021.
     pub fn with_validators(mut self, validators: Vec<Arc<dyn Validator>>) -> Self {
         self.validators = validators.into();
+        self
+    }
+
+    /// Declare how documents reach this instance, recorded with every report.
+    pub fn with_provenance(mut self, provenance: Provenance) -> Self {
+        self.provenance = Arc::new(provenance);
+        self
+    }
+
+    /// Attach the connection used to record documents rejected by validation.
+    ///
+    /// A rejection is refused ingestion, so the caller's transaction is rolled
+    /// back and anything written on it is lost. Without this connection, a
+    /// rejection is only logged.
+    pub fn with_report_store(mut self, db: ReadWrite) -> Self {
+        self.reports = Some(db);
         self
     }
 
@@ -261,19 +291,91 @@ impl IngestorService {
     }
 
     /// Run all applicable validators against a document.
-    ///
-    /// Returns the collected reports on success. Returns
-    /// [`Error::ValidationRejected`] if any [`ValidationMode::Verify`] validator
-    /// blocks the document — either because its outcome is
-    /// [`ValidationOutcome::Failed`], or because it errored while configured to
-    /// [`OnError::Block`].
-    #[instrument(skip(self, bytes), fields(bytes = bytes.len()), err(level = tracing::Level::INFO))]
-    async fn run_validators(
-        &self,
-        bytes: &[u8],
-        fmt: Format,
-    ) -> Result<Vec<ValidationReport>, Error> {
+    #[instrument(skip(self, bytes), fields(bytes = bytes.len()))]
+    async fn run_validators(&self, bytes: &[u8], fmt: Format) -> Vec<Validated> {
         run_validators(&self.validators, bytes, fmt).await
+    }
+
+    /// Record the results that asked to be stored.
+    ///
+    /// Never fails the caller: the document is already ingested, so losing the
+    /// audit trail is worth a warning, not a rolled-back ingest.
+    async fn store_reports<C: ConnectionTrait>(
+        &self,
+        conn: &C,
+        document_sha256: &str,
+        validated: &[Validated],
+    ) {
+        let pending = validated
+            .iter()
+            .filter(|entry| entry.persist)
+            .map(|entry| store::PendingReport {
+                report: &entry.report,
+                mode: entry.mode,
+                blocked: entry.blocked,
+                config_fingerprint: &entry.fingerprint,
+            })
+            .collect::<Vec<_>>();
+
+        for entry in validated.iter().filter(|entry| !entry.persist) {
+            tracing::debug!(
+                validator = %entry.report.validator,
+                outcome = ?entry.report.outcome,
+                "validation report not persisted"
+            );
+        }
+
+        if pending.is_empty() {
+            return;
+        }
+
+        let context = store::PersistContext::new(
+            document_sha256,
+            &self.provenance,
+            self.caps().unwrap_or_default(),
+        );
+        match store::persist_if_changed(conn, &context, pending).await {
+            Ok(0) => tracing::debug!("validation reports unchanged"),
+            Ok(count) => tracing::debug!("recorded {count} validation report(s)"),
+            Err(err) => tracing::warn!("failed to record validation reports: {err}"),
+        }
+    }
+
+    /// Record a document that validation refused.
+    ///
+    /// Runs on its own connection: the caller rolls back on the error returned
+    /// here, which would take the record with it. Failing to record a rejection
+    /// must not change the rejection itself, so errors are logged only.
+    async fn record_rejection(&self, bytes: &[u8], fmt: Format, validated: &[Validated]) {
+        let Some(db) = &self.reports else {
+            tracing::debug!(
+                format = %fmt,
+                "document rejected by validation; not recorded (no report store configured)"
+            );
+            return;
+        };
+
+        // The document never reaches storage, so nothing has hashed it yet.
+        let mut contexts = Contexts::new();
+        contexts.update(bytes);
+        let document_sha256 = contexts.finish().sha256.encode_hex::<String>();
+
+        let result = db
+            .transaction(async |tx| {
+                self.store_reports(tx, &document_sha256, validated).await;
+                Ok::<_, DbErr>(())
+            })
+            .await;
+        if let Err(err) = result {
+            tracing::warn!("failed to record rejected document: {err}");
+        }
+    }
+
+    /// The caps configured for the validators, which are global.
+    fn caps(&self) -> Option<store::Caps> {
+        self.validators
+            .first()
+            .map(|validator| validator.persistence().caps)
     }
 
     #[instrument(skip_all, err(level=tracing::Level::INFO))]
@@ -293,20 +395,34 @@ impl IngestorService {
 
         // Run semantic validators before persisting anything. A blocking
         // (verify) failure returns an error here, so no bytes are stored and no
-        // graph rows are created. See ADR 00020.
-        let reports = self.run_validators(bytes, fmt).await?;
+        // graph rows are created. See ADR 00021.
+        let validated = self.run_validators(bytes, fmt).await;
 
-        let result = self
+        let blocked = blocking_reports(&validated);
+        if !blocked.is_empty() {
+            self.record_rejection(bytes, fmt, &validated).await;
+            return Err(Error::ValidationRejected(blocked));
+        }
+
+        let stored = self
             .storage
             .store(bytes)
             .await
             .map_err(|err| Error::Storage(anyhow!("{err}")))?;
+        let document_sha256 = stored.digests.sha256.encode_hex::<String>();
 
         let mut result = detector
-            .load(&self.graph, labels.into(), issuer, &result.digests, tx)
+            .load(&self.graph, labels.into(), issuer, &stored.digests, tx)
             .await?;
 
-        attach_validation(&mut result, reports);
+        // On the caller's transaction: the reports describe a document that is
+        // only ingested if that transaction commits.
+        self.store_reports(tx, &document_sha256, &validated).await;
+
+        attach_validation(
+            &mut result,
+            validated.into_iter().map(|entry| entry.report).collect(),
+        );
 
         let change_entity = match fmt {
             Format::CSAF | Format::CVE | Format::OSV => Some(ChangeEntity::Advisory),
@@ -383,37 +499,54 @@ impl IngestorService {
     }
 }
 
+/// The outcome of one validator, with what the store needs to record it.
+#[derive(Debug)]
+struct Validated {
+    report: ValidationReport,
+    mode: ValidationMode,
+    /// True when this result rejects the document.
+    blocked: bool,
+    /// Digest of the configuration that produced the result.
+    fingerprint: String,
+    /// Whether the result is stored at all.
+    persist: bool,
+}
+
 /// Run all applicable validators against a document.
 ///
-/// Returns the collected reports, or [`Error::ValidationRejected`] if a
-/// [`ValidationMode::Verify`] validator blocks the document. See ADR 00020.
+/// Returns one entry per validator that ran. Blocking is reported per entry
+/// rather than as an error, because a rejected document still has to be
+/// recorded before ingestion is refused. See ADR 00021.
 async fn run_validators(
     validators: &[Arc<dyn Validator>],
     bytes: &[u8],
     fmt: Format,
-) -> Result<Vec<ValidationReport>, Error> {
+) -> Vec<Validated> {
     if validators.is_empty() {
-        return Ok(Vec::new());
+        return Vec::new();
     }
 
     let input = ValidatorInput { bytes, format: fmt };
-    let mut reports = Vec::new();
-    let mut blocked = Vec::new();
+    let mut results = Vec::new();
 
     for validator in validators {
         if !validator.run_on_ingest() || !validator.applies_to(fmt) {
             continue;
         }
 
+        let persistence = validator.persistence();
         match validator.validate(&input).await {
             Ok(report) => {
                 log_report(fmt, &report);
-                if validator.mode() == ValidationMode::Verify
-                    && report.outcome == ValidationOutcome::Failed
-                {
-                    blocked.push(report.clone());
-                }
-                reports.push(report);
+                let blocked = validator.mode() == ValidationMode::Verify
+                    && report.outcome == ValidationOutcome::Failed;
+                results.push(Validated {
+                    report,
+                    mode: validator.mode(),
+                    blocked,
+                    fingerprint: persistence.fingerprint.clone(),
+                    persist: persistence.persist,
+                });
             }
             Err(err) => match (validator.mode(), validator.on_error()) {
                 (ValidationMode::Verify, OnError::Block) => {
@@ -421,7 +554,13 @@ async fn run_validators(
                         validator = validator.name(),
                         "verify validator errored, blocking ingestion: {err}"
                     );
-                    blocked.push(errored_report(validator.name(), &err));
+                    results.push(Validated {
+                        report: errored_report(validator.name(), &err),
+                        mode: ValidationMode::Verify,
+                        blocked: true,
+                        fingerprint: persistence.fingerprint.clone(),
+                        persist: persistence.persist,
+                    });
                 }
                 _ => {
                     tracing::warn!(
@@ -433,22 +572,16 @@ async fn run_validators(
         }
     }
 
-    if blocked.is_empty() {
-        Ok(reports)
-    } else {
-        let validators = blocked
-            .iter()
-            .map(|report| report.validator.as_str())
-            .collect::<Vec<_>>()
-            .join(", ");
-        tracing::warn!(
-            format = %fmt,
-            validators = %validators,
-            "document rejected by validation ({} report(s))",
-            blocked.len(),
-        );
-        Err(Error::ValidationRejected(blocked))
-    }
+    results
+}
+
+/// The reports that rejected the document, if any.
+fn blocking_reports(validated: &[Validated]) -> Vec<ValidationReport> {
+    validated
+        .iter()
+        .filter(|entry| entry.blocked)
+        .map(|entry| entry.report.clone())
+        .collect()
 }
 
 /// Log a validation report and its findings.
@@ -560,8 +693,8 @@ impl ReportSink for Discard {
 mod validation_tests {
     use super::*;
     use crate::service::validation::{
-        Finding, OnError, Severity, ValidationMode, ValidationOutcome, ValidationReport, Validator,
-        ValidatorError, ValidatorInput,
+        Finding, OnError, Persistence, Severity, ValidationMode, ValidationOutcome,
+        ValidationReport, Validator, ValidatorError, ValidatorInput,
     };
     use sea_orm::prelude::async_trait;
 
@@ -574,6 +707,7 @@ mod validation_tests {
         applies: bool,
         run_on_ingest: bool,
         result: MockResult,
+        persistence: Persistence,
     }
 
     #[derive(Debug, Clone, Copy)]
@@ -592,6 +726,7 @@ mod validation_tests {
                 applies: true,
                 run_on_ingest: true,
                 result,
+                persistence: Persistence::default(),
             }
         }
 
@@ -631,6 +766,9 @@ mod validation_tests {
         fn applies_to(&self, _format: Format) -> bool {
             self.applies
         }
+        fn persistence(&self) -> &Persistence {
+            &self.persistence
+        }
         async fn validate(
             &self,
             _input: &ValidatorInput<'_>,
@@ -654,10 +792,17 @@ mod validation_tests {
         }
     }
 
+    /// Mirror how `ingest` turns validator results into an ingest outcome.
     fn run(validators: Vec<Arc<dyn Validator>>) -> Result<Vec<ValidationReport>, Error> {
-        tokio::runtime::Runtime::new()
+        let validated = tokio::runtime::Runtime::new()
             .expect("runtime")
-            .block_on(run_validators(&validators, b"{}", Format::CSAF))
+            .block_on(run_validators(&validators, b"{}", Format::CSAF));
+
+        let blocked = blocking_reports(&validated);
+        match blocked.is_empty() {
+            true => Ok(validated.into_iter().map(|entry| entry.report).collect()),
+            false => Err(Error::ValidationRejected(blocked)),
+        }
     }
 
     #[test]
@@ -748,8 +893,8 @@ mod validation_tests {
         assert!(
             run_validators(&validators, b"{}", Format::CSAF)
                 .await
-                .expect("skipped during ingestion")
-                .is_empty()
+                .is_empty(),
+            "validator must be skipped during ingestion"
         );
 
         let input = ValidatorInput {
@@ -760,5 +905,200 @@ mod validation_tests {
             .await
             .expect("explicit call runs validator");
         assert_eq!(report.outcome, ValidationOutcome::Failed);
+    }
+}
+
+#[cfg(test)]
+mod persistence_tests {
+    use super::*;
+    use crate::service::validation::{
+        Persistence, Severity, ValidationMode, ValidationOutcome, ValidationReport, Validator,
+        ValidatorError, ValidatorInput,
+        store::{Provenance, StoredReport},
+    };
+    use sea_orm::{EntityTrait, prelude::async_trait};
+    use test_context::test_context;
+    use test_log::test;
+    use trustify_entity::validation_report;
+    use trustify_test_context::{TrustifyContext, document_bytes};
+
+    /// A validator with a fixed verdict, used to exercise the ingest paths.
+    #[derive(Debug)]
+    struct FixedValidator {
+        mode: ValidationMode,
+        outcome: ValidationOutcome,
+        persistence: Persistence,
+    }
+
+    impl FixedValidator {
+        fn new(mode: ValidationMode, outcome: ValidationOutcome) -> Self {
+            Self {
+                mode,
+                outcome,
+                persistence: Persistence::default(),
+            }
+        }
+
+        fn persist(mut self, persist: bool) -> Self {
+            self.persistence.persist = persist;
+            self
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Validator for FixedValidator {
+        fn name(&self) -> &str {
+            "fixed"
+        }
+        fn mode(&self) -> ValidationMode {
+            self.mode
+        }
+        fn threshold(&self) -> Severity {
+            Severity::Error
+        }
+        fn on_error(&self) -> OnError {
+            OnError::Block
+        }
+        fn applies_to(&self, _format: Format) -> bool {
+            true
+        }
+        fn persistence(&self) -> &Persistence {
+            &self.persistence
+        }
+        async fn validate(
+            &self,
+            _input: &ValidatorInput<'_>,
+        ) -> Result<ValidationReport, ValidatorError> {
+            Ok(ValidationReport {
+                validator: self.name().to_string(),
+                findings: vec![],
+                outcome: self.outcome,
+            })
+        }
+    }
+
+    async fn ingest(
+        ctx: &TrustifyContext,
+        validator: FixedValidator,
+    ) -> Result<Result<IngestResult, Error>, anyhow::Error> {
+        let ingestor = IngestorService::new(Graph::new(), ctx.storage.clone(), None)
+            .with_validators(vec![Arc::new(validator)])
+            .with_provenance(Provenance::Api)
+            .with_report_store(trustify_common::db::ReadWrite::new(ctx.db.clone()));
+
+        let bytes = document_bytes("zookeeper-3.9.2-cyclonedx.json").await?;
+        Ok(ctx
+            .db
+            .transaction(async |tx| {
+                ingestor
+                    .ingest(
+                        &bytes,
+                        Format::Unknown,
+                        ("source", "test"),
+                        None,
+                        Cache::Skip,
+                        tx,
+                    )
+                    .await
+            })
+            .await)
+    }
+
+    async fn stored(ctx: &TrustifyContext) -> Result<Vec<StoredReport>, anyhow::Error> {
+        Ok(validation_report::Entity::find().all(&ctx.db).await?)
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn report_mode_is_recorded(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        ingest(
+            ctx,
+            FixedValidator::new(ValidationMode::Report, ValidationOutcome::Failed),
+        )
+        .await?
+        .expect("report mode must not block");
+
+        let reports = stored(ctx).await?;
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].mode, validation_report::Mode::Report);
+        assert!(!reports[0].blocked);
+        assert_eq!(
+            reports[0].ingest_source,
+            validation_report::IngestSource::Api
+        );
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn verify_pass_is_recorded(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        ingest(
+            ctx,
+            FixedValidator::new(ValidationMode::Verify, ValidationOutcome::Passed),
+        )
+        .await?
+        .expect("verify + passed must not block");
+
+        let reports = stored(ctx).await?;
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].mode, validation_report::Mode::Verify);
+        assert!(!reports[0].blocked);
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn rejection_survives_rollback(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        let result = ingest(
+            ctx,
+            FixedValidator::new(ValidationMode::Verify, ValidationOutcome::Failed),
+        )
+        .await?;
+        assert!(matches!(result, Err(Error::ValidationRejected(_))));
+
+        // The ingest transaction rolled back with the rejection, so the record
+        // can only be here if it was written on its own connection.
+        let reports = stored(ctx).await?;
+        assert_eq!(reports.len(), 1);
+        assert!(reports[0].blocked);
+        assert_eq!(reports[0].outcome, validation_report::Outcome::Failed);
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn persist_disabled_writes_nothing(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        ingest(
+            ctx,
+            FixedValidator::new(ValidationMode::Report, ValidationOutcome::Passed).persist(false),
+        )
+        .await?
+        .expect("ingest");
+
+        assert!(stored(ctx).await?.is_empty());
+
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn repeated_ingest_does_not_append(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+        for _ in 0..3 {
+            ingest(
+                ctx,
+                FixedValidator::new(ValidationMode::Report, ValidationOutcome::Passed),
+            )
+            .await?
+            .expect("ingest");
+        }
+
+        // Re-ingesting an unchanged document is the dominant importer case: it
+        // must not grow the table.
+        assert_eq!(stored(ctx).await?.len(), 1);
+
+        Ok(())
     }
 }

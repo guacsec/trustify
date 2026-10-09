@@ -4454,6 +4454,156 @@ paths:
           description: User preferences are deleted
         '412':
           description: The provided If-Match revision did not match the actual revision
+  /api/v3/validation:
+    get:
+      tags:
+      - validation
+      summary: List validation reports
+      operationId: listValidationReports
+      parameters:
+      - name: name
+        in: query
+        description: |-
+          Name of the document: an SBOM's describing node, or an advisory
+          identifier. Neither is unique, so this can match several documents.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: q
+        in: query
+        description: |
+          EBNF grammar for the _q_ parameter:
+          ```text
+              q = ( values | filter ) { '&' q }
+              values = value { '|', values }
+              filter = field, operator, values
+              operator = "=" | "!=" | "~" | "!~" | ">=" | ">" | "<=" | "<"
+              value = (* any text but escape special characters with '\' *)
+              field = (* must match an entity attribute name *)
+          ```
+          Any values in a _q_ will result in a case-insensitive "full
+          text search", effectively producing an OR clause of LIKE
+          clauses for every string-ish field in the resource being
+          queried.
+
+          Examples:
+          - `foo` - any field containing 'foo'
+          - `foo|bar` - any field containing either 'foo' OR 'bar'
+          - `foo&bar` - some field contains 'foo' AND some field contains 'bar'
+
+          A _filter_ may also be used to constrain the results. The
+          filter's field name must correspond to one of the resource's
+          attributes. If it doesn't, an error will be returned
+          containing a list of the valid fields for that resource.
+
+          An ASCII value of `NUL`, percent-encoded as `%00`, may be used
+          to find resources on which a particular field isn't set. For
+          example, `name=%00` and `name!=%00` yield the WHERE clauses,
+          'NAME IS NULL' and 'NAME IS NOT NULL', respectively.
+
+          Examples:
+          - `name=foo` - entity's _name_ matches 'foo' exactly
+          - `name~foo` - entity's _name_ contains 'foo', case-insensitive
+          - `name~foo|bar` - entity's _name_ contains either 'foo' OR 'bar', case-insensitive
+          - `name=` - entity's _name_ is the empty string, ''
+          - `name=%00` - entity's _name_ isn't set
+          - `published>3 days ago` - date values can be "human time"
+
+          Multiple full text searches and/or filters should be
+          '&'-delimited -- they are logically AND'd together.
+
+          - `red hat|fedora&labels:type=cve|osv&published>last wednesday 17:00`
+
+          Fields corresponding to JSON objects in the database may use a
+          ':' to delimit the column name and the object key,
+          e.g. `purl:qualifiers:type=pom`
+
+          Any operator or special character, e.g. '|', '&', within a
+          value should be escaped by prefixing it with a backslash.
+        required: false
+        schema:
+          type: string
+      - name: sort
+        in: query
+        description: |
+          EBNF grammar for the _sort_ parameter:
+          ```text
+              sort = field [ ':', order ] { ',' sort }
+              order = ( "asc" | "desc" )
+              field = (* must match the name of entity's attributes *)
+          ```
+          The optional _order_ should be one of "asc" or "desc". If
+          omitted, the order defaults to "asc".
+
+          Each _field_ name must correspond to one of the columns of the
+          table holding the entities being queried. Those corresponding
+          to JSON objects in the database may use a ':' to delimit the
+          column name and the object key,
+          e.g. `purl:qualifiers:type:desc`
+        required: false
+        schema:
+          type: string
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Matching validation reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedResults_ValidationReportSummary'
+  /api/v3/validation/{key}:
+    get:
+      tags:
+      - validation
+      summary: Retrieve the validation reports of one document
+      operationId: getValidationReports
+      parameters:
+      - name: key
+        in: path
+        description: Identifier of the document, either a digest e.g. `sha256:<hex>` or `urn:uuid:<uuid>` of an ingested SBOM or advisory
+        required: true
+        schema:
+          $ref: '#/components/schemas/Id'
+      responses:
+        '200':
+          description: Validation reports for the document
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ValidationReportSummary'
+        '400':
+          description: The key could not be interpreted as a document identifier
   /api/v3/vulnerability:
     get:
       tags:
@@ -6174,7 +6324,7 @@ components:
           description: |-
             Structured reports from semantic validators run during ingestion.
 
-            See ADR 00020. Empty when no validators are configured or none apply
+            See ADR 00021. Empty when no validators are configured or none apply
             to the document's format.
         warnings:
           type: array
@@ -7268,6 +7418,78 @@ components:
           - 'null'
           format: int64
           minimum: 0
+    PaginatedResults_ValidationReportSummary:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            description: |-
+              A stored result of one semantic validator run against one document.
+
+              Reports are append-only, so several may exist for the same document and
+              validator: each one records a result that differed from the one before it.
+            required:
+            - document_sha256
+            - validator
+            - mode
+            - outcome
+            - blocked
+            - finding_count
+            - findings
+            - truncated
+            - ingest_source
+            - created_at
+            properties:
+              blocked:
+                type: boolean
+                description: True when this result rejected the document, so nothing was ingested.
+              created_at:
+                type: string
+                format: date-time
+              document_sha256:
+                type: string
+                description: SHA-256 of the validated document, as lowercase hex.
+              finding_count:
+                type: integer
+                format: int32
+                description: Number of findings produced, before truncation.
+              findings:
+                description: The findings, as stored. Fewer than `finding_count` when `truncated`.
+              importer_name:
+                type:
+                - string
+                - 'null'
+                description: Name of the importer, when ingested by one.
+              ingest_source:
+                type: string
+                description: How the document entered the system.
+              max_severity:
+                type:
+                - string
+                - 'null'
+                description: Highest severity across the findings; absent when there are none.
+              mode:
+                type: string
+                description: Whether the validator gated ingestion or only reported.
+              outcome:
+                type: string
+                description: Whether the document met the validator's threshold.
+              truncated:
+                type: boolean
+                description: True when the stored findings were capped.
+              validator:
+                type: string
+                description: Name of the validator that produced the result.
+        total:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
     PaginatedResults_VulnerabilitySummary:
       type: object
       required:
@@ -8311,6 +8533,65 @@ components:
         validator:
           type: string
           description: The [`Validator::name`] that produced this report.
+    ValidationReportSummary:
+      type: object
+      description: |-
+        A stored result of one semantic validator run against one document.
+
+        Reports are append-only, so several may exist for the same document and
+        validator: each one records a result that differed from the one before it.
+      required:
+      - document_sha256
+      - validator
+      - mode
+      - outcome
+      - blocked
+      - finding_count
+      - findings
+      - truncated
+      - ingest_source
+      - created_at
+      properties:
+        blocked:
+          type: boolean
+          description: True when this result rejected the document, so nothing was ingested.
+        created_at:
+          type: string
+          format: date-time
+        document_sha256:
+          type: string
+          description: SHA-256 of the validated document, as lowercase hex.
+        finding_count:
+          type: integer
+          format: int32
+          description: Number of findings produced, before truncation.
+        findings:
+          description: The findings, as stored. Fewer than `finding_count` when `truncated`.
+        importer_name:
+          type:
+          - string
+          - 'null'
+          description: Name of the importer, when ingested by one.
+        ingest_source:
+          type: string
+          description: How the document entered the system.
+        max_severity:
+          type:
+          - string
+          - 'null'
+          description: Highest severity across the findings; absent when there are none.
+        mode:
+          type: string
+          description: Whether the validator gated ingestion or only reported.
+        outcome:
+          type: string
+          description: Whether the document met the validator's threshold.
+        truncated:
+          type: boolean
+          description: True when the stored findings were capped.
+        validator:
+          type: string
+          description: Name of the validator that produced the result.
     ValidationSeverity:
       type: string
       description: Severity of a single validation finding.

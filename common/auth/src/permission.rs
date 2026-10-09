@@ -109,6 +109,9 @@ permission! {
         #[strum(serialize = "delete.sbomGroup")]
         DeleteSbomGroup,
 
+        #[strum(serialize = "read.validation")]
+        ReadValidation,
+
         #[strum(serialize = "upload.dataset")]
         UploadDataset,
 

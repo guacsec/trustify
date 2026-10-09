@@ -1,14 +1,14 @@
 # Example semantic validators
 
 Ready-to-use configuration and rulesets for the ingestion-time semantic
-validators described in ADR 00020. Validation is **disabled by default**;
+validators described in ADR 00021. Validation is **disabled by default**;
 enabling it is opt-in via a config file.
 
 ## Layout
 
 | File | Purpose |
 |------|---------|
-| `validators.yaml` | The validator set. Referenced by `--validators-config` / `TRUSTD_VALIDATORS_CONFIG`. |
+| `validators.yaml` | The validator set and the storage settings. Referenced by `--validators-config` / `TRUSTD_VALIDATORS_CONFIG`. |
 | `rules/csaf-mandatory.json` | CSAF 2.0 required-field checks (JSON ruleset). |
 | `rules/spdx-min.json` | SPDX 2.2/2.3 minimum-element checks (JSON ruleset). |
 | `rules/cyclonedx-min.json` | CycloneDX minimum checks (JSON ruleset). |
@@ -27,7 +27,45 @@ TRUSTD_VALIDATORS_CONFIG=etc/validators/validators.yaml trustd api
 `rules` paths in `validators.yaml` are resolved relative to the process
 working directory. Use absolute paths in production deployments.
 
-To view associated logs set:
+## Top-level settings
+
+Alongside `validators`, the file carries two settings that apply to all of them:
+
+- `persist_reports` — defaults to `true`. When `false`, nothing is written to
+  the `validation_report` table and every result is logged at `debug` instead.
+  This overrides the per-validator `persist` setting.
+- `caps.max_findings` / `caps.max_findings_bytes` — bound how much of a report
+  is stored, defaulting to 200 findings and 64 KiB. Validator output is
+  untrusted and unbounded, and a loose ruleset against a large document can
+  otherwise produce megabytes per report. A report that hits either limit is
+  stored with the surplus findings dropped and `truncated` set, while
+  `finding_count` still reports everything the validator found.
+
+## Stored results
+
+Every validator result for a document that is ingested is recorded, in both
+`report` and `verify` mode. A document that `verify` **rejects** is recorded
+too, with `blocked` set — it never reaches storage, so this row is the only
+trace that the instance refused it.
+
+The table is append-only. A validator that runs again against an unchanged
+document with an unchanged configuration writes nothing; a row appears only
+when the result or the validator configuration differs from the last one
+stored. Re-running an importer over documents that have not changed therefore
+does not grow the table, and when a ruleset does change, the previous verdict
+is still there next to the new one.
+
+Reports are read back through `GET /api/v3/validation`, which is filterable and
+paginated, and `GET /api/v3/validation/{key}`, where the key is a digest
+(`sha256:<hex>`) or the `urn:uuid:<uuid>` of an ingested SBOM or advisory.
+Rejected documents are only reachable by digest, or by filtering the list on
+`blocked`. Both endpoints require the `read.validation` permission.
+
+Reports are *not* stored for `validate_named`, the explicit by-name invocation
+used by internal callers: that is an ad-hoc query, not an ingestion.
+
+To view the logs instead — which is all you get with `persist_reports: false`
+— set:
 
 ```bash
 RUST_LOG=trustify_module_ingestor=debug
@@ -57,6 +95,15 @@ Each validator declares:
   `basic`.
 - `run_on_ingest` — defaults to `true`; set it to `false` to register a validator
   for explicit invocation from internal code without running it on every ingest.
+- `persist` — defaults to `true`; set it to `false` to log this validator's
+  results instead of storing them.
+- `revalidate` — defaults to `always`: a document is validated again even when
+  it has been seen before. Set it to `on_change` to skip the run when neither
+  the document nor the validator configuration has changed since the stored
+  result. Only safe for backends whose verdict depends entirely on inputs we
+  can fingerprint, which excludes `conforma`: its policy lives on the remote
+  server and can change without any change here, so `on_change` would serve a
+  stale verdict.
 - `backend.url` — for the `conforma` backend, the base URL of the remote
   `ec validate input --server` instance. The client posts to
   `/v1/validate/input`; `backend.timeout_seconds` defaults to `120`. The server's
@@ -96,6 +143,10 @@ ec validate input --server --server-address 0.0.0.0 --policy policy.yaml
 
 Conforma loads the policy at server startup; restart that instance to apply policy
 changes.
+
+Changing a ruleset file counts as a configuration change: the fingerprint
+recorded with each result covers the ruleset contents, not just the path in
+`validators.yaml`.
 
 In the provided config, `csaf-spec` runs official CSAF specification tests
 in `report` mode. `csaf-mandatory` and `cyclonedx-min` run scheck-based

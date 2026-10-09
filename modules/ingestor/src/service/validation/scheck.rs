@@ -1,13 +1,13 @@
 //! In-process [`Validator`] backend using the [`scheck`] semantic validator.
 //!
 //! Rulesets are parsed once at construction; each document is validated against
-//! every configured ruleset. See ADR 00020.
+//! every configured ruleset. See ADR 00021.
 
 use crate::service::{
     Format,
     validation::{
-        Finding, OnError, Severity, ValidationMode, ValidationOutcome, ValidationReport, Validator,
-        ValidatorError, ValidatorInput, config::ValidatorConfig,
+        Finding, OnError, Persistence, Severity, ValidationMode, ValidationOutcome,
+        ValidationReport, Validator, ValidatorError, ValidatorInput, config::ValidatorConfig,
     },
 };
 use anyhow::{Context, anyhow};
@@ -25,6 +25,7 @@ pub struct ScheckValidator {
     threshold: Severity,
     on_error: OnError,
     run_on_ingest: bool,
+    persistence: Persistence,
 }
 
 impl ScheckValidator {
@@ -33,6 +34,7 @@ impl ScheckValidator {
         config: &ValidatorConfig,
         schemas: Vec<scheck::Schema>,
         phase: Option<&str>,
+        persistence: Persistence,
     ) -> Self {
         Self {
             name: config.name.clone(),
@@ -43,6 +45,7 @@ impl ScheckValidator {
             threshold: config.threshold,
             on_error: config.on_error,
             run_on_ingest: config.run_on_ingest,
+            persistence,
         }
     }
 }
@@ -58,6 +61,7 @@ impl fmt::Debug for ScheckValidator {
             .field("threshold", &self.threshold)
             .field("on_error", &self.on_error)
             .field("run_on_ingest", &self.run_on_ingest)
+            .field("persistence", &self.persistence)
             .finish()
     }
 }
@@ -132,6 +136,10 @@ impl Validator for ScheckValidator {
             .any(|configured| format.matches_hint(*configured))
     }
 
+    fn persistence(&self) -> &Persistence {
+        &self.persistence
+    }
+
     async fn validate(
         &self,
         input: &ValidatorInput<'_>,
@@ -178,6 +186,7 @@ impl Validator for ScheckValidator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::service::validation::Revalidate;
     use crate::service::validation::ValidatorConfig;
 
     /// A ruleset asserting the document has a `document` object at the root.
@@ -212,12 +221,19 @@ mod tests {
             mode,
             threshold: Severity::Error,
             on_error: OnError::Block,
+            persist: true,
+            revalidate: Revalidate::Always,
         }
     }
 
     fn validator(mode: ValidationMode) -> ScheckValidator {
         let schema = serde_json::from_str(RULESET).expect("valid ruleset");
-        ScheckValidator::new(&config(vec![Format::CSAF], mode), vec![schema], None)
+        ScheckValidator::new(
+            &config(vec![Format::CSAF], mode),
+            vec![schema],
+            None,
+            Persistence::default(),
+        )
     }
 
     #[tokio::test]
@@ -260,6 +276,7 @@ mod tests {
             &config(vec![Format::SBOM], ValidationMode::Report),
             vec![schema],
             None,
+            Persistence::default(),
         );
         assert!(validator.applies_to(Format::SPDX));
         assert!(validator.applies_to(Format::CycloneDX));

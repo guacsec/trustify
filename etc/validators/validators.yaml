@@ -1,4 +1,4 @@
-# Semantic validators configuration (ADR 00020).
+# Semantic validators configuration (ADR 00021).
 #
 # Point the server at this file to enable ingestion-time validation:
 #
@@ -9,6 +9,16 @@
 # `rules` paths are resolved relative to the process working directory
 # (use absolute paths in production). When no validators are configured,
 # validation is disabled and ingestion behaves as before.
+
+# Store validation results in the `validation_report` table. Set to false to
+# fall back to logging them at debug level, leaving the table untouched.
+persist_reports: true
+
+# Bounds on how much of a report is stored. Findings beyond either limit are
+# dropped and the report is flagged as truncated.
+caps:
+  max_findings: 200
+  max_findings_bytes: 65536
 
 validators:
   # CSAF advisories: official spec validation via csaf-rs.
@@ -24,6 +34,10 @@ validators:
     mode: report
     threshold: error
     on_error: continue
+    # Defaults, shown here once: store every result, and never reuse a stored
+    # verdict for a document we have seen before.
+    persist: true
+    revalidate: always
 
   # CSAF advisories: additional scheck-based structural checks.
   - name: csaf-mandatory

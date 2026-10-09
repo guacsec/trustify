@@ -17,7 +17,7 @@ pub struct IngestResult {
     pub warnings: Vec<String>,
     /// Structured reports from semantic validators run during ingestion.
     ///
-    /// See ADR 00020. Empty when no validators are configured or none apply
+    /// See ADR 00021. Empty when no validators are configured or none apply
     /// to the document's format.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub validation: Vec<ValidationReport>,
