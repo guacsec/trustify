@@ -16,7 +16,7 @@ long_running = [] # enable long-running tests
 [dependencies]
 trustify-common = { workspace = true }
 trustify-entity = { workspace = true }
-trustify-module-ingestor = { workspace = true }
+trustify-module-ingestor = { path = "../modules/ingestor", default-features = false }
 trustify-module-storage = { workspace = true }
 
 anyhow = { workspace = true }

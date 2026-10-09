@@ -9600,6 +9600,7 @@ dependencies = [
  "serde-cyclonedx",
  "serde_json",
  "serde_yaml_ng",
+ "sha2 0.11.0",
  "spdx-expression",
  "spdx-rs",
  "strum 0.28.0",

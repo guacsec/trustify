@@ -3,8 +3,8 @@
 use crate::service::{
     Format,
     validation::{
-        Finding, OnError, Severity, ValidationMode, ValidationOutcome, ValidationReport, Validator,
-        ValidatorError, ValidatorInput,
+        Finding, OnError, Persistence, Severity, ValidationMode, ValidationOutcome,
+        ValidationReport, Validator, ValidatorError, ValidatorInput,
         config::{ConformaConfig, ValidatorConfig},
     },
 };
@@ -28,10 +28,15 @@ pub struct ConformaValidator {
     timeout: Duration,
     endpoint: Url,
     client: reqwest::Client,
+    persistence: Persistence,
 }
 
 impl ConformaValidator {
-    fn new(config: &ValidatorConfig, conforma: &ConformaConfig) -> anyhow::Result<Self> {
+    fn new(
+        config: &ValidatorConfig,
+        conforma: &ConformaConfig,
+        persistence: Persistence,
+    ) -> anyhow::Result<Self> {
         ensure!(
             conforma.timeout_seconds > 0 && conforma.timeout_seconds <= 86_400,
             "Conforma timeout_seconds must be between 1 and 86400"
@@ -55,6 +60,7 @@ impl ConformaValidator {
             timeout: Duration::from_secs(conforma.timeout_seconds),
             endpoint,
             client,
+            persistence,
         })
     }
 
@@ -128,6 +134,10 @@ impl Validator for ConformaValidator {
             .any(|configured| format.matches_hint(*configured))
     }
 
+    fn persistence(&self) -> &Persistence {
+        &self.persistence
+    }
+
     async fn validate(
         &self,
         input: &ValidatorInput<'_>,
@@ -143,8 +153,9 @@ impl Validator for ConformaValidator {
 pub(crate) fn build(
     config: &ValidatorConfig,
     conforma: &ConformaConfig,
+    persistence: Persistence,
 ) -> anyhow::Result<ConformaValidator> {
-    ConformaValidator::new(config, conforma)
+    ConformaValidator::new(config, conforma, persistence)
 }
 
 fn endpoint_url(url: &str) -> anyhow::Result<Url> {
@@ -297,6 +308,7 @@ fn map_report(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::service::validation::Revalidate;
     use crate::service::validation::{
         Backend, ConformaConfig, OnError, ValidatorConfig, ValidatorsConfig, validate_named,
     };
@@ -318,6 +330,8 @@ mod tests {
 
     fn validators_config(url: String) -> ValidatorsConfig {
         ValidatorsConfig {
+            persist_reports: true,
+            caps: Default::default(),
             validators: vec![ValidatorConfig {
                 name: "conforma-test".into(),
                 backend: Backend::Conforma(ConformaConfig {
@@ -329,6 +343,8 @@ mod tests {
                 mode: ValidationMode::Report,
                 threshold: Severity::Error,
                 on_error: OnError::Continue,
+                persist: true,
+                revalidate: Revalidate::Always,
             }],
         }
     }

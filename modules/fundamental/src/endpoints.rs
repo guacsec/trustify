@@ -5,12 +5,15 @@ use trustify_common::db::{self, pagination_cache::PaginationCache};
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_ingestor::common;
 use trustify_module_ingestor::graph::Graph;
-use trustify_module_ingestor::service::{IngestorService, validation::Validator};
+use trustify_module_ingestor::service::{
+    IngestorService,
+    validation::{Validator, store::Provenance},
+};
 use trustify_module_storage::service::dispatch::DispatchBackend;
 use utoipa::{IntoParams, ToSchema};
 
 use crate::{
-    advisory, crypto, exploit, license, organization, product, purl, sbom, sbom_group,
+    advisory, crypto, exploit, license, organization, product, purl, sbom, sbom_group, validation,
     vulnerability, weakness,
 };
 
@@ -56,8 +59,10 @@ pub fn configure(
     graph: Graph,
     validators: Vec<Arc<dyn Validator>>,
 ) {
-    let ingestor_service =
-        IngestorService::new(graph, storage, Some(analysis)).with_validators(validators);
+    let ingestor_service = IngestorService::new(graph, storage, Some(analysis))
+        .with_validators(validators)
+        .with_provenance(Provenance::Api)
+        .with_report_store(db_rw.clone());
     svc.app_data(web::Data::new(ingestor_service.clone()));
 
     advisory::endpoints::configure(
@@ -86,6 +91,7 @@ pub fn configure(
         config.sbom_upload_limit,
         cache.clone(),
     );
+    validation::endpoints::configure(svc, db_ro.clone(), cache.clone());
     vulnerability::endpoints::configure(svc, db_ro.clone(), cache.clone());
     weakness::endpoints::configure(svc, db_ro.clone(), cache.clone());
     sbom_group::endpoints::configure(svc, db_rw, db_ro, config.max_group_name_length, cache);

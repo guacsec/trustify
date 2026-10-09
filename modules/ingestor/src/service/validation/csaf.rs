@@ -7,8 +7,8 @@
 use crate::service::{
     Format,
     validation::{
-        Finding, OnError, Severity, ValidationMode, ValidationOutcome, ValidationReport,
-        ValidatorError, ValidatorInput, config::ValidatorConfig,
+        Finding, OnError, Persistence, Severity, ValidationMode, ValidationOutcome,
+        ValidationReport, ValidatorError, ValidatorInput, config::ValidatorConfig,
     },
 };
 use anyhow::anyhow;
@@ -28,10 +28,11 @@ pub struct Validator {
     threshold: Severity,
     on_error: OnError,
     run_on_ingest: bool,
+    persistence: Persistence,
 }
 
 impl Validator {
-    pub fn new(config: &ValidatorConfig, profile: Option<&str>) -> Self {
+    pub fn new(config: &ValidatorConfig, profile: Option<&str>, persistence: Persistence) -> Self {
         Self {
             name: config.name.clone(),
             profile: profile.unwrap_or("basic").to_owned(),
@@ -39,6 +40,7 @@ impl Validator {
             threshold: config.threshold,
             on_error: config.on_error,
             run_on_ingest: config.run_on_ingest,
+            persistence,
         }
     }
 }
@@ -52,6 +54,7 @@ impl fmt::Debug for Validator {
             .field("threshold", &self.threshold)
             .field("on_error", &self.on_error)
             .field("run_on_ingest", &self.run_on_ingest)
+            .field("persistence", &self.persistence)
             .finish()
     }
 }
@@ -124,6 +127,10 @@ impl super::Validator for Validator {
         format == Format::CSAF
     }
 
+    fn persistence(&self) -> &Persistence {
+        &self.persistence
+    }
+
     async fn validate(
         &self,
         input: &ValidatorInput<'_>,
@@ -170,6 +177,7 @@ impl super::Validator for Validator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::service::validation::Revalidate;
     use crate::service::validation::{Backend, Validator as _, ValidatorConfig};
 
     fn config(profile: Option<&str>, mode: ValidationMode) -> ValidatorConfig {
@@ -183,11 +191,13 @@ mod tests {
             mode,
             threshold: Severity::Error,
             on_error: OnError::Block,
+            persist: true,
+            revalidate: Revalidate::Always,
         }
     }
 
     fn validator(profile: Option<&str>, mode: ValidationMode) -> Validator {
-        Validator::new(&config(profile, mode), profile)
+        Validator::new(&config(profile, mode), profile, Persistence::default())
     }
 
     #[tokio::test]
@@ -289,8 +299,10 @@ mod tests {
             mode: ValidationMode::Report,
             threshold: Severity::Error,
             on_error: OnError::Block,
+            persist: true,
+            revalidate: Revalidate::Always,
         };
-        let v = Validator::new(&config, None);
+        let v = Validator::new(&config, None, Persistence::default());
         assert!(v.applies_to(Format::CSAF));
         assert!(!v.applies_to(Format::CVE));
         assert!(!v.applies_to(Format::OSV));

@@ -132,7 +132,7 @@ pub struct Run {
     /// Path to a semantic validators configuration file (YAML).
     ///
     /// When unset (the default), no validators run and ingestion behaves as
-    /// before. See ADR 00020.
+    /// before. See ADR 00021.
     #[arg(long, env = "TRUSTD_VALIDATORS_CONFIG")]
     pub validators_config: Option<PathBuf>,
 
@@ -508,7 +508,7 @@ impl InitData {
 
         let ei_config = run.exploit_intelligence.into_config().await?;
 
-        // Build the semantic validator set (ADR 00020). With no config file,
+        // Build the semantic validator set (ADR 00021). With no config file,
         // this is empty and ingestion behaves exactly as before.
         let validators = match &run.validators_config {
             Some(path) => {

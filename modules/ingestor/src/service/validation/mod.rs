@@ -5,14 +5,21 @@
 //! modes: [`ValidationMode::Report`] (findings are recorded but never block) or
 //! [`ValidationMode::Verify`] (a failing outcome blocks ingestion).
 //!
-//! See ADR 00020 for the design and rationale.
+//! See ADR 00021 for the design and rationale.
 
 pub mod config;
+#[cfg(feature = "semantic-validation")]
 pub mod conforma;
+#[cfg(feature = "semantic-validation")]
 pub mod csaf;
+#[cfg(feature = "semantic-validation")]
 pub mod scheck;
+pub mod store;
 
-pub use config::{Backend, ConformaConfig, ValidatorConfig, ValidatorsConfig, build};
+pub use config::{
+    Backend, ConformaConfig, Persistence, Revalidate, ValidatorConfig, ValidatorsConfig, build,
+};
+#[cfg(feature = "semantic-validation")]
 pub use scheck::ScheckValidator;
 
 use crate::service::Format;
@@ -153,6 +160,9 @@ pub trait Validator: Send + Sync + Debug {
 
     /// Whether this validator applies to the given document format.
     fn applies_to(&self, format: Format) -> bool;
+
+    /// How this validator's results are stored, and when it re-runs.
+    fn persistence(&self) -> &Persistence;
 
     /// Run the validator against a document.
     ///
