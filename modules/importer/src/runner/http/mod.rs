@@ -25,7 +25,7 @@ use crate::{
 };
 use error::Error as HttpError;
 use parking_lot::Mutex;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tracing::instrument;
 use trustify_module_ingestor::{
     graph::Graph,
@@ -33,6 +33,26 @@ use trustify_module_ingestor::{
 };
 use url::Url;
 use walker_common::fetcher::{FetchAuthentication, Fetcher, FetcherOptions};
+
+/// Fetch `url` using `auth_client` whose redirect policy stops at cross-host hops,
+/// then re-fetch the redirect target with `plain_client` (no credentials).
+/// This prevents API-key headers from being forwarded to CDN servers.
+async fn fetch_file_protected(
+    auth_client: &reqwest::Client,
+    plain_client: &reqwest::Client,
+    url: &str,
+) -> Result<bytes::Bytes, walker_common::fetcher::Error> {
+    let response = auth_client.get(url).send().await?;
+    if response.status().is_redirection()
+        && let Some(location) = response
+            .headers()
+            .get(reqwest::header::LOCATION)
+            .and_then(|v| v.to_str().ok())
+    {
+        return Ok(plain_client.get(location).send().await?.bytes().await?);
+    }
+    Ok(response.bytes().await?)
+}
 
 impl super::ImportRunner {
     /// Run a single HTTP import pass.
@@ -47,14 +67,63 @@ impl super::ImportRunner {
         &self,
         context: impl RunContext + 'static,
         http: HttpImporter,
-        _continuation: serde_json::Value,
+        continuation: serde_json::Value,
     ) -> Result<RunOutput, ScannerError> {
         let ingestor =
             IngestorService::new(Graph::new(), self.storage.clone(), self.analysis.clone());
         let report = Arc::new(Mutex::new(ReportBuilder::new()));
+        let mut continuation: HashMap<String, String> =
+            serde_json::from_value(continuation).unwrap_or_default();
 
         // Build a reqwest client, adding authentication headers when configured.
         let fetcher = build_fetcher(&http, &self.credential_config).await?;
+
+        // For ApiKey auth, build a second pair of clients so file downloads never
+        // forward the credential to CDN servers on cross-host redirects.
+        let api_key_clients: Option<(reqwest::Client, reqwest::Client)> = match &http.auth {
+            Some(auth) => match &auth.method {
+                AuthMethod::ApiKey {
+                    header,
+                    value: cred,
+                } => {
+                    let v = cred
+                        .resolve(&self.credential_config, ())
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    let header_name = reqwest::header::HeaderName::from_bytes(header.as_bytes())
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    let mut header_value = reqwest::header::HeaderValue::from_str(v.trim())
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    header_value.set_sensitive(true);
+
+                    let mut default_headers = reqwest::header::HeaderMap::new();
+                    default_headers.insert(header_name, header_value);
+
+                    let auth_client = reqwest::Client::builder()
+                        .default_headers(default_headers)
+                        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+                            let same_origin = attempt.previous().last().map(|prev| {
+                                prev.host_str() == attempt.url().host_str()
+                                    && prev.port() == attempt.url().port()
+                            }) == Some(true);
+                            if same_origin {
+                                attempt.follow()
+                            } else {
+                                attempt.stop()
+                            }
+                        }))
+                        .timeout(std::time::Duration::from_secs(30))
+                        .build()
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    let plain_client = reqwest::Client::builder()
+                        .timeout(std::time::Duration::from_secs(30))
+                        .build()
+                        .map_err(|e| ScannerError::Critical(e.into()))?;
+                    Some((auth_client, plain_client))
+                }
+                _ => None,
+            },
+            None => None,
+        };
 
         let source_url = Url::parse(&http.source).map_err(|e| ScannerError::Critical(e.into()))?;
 
@@ -84,7 +153,21 @@ impl super::ImportRunner {
             }
             let url_str = file.url.to_string();
 
-            let data = match fetcher.fetch::<bytes::Bytes>(file.url.as_str()).await {
+            // Skip files whose SHA-256 matches the stored continuation entry —
+            // they were successfully ingested on a previous run and are unchanged.
+            if let Some(sha) = &file.sha256
+                && continuation.get(&url_str).map(String::as_str) == Some(sha.as_str())
+            {
+                progress.tick().await;
+                continue;
+            }
+
+            let fetch_result = if let Some((auth_client, plain_client)) = &api_key_clients {
+                fetch_file_protected(auth_client, plain_client, file.url.as_str()).await
+            } else {
+                fetcher.fetch::<bytes::Bytes>(file.url.as_str()).await
+            };
+            let data = match fetch_result {
                 Ok(b) => b,
                 Err(err) => {
                     report.lock().add_error(
@@ -124,7 +207,13 @@ impl super::ImportRunner {
                 .await;
 
             match ingest_result {
-                Ok(_) => report.lock().tick(),
+                Ok(_) => {
+                    report.lock().tick();
+                    // Record the SHA-256 so this file is skipped on the next run.
+                    if let Some(sha) = file.sha256 {
+                        continuation.insert(url_str, sha);
+                    }
+                }
                 Err(err) => report
                     .lock()
                     .add_error(Phase::Upload, &url_str, err.to_string()),
@@ -141,7 +230,7 @@ impl super::ImportRunner {
 
         Ok(RunOutput {
             report,
-            continuation: None,
+            continuation: serde_json::to_value(continuation).ok(),
         })
     }
 }
@@ -664,6 +753,193 @@ mod test {
         assert_eq!(output.report.number_of_items, 0);
         assert!(output.report.messages.is_empty());
 
+        Ok(())
+    }
+
+    /// Verifies that a file whose SHA-256 is already recorded in the continuation map
+    /// is not fetched on the next run: the mock server receives zero GET requests for
+    /// that file path, confirming no HTTP round-trip was made.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_once_http_skips_file_with_matching_sha256_in_continuation(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        // Given a Pulp server with one valid file
+        let server = MockServer::start().await;
+        let body = OSV_ADVISORY.as_bytes();
+        let sha = sha256(body);
+        let size = body.len();
+        let manifest = format!("advisory.json,{sha},{size}\n");
+
+        Mock::given(method("GET"))
+            .and(path("/PULP_MANIFEST"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(manifest))
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/advisory.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(body.to_vec()))
+            .mount(&server)
+            .await;
+
+        let source = server.uri();
+        let advisory_url = format!("{source}/advisory.json");
+
+        // And a continuation that already records the file's SHA-256
+        let continuation = serde_json::json!({ &advisory_url: sha });
+
+        // When run_once_http is called with the pre-populated continuation
+        let output = runner(ctx)
+            .run_once_http((), importer(source), continuation)
+            .await?;
+
+        // Then the file is skipped: zero GET requests for advisory.json
+        let requests = server.received_requests().await.unwrap_or_default();
+        let file_requests: Vec<_> = requests
+            .iter()
+            .filter(|r| r.url.path() == "/advisory.json")
+            .collect();
+        assert_eq!(
+            file_requests.len(),
+            0,
+            "expected 0 GET requests for advisory.json (skipped), got {}",
+            file_requests.len(),
+        );
+        // No items ingested (skipped) and no errors
+        assert_eq!(output.report.number_of_items, 0);
+        assert!(output.report.messages.is_empty());
+
+        Ok(())
+    }
+
+    /// Verifies that a file whose SHA-256 in the continuation map no longer matches the
+    /// value declared in `PULP_MANIFEST` is re-fetched and re-ingested on the next run.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_once_http_refetches_file_with_changed_sha256(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        // Given a Pulp server with one valid file
+        let server = MockServer::start().await;
+        let body = OSV_ADVISORY.as_bytes();
+        let sha = sha256(body);
+        let size = body.len();
+        let manifest = format!("advisory.json,{sha},{size}\n");
+
+        Mock::given(method("GET"))
+            .and(path("/PULP_MANIFEST"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(manifest))
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/advisory.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(body.to_vec()))
+            .mount(&server)
+            .await;
+
+        let source = server.uri();
+        let advisory_url = format!("{source}/advisory.json");
+
+        // And a continuation that records a stale (different) SHA-256 for the file
+        let stale_sha = "0".repeat(64);
+        let continuation = serde_json::json!({ &advisory_url: stale_sha });
+
+        // When run_once_http is called with the stale continuation
+        let output = runner(ctx)
+            .run_once_http((), importer(source), continuation)
+            .await?;
+
+        // Then the file is re-fetched: at least one GET request for advisory.json
+        let requests = server.received_requests().await.unwrap_or_default();
+        let file_requests: Vec<_> = requests
+            .iter()
+            .filter(|r| r.url.path() == "/advisory.json")
+            .collect();
+        assert!(
+            !file_requests.is_empty(),
+            "expected at least one GET request for advisory.json (re-fetched), got 0",
+        );
+        // The file is re-ingested successfully
+        assert_eq!(
+            output.report.number_of_items, 1,
+            "expected 1 item re-ingested, got {}",
+            output.report.number_of_items,
+        );
+        assert!(output.report.messages.is_empty());
+
+        Ok(())
+    }
+
+    /// Verifies that the API-key header is NOT forwarded when the source server issues
+    /// a cross-host redirect. The authenticated client uses a custom redirect policy
+    /// that stops cross-host hops, preventing credential leakage to CDN servers.
+    ///
+    /// The `expect(0)` assertion on the CDN mock verifies that any request carrying the
+    /// API-key header never reaches the CDN. If the header were leaked, the mock would
+    /// match once, violating the expectation and causing a panic when the server is dropped.
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn run_once_http_api_key_not_forwarded_on_cross_host_redirect(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        use crate::model::auth::{AuthConfig, AuthMethod, CredentialSource};
+        use wiremock::matchers::header;
+
+        // Given a CDN server (different host) that must never receive the API-key header.
+        let cdn_server = MockServer::start().await;
+        // This mock matches only if x-api-key is present — expect it to match 0 times.
+        Mock::given(method("GET"))
+            .and(header("x-api-key", "secret"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(0)
+            .named("cdn-with-api-key")
+            .mount(&cdn_server)
+            .await;
+        // Safe fallback: handle any other GET to the CDN gracefully.
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(b"{}"))
+            .mount(&cdn_server)
+            .await;
+
+        // And a Pulp source server that redirects file downloads to the CDN.
+        let server = MockServer::start().await;
+        let cdn_file_url = format!("{}/file.json", cdn_server.uri());
+
+        Mock::given(method("GET"))
+            .and(path("/PULP_MANIFEST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(format!("file.json,{sha},0\n", sha = "a".repeat(64),)),
+            )
+            .mount(&server)
+            .await;
+
+        // The file download redirects to the CDN (cross-host redirect).
+        Mock::given(method("GET"))
+            .and(path("/file.json"))
+            .respond_with(
+                ResponseTemplate::new(302).insert_header("location", cdn_file_url.as_str()),
+            )
+            .mount(&server)
+            .await;
+
+        let mut imp = importer(server.uri());
+        imp.auth = Some(AuthConfig {
+            method: AuthMethod::ApiKey {
+                header: "x-api-key".into(),
+                value: CredentialSource::Inline("secret".into()),
+            },
+        });
+
+        // When run_once_http is called (the result is not the focus — credential leakage is)
+        let _ = runner(ctx)
+            .run_once_http((), imp, serde_json::Value::Null)
+            .await;
+
+        // Then cdn_server drops here and wiremock verifies the expect(0) mock matched
+        // exactly 0 times — the API-key header never reached the CDN.
         Ok(())
     }
 }
