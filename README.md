@@ -34,7 +34,7 @@ Download the latest `trustd-pm` binary from
 [Releases](https://github.com/guacsec/trustify/releases), then:
 
 ```shell
-AUTH_DISABLED=true ./trustd-pm
+AUTH_DISABLED=true ./trustd
 ```
 
 ### Option 2: Build from source
