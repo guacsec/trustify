@@ -1,8 +1,8 @@
 use crate::{
     AppRoute, api,
     model::{
-        ComponentRef, CorrelationResult, EvidenceDetail, IdentifierKind, IdentifierRef,
-        MatchedValue, VerdictStatus, VerdictSummary,
+        ComponentRef, CorrelationResult, EvidenceContext, EvidenceDetail, IdentifierKind,
+        IdentifierRef, MatchedValue, VerdictStatus, VerdictSummary,
     },
 };
 use patternfly_yew::prelude::*;
@@ -163,6 +163,7 @@ enum EvidenceColumn {
     Confidence,
     Extractor,
     MatchedValue,
+    Product,
     Advisory,
     Created,
 }
@@ -182,6 +183,7 @@ impl TableEntryRenderer<EvidenceColumn> for EvidenceEntry {
                 Some(value) => matched_value(value).into(),
                 None => html!("\u{2014}").into(),
             },
+            EvidenceColumn::Product => evidence_contexts(&self.0.contexts).into(),
             EvidenceColumn::Advisory => html! {
                 <Link<AppRoute> to={AppRoute::Advisory { id: self.0.advisory_id.to_string() }}>
                     { &self.0.advisory_identifier }
@@ -215,6 +217,7 @@ fn evidence_table(props: &EvidenceTableProps) -> Html {
             <TableColumn<EvidenceColumn> label="Confidence" index={EvidenceColumn::Confidence} />
             <TableColumn<EvidenceColumn> label="Extractor" index={EvidenceColumn::Extractor} />
             <TableColumn<EvidenceColumn> label="Matched Value" index={EvidenceColumn::MatchedValue} />
+            <TableColumn<EvidenceColumn> label="Product" index={EvidenceColumn::Product} />
             <TableColumn<EvidenceColumn> label="Advisory" index={EvidenceColumn::Advisory} />
             <TableColumn<EvidenceColumn> label="Created" index={EvidenceColumn::Created} />
         </TableHeader<EvidenceColumn>>
@@ -401,6 +404,30 @@ fn identifiers(identifiers: &[IdentifierRef]) -> Html {
 
 /// Render the advisory side of a match: the identifier, and each matched version range on a line
 /// of its own.
+/// The products (contexts) evidence was matched in, and how the component got into them.
+fn evidence_contexts(contexts: &[EvidenceContext]) -> Html {
+    if contexts.is_empty() {
+        return html!("\u{2014}");
+    }
+    html! {
+        <ul style="margin:0;padding-left:1em">
+            { for contexts.iter().map(|context| html! {
+                <li>
+                    { &context.name }
+                    <small>
+                        { " via " }{ context.source.label() }
+                        if context.distance > 1 {
+                            { format!(" ({} hops)", context.distance) }
+                        }
+                        { " " }<code>{ &context.node_identifier }</code>
+                        { format!(", ×{:.2}", context.confidence) }
+                    </small>
+                </li>
+            }) }
+        </ul>
+    }
+}
+
 pub(crate) fn matched_value(value: &MatchedValue) -> Html {
     html! {
         <>
