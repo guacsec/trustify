@@ -33,13 +33,11 @@
   succeeds 10.1 in the mainline (only EUS/AUS/E4S minors are separate streams, and those are
   separate CPE products). Affects every package rebuilt in a later minor (e.g. 21 of the 51 RPMs
   of the UBI 10 image above, among them `openssl-libs`, `glibc`, `krb5-libs`, `libxml2`).
-- [ ] Correlation, Red Hat `fixed` as `first_fixed`: Red Hat states `fixed` only for the fixing
-  build. `purl_rh_fixed` derives "affected before X", but nothing derives "fixed from X on", so a
-  newer build of the same stream (typical for an up-to-date image) gets no verdict. CSAF
-  `first_fixed` is ingested now, with generic rules (`purl_first_fixed`,
-  `purl_first_fixed_before`). Missing: a correlation option (e.g. `fixed_is_first_fixed`, enabled
-  for `https://www.redhat.com` by default) reading a publisher's `fixed` as `first_fixed`,
-  replacing the hard-wired `purl_rh_fixed`.
+- [ ] Correlation, verdicts: Fixed wins over Affected regardless of confidence. With
+  `fixed_is_first_fixed`, a publisher's fix (read as fixed from that version on) outranks a stated
+  `known_affected` of a later version in the same product, i.e. a regression. Reading a fix as
+  `first_fixed` requires the node to be in the statement's product, which limits that to the
+  product itself.
 - [ ] CSAF `first_fixed`, `first_affected` and `last_affected` are only stored for PURLs
   (`purl_status`, `product_status`). CPE, hash and product identifier assertions
   (`assertion_status`) have no such values, so those statements are dropped for them, and the
@@ -49,7 +47,7 @@
 - [ ] Fundamental: Red Hat's "fixed in X" no longer implies "affected before X" in the stored
   data (ingestion only stores what documents state). The SBOM, PURL and vulnerability APIs of the
   fundamental module therefore no longer report those inferred "affected" statuses. Migrate them
-  to the correlation engine, which derives them (`purl_rh_fixed` evidence).
+  to the correlation engine, which derives them (`purl_fixed_as_first_fixed_before` evidence).
 - [ ] CSAF ingestion still infers in `product_status` (only used by the fundamental APIs, not by
   correlation): `version_from_cpe` widens a CPE version `X` to the "stream" `[X, X+1 major)`, and
   `set_version` assumes `semver` for a PURL version. Ingestion should store what is stated, and

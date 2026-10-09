@@ -9,39 +9,27 @@
 //! Such a statement identifies the package only through its product, so it requires the node to
 //! be in the statement's context (product).
 
-use super::{RangeRule, low, published_by};
+use super::{Enabled, RangeRule, low, published_by};
 use crate::{
     error::Error,
     extractor::purl::{Candidates, stated_scheme},
     model::EnabledBy,
 };
 use sea_orm::{
-    ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter,
+    ConnectionTrait,
     sea_query::{Expr, SimpleExpr},
 };
-use serde_json::Value;
-use trustify_entity::{
-    correlation_option::{self, CorrelationOptionKey},
-    status, version_range,
-};
+use trustify_entity::{correlation_option::CorrelationOptionKey, status, version_range};
 
 /// Reads versionless PURLs as all versions, for the publishers enabling it.
-pub struct AnyVersion {
-    /// The enabled options, one per publisher namespace.
-    options: Vec<correlation_option::Model>,
-}
+pub struct AnyVersion(Enabled);
 
 impl AnyVersion {
     /// Load the publishers which enable the option.
     pub async fn load<C: ConnectionTrait>(connection: &C) -> Result<Self, Error> {
-        let options = correlation_option::Entity::find()
-            .filter(correlation_option::Column::Key.eq(CorrelationOptionKey::VersionlessPurl))
-            .all(connection)
-            .await?
-            .into_iter()
-            .filter(|option| option.value == Value::Bool(true))
-            .collect();
-        Ok(Self { options })
+        Ok(Self(
+            Enabled::load(CorrelationOptionKey::VersionlessPurl, connection).await?,
+        ))
     }
 }
 
@@ -56,11 +44,7 @@ impl RangeRule for AnyVersion {
     }
 
     fn candidates(&self) -> Candidates {
-        let namespaces = self
-            .options
-            .iter()
-            .map(|option| option.publisher_namespace.as_str())
-            .collect::<Vec<_>>();
+        let namespaces = self.0.namespaces();
         let high = Expr::col((version_range::Entity, version_range::Column::HighVersion));
         let unbounded = || -> SimpleExpr { Expr::cust("NULL") };
 
@@ -86,11 +70,6 @@ impl RangeRule for AnyVersion {
     }
 
     fn enabled_by(&self, publisher_namespace: Option<&str>) -> Option<EnabledBy> {
-        let publisher_namespace = publisher_namespace?.trim_end_matches('/');
-        self.options
-            .iter()
-            .find(|option| option.publisher_namespace == publisher_namespace)
-            .cloned()
-            .map(EnabledBy::from)
+        self.0.enabled_by(publisher_namespace)
     }
 }

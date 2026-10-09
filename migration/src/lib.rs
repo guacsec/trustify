@@ -98,6 +98,7 @@ mod m0002510_create_assertion_context;
 mod m0002520_create_correlation_evidence_context;
 mod m0002530_context_source_purl;
 mod m0002540_add_csaf_statuses;
+mod m0002550_fixed_is_first_fixed;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -211,6 +212,7 @@ impl MigratorExt for Migrator {
             .normal(m0002520_create_correlation_evidence_context::Migration)
             .normal(m0002530_context_source_purl::Migration)
             .normal(m0002540_add_csaf_statuses::Migration)
+            .normal(m0002550_fixed_is_first_fixed::Migration)
     }
 }
 

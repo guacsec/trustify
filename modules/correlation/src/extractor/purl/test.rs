@@ -4,10 +4,13 @@ use crate::{
     model::{CorrelationOptionKey, EnabledBy, RangeBound},
 };
 use sea_orm::TransactionTrait;
+use serde_json::json;
 use test_context::test_context;
 use test_log::test;
 use trustify_entity::{
-    correlation_evidence, correlation_evidence_context, correlation_evidence_context::ContextSource,
+    correlation_evidence, correlation_evidence_context,
+    correlation_evidence_context::ContextSource,
+    correlation_option::{self, CorrelationOptionKey as EntityOptionKey},
 };
 use trustify_test_context::TrustifyContext;
 
@@ -113,7 +116,22 @@ async fn extract_both_directions(ctx: &TrustifyContext) -> anyhow::Result<()> {
     Ok(())
 }
 
-const RH_FIXED: &str = "purl_rh_fixed";
+/// Red Hat's `fixed`, read as `first_fixed`: affected before.
+const FIXED_AS_FIRST_FIXED_BEFORE: &str = "purl_fixed_as_first_fixed_before";
+
+/// The default option reading Red Hat's `fixed` as `first_fixed` (see `m0002550`).
+fn redhat_first_fixed() -> EnabledBy {
+    EnabledBy {
+        option_id: Uuid::parse_str("019dc7a4-6a00-7000-8000-000000000003").expect("valid UUID"),
+        key: CorrelationOptionKey::FixedIsFirstFixed,
+        publisher_namespace: "https://www.redhat.com".into(),
+        reason: Some(
+            "Red Hat states `fixed` only for the build fixing a vulnerability in a product \
+             stream: earlier builds of the stream are affected, later ones are fixed."
+                .into(),
+        ),
+    }
+}
 
 const S9_VEX: &str = "scenarios/S9_substream_openssl_el8/vex/CVE-2023-0286.json.xz";
 
@@ -140,16 +158,69 @@ async fn rh_fixed_major(ctx: &TrustifyContext) -> anyhow::Result<()> {
         vec![(
             "pkg-openssl".to_string(),
             "CVE-2023-0215".to_string(),
-            RH_FIXED.to_string(),
+            FIXED_AS_FIRST_FIXED_BEFORE.to_string(),
             AssertionStatus::Affected,
             // 0.72, in RHEL 8 by the PURL's `distro=rhel-8.10` (0.85 × 0.9)
             0.55,
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1k-9.el8_6", "1:1.1.1k-9.el8_7"]),
-                enabled_by: None,
+                enabled_by: Some(redhat_first_fixed()),
             }),
         ),]
+    );
+
+    Ok(())
+}
+
+/// A later build of the stream is fixed from Red Hat's fix on, as the option reads it as
+/// `first_fixed`.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn rh_fixed_later_build(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    assert_eq!(
+        evidence_of(ctx, "correlation/openssl_el8_newer.cdx.json", S5_VEX).await?,
+        vec![(
+            "pkg-openssl".to_string(),
+            "CVE-2023-0215".to_string(),
+            "purl_fixed_as_first_fixed".to_string(),
+            AssertionStatus::Fixed,
+            // 0.8 (`el8` and `el8_7` share the major only) × 0.9, in RHEL 8 by the PURL's
+            // `distro=rhel-8.10` (0.85 × 0.9). The `el8_6` fix is stated for RHEL 8.6 EUS, a product
+            // the package isn't in.
+            0.55,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: vec![MatchedRange {
+                    scheme: "rpm".into(),
+                    low: Some(RangeBound {
+                        version: "1:1.1.1k-9.el8_7".into(),
+                        inclusive: true,
+                    }),
+                    high: None,
+                }],
+                enabled_by: Some(redhat_first_fixed()),
+            }),
+        )]
+    );
+
+    Ok(())
+}
+
+/// Without the option, Red Hat's `fixed` is only the fixed version.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn rh_fixed_option_disabled(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    correlation_option::Entity::update_many()
+        .col_expr(correlation_option::Column::Value, Expr::value(json!(false)))
+        .filter(correlation_option::Column::Key.eq(EntityOptionKey::FixedIsFirstFixed))
+        .exec(&ctx.db)
+        .await?;
+
+    assert_eq!(evidence_of(ctx, S5_SBOM, S5_VEX).await?, vec![]);
+    assert_eq!(
+        evidence_of(ctx, "correlation/openssl_el8_newer.cdx.json", S5_VEX).await?,
+        vec![]
     );
 
     Ok(())
@@ -169,14 +240,14 @@ async fn rh_fixed_exact(ctx: &TrustifyContext) -> anyhow::Result<()> {
         vec![(
             "pkg-openssl".to_string(),
             "CVE-2023-0286".to_string(),
-            RH_FIXED.to_string(),
+            FIXED_AS_FIRST_FIXED_BEFORE.to_string(),
             AssertionStatus::Affected,
             // 0.9, stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
             0.63,
             Some(MatchedValue {
                 identifier: "pkg:rpm/redhat/openssl".into(),
                 ranges: fixed_in("rpm", &["1:1.1.1c-21.el8_2"]),
-                enabled_by: None,
+                enabled_by: Some(redhat_first_fixed()),
             }),
         ),]
     );

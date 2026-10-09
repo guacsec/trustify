@@ -178,6 +178,11 @@ mod option {
                     "https://www.suse.com",
                     &json!(true)
                 ),
+                (
+                    CorrelationOptionKey::FixedIsFirstFixed,
+                    "https://www.redhat.com",
+                    &json!(true)
+                ),
             ]
         );
 
@@ -270,6 +275,10 @@ mod option {
             ),
             (
                 serde_json::to_value(data("https://example.com", json!("yes")))?,
+                StatusCode::BAD_REQUEST,
+            ),
+            (
+                json!({"key": "fixed_is_first_fixed", "publisher_namespace": "https://example.com", "value": 1}),
                 StatusCode::BAD_REQUEST,
             ),
             (

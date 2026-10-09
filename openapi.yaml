@@ -5866,6 +5866,7 @@ components:
       description: The options of the correlation engine.
       enum:
       - versionless_purl
+      - fixed_is_first_fixed
     CorrelationResult:
       type: object
       description: Top-level correlation result for an SBOM.

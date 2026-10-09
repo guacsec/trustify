@@ -45,5 +45,5 @@ Single Sign-On 7, with a versionless PURL (`pkg:maven/io.netty/netty-codec?type=
 
 | SBOM | verdict | why |
 |---|---|---|
-| `sbom_netty-codec_rhsso7` | **affected** | `purl_any_version` in RH-SSO 7 (root component CPE, 0.63), no version comparison; also below the fix `4.1.72.Final-redhat-00001` Red Hat states for other products (`purl_rh_fixed`, unscoped) |
+| `sbom_netty-codec_rhsso7` | **affected** | `purl_any_version` in RH-SSO 7 (root component CPE, 0.63), no version comparison; also below the fix `4.1.72.Final-redhat-00001` Red Hat states for other products (`purl_fixed_as_first_fixed_before`, unscoped) |
 | `sbom_netty_rhsso7` | none | the official VEX makes no statement about `netty-codec-http` |

@@ -137,7 +137,7 @@ impl OptionService {
 /// Check that the value fits the key, and normalize the publisher namespace.
 fn validate(mut data: CorrelationOptionData) -> Result<CorrelationOptionData, Error> {
     match data.key {
-        CorrelationOptionKey::VersionlessPurl => {
+        CorrelationOptionKey::VersionlessPurl | CorrelationOptionKey::FixedIsFirstFixed => {
             if !data.value.is_boolean() {
                 return Err(Error::BadRequest(format!(
                     "the value of '{}' must be a boolean",

@@ -33,4 +33,8 @@ pub enum CorrelationOptionKey {
     /// is a boolean.
     #[sea_orm(string_value = "versionless_purl")]
     VersionlessPurl,
+    /// A `fixed` version means `first_fixed`: earlier versions of the stream are affected, later
+    /// ones are fixed. Its value is a boolean.
+    #[sea_orm(string_value = "fixed_is_first_fixed")]
+    FixedIsFirstFixed,
 }

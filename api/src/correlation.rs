@@ -254,16 +254,20 @@ pub enum CorrelationOptionKey {
     /// A versionless PURL (e.g. `pkg:rpm/redhat/golang`) states the status of all versions of the
     /// package. The value is a boolean.
     VersionlessPurl,
+    /// A `fixed` version means `first_fixed`: earlier versions of the stream are affected, later
+    /// ones are fixed. The value is a boolean.
+    FixedIsFirstFixed,
 }
 
 impl CorrelationOptionKey {
     /// All option keys.
-    pub const ALL: [Self; 1] = [Self::VersionlessPurl];
+    pub const ALL: [Self; 2] = [Self::VersionlessPurl, Self::FixedIsFirstFixed];
 
     /// The key, as serialized.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::VersionlessPurl => "versionless_purl",
+            Self::FixedIsFirstFixed => "fixed_is_first_fixed",
         }
     }
 }
@@ -482,6 +486,7 @@ mod entity_conversions {
         fn from(value: EntityCorrelationOptionKey) -> Self {
             match value {
                 EntityCorrelationOptionKey::VersionlessPurl => Self::VersionlessPurl,
+                EntityCorrelationOptionKey::FixedIsFirstFixed => Self::FixedIsFirstFixed,
             }
         }
     }
@@ -490,6 +495,7 @@ mod entity_conversions {
         fn from(value: CorrelationOptionKey) -> Self {
             match value {
                 CorrelationOptionKey::VersionlessPurl => Self::VersionlessPurl,
+                CorrelationOptionKey::FixedIsFirstFixed => Self::FixedIsFirstFixed,
             }
         }
     }
