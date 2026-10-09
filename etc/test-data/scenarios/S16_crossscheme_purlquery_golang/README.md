@@ -46,3 +46,19 @@ scheme or product context.
 ## Files
 - SBOMs: `sbom_golang_{oci,maven,rpm_storage3}.{cdx,spdx}.json`.
 - Advisory: `vex/CVE-2023-44487.json` (bare `golang` known_affected under `cpe:/a:redhat:storage:3`).
+
+## Correlation engine — official Red Hat VEX (`expected.json`)
+
+The correlation scenario uses Red Hat's official VEX for CVE-2023-44487
+(`vex/rh-cve-2023-44487.json.xz`, unmodified, downloaded 2026-10-09; also used by S2). The
+synthetic advisory above stays for the fundamental API tests (TC-5170).
+
+golang is `known_affected` in Red Hat Storage 3 with a versionless PURL
+(`pkg:rpm/redhat/golang?arch=src`), as a `default_component_of` Storage 3
+(`cpe:/a:redhat:storage:3`).
+
+| SBOM | verdict | why |
+|---|---|---|
+| `sbom_golang_rpm_storage3` | **affected** | `purl_any_version` in Storage 3 (root component CPE, 0.63), not by version: a `golang@5.x` would be affected too |
+| `sbom_golang_oci` | none | `pkg:oci/golang` is another package than `pkg:rpm/redhat/golang`, no name-only match |
+| `sbom_golang_maven` | none | likewise `pkg:maven/org.golang/golang` |
