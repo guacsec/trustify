@@ -87,6 +87,7 @@ impl CryptographicAssetCreator {
             asset_type: Set(asset.asset_type),
             oid: Set(asset.oid),
             properties: Set(asset.properties),
+            policy_verdict: Set(None),
         });
     }
 

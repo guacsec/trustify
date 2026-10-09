@@ -1,0 +1,5 @@
+description: 'PQC Readiness Policy for trustify CBOM evaluation'
+sources:
+  - name: PQC Readiness
+    policy:
+      - /policy

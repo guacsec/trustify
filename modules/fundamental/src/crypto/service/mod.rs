@@ -1,3 +1,5 @@
+pub mod conforma;
+pub mod evaluator;
 pub mod policy;
 
 use crate::{
@@ -7,12 +9,12 @@ use crate::{
             AlgorithmPolicyResult, CryptoAlgorithmSummary, CryptoSummary, PolicyEvaluationResponse,
             PolicySummaryResult,
         },
-        service::policy::{PolicyVerdict, evaluate_algorithm},
+        service::policy::PolicyVerdict,
     },
 };
 use sea_orm::{
-    ColumnTrait, Condition, ConnectionTrait, EntityTrait, JoinType, LoaderTrait, QueryFilter,
-    QueryOrder, QuerySelect, RelationTrait,
+    ActiveModelTrait, ActiveValue, ColumnTrait, Condition, ConnectionTrait, EntityTrait, JoinType,
+    LoaderTrait, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, RelationTrait,
 };
 use std::collections::{HashMap, HashSet};
 use tracing::instrument;
@@ -32,11 +34,32 @@ use uuid::Uuid;
 
 pub struct CryptoService {
     cache: PaginationCache,
+    evaluator: Option<Box<dyn evaluator::PolicyEvaluator>>,
 }
 
 impl CryptoService {
-    pub fn new(cache: PaginationCache) -> Self {
-        Self { cache }
+    pub fn new(cache: PaginationCache, conforma_url: Option<String>) -> Self {
+        Self {
+            cache,
+            evaluator: conforma_url
+                .map(conforma::ConformaClient::new)
+                .map(|c| Box::new(c) as Box<dyn evaluator::PolicyEvaluator>),
+        }
+    }
+
+    pub fn has_evaluator(&self) -> bool {
+        self.evaluator.is_some()
+    }
+
+    #[cfg(test)]
+    pub fn with_evaluator(
+        cache: PaginationCache,
+        evaluator: Box<dyn evaluator::PolicyEvaluator>,
+    ) -> Self {
+        Self {
+            cache,
+            evaluator: Some(evaluator),
+        }
     }
 
     /// List crypto assets with optional filtering by asset type and SBOM.
@@ -89,7 +112,6 @@ impl CryptoService {
             .zip(nodes)
             .filter_map(|(crypto, node)| {
                 let node = node?;
-                let verdict = evaluate_algorithm(&node.name, &crypto.properties);
                 let primitive = crypto
                     .properties
                     .get("algorithmProperties")
@@ -101,6 +123,12 @@ impl CryptoService {
                     .copied()
                     .unwrap_or(0);
                 let sc = sbom_counts.get(&node.name).copied().unwrap_or(0);
+                let policy_status = crypto.policy_verdict.as_deref().and_then(|v| match v {
+                    "compliant" => Some(PolicyVerdict::Compliant),
+                    "warning" => Some(PolicyVerdict::Warning),
+                    "non_compliant" => Some(PolicyVerdict::NonCompliant),
+                    _ => None,
+                });
                 Some(CryptoAlgorithmSummary {
                     sbom_id: crypto.sbom_id,
                     node_id: crypto.node_id,
@@ -108,10 +136,10 @@ impl CryptoService {
                     asset_type: crypto.asset_type,
                     oid: crypto.oid,
                     primitive,
-                    policy_status: verdict,
                     properties: crypto.properties,
                     packages_count: pc,
                     sboms_count: sc,
+                    policy_status,
                 })
             })
             .collect();
@@ -122,50 +150,50 @@ impl CryptoService {
         })
     }
 
+    /// Aggregate stored policy verdicts from the DB without calling Validator.
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    pub async fn fetch_policy_summary<C: ConnectionTrait>(
+        &self,
+        connection: &C,
+    ) -> Result<PolicySummaryResult, Error> {
+        let rows: Vec<Option<String>> = sbom_crypto::Entity::find()
+            .filter(sbom_crypto::Column::AssetType.eq(CryptoAssetType::Algorithm))
+            .select_only()
+            .column(sbom_crypto::Column::PolicyVerdict)
+            .into_tuple()
+            .all(connection)
+            .await?;
+
+        let (total, compliant, warning, non_compliant) =
+            rows.iter().fold((0, 0, 0, 0), |(t, c, w, n), verdict| {
+                match verdict.as_deref() {
+                    Some("compliant") => (t + 1, c + 1, w, n),
+                    Some("warning") => (t + 1, c, w + 1, n),
+                    Some("non_compliant") => (t + 1, c, w, n + 1),
+                    _ => (t + 1, c, w, n),
+                }
+            });
+
+        Ok(PolicySummaryResult {
+            total,
+            compliant,
+            warning,
+            non_compliant,
+        })
+    }
+
     /// Compute aggregate KPI metrics across all SBOMs.
     #[instrument(skip_all, err(level = tracing::Level::INFO))]
     pub async fn fetch_summary<C: ConnectionTrait>(
         &self,
         connection: &C,
     ) -> Result<CryptoSummary, Error> {
-        let all_algos = sbom_crypto::Entity::find()
+        let total_algorithms = sbom_crypto::Entity::find()
             .filter(sbom_crypto::Column::AssetType.eq(CryptoAssetType::Algorithm))
-            .all(connection)
-            .await?;
-        let nodes = all_algos.load_one(sbom_node::Entity, connection).await?;
+            .count(connection)
+            .await? as i64;
 
-        let total_algorithms = all_algos.len() as i64;
-        let mut pqc_compliant: i64 = 0;
-        let mut sbom_all_compliant: HashMap<Uuid, bool> = HashMap::new();
-
-        for (crypto, node) in all_algos.iter().zip(&nodes) {
-            if let Some(node) = node {
-                let verdict = evaluate_algorithm(&node.name, &crypto.properties);
-                if verdict == PolicyVerdict::Compliant {
-                    pqc_compliant += 1;
-                }
-                let entry = sbom_all_compliant.entry(crypto.sbom_id).or_insert(true);
-                if verdict != PolicyVerdict::Compliant {
-                    *entry = false;
-                }
-            }
-        }
-
-        let classical = total_algorithms - pqc_compliant;
-        let classical_share_pct = if total_algorithms > 0 {
-            (classical as f64 / total_algorithms as f64) * 100.0
-        } else {
-            0.0
-        };
-
-        let sboms_meeting_pqc = sbom_all_compliant.values().filter(|&&v| v).count() as i64;
-
-        Ok(CryptoSummary {
-            total_algorithms,
-            pqc_compliant,
-            classical_share_pct,
-            sboms_meeting_pqc,
-        })
+        Ok(CryptoSummary { total_algorithms })
     }
 
     /// Count packages related to each crypto asset via Generates relationship.
@@ -253,6 +281,11 @@ impl CryptoService {
         sbom_id: Option<Uuid>,
         connection: &C,
     ) -> Result<PolicyEvaluationResponse, Error> {
+        let policy_evaluator = self
+            .evaluator
+            .as_ref()
+            .ok_or_else(|| Error::Internal("CONFORMA_URL is not configured".into()))?;
+
         let mut query = sbom_crypto::Entity::find()
             .filter(sbom_crypto::Column::AssetType.eq(CryptoAssetType::Algorithm));
 
@@ -263,12 +296,47 @@ impl CryptoService {
         let items = query.all(connection).await?;
         let nodes = items.load_one(sbom_node::Entity, connection).await?;
 
+        let algo_input: Vec<evaluator::AlgorithmInput> = items
+            .iter()
+            .zip(nodes.iter())
+            .filter_map(|(crypto, node)| {
+                let node = node.as_ref()?;
+                Some(evaluator::AlgorithmInput {
+                    node_id: crypto.node_id.clone(),
+                    sbom_id: crypto.sbom_id,
+                    name: node.name.clone(),
+                    oid: crypto.oid.clone(),
+                    properties: crypto.properties.clone(),
+                })
+            })
+            .collect();
+
+        let report = policy_evaluator.evaluate(&algo_input).await?;
+
+        let violation_ids: HashSet<&str> = report
+            .violations
+            .iter()
+            .filter_map(|v| v.node_id.as_deref())
+            .collect();
+
+        let warning_ids: HashSet<&str> = report
+            .warnings
+            .iter()
+            .filter_map(|w| w.node_id.as_deref())
+            .collect();
+
         let results: Vec<AlgorithmPolicyResult> = items
             .into_iter()
             .zip(nodes)
             .filter_map(|(crypto, node)| {
                 let node = node?;
-                let verdict = evaluate_algorithm(&node.name, &crypto.properties);
+                let verdict = if violation_ids.contains(crypto.node_id.as_str()) {
+                    PolicyVerdict::NonCompliant
+                } else if warning_ids.contains(crypto.node_id.as_str()) {
+                    PolicyVerdict::Warning
+                } else {
+                    PolicyVerdict::Compliant
+                };
                 Some(AlgorithmPolicyResult {
                     sbom_id: crypto.sbom_id,
                     node_id: crypto.node_id,
@@ -279,6 +347,26 @@ impl CryptoService {
                 })
             })
             .collect();
+
+        // Persist verdicts so list_algorithms can return policy_status without
+        // calling Conforma on every read request.
+        for result in &results {
+            let verdict_str = match result.verdict {
+                PolicyVerdict::Compliant => "compliant",
+                PolicyVerdict::Warning => "warning",
+                PolicyVerdict::NonCompliant => "non_compliant",
+            };
+            let active: sbom_crypto::ActiveModel = sbom_crypto::ActiveModel {
+                sbom_id: ActiveValue::Unchanged(result.sbom_id),
+                node_id: ActiveValue::Unchanged(result.node_id.clone()),
+                policy_verdict: ActiveValue::Set(Some(verdict_str.to_string())),
+                ..Default::default()
+            };
+            active
+                .update(connection)
+                .await
+                .map_err(|e| Error::Internal(format!("failed to persist policy verdict: {e}")))?;
+        }
 
         let summary = PolicySummaryResult {
             total: results.len(),

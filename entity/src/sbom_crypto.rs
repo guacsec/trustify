@@ -10,6 +10,7 @@ pub struct Model {
     pub asset_type: CryptoAssetType,
     pub properties: serde_json::Value,
     pub oid: Option<String>,
+    pub policy_verdict: Option<String>,
 }
 
 /// Possible types of the cryptographic assets within a CBOM

@@ -1,0 +1,14 @@
+services:
+  conforma:
+    image: quay.io/conforma/cli:latest
+    # Conforma binds to 127.0.0.1 inside the container; host networking is required
+    # for rootless podman + slirp4netns so the trustify server can reach it.
+    network_mode: host
+    volumes:
+      - ../../conforma:/policy:ro,Z
+    command: >
+      validate input
+      --server
+      --server-port 8085
+      --policy /policy/policy.yaml
+    restart: unless-stopped
