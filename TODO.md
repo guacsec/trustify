@@ -15,6 +15,32 @@
   - PURL, model number, SKU and digest contexts: advisory contexts store them, but nothing on the
     SBOM side is compared with them yet;
   - the fundamental APIs still use `product_status` and `purl_status.context_cpe_id`.
+- [ ] Correlation, RHEL 10 (regression of `fd880ed8`): RHEL 10 mainline products carry the minor
+  release in their CPE version (e.g. "BaseOS (v. 10)" is `cpe:/o:redhat:enterprise_linux:10.1`,
+  AppStream `10.1` / `10.2`; EUS is a separate product, `enterprise_linux_eus:10.0`). A Red Hat
+  RPM's context derived from its PURL (`distro=rhel-10.2` or `el10…`) is `enterprise_linux:10`,
+  and `10` vs `10.1` counts as the same product in a different version, so every RHEL 10
+  mainline statement is dropped. Before, those RPMs had no context and the statements were kept
+  unchecked. An SBOM's own `enterprise_linux:10.2` (e.g. syft's operating-system component) would
+  conflict with `10.1` statements the same way. Within one product, a different minor is the
+  same product line (10.1 → 10.2), so only a different major should make it a different
+  product; the RPM version comparison decides afterwards. To decide: a general CPE rule (would
+  also relate e.g. `satellite:6.13` and `satellite:6.15`), or limited to the RPM-derived Red Hat
+  contexts. Found with a syft SBOM of a UBI 10 image (`etc/test-data/scenarios/syft.cdx.json`,
+  untracked).
+- [ ] Correlation, RHEL minor streams: stream scoping relates only equal streams, or a major and a
+  minor (`el10` / `el10_1`). An `el10_1` fix is dropped for an `el10_2` build, although 10.2
+  succeeds 10.1 in the mainline (only EUS/AUS/E4S minors are separate streams, and those are
+  separate CPE products). Affects every package rebuilt in a later minor (e.g. 21 of the 51 RPMs
+  of the UBI 10 image above, among them `openssl-libs`, `glibc`, `krb5-libs`, `libxml2`).
+- [ ] Correlation, Red Hat `fixed` as `first_fixed`: Red Hat states `fixed` only for the fixing
+  build. `purl_rh_fixed` derives "affected before X", but nothing derives "fixed from X on", so a
+  newer build of the same stream (typical for an up-to-date image) gets no verdict. Plan:
+  - ingest CSAF's `first_fixed` (currently dropped) as stated;
+  - generic rules for `first_fixed`: affected before X, fixed from X on (same stream);
+  - a correlation option (e.g. `fixed_is_first_fixed`, enabled for `https://www.redhat.com` by
+    default) reading a publisher's `fixed` as `first_fixed`, replacing the hard-wired
+    `purl_rh_fixed`.
 - [ ] Fundamental: Red Hat's "fixed in X" no longer implies "affected before X" in the stored
   data (ingestion only stores what documents state). The SBOM, PURL and vulnerability APIs of the
   fundamental module therefore no longer report those inferred "affected" statuses. Migrate them
