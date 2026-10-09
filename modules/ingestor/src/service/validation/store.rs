@@ -14,10 +14,10 @@ use crate::service::validation::{
     Finding, Severity, ValidationMode, ValidationOutcome, ValidationReport,
 };
 use sea_orm::{
-    ActiveValue::Set, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, JoinType, QueryFilter,
-    QueryOrder, QuerySelect, RelationTrait, Select,
+    ActiveValue::Set, ColumnTrait, ConnectionTrait, DatabaseBackend, DbErr, EntityTrait, JoinType,
+    QueryFilter, QuerySelect, RelationTrait, Select, Statement,
 };
-use sea_query::Condition;
+use sea_query::{Condition, Expr, Query as SeaQuery};
 use sha2::{Digest as _, Sha256};
 use std::collections::HashMap;
 use time::OffsetDateTime;
@@ -151,9 +151,9 @@ pub struct PendingReport<'a> {
 /// Store the reports whose result differs from the latest stored one.
 ///
 /// Returns the number of rows inserted; zero means every result was already
-/// recorded. Reads the latest content hashes in one query and writes the new
-/// rows in one statement, so the cost is at most two round trips per document
-/// regardless of how many validators ran.
+/// recorded. Uses a transaction-scoped advisory lock, reads the latest reports,
+/// then writes any changed rows in one statement. Must be called inside a
+/// transaction so concurrent ingests of the same document cannot duplicate rows.
 #[instrument(skip_all, fields(document = ctx.document_sha256), err(level = tracing::Level::INFO))]
 pub async fn persist_if_changed<'a, C: ConnectionTrait>(
     conn: &C,
@@ -165,11 +165,15 @@ pub async fn persist_if_changed<'a, C: ConnectionTrait>(
         return Ok(0);
     }
 
-    let names = pending
-        .iter()
-        .map(|entry| entry.report.validator.as_str())
-        .collect::<Vec<_>>();
-    let known = latest_content_hashes(conn, ctx.document_sha256, names).await?;
+    let lock = SeaQuery::select()
+        .expr(Expr::cust_with_values(
+            "pg_advisory_xact_lock(hashtextextended($1, 0))",
+            [ctx.document_sha256],
+        ))
+        .to_owned();
+    conn.query_one(&lock).await?;
+
+    let known = latest_content_hashes(conn, ctx.document_sha256).await?;
 
     let mut models = Vec::with_capacity(pending.len());
     for entry in pending {
@@ -191,32 +195,12 @@ pub async fn persist_if_changed<'a, C: ConnectionTrait>(
 }
 
 /// The latest content hash per validator for one document.
-async fn latest_content_hashes<'a, C: ConnectionTrait>(
+async fn latest_content_hashes<C: ConnectionTrait>(
     conn: &C,
     document_sha256: &str,
-    validators: impl IntoIterator<Item = &'a str>,
 ) -> Result<HashMap<String, String>, Error> {
-    /// Only the columns needed to decide whether a result changed — notably
-    /// not `findings`, which can be tens of kilobytes per row.
-    #[derive(Debug, sea_orm::FromQueryResult)]
-    struct Row {
-        validator: String,
-        content_hash: String,
-    }
-
-    let rows = validation_report::Entity::find()
-        .select_only()
-        .column(validation_report::Column::Validator)
-        .column(validation_report::Column::ContentHash)
-        .filter(validation_report::Column::DocumentSha256.eq(document_sha256))
-        .filter(validation_report::Column::Validator.is_in(validators))
-        // Newest last, so later rows overwrite earlier ones in the map below.
-        .order_by_asc(validation_report::Column::CreatedAt)
-        .into_model::<Row>()
-        .all(conn)
-        .await?;
-
-    Ok(rows
+    Ok(latest_for_digest(conn, document_sha256)
+        .await?
         .into_iter()
         .map(|row| (row.validator, row.content_hash))
         .collect())
@@ -231,16 +215,17 @@ pub async fn latest_for_digest<C: ConnectionTrait>(
     conn: &C,
     document_sha256: &str,
 ) -> Result<Vec<StoredReport>, Error> {
-    let mut latest = HashMap::new();
-    for report in by_digest(document_sha256)
-        .order_by_asc(validation_report::Column::CreatedAt)
+    let rows = validation_report::Entity::find()
+        .from_raw_sql(Statement::from_sql_and_values(
+            DatabaseBackend::Postgres,
+            "SELECT DISTINCT ON (validator) * FROM validation_report \
+             WHERE document_sha256 = $1 ORDER BY validator, created_at DESC, id DESC",
+            [document_sha256.to_owned().into()],
+        ))
         .all(conn)
-        .await?
-    {
-        latest.insert(report.validator.clone(), report);
-    }
+        .await?;
 
-    let mut reports = latest.into_values().collect::<Vec<_>>();
+    let mut reports = rows;
     reports.sort_by(|left, right| left.validator.cmp(&right.validator));
     Ok(reports)
 }
@@ -482,19 +467,28 @@ mod tests {
         }
     }
 
+    async fn persist(
+        ctx: &TrustifyContext,
+        persist_context: PersistContext<'_>,
+        pending: PendingReport<'_>,
+    ) -> Result<usize, anyhow::Error> {
+        Ok(ctx
+            .db
+            .transaction(async |tx| persist_if_changed(tx, &persist_context, [pending]).await)
+            .await?)
+    }
+
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
     async fn unchanged_result_writes_nothing(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         let report = report(vec![], ValidationOutcome::Passed);
 
-        let inserted =
-            persist_if_changed(&ctx.db, &context(DIGEST), [pending(&report, "fp-1")]).await?;
+        let inserted = persist(ctx, context(DIGEST), pending(&report, "fp-1")).await?;
         assert_eq!(inserted, 1);
 
         // The same result from a later run must not produce a second row: this
         // is what keeps repeated importer ingests off the write path.
-        let inserted =
-            persist_if_changed(&ctx.db, &context(DIGEST), [pending(&report, "fp-1")]).await?;
+        let inserted = persist(ctx, context(DIGEST), pending(&report, "fp-1")).await?;
         assert_eq!(inserted, 0);
 
         assert_eq!(by_digest(DIGEST).all(&ctx.db).await?.len(), 1);
@@ -504,18 +498,40 @@ mod tests {
 
     #[test_context(TrustifyContext)]
     #[test(tokio::test)]
+    async fn concurrent_unchanged_results_are_inserted_once(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        let digest = DIGEST.replace('1', "9");
+        let persist_context = context(&digest);
+        let report = report(vec![], ValidationOutcome::Passed);
+        let pending = pending(&report, "fp-1");
+
+        let first = ctx
+            .db
+            .transaction(async |tx| persist_if_changed(tx, &persist_context, [pending]).await);
+        let second = ctx
+            .db
+            .transaction(async |tx| persist_if_changed(tx, &persist_context, [pending]).await);
+        let (first, second) = tokio::join!(first, second);
+
+        assert_eq!(first? + second?, 1);
+        assert_eq!(by_digest(&digest).all(&ctx.db).await?.len(), 1);
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
     async fn changed_result_appends(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
         let digest = &DIGEST.replace("1", "2");
 
         let passed = report(vec![], ValidationOutcome::Passed);
-        persist_if_changed(&ctx.db, &context(digest), [pending(&passed, "fp-1")]).await?;
+        persist(ctx, context(digest), pending(&passed, "fp-1")).await?;
 
         let failed = report(
             vec![finding(Severity::Error, "missing field")],
             ValidationOutcome::Failed,
         );
-        let inserted =
-            persist_if_changed(&ctx.db, &context(digest), [pending(&failed, "fp-1")]).await?;
+        let inserted = persist(ctx, context(digest), pending(&failed, "fp-1")).await?;
         assert_eq!(inserted, 1);
 
         // History is kept, and the newer verdict is the current one.
@@ -539,12 +555,11 @@ mod tests {
         let digest = &DIGEST.replace("1", "3");
         let report = report(vec![], ValidationOutcome::Passed);
 
-        persist_if_changed(&ctx.db, &context(digest), [pending(&report, "fp-1")]).await?;
+        persist(ctx, context(digest), pending(&report, "fp-1")).await?;
 
         // Same verdict, different ruleset: the row records which configuration
         // produced it, so a new row is required to stay accurate.
-        let inserted =
-            persist_if_changed(&ctx.db, &context(digest), [pending(&report, "fp-2")]).await?;
+        let inserted = persist(ctx, context(digest), pending(&report, "fp-2")).await?;
         assert_eq!(inserted, 1);
 
         Ok(())
@@ -564,7 +579,7 @@ mod tests {
             max_findings: 3,
             max_findings_bytes: 64 * 1024,
         };
-        persist_if_changed(&ctx.db, &ctx_with_caps, [pending(&report, "fp-1")]).await?;
+        persist(ctx, ctx_with_caps, pending(&report, "fp-1")).await?;
 
         let stored = latest_for_digest(&ctx.db, digest).await?;
         assert!(stored[0].truncated);
@@ -587,7 +602,7 @@ mod tests {
             .expect("ingested document has a source document");
 
         let report = report(vec![], ValidationOutcome::Passed);
-        persist_if_changed(&ctx.db, &context(&digest), [pending(&report, "fp-1")]).await?;
+        persist(ctx, context(&digest), pending(&report, "fp-1")).await?;
 
         let by_id = by_document_id(Id::Uuid(Uuid::parse_str(&result.id)?))?
             .all(&ctx.db)

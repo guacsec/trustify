@@ -55,7 +55,7 @@ pub async fn list_validation_reports(
     let tx = db.begin().await?;
 
     Ok(HttpResponse::Ok().json(match &filter.name {
-        Some(name) => state.get_by_name(name, paginated, &tx).await?,
+        Some(name) => state.get_by_name(name, search, paginated, &tx).await?,
         None => state.list(search, paginated, &tx).await?,
     }))
 }

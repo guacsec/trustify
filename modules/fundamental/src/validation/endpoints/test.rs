@@ -137,5 +137,12 @@ async fn list_validation_reports_by_name(ctx: &TrustifyContext) -> Result<(), an
     assert_eq!(response.items.len(), 1);
     assert_eq!(response.items[0].document_sha256, digest);
 
+    let request = TestRequest::get()
+        .uri("/api/v3/validation?name=zookeeper&q=blocked%3Dtrue")
+        .to_request();
+    let response: PaginatedResults<ValidationReportSummary> =
+        app.call_and_read_body_json(request).await;
+    assert!(response.items.is_empty());
+
     Ok(())
 }

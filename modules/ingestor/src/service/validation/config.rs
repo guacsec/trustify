@@ -47,6 +47,8 @@ pub enum Revalidate {
     Always,
     /// Skip the run when the document and the validator configuration are
     /// unchanged since the stored result.
+    /// Truncated stored findings are always revalidated so the ingest response
+    /// can include the complete report.
     ///
     /// Only safe for backends whose verdict depends entirely on inputs we can
     /// fingerprint. A remote backend's policy can change without any change
@@ -272,6 +274,11 @@ fn build_one(
             // Nothing here fingerprints the remote policy -- it is configured
             // on the Conforma server and can change without us knowing, which
             // is why `Revalidate::OnChange` is unsafe for this backend.
+            anyhow::ensure!(
+                validator.revalidate != Revalidate::OnChange,
+                "validator '{}' uses on_change with Conforma, whose policy cannot be fingerprinted",
+                validator.name,
+            );
             let persistence = Persistence::new(global, validator, &[])?;
             Ok(Arc::new(conforma::build(validator, conforma, persistence)?))
         }
@@ -333,8 +340,8 @@ mod tests {
         )
         .expect("parses");
 
-        let validators = build(&config).expect("builds");
-        assert!(!validators[0].persistence().persist);
+        let persistence = Persistence::new(&config, &config.validators[0], &[]).expect("builds");
+        assert!(!persistence.persist);
     }
 
     #[test]
@@ -427,6 +434,22 @@ validators:
         assert!(!validator.run_on_ingest);
         assert_eq!(conforma.url, "https://ec.example.test");
         assert_eq!(conforma.timeout_seconds, 120);
+    }
+
+    #[cfg(feature = "semantic-validation")]
+    #[test]
+    fn conforma_rejects_on_change_revalidation() {
+        let config: ValidatorsConfig = serde_json::from_value(serde_json::json!({
+            "validators": [{
+                "name": "policy-a",
+                "backend": { "type": "conforma", "url": "https://ec.example.test" },
+                "revalidate": "on_change"
+            }]
+        }))
+        .expect("parses");
+
+        let error = build(&config).expect_err("Conforma cannot be cached safely");
+        assert!(error.to_string().contains("on_change with Conforma"));
     }
 
     #[test]

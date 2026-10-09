@@ -73,10 +73,12 @@ impl ValidationService {
     pub async fn get_by_name<C: ConnectionTrait>(
         &self,
         name: &str,
+        query: Query,
         paginated: impl Pagination,
         connection: &C,
     ) -> Result<PaginatedResults<ValidationReportSummary>, Error> {
         let limiter = store::by_document_name(name)
+            .filtering(query)?
             .order_by_desc(validation_report::Column::CreatedAt)
             .limiting(connection, paginated, &self.cache)?;
 

@@ -19,8 +19,9 @@ use crate::{
     service::{
         dataset::{DatasetIngestResult, DatasetLoader},
         validation::{
-            Finding, InvocationError, OnError, Severity, ValidationMode, ValidationOutcome,
-            ValidationReport, Validator, ValidatorInput, store, store::Provenance,
+            Finding, InvocationError, OnError, Persistence, Revalidate, Severity, ValidationMode,
+            ValidationOutcome, ValidationReport, Validator, ValidatorInput, store,
+            store::Provenance,
         },
     },
 };
@@ -45,6 +46,7 @@ use trustify_common::{
     id::IdError,
 };
 use trustify_entity::labels::Labels;
+use trustify_entity::validation_report;
 use trustify_module_analysis::service::AnalysisService;
 use trustify_module_storage::service::{StorageBackend, dispatch::DispatchBackend};
 
@@ -291,9 +293,36 @@ impl IngestorService {
     }
 
     /// Run all applicable validators against a document.
-    #[instrument(skip(self, bytes), fields(bytes = bytes.len()))]
-    async fn run_validators(&self, bytes: &[u8], fmt: Format) -> Vec<Validated> {
-        run_validators(&self.validators, bytes, fmt).await
+    #[instrument(skip(self, bytes, conn), fields(bytes = bytes.len()))]
+    async fn run_validators<C: ConnectionTrait>(
+        &self,
+        bytes: &[u8],
+        fmt: Format,
+        conn: &C,
+    ) -> Vec<Validated> {
+        let needs_cached_reports = self.validators.iter().any(|validator| {
+            validator.run_on_ingest()
+                && validator.applies_to(fmt)
+                && validator.persistence().persist
+                && validator.persistence().revalidate == Revalidate::OnChange
+        });
+
+        let previous = if needs_cached_reports {
+            let mut contexts = Contexts::new();
+            contexts.update(bytes);
+            let digest = contexts.finish().sha256.encode_hex::<String>();
+            match store::latest_for_digest(conn, &digest).await {
+                Ok(reports) => reports,
+                Err(err) => {
+                    tracing::warn!("failed to load cached validation reports: {err}");
+                    Vec::new()
+                }
+            }
+        } else {
+            Vec::new()
+        };
+
+        run_validators(&self.validators, bytes, fmt, &previous).await
     }
 
     /// Record the results that asked to be stored.
@@ -396,7 +425,7 @@ impl IngestorService {
         // Run semantic validators before persisting anything. A blocking
         // (verify) failure returns an error here, so no bytes are stored and no
         // graph rows are created. See ADR 00021.
-        let validated = self.run_validators(bytes, fmt).await;
+        let validated = self.run_validators(bytes, fmt, tx).await;
 
         let blocked = blocking_reports(&validated);
         if !blocked.is_empty() {
@@ -521,6 +550,7 @@ async fn run_validators(
     validators: &[Arc<dyn Validator>],
     bytes: &[u8],
     fmt: Format,
+    previous: &[store::StoredReport],
 ) -> Vec<Validated> {
     if validators.is_empty() {
         return Vec::new();
@@ -535,6 +565,11 @@ async fn run_validators(
         }
 
         let persistence = validator.persistence();
+        if let Some(cached) = cached_result(validator.as_ref(), persistence, previous) {
+            results.push(cached);
+            continue;
+        }
+
         match validator.validate(&input).await {
             Ok(report) => {
                 log_report(fmt, &report);
@@ -573,6 +608,44 @@ async fn run_validators(
     }
 
     results
+}
+
+fn cached_result(
+    validator: &dyn Validator,
+    persistence: &Persistence,
+    previous: &[store::StoredReport],
+) -> Option<Validated> {
+    if !persistence.persist || persistence.revalidate != Revalidate::OnChange {
+        return None;
+    }
+
+    let mode = match validator.mode() {
+        ValidationMode::Report => validation_report::Mode::Report,
+        ValidationMode::Verify => validation_report::Mode::Verify,
+    };
+    let stored = previous.iter().find(|stored| {
+        stored.validator == validator.name()
+            && stored.mode == mode
+            && stored.config_fingerprint == persistence.fingerprint
+            && !stored.truncated
+    })?;
+    let findings = serde_json::from_value(stored.findings.clone()).ok()?;
+    let outcome = match stored.outcome {
+        validation_report::Outcome::Passed => ValidationOutcome::Passed,
+        validation_report::Outcome::Failed => ValidationOutcome::Failed,
+    };
+
+    Some(Validated {
+        report: ValidationReport {
+            validator: stored.validator.clone(),
+            findings,
+            outcome,
+        },
+        mode: validator.mode(),
+        blocked: stored.blocked,
+        fingerprint: persistence.fingerprint.clone(),
+        persist: true,
+    })
 }
 
 /// The reports that rejected the document, if any.
@@ -796,7 +869,7 @@ mod validation_tests {
     fn run(validators: Vec<Arc<dyn Validator>>) -> Result<Vec<ValidationReport>, Error> {
         let validated = tokio::runtime::Runtime::new()
             .expect("runtime")
-            .block_on(run_validators(&validators, b"{}", Format::CSAF));
+            .block_on(run_validators(&validators, b"{}", Format::CSAF, &[]));
 
         let blocked = blocking_reports(&validated);
         match blocked.is_empty() {
@@ -891,7 +964,7 @@ mod validation_tests {
                 .run_on_ingest(false),
         )];
         assert!(
-            run_validators(&validators, b"{}", Format::CSAF)
+            run_validators(&validators, b"{}", Format::CSAF, &[])
                 .await
                 .is_empty(),
             "validator must be skipped during ingestion"
@@ -917,6 +990,7 @@ mod persistence_tests {
         store::{Provenance, StoredReport},
     };
     use sea_orm::{EntityTrait, prelude::async_trait};
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use test_context::test_context;
     use test_log::test;
     use trustify_entity::validation_report;
@@ -928,6 +1002,7 @@ mod persistence_tests {
         mode: ValidationMode,
         outcome: ValidationOutcome,
         persistence: Persistence,
+        calls: Option<Arc<AtomicUsize>>,
     }
 
     impl FixedValidator {
@@ -936,11 +1011,23 @@ mod persistence_tests {
                 mode,
                 outcome,
                 persistence: Persistence::default(),
+                calls: None,
             }
         }
 
         fn persist(mut self, persist: bool) -> Self {
             self.persistence.persist = persist;
+            self
+        }
+
+        fn on_change(mut self) -> Self {
+            self.persistence.revalidate = Revalidate::OnChange;
+            self.persistence.fingerprint = "test-fingerprint".into();
+            self
+        }
+
+        fn counted(mut self, calls: Arc<AtomicUsize>) -> Self {
+            self.calls = Some(calls);
             self
         }
     }
@@ -969,6 +1056,9 @@ mod persistence_tests {
             &self,
             _input: &ValidatorInput<'_>,
         ) -> Result<ValidationReport, ValidatorError> {
+            if let Some(calls) = &self.calls {
+                calls.fetch_add(1, Ordering::Relaxed);
+            }
             Ok(ValidationReport {
                 validator: self.name().to_string(),
                 findings: vec![],
@@ -1099,6 +1189,28 @@ mod persistence_tests {
         // must not grow the table.
         assert_eq!(stored(ctx).await?.len(), 1);
 
+        Ok(())
+    }
+
+    #[test_context(TrustifyContext)]
+    #[test(tokio::test)]
+    async fn on_change_reuses_an_unchanged_report(
+        ctx: &TrustifyContext,
+    ) -> Result<(), anyhow::Error> {
+        let calls = Arc::new(AtomicUsize::new(0));
+        for _ in 0..2 {
+            ingest(
+                ctx,
+                FixedValidator::new(ValidationMode::Report, ValidationOutcome::Passed)
+                    .on_change()
+                    .counted(Arc::clone(&calls)),
+            )
+            .await?
+            .expect("ingest");
+        }
+
+        assert_eq!(calls.load(Ordering::Relaxed), 1);
+        assert_eq!(stored(ctx).await?.len(), 1);
         Ok(())
     }
 }

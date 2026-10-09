@@ -81,6 +81,25 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
         run: cargo clippy -p trustify-module-ingestor --no-default-features -- -D warnings -D clippy::unwrap_used -D clippy::expect_used -D clippy::panic -D clippy::todo -D clippy::unimplemented
 
+  test-semantic-validation-off:
+    name: Test (semantic-validation off)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ci
+      - name: Cache Theseus Postgresql Installation
+        uses: actions/cache@v6
+        with:
+          path: ~/.theseus/postgresql
+          key: ${{ runner.os }}-theseus-postgresql-${{ hashFiles('**/Cargo.lock') }}
+      - name: Test ingestor library without semantic validation
+        run: cargo test -p trustify-module-ingestor --no-default-features --lib
+        env:
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" # for embedded postgresql
+
   test:
     runs-on: ubuntu-24.04
 
@@ -168,6 +187,7 @@ jobs:
       - supply-chain
       - check
       - test
+      - test-semantic-validation-off
     if: always()
     steps:
       - name: Success

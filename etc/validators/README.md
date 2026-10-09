@@ -100,10 +100,11 @@ Each validator declares:
 - `revalidate` — defaults to `always`: a document is validated again even when
   it has been seen before. Set it to `on_change` to skip the run when neither
   the document nor the validator configuration has changed since the stored
-  result. Only safe for backends whose verdict depends entirely on inputs we
-  can fingerprint, which excludes `conforma`: its policy lives on the remote
-  server and can change without any change here, so `on_change` would serve a
-  stale verdict.
+   result. Only safe for backends whose verdict depends entirely on inputs we
+   can fingerprint, which excludes `conforma`: its policy lives on the remote
+   server and can change without any change here, so `on_change` would serve a
+   stale verdict. Reports whose stored findings were truncated are revalidated
+   to preserve the complete findings in the ingest response.
 - `backend.url` — for the `conforma` backend, the base URL of the remote
   `ec validate input --server` instance. The client posts to
   `/v1/validate/input`; `backend.timeout_seconds` defaults to `120`. The server's
