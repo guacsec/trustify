@@ -2278,8 +2278,7 @@ dependencies = [
 [[package]]
 name = "csaf-walker"
 version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d1dab2d259f07f8dd0a0c1adcf867aa85090582b6a4d63d0984d00fb3409953"
+source = "git+https://github.com/rhredhat/csaf-walker.git?rev=6d3ea18#6d3ea189da44e05f3c29dec32c8a35aae8b2a8bb"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7088,8 +7087,7 @@ dependencies = [
 [[package]]
 name = "sbom-walker"
 version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a0be16effc22ed85e0f3dddac9d8abc472722dec24e3ba434537a6f4944f5a9"
+source = "git+https://github.com/rhredhat/csaf-walker.git?rev=6d3ea18#6d3ea189da44e05f3c29dec32c8a35aae8b2a8bb"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7515,8 +7513,7 @@ dependencies = [
 [[package]]
 name = "serde-cyclonedx"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "011f64837acc52a678d9e1a11b478f1eda4a587f97e3c7633c77091a877cb202"
+source = "git+https://github.com/think-ahead-technologies/sbom-rs.git?rev=04994cb#04994cb35ad5c8e83d1de3c4dd3ff3cdb1bd2ec4"
 dependencies = [
  "anyhow",
  "derive_builder 0.20.2",
@@ -7527,7 +7524,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syn 2.0.119",
- "thiserror 1.0.69",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -10277,8 +10274,7 @@ dependencies = [
 [[package]]
 name = "walker-common"
 version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d2ffa904d2bd1b7a05c261ac65f3e504bc2649f7f9e1b0943acc233a3e6a080"
+source = "git+https://github.com/rhredhat/csaf-walker.git?rev=6d3ea18#6d3ea189da44e05f3c29dec32c8a35aae8b2a8bb"
 dependencies = [
  "anyhow",
  "async-trait",
