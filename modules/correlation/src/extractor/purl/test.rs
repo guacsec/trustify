@@ -207,6 +207,39 @@ async fn rh_fixed_later_build(ctx: &TrustifyContext) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// A build of a later minor is fixed from Red Hat's mainline fix of an earlier minor on, as the
+/// mainline's minors are one line, and nothing is stated for its own stream (`el8_8`). The `el8_6`
+/// fix is stated for RHEL 8.6 EUS, a product the package isn't in.
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn rh_fixed_later_minor(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    assert_eq!(
+        evidence_of(ctx, "correlation/openssl_el8_minor.cdx.json", S5_VEX).await?,
+        vec![(
+            "pkg-openssl".to_string(),
+            "CVE-2023-0215".to_string(),
+            "purl_fixed_as_first_fixed".to_string(),
+            AssertionStatus::Fixed,
+            // 0.8 (another minor) × 0.9, in RHEL 8 by the PURL's `distro=rhel-8.8` (0.85 × 0.9)
+            0.55,
+            Some(MatchedValue {
+                identifier: "pkg:rpm/redhat/openssl".into(),
+                ranges: vec![MatchedRange {
+                    scheme: "rpm".into(),
+                    low: Some(RangeBound {
+                        version: "1:1.1.1k-9.el8_7".into(),
+                        inclusive: true,
+                    }),
+                    high: None,
+                }],
+                enabled_by: Some(redhat_first_fixed()),
+            }),
+        )]
+    );
+
+    Ok(())
+}
+
 /// Without the option, Red Hat's `fixed` is only the fixed version.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
@@ -255,10 +288,12 @@ async fn rh_fixed_exact(ctx: &TrustifyContext) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// A package at the fixed version only matches the stated fixed version.
+/// A package at the fixed version matches the stated fixed version, and Red Hat's fix read as
+/// `first_fixed`, as it is in the fix's own stream (`el8_2`).
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
 async fn rh_fixed_at_fix(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    let fix = "1:1.1.1c-21.el8_2";
     assert_eq!(
         evidence_of(
             ctx,
@@ -266,29 +301,51 @@ async fn rh_fixed_at_fix(ctx: &TrustifyContext) -> anyhow::Result<()> {
             S9_VEX
         )
         .await?,
-        vec![(
-            "pkg-openssl".to_string(),
-            "CVE-2023-0286".to_string(),
-            STREAM.to_string(),
-            AssertionStatus::Fixed,
-            // stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
-            0.7,
-            Some(MatchedValue {
-                identifier: "pkg:rpm/redhat/openssl".into(),
-                ranges: vec![MatchedRange {
-                    scheme: "rpm".into(),
-                    low: Some(RangeBound {
-                        version: "1:1.1.1c-21.el8_2".into(),
-                        inclusive: true,
-                    }),
-                    high: Some(RangeBound {
-                        version: "1:1.1.1c-21.el8_2".into(),
-                        inclusive: true,
-                    }),
-                }],
-                enabled_by: None,
-            }),
-        ),]
+        vec![
+            (
+                "pkg-openssl".to_string(),
+                "CVE-2023-0286".to_string(),
+                "purl_fixed_as_first_fixed".to_string(),
+                AssertionStatus::Fixed,
+                // 0.9, stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
+                0.63,
+                Some(MatchedValue {
+                    identifier: "pkg:rpm/redhat/openssl".into(),
+                    ranges: vec![MatchedRange {
+                        scheme: "rpm".into(),
+                        low: Some(RangeBound {
+                            version: fix.into(),
+                            inclusive: true,
+                        }),
+                        high: None,
+                    }],
+                    enabled_by: Some(redhat_first_fixed()),
+                }),
+            ),
+            (
+                "pkg-openssl".to_string(),
+                "CVE-2023-0286".to_string(),
+                STREAM.to_string(),
+                AssertionStatus::Fixed,
+                // stated for RHEL 8.2 EUS, which isn't compared with `enterprise_linux` (×0.7)
+                0.7,
+                Some(MatchedValue {
+                    identifier: "pkg:rpm/redhat/openssl".into(),
+                    ranges: vec![MatchedRange {
+                        scheme: "rpm".into(),
+                        low: Some(RangeBound {
+                            version: fix.into(),
+                            inclusive: true,
+                        }),
+                        high: Some(RangeBound {
+                            version: fix.into(),
+                            inclusive: true,
+                        }),
+                    }],
+                    enabled_by: None,
+                }),
+            ),
+        ]
     );
 
     Ok(())

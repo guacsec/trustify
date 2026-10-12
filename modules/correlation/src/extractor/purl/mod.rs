@@ -277,11 +277,13 @@ struct AdvisoryPurlMatch {
 /// Several ranges (e.g. of different product streams) of the same vulnerability may match. They
 /// result in the same evidence row, which therefore lists all of them, in a stable order.
 ///
-/// Rows of a different RPM stream are dropped. The others are grouped by their evidence type too:
-/// the rule's for derived rows, otherwise [`StreamMatch::extractor`]. The confidence of a group is
-/// the best of its ranges. This is evaluated here, on the rows already loaded by
-/// `version_matches`, as it also determines the type and confidence.
-fn group<'a, K: Ord>(
+/// Rows of a different RPM stream are dropped. Rows of another minor of the same major are only
+/// used as a fallback: if the advisory states nothing about the vulnerability in the target's own
+/// stream. The others are grouped by their evidence type too: the rule's for derived rows,
+/// otherwise [`StreamMatch::extractor`]. The confidence of a group is the best of its ranges. This
+/// is evaluated here, on the rows already loaded by `version_matches`, as it also determines the
+/// type and confidence.
+fn group<'a, K: Ord + Clone>(
     rows: impl IntoIterator<Item = (K, Source<'a>, PurlStatusRow)>,
 ) -> impl Iterator<Item = (K, Assertion)> {
     /// The merged rows of one assertion.
@@ -295,13 +297,37 @@ fn group<'a, K: Ord>(
 
     let mut groups =
         BTreeMap::<(K, &'static str, Uuid, String, String, String, Option<Uuid>), Group>::new();
-    for (target, source, row) in rows {
-        let Some(status) = map_status(&row.slug) else {
+    let rows = rows
+        .into_iter()
+        .filter_map(|(target, source, row)| {
+            let status = map_status(&row.slug)?;
+            let stream = row.stream_match()?;
+            Some((target, source, row, status, stream))
+        })
+        .collect::<Vec<_>>();
+    // the vulnerabilities an advisory states something about in a target's own stream
+    let own_stream = rows
+        .iter()
+        .filter(|(.., stream)| matches!(stream, StreamMatch::Exact | StreamMatch::Major))
+        .map(|(target, _, row, ..)| {
+            (
+                target.clone(),
+                row.advisory_id,
+                row.vulnerability_id.clone(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+
+    for (target, source, row, status, stream) in rows {
+        if stream == StreamMatch::Minor
+            && own_stream.contains(&(
+                target.clone(),
+                row.advisory_id,
+                row.vulnerability_id.clone(),
+            ))
+        {
             continue;
-        };
-        let Some(stream) = row.stream_match() else {
-            continue;
-        };
+        }
         let (extractor, confidence) = match source {
             None => (stream.extractor(), stream.confidence()),
             // rounded, so that e.g. 0.8 × 0.9 is stored as 0.72
@@ -312,7 +338,15 @@ fn group<'a, K: Ord>(
         };
         let enabled_by =
             source.and_then(|rule| rule.enabled_by(row.publisher_namespace.as_deref()));
-        let requires_context = source.is_some_and(|rule| rule.requires_context());
+        // an equal RPM stream puts the node into the statement's product already, another minor
+        // only applies within the product
+        let requires_context = match stream {
+            StreamMatch::Exact => false,
+            StreamMatch::Minor => true,
+            StreamMatch::Major | StreamMatch::Unscoped => {
+                source.is_some_and(|rule| rule.requires_context())
+            }
+        };
         let (advisory_id, vulnerability_id, slug, context_id) = (
             row.advisory_id,
             row.vulnerability_id.clone(),

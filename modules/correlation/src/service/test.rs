@@ -323,6 +323,7 @@ struct Scenario {
 /// `expected.json`. Components without a verdict must not appear.
 #[test_context(TrustifyContext)]
 #[rstest]
+#[case("S1_crossstream_bind-libs")]
 #[case("S2_wrongscheme_golang_oci")]
 #[case("S14_productstatus_versionfilter_netty")]
 #[case("S16_crossscheme_purlquery_golang")]

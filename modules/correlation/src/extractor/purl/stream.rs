@@ -13,6 +13,12 @@ pub enum StreamMatch {
     Exact,
     /// Both share the major, and one of them is just the major (e.g. `el8` and `el8_6`).
     Major,
+    /// Different minors of the same major (e.g. `el9_0` and `el9_1`). In the mainline of a
+    /// product, the minors are one line (9.0 is followed by 9.1, which rebuilds its packages),
+    /// while extended support (EUS, …) of a minor is a separate product. So such a match only
+    /// applies to a node in the statement's product, and only if nothing is stated for the node's
+    /// own stream.
+    Minor,
     /// At least one side has no stream, so it can't be scoped.
     Unscoped,
 }
@@ -22,14 +28,14 @@ impl StreamMatch {
     pub fn confidence(self) -> f64 {
         match self {
             Self::Exact | Self::Unscoped => CONFIDENCE,
-            Self::Major => 0.8,
+            Self::Major | Self::Minor => 0.8,
         }
     }
 
     /// Type of the evidence of a stated range: only scoped matches are stream evidence.
     pub fn extractor(self) -> &'static str {
         match self {
-            Self::Exact | Self::Major => STREAM,
+            Self::Exact | Self::Major | Self::Minor => STREAM,
             Self::Unscoped => PLAIN,
         }
     }
@@ -46,10 +52,12 @@ pub fn stream_match(sbom: Option<&str>, range: Option<&str>) -> Option<StreamMat
     }
 
     let (sbom_major, range_major) = (stream_major(sbom), stream_major(range));
-    if sbom_major == range_major && (sbom == sbom_major || range == range_major) {
+    if sbom_major != range_major {
+        None
+    } else if sbom == sbom_major || range == range_major {
         Some(StreamMatch::Major)
     } else {
-        None
+        Some(StreamMatch::Minor)
     }
 }
 
@@ -96,7 +104,8 @@ mod test {
     #[case(Some("fc39"), Some("fc39"), Some(StreamMatch::Exact))]
     #[case(Some("el8"), Some("el8_6"), Some(StreamMatch::Major))]
     #[case(Some("el8_6"), Some("el8"), Some(StreamMatch::Major))]
-    #[case(Some("el8_6"), Some("el8_7"), None)]
+    #[case(Some("el8_6"), Some("el8_7"), Some(StreamMatch::Minor))]
+    #[case(Some("el10_2"), Some("el10_1"), Some(StreamMatch::Minor))]
     #[case(Some("el8"), Some("el9"), None)]
     #[case(Some("el8"), Some("fc8"), None)]
     #[case(Some("el8"), None, Some(StreamMatch::Unscoped))]

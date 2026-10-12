@@ -1,0 +1,40 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:7c2e1b8d-3f4a-4b6c-9d0e-1f2a3b4c5d6e",
+  "version": 1,
+  "metadata": {
+    "component": {
+      "bom-ref": "root-s5-pos",
+      "type": "application",
+      "name": "openssl-el8-minor",
+      "version": "1"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "os-el8",
+      "type": "operating-system",
+      "name": "rhel",
+      "version": "8.8",
+      "cpe": "cpe:/o:redhat:enterprise_linux:8::baseos"
+    },
+    {
+      "bom-ref": "pkg-openssl",
+      "type": "library",
+      "name": "openssl",
+      "version": "1:1.1.1k-10.el8_8",
+      "purl": "pkg:rpm/redhat/openssl@1.1.1k-10.el8_8?arch=x86_64&epoch=1&distro=rhel-8.8&upstream=openssl-1.1.1k-10.el8_8.src.rpm"
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "root-s5-pos",
+      "dependsOn": [
+        "os-el8",
+        "pkg-openssl"
+      ]
+    }
+  ]
+}

@@ -196,7 +196,6 @@ fn cpe_match(context: &cpe::Model, node: &cpe::Model) -> CpeMatch {
         (&context.product, &node.product),
     ];
     let rest = [
-        (&context.version, &node.version),
         (&context.update, &node.update),
         (&context.edition, &node.edition),
         (&context.language, &node.language),
@@ -214,8 +213,12 @@ fn cpe_match(context: &cpe::Model, node: &cpe::Model) -> CpeMatch {
             AttributeMatch::Different => return CpeMatch::Unrelated,
         }
     }
-    for (context, node) in rest {
-        match attribute_match(context.as_deref(), node.as_deref()) {
+    let version = version_match(context.version.as_deref(), node.version.as_deref());
+    for result in [version].into_iter().chain(
+        rest.into_iter()
+            .map(|(context, node)| attribute_match(context.as_deref(), node.as_deref())),
+    ) {
+        match result {
             AttributeMatch::Equal => {}
             AttributeMatch::Any => any = true,
             AttributeMatch::Different => return CpeMatch::Different,
@@ -247,6 +250,26 @@ fn attribute_match(context: Option<&str>, node: Option<&str>) -> AttributeMatch 
         (None, None) => AttributeMatch::Equal,
         (Some(context), Some(node)) if wildcard_match(context, node) => AttributeMatch::Equal,
         _ => AttributeMatch::Different,
+    }
+}
+
+/// Match the version attributes: like [`attribute_match`], but a major version matches its minor
+/// versions through ANY (e.g. `10` and `10.1`), as it is less specific. Red Hat states RHEL 10
+/// mainline products with their minor (`enterprise_linux:10.1`), while an RPM only names the
+/// major. Different minors (`10.1` and `10.2`) still differ.
+fn version_match(context: Option<&str>, node: Option<&str>) -> AttributeMatch {
+    let is_minor_of = |minor: &str, major: &str| {
+        !major.is_empty()
+            && major.bytes().all(|b| b.is_ascii_digit())
+            && minor
+                .strip_prefix(major)
+                .is_some_and(|rest| rest.starts_with('.'))
+    };
+    match (context, node) {
+        (Some(context), Some(node)) if is_minor_of(context, node) || is_minor_of(node, context) => {
+            AttributeMatch::Any
+        }
+        _ => attribute_match(context, node),
     }
 }
 
@@ -622,6 +645,26 @@ mod test {
     #[case::other_version(
         "cpe:/o:redhat:enterprise_linux:8",
         "cpe:/o:redhat:enterprise_linux:9",
+        CpeMatch::Different
+    )]
+    #[case::node_major(
+        "cpe:/o:redhat:enterprise_linux:10.1",
+        "cpe:/o:redhat:enterprise_linux:10",
+        CpeMatch::Any
+    )]
+    #[case::context_major(
+        "cpe:/o:redhat:enterprise_linux:10",
+        "cpe:/o:redhat:enterprise_linux:10.1",
+        CpeMatch::Any
+    )]
+    #[case::other_minor(
+        "cpe:/o:redhat:enterprise_linux:10.1",
+        "cpe:/o:redhat:enterprise_linux:10.2",
+        CpeMatch::Different
+    )]
+    #[case::other_major_prefix(
+        "cpe:/o:redhat:enterprise_linux:1.1",
+        "cpe:/o:redhat:enterprise_linux:10",
         CpeMatch::Different
     )]
     #[case::case_insensitive("cpe:/a:RedHat:Storage:3", "cpe:/a:redhat:storage:3", CpeMatch::Exact)]

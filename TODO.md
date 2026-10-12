@@ -15,29 +15,21 @@
   - PURL, model number, SKU and digest contexts: advisory contexts store them, but nothing on the
     SBOM side is compared with them yet;
   - the fundamental APIs still use `product_status` and `purl_status.context_cpe_id`.
-- [ ] Correlation, RHEL 10 (regression of `fd880ed8`): RHEL 10 mainline products carry the minor
-  release in their CPE version (e.g. "BaseOS (v. 10)" is `cpe:/o:redhat:enterprise_linux:10.1`,
-  AppStream `10.1` / `10.2`; EUS is a separate product, `enterprise_linux_eus:10.0`). A Red Hat
-  RPM's context derived from its PURL (`distro=rhel-10.2` or `el10…`) is `enterprise_linux:10`,
-  and `10` vs `10.1` counts as the same product in a different version, so every RHEL 10
-  mainline statement is dropped. Before, those RPMs had no context and the statements were kept
-  unchecked. An SBOM's own `enterprise_linux:10.2` (e.g. syft's operating-system component) would
-  conflict with `10.1` statements the same way. Within one product, a different minor is the
-  same product line (10.1 → 10.2), so only a different major should make it a different
-  product; the RPM version comparison decides afterwards. To decide: a general CPE rule (would
-  also relate e.g. `satellite:6.13` and `satellite:6.15`), or limited to the RPM-derived Red Hat
-  contexts. Found with a syft SBOM of a UBI 10 image (`etc/test-data/scenarios/syft.cdx.json`,
-  untracked).
-- [ ] Correlation, RHEL minor streams: stream scoping relates only equal streams, or a major and a
-  minor (`el10` / `el10_1`). An `el10_1` fix is dropped for an `el10_2` build, although 10.2
-  succeeds 10.1 in the mainline (only EUS/AUS/E4S minors are separate streams, and those are
-  separate CPE products). Affects every package rebuilt in a later minor (e.g. 21 of the 51 RPMs
-  of the UBI 10 image above, among them `openssl-libs`, `glibc`, `krb5-libs`, `libxml2`).
+- [ ] Correlation, RHEL minors: in the mainline, the minors are one line, so a statement of
+  another minor (`el9_1` for an `el9_0` build, `el10_1` for `el10_2`) is used if the advisory
+  states nothing for the build's own stream, and only within the statement's product. An RPM's
+  product from its PURL is `enterprise_linux:<major>`, which matches the mainline products of
+  every minor (`enterprise_linux:10.1`), but not EUS/AUS/E4S (`rhel_eus:9.0`), which are separate
+  products. Open:
+  - an RPM can't tell whether its box is on the mainline or on extended support of its minor: an
+    EUS box's build of a minor without a statement of its own is judged by the mainline;
+  - an SBOM's own minor CPE (e.g. syft's `enterprise_linux:10.2`) still differs from statements of
+    another minor (`10.1`), only the RPM's product matches them.
 - [ ] Correlation, verdicts: Fixed wins over Affected regardless of confidence. With
   `fixed_is_first_fixed`, a publisher's fix (read as fixed from that version on) outranks a stated
   `known_affected` of a later version in the same product, i.e. a regression. Reading a fix as
-  `first_fixed` requires the node to be in the statement's product, which limits that to the
-  product itself.
+  `first_fixed` requires the node to be in the statement's product or RPM stream, which limits
+  that to the product itself.
 - [ ] CSAF `first_fixed`, `first_affected` and `last_affected` are only stored for PURLs
   (`purl_status`, `product_status`). CPE, hash and product identifier assertions
   (`assertion_status`) have no such values, so those statements are dropped for them, and the

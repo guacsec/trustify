@@ -9,7 +9,7 @@
 //! build fixing a vulnerability in a product stream. For publishers with the option
 //! `fixed_is_first_fixed` enabled, the `first_fixed` rules read their `fixed` as `first_fixed`,
 //! as evidence of their own type, which records the option. Reading such a `fixed` as fixed from
-//! that version on requires the node to be in the statement's product.
+//! that version on requires the node to be in the statement's product, or in its RPM stream.
 
 use super::{Enabled, RangeRule, exact_of, exact_status, low};
 use crate::{
@@ -106,8 +106,8 @@ impl RangeRule for FirstFixed {
     }
 
     /// A publisher's `fixed` is only known to be the first fix in its own product (stream), and a
-    /// fix wins the verdict. Without the product, a later version of another product, e.g. a
-    /// version without a stream, would be fixed against the product's own statements.
+    /// fix wins the verdict. Without the product or stream, a later version of another product,
+    /// e.g. a version without a stream, would be fixed against the product's own statements.
     fn requires_context(&self) -> bool {
         matches!(self.0, Source::Fixed(_))
     }

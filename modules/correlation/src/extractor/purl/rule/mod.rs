@@ -43,6 +43,7 @@ pub trait RangeRule: Send + Sync {
     fn candidates(&self) -> Candidates;
 
     /// Whether the derived candidates only apply to a node in the assertion's context (product).
+    /// An equal RPM stream (e.g. `el9_0` and `el9_0`) counts as being in the product.
     fn requires_context(&self) -> bool {
         false
     }
