@@ -22,7 +22,7 @@ use super::Candidates;
 use crate::{error::Error, model::EnabledBy};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QuerySelect, QueryTrait,
-    sea_query::{Expr, SimpleExpr},
+    sea_query::{Expr, ExprTrait, SimpleExpr},
 };
 use serde_json::Value;
 use trustify_entity::{
@@ -162,5 +162,5 @@ fn exact_status(slug: &str) -> SimpleExpr {
 
 /// Lower bound of the stated range.
 fn low() -> SimpleExpr {
-    Expr::col((version_range::Entity, version_range::Column::LowVersion)).into()
+    Expr::col((version_range::Entity, version_range::Column::LowVersion))
 }

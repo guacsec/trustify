@@ -11,7 +11,7 @@
 
 use super::RangeRule;
 use crate::extractor::purl::{Candidates, stated_scheme};
-use sea_orm::sea_query::{CaseStatement, Expr, SimpleExpr};
+use sea_orm::sea_query::{CaseStatement, Expr, ExprTrait, SimpleExpr};
 use trustify_entity::{base_purl, status, version_range, version_scheme::VersionScheme};
 
 /// The versioning scheme of PURL types, see
@@ -55,10 +55,10 @@ impl RangeRule for VlsRange {
             })
             .finally(Expr::cust("NULL"));
 
-        let range = |column| Expr::col((version_range::Entity, column)).into();
+        let range = |column| Expr::col((version_range::Entity, column));
         Candidates {
             condition: Expr::expr(stated_scheme()).eq(VersionScheme::Vls.to_string()),
-            status: Expr::col((status::Entity, status::Column::Slug)).into(),
+            status: Expr::col((status::Entity, status::Column::Slug)),
             scheme: SimpleExpr::Case(Box::new(scheme)),
             low_version: range(version_range::Column::LowVersion),
             low_inclusive: range(version_range::Column::LowInclusive),

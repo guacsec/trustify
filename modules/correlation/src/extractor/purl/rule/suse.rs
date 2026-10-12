@@ -11,7 +11,7 @@
 
 use super::{RangeRule, exact_of, low};
 use crate::extractor::purl::{Candidates, stated_scheme};
-use sea_orm::sea_query::{Expr, SimpleExpr};
+use sea_orm::sea_query::{Expr, ExprTrait, SimpleExpr};
 use trustify_entity::status;
 
 /// Publisher namespaces of SUSE advisories.
@@ -39,13 +39,13 @@ impl RangeRule for SuseRecommendedBefore {
     fn candidates(&self) -> Candidates {
         Candidates {
             condition: recommended(),
-            status: Expr::val("affected").into(),
+            status: Expr::val("affected"),
             scheme: stated_scheme(),
             // (unbounded, < recommended)
             low_version: Expr::cust("NULL"),
-            low_inclusive: Expr::val(false).into(),
+            low_inclusive: Expr::val(false),
             high_version: low(),
-            high_inclusive: Expr::val(false).into(),
+            high_inclusive: Expr::val(false),
         }
     }
 }
@@ -65,13 +65,13 @@ impl RangeRule for SuseRecommended {
     fn candidates(&self) -> Candidates {
         Candidates {
             condition: recommended(),
-            status: Expr::val("fixed").into(),
+            status: Expr::val("fixed"),
             scheme: stated_scheme(),
             // [recommended, unbounded)
             low_version: low(),
-            low_inclusive: Expr::val(true).into(),
+            low_inclusive: Expr::val(true),
             high_version: Expr::cust("NULL"),
-            high_inclusive: Expr::val(false).into(),
+            high_inclusive: Expr::val(false),
         }
     }
 }

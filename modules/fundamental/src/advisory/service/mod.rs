@@ -134,7 +134,7 @@ impl AdvisoryService {
     ) -> Result<bool, Error> {
         // the (shared) contexts of the advisory's assertions, which may become unreferenced
         let contexts = connection
-            .query_all(Statement::from_sql_and_values(
+            .query_all_raw(Statement::from_sql_and_values(
                 connection.get_database_backend(),
                 ADVISORY_CONTEXTS_SQL,
                 [id.into()],
@@ -168,7 +168,7 @@ impl AdvisoryService {
 
         if !contexts.is_empty() {
             connection
-                .execute(Statement::from_sql_and_values(
+                .execute_raw(Statement::from_sql_and_values(
                     connection.get_database_backend(),
                     DELETE_UNREFERENCED_CONTEXTS_SQL,
                     [contexts.into()],

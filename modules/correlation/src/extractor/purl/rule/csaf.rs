@@ -16,7 +16,7 @@ use crate::{
     extractor::purl::{Candidates, stated_scheme},
     model::EnabledBy,
 };
-use sea_orm::sea_query::{Expr, SimpleExpr};
+use sea_orm::sea_query::{Expr, ExprTrait, SimpleExpr};
 use trustify_entity::status;
 
 /// The statements a `first_fixed` rule reads as `first_fixed`.
@@ -63,12 +63,12 @@ fn unbounded() -> SimpleExpr {
 fn from(condition: SimpleExpr, status: &str) -> Candidates {
     Candidates {
         condition,
-        status: Expr::val(status).into(),
+        status: Expr::val(status),
         scheme: stated_scheme(),
         low_version: low(),
-        low_inclusive: Expr::val(true).into(),
+        low_inclusive: Expr::val(true),
         high_version: unbounded(),
-        high_inclusive: Expr::val(false).into(),
+        high_inclusive: Expr::val(false),
     }
 }
 
@@ -76,12 +76,12 @@ fn from(condition: SimpleExpr, status: &str) -> Candidates {
 fn up_to(condition: SimpleExpr, status: &str, inclusive: bool) -> Candidates {
     Candidates {
         condition,
-        status: Expr::val(status).into(),
+        status: Expr::val(status),
         scheme: stated_scheme(),
         low_version: unbounded(),
-        low_inclusive: Expr::val(false).into(),
+        low_inclusive: Expr::val(false),
         high_version: low(),
-        high_inclusive: Expr::val(inclusive).into(),
+        high_inclusive: Expr::val(inclusive),
     }
 }
 

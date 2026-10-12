@@ -3587,6 +3587,16 @@ paths:
           type: array
           items:
             type: string
+      - name: crypto
+        in: query
+        description: |-
+          Filter by crypto algorithm name. Only SBOMs containing any of the provided algorithm
+          names will be returned. Can be specified multiple times.
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
       - name: advisories
         in: query
         description: Include advisory severity summary per SBOM
@@ -9316,10 +9326,7 @@ components:
           description: The [`Validator::name`] that produced this report.
     ValidationSeverity:
       type: string
-      description: |-
-        Severity of a single validation finding.
-
-        Ordered from least to most severe, so `>=` comparisons express a threshold.
+      description: Severity of a single validation finding.
       enum:
       - info
       - warning

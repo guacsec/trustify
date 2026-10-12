@@ -52,7 +52,7 @@ async fn purl_statements(
 
     let statuses = ctx
         .db
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DbBackend::Postgres,
             r#"
 SELECT ps.vulnerability_id, bp.type || '/' || COALESCE(bp.namespace || '/', '') || bp.name,
@@ -82,7 +82,7 @@ ORDER BY 1, 2, 6
 
     let remediations = ctx
         .db
-        .query_all(Statement::from_sql_and_values(
+        .query_all_raw(Statement::from_sql_and_values(
             DbBackend::Postgres,
             r#"
 SELECT r.vulnerability_id, r.details, bp.type || '/' || COALESCE(bp.namespace || '/', '') || bp.name

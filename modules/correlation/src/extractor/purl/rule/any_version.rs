@@ -17,7 +17,7 @@ use crate::{
 };
 use sea_orm::{
     ConnectionTrait,
-    sea_query::{Expr, SimpleExpr},
+    sea_query::{Expr, ExprTrait, SimpleExpr},
 };
 use trustify_entity::{correlation_option::CorrelationOptionKey, status, version_range};
 
@@ -54,13 +54,13 @@ impl RangeRule for AnyVersion {
                 .eq("")
                 .and(high.eq(""))
                 .and(published_by(&namespaces)),
-            status: Expr::col((status::Entity, status::Column::Slug)).into(),
+            status: Expr::col((status::Entity, status::Column::Slug)),
             scheme: stated_scheme(),
             // (unbounded, unbounded)
             low_version: unbounded(),
-            low_inclusive: Expr::val(false).into(),
+            low_inclusive: Expr::val(false),
             high_version: unbounded(),
-            high_inclusive: Expr::val(false).into(),
+            high_inclusive: Expr::val(false),
         }
     }
 

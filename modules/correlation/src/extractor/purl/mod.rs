@@ -107,7 +107,7 @@ impl Candidates {
     fn stated() -> Self {
         Self {
             condition: Expr::value(true),
-            status: Expr::col((status::Entity, status::Column::Slug)).into(),
+            status: Expr::col((status::Entity, status::Column::Slug)),
             scheme: stated_scheme(),
             low_version: range_col(version_range::Column::LowVersion),
             low_inclusive: range_col(version_range::Column::LowInclusive),
@@ -172,7 +172,7 @@ pub fn stated_scheme() -> SimpleExpr {
 
 /// A column of the stated `version_range`.
 fn range_col(column: version_range::Column) -> SimpleExpr {
-    Expr::col((version_range::Entity, column)).into()
+    Expr::col((version_range::Entity, column))
 }
 
 /// Where candidates come from: stated (`None`), or a rule.
