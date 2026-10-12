@@ -2,7 +2,7 @@
 target = "index.html"
 
 [watch]
-watch = ["src", "index.html", "assets"]
+watch = ["src", "index.html", "assets", "Cargo.toml", "../Cargo.lock"]
 
 [[proxy]]
 rewrite = "/api/"
