@@ -388,7 +388,7 @@ async fn matched_values(
 }
 
 /// Format a stored CPE as CPE 2.3 formatted string, including the extended attributes.
-fn format_cpe23(model: &cpe::Model) -> String {
+pub(crate) fn format_cpe23(model: &cpe::Model) -> String {
     fn component(value: &Option<String>) -> String {
         match value.as_deref() {
             None => "-".to_string(),

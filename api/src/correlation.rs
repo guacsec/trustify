@@ -445,6 +445,66 @@ pub struct QueryMatch {
     pub confidence: f64,
 }
 
+/// The kind of subject an advisory statement is about.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum StatementKind {
+    Purl,
+    Cpe,
+    Product,
+}
+
+impl StatementKind {
+    /// All kinds.
+    pub const ALL: [Self; 3] = [Self::Purl, Self::Cpe, Self::Product];
+
+    /// The kind, as serialized.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Purl => "purl",
+            Self::Cpe => "cpe",
+            Self::Product => "product",
+        }
+    }
+}
+
+/// A status an advisory states for a vulnerability, as stored when the advisory was ingested.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AdvisoryStatement {
+    pub vulnerability_id: String,
+    /// The stated status (slug), e.g. `affected`, `fixed` or `first_fixed`.
+    pub status: String,
+    pub subject: StatementSubject,
+    /// The versions the statement applies to. Unbounded when it applies to all versions.
+    pub range: MatchedRange,
+}
+
+/// What an advisory statement is about.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum StatementSubject {
+    /// A package, by its PURL without a version, e.g. `pkg:rpm/redhat/bind`.
+    Purl { purl: String },
+    /// A CPE, as CPE 2.3 formatted string.
+    Cpe { cpe: String },
+    /// A product, optionally narrowed to a package of it.
+    Product {
+        name: String,
+        /// The CPE key of the product version, if any.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cpe_key: Option<String>,
+        /// The package of the product the statement is about, if any.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        package: Option<String>,
+        /// The CSAF product IDs the statement originates from.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        csaf_product_ids: Vec<String>,
+    },
+}
+
 #[cfg(feature = "entity")]
 mod entity_conversions {
     use super::*;

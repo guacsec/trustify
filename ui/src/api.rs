@@ -1,13 +1,13 @@
 use crate::model::{
-    CorrelationOption, CorrelationOptionData, CorrelationResult, Created, IdentifierKind,
-    IngestResult, PaginatedResults, QueryResult, SbomSummary, SbomVerdictCounts,
-    VerdictCountsRequest, WellKnownInfo,
+    AdvisoryStatement, CorrelationOption, CorrelationOptionData, CorrelationResult, Created,
+    IdentifierKind, IngestResult, PaginatedResults, QueryResult, SbomSummary, SbomVerdictCounts,
+    StatementKind, VerdictCountsRequest, WellKnownInfo,
 };
 use gloo_net::http::{Request, RequestBuilder, Response};
 use serde::de::DeserializeOwned;
 use std::fmt;
 use trustify_api::ingest::IngestFromUrlRequest;
-use trustify_client::api::types::AdvisoryDetails;
+use trustify_client::api::types::{AdvisoryDetails, AdvisorySummary};
 
 #[derive(Debug)]
 pub enum ApiError {
@@ -167,8 +167,57 @@ pub async fn upload_document(bytes: &[u8], token: Option<&str>) -> Result<Ingest
         .map_err(|e| ApiError::Deserialize(e.to_string()))
 }
 
+/// Fetch a page of advisories matching a query, with the total, optionally sorted, e.g. by
+/// `published:desc`.
+pub async fn fetch_advisories(
+    query: &str,
+    sort: Option<&str>,
+    offset: usize,
+    limit: usize,
+    token: Option<&str>,
+) -> Result<PaginatedResults<AdvisorySummary>, ApiError> {
+    let mut url = format!("/api/v3/advisory?offset={offset}&limit={limit}&total=true");
+    if !query.is_empty() {
+        let encoded: String = js_sys::encode_uri_component(query).into();
+        url.push_str(&format!("&q={encoded}"));
+    }
+    if let Some(sort) = sort {
+        let encoded: String = js_sys::encode_uri_component(sort).into();
+        url.push_str(&format!("&sort={encoded}"));
+    }
+    fetch_json(&url, token).await
+}
+
 pub async fn fetch_advisory(id: &str, token: Option<&str>) -> Result<AdvisoryDetails, ApiError> {
     let url = format!("/api/v3/advisory/urn:uuid:{id}");
+    fetch_json(&url, token).await
+}
+
+/// Fetch the source document of an advisory, as stored at ingestion time.
+pub async fn fetch_advisory_document(id: &str, token: Option<&str>) -> Result<String, ApiError> {
+    let url = format!("/api/v3/advisory/urn:uuid:{id}/download");
+    send(Request::get(&url), None, token)
+        .await?
+        .text()
+        .await
+        .map_err(|e| ApiError::Deserialize(e.to_string()))
+}
+
+/// Fetch a page of the statuses an advisory states for a vulnerability, about one kind of
+/// subject, with the total.
+pub async fn fetch_advisory_statements(
+    advisory_id: &str,
+    vulnerability: &str,
+    kind: StatementKind,
+    offset: usize,
+    limit: usize,
+    token: Option<&str>,
+) -> Result<PaginatedResults<AdvisoryStatement>, ApiError> {
+    let vulnerability: String = js_sys::encode_uri_component(vulnerability).into();
+    let url = format!(
+        "/api/v3/correlation/advisory/{advisory_id}/statement?kind={}&vulnerability={vulnerability}&offset={offset}&limit={limit}&total=true",
+        kind.as_str()
+    );
     fetch_json(&url, token).await
 }
 

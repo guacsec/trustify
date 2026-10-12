@@ -1072,6 +1072,111 @@ paths:
           description: The user did not provide valid authentication credentials
         '403':
           description: The user lacks the required permission
+  /api/v3/correlation/advisory/{id}/statement:
+    get:
+      tags:
+      - correlation
+      summary: List the statuses an advisory states, about one kind of subject.
+      description: |-
+        These are the facts as stored when the advisory was ingested, which correlation matches SBOMs
+        against. An unknown advisory has no statements.
+      operationId: listAdvisoryStatements
+      parameters:
+      - name: id
+        in: path
+        description: The ID of the advisory
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: kind
+        in: query
+        description: The kind of subject of the statements.
+        required: true
+        schema:
+          type: string
+          description: The kind of subject an advisory statement is about.
+          enum:
+          - purl
+          - cpe
+          - product
+      - name: vulnerability
+        in: query
+        description: Only the statements for this vulnerability, e.g. `CVE-2024-1234`.
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+      - name: offset
+        in: query
+        description: |-
+          The first item to return, skipping all that come before it.
+
+          NOTE: The order of items is defined by the API being called.
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: limit
+        in: query
+        description: |-
+          The maximum number of entries to return.
+
+          Zero means: return no items (the total count is still computed if requested).
+        required: false
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - name: total
+        in: query
+        description: Whether to compute and return the total count of matching items.
+        required: false
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: The statements
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      description: A status an advisory states for a vulnerability, as stored when the advisory was ingested.
+                      required:
+                      - vulnerability_id
+                      - status
+                      - subject
+                      - range
+                      properties:
+                        range:
+                          $ref: '#/components/schemas/MatchedRange'
+                          description: The versions the statement applies to. Unbounded when it applies to all versions.
+                        status:
+                          type: string
+                          description: The stated status (slug), e.g. `affected`, `fixed` or `first_fixed`.
+                        subject:
+                          $ref: '#/components/schemas/StatementSubject'
+                        vulnerability_id:
+                          type: string
+                  total:
+                    type:
+                    - integer
+                    - 'null'
+                    format: int64
+                    minimum: 0
+        '401':
+          description: The user was not authenticated
+        '403':
+          description: The user authenticated, but not authorized for this operation
   /api/v3/correlation/option:
     get:
       tags:
@@ -9107,6 +9212,60 @@ components:
       enum:
       - waiting
       - running
+    StatementSubject:
+      oneOf:
+      - type: object
+        description: A package, by its PURL without a version, e.g. `pkg:rpm/redhat/bind`.
+        required:
+        - purl
+        - kind
+        properties:
+          kind:
+            type: string
+            enum:
+            - purl
+          purl:
+            type: string
+      - type: object
+        description: A CPE, as CPE 2.3 formatted string.
+        required:
+        - cpe
+        - kind
+        properties:
+          cpe:
+            type: string
+          kind:
+            type: string
+            enum:
+            - cpe
+      - type: object
+        description: A product, optionally narrowed to a package of it.
+        required:
+        - name
+        - kind
+        properties:
+          cpe_key:
+            type:
+            - string
+            - 'null'
+            description: The CPE key of the product version, if any.
+          csaf_product_ids:
+            type: array
+            items:
+              type: string
+            description: The CSAF product IDs the statement originates from.
+          kind:
+            type: string
+            enum:
+            - product
+          name:
+            type: string
+          package:
+            type:
+            - string
+            - 'null'
+            description: The package of the product the statement is about, if any.
+      description: What an advisory statement is about.
     StatusContext:
       oneOf:
       - type: object

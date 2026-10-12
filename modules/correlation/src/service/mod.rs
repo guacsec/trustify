@@ -20,6 +20,7 @@ use trustify_entity::{
 use uuid::Uuid;
 
 pub mod option;
+pub mod statement;
 
 #[cfg(test)]
 mod test;

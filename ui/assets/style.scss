@@ -3,3 +3,18 @@
 
 @use "../node_modules/@patternfly/patternfly/patternfly.scss";
 @use "../node_modules/@patternfly/patternfly/patternfly-addons.scss";
+
+// Text which carries its own line breaks, like CSAF notes.
+.trustify-pre-wrap {
+  white-space: pre-wrap;
+}
+
+// The source document viewer. Monaco needs a fixed height.
+.trustify-source-editor {
+  height: 70vh;
+}
+
+// Long identifiers without break points, like digests.
+.trustify-break-all {
+  word-break: break-all;
+}

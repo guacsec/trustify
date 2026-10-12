@@ -305,3 +305,98 @@ mod option {
         Ok(())
     }
 }
+
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn advisory_statements(ctx: &TrustifyContext) -> anyhow::Result<()> {
+    use crate::model::{
+        AdvisoryStatement, MatchedRange, RangeBound, StatementKind, StatementSubject,
+    };
+    use trustify_common::model::PaginatedResults;
+    use trustify_test_context::call::{CallService, caller};
+
+    let advisory = ctx.ingest_document("csaf/CVE-2024-34502.json").await?;
+    let app = caller(|svc| configure(svc, ctx)).await?;
+
+    let mut result = Vec::new();
+    for kind in StatementKind::ALL {
+        let statements: PaginatedResults<AdvisoryStatement> = app
+            .call_and_read_body_json(
+                TestRequest::get()
+                    .uri(&format!(
+                        "/api/v3/correlation/advisory/{}/statement?kind={}&vulnerability=CVE-2024-34502",
+                        advisory.id,
+                        kind.as_str()
+                    ))
+                    .to_request(),
+            )
+            .await;
+        result.push((kind, statements));
+    }
+
+    let statement = |subject, range| AdvisoryStatement {
+        vulnerability_id: "CVE-2024-34502".into(),
+        status: "affected".into(),
+        subject,
+        range,
+    };
+    let bound = |version: &str, inclusive| {
+        Some(RangeBound {
+            version: version.into(),
+            inclusive,
+        })
+    };
+
+    assert_eq!(
+        result,
+        vec![
+            (
+                StatementKind::Purl,
+                PaginatedResults {
+                    items: vec![statement(
+                        StatementSubject::Purl {
+                            purl: "pkg:rpm/redhat/mediawiki".into(),
+                        },
+                        // a versionless PURL is stored with an empty version
+                        MatchedRange {
+                            scheme: "generic".into(),
+                            low: bound("", true),
+                            high: bound("", true),
+                        },
+                    )],
+                    total: None,
+                }
+            ),
+            (
+                StatementKind::Cpe,
+                PaginatedResults {
+                    items: vec![],
+                    total: None,
+                }
+            ),
+            (
+                StatementKind::Product,
+                PaginatedResults {
+                    items: vec![statement(
+                        StatementSubject::Product {
+                            name: "Red Hat OpenShift Container Platform 3.11".into(),
+                            cpe_key: Some("3.11".into()),
+                            package: None,
+                            csaf_product_ids: vec![
+                                "red_hat_openshift_container_platform_3.11:mediawiki".into(),
+                            ],
+                        },
+                        MatchedRange {
+                            scheme: "rpm".into(),
+                            low: bound("3.11.0", true),
+                            high: bound("4.0.0", false),
+                        },
+                    )],
+                    total: None,
+                }
+            ),
+        ]
+    );
+
+    Ok(())
+}
