@@ -1,6 +1,11 @@
 //! The product tree of a CSAF document: its branches and relationships.
 
-use super::{Doc, index::ProductIndex, none, product_ref};
+use super::{
+    Doc,
+    index::ProductIndex,
+    none, product_ref,
+    status::{StatusCategory, StatusCounts, status_counts, status_labels},
+};
 use crate::sort::{ordered, text, use_sort};
 use ::csaf::schema::csaf2_0::schema::{Branch, FullProductNameT, Relationship};
 use patternfly_yew::prelude::*;
@@ -28,6 +33,7 @@ pub fn product_tree_tab(props: &ProductTreeTabProps) -> Html {
             <TableColumn<BranchColumn> label="Category" index={BranchColumn::Category} />
             <TableColumn<BranchColumn> label="Product" index={BranchColumn::Product} />
             <TableColumn<BranchColumn> label="Identifier" index={BranchColumn::Identifier} />
+            <TableColumn<BranchColumn> label="Status" index={BranchColumn::Status} />
         </TreeTableHeader<BranchColumn>>
     };
 
@@ -62,6 +68,7 @@ enum BranchColumn {
     Category,
     Product,
     Identifier,
+    Status,
 }
 
 /// A branch of the product tree, converted once so expanding a node does not copy subtrees.
@@ -91,7 +98,12 @@ struct RelationshipNode {
 }
 
 impl RelationshipNode {
-    fn new(product_id: &str, relationship: &Relationship, index: &ProductIndex) -> Self {
+    fn new(
+        product_id: &str,
+        relationship: &Relationship,
+        index: &ProductIndex,
+        statuses: &StatusCounts,
+    ) -> Self {
         let outgoing = *relationship.product_reference == product_id;
         let other_id = if outgoing {
             relationship.relates_to_product_reference.to_string()
@@ -103,7 +115,7 @@ impl RelationshipNode {
             outgoing,
             other_name: index.get(&other_id).map(|product| product.name.clone()),
             other_id,
-            result: BranchProduct::new(&relationship.full_product_name),
+            result: BranchProduct::new(&relationship.full_product_name, statuses),
         }
     }
 }
@@ -114,18 +126,28 @@ struct BranchProduct {
     name: String,
     /// The PURL, or the CPE.
     identifier: Option<String>,
+    /// How many vulnerabilities state each status category for the product, if any does.
+    statuses: Option<[usize; StatusCategory::ALL.len()]>,
 }
 
 impl BranchNode {
-    fn new(branch: &Branch, by_id: &RelationshipsById, index: &ProductIndex) -> Self {
-        let product = branch.product.as_ref().map(BranchProduct::new);
+    fn new(
+        branch: &Branch,
+        by_id: &RelationshipsById,
+        index: &ProductIndex,
+        statuses: &StatusCounts,
+    ) -> Self {
+        let product = branch
+            .product
+            .as_ref()
+            .map(|product| BranchProduct::new(product, statuses));
         let relationships = product
             .as_ref()
             .and_then(|product| {
                 by_id.get(product.id.as_str()).map(|found| {
                     found
                         .iter()
-                        .map(|r| Rc::new(RelationshipNode::new(&product.id, r, index)))
+                        .map(|r| Rc::new(RelationshipNode::new(&product.id, r, index, statuses)))
                         .collect()
                 })
             })
@@ -142,7 +164,7 @@ impl BranchNode {
                     branches
                         .0
                         .iter()
-                        .map(|b| Rc::new(Self::new(b, by_id, index)))
+                        .map(|b| Rc::new(Self::new(b, by_id, index, statuses)))
                         .collect()
                 })
                 .unwrap_or_default(),
@@ -152,14 +174,25 @@ impl BranchNode {
 }
 
 impl BranchProduct {
-    fn new(product: &FullProductNameT) -> Self {
+    fn new(product: &FullProductNameT, statuses: &StatusCounts) -> Self {
         let helper = product.product_identification_helper.as_ref();
         Self {
             id: product.product_id.to_string(),
+            statuses: statuses.get(product.product_id.as_str()).copied(),
             name: product.name.to_string(),
             identifier: helper
                 .and_then(|helper| helper.purl.as_deref().or(helper.cpe.as_deref()))
                 .cloned(),
+        }
+    }
+}
+
+impl BranchProduct {
+    /// The status labels, if the product is referenced by a status.
+    fn status(&self) -> Html {
+        match &self.statuses {
+            Some(counts) => status_labels(Some(counts)),
+            None => html!(),
         }
     }
 }
@@ -186,6 +219,10 @@ impl TreeNode<BranchColumn> for BranchNode {
                     ..
                 }) => html!(<code>{ identifier }</code>).into(),
                 _ => html!().into(),
+            },
+            BranchColumn::Status => match &self.product {
+                Some(product) => product.status().into(),
+                None => html!().into(),
             },
         }
     }
@@ -238,6 +275,7 @@ impl TreeNode<BranchColumn> for RelationshipNode {
                 Some(identifier) => html!(<code>{ identifier }</code>).into(),
                 None => html!().into(),
             },
+            BranchColumn::Status => self.result.status().into(),
         }
     }
 
@@ -255,6 +293,7 @@ impl BranchTree {
             return Self(Vec::new());
         };
 
+        let statuses = status_counts(doc);
         let mut by_id = RelationshipsById::new();
         for relationship in &tree.relationships {
             by_id
@@ -274,7 +313,7 @@ impl BranchTree {
                     branches
                         .0
                         .iter()
-                        .map(|b| Rc::new(BranchNode::new(b, &by_id, &doc.index)))
+                        .map(|b| Rc::new(BranchNode::new(b, &by_id, &doc.index, &statuses)))
                         .collect()
                 })
                 .unwrap_or_default(),
@@ -480,8 +519,15 @@ mod test {
                     id: "8Base-RHOSE-4.12:bpftool-0:4.18.0-372.109.1.el8_6.aarch64".to_string(),
                     name: "bpftool-0:4.18.0-372.109.1.el8_6.aarch64 as a component of Red Hat OpenShift Container Platform 4.12".to_string(),
                     identifier: None,
+                    // stated as known not affected
+                    statuses: Some([0, 0, 0, 0, 1, 0, 0, 0]),
                 },
             })]
+        );
+        // the component itself has no status
+        assert_eq!(
+            component.product.as_ref().map(|product| product.statuses),
+            Some(None)
         );
 
         // the platform: the product other products relate to

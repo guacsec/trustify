@@ -1,7 +1,9 @@
 //! The product status categories of a CSAF vulnerability.
 
+use super::{Doc, none};
 use ::csaf::schema::csaf2_0::schema::{ProductIdT, ProductStatus, ProductsT};
 use patternfly_yew::prelude::*;
+use std::collections::HashMap;
 use yew::prelude::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,5 +74,50 @@ impl StatusCategory {
     /// A label for this category, with a count.
     pub fn label(self, count: usize) -> Html {
         html!(<Label label={format!("{}: {count}", self.title())} color={self.color()} compact=true />)
+    }
+}
+
+/// For each product, how many vulnerabilities state each status category for it, in the order
+/// of [`StatusCategory::ALL`]. Products without any status are left out.
+pub type StatusCounts = HashMap<String, [usize; StatusCategory::ALL.len()]>;
+
+/// Count the status categories of each product, over all vulnerabilities.
+pub fn status_counts(doc: &Doc) -> StatusCounts {
+    let mut result = StatusCounts::new();
+    for status in doc
+        .csaf
+        .vulnerabilities
+        .iter()
+        .filter_map(|vuln| vuln.product_status.as_ref())
+    {
+        for (n, category) in StatusCategory::ALL.into_iter().enumerate() {
+            for id in category.products(status) {
+                result.entry(id.to_string()).or_default()[n] += 1;
+            }
+        }
+    }
+    result
+}
+
+/// Labels for the status categories of a product, with a count when several vulnerabilities
+/// state the same one.
+pub fn status_labels(counts: Option<&[usize; StatusCategory::ALL.len()]>) -> Html {
+    let Some(counts) = counts else {
+        return none();
+    };
+    html! {
+        <Flex space_items={[SpaceItems::Small]}>
+            { for StatusCategory::ALL.into_iter().zip(counts).filter(|(_, count)| **count > 0).map(|(category, count)| {
+                let label = match count {
+                    1 => category.title().to_string(),
+                    count => format!("{} ({count})", category.title()),
+                };
+                html_nested! {
+                    <FlexItem>
+                        <Label {label} color={category.color()} compact=true />
+                    </FlexItem>
+                }
+            }) }
+        </Flex>
     }
 }
