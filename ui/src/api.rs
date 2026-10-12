@@ -50,18 +50,18 @@ async fn fetch_json<T: DeserializeOwned>(url: &str, token: Option<&str>) -> Resu
         .map_err(|e| ApiError::Deserialize(e.to_string()))
 }
 
+/// Fetch a page of SBOMs matching a query, with the total.
 pub async fn fetch_sboms(
     query: &str,
-    offset: u64,
-    limit: u64,
+    offset: usize,
+    limit: usize,
     token: Option<&str>,
 ) -> Result<PaginatedResults<SbomSummary>, ApiError> {
-    let url = if query.is_empty() {
-        format!("/api/v3/sbom?offset={offset}&limit={limit}")
-    } else {
+    let mut url = format!("/api/v3/sbom?offset={offset}&limit={limit}&total=true");
+    if !query.is_empty() {
         let encoded: String = js_sys::encode_uri_component(query).into();
-        format!("/api/v3/sbom?q={encoded}&offset={offset}&limit={limit}")
-    };
+        url.push_str(&format!("&q={encoded}"));
+    }
     fetch_json(&url, token).await
 }
 
