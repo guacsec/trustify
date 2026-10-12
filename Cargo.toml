@@ -40,10 +40,10 @@ actix-cors = "0.7"
 actix-http = "3.3.1"
 actix-tls = "3"
 actix-web = "4.3.1"
-actix-ws = "0.3"
 actix-web-extras = "0.1"
 actix-web-httpauth = "0.8"
 actix-web-static-files = "4.0.1"
+actix-ws = "0.3"
 anyhow = "1.0.72"
 async-compression = "0.4.13"
 async-tar = { version = "0.6", default-features = false, features = ["runtime-tokio"] }
@@ -90,9 +90,9 @@ json-merge-patch = "0.0.1"
 jsonpath-rust = "1.0.1"
 lenient_semver = "0.4.2"
 liblzma = "0.4"
-lzma-rust2 = "0.16.1"
 libz-sys = "*"
 log = "0.4.19"
+lzma-rust2 = "0.16.1"
 moka = "0.12.15"
 native-tls = "0.2"
 num-traits = "0.2"
@@ -100,9 +100,9 @@ oci-client = "0.17.0"
 openid = "0.23.0"
 openssl = "0.10"
 opentelemetry = "0.32"
+opentelemetry-instrumentation-actix-web = "0.24.0"
 opentelemetry-otlp = "0.32"
 opentelemetry_sdk = "0.32"
-opentelemetry-instrumentation-actix-web = "0.24.0"
 osv = { version = "0.3.0", default-features = false, features = [] }
 packageurl = "0.7.1"
 parking_lot = "0.12"
@@ -166,6 +166,8 @@ which = "8"
 wiremock = "0.6"
 zip = "8"
 
+postgresql_commands = { version = "0.20.0", default-features = false, features = ["tokio"] }
+postgresql_embedded = { version = "0.20.0", default-features = false, features = ["theseus", "rustls"] }
 trustify-api = { path = "api" }
 trustify-auth = { path = "common/auth", features = ["actix", "swagger"] }
 trustify-common = { path = "common" }
@@ -188,8 +190,6 @@ trustify-query-derive = {path = "query/query-derive" }
 trustify-server = { path = "server", default-features = false }
 trustify-test-context = { path = "test-context" }
 trustify-ui = { git = "https://github.com/guacsec/trustify-ui.git", branch = "publish/main" }
-postgresql_embedded = { version = "0.20.0", default-features = false, features = ["theseus", "rustls"] }
-postgresql_commands = { version = "0.20.0", default-features = false, features = ["tokio"] }
 
 [patch.crates-io]
 #csaf-walker = { git = "https://github.com/ctron/csaf-walker", rev = "7b6e64dd56e4be79e184b053ef754a42e1496fe0" }
