@@ -655,6 +655,20 @@ impl PurlService {
             .await?;
             if let Some(infos) = per_winner.into_values().next() {
                 statuses_by_vp.insert(winner.versioned_purl.id, infos);
+            } else {
+                let is_synthetic = winner.versioned_purl.id
+                    == Uuid::new_v5(&winner.base.id, winner.versioned_purl.version.as_bytes());
+                if is_synthetic {
+                    let infos = Self::fetch_vulnerability_statuses_by_version(
+                        winner.base.id,
+                        &winner.versioned_purl.version,
+                        connection,
+                    )
+                    .await?;
+                    if !infos.is_empty() {
+                        statuses_by_vp.insert(winner.versioned_purl.id, infos);
+                    }
+                }
             }
         }
 
@@ -757,6 +771,79 @@ impl PurlService {
         }
 
         Ok(statuses_by_base)
+    }
+
+    /// Resolves vulnerability statuses for a synthetic winner (no real `versioned_purl` row).
+    ///
+    /// Queries `purl_status` directly by `base_purl_id` and matches the version string as a
+    /// literal against `version_range`, bypassing the `versioned_purl` JOIN that fails for
+    /// advisory-synthesized winners.
+    #[instrument(skip_all, err(level = tracing::Level::INFO))]
+    async fn fetch_vulnerability_statuses_by_version<C: ConnectionTrait>(
+        base_purl_id: Uuid,
+        version: &str,
+        connection: &C,
+    ) -> Result<Vec<StatusInfo>, Error> {
+        let all_statuses = purl_status::Entity::find()
+            .columns([
+                version_range::Column::Id,
+                version_range::Column::LowVersion,
+                version_range::Column::LowInclusive,
+                version_range::Column::HighVersion,
+                version_range::Column::HighInclusive,
+            ])
+            .left_join(version_range::Entity)
+            .filter(purl_status::Column::BasePurlId.eq(base_purl_id))
+            .filter(SimpleExpr::FunctionCall(
+                Func::cust(trustify_common::db::VersionMatches)
+                    .arg(Expr::value(version))
+                    .arg(Expr::col((version_range::Entity, Asterisk))),
+            ))
+            .all(connection)
+            .instrument(info_span!("querying purl statuses for synthetic winner"))
+            .await?;
+
+        let vulns = all_statuses
+            .load_one(vulnerability::Entity, connection)
+            .await?;
+        let advisories_loaded = all_statuses.load_one(advisory::Entity, connection).await?;
+        let status_models = all_statuses.load_one(status::Entity, connection).await?;
+        let status_slug_map: HashMap<_, _> = status_models
+            .into_iter()
+            .flatten()
+            .map(|s| (s.id, s.slug))
+            .collect();
+        let remediations = all_statuses
+            .load_many_to_many(
+                remediation::Entity,
+                remediation_purl_status::Entity,
+                connection,
+            )
+            .await?;
+
+        let mut infos = Vec::new();
+        for (((vuln, advisory), ps), rems) in vulns
+            .into_iter()
+            .zip(advisories_loaded)
+            .zip(all_statuses)
+            .zip(remediations)
+        {
+            if let (Some(v), Some(advisory)) = (vuln, advisory) {
+                let slug = status_slug_map
+                    .get(&ps.status_id)
+                    .cloned()
+                    .unwrap_or_else(|| "unknown".to_string());
+                infos.push(StatusInfo {
+                    vuln_id: v.id,
+                    status_slug: slug,
+                    remediations: rems,
+                    advisory_date: advisory.modified.or(advisory.published),
+                    advisory_id: Some(advisory.identifier.clone()),
+                });
+            }
+        }
+
+        Ok(infos)
     }
 
     /// Builds a single recommendation entry from a winner and its vulnerability statuses.
@@ -876,7 +963,8 @@ impl PurlService {
         // In advisory-only deployments without vendor SBOMs, these purl_status rows are the
         // only source of vendor-rebuilt version strings. Using a deterministic UUID (v5 of
         // base_purl_id + version) lets the rest of the pipeline treat them uniformly;
-        // fetch_vulnerability_statuses simply returns no rows for them, which is acceptable.
+        // recommend_purls() detects these synthetic winners and uses a fallback query
+        // (fetch_vulnerability_statuses_by_version) to resolve their vulnerability metadata.
         Self::extend_with_advisory_versions(
             base_purls.iter().map(|bp| bp.id),
             &mut by_base,
