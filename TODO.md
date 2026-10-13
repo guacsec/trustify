@@ -61,3 +61,19 @@
 - [ ] Assertion contexts (`assertion_context`) are only stored for advisories ingested after
   `m0002510`. Existing advisories need to be re-ingested to get the product context of their
   statements.
+- [ ] OSV `upstream`: distro records (e.g. Ubuntu USN, Debian DSA/DLA) list their CVEs in
+  `upstream`, not in `aliases`. Only `aliases` are read, so the statements of such a record are
+  reported under its own ID. Decide whether a distro record's statements also count for its
+  upstream CVEs (`upstream` is transitive, not symmetric).
+- [ ] OSV distro ecosystems: the release suffix of the ecosystem (`Debian:12`, `Alpine:v3.18`,
+  `Ubuntu:22.04:LTS`, `Red Hat:…`, `SUSE:…`) is dropped. It should become the assertion context, so
+  that a statement only applies to the package of that release (cf. the `distro=` qualifier). Their
+  `ECOSYSTEM` ranges fall back to the listed `versions` (generic, exact) instead of the rpm or deb
+  version schemes.
+- [ ] OSV remediation: the version fixing an interval (`fixed` event) is not stored, as it isn't a
+  status. Offer it as a "fixed in" remediation of the `affected` evidence (as OSV.dev and
+  Dependency-Track do), e.g. through `remediation_purl_status`.
+- [ ] OSV advisories ingested before the OSV loader only stored the affected set still have exact
+  `fixed` statuses, only the first interval of a range, and no vulnerability without a CVE alias.
+  They need to be re-ingested (or a data migration).
+- [ ] UI: the OSV view only parses JSON, records in YAML only have the Source tab.
