@@ -101,6 +101,7 @@ mod m0002540_add_csaf_statuses;
 mod m0002550_fixed_is_first_fixed;
 mod m0002560_purl_status_effective;
 mod m0002570_add_custom_version_scheme;
+mod m0002580_version_matches_wildcard;
 
 pub trait MigratorExt: Send {
     fn build_migrations() -> Migrations;
@@ -217,6 +218,7 @@ impl MigratorExt for Migrator {
             .normal(m0002550_fixed_is_first_fixed::Migration)
             .normal(m0002560_purl_status_effective::Migration)
             .normal(m0002570_add_custom_version_scheme::Migration)
+            .normal(m0002580_version_matches_wildcard::Migration)
     }
 }
 
