@@ -464,6 +464,53 @@ async fn get_recommendations_multi_stream(ctx: &TrustifyContext) -> Result<(), a
     Ok(())
 }
 
+/// Verifies that /recommend returns vulnerability metadata for advisory-synthesized winners
+/// (no real versioned_purl row in the database).
+#[test_context(TrustifyContext)]
+#[test(actix_web::test)]
+async fn get_recommendations_advisory_only(ctx: &TrustifyContext) -> Result<(), anyhow::Error> {
+    // Given a VEX advisory that creates a vendor rebuild versioned_purl
+    ctx.ingest_json(minimal_csaf_vex(
+        "TEST-ADVISORY-ONLY-001",
+        "Test Product Advisory Only",
+        &[(
+            "advlib-1.0.0.redhat-00001",
+            "pkg:maven/com.example/advlib@1.0.0.redhat-00001",
+        )],
+        &[("CVE-2099-20001", "fixed", &[0])],
+    ))
+    .await?;
+
+    // And the real versioned_purl row is removed, forcing the synthetic path
+    use sea_orm::ConnectionTrait;
+    ctx.db
+        .execute_unprepared(
+            "DELETE FROM versioned_purl WHERE version = '1.0.0.redhat-00001' \
+             AND base_purl_id = (SELECT id FROM base_purl WHERE name = 'advlib')",
+        )
+        .await?;
+
+    // When requesting a recommendation for the base version
+    let app = caller_with(ctx, vendor_config(), PaginationCache::for_test()).await?;
+    let recommendations = recommend(&app, &["pkg:maven/com.example/advlib@1.0.0"]).await;
+
+    log::info!("{recommendations:#?}");
+
+    // Then the recommendation includes the vendor rebuild AND vulnerability metadata
+    let rec = &recommendations["recommendations"]["pkg:maven/com.example/advlib@1.0.0"];
+    assert_eq!(rec.as_array().unwrap().len(), 1);
+    assert_eq!(
+        rec[0]["package"],
+        "pkg:maven/com.example/advlib@1.0.0.redhat-00001"
+    );
+    assert!(
+        !rec[0]["vulnerabilities"].as_array().unwrap().is_empty(),
+        "advisory-only winners should have vulnerability metadata"
+    );
+
+    Ok(())
+}
+
 /// Verifies that PURLs without a version produce no recommendations.
 #[test_context(TrustifyContext)]
 #[test(actix_web::test)]
