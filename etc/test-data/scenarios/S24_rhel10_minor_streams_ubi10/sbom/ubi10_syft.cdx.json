@@ -1,0 +1,134 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "serialNumber": "urn:uuid:5a9e045d-08c4-4b33-9160-df631d5b7221",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-05T11:07:49+02:00",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "author": "anchore",
+          "name": "syft",
+          "version": "1.54.0"
+        }
+      ]
+    },
+    "component": {
+      "bom-ref": "ea43643afcb8ff02",
+      "type": "container",
+      "name": "ghcr.io/guacsec/trustd",
+      "version": "sha256:30a9c0e97aec1a7e73d76e8e7c64c1c67324d2da7452ec61fac21e5fa49cd2c3"
+    }
+  },
+  "components": [
+    {
+      "bom-ref": "pkg:rpm/redhat/glibc@2.39-128.el10_2?arch=x86_64&distro=rhel-10.2&package-id=7363ec55a4085ae1&upstream=glibc-2.39-128.el10_2.src.rpm",
+      "type": "library",
+      "publisher": "Red Hat, Inc.",
+      "name": "glibc",
+      "version": "2.39-128.el10_2",
+      "licenses": [
+        {
+          "expression": "LGPL-2.1-or-later AND SunPro AND LGPL-2.1-or-later WITH GCC-exception-2.0 AND BSD-3-Clause AND GPL-2.0-or-later AND LGPL-2.1-or-later WITH GNU-compiler-exception AND GPL-2.0-only AND ISC AND LicenseRef-Fedora-Public-Domain AND HPND AND CMU-Mach AND LGPL-2.1-only AND LGPL-2.0-or-later AND Unicode-DFS-2015 AND GFDL-1.1-or-later AND GPL-1.0-or-later AND FSFUL AND MIT AND Inner-Net-2.0 AND X11 AND GPL-2.0-or-later WITH GCC-exception-2.0 AND GFDL-1.3-only AND GFDL-1.1-only AND GPL-3.0-or-later AND GPL-3.0-or-later WITH Autoconf-exception-generic-3.0 AND GPL-3.0-or-later WITH Texinfo-exception"
+        }
+      ],
+      "cpe": "cpe:2.3:a:redhat:glibc:2.39-128.el10_2:*:*:*:*:*:*:*",
+      "purl": "pkg:rpm/redhat/glibc@2.39-128.el10_2?arch=x86_64&distro=rhel-10.2&upstream=glibc-2.39-128.el10_2.src.rpm"
+    },
+    {
+      "bom-ref": "pkg:rpm/redhat/krb5-libs@1.21.3-10.el10_2?arch=x86_64&distro=rhel-10.2&package-id=e8e4e4186e95c503&upstream=krb5-1.21.3-10.el10_2.src.rpm",
+      "type": "library",
+      "publisher": "Red Hat, Inc.",
+      "name": "krb5-libs",
+      "version": "1.21.3-10.el10_2",
+      "licenses": [
+        {
+          "expression": "Brian-Gladman-2-Clause AND BSD-2-Clause AND (BSD-2-Clause OR GPL-2.0-or-later) AND BSD-2-Clause-first-lines AND BSD-3-Clause AND BSD-4-Clause AND CMU-Mach-nodoc AND FSFULLRWD AND HPND AND HPND-export2-US AND HPND-export-US AND HPND-export-US-acknowledgement AND HPND-export-US-modify AND ISC AND MIT AND MIT-CMU AND OLDAP-2.8 AND OpenVision"
+        }
+      ],
+      "cpe": "cpe:2.3:a:krb5-libs:krb5-libs:1.21.3-10.el10_2:*:*:*:*:*:*:*",
+      "purl": "pkg:rpm/redhat/krb5-libs@1.21.3-10.el10_2?arch=x86_64&distro=rhel-10.2&upstream=krb5-1.21.3-10.el10_2.src.rpm"
+    },
+    {
+      "bom-ref": "pkg:rpm/redhat/libxml2@2.12.5-10.el10_2.4?arch=x86_64&distro=rhel-10.2&package-id=ef3a16f545e37aec&upstream=libxml2-2.12.5-10.el10_2.4.src.rpm",
+      "type": "library",
+      "publisher": "Red Hat, Inc.",
+      "name": "libxml2",
+      "version": "2.12.5-10.el10_2.4",
+      "licenses": [
+        {
+          "expression": "MIT AND ISC-Veillard AND W3C"
+        }
+      ],
+      "cpe": "cpe:2.3:a:libxml2:libxml2:2.12.5-10.el10_2.4:*:*:*:*:*:*:*",
+      "purl": "pkg:rpm/redhat/libxml2@2.12.5-10.el10_2.4?arch=x86_64&distro=rhel-10.2&upstream=libxml2-2.12.5-10.el10_2.4.src.rpm"
+    },
+    {
+      "bom-ref": "pkg:rpm/redhat/openssl-libs@3.5.8-1.el10_2?arch=x86_64&distro=rhel-10.2&epoch=1&package-id=7fa59f45815a51f1&upstream=openssl-3.5.8-1.el10_2.src.rpm",
+      "type": "library",
+      "publisher": "Red Hat, Inc.",
+      "name": "openssl-libs",
+      "version": "1:3.5.8-1.el10_2",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ],
+      "cpe": "cpe:2.3:a:openssl-libs:openssl-libs:1\\:3.5.8-1.el10_2:*:*:*:*:*:*:*",
+      "purl": "pkg:rpm/redhat/openssl-libs@3.5.8-1.el10_2?arch=x86_64&distro=rhel-10.2&epoch=1&upstream=openssl-3.5.8-1.el10_2.src.rpm"
+    },
+    {
+      "bom-ref": "os:rhel@10.2",
+      "type": "operating-system",
+      "name": "rhel",
+      "version": "10.2",
+      "description": "Red Hat Enterprise Linux 10.2 (Coughlan)",
+      "cpe": "cpe:2.3:o:redhat:enterprise_linux:10.2:*:*:*:*:*:*:*",
+      "swid": {
+        "tagId": "rhel",
+        "name": "rhel",
+        "version": "10.2"
+      },
+      "externalReferences": [
+        {
+          "url": "https://issues.redhat.com/",
+          "type": "issue-tracker"
+        },
+        {
+          "url": "https://www.redhat.com/",
+          "type": "website"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:rpm/redhat/glibc@2.39-128.el10_2?arch=x86_64&distro=rhel-10.2&package-id=7363ec55a4085ae1&upstream=glibc-2.39-128.el10_2.src.rpm",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:rpm/redhat/krb5-libs@1.21.3-10.el10_2?arch=x86_64&distro=rhel-10.2&package-id=e8e4e4186e95c503&upstream=krb5-1.21.3-10.el10_2.src.rpm",
+      "dependsOn": [
+        "pkg:rpm/redhat/glibc@2.39-128.el10_2?arch=x86_64&distro=rhel-10.2&package-id=7363ec55a4085ae1&upstream=glibc-2.39-128.el10_2.src.rpm",
+        "pkg:rpm/redhat/openssl-libs@3.5.8-1.el10_2?arch=x86_64&distro=rhel-10.2&epoch=1&package-id=7fa59f45815a51f1&upstream=openssl-3.5.8-1.el10_2.src.rpm"
+      ]
+    },
+    {
+      "ref": "pkg:rpm/redhat/libxml2@2.12.5-10.el10_2.4?arch=x86_64&distro=rhel-10.2&package-id=ef3a16f545e37aec&upstream=libxml2-2.12.5-10.el10_2.4.src.rpm",
+      "dependsOn": [
+        "pkg:rpm/redhat/glibc@2.39-128.el10_2?arch=x86_64&distro=rhel-10.2&package-id=7363ec55a4085ae1&upstream=glibc-2.39-128.el10_2.src.rpm"
+      ]
+    },
+    {
+      "ref": "pkg:rpm/redhat/openssl-libs@3.5.8-1.el10_2?arch=x86_64&distro=rhel-10.2&epoch=1&package-id=7fa59f45815a51f1&upstream=openssl-3.5.8-1.el10_2.src.rpm",
+      "dependsOn": [
+        "pkg:rpm/redhat/glibc@2.39-128.el10_2?arch=x86_64&distro=rhel-10.2&package-id=7363ec55a4085ae1&upstream=glibc-2.39-128.el10_2.src.rpm"
+      ]
+    }
+  ]
+}

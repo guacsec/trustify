@@ -24,7 +24,9 @@
   - an RPM can't tell whether its box is on the mainline or on extended support of its minor: an
     EUS box's build of a minor without a statement of its own is judged by the mainline;
   - an SBOM's own minor CPE (e.g. syft's `enterprise_linux:10.2`) still differs from statements of
-    another minor (`10.1`), only the RPM's product matches them.
+    another minor (`10.1`), only the RPM's product matches them. In syft's SBOMs, the
+    operating-system component is no context of the RPMs, so it doesn't interfere there (scenario
+    S24).
 - [ ] Correlation, verdicts: Fixed wins over Affected regardless of confidence. With
   `fixed_is_first_fixed`, a publisher's fix (read as fixed from that version on) outranks a stated
   `known_affected` of a later version in the same product, i.e. a regression. Reading a fix as
