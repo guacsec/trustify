@@ -44,6 +44,10 @@ pub struct PurlDetails {
     pub head: PurlHead,
     pub version: VersionedPurlHead,
     pub base: BasePurlHead,
+    /// The advisories with a status of the PURL.
+    ///
+    /// Deprecated: use the correlation engine, `GET /v3/correlation/query`.
+    #[deprecated = "Use the correlation engine: GET /v3/correlation/query"]
     pub advisories: Vec<PurlAdvisory>,
     pub licenses: Vec<LicenseInfo>,
     #[deprecated]

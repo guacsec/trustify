@@ -1,3 +1,5 @@
+// tests of the deprecated correlation results of the fundamental APIs
+#![allow(deprecated)]
 use super::{twice, update_mark_fixed_again, update_unmark_fixed};
 use test_context::test_context;
 use test_log::test;
